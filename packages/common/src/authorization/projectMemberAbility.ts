@@ -233,6 +233,9 @@ export const projectMemberAbilities: Record<
         can('view', 'AiAgentDocument', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'AiAgentSkill', {
+            projectUuid: member.projectUuid,
+        });
         can('create', 'AiAgentThread', {
             projectUuid: member.projectUuid,
         });
@@ -378,6 +381,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'AiAgentDocument', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'AiAgentSkill', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'ContentVerification', {

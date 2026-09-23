@@ -79,6 +79,7 @@ const BASE_ROLE_SCOPES = {
         'view:AiAgent',
         'view:OrganizationAiAgent',
         'view:AiAgentDocument',
+        'view:AiAgentSkill',
         'create:AiAgentThread',
         'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
         'view:DataApp@self', // Own personal apps (created before demotion / under older rules)
@@ -173,6 +174,7 @@ const BASE_ROLE_SCOPES = {
         'manage:AiAgent',
         'manage:OrganizationAiAgent',
         'manage:AiAgentDocument',
+        'manage:AiAgentSkill',
         'manage:AiAgentThread@self', // User's own threads
         'manage:ContentVerification',
         // Edit lock for verified charts/dashboards — not on editor so
@@ -317,6 +319,8 @@ export const TRAINING_PROJECT_EXCLUDED_SCOPES: readonly string[] = [
     'manage:AiAgentThread',
     'view:AiAgentDocument',
     'manage:AiAgentDocument',
+    'view:AiAgentSkill',
+    'manage:AiAgentSkill',
     'view:Analytics',
 ];
 
@@ -370,11 +374,13 @@ export const getNonEnterpriseScopesForRole = (
         'view:AiAgent',
         'view:OrganizationAiAgent',
         'view:AiAgentDocument',
+        'view:AiAgentSkill',
         'view:AiAgentThread',
         'create:AiAgentThread',
         'manage:AiAgent',
         'manage:OrganizationAiAgent',
         'manage:AiAgentDocument',
+        'manage:AiAgentSkill',
         'manage:AiAgentThread',
         'view:ContentAsCode',
         'create:ContentAsCode',
