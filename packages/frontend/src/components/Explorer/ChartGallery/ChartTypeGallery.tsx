@@ -530,6 +530,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         chartTypesEnabled ? projectUuid : undefined,
         debouncedSearch,
         PICKER_SORT,
+        6,
     );
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
     const canFork = useCanCreateDataApp(projectUuid);

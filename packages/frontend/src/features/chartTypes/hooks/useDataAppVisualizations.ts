@@ -40,12 +40,13 @@ export const useDataAppVisualizations = (
     projectUuid: string | undefined,
     search: string = '',
     sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
+    pageSize: number = FETCH_SIZE,
 ) =>
     useInfiniteQuery<DataAppVizsPage, ApiError>({
         queryKey: [
             'data-app-vizs',
             projectUuid,
-            FETCH_SIZE,
+            pageSize,
             search,
             sort.sortBy,
             sort.sortDirection,
@@ -54,7 +55,7 @@ export const useDataAppVisualizations = (
             getDataAppVisualizations(
                 projectUuid!,
                 pageParam as number,
-                FETCH_SIZE,
+                pageSize,
                 search,
                 sort,
             ),

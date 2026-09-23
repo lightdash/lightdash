@@ -1207,6 +1207,7 @@ describe('ExplorerChartTypeGallery', () => {
             undefined,
             '',
             { sortBy: 'name', sortDirection: 'asc' },
+            6,
         );
         expect(
             screen.queryByRole('button', { name: 'Event pulse' }),
