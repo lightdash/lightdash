@@ -1240,6 +1240,55 @@ describe('M3 concurrent index builds under contention and crash recovery (SPK-23
         expect(invalidIndexes.rows).toEqual([]);
     }, 60000);
 
+    test('a database default lock_timeout does not park the concurrent index build (F1-r2)', async () => {
+        const m3 = await loadMigration(
+            '20260923200200_add_warehouse_connection_bindings',
+        );
+        await m3.down(database);
+        await admin.raw(`ALTER DATABASE ?? SET lock_timeout = '5s'`, [
+            databaseName,
+        ]);
+        const freshSessions = knex({
+            client: 'pg',
+            connection: { ...connectionSettings(), database: databaseName },
+            pool: { min: 0, max: 4 },
+        });
+        try {
+            const sessionDefault = await freshSessions.raw<{
+                rows: { lock_timeout: string }[];
+            }>('SHOW lock_timeout');
+            expect(sessionDefault.rows).toEqual([{ lock_timeout: '5s' }]);
+
+            const blockerConnection = await blocker.client.acquireConnection();
+            await blocker.raw('BEGIN').connection(blockerConnection);
+            const blockerSleep = blocker
+                .raw('SELECT pg_sleep(8)')
+                .connection(blockerConnection);
+
+            const upPromise = m3.up(freshSessions);
+
+            await blockerSleep;
+            await blocker.raw('COMMIT').connection(blockerConnection);
+            await blocker.client.releaseConnection(blockerConnection);
+
+            await expect(upPromise).resolves.toBeUndefined();
+        } finally {
+            await freshSessions.destroy();
+            await admin.raw(`ALTER DATABASE ?? RESET lock_timeout`, [
+                databaseName,
+            ]);
+        }
+
+        const invalidIndexes = await database.raw<{
+            rows: { relname: string }[];
+        }>(
+            `SELECT c.relname FROM pg_class c
+             JOIN pg_index i ON i.indexrelid = c.oid
+             WHERE NOT i.indisvalid AND c.relname LIKE '%warehouse_connection_uuid_idx'`,
+        );
+        expect(invalidIndexes.rows).toEqual([]);
+    }, 60000);
+
     test('recovers an index left invalid by an interrupted build (F3)', async () => {
         const m3 = await loadMigration(
             '20260923200200_add_warehouse_connection_bindings',
