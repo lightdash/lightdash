@@ -508,6 +508,51 @@ export class AiAgentSkillService extends BaseService {
         };
     }
 
+    /**
+     * What an MCP caller may read. With an agent selected, that agent's bound
+     * skills for anyone who can use it; otherwise the organization catalogue,
+     * empty when the caller lacks the view scope. Never throws: skills are
+     * optional context for MCP, not a gate on the connection.
+     */
+    async listMcpSkills(
+        account: RegisteredAccount,
+        args: { agentUuid: string | null },
+    ): Promise<AiAgentSkill[]> {
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid || !(await this.isEnabled(account))) return [];
+        const skills = await (async () => {
+            if (args.agentUuid) {
+                await this.aiAgentService.getAgent(
+                    toSessionUser(account),
+                    args.agentUuid,
+                );
+                return this.aiAgentSkillModel.findBoundToAgent(args.agentUuid);
+            }
+            if (
+                !this.canView(account, { organizationUuid, projectUuid: null })
+            ) {
+                return [];
+            }
+            const summaries =
+                await this.aiAgentSkillModel.findAllForOrganization({
+                    organizationUuid,
+                    projectUuid: null,
+                    includeDeleted: false,
+                });
+            const loaded = await Promise.all(
+                summaries.map((summary) =>
+                    this.aiAgentSkillModel.find(summary.uuid),
+                ),
+            );
+            return loaded.filter(
+                (skill): skill is AiAgentSkill => skill !== undefined,
+            );
+        })();
+        return skills.filter((skill) =>
+            skill.parsed.frontmatter.availability.includes('mcp'),
+        );
+    }
+
     /** Authoritative: binds the listed skills and unbinds the rest. */
     async setAgentSkills(
         account: RegisteredAccount,
