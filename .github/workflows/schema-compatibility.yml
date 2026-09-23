@@ -1,0 +1,165 @@
+name: Schema compatibility
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PGHOST: localhost
+  PGPORT: 5432
+  PGUSER: postgres
+  PGPASSWORD: password
+  LIGHTDASH_SECRET: schema-compatibility-secret
+  S3_ENDPOINT: http://localhost:9000
+  S3_BUCKET: lightdash
+  S3_REGION: us-east-1
+  S3_ACCESS_KEY: minioadmin
+  S3_SECRET_KEY: minioadmin
+  S3_FORCE_PATH_STYLE: 'true'
+
+jobs:
+  changes:
+    name: Detect schema changes
+    runs-on: ubuntu-latest
+    outputs:
+      schema: ${{ steps.filter.outputs.schema == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
+        id: filter
+        with:
+          token: ${{ github.token }}
+          filters: |
+            schema:
+              - 'packages/backend/src/database/migrations/**'
+              - 'packages/backend/src/ee/database/migrations/**'
+              - 'packages/backend/src/database/migrationFiles.ts'
+              - 'packages/backend/src/database/columnNameReuseAllowList.json'
+              - 'packages/backend/src/testing/migratedDatabase.ts'
+              - 'packages/backend/src/scripts/check-column-names/**'
+              - 'packages/backend/vitest.config.migrations.integration.ts'
+              - 'scripts/n-minus-one.sh'
+              - '.github/workflows/schema-compatibility.yml'
+
+  column-names:
+    name: New column names
+    needs: changes
+    if: needs.changes.outputs.schema == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          cache: true
+          install: false
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      - name: Build common and warehouses
+        run: pnpm common-build && pnpm warehouses-build
+      - name: Check new column names against the base schema
+        run: pnpm -F backend check:column-names --base "origin/${{ github.base_ref || 'main' }}"
+        env:
+          PGDATABASE: postgres
+
+  real-schema:
+    name: Real-schema tests and previous release
+    needs: changes
+    if: needs.changes.outputs.schema == 'true'
+    runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 60
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+            -e MINIO_DEFAULT_BUCKETS=lightdash \
+            -v "$GITHUB_WORKSPACE/docker/init-minio.sh:/init-minio.sh" \
+            --entrypoint /init-minio.sh coollabsio/minio:latest
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:9000/minio/health/ready && break
+            sleep 1
+          done
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12.x'
+      - name: Install dbt 1.12
+        run: |
+          python -m venv "$RUNNER_TEMP/dbt1.12"
+          "$RUNNER_TEMP/dbt1.12/bin/pip" install "dbt-core==1.12.0" "dbt-postgres~=1.10.0"
+          sudo ln -sf "$RUNNER_TEMP/dbt1.12/bin/dbt" /usr/local/bin/dbt1.12
+          dbt1.12 --version
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          cache: true
+          install: false
+      - name: Install packages
+        run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+      - name: Build common and warehouses
+        run: pnpm common-build && pnpm warehouses-build
+      - name: Migrate and seed with this pull request
+        run: ./scripts/n-minus-one.sh --prepare-only --database lightdash
+        env:
+          LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}
+      - name: Real-schema integration tests
+        working-directory: packages/backend
+        run: pnpm exec vitest run --config vitest.config.migrations.integration.ts
+        env:
+          PGDATABASE: lightdash
+          PGCONNECTIONURI: postgres://postgres:password@localhost:5432/lightdash
+      - name: Find the previous release
+        id: previous
+        run: echo "ref=$(git describe --tags --abbrev=0 --match '[0-9]*.[0-9]*.[0-9]*' "origin/${{ github.base_ref || 'main' }}")" >> "$GITHUB_OUTPUT"
+      - name: Previous release against this schema
+        run: ./scripts/n-minus-one.sh --previous-ref "${{ steps.previous.outputs.ref }}" --previous-dir "$RUNNER_TEMP/previous-release"
+        env:
+          LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}

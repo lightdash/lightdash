@@ -54,3 +54,13 @@ A declaration is active only for a Git range that adds its ID. It expires after 
 ## Runtime rollback granularity
 
 The lease runtime applies each migration as a separate Knex batch rather than grouping a deploy into one batch. Consequently, development tooling such as `knex migrate:rollback` unwinds one migration per invocation, not the whole deploy. During an incident, expect this per-migration unwind granularity; production recovery remains forward-only.
+
+## Real-schema tests and schema compatibility
+
+Test schema behaviour on the real schema, not on hand-built tables or `knex-mock-client`.
+
+- `createMigratedDatabase()` (`src/testing/migratedDatabase.ts`) returns a fresh database with every core and EE migration applied, plus the Graphile Worker schema. The first call migrates a template database with `pnpm run migrate`; later calls clone it, so each test file gets its own database in about a second. Call `destroy()` in `afterAll`.
+- Name real-schema test files `*.migration.integration.ts` under a `__tests__` folder. They run with `vitest.config.migrations.integration.ts` and need `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` and `PGDATABASE`.
+- `pnpm -F backend check:column-names --base origin/main` fails when a migration adds a column to an existing table under a name that some table in the base schema already has. The previous release can then read that name as ambiguous in a join. Rename the column, or add `{ "column": "table.column", "reason": "..." }` to `src/database/columnNameReuseAllowList.json`.
+- `scripts/n-minus-one.sh --previous-ref <tag>` migrates and seeds a database with this checkout, then runs the previous release's model integration tests and E2E API smoke tests against it.
+- The `Schema compatibility` workflow runs all three for every pull request that changes migrations.
