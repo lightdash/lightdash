@@ -1,3 +1,10 @@
+# [2.311.0](https://github.com/lightdash/lightdash/compare/2.310.0...2.311.0) (2026-09-23)
+
+
+### Features
+
+* offer library chart upgrades in general config ([#29793](https://github.com/lightdash/lightdash/issues/29793)) ([d515782](https://github.com/lightdash/lightdash/commit/d515782f8c32cdfccb41719fe9b9898ab5ce7236))
+
 # [2.310.0](https://github.com/lightdash/lightdash/compare/2.309.1...2.310.0) (2026-09-23)
 
 
