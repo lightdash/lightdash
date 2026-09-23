@@ -1341,7 +1341,8 @@ export const APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE =
 // AI analysis pushed into a running app (mirrors packages/query-sdk/src/insights.ts).
 // Host → iframe with the current analysis, in reply to a request and on change.
 export const APP_SDK_INSIGHTS_MESSAGE = 'lightdash:sdk:insights';
-// Iframe → host once the SDK's listener is live (and on sdk:ready).
+// Iframe → host once the SDK's listener is live (and on sdk:ready);
+// `inUse: true` once a hook subscribed, i.e. the app renders analysis.
 export const APP_SDK_INSIGHTS_REQUEST_MESSAGE =
     'lightdash:sdk:insights-request';
 // Iframe → host: the viewer clicked an action rendered by the app.

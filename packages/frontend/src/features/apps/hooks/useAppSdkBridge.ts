@@ -360,6 +360,8 @@ export type UseAppSdkBridgeParams = {
     insights?: DataAppInsightsPayload | null;
     /** The viewer clicked an analysis action the app rendered. */
     onInsightAction?: (action: DataAppInsightAction) => void;
+    /** The app subscribed to analysis: it renders `useInsights`/`useAiPrompt`. */
+    onInsightsInUse?: () => void;
     /** Which query uuids the app currently has on screen (SDKs that report). */
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
@@ -397,6 +399,7 @@ export function useAppSdkBridge({
     colorScheme,
     insights = null,
     onInsightAction,
+    onInsightsInUse,
     onMountedQueriesChange,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
@@ -551,6 +554,9 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
+                if ((data as { inUse?: unknown }).inUse === true) {
+                    onInsightsInUse?.();
+                }
                 pushInsights();
                 return;
             }
@@ -1314,6 +1320,7 @@ export function useAppSdkBridge({
             queryContextOverride,
             pushInsights,
             onInsightAction,
+            onInsightsInUse,
             onMountedQueriesChange,
         ],
     );

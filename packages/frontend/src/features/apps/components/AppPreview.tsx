@@ -47,6 +47,7 @@ export type AppPreviewProps = {
     /** The host's AI analysis of the current view, pushed into the app. */
     insights?: DataAppInsightsPayload | null;
     onInsightAction?: (action: DataAppInsightAction) => void;
+    onInsightsInUse?: () => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
@@ -76,6 +77,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             urlStateSync = true,
             insights,
             onInsightAction,
+            onInsightsInUse,
             onMountedQueriesChange,
         },
         ref,
@@ -145,6 +147,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onSdkManifest={onSdkManifest}
                 insights={insights}
                 onInsightAction={onInsightAction}
+                onInsightsInUse={onInsightsInUse}
                 onMountedQueriesChange={onMountedQueriesChange}
             />
         );

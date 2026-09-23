@@ -158,6 +158,7 @@ type Props = {
     /** The host's AI analysis of the current view, pushed into the app. */
     insights?: DataAppInsightsPayload | null;
     onInsightAction?: (action: DataAppInsightAction) => void;
+    onInsightsInUse?: () => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
@@ -224,6 +225,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             forceColorScheme,
             insights,
             onInsightAction,
+            onInsightsInUse,
             onMountedQueriesChange,
         },
         ref,
@@ -347,6 +349,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             colorScheme,
             insights,
             onInsightAction,
+            onInsightsInUse,
             onMountedQueriesChange,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);

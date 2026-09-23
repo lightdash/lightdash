@@ -12,6 +12,7 @@ import {
     postInsightAction,
     registerMountedQuery,
     resetInsightsState,
+    subscribeInsights,
     insightIsForField,
     rowMatchesInsight,
     type InsightsPayload,
@@ -66,6 +67,37 @@ describe('insights channel', () => {
         posted.length = 0;
         dispatch(host, { type: 'lightdash:sdk:ready' });
         expect(posted).toContainEqual({ type: INSIGHTS_REQUEST_MESSAGE });
+    });
+
+    const requests = () =>
+        posted.filter(
+            (m) => (m as { type: string }).type === INSIGHTS_REQUEST_MESSAGE,
+        );
+
+    it('flags the request as in use once a hook subscribes, and keeps it flagged', () => {
+        mountInsights(host);
+        expect(requests()).toEqual([{ type: INSIGHTS_REQUEST_MESSAGE }]);
+        posted.length = 0;
+        const unsubscribe = subscribeInsights(() => {});
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
+        ]);
+        posted.length = 0;
+        subscribeInsights(() => {})();
+        unsubscribe();
+        expect(requests()).toEqual([]);
+        dispatch(host, { type: 'lightdash:sdk:ready' });
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
+        ]);
+    });
+
+    it('carries the in-use flag on the mount request when a hook subscribed first', () => {
+        subscribeInsights(() => {});
+        mountInsights(host);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
+        ]);
     });
 
     it('is unavailable until the host pushes, then stores the payload', () => {
