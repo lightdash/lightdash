@@ -685,7 +685,7 @@ describe('ProjectModel', () => {
         const resolveSole = vi.spyOn(connectionModel, 'resolveSole');
         tracker.on
             .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
-            .response([projectMock]);
+            .response([{ ...projectMock, require_user_credentials: false }]);
 
         const project = await model.getWithSensitiveFields(projectUuid);
 
