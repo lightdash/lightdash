@@ -106,6 +106,20 @@ This POC adds no policy files and creates no GCP resources.
 
 ## Validation and limits
 
+Run the documented PromQL expressions locally with simulated time:
+
+```sh
+node scripts/test-scheduler-monitoring-alerts.mjs
+```
+
+This requires Docker and runs `promtool` from `prom/prometheus:v3.14.0` in a
+temporary container with networking disabled. The first run downloads the image.
+It extracts the queries above and checks 14 scenarios, including the 25-hour
+boundary, missing/zero metrics, instance isolation, pod replacement, recovery,
+partial failures, counter resets, and errors leaving the alert window. Simulated
+days take seconds; no Lightdash database or running application is required.
+This verifies PromQL rule behavior, not GCP ingestion or notification delivery.
+
 Before enabling notifications, observe a successful scheduled pass in a test
 instance, a partial generation failure, and a worker restart after a completion
 has been scraped. Confirm that the timestamp stays unchanged while idle, the
