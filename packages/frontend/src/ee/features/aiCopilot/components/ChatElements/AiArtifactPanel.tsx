@@ -45,7 +45,8 @@ import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTy
 import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
-import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
+import { AiComposerArtifactPrototype } from './AiComposerArtifactPrototype';
+import prototypeStyles from './AiComposerArtifactPrototype.module.css';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import {
     AiSqlArtifactActions,
@@ -339,8 +340,12 @@ const AiArtifactPanelContent: FC<
             );
             return (
                 <Box className={styles.floatingPanel}>
-                    <Box className={styles.floatingContent}>
-                        <AiComposerArtifactVisualization
+                    <Box
+                        className={`${styles.floatingContent} ${prototypeStyles.flushContent}`}
+                    >
+                        {/* PROTOTYPE: pipeline placement variants via ?variant= */}
+                        <AiComposerArtifactPrototype
+                            config={composerConfig}
                             results={queryResults}
                             headerContent={composerHead}
                         />

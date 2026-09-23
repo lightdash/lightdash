@@ -16,6 +16,7 @@ import {
 import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { useComposerPrototypeVariant } from '../composerPrototypeVariants';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
@@ -107,9 +108,15 @@ export const ToolCallRow: FC<Props> = ({
               status: status === 'running' ? 'running' : 'done',
           })
         : null;
+    // PROTOTYPE: when the artifact carries the pipeline, the row loses its body.
+    const { current: prototypeVariant } = useComposerPrototypeVariant();
     const hasCallDescription = (toolCall: ToolCallSummary) =>
         isToolName(toolCall.toolName) &&
-        !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName);
+        !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName) &&
+        !(
+            toolCall.toolName === 'runComposerQueries' &&
+            prototypeVariant !== 'today'
+        );
     const hasDescription =
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
