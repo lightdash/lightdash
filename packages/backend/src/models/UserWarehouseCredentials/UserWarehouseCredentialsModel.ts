@@ -221,6 +221,18 @@ export class UserWarehouseCredentialsModel {
         return this.convertToUserWarehouseCredentials(result);
     }
 
+    async getByUuidWithSecrets(
+        uuid: string,
+    ): Promise<UserWarehouseCredentialsWithSecrets> {
+        const row = await this.database(UserWarehouseCredentialsTableName)
+            .where('user_warehouse_credentials_uuid', uuid)
+            .first();
+        if (!row) {
+            throw new NotFoundError('Warehouse credentials not found');
+        }
+        return this.convertToUserWarehouseCredentialsWithSecrets(row);
+    }
+
     async findDatabricksOauthU2mForHostWithSecrets(
         userUuid: string,
         serverHostName: string,

@@ -121,6 +121,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -515,6 +516,7 @@ const getMockedProjectService = (
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
+        warehouseConnectionModel: {} as WarehouseConnectionModel,
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel:

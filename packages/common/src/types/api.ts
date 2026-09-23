@@ -448,6 +448,7 @@ import {
 import {
     type ApiWarehouseConnectionResponse,
     type ApiWarehouseConnectionsResponse,
+    type ApiWarehouseConnectionUserCredentialsResponse,
     type ApiWarehouseConnectionWithCredentialsResponse,
 } from './warehouseConnections';
 
@@ -1292,6 +1293,7 @@ type ApiResults =
     | ApiWarehouseConnectionsResponse['results']
     | ApiWarehouseConnectionResponse['results']
     | ApiWarehouseConnectionWithCredentialsResponse['results']
+    | ApiWarehouseConnectionUserCredentialsResponse['results']
     | Document
     | DocumentList
     | ContentReviewRequest

@@ -7,6 +7,7 @@ import {
     type ApiUpdateWarehouseConnectionRequest,
     type ApiWarehouseConnectionResponse,
     type ApiWarehouseConnectionsResponse,
+    type ApiWarehouseConnectionUserCredentialsResponse,
     type ApiWarehouseConnectionWithCredentialsResponse,
     type UUID,
 } from '@lightdash/common';
@@ -174,6 +175,54 @@ export class WarehouseConnectionController extends BaseController {
         await this.services
             .getWarehouseConnectionService()
             .delete(req.account, projectUuid, warehouseConnectionUuid);
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{warehouseConnectionUuid}/user-credentials')
+    @OperationId('getWarehouseConnectionUserCredentials')
+    async getWarehouseConnectionUserCredentials(
+        @Path() projectUuid: UUID,
+        @Path() warehouseConnectionUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiWarehouseConnectionUserCredentialsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getWarehouseConnectionService()
+                .getUserCredentials(
+                    req.account,
+                    projectUuid,
+                    warehouseConnectionUuid,
+                ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{warehouseConnectionUuid}/user-credentials/{userWarehouseCredentialsUuid}',
+    )
+    @OperationId('updateWarehouseConnectionUserCredentials')
+    async updateWarehouseConnectionUserCredentials(
+        @Path() projectUuid: UUID,
+        @Path() warehouseConnectionUuid: UUID,
+        @Path() userWarehouseCredentialsUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getWarehouseConnectionService()
+            .upsertUserCredentialsPreference(
+                req.account,
+                projectUuid,
+                warehouseConnectionUuid,
+                userWarehouseCredentialsUuid,
+            );
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }

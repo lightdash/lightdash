@@ -244,6 +244,7 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    UserWarehouseCredentialsWithSecrets,
     validateMergeQuery,
     VizAggregationOptions,
     VizColumn,
@@ -352,6 +353,10 @@ import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type ConnectionBinding } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
+import {
+    WarehouseConnectionModel,
+    type WarehouseConnectionProject,
+} from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -386,12 +391,17 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import {
+    EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE,
+    getExtraConnectionRequireUserCredentials,
+} from '../WarehouseConnectionService/extraConnectionUserCredentials';
+import {
     assertAnalyticsProjectEnabled,
     createAnalyticsClient,
 } from './analyticsProject/analyticsProjectClient';
 import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
+import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
@@ -432,7 +442,12 @@ type RefreshTokenRotationSource =
           kind: 'organization';
           organizationWarehouseCredentialsUuid: string;
       }
-    | { kind: 'user'; userWarehouseCredentialsUuid: string };
+    | { kind: 'user'; userWarehouseCredentialsUuid: string }
+    | {
+          kind: 'warehouseConnection';
+          project: WarehouseConnectionProject;
+          warehouseConnectionUuid: string;
+      };
 
 /**
  * Projects created by Lightdash itself rather than by a user: the onboarding
@@ -464,6 +479,7 @@ export type ProjectServiceArguments = {
     emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    warehouseConnectionModel: WarehouseConnectionModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
     fileStorageClient: FileStorageClient;
@@ -617,6 +633,8 @@ export class ProjectService extends BaseService {
 
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
+    warehouseConnectionModel: WarehouseConnectionModel;
+
     emailModel: EmailModel;
 
     schedulerClient: SchedulerClient;
@@ -706,6 +724,7 @@ export class ProjectService extends BaseService {
         dashboardModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
+        warehouseConnectionModel,
         emailModel,
         schedulerClient,
         downloadFileModel,
@@ -757,6 +776,7 @@ export class ProjectService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
+        this.warehouseConnectionModel = warehouseConnectionModel;
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
@@ -1625,6 +1645,8 @@ export class ProjectService extends BaseService {
                 return source.organizationWarehouseCredentialsUuid;
             case 'user':
                 return source.userWarehouseCredentialsUuid;
+            case 'warehouseConnection':
+                return source.warehouseConnectionUuid;
             default:
                 return assertUnreachable(source, 'Unknown source kind');
         }
@@ -1662,6 +1684,14 @@ export class ProjectService extends BaseService {
                         newRefreshToken,
                     );
                     break;
+                case 'warehouseConnection':
+                    await this.warehouseConnectionModel.rotateRefreshToken(
+                        source.project,
+                        source.warehouseConnectionUuid,
+                        oldRefreshToken,
+                        newRefreshToken,
+                    );
+                    break;
                 default:
                     assertUnreachable(
                         source,
@@ -1676,6 +1706,213 @@ export class ProjectService extends BaseService {
                 error: getErrorMessage(error),
             });
         }
+    }
+
+    private async findUserCredentialsForExtraConnection({
+        projectUuid,
+        warehouseConnectionUuid,
+        userUuid,
+        warehouseType,
+        requireUserCredentials,
+    }: {
+        projectUuid: string;
+        warehouseConnectionUuid: string;
+        userUuid: string;
+        warehouseType: WarehouseTypes;
+        requireUserCredentials: boolean;
+    }): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
+        const lookup = {
+            userUuid,
+            projectUuid,
+            warehouseConnectionUuid,
+            warehouseType,
+        };
+        let userWarehouseCredentialsUuid =
+            await this.warehouseConnectionModel.findPreferredUserCredentialsUuid(
+                lookup,
+            );
+        if (userWarehouseCredentialsUuid === null && requireUserCredentials) {
+            userWarehouseCredentialsUuid =
+                await this.warehouseConnectionModel.findSoleUnclaimedUserCredentialsUuid(
+                    lookup,
+                );
+            if (userWarehouseCredentialsUuid !== null) {
+                await this.warehouseConnectionModel.upsertUserCredentialsPreference(
+                    {
+                        userUuid,
+                        warehouseConnectionUuid,
+                        userWarehouseCredentialsUuid,
+                    },
+                );
+            }
+        }
+        if (userWarehouseCredentialsUuid === null) {
+            return undefined;
+        }
+        const userWarehouseCredentials =
+            await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                userWarehouseCredentialsUuid,
+            );
+        const validationError =
+            UserWarehouseCredentialsModel.getQueryTimeValidationError(
+                userWarehouseCredentials.credentials,
+            );
+        if (validationError) {
+            throw validationError;
+        }
+        return userWarehouseCredentials;
+    }
+
+    protected async getExtraConnectionWarehouseCredentials({
+        projectUuid,
+        warehouseConnectionUuid,
+        userId,
+        isRegisteredUser,
+        isServiceAccount = false,
+    }: {
+        projectUuid: string;
+        warehouseConnectionUuid: string;
+        userId: string;
+        isRegisteredUser: boolean;
+        isServiceAccount?: boolean;
+    }) {
+        const project =
+            await this.warehouseConnectionModel.getProject(projectUuid);
+        const source =
+            await this.warehouseConnectionModel.getExtraCredentialSource(
+                project,
+                warehouseConnectionUuid,
+            );
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const { organizationWarehouseCredentialsUuid } = source;
+        const connectionRotationSource: RefreshTokenRotationSource = {
+            kind: 'warehouseConnection',
+            project,
+            warehouseConnectionUuid,
+        };
+        if (
+            source.credentials.type === WarehouseTypes.DUCKDB &&
+            source.credentials.connectionType === DuckdbConnectionType.ANALYTICS
+        ) {
+            throw new ForbiddenError(
+                'Local analytics cannot run on an extra warehouse connection',
+            );
+        }
+        let credentials = {
+            ...source.credentials,
+            requireUserCredentials: getExtraConnectionRequireUserCredentials(
+                originalCredentials,
+                source,
+            ),
+        } as CreateWarehouseCredentials;
+        let userWarehouseCredentialsUuid: string | undefined;
+
+        if (
+            organizationWarehouseCredentialsUuid &&
+            !credentials.requireUserCredentials
+        ) {
+            credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials,
+                userId,
+                {
+                    kind: 'organization',
+                    organizationWarehouseCredentialsUuid,
+                },
+            );
+        }
+
+        if (isServiceAccount && credentials.requireUserCredentials) {
+            throw new ForbiddenError(
+                'Service accounts cannot run queries when user credentials are required.',
+            );
+        }
+
+        const shouldFetchUserCredentials =
+            credentials.requireUserCredentials ||
+            allowsOptionalUserCredentials(credentials);
+
+        if (isRegisteredUser) {
+            const userWarehouseCredentials = shouldFetchUserCredentials
+                ? await this.findUserCredentialsForExtraConnection({
+                      projectUuid,
+                      warehouseConnectionUuid,
+                      userUuid: userId,
+                      warehouseType: credentials.type,
+                      requireUserCredentials:
+                          credentials.requireUserCredentials === true,
+                  })
+                : undefined;
+
+            const userCredHost =
+                userWarehouseCredentials?.credentials.type ===
+                    WarehouseTypes.DATABRICKS &&
+                'serverHostName' in userWarehouseCredentials.credentials
+                    ? normalizeDatabricksHostLenient(
+                          userWarehouseCredentials.credentials.serverHostName,
+                      )
+                    : undefined;
+            const projectHost =
+                credentials.type === WarehouseTypes.DATABRICKS
+                    ? normalizeDatabricksHostLenient(credentials.serverHostName)
+                    : undefined;
+            const hostMismatch =
+                userCredHost && projectHost && userCredHost !== projectHost;
+
+            if (userWarehouseCredentials && !hostMismatch) {
+                credentials = mergePersonalWarehouseCredentials(
+                    credentials,
+                    userWarehouseCredentials,
+                );
+                credentials = await this.refreshCredentialsAndPersistRotation(
+                    credentials,
+                    userId,
+                    {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid:
+                            userWarehouseCredentials.uuid,
+                    },
+                );
+                userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+            } else if (credentials.requireUserCredentials) {
+                if (credentials.type === WarehouseTypes.DATABRICKS) {
+                    throw new DatabricksTokenError(
+                        'Please authenticate to access Databricks',
+                    );
+                }
+                throw new MissingWarehouseCredentialsError(
+                    (await this.warehouseConnectionModel.hasUserCredentialsOfType(
+                        userId,
+                        credentials.type,
+                    ))
+                        ? EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE
+                        : "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
+                );
+            } else if (!organizationWarehouseCredentialsUuid) {
+                credentials = await this.refreshCredentialsAndPersistRotation(
+                    credentials,
+                    userId,
+                    connectionRotationSource,
+                );
+            }
+        } else if (credentials.requireUserCredentials) {
+            throw new ForbiddenError(
+                'Embedded users cannot use personal warehouse credentials',
+            );
+        } else if (!organizationWarehouseCredentialsUuid) {
+            credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials,
+                userId,
+                connectionRotationSource,
+            );
+        }
+
+        return {
+            ...credentials,
+            userWarehouseCredentialsUuid,
+        };
     }
 
     /*

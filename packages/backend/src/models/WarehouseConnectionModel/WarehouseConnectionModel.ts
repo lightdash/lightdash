@@ -8,11 +8,17 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import {
+    ProjectUserWarehouseCredentialPreferenceTableName,
+    UserWarehouseCredentialsTableName,
+} from '../../database/entities/userWarehouseCredentials';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const EVENTS_TABLE = 'project_connection_mode_events';
+const CONNECTION_PREFERENCE_TABLE =
+    'warehouse_connection_user_credentials_preference';
 const IN_FLIGHT_QUERY_STATUSES = ['pending', 'queued', 'executing'];
 
 type DbWarehouseConnection = {
@@ -49,6 +55,18 @@ export type WarehouseConnectionBoundContent = {
 export type WarehouseConnectionCredentialSource =
     | { kind: 'project'; credentials: CreateWarehouseCredentials }
     | { kind: 'organization'; organizationWarehouseCredentialsUuid: string };
+
+export type ExtraConnectionCredentialSource = {
+    credentials: CreateWarehouseCredentials;
+    organizationWarehouseCredentialsUuid: string | null;
+};
+
+export type UserCredentialsForConnection = {
+    userUuid: string;
+    projectUuid: string;
+    warehouseConnectionUuid: string;
+    warehouseType: WarehouseTypes;
+};
 
 export type CreateExtraWarehouseConnection = {
     name: string;
@@ -249,6 +267,18 @@ export class WarehouseConnectionModel {
         project: WarehouseConnectionProject,
         warehouseConnectionUuid: string,
     ): Promise<CreateWarehouseCredentials> {
+        return (
+            await this.getExtraCredentialSource(
+                project,
+                warehouseConnectionUuid,
+            )
+        ).credentials;
+    }
+
+    async getExtraCredentialSource(
+        project: WarehouseConnectionProject,
+        warehouseConnectionUuid: string,
+    ): Promise<ExtraConnectionCredentialSource> {
         const row = await this.getRow(
             project.projectUuid,
             warehouseConnectionUuid,
@@ -259,10 +289,14 @@ export class WarehouseConnectionModel {
             );
         }
         if (row.organization_warehouse_credentials_uuid !== null) {
-            return this.loadOrganizationCredentials(
-                project.organizationUuid,
-                row.organization_warehouse_credentials_uuid,
-            );
+            return {
+                credentials: await this.loadOrganizationCredentials(
+                    project.organizationUuid,
+                    row.organization_warehouse_credentials_uuid,
+                ),
+                organizationWarehouseCredentialsUuid:
+                    row.organization_warehouse_credentials_uuid,
+            };
         }
         if (row.encrypted_credentials === null) {
             throw new UnexpectedServerError(
@@ -270,11 +304,14 @@ export class WarehouseConnectionModel {
             );
         }
         try {
-            return normalizeWarehouseCredentials(
-                JSON.parse(
-                    this.encryptionUtil.decrypt(row.encrypted_credentials),
-                ) as CreateWarehouseCredentials,
-            );
+            return {
+                credentials: normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                ),
+                organizationWarehouseCredentialsUuid: null,
+            };
         } catch {
             throw new UnexpectedServerError(
                 'Failed to load warehouse connection credentials',
@@ -488,5 +525,167 @@ export class WarehouseConnectionModel {
                 `Connection not found in this project: ${missing.join(', ')}`,
             );
         }
+    }
+
+    private fittingUserCredentials({
+        userUuid,
+        projectUuid,
+        warehouseType,
+    }: Omit<UserCredentialsForConnection, 'warehouseConnectionUuid'>) {
+        return this.database(UserWarehouseCredentialsTableName)
+            .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
+            .where(
+                `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                warehouseType,
+            )
+            .where((builder) => {
+                void builder
+                    .where(
+                        `${UserWarehouseCredentialsTableName}.project_uuid`,
+                        projectUuid,
+                    )
+                    .orWhereNull(
+                        `${UserWarehouseCredentialsTableName}.project_uuid`,
+                    );
+            });
+    }
+
+    async findPreferredUserCredentialsUuid(
+        lookup: UserCredentialsForConnection,
+    ): Promise<string | null> {
+        const row = await this.fittingUserCredentials(lookup)
+            .innerJoin(
+                CONNECTION_PREFERENCE_TABLE,
+                `${CONNECTION_PREFERENCE_TABLE}.user_warehouse_credentials_uuid`,
+                `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+            )
+            .innerJoin(
+                WAREHOUSE_CONNECTIONS_TABLE,
+                `${WAREHOUSE_CONNECTIONS_TABLE}.warehouse_connection_uuid`,
+                `${CONNECTION_PREFERENCE_TABLE}.warehouse_connection_uuid`,
+            )
+            .where(`${CONNECTION_PREFERENCE_TABLE}.user_uuid`, lookup.userUuid)
+            .where(
+                `${CONNECTION_PREFERENCE_TABLE}.warehouse_connection_uuid`,
+                lookup.warehouseConnectionUuid,
+            )
+            .where(
+                `${WAREHOUSE_CONNECTIONS_TABLE}.project_uuid`,
+                lookup.projectUuid,
+            )
+            .first<{ user_warehouse_credentials_uuid: string } | undefined>(
+                `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+            );
+        return row?.user_warehouse_credentials_uuid ?? null;
+    }
+
+    async findSoleUnclaimedUserCredentialsUuid(
+        lookup: UserCredentialsForConnection,
+    ): Promise<string | null> {
+        const rows = await this.fittingUserCredentials(lookup)
+            .whereNotExists(
+                this.database(ProjectUserWarehouseCredentialPreferenceTableName)
+                    .select(this.database.raw('1'))
+                    .whereRaw('??.user_warehouse_credentials_uuid = ??', [
+                        ProjectUserWarehouseCredentialPreferenceTableName,
+                        `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+                    ]),
+            )
+            .whereNotExists(
+                this.database(CONNECTION_PREFERENCE_TABLE)
+                    .select(this.database.raw('1'))
+                    .whereRaw('??.user_warehouse_credentials_uuid = ??', [
+                        CONNECTION_PREFERENCE_TABLE,
+                        `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+                    ])
+                    .whereNot(
+                        'warehouse_connection_uuid',
+                        lookup.warehouseConnectionUuid,
+                    ),
+            )
+            .limit(2)
+            .pluck(
+                `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+            );
+        return rows.length === 1 ? rows[0] : null;
+    }
+
+    async hasUserCredentialsOfType(
+        userUuid: string,
+        warehouseType: WarehouseTypes,
+    ): Promise<boolean> {
+        const row = await this.database(UserWarehouseCredentialsTableName)
+            .where('user_uuid', userUuid)
+            .where('warehouse_type', warehouseType)
+            .first('user_warehouse_credentials_uuid');
+        return row !== undefined;
+    }
+
+    async upsertUserCredentialsPreference({
+        userUuid,
+        warehouseConnectionUuid,
+        userWarehouseCredentialsUuid,
+    }: {
+        userUuid: string;
+        warehouseConnectionUuid: string;
+        userWarehouseCredentialsUuid: string;
+    }): Promise<void> {
+        await this.database(CONNECTION_PREFERENCE_TABLE)
+            .insert({
+                user_uuid: userUuid,
+                warehouse_connection_uuid: warehouseConnectionUuid,
+                user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
+            })
+            .onConflict(['user_uuid', 'warehouse_connection_uuid'])
+            .merge();
+    }
+
+    async rotateRefreshToken(
+        project: WarehouseConnectionProject,
+        warehouseConnectionUuid: string,
+        expectedOldRefreshToken: string,
+        newRefreshToken: string,
+    ): Promise<boolean> {
+        return this.database.transaction(async (transaction) => {
+            const row = await transaction<DbWarehouseConnection>(
+                WAREHOUSE_CONNECTIONS_TABLE,
+            )
+                .where('project_uuid', project.projectUuid)
+                .where('warehouse_connection_uuid', warehouseConnectionUuid)
+                .where('is_original', false)
+                .whereNotNull('encrypted_credentials')
+                .forUpdate()
+                .first('encrypted_credentials');
+            if (!row?.encrypted_credentials) return false;
+            let credentials: CreateWarehouseCredentials;
+            try {
+                credentials = normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                );
+            } catch {
+                return false;
+            }
+            if (
+                (credentials as Partial<{ refreshToken: string }>)
+                    .refreshToken !== expectedOldRefreshToken
+            ) {
+                return false;
+            }
+            await transaction(WAREHOUSE_CONNECTIONS_TABLE)
+                .where('project_uuid', project.projectUuid)
+                .where('warehouse_connection_uuid', warehouseConnectionUuid)
+                .update({
+                    encrypted_credentials: this.encryptionUtil.encrypt(
+                        JSON.stringify({
+                            ...credentials,
+                            refreshToken: newRefreshToken,
+                        }),
+                    ),
+                    updated_at: this.database.fn.now(),
+                });
+            return true;
+        });
     }
 }

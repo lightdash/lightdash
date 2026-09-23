@@ -4,6 +4,7 @@ import {
     type CreateWarehouseCredentialsWithOptionalSecrets,
     type WarehouseCredentials,
 } from './projects';
+import { type UserWarehouseCredentials } from './userWarehouseCredentials';
 
 export const MULTI_CONNECTION_WAREHOUSE_TYPES: WarehouseTypes[] = [
     WarehouseTypes.POSTGRES,
@@ -89,4 +90,17 @@ export type ApiUpdateWarehouseConnectionRequest = {
 
 export type ApiRenameWarehouseConnectionRequest = {
     name: string;
+};
+
+export type WarehouseConnectionUserCredentials = {
+    warehouseConnectionUuid: string;
+    warehouseType: WarehouseTypes;
+    requireUserCredentials: boolean;
+    allowsOptionalUserCredentials: boolean;
+    userWarehouseCredentials: UserWarehouseCredentials | null;
+};
+
+export type ApiWarehouseConnectionUserCredentialsResponse = {
+    status: 'ok';
+    results: WarehouseConnectionUserCredentials;
 };
