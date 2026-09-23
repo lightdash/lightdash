@@ -18,15 +18,15 @@ export type AiAgentSkillAvailability = 'agent' | 'mcp';
 
 export type AiAgentSkillVersionSource = 'ui' | 'as_code' | 'restore' | 'system';
 
-/**
- * The versioned payload: every file of the skill exactly as authored, keyed by
- * its path inside the skill folder (`SKILL.md`, `resources/<file>.md`). The
- * content hash is computed over this object, so a byte-identical folder always
- * maps to the same version.
- */
+// Named index signatures rather than Record<string, string>: TSOA caches an
+// empty model for inline Record types nested in other request bodies.
+export type AiAgentSkillFiles = { [path: string]: string };
+export type AiAgentSkillMetadata = { [key: string]: string };
+
+// The hashed payload: every file as authored, keyed by path inside the folder.
 export type AiAgentSkillContent = {
     schemaVersion: 1;
-    files: Record<string, string>;
+    files: AiAgentSkillFiles;
 };
 
 /** Frontmatter fields Lightdash honours, after defaults are applied. */
@@ -40,7 +40,7 @@ export type AiAgentSkillFrontmatter = {
     disableModelInvocation: boolean;
     userInvocable: boolean;
     availability: AiAgentSkillAvailability[];
-    metadata: Record<string, string>;
+    metadata: AiAgentSkillMetadata;
     license: string | null;
     compatibility: string | null;
 };
@@ -85,7 +85,7 @@ export type AiAgentSkillIssueCode =
 export type AiAgentSkillIssue = {
     code: AiAgentSkillIssueCode;
     message: string;
-    /** File path inside the skill folder the issue refers to. */
+    /** File or folder path inside the skill folder the issue refers to. */
     path: string;
 };
 
@@ -146,14 +146,14 @@ export type AiAgentSkillVersion = AiAgentSkillVersionSummary & {
 };
 
 export type ApiCreateAiAgentSkill = {
-    files: Record<string, string>;
-    projectUuid?: string | null;
+    files: AiAgentSkillFiles;
+    projectUuid: string | null;
     /** Agents to bind on creation. */
     agentUuids?: string[];
 };
 
 export type ApiUpdateAiAgentSkill = {
-    files: Record<string, string>;
+    files: AiAgentSkillFiles;
 };
 
 /** Authoritative set of skills bound to one agent. */

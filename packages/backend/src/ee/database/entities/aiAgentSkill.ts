@@ -15,6 +15,7 @@ export type DbAiAgentSkill = {
     description: string;
     current_version_uuid: string | null;
     deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
     created_at: Date;
@@ -28,6 +29,7 @@ export type AiAgentSkillTable = Knex.CompositeTableType<
         | 'ai_agent_skill_uuid'
         | 'current_version_uuid'
         | 'deleted_at'
+        | 'deleted_by_user_uuid'
         | 'created_at'
         | 'updated_at'
     >,

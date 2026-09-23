@@ -8,8 +8,6 @@ const OrganizationsTableName = 'organizations';
 const ProjectsTableName = 'projects';
 const UsersTableName = 'users';
 
-const VERSION_SOURCES = ['ui', 'as_code', 'restore', 'system'];
-
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET lock_timeout = '10s'`);
     try {
@@ -30,7 +28,7 @@ export async function up(knex: Knex): Promise<void> {
                     .uuid('project_uuid')
                     .references('project_uuid')
                     .inTable(ProjectsTableName)
-                    .onDelete('CASCADE')
+                    .onDelete('SET NULL')
                     .index()
                     .comment(
                         'Optional project filter. Null means the skill is available across the organization.',
@@ -45,6 +43,7 @@ export async function up(knex: Knex): Promise<void> {
                 table.text('description').notNullable();
                 table
                     .uuid('current_version_uuid')
+                    .index()
                     .comment('The version served to agents.');
                 table
                     .timestamp('deleted_at', { useTz: false })
@@ -52,15 +51,23 @@ export async function up(knex: Knex): Promise<void> {
                         'Soft delete. The name stays reserved and versions stay resolvable.',
                     );
                 table
+                    .uuid('deleted_by_user_uuid')
+                    .references('user_uuid')
+                    .inTable(UsersTableName)
+                    .onDelete('SET NULL')
+                    .index();
+                table
                     .uuid('created_by_user_uuid')
                     .references('user_uuid')
                     .inTable(UsersTableName)
-                    .onDelete('SET NULL');
+                    .onDelete('SET NULL')
+                    .index();
                 table
                     .uuid('updated_by_user_uuid')
                     .references('user_uuid')
                     .inTable(UsersTableName)
-                    .onDelete('SET NULL');
+                    .onDelete('SET NULL')
+                    .index();
                 table
                     .timestamp('created_at', { useTz: false })
                     .notNullable()
@@ -70,6 +77,11 @@ export async function up(knex: Knex): Promise<void> {
                     .notNullable()
                     .defaultTo(knex.fn.now());
                 table.unique(['organization_uuid', 'name']);
+                table.index(
+                    ['organization_uuid'],
+                    'ai_agent_skill_live_organization_uuid_index',
+                    { predicate: knex.whereNull('deleted_at') },
+                );
             });
         }
 
@@ -93,14 +105,18 @@ export async function up(knex: Knex): Promise<void> {
                     .comment(
                         'Every file of the skill as authored, keyed by path. Exactly the hashed payload.',
                     );
-                table.string('content_hash', 71).notNullable();
+                table
+                    .string('content_hash', 71)
+                    .notNullable()
+                    .comment('`sha256:` followed by 64 hex characters.');
                 table.string('source', 16).notNullable();
                 table.integer('restored_from_version');
                 table
                     .uuid('created_by_user_uuid')
                     .references('user_uuid')
                     .inTable(UsersTableName)
-                    .onDelete('SET NULL');
+                    .onDelete('SET NULL')
+                    .index();
                 table
                     .timestamp('created_at', { useTz: false })
                     .notNullable()
@@ -109,7 +125,7 @@ export async function up(knex: Knex): Promise<void> {
             });
             await knex.raw(
                 `ALTER TABLE ?? ADD CONSTRAINT ai_agent_skill_version_source_check
-                 CHECK (source IN (${VERSION_SOURCES.map((s) => `'${s}'`).join(', ')}))`,
+                 CHECK (source IN ('ui', 'as_code', 'restore', 'system'))`,
                 [SkillVersionTableName],
             );
             await knex.raw(

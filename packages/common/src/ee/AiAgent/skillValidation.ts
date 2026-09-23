@@ -13,8 +13,11 @@ import {
     AI_AGENT_SKILL_RESOURCE_MAX_BYTES,
     AI_AGENT_SKILL_RESOURCES_DIR,
     type AiAgentSkillAvailability,
+    type AiAgentSkillFiles,
     type AiAgentSkillFrontmatter,
     type AiAgentSkillIssue,
+    type AiAgentSkillIssueCode,
+    type AiAgentSkillMetadata,
     type AiAgentSkillParsedResource,
     type AiAgentSkillValidationResult,
 } from './skillTypes';
@@ -34,45 +37,66 @@ const HONOURED_FIELDS = new Set([
     'compatibility',
 ]);
 
-const IGNORED_FIELDS = new Set([
-    'allowed-tools',
-    'disallowed-tools',
-    'model',
-    'effort',
-    'context',
-    'agent',
-    'background',
-    'paths',
-    'shell',
-]);
-
 const REJECTED_FIELDS = new Set(['hooks']);
 
 const AVAILABILITY_VALUES: AiAgentSkillAvailability[] = ['agent', 'mcp'];
 
-// Claude Code's dynamic context injection: `!`cmd`` after whitespace or a
-// fenced block opened with ```!. Both run shell before the model sees the body.
-const SHELL_INJECTION_PATTERN = /(^|\s)!`[^`]+`|^```!/m;
+// Claude Code's dynamic context injection: `!`cmd`` anywhere, or a fenced
+// block opened with ```!. Both run shell before the model sees the body.
+const SHELL_INJECTION_PATTERN = /!`[^`\n]+`|^```!/m;
 const FILE_REFERENCE_PATTERN = /(^|\s)@[\w./-]+/m;
 const ENV_VARIABLE_PATTERN = /\$\{CLAUDE_[A-Z_]+\}/;
+const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n?---[ \t]*(?:\n|$)/;
+const RESOURCE_PREFIX = `${AI_AGENT_SKILL_RESOURCES_DIR}/`;
 
 type Frontmatter = { data: Record<string, unknown>; body: string };
+type Issues = { errors: AiAgentSkillIssue[]; warnings: AiAgentSkillIssue[] };
+type Parsed<T> = { value: T; issues: Issues };
+
+const NO_ISSUES: Issues = { errors: [], warnings: [] };
+
+const issue = (
+    code: AiAgentSkillIssueCode,
+    message: string,
+    path: string,
+): AiAgentSkillIssue => ({ code, message, path });
+
+const errorsOnly = (...errors: AiAgentSkillIssue[]): Issues => ({
+    errors,
+    warnings: [],
+});
+const warningsOnly = (...warnings: AiAgentSkillIssue[]): Issues => ({
+    errors: [],
+    warnings,
+});
+const mergeIssues = (...parts: Issues[]): Issues => ({
+    errors: parts.flatMap((part) => part.errors),
+    warnings: parts.flatMap((part) => part.warnings),
+});
 
 const byteLength = (value: string): number =>
     new TextEncoder().encode(value).length;
 
+const countLines = (text: string): number =>
+    text.length === 0 ? 0 : text.replace(/\n$/, '').split('\n').length;
+
+/** Null when the frontmatter block is malformed; absent frontmatter is fine. */
 const splitFrontmatter = (raw: string): Frontmatter | null => {
     const normalized = raw.replace(/\r\n/g, '\n');
     if (!normalized.startsWith('---\n')) {
         return { data: {}, body: normalized };
     }
-    const end = normalized.indexOf('\n---', 4);
-    if (end === -1) {
+    const match = FRONTMATTER_PATTERN.exec(normalized);
+    if (match === null) {
         return null;
     }
-    const yamlText = normalized.slice(4, end);
-    const body = normalized.slice(end + 4).replace(/^\n/, '');
-    const data = yaml.load(yamlText);
+    const body = normalized.slice(match[0].length);
+    let data: unknown;
+    try {
+        data = yaml.load(match[1]);
+    } catch (e) {
+        return null;
+    }
     if (data === undefined || data === null) {
         return { data: {}, body };
     }
@@ -84,6 +108,9 @@ const splitFrontmatter = (raw: string): Frontmatter | null => {
 
 const asString = (value: unknown): string | null =>
     typeof value === 'string' ? value : null;
+
+const asTrimmedString = (value: unknown): string | null =>
+    asString(value)?.trim() || null;
 
 const asBoolean = (value: unknown): boolean | null => {
     if (typeof value === 'boolean') return value;
@@ -132,343 +159,467 @@ export const suggestAiAgentSkillName = (title: string): string =>
         .slice(0, AI_AGENT_SKILL_NAME_MAX_LENGTH)
         .replace(/-+$/g, '');
 
+const checkFilePaths = (files: AiAgentSkillFiles): Issues =>
+    errorsOnly(
+        ...Object.keys(files)
+            .filter(
+                (path) =>
+                    path !== AI_AGENT_SKILL_FILE_NAME &&
+                    (!path.startsWith(RESOURCE_PREFIX) ||
+                        path.slice(RESOURCE_PREFIX.length).includes('/') ||
+                        !path.endsWith('.md')),
+            )
+            .map((path) =>
+                issue(
+                    'resource_path_invalid',
+                    `Only ${AI_AGENT_SKILL_FILE_NAME} and markdown files directly under ${AI_AGENT_SKILL_RESOURCES_DIR}/ are allowed.`,
+                    path,
+                ),
+            ),
+    );
+
+const checkFrontmatterKeys = (data: Record<string, unknown>): Issues =>
+    mergeIssues(
+        ...Object.keys(data).map((key) => {
+            if (REJECTED_FIELDS.has(key)) {
+                return errorsOnly(
+                    issue(
+                        'field_rejected',
+                        `\`${key}\` is not supported: Lightdash skills cannot register hooks or run commands.`,
+                        AI_AGENT_SKILL_FILE_NAME,
+                    ),
+                );
+            }
+            if (!HONOURED_FIELDS.has(key)) {
+                return warningsOnly(
+                    issue(
+                        'field_ignored',
+                        `\`${key}\` is ignored: Lightdash skills run server-side with a fixed tool set.`,
+                        AI_AGENT_SKILL_FILE_NAME,
+                    ),
+                );
+            }
+            return NO_ISSUES;
+        }),
+    );
+
+const checkName = (
+    name: string,
+    reservedNames: string[],
+    folderName: string | undefined,
+): Issues => {
+    if (name.length === 0) {
+        return errorsOnly(
+            issue(
+                'name_missing',
+                'The frontmatter needs a `name`.',
+                AI_AGENT_SKILL_FILE_NAME,
+            ),
+        );
+    }
+    if (!isValidAiAgentSkillName(name)) {
+        return errorsOnly(
+            issue(
+                'name_invalid',
+                `\`name\` must be 1 to ${AI_AGENT_SKILL_NAME_MAX_LENGTH} lowercase letters, digits and single hyphens, and cannot start or end with a hyphen.`,
+                AI_AGENT_SKILL_FILE_NAME,
+            ),
+        );
+    }
+    if (isReservedAiAgentSkillName(name, reservedNames)) {
+        return errorsOnly(
+            issue(
+                'name_reserved',
+                `\`${name}\` is reserved for Lightdash built-in skills.`,
+                AI_AGENT_SKILL_FILE_NAME,
+            ),
+        );
+    }
+    if (folderName !== undefined && folderName !== name) {
+        return errorsOnly(
+            issue(
+                'name_mismatch',
+                `\`name\` (${name}) must match the skill folder name (${folderName}).`,
+                AI_AGENT_SKILL_FILE_NAME,
+            ),
+        );
+    }
+    return NO_ISSUES;
+};
+
+const checkDescription = (description: string): Issues => {
+    if (description.length === 0) {
+        return errorsOnly(
+            issue(
+                'description_missing',
+                'The frontmatter needs a `description`.',
+                AI_AGENT_SKILL_FILE_NAME,
+            ),
+        );
+    }
+    if (description.length > AI_AGENT_SKILL_DESCRIPTION_MAX_LENGTH) {
+        return errorsOnly(
+            issue(
+                'description_too_long',
+                `\`description\` cannot exceed ${AI_AGENT_SKILL_DESCRIPTION_MAX_LENGTH} characters.`,
+                AI_AGENT_SKILL_FILE_NAME,
+            ),
+        );
+    }
+    return NO_ISSUES;
+};
+
+const checkCompatibility = (compatibility: string | null): Issues =>
+    compatibility !== null &&
+    compatibility.length > AI_AGENT_SKILL_COMPATIBILITY_MAX_LENGTH
+        ? errorsOnly(
+              issue(
+                  'compatibility_too_long',
+                  `\`compatibility\` cannot exceed ${AI_AGENT_SKILL_COMPATIBILITY_MAX_LENGTH} characters.`,
+                  AI_AGENT_SKILL_FILE_NAME,
+              ),
+          )
+        : NO_ISSUES;
+
+const parseBoolean = (
+    data: Record<string, unknown>,
+    key: string,
+    fallback: boolean,
+): Parsed<boolean> => {
+    if (data[key] === undefined) return { value: fallback, issues: NO_ISSUES };
+    const parsed = asBoolean(data[key]);
+    if (parsed === null) {
+        return {
+            value: fallback,
+            issues: errorsOnly(
+                issue(
+                    'field_invalid',
+                    `\`${key}\` must be true or false.`,
+                    AI_AGENT_SKILL_FILE_NAME,
+                ),
+            ),
+        };
+    }
+    return { value: parsed, issues: NO_ISSUES };
+};
+
+const parseArgumentNames = (
+    data: Record<string, unknown>,
+): Parsed<string[]> => {
+    if (data.arguments === undefined) return { value: [], issues: NO_ISSUES };
+    const names = asStringList(data.arguments);
+    if (names === null) {
+        return {
+            value: [],
+            issues: errorsOnly(
+                issue(
+                    'field_invalid',
+                    '`arguments` must be a list of names or a space-separated string.',
+                    AI_AGENT_SKILL_FILE_NAME,
+                ),
+            ),
+        };
+    }
+    return { value: names, issues: NO_ISSUES };
+};
+
+const parseAvailability = (
+    data: Record<string, unknown>,
+): Parsed<AiAgentSkillAvailability[]> => {
+    if (data.availability === undefined) {
+        return { value: [...AVAILABILITY_VALUES], issues: NO_ISSUES };
+    }
+    const values = asStringList(data.availability);
+    const isAvailability = (value: string): value is AiAgentSkillAvailability =>
+        AVAILABILITY_VALUES.includes(value as AiAgentSkillAvailability);
+    if (
+        values === null ||
+        values.length === 0 ||
+        !values.every(isAvailability)
+    ) {
+        return {
+            value: [...AVAILABILITY_VALUES],
+            issues: errorsOnly(
+                issue(
+                    'field_invalid',
+                    '`availability` must list `agent`, `mcp` or both.',
+                    AI_AGENT_SKILL_FILE_NAME,
+                ),
+            ),
+        };
+    }
+    return { value: values, issues: NO_ISSUES };
+};
+
+const parseMetadata = (
+    data: Record<string, unknown>,
+): Parsed<AiAgentSkillMetadata> => {
+    if (data.metadata === undefined) return { value: {}, issues: NO_ISSUES };
+    if (
+        typeof data.metadata !== 'object' ||
+        data.metadata === null ||
+        Array.isArray(data.metadata)
+    ) {
+        return {
+            value: {},
+            issues: warningsOnly(
+                issue(
+                    'field_ignored',
+                    '`metadata` is ignored because it is not a mapping.',
+                    AI_AGENT_SKILL_FILE_NAME,
+                ),
+            ),
+        };
+    }
+    return {
+        value: Object.fromEntries(
+            Object.entries(data.metadata as Record<string, unknown>).map(
+                ([key, value]) => [key, String(value)],
+            ),
+        ),
+        issues: NO_ISSUES,
+    };
+};
+
+const checkBody = (
+    path: string,
+    text: string,
+    kind: 'skill' | 'resource',
+): Issues => {
+    const maxBytes =
+        kind === 'skill'
+            ? AI_AGENT_SKILL_BODY_MAX_BYTES
+            : AI_AGENT_SKILL_RESOURCE_MAX_BYTES;
+    return mergeIssues(
+        SHELL_INJECTION_PATTERN.test(text)
+            ? errorsOnly(
+                  issue(
+                      'body_shell_injection',
+                      'Shell command injection (!`command` or a ```! block) is not supported: Lightdash skills cannot run commands.',
+                      path,
+                  ),
+              )
+            : NO_ISSUES,
+        FILE_REFERENCE_PATTERN.test(text)
+            ? warningsOnly(
+                  issue(
+                      'body_file_reference',
+                      '@path references are passed to the model as plain text; Lightdash skills have no filesystem.',
+                      path,
+                  ),
+              )
+            : NO_ISSUES,
+        ENV_VARIABLE_PATTERN.test(text)
+            ? warningsOnly(
+                  issue(
+                      'body_env_variable',
+                      '${CLAUDE_*} variables are passed to the model as plain text.',
+                      path,
+                  ),
+              )
+            : NO_ISSUES,
+        byteLength(text) > maxBytes
+            ? errorsOnly(
+                  issue(
+                      kind === 'skill'
+                          ? 'body_too_large'
+                          : 'resource_too_large',
+                      `${path} cannot exceed ${Math.round(maxBytes / 1024)}KB.`,
+                      path,
+                  ),
+              )
+            : NO_ISSUES,
+        kind === 'skill' && countLines(text) > AI_AGENT_SKILL_BODY_WARN_LINES
+            ? warningsOnly(
+                  issue(
+                      'body_too_long',
+                      `The body is over ${AI_AGENT_SKILL_BODY_WARN_LINES} lines. Move detail into resources so the model loads less at once.`,
+                      path,
+                  ),
+              )
+            : NO_ISSUES,
+    );
+};
+
+const parseResource = (
+    path: string,
+    raw: string,
+): Parsed<AiAgentSkillParsedResource | null> => {
+    const parsed = splitFrontmatter(raw);
+    if (parsed === null) {
+        return {
+            value: null,
+            issues: errorsOnly(
+                issue(
+                    'frontmatter_invalid',
+                    'The resource frontmatter could not be parsed.',
+                    path,
+                ),
+            ),
+        };
+    }
+    const name = asTrimmedString(parsed.data.name);
+    const description = asTrimmedString(parsed.data.description);
+    if (name === null || description === null) {
+        return {
+            value: null,
+            issues: errorsOnly(
+                issue(
+                    'frontmatter_invalid',
+                    'Each resource needs `name` and `description` in its frontmatter.',
+                    path,
+                ),
+            ),
+        };
+    }
+    return {
+        value: {
+            fileName: path.slice(RESOURCE_PREFIX.length),
+            name,
+            description,
+            body: parsed.body,
+        },
+        issues: checkBody(path, parsed.body, 'resource'),
+    };
+};
+
+const parseResources = (
+    files: AiAgentSkillFiles,
+): Parsed<AiAgentSkillParsedResource[]> => {
+    const paths = Object.keys(files)
+        .filter((path) => path.startsWith(RESOURCE_PREFIX))
+        .sort();
+    const countIssues =
+        paths.length > AI_AGENT_SKILL_MAX_RESOURCES
+            ? errorsOnly(
+                  issue(
+                      'too_many_resources',
+                      `A skill can have at most ${AI_AGENT_SKILL_MAX_RESOURCES} resources.`,
+                      AI_AGENT_SKILL_RESOURCES_DIR,
+                  ),
+              )
+            : NO_ISSUES;
+    const parsed = paths.map((path) => parseResource(path, files[path]));
+    return {
+        value: parsed.flatMap((resource) =>
+            resource.value === null ? [] : [resource.value],
+        ),
+        issues: mergeIssues(countIssues, ...parsed.map((r) => r.issues)),
+    };
+};
+
+const checkTotalSize = (files: AiAgentSkillFiles): Issues =>
+    Object.values(files).reduce((sum, text) => sum + byteLength(text), 0) >
+    AI_AGENT_SKILL_MAX_TOTAL_BYTES
+        ? errorsOnly(
+              issue(
+                  'skill_too_large',
+                  `The whole skill cannot exceed ${Math.round(AI_AGENT_SKILL_MAX_TOTAL_BYTES / 1024)}KB.`,
+                  AI_AGENT_SKILL_FILE_NAME,
+              ),
+          )
+        : NO_ISSUES;
+
 type ValidateArgs = {
-    files: Record<string, string>;
+    files: AiAgentSkillFiles;
     /** Built-in skill names; any collision is an error. */
     reservedNames?: string[];
-    /**
-     * Folder name the skill was read from, when known. The frontmatter name
-     * must match it, per the agentskills.io specification.
-     */
+    /** Folder the skill was read from; the frontmatter name must match it. */
     folderName?: string;
 };
+
+const invalid = (issues: Issues): AiAgentSkillValidationResult => ({
+    valid: false,
+    parsed: null,
+    ...issues,
+});
 
 export const validateAiAgentSkill = ({
     files,
     reservedNames = [],
     folderName,
 }: ValidateArgs): AiAgentSkillValidationResult => {
-    const errors: AiAgentSkillIssue[] = [];
-    const warnings: AiAgentSkillIssue[] = [];
-    const error = (issue: AiAgentSkillIssue) => errors.push(issue);
-    const warn = (issue: AiAgentSkillIssue) => warnings.push(issue);
-    const fail = (): AiAgentSkillValidationResult => ({
-        valid: false,
-        parsed: null,
-        errors,
-        warnings,
-    });
-
     const skillRaw = files[AI_AGENT_SKILL_FILE_NAME];
     if (typeof skillRaw !== 'string') {
-        error({
-            code: 'skill_file_missing',
-            message: `A skill needs a ${AI_AGENT_SKILL_FILE_NAME} file.`,
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-        return fail();
+        return invalid(
+            errorsOnly(
+                issue(
+                    'skill_file_missing',
+                    `A skill needs a ${AI_AGENT_SKILL_FILE_NAME} file.`,
+                    AI_AGENT_SKILL_FILE_NAME,
+                ),
+            ),
+        );
     }
-
-    const resourcePrefix = `${AI_AGENT_SKILL_RESOURCES_DIR}/`;
-    Object.keys(files).forEach((path) => {
-        if (path === AI_AGENT_SKILL_FILE_NAME) return;
-        if (
-            !path.startsWith(resourcePrefix) ||
-            path.slice(resourcePrefix.length).includes('/') ||
-            !path.endsWith('.md')
-        ) {
-            error({
-                code: 'resource_path_invalid',
-                message: `Only ${AI_AGENT_SKILL_FILE_NAME} and markdown files directly under ${AI_AGENT_SKILL_RESOURCES_DIR}/ are allowed.`,
-                path,
-            });
-        }
-    });
-
-    let skillFrontmatter: Frontmatter | null;
-    try {
-        skillFrontmatter = splitFrontmatter(skillRaw);
-    } catch (e) {
-        skillFrontmatter = null;
-    }
+    const pathIssues = checkFilePaths(files);
+    const skillFrontmatter = splitFrontmatter(skillRaw);
     if (skillFrontmatter === null) {
-        error({
-            code: 'frontmatter_invalid',
-            message:
-                'The frontmatter could not be parsed. It must be a YAML mapping between two --- lines at the top of the file.',
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-        return fail();
+        return invalid(
+            mergeIssues(
+                pathIssues,
+                errorsOnly(
+                    issue(
+                        'frontmatter_invalid',
+                        'The frontmatter could not be parsed. It must be a YAML mapping between two --- lines at the top of the file.',
+                        AI_AGENT_SKILL_FILE_NAME,
+                    ),
+                ),
+            ),
+        );
     }
     const { data, body } = skillFrontmatter;
-
-    Object.keys(data).forEach((key) => {
-        if (REJECTED_FIELDS.has(key)) {
-            error({
-                code: 'field_rejected',
-                message: `\`${key}\` is not supported: Lightdash skills cannot register hooks or run commands.`,
-                path: AI_AGENT_SKILL_FILE_NAME,
-            });
-        } else if (IGNORED_FIELDS.has(key) || !HONOURED_FIELDS.has(key)) {
-            warn({
-                code: 'field_ignored',
-                message: `\`${key}\` is ignored: Lightdash skills run server-side with a fixed tool set.`,
-                path: AI_AGENT_SKILL_FILE_NAME,
-            });
-        }
-    });
-
-    const name = asString(data.name)?.trim() ?? '';
-    if (name.length === 0) {
-        error({
-            code: 'name_missing',
-            message: 'The frontmatter needs a `name`.',
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    } else if (!isValidAiAgentSkillName(name)) {
-        error({
-            code: 'name_invalid',
-            message: `\`name\` must be 1 to ${AI_AGENT_SKILL_NAME_MAX_LENGTH} lowercase letters, digits and single hyphens, and cannot start or end with a hyphen.`,
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    } else if (isReservedAiAgentSkillName(name, reservedNames)) {
-        error({
-            code: 'name_reserved',
-            message: `\`${name}\` is reserved for Lightdash built-in skills.`,
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    } else if (folderName !== undefined && folderName !== name) {
-        error({
-            code: 'name_mismatch',
-            message: `\`name\` (${name}) must match the skill folder name (${folderName}).`,
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    }
-
-    const description = asString(data.description)?.trim() ?? '';
-    if (description.length === 0) {
-        error({
-            code: 'description_missing',
-            message: 'The frontmatter needs a `description`.',
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    } else if (description.length > AI_AGENT_SKILL_DESCRIPTION_MAX_LENGTH) {
-        error({
-            code: 'description_too_long',
-            message: `\`description\` cannot exceed ${AI_AGENT_SKILL_DESCRIPTION_MAX_LENGTH} characters.`,
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    }
-
-    const compatibility = asString(data.compatibility);
-    if (
-        compatibility !== null &&
-        compatibility.length > AI_AGENT_SKILL_COMPATIBILITY_MAX_LENGTH
-    ) {
-        error({
-            code: 'compatibility_too_long',
-            message: `\`compatibility\` cannot exceed ${AI_AGENT_SKILL_COMPATIBILITY_MAX_LENGTH} characters.`,
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    }
-
-    const readBoolean = (key: string, fallback: boolean): boolean => {
-        if (data[key] === undefined) return fallback;
-        const parsed = asBoolean(data[key]);
-        if (parsed === null) {
-            error({
-                code: 'field_invalid',
-                message: `\`${key}\` must be true or false.`,
-                path: AI_AGENT_SKILL_FILE_NAME,
-            });
-            return fallback;
-        }
-        return parsed;
-    };
-
-    const argumentNames =
-        data.arguments === undefined ? [] : asStringList(data.arguments);
-    if (argumentNames === null) {
-        error({
-            code: 'field_invalid',
-            message:
-                '`arguments` must be a list of names or a space-separated string.',
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    }
-
-    let availability: AiAgentSkillAvailability[] = [...AVAILABILITY_VALUES];
-    if (data.availability !== undefined) {
-        const values = asStringList(data.availability);
-        if (
-            values === null ||
-            values.length === 0 ||
-            !values.every((value) =>
-                AVAILABILITY_VALUES.includes(value as AiAgentSkillAvailability),
-            )
-        ) {
-            error({
-                code: 'field_invalid',
-                message: '`availability` must list `agent`, `mcp` or both.',
-                path: AI_AGENT_SKILL_FILE_NAME,
-            });
-        } else {
-            availability = values as AiAgentSkillAvailability[];
-        }
-    }
-
-    let metadata: Record<string, string> = {};
-    if (data.metadata !== undefined) {
-        if (
-            typeof data.metadata === 'object' &&
-            data.metadata !== null &&
-            !Array.isArray(data.metadata)
-        ) {
-            metadata = Object.fromEntries(
-                Object.entries(data.metadata as Record<string, unknown>).map(
-                    ([key, value]) => [key, String(value)],
-                ),
-            );
-        } else {
-            warn({
-                code: 'field_ignored',
-                message: '`metadata` is ignored because it is not a mapping.',
-                path: AI_AGENT_SKILL_FILE_NAME,
-            });
-        }
-    }
-
-    const checkBody = (path: string, text: string, isSkill: boolean) => {
-        if (SHELL_INJECTION_PATTERN.test(text)) {
-            error({
-                code: 'body_shell_injection',
-                message:
-                    'Shell command injection (!`command` or a ```! block) is not supported: Lightdash skills cannot run commands.',
-                path,
-            });
-        }
-        if (FILE_REFERENCE_PATTERN.test(text)) {
-            warn({
-                code: 'body_file_reference',
-                message:
-                    '@path references are passed to the model as plain text; Lightdash skills have no filesystem.',
-                path,
-            });
-        }
-        if (ENV_VARIABLE_PATTERN.test(text)) {
-            warn({
-                code: 'body_env_variable',
-                message:
-                    '${CLAUDE_*} variables are passed to the model as plain text.',
-                path,
-            });
-        }
-        const maxBytes = isSkill
-            ? AI_AGENT_SKILL_BODY_MAX_BYTES
-            : AI_AGENT_SKILL_RESOURCE_MAX_BYTES;
-        if (byteLength(text) > maxBytes) {
-            error({
-                code: isSkill ? 'body_too_large' : 'resource_too_large',
-                message: `${path} cannot exceed ${Math.round(maxBytes / 1024)}KB.`,
-                path,
-            });
-        }
-        if (
-            isSkill &&
-            text.split('\n').length > AI_AGENT_SKILL_BODY_WARN_LINES
-        ) {
-            warn({
-                code: 'body_too_long',
-                message: `The body is over ${AI_AGENT_SKILL_BODY_WARN_LINES} lines. Move detail into resources so the model loads less at once.`,
-                path,
-            });
-        }
-    };
-    checkBody(AI_AGENT_SKILL_FILE_NAME, body, true);
-
-    const resourcePaths = Object.keys(files)
-        .filter((path) => path.startsWith(resourcePrefix))
-        .sort();
-    if (resourcePaths.length > AI_AGENT_SKILL_MAX_RESOURCES) {
-        error({
-            code: 'too_many_resources',
-            message: `A skill can have at most ${AI_AGENT_SKILL_MAX_RESOURCES} resources.`,
-            path: AI_AGENT_SKILL_RESOURCES_DIR,
-        });
-    }
-    const resources: AiAgentSkillParsedResource[] = [];
-    resourcePaths.forEach((path) => {
-        let parsedResource: Frontmatter | null;
-        try {
-            parsedResource = splitFrontmatter(files[path]);
-        } catch (e) {
-            parsedResource = null;
-        }
-        if (parsedResource === null) {
-            error({
-                code: 'frontmatter_invalid',
-                message: 'The resource frontmatter could not be parsed.',
-                path,
-            });
-            return;
-        }
-        const resourceName = asString(parsedResource.data.name)?.trim() ?? '';
-        const resourceDescription =
-            asString(parsedResource.data.description)?.trim() ?? '';
-        if (resourceName.length === 0 || resourceDescription.length === 0) {
-            error({
-                code: 'frontmatter_invalid',
-                message:
-                    'Each resource needs `name` and `description` in its frontmatter.',
-                path,
-            });
-            return;
-        }
-        checkBody(path, parsedResource.body, false);
-        resources.push({
-            fileName: path.slice(resourcePrefix.length),
-            name: resourceName,
-            description: resourceDescription,
-            body: parsedResource.body,
-        });
-    });
-
-    const totalBytes = Object.values(files).reduce(
-        (sum, text) => sum + byteLength(text),
-        0,
+    const name = asTrimmedString(data.name) ?? '';
+    const description = asTrimmedString(data.description) ?? '';
+    const compatibility = asTrimmedString(data.compatibility);
+    const argumentNames = parseArgumentNames(data);
+    const disableModelInvocation = parseBoolean(
+        data,
+        'disable-model-invocation',
+        false,
     );
-    if (totalBytes > AI_AGENT_SKILL_MAX_TOTAL_BYTES) {
-        error({
-            code: 'skill_too_large',
-            message: `The whole skill cannot exceed ${Math.round(AI_AGENT_SKILL_MAX_TOTAL_BYTES / 1024)}KB.`,
-            path: AI_AGENT_SKILL_FILE_NAME,
-        });
-    }
+    const userInvocable = parseBoolean(data, 'user-invocable', true);
+    const availability = parseAvailability(data);
+    const metadata = parseMetadata(data);
+    const resources = parseResources(files);
 
-    if (errors.length > 0) {
-        return fail();
+    const issues = mergeIssues(
+        pathIssues,
+        checkFrontmatterKeys(data),
+        checkName(name, reservedNames, folderName),
+        checkDescription(description),
+        checkCompatibility(compatibility),
+        argumentNames.issues,
+        disableModelInvocation.issues,
+        userInvocable.issues,
+        availability.issues,
+        metadata.issues,
+        checkBody(AI_AGENT_SKILL_FILE_NAME, body, 'skill'),
+        resources.issues,
+        checkTotalSize(files),
+    );
+    if (issues.errors.length > 0) {
+        return invalid(issues);
     }
 
     const frontmatter: AiAgentSkillFrontmatter = {
         name,
         description,
-        title: asString(data.title)?.trim() || null,
-        whenToUse: asString(data.when_to_use)?.trim() || null,
-        argumentHint: asString(data['argument-hint'])?.trim() || null,
-        arguments: argumentNames ?? [],
-        disableModelInvocation: readBoolean('disable-model-invocation', false),
-        userInvocable: readBoolean('user-invocable', true),
-        availability,
-        metadata,
-        license: asString(data.license)?.trim() || null,
-        compatibility: compatibility?.trim() || null,
+        title: asTrimmedString(data.title),
+        whenToUse: asTrimmedString(data.when_to_use),
+        argumentHint: asTrimmedString(data['argument-hint']),
+        arguments: argumentNames.value,
+        disableModelInvocation: disableModelInvocation.value,
+        userInvocable: userInvocable.value,
+        availability: availability.value,
+        metadata: metadata.value,
+        license: asTrimmedString(data.license),
+        compatibility,
     };
-
     return {
         valid: true,
-        parsed: { frontmatter, body, resources },
+        parsed: { frontmatter, body, resources: resources.value },
         errors: [],
-        warnings,
+        warnings: issues.warnings,
     };
 };
 
@@ -483,22 +634,18 @@ export const getAiAgentSkillListingText = (
     return text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text;
 };
 
-const tokenizeArguments = (input: string): string[] => {
-    const tokens: string[] = [];
-    const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
-    let match = pattern.exec(input);
-    while (match !== null) {
-        tokens.push(match[1] ?? match[2] ?? match[3]);
-        match = pattern.exec(input);
-    }
-    return tokens;
-};
+const tokenizeArguments = (input: string): string[] =>
+    Array.from(
+        input.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g),
+        (match) => match[1] ?? match[2] ?? match[3],
+    );
+
+const escapeRegExp = (value: string): string =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Substitute slash-command arguments into a skill body following the Claude
- * Code rules: `$ARGUMENTS` takes the whole string, `$ARGUMENTS[N]` and `$N`
- * take shell-style tokens, `$name` takes the declared position. When arguments
- * are given and no placeholder received one, `ARGUMENTS: <input>` is appended.
+ * Claude Code substitution rules, applied in one pass so inserted text is never
+ * re-expanded and unfilled placeholders stay literal.
  */
 export const substituteAiAgentSkillArguments = (
     body: string,
@@ -506,35 +653,42 @@ export const substituteAiAgentSkillArguments = (
     argumentNames: string[],
 ): string => {
     const trimmed = rawArguments.trim();
-    if (trimmed.length === 0) {
-        return body;
-    }
-    const tokens = tokenizeArguments(trimmed);
+    const hasArguments = trimmed.length > 0;
+    const tokens = hasArguments ? tokenizeArguments(trimmed) : [];
+    const namedAlternative =
+        argumentNames.length > 0
+            ? `|\\$(?<named>${[...argumentNames]
+                  .sort((a, b) => b.length - a.length)
+                  .map(escapeRegExp)
+                  .join('|')})(?![A-Za-z0-9_-])`
+            : '';
+    const pattern = new RegExp(
+        `\\\\\\$|\\$ARGUMENTS\\[(?<indexed>\\d+)\\]|\\$ARGUMENTS|\\$(?<positional>\\d+)${namedAlternative}`,
+        'g',
+    );
     let received = false;
-    const replaced = body
-        .replace(/\\\$/g, '\u0000')
-        .replace(/\$ARGUMENTS\[(\d+)\]/g, (match, index: string) => {
+    const replaced = body.replace(pattern, (...args: unknown[]) => {
+        const match = args[0] as string;
+        const groups = (args[args.length - 1] ?? {}) as Partial<
+            Record<'indexed' | 'positional' | 'named', string>
+        >;
+        if (match === '\\$') return '$';
+        if (!hasArguments) return match;
+        const index = groups.indexed ?? groups.positional;
+        if (index !== undefined) {
             const token = tokens[Number(index)];
             if (token === undefined) return match;
             received = true;
             return token;
-        })
-        .replace(/\$ARGUMENTS/g, () => {
+        }
+        if (groups.named !== undefined) {
             received = true;
-            return trimmed;
-        })
-        .replace(/\$(\d+)/g, (match, index: string) => {
-            const token = tokens[Number(index)];
-            if (token === undefined) return match;
-            received = true;
-            return token;
-        })
-        .replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, argName: string) => {
-            const position = argumentNames.indexOf(argName);
-            if (position === -1) return match;
-            received = true;
-            return tokens[position] ?? '';
-        })
-        .replace(/\u0000/g, '$');
-    return received ? replaced : `${replaced}\n\nARGUMENTS: ${trimmed}`;
+            return tokens[argumentNames.indexOf(groups.named)] ?? '';
+        }
+        received = true;
+        return trimmed;
+    });
+    return hasArguments && !received
+        ? `${replaced}\n\nARGUMENTS: ${trimmed}`
+        : replaced;
 };
