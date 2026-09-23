@@ -70,6 +70,7 @@ export const useDataAppAnalysisController = ({
     availability,
     autoAnalyse = 'inherit',
     onNeedsAgent,
+    onSourcesExpired,
     openThread,
 }: {
     projectUuid: string | undefined;
@@ -80,6 +81,8 @@ export const useDataAppAnalysisController = ({
     autoAnalyse?: DataAppAutoAnalysis;
     /** Called when the app asks to investigate but no agent is picked yet. */
     onNeedsAgent: () => void;
+    /** Reload the app so its queries re-run; see `useDataAppAnalysis`. */
+    onSourcesExpired?: () => void;
     /** Where "Continue in Ask AI" goes; defaults to the launcher panel. */
     openThread?: (thread: { threadUuid: string; agentUuid: string }) => void;
 }) => {
@@ -102,6 +105,7 @@ export const useDataAppAnalysisController = ({
         queries,
         mountedQueryUuids,
         autoAnalyse: autoAnalyseResolved,
+        onSourcesExpired,
     });
 
     const agentsQuery = useProjectAiAgents({

@@ -8,9 +8,11 @@ import {
     getItemLabelWithoutTableName,
     isDimension,
     isJwtUser,
+    LightdashError,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    ResultsExpiredError,
     SchedulerJobStatus,
     TooManyRequestsError,
     type Account,
@@ -236,6 +238,22 @@ export class DataAppAnalysisUnavailableError extends ForbiddenError {
     }
 }
 
+/**
+ * A source's stored rows are gone. Distinct from a 404 so the host can re-run
+ * the app's queries once and retry instead of showing a dead end.
+ */
+export class DataAppSourcesExpiredError extends LightdashError {
+    constructor() {
+        super({
+            message:
+                'The results behind this view have expired; re-run the app to analyse it',
+            name: 'DataAppSourcesExpiredError',
+            statusCode: 410,
+            data: { code: 'sources_expired' },
+        });
+    }
+}
+
 const outcomeForError = (e: unknown): DataAppAnalysisOutcome => {
     if (e instanceof TooManyRequestsError) return 'rate_limited';
     if (e instanceof DataAppAnalysisUnavailableError) {
@@ -244,7 +262,8 @@ const outcomeForError = (e: unknown): DataAppAnalysisOutcome => {
     if (
         e instanceof ForbiddenError ||
         e instanceof NotFoundError ||
-        e instanceof ParameterError
+        e instanceof ParameterError ||
+        e instanceof DataAppSourcesExpiredError
     ) {
         return 'denied';
     }
@@ -500,12 +519,19 @@ export class DataAppAnalysisService extends BaseService {
                     );
                 }
                 const { rows, fields, truncated, displayTimezone } =
-                    await this.asyncQueryService.getRawAsyncQueryResults({
-                        account,
-                        projectUuid,
-                        queryUuid: source.queryUuid,
-                        maxRows: MAX_ROWS_PER_CHART,
-                    });
+                    await this.asyncQueryService
+                        .getRawAsyncQueryResults({
+                            account,
+                            projectUuid,
+                            queryUuid: source.queryUuid,
+                            maxRows: MAX_ROWS_PER_CHART,
+                        })
+                        .catch((e: unknown) => {
+                            if (e instanceof ResultsExpiredError) {
+                                throw new DataAppSourcesExpiredError();
+                            }
+                            throw e;
+                        });
                 const fieldIds = rows[0] ? Object.keys(rows[0]) : [];
                 grounding.push({
                     queryUuid: source.queryUuid,

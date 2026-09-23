@@ -119,16 +119,6 @@ export default function AppPreviewTest() {
         analysisAvailability.status === 'available' ||
         (analysisAvailability.status === 'unavailable' &&
             analysisAvailability.reason !== 'not_rolled_out');
-    const openAnalysis = useCallback(() => setAnalysisOpened(true), []);
-    const analysisController = useDataAppAnalysisController({
-        projectUuid,
-        appUuid,
-        queries: inspector.panelProps.queries,
-        availability: analysisAvailability,
-        autoAnalyse: appAutoAnalysis ?? 'inherit',
-        onNeedsAgent: openAnalysis,
-    });
-
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
     // with the first refresh so those re-fired queries bypass the warehouse
@@ -140,6 +130,18 @@ export default function AppPreviewTest() {
         setInvalidateCache(true);
         rolloverLogs();
     }, [rolloverLogs]);
+
+    const openAnalysis = useCallback(() => setAnalysisOpened(true), []);
+    const analysisController = useDataAppAnalysisController({
+        projectUuid,
+        appUuid,
+        queries: inspector.panelProps.queries,
+        availability: analysisAvailability,
+        autoAnalyse: appAutoAnalysis ?? 'inherit',
+        onNeedsAgent: openAnalysis,
+        // Expired sources: reload the app once so its queries re-run.
+        onSourcesExpired: handleRefresh,
+    });
 
     const previewOrigin = usePreviewOrigin();
 
