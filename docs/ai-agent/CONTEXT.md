@@ -75,3 +75,12 @@ One data app build started from a thread that the app-wide build watcher
 follows until its outcome lands. Lives in the AI agent store for the session
 only; nothing is persisted.
 _Avoid_: subscription, poll registration, tracked build
+
+**Skill**:
+A named unit of guidance the AI agent can follow: a description, a markdown
+body, and optional resource files. Built-in skills ship with Lightdash;
+custom skills are authored by an organization and enabled on an agent one by
+one. A skill reaches the model two ways: the agent loads it when a request
+matches its description, or a user invokes it directly with a slash command
+and optional arguments.
+_Avoid_: command (for the unit), prompt template, action, macro
