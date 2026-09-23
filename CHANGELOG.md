@@ -1,3 +1,10 @@
+# [2.302.0](https://github.com/lightdash/lightdash/compare/2.301.2...2.302.0) (2026-09-23)
+
+
+### Features
+
+* **data-apps:** allow trusted private external connection hosts ([#29771](https://github.com/lightdash/lightdash/issues/29771)) ([28086f6](https://github.com/lightdash/lightdash/commit/28086f6e26871621dad8ee8018e2edde90f27664))
+
 ## [2.301.2](https://github.com/lightdash/lightdash/compare/2.301.1...2.301.2) (2026-09-23)
 
 
