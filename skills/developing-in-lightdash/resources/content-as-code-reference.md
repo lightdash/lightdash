@@ -76,7 +76,7 @@ Upload-only flags:
 
 Local development is under the `lightdash apps` subcommand group, separate from content as code: `apps create <name>` scaffolds a new app bundle under `<path>/apps/`, `apps preview [path]` runs a downloaded app locally against a real Lightdash instance authenticated as you, and `apps validate [paths...]` checks source, manifests, dependencies, and semantic-layer references (`--live` validates against fresh explores instead of the downloaded snapshot).
 
-Every bundle written by `apps create` or `lightdash download` carries its own authoring skills in `.claude/skills/` inside the app folder: `developing-data-apps-locally` (the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries) and `lightdash-data-app` (the `@lightdash/query-sdk` reference). Read them before editing app source — they are version-matched to the bundle and authoritative for local development.
+Every bundle written by `apps create` or `lightdash download` carries its own authoring skills inside the app folder: `developing-data-apps-locally` (the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries) and `lightdash-data-app` (the `@lightdash/query-sdk` reference). Read them before editing app source — they are version-matched to the bundle and authoritative for local development.
 
 ## Custom Chart Types (Enterprise)
 
@@ -95,7 +95,7 @@ lightdash upload --chart-types radial-gauge --path ./lightdash
 
 Charts that render with a custom chart type are saved as `chartConfig.type: data_app_viz`, bound to the chart type by `config.dataAppVizSlug`. Downloading such a chart also downloads its chart type. On upload, the chart type must already exist in the target project or be selected in the same run; chart types upload before charts. Otherwise the chart fails with a "not found in this project" error.
 
-New chart types are scaffolded with `lightdash apps create "<name>" --chart-type`, which writes `<path>/chart-types/<slug>/`. Every created or downloaded chart type folder carries an `AGENTS.md` and two skills in `.claude/skills/` (mirrored in `.agents/skills/` for Codex): `reusable-visualization` (the `useVizContext()` component contract) and `developing-chart-types-locally` (the `vizSchema` lockstep rule, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop). Read them before editing chart type source.
+New chart types are scaffolded with `lightdash apps create "<name>" --chart-type`, which writes `<path>/chart-types/<slug>/`. Every created or downloaded chart type folder carries an `AGENTS.md` and two skills: `reusable-visualization` (the `useVizContext()` component contract) and `developing-chart-types-locally` (the `vizSchema` lockstep rule, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop). Read them before editing chart type source.
 
 ## External Connections (Enterprise)
 

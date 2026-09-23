@@ -162,7 +162,7 @@ lightdash apps validate --build   # add the Cloud-parity Vite production build
 lightdash apps validate --live    # validate against fresh project explores instead of the downloaded snapshot
 ```
 
-Every created or downloaded app bundle includes its own skills in `.claude/skills/` (`developing-data-apps-locally` and `lightdash-data-app`) — read them before editing app source.
+Every created or downloaded app bundle includes its own skills (`developing-data-apps-locally` and `lightdash-data-app`) — read them before editing app source.
 
 ## Custom Chart Types (Enterprise)
 
@@ -187,7 +187,7 @@ lightdash upload --chart-types radial-gauge --path ../..
 lightdash upload --include-chart-types
 ```
 
-Every created or downloaded chart type folder includes `AGENTS.md` and its own skills in `.claude/skills/` and `.agents/skills/` (`reusable-visualization` and `developing-chart-types-locally`). Read them before editing chart type source.
+Every created or downloaded chart type folder includes `AGENTS.md` and its own skills (`reusable-visualization` and `developing-chart-types-locally`). Read them before editing chart type source.
 
 ## SQL Runner
 

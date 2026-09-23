@@ -53,9 +53,9 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 | **Adding `--include-apps` to an `--apps <ref>` selection** | `--include-apps` always requests ALL project apps (capped at 50), so the command downloads every app plus the ref — not just the one app | `--apps <ref>` alone downloads/uploads only that app (by slug, app URL, or UUID). Use `--include-apps` only when you want every app |
-| **Editing a data app without reading its bundled skills** | App code violates the SDK-only data access and dependency boundaries (direct `fetch`, `pnpm add`, vendored libraries) and the upload rejects or the app breaks when deployed | Every app bundle ships `.claude/skills/developing-data-apps-locally` and `.claude/skills/lightdash-data-app` — read them before editing files in an app folder (see [Data Apps](#working-with-data-apps-enterprise)) |
+| **Editing a data app without reading its bundled skills** | App code violates the SDK-only data access and dependency boundaries (direct `fetch`, `pnpm add`, vendored libraries) and the upload rejects or the app breaks when deployed | Every app bundle ships the `developing-data-apps-locally` and `lightdash-data-app` skills — read them before editing files in an app folder (see [Data Apps](#working-with-data-apps-enterprise)) |
 | **Building a reusable chart as a Vega-Lite `custom` chart** | The visualization lives inside one saved chart and can't be reused or picked from the explorer's chart type picker | For a new reusable visualization, build a custom chart type (see [Custom Chart Types](#working-with-custom-chart-types-enterprise)). Use Vega-Lite only for existing `chartConfig.type: custom` charts or when the project has no custom chart types (enterprise) |
-| **Editing a chart type without reading its bundled skills** | The component queries or fetches data itself, or its `vizSchema` drifts from what `src/` reads, so the chart type breaks or never appears in the chart type picker | Every chart type folder ships `AGENTS.md` plus `.claude/skills/reusable-visualization` and `.claude/skills/developing-chart-types-locally` — read all three before editing files in `chart-types/<slug>/` |
+| **Editing a chart type without reading its bundled skills** | The component queries or fetches data itself, or its `vizSchema` drifts from what `src/` reads, so the chart type breaks or never appears in the chart type picker | Every chart type folder ships `AGENTS.md` plus the `reusable-visualization` and `developing-chart-types-locally` skills — read all three before editing files in `chart-types/<slug>/` |
 | **Inventing a theme-only CLI command or treating a missing folder as deletion** | The command does not exist, or a supposedly deleted remote theme returns on the next download | Use organization download/upload, and read [Data App Themes](./resources/data-app-themes-reference.md) before changing `themes/` |
 
 ## Before You Start
@@ -247,7 +247,7 @@ lightdash apps preview                     # run the app locally against your re
 lightdash apps validate                    # check source, manifest, dependencies, and semantic-layer references
 ```
 
-**Every created or downloaded app bundle ships its own skills** in `.claude/skills/` inside the app folder:
+**Every created or downloaded app bundle ships its own skills** inside the app folder:
 
 - `developing-data-apps-locally` — the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries
 - `lightdash-data-app` — the `@lightdash/query-sdk` reference for the app's source code
@@ -283,10 +283,10 @@ lightdash upload --include-chart-types        # every chart type folder on disk
 
 A chart YAML that binds to a chart type by `dataAppVizSlug` fails to upload unless that chart type exists in the target project. Upload the chart type first, or pass `--chart-types <ref>` in the same run (chart types upload before charts).
 
-**Edit inside the folder.** Change into `chart-types/<slug>/` and **read its `AGENTS.md` and both bundled skills before touching `src/`**. They ship in `.claude/skills/` and, for Codex, `.agents/skills/`:
+**Edit inside the folder.** Change into `chart-types/<slug>/` and **read its `AGENTS.md` plus the `reusable-visualization` and `developing-chart-types-locally` skills before touching `src/`**:
 
-- `.claude/skills/reusable-visualization/SKILL.md` — the component contract: `useVizContext()` is the only channel to the host, and the component never queries or fetches anything itself
-- `.claude/skills/developing-chart-types-locally/SKILL.md` — keeping `vizSchema` in lockstep with the component, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop
+- `reusable-visualization` — the component contract: `useVizContext()` is the only channel to the host, and the component never queries or fetches anything itself
+- `developing-chart-types-locally` — keeping `vizSchema` in lockstep with the component, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop
 
 Those files are version-matched to the chart type and authoritative for editing it. This skill only covers moving chart types between disk and Lightdash.
 

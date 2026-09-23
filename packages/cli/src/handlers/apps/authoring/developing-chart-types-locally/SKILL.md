@@ -9,7 +9,7 @@ You are editing a Lightdash **custom chart type** (a reusable visualization, the
 
 ## The contract is the reusable-visualization skill
 
-Read `.claude/skills/reusable-visualization` before editing. It defines everything the component may do: `useVizContext()` is the only channel to the host (data, options, resolved colours), the component runs no query, owns no explore, and never fetches anything itself. App-level SDK APIs (query builder, `useLightdash`, filters, `externalFetch`) do not apply here and must not be introduced.
+Read the `reusable-visualization` skill before editing. It defines everything the component may do: `useVizContext()` is the only channel to the host (data, options, resolved colours), the component runs no query, owns no explore, and never fetches anything itself. App-level SDK APIs (query builder, `useLightdash`, filters, `externalFetch`) do not apply here and must not be introduced.
 
 Never hand-build a data-point action menu when `useVizContext().pointMenu.enabled` — call `pointMenu.open({ x, y, row, metric })` and let Lightdash render it; an in-viz menu is only the fallback for hosts that predate the capability.
 
