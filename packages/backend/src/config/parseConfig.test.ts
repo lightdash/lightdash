@@ -217,6 +217,24 @@ describe('query history retention', () => {
     });
 });
 
+describe('scheduler daily job generation concurrency', () => {
+    it('defaults to 10', () => {
+        expect(parseConfig().scheduler.dailyJobGenerationConcurrency).toBe(10);
+    });
+
+    it('reads the configured concurrency', () => {
+        process.env.SCHEDULER_DAILY_JOB_GENERATION_CONCURRENCY = '7';
+
+        expect(parseConfig().scheduler.dailyJobGenerationConcurrency).toBe(7);
+    });
+
+    it('rejects non-positive concurrency', () => {
+        process.env.SCHEDULER_DAILY_JOB_GENERATION_CONCURRENCY = '0';
+
+        expect(() => parseConfig()).toThrow(ParseError);
+    });
+});
+
 describe('usage events storage endpoint', () => {
     it('inherits the base endpoint when no override is configured', () => {
         expect(parseUsageEventsS3Config()?.endpoint).toBe('mock_endpoint');
