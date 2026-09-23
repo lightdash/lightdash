@@ -235,6 +235,7 @@ describe('AppGenerateService data app vizs', () => {
             'project-1',
             { page: 1, pageSize: 25 },
             undefined,
+            { sortBy: 'createdAt', sortDirection: 'desc' },
         );
         expect(result).toEqual({
             data: [
@@ -253,6 +254,36 @@ describe('AppGenerateService data app vizs', () => {
             ],
             pagination,
         });
+    });
+
+    it('passes a name sort through to the model', async () => {
+        const pagination = {
+            page: 1,
+            pageSize: 25,
+            totalPageCount: 1,
+            totalResults: 1,
+        };
+        const appModel = {
+            listDataAppVisualizations: vi
+                .fn()
+                .mockResolvedValue({ data: [makeDataAppVizRow()], pagination }),
+        };
+        const service = buildService(appModel);
+
+        await service.listDataAppVisualizations(
+            USER,
+            'project-1',
+            { page: 1, pageSize: 25 },
+            undefined,
+            { sortBy: 'name', sortDirection: 'asc' },
+        );
+
+        expect(appModel.listDataAppVisualizations).toHaveBeenCalledWith(
+            'project-1',
+            { page: 1, pageSize: 25 },
+            undefined,
+            { sortBy: 'name', sortDirection: 'asc' },
+        );
     });
 
     describe('who the library is offered to', () => {
@@ -487,6 +518,7 @@ describe('AppGenerateService data app vizs', () => {
             'project-1',
             { page: 1, pageSize: 25 },
             'gauge',
+            { sortBy: 'createdAt', sortDirection: 'desc' },
         );
     });
 

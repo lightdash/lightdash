@@ -808,10 +808,12 @@ describe('ExplorerChartTypeGallery', () => {
     });
 
     it('runs one grid: built-ins in order, then project types A–Z', () => {
+        // The server returns project types already sorted by name; the
+        // gallery must render that order as-is, not re-sort client-side.
         setProjectItems([
+            projectChartType,
             installedChartType,
             { ...projectChartType, name: 'Zebra pulse' },
-            projectChartType,
         ]);
         renderGallery();
 
@@ -1186,6 +1188,7 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mockedUseDataAppVisualizations).toHaveBeenCalledWith(
             undefined,
             '',
+            { sortBy: 'name', sortDirection: 'asc' },
         );
         expect(
             screen.queryByRole('button', { name: 'Event pulse' }),

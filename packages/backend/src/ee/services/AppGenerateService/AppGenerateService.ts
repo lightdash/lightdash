@@ -32,6 +32,7 @@ import {
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_CODEX_MODEL,
+    DEFAULT_DATA_APP_VIZ_LIST_SORT,
     DirectAccessResourceType,
     extractDataAppDataReferences,
     extractLockfilePackages,
@@ -118,6 +119,7 @@ import {
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizDeleteImpact,
+    type DataAppVizListSort,
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
     type DataAppVizsFilter,
@@ -9732,6 +9734,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
         search?: string,
+        sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
         await this.assertChartTypesEnabled(user);
         const { organizationUuid } =
@@ -9742,6 +9745,7 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
                 paginateArgs,
                 search,
+                sort,
             );
         return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
     }

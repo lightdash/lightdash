@@ -4,6 +4,7 @@ import {
     ChartType,
     DATA_APP_VIZ_TEMPLATE,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
+    DEFAULT_DATA_APP_VIZ_LIST_SORT,
     generateSlug,
     NotFoundError,
     ProjectType,
@@ -16,6 +17,7 @@ import {
     type DataAppAutoAnalysis,
     type DataAppCodingAgent,
     type DataAppGenerationUsage,
+    type DataAppVizListSort,
     type DataAppVizSchema,
     type DataAppVizsFilter,
     type KnexPaginateArgs,
@@ -1374,6 +1376,7 @@ export class AppModel {
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
         search?: string,
+        sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<
         KnexPaginatedData<(DbApp & { viz_schema: DataAppVizSchema })[]>
     > {
@@ -1387,8 +1390,20 @@ export class AppModel {
             .select<(DbApp & { viz_schema: DataAppVizSchema })[]>(
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
-            )
-            .orderBy(`${AppsTableName}.created_at`, 'desc');
+            );
+        const sortColumn: Record<DataAppVizListSort['sortBy'], string> = {
+            createdAt: 'created_at',
+            name: 'name',
+        };
+        // Trailing app_id keeps the order stable when the sort column has
+        // ties, so paginated results don't skip or repeat rows.
+        void query.orderBy([
+            {
+                column: `${AppsTableName}.${sortColumn[sort.sortBy]}`,
+                order: sort.sortDirection,
+            },
+            { column: `${AppsTableName}.app_id`, order: 'asc' },
+        ]);
         if (search) {
             void query.whereRaw(
                 getFullTextSearchFilterSql({

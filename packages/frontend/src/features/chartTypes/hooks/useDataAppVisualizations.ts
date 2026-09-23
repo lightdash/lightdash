@@ -1,6 +1,8 @@
 import {
     type ApiError,
     type ApiListDataAppVizsResponse,
+    type DataAppVizListSort,
+    DEFAULT_DATA_APP_VIZ_LIST_SORT,
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -12,10 +14,13 @@ const getDataAppVisualizations = async (
     page: number,
     pageSize: number,
     search: string,
+    sort: DataAppVizListSort,
 ): Promise<DataAppVizsPage> => {
     const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
+        sortBy: sort.sortBy,
+        sortDirection: sort.sortDirection,
     });
     if (search) {
         params.set('search', search);
@@ -34,15 +39,24 @@ const FETCH_SIZE = 25;
 export const useDataAppVisualizations = (
     projectUuid: string | undefined,
     search: string = '',
+    sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
 ) =>
     useInfiniteQuery<DataAppVizsPage, ApiError>({
-        queryKey: ['data-app-vizs', projectUuid, FETCH_SIZE, search],
+        queryKey: [
+            'data-app-vizs',
+            projectUuid,
+            FETCH_SIZE,
+            search,
+            sort.sortBy,
+            sort.sortDirection,
+        ],
         queryFn: ({ pageParam = 1 }) =>
             getDataAppVisualizations(
                 projectUuid!,
                 pageParam as number,
                 FETCH_SIZE,
                 search,
+                sort,
             ),
         getNextPageParam: (lastPage, pages) => {
             const totalPages = lastPage.pagination?.totalPageCount ?? 0;
