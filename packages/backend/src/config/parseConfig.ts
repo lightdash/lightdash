@@ -3607,7 +3607,7 @@ export const parseConfig = (): LightdashConfig => {
             dailyJobGenerationConcurrency:
                 getPositiveIntegerFromEnvironmentVariable(
                     'SCHEDULER_DAILY_JOB_GENERATION_CONCURRENCY',
-                    5,
+                    10,
                 ),
             pollInterval:
                 getIntegerFromEnvironmentVariable('SCHEDULER_POLL_INTERVAL') ||
