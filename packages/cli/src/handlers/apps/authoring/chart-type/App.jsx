@@ -43,7 +43,7 @@ const token = (name) =>
 // mapping from the field names declared in lightdash-app.yml's vizSchema to
 // the query's columns. Everything read here (`category`/`value` fields,
 // `showLabels`/`maxBars` options) is declared there; keep the two in lockstep
-// (see .claude/skills/reusable-visualization).
+// (see the reusable-visualization skill).
 function App() {
     const context = useVizContext();
     const { fieldMapping, rows, options, colorPalette, ready } = context;
