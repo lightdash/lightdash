@@ -199,6 +199,10 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { clearProjectExtraRoles } from '../roleSetUtils';
+import {
+    WarehouseConnectionRouter,
+    type ConnectionBinding,
+} from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
@@ -428,10 +432,15 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private connectionRouter: WarehouseConnectionRouter;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
+        this.connectionRouter = new WarehouseConnectionRouter({
+            database: args.database,
+        });
     }
 
     async upsertMergedManifest(
@@ -1744,6 +1753,8 @@ export class ProjectModel {
                     expiresAt: project.expires_at ?? null,
                     provisioningSource: project.provisioning_source ?? null,
                     agentSqlScope: project.agent_sql_scope ?? null,
+                    connectionRoute:
+                        await this.connectionRouter.getRoute(projectUuid),
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -2009,6 +2020,7 @@ export class ProjectModel {
             expiresAt: project.expiresAt,
             provisioningSource: project.provisioningSource ?? null,
             agentSqlScope: project.agentSqlScope ?? null,
+            connectionRoute: project.connectionRoute,
         };
     }
 
@@ -4103,6 +4115,21 @@ export class ProjectModel {
             ...access,
             role: role_uuid ?? access.role,
         }));
+    }
+
+    async requireSingleConnectionRoute(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ) {
+        return this.connectionRouter.requireSingleRoute(projectUuid, binding);
+    }
+
+    async getWarehouseCredentialsForBinding(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<CreateWarehouseCredentials> {
+        await this.requireSingleConnectionRoute(projectUuid, binding);
+        return this.getWarehouseCredentialsForProject(projectUuid);
     }
 
     async getWarehouseCredentialsForProject(

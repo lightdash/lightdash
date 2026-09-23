@@ -389,6 +389,7 @@ export const projectWithSensitiveFields: Project = {
     colorPaletteUuid: null,
     expiresAt: null,
     agentSqlScope: null,
+    connectionRoute: 'single',
 };
 
 export const projectSummary: ProjectSummary = {
