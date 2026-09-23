@@ -1,7 +1,9 @@
 import { MODEL_PRESETS } from '../ai/models/presets';
 import { pickAutopilotModel } from './modelSelection';
 
-const [sonnet] = MODEL_PRESETS.anthropic;
+const sonnet = MODEL_PRESETS.anthropic.find(
+    (model) => model.name === 'claude-sonnet-5',
+)!;
 const [gpt] = MODEL_PRESETS.openai;
 const opus47 = MODEL_PRESETS.anthropic.find(
     (model) => model.name === 'claude-opus-4-7',
@@ -14,6 +16,9 @@ const opus55 = MODEL_PRESETS.anthropic.find(
 )!;
 const bedrockOpus47 = MODEL_PRESETS.bedrock.find(
     (model) => model.name === 'claude-opus-4-7',
+)!;
+const bedrockSonnet = MODEL_PRESETS.bedrock.find(
+    (model) => model.name === 'claude-sonnet-5',
 )!;
 
 describe('pickAutopilotModel', () => {
@@ -109,7 +114,7 @@ describe('pickAutopilotModel', () => {
                     provider: 'bedrock',
                     name: 'claude-sonnet-5',
                 },
-                availableModels: [MODEL_PRESETS.bedrock[1], bedrockOpus47],
+                availableModels: [bedrockSonnet, bedrockOpus47],
             }),
         ).toEqual({ provider: 'bedrock', modelName: 'claude-opus-4-7' });
     });

@@ -110,6 +110,7 @@ export const MODEL_PRESETS: {
             // https://developers.openai.com/api/docs/models/gpt-5.5
             contextWindowTokens: 265000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -126,6 +127,7 @@ export const MODEL_PRESETS: {
             // https://developers.openai.com/api/docs/models/gpt-5.4
             contextWindowTokens: 265000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -181,11 +183,12 @@ export const MODEL_PRESETS: {
     ],
     anthropic: [
         {
-            name: 'claude-sonnet-5',
+            name: 'claude-opus-5-5',
             provider: 'anthropic',
-            modelId: 'claude-sonnet-5',
-            displayName: 'Claude Sonnet 5',
-            description: 'Newest Sonnet model balancing speed and intelligence',
+            modelId: 'claude-opus-5-5',
+            displayName: 'Claude Opus 5.5',
+            description:
+                'Most intelligent Opus model for complex agentic coding and enterprise work',
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
@@ -193,12 +196,11 @@ export const MODEL_PRESETS: {
             providerOptions: undefined,
         },
         {
-            name: 'claude-opus-5-5',
+            name: 'claude-sonnet-5',
             provider: 'anthropic',
-            modelId: 'claude-opus-5-5',
-            displayName: 'Claude Opus 5.5',
-            description:
-                'Most intelligent Opus model for complex agentic coding and enterprise work',
+            modelId: 'claude-sonnet-5',
+            displayName: 'Claude Sonnet 5',
+            description: 'Newest Sonnet model balancing speed and intelligence',
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
@@ -358,11 +360,12 @@ export const MODEL_PRESETS: {
             providerOptions: undefined,
         },
         {
-            name: 'claude-sonnet-5',
+            name: 'claude-opus-5-5',
             provider: 'bedrock',
-            modelId: 'anthropic.claude-sonnet-5',
-            displayName: 'Claude Sonnet 5',
-            description: 'Newest Sonnet model balancing speed and intelligence',
+            modelId: 'anthropic.claude-opus-5-5',
+            displayName: 'Claude Opus 5.5',
+            description:
+                'Most intelligent Opus model for complex agentic coding and enterprise work',
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
@@ -370,12 +373,11 @@ export const MODEL_PRESETS: {
             providerOptions: undefined,
         },
         {
-            name: 'claude-opus-5-5',
+            name: 'claude-sonnet-5',
             provider: 'bedrock',
-            modelId: 'anthropic.claude-opus-5-5',
-            displayName: 'Claude Opus 5.5',
-            description:
-                'Most intelligent Opus model for complex agentic coding and enterprise work',
+            modelId: 'anthropic.claude-sonnet-5',
+            displayName: 'Claude Sonnet 5',
+            description: 'Newest Sonnet model balancing speed and intelligence',
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
