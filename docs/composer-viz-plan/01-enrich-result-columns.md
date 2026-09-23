@@ -131,7 +131,7 @@ Investigate and answer, with file/line evidence:
    backward-compatible for the TSOA-generated OpenAPI and typed frontend
    clients; check whether query_history.columns jsonb rows written before the
    change need a read-time default; check release-safety implications per
-   CLAUDE.md.
+   AGENTS.md.
 
 Deliverable: a design doc with the chosen ResultColumn shape (TypeScript),
 population rules per query source, the DuckDB propagation algorithm for

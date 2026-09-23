@@ -109,7 +109,7 @@ custom role that grants exactly the org-level abilities they need (e.g.,
 ## Adding a new permission
 
 The full checklist for adding a CASL subject + scope is in the root
-`CLAUDE.md` under "Authorization & Custom Roles". The short version:
+`AGENTS.md` under "Authorization & Custom Roles". The short version:
 
 1. Add the subject to `CaslSubjectNames` (`types.ts`).
 2. Add the scope to `scopes.ts` (controls custom-role coverage).

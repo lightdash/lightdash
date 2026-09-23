@@ -9,7 +9,7 @@
 //   never an inline fallback.
 // - Dynamic parts use {token} placeholders with interpolateUiString; one key
 //   per English plural form, no ICU.
-// See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
+// See packages/frontend/src/components/common/Filters/AGENTS.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
     'page.closeSidebar': 'Close sidebar',

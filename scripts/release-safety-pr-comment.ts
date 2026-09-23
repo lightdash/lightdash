@@ -280,7 +280,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         ? [
               '**How to unblock this pull request**',
               '',
-              'This required check must pass before merge. For a migration break, follow `packages/backend/src/database/migrations/CLAUDE.md`; for an API or type break, add the verified declaration described in [the release-safety guidance](https://github.com/lightdash/lightdash/blob/main/CLAUDE.md#release-safety-declarations).',
+              'This required check must pass before merge. For a migration break, follow `packages/backend/src/database/migrations/AGENTS.md`; for an API or type break, add the verified declaration described in [the release-safety guidance](https://github.com/lightdash/lightdash/blob/main/AGENTS.md#release-safety-declarations).',
               '',
               'Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy.',
               '',

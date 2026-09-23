@@ -236,7 +236,7 @@ fields, so these can land before, after, or interleaved with population.
   `oasdiff breaking` classifies added optional properties as non-breaking;
   the release-safety marker computes from migrations/restApi/mcpApi/config
   and none trips. **No release-safety declaration** (declaring one would be
-  wrong per CLAUDE.md). No migration — the jsonb columns exist.
+  wrong per AGENTS.md). No migration — the jsonb columns exist.
 - Run `pnpm generate-api` locally to validate; the pre-commit hook unstages
   the generated artifacts (by design).
 - Old `query_history` rows need **no** read-time defaulting (optionals read

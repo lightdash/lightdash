@@ -8,7 +8,7 @@ Recommended first release: sign in, browse spaces/content, view dashboards/chart
 
 ## Existing foundations and constraints
 
-- `packages/frontend/package.json` pins Mantine **9.6.0**; CLAUDE.md's v8 reference is stale. No Mantine upgrade needed for this work.
+- `packages/frontend/package.json` pins Mantine **9.6.0**; AGENTS.md's v8 reference is stale. No Mantine upgrade needed for this work.
 - `src/App.tsx` chooses separate mobile/desktop route trees using `src/utils/isMobile.ts`: `window.innerWidth < 768`, evaluated once. Resize/orientation changes cannot switch route trees without reloading.
 - `src/MobileRoutes.tsx` includes mobile home/spaces/content lists, explicitly unsupported routes, and redirects saved content to minimal viewers. `components/Mobile/RedirectToResource.tsx` rebuilds URLs without the incoming query string; URL/filter/tab preservation needs explicit coverage during consolidation.
 - `components/Mobile/MobileNavBar.tsx` already uses Burger + Drawer. Ask AI's `AiAgentPageLayout.tsx` already swaps its sidebar and preview into drawers.
