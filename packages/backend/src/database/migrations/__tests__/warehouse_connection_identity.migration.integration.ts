@@ -157,7 +157,9 @@ describe('Multi runtime identity on the real schema', () => {
                 config: tableConfig,
                 spaceUuid: project.spaceUuid,
             },
-            binding,
+            binding === undefined
+                ? undefined
+                : { kind: 'connection', ...binding },
         );
 
     const versionBinding = async (savedSqlVersionUuid: string) =>
@@ -270,7 +272,10 @@ describe('Multi runtime identity on the real schema', () => {
                         },
                     },
                 },
-                { warehouseConnectionUuid: project.extraUuid },
+                {
+                    kind: 'connection',
+                    warehouseConnectionUuid: project.extraUuid,
+                },
             );
 
             expect(await versionBinding(updated.savedSqlVersionUuid!)).toBe(
@@ -279,6 +284,104 @@ describe('Multi runtime identity on the real schema', () => {
             expect(
                 await versionBinding(created.savedSqlVersionUuid),
             ).toBeNull();
+        });
+
+        test.each([
+            ['an extra connection', true],
+            ['the original', false],
+        ] as const)(
+            'an old-client update with no connection field keeps %s',
+            async (_label, bound) => {
+                const project = await createMultiProject();
+                const created = await createSqlChart(project, {
+                    warehouseConnectionUuid: bound ? project.extraUuid : null,
+                });
+
+                const updated = await savedSqlModel.update(
+                    {
+                        userUuid: project.userUuid,
+                        savedSqlUuid: created.savedSqlUuid,
+                        sqlChart: {
+                            versionedData: {
+                                sql: 'select 2',
+                                limit: 10,
+                                config: tableConfig,
+                            },
+                        },
+                    },
+                    { kind: 'latest' },
+                );
+
+                expect(await versionBinding(updated.savedSqlVersionUuid!)).toBe(
+                    bound ? project.extraUuid : null,
+                );
+            },
+        );
+
+        test('an old-client update carries the latest version, not the first', async () => {
+            const project = await createMultiProject();
+            const created = await createSqlChart(project, {
+                warehouseConnectionUuid: null,
+            });
+            const versionedData = {
+                sql: 'select 2',
+                limit: 10,
+                config: tableConfig,
+            };
+            await savedSqlModel.update(
+                {
+                    userUuid: project.userUuid,
+                    savedSqlUuid: created.savedSqlUuid,
+                    sqlChart: { versionedData },
+                },
+                {
+                    kind: 'connection',
+                    warehouseConnectionUuid: project.extraUuid,
+                },
+            );
+
+            const updated = await savedSqlModel.update(
+                {
+                    userUuid: project.userUuid,
+                    savedSqlUuid: created.savedSqlUuid,
+                    sqlChart: { versionedData },
+                },
+                { kind: 'latest' },
+            );
+
+            expect(await versionBinding(updated.savedSqlVersionUuid!)).toBe(
+                project.extraUuid,
+            );
+        });
+
+        test('an old-client update refuses a latest binding planted across projects', async () => {
+            const project = await createMultiProject();
+            const other = await createMultiProject();
+            const created = await createSqlChart(project, {
+                warehouseConnectionUuid: null,
+            });
+            await database('saved_sql_versions')
+                .where('saved_sql_version_uuid', created.savedSqlVersionUuid)
+                .update({
+                    warehouse_connection_uuid: other.extraUuid,
+                } as never);
+
+            await expect(
+                savedSqlModel.update(
+                    {
+                        userUuid: project.userUuid,
+                        savedSqlUuid: created.savedSqlUuid,
+                        sqlChart: {
+                            versionedData: {
+                                sql: 'select 2',
+                                limit: 10,
+                                config: tableConfig,
+                            },
+                        },
+                    },
+                    { kind: 'latest' },
+                ),
+            ).rejects.toThrow(ParameterError);
         });
 
         test('a binding to another project connection is refused and nothing is written', async () => {
@@ -319,7 +422,10 @@ describe('Multi runtime identity on the real schema', () => {
                         },
                     },
                 },
-                { warehouseConnectionUuid: project.extraUuid },
+                {
+                    kind: 'connection',
+                    warehouseConnectionUuid: project.extraUuid,
+                },
             );
 
             await expect(
