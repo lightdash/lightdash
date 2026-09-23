@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import {
     down,
     up,
-} from '../20260917170000_scope_user_warehouse_credentials_preferences_to_connections';
+} from '../20260923100500_scope_user_warehouse_credentials_preferences_to_connections';
 
 describe('connection-scoped personal credential preference migration', () => {
     let admin: Knex;
