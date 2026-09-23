@@ -979,7 +979,9 @@ describe('context preloading', () => {
         );
         expect(context?.content).toContain('Use documented metrics.');
         expect(context?.content).toContain('Revenue excludes refunds.');
-        expect(loadSkill).toHaveBeenCalledExactlyOnceWith('metrics');
+        expect(loadSkill).toHaveBeenCalledExactlyOnceWith('metrics', {
+            arguments: null,
+        });
         expect(getKnowledgeDocumentContent).toHaveBeenCalledExactlyOnceWith({
             documentUuid: 'doc',
         });

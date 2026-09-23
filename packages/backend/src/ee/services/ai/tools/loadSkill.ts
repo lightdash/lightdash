@@ -1,5 +1,6 @@
 import { loadSkillToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
+import type { AiAgentSkill } from '../skills/types';
 import { LoadAgentSkillFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -12,6 +13,22 @@ const formatResourceList = (
               .map((resource) => `- ${resource.name}: ${resource.description}`)
               .join('\n')
         : '- No resources available for this skill.';
+
+/** The tool result text for a whole skill; the slash-command path writes the same text. */
+export const formatSkillResult = (
+    skill: Pick<AiAgentSkill, 'name' | 'body' | 'resources'>,
+): string => `# Skill: ${skill.name}
+
+${skill.body.trim()}
+
+## Available Resources
+
+${formatResourceList(
+    skill.resources?.map((resource) => ({
+        name: resource.name,
+        description: resource.description,
+    })) ?? [],
+)}`;
 
 const toolDefinition = loadSkillToolDefinition.for('agent');
 
@@ -65,29 +82,16 @@ Skill: ${skill.name}
 ${resource.content.trim()}`,
                         metadata: {
                             status: 'success' as const,
-                            ...(skill.metadata
-                                ? { skill: skill.metadata }
-                                : {}),
+                            skill: skill.metadata,
                         },
                     };
                 }
 
                 return {
-                    result: `# Skill: ${skill.name}
-
-${skill.body.trim()}
-
-## Available Resources
-
-${formatResourceList(
-    skill.resources?.map((resource) => ({
-        name: resource.name,
-        description: resource.description,
-    })) ?? [],
-)}`,
+                    result: formatSkillResult(skill),
                     metadata: {
                         status: 'success' as const,
-                        ...(skill.metadata ? { skill: skill.metadata } : {}),
+                        skill: skill.metadata,
                     },
                 };
             } catch (error) {

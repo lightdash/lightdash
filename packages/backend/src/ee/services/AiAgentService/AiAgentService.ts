@@ -14,6 +14,7 @@ import {
     AiAgentProjectThreadSummary,
     AiAgentReviewClassifierEventType,
     AiAgentReviewRemediationRunJobPayload,
+    AiAgentSkillVersionSummary,
     AiAgentSuggestionContext,
     AiAgentSummary,
     AiAgentThread,
@@ -75,6 +76,7 @@ import {
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     derivePivotConfigurationFromChart,
+    describeAiAgentSkillPlaceholders,
     designContextKey,
     DownloadFileType,
     elementReferenceToWireString,
@@ -150,10 +152,12 @@ import {
     UpdateWebAppResponse,
     UserAttributeValueMap,
     validateAgentSuggestion,
+    validateAiAgentSkill,
     type AgentSuggestionTool,
     type AgentToolName,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
+    type AiAgentSkill,
     type AiArtifact,
     type AiClonedThreadCreatedFrom,
     type AiDeepResearchBudget,
@@ -167,7 +171,6 @@ import {
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
     type AppGeneratePipelineJobPayload,
-    type AiAgentSkill as CustomAgentSkill,
     type DataAppVizChart,
     type ItemsMap,
     type MetricQuery,
@@ -402,7 +405,8 @@ import {
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
-import type { AiAgentSkill as RuntimeAgentSkill } from '../ai/skills/types';
+import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
+import { formatSkillResult } from '../ai/tools/loadSkill';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import {
     AiAgentArgs,
@@ -1166,11 +1170,14 @@ export class AiAgentService extends BaseService {
         | 'pinnedContextCount'
         | 'pinnedChartCount'
         | 'pinnedDashboardCount'
+        | 'pinnedSkillCount'
     > {
         const pinnedChartCount =
             context?.filter((item) => item.type === 'chart').length ?? 0;
         const pinnedDashboardCount =
             context?.filter((item) => item.type === 'dashboard').length ?? 0;
+        const pinnedSkillCount =
+            context?.filter((item) => item.type === 'skill').length ?? 0;
         // Count every attached item (chart/dashboard/thread/file/repository) so
         // the total stays accurate as new context types are added.
         const pinnedContextCount = context?.length ?? 0;
@@ -1180,6 +1187,7 @@ export class AiAgentService extends BaseService {
             pinnedContextCount,
             pinnedChartCount,
             pinnedDashboardCount,
+            pinnedSkillCount,
         };
     }
 
@@ -9727,25 +9735,43 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         return flag.enabled;
     }
 
-    /** The custom skills an agent serves, or none while the flag is off. */
     private async getCustomSkillsForAgent(
         user: SessionUser,
         agentUuid: string,
-    ): Promise<CustomAgentSkill[]> {
+    ): Promise<AiAgentSkill[]> {
         if (!(await this.areCustomSkillsEnabled(user))) return [];
         return this.aiAgentSkillModel.findBoundToAgent(agentUuid);
     }
 
-    /** Shapes a custom skill like a built-in one for the loadSkill tool. */
-    static toRuntimeSkill(
-        skill: CustomAgentSkill | undefined,
-        substitutedBody?: string,
-    ): RuntimeAgentSkill | undefined {
-        if (!skill) return undefined;
+    /** Skills the model may pick on its own; user-only and MCP-only skills are excluded. */
+    private static isModelServable(skill: AiAgentSkill): boolean {
+        return (
+            skill.parsed.frontmatter.availability.includes('agent') &&
+            !skill.parsed.frontmatter.disableModelInvocation
+        );
+    }
+
+    /** Argument substitution for any load; without arguments placeholders become prose, never a bare `$ARGUMENTS`. */
+    private static renderSkillBody(
+        body: string,
+        rawArguments: string | null,
+        argumentNames: string[],
+    ): string {
+        const trimmed = rawArguments?.trim() ?? '';
+        return trimmed.length > 0
+            ? substituteAiAgentSkillArguments(body, trimmed, argumentNames)
+            : describeAiAgentSkillPlaceholders(body, argumentNames);
+    }
+
+    private static toServedSkill(
+        skill: AiAgentSkill,
+        version: AiAgentSkillVersionSummary,
+        body: string,
+    ): ServedSkill {
         return {
             name: skill.name,
             description: skill.description,
-            body: substitutedBody ?? skill.parsed.body,
+            body,
             resources: skill.parsed.resources.map((resource) => ({
                 name: resource.name,
                 description: resource.description,
@@ -9755,41 +9781,93 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 name: skill.name,
                 builtIn: false,
                 uuid: skill.uuid,
-                versionNumber: skill.currentVersion.versionNumber,
-                contentHash: skill.currentVersion.contentHash,
+                versionNumber: version.versionNumber,
+                contentHash: version.contentHash,
             },
         };
     }
 
-    /**
-     * A slash command names a skill the agent must serve: a built-in, or a
-     * bound custom skill while the flag is on. Anything else rejects the send.
-     */
+    /** A slash command must name a skill this agent serves to users; anything else rejects the send. */
     private async assertSkillInvocable(
         user: SessionUser,
         agent: AiAgent,
         name: string,
     ): Promise<void> {
+        if (!(await this.areCustomSkillsEnabled(user))) {
+            throw new ForbiddenError('Custom agent skills are not enabled');
+        }
         const builtIns = await this.aiAgentToolsService.listAgentSkills();
         if (builtIns.some((skill) => skill.name === name)) return;
-        const bound = (await this.areCustomSkillsEnabled(user))
-            ? await this.aiAgentSkillModel.findBoundToAgentByName({
-                  agentUuid: agent.uuid,
-                  name,
-              })
-            : undefined;
+        const bound = await this.aiAgentSkillModel.findBoundToAgentByName({
+            agentUuid: agent.uuid,
+            name,
+        });
         if (!bound) {
             throw new ParameterError(
                 `This agent has no skill called "${name}". Pick one from the / menu.`,
             );
         }
+        if (
+            !bound.parsed.frontmatter.userInvocable ||
+            !bound.parsed.frontmatter.availability.includes('agent')
+        ) {
+            throw new ParameterError(
+                `The skill "${name}" cannot be invoked with a slash command.`,
+            );
+        }
     }
 
-    /**
-     * Writes the synthetic loadSkill call and result for a slash-command
-     * prompt, so the thread history replays the skill body before the model's
-     * first step and the thread shows the "Loaded skill" row.
-     */
+    /** The served skill for a slash-command prompt: the pinned version, with arguments substituted. */
+    private async resolveInvokedSkill(
+        invocation: Extract<AiPromptContextItem, { type: 'skill' }>,
+    ): Promise<ServedSkill> {
+        if (invocation.skillUuid !== null && invocation.pinnedVersionUuid) {
+            const [skill, version] = await Promise.all([
+                this.aiAgentSkillModel.findIncludingDeleted(
+                    invocation.skillUuid,
+                ),
+                this.aiAgentSkillModel.findVersionByUuid(
+                    invocation.pinnedVersionUuid,
+                ),
+            ]);
+            if (!skill || !version) {
+                throw new NotFoundError(
+                    `Skill "${invocation.name}" is no longer available.`,
+                );
+            }
+            const parsed = validateAiAgentSkill({
+                files: version.content.files,
+            });
+            const body = parsed.valid ? parsed.parsed.body : skill.parsed.body;
+            return AiAgentService.toServedSkill(
+                skill,
+                version,
+                AiAgentService.renderSkillBody(
+                    body,
+                    invocation.arguments,
+                    skill.parsed.frontmatter.arguments,
+                ),
+            );
+        }
+        const builtIn = await this.aiAgentToolsService.loadAgentSkill(
+            invocation.name,
+        );
+        if (!builtIn) {
+            throw new NotFoundError(
+                `Skill "${invocation.name}" is no longer available.`,
+            );
+        }
+        return {
+            ...builtIn,
+            body: AiAgentService.renderSkillBody(
+                builtIn.body,
+                invocation.arguments,
+                [],
+            ),
+        };
+    }
+
+    /** Persists the synthetic loadSkill call and result so history replays the skill before the model's first step. */
     private async persistSkillInvocation(promptUuid: string): Promise<void> {
         const context =
             (
@@ -9800,51 +9878,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 item.type === 'skill',
         );
         if (!invocation) return;
-
-        const custom =
-            invocation.skillUuid !== null
-                ? await this.aiAgentSkillModel.find(invocation.skillUuid)
-                : undefined;
-        const skill = custom
-            ? AiAgentService.toRuntimeSkill(
-                  custom,
-                  substituteAiAgentSkillArguments(
-                      custom.parsed.body,
-                      invocation.arguments,
-                      custom.parsed.frontmatter.arguments,
-                  ),
-              )
-            : await this.aiAgentToolsService
-                  .loadAgentSkill(invocation.name)
-                  .then((builtIn) =>
-                      builtIn
-                          ? {
-                                ...builtIn,
-                                body: substituteAiAgentSkillArguments(
-                                    builtIn.body,
-                                    invocation.arguments,
-                                    [],
-                                ),
-                            }
-                          : undefined,
-                  );
-        if (!skill) return;
-
+        const skill = await this.resolveInvokedSkill(invocation);
         const toolCallId = `skill_${promptUuid}`;
-        const resources = skill.resources ?? [];
-        const result = `# Skill: ${skill.name}
-
-${skill.body.trim()}
-
-## Available Resources
-
-${
-    resources.length > 0
-        ? resources
-              .map((resource) => `- ${resource.name}: ${resource.description}`)
-              .join('\n')
-        : '- No resources available for this skill.'
-}`;
         await this.aiAgentModel.createToolCall({
             promptUuid,
             toolCallId,
@@ -9857,11 +9892,8 @@ ${
                 promptUuid,
                 toolCallId,
                 toolName: 'loadSkill',
-                result,
-                metadata: {
-                    status: 'success',
-                    ...(skill.metadata ? { skill: skill.metadata } : {}),
-                },
+                result: formatSkillResult(skill),
+                metadata: { status: 'success', skill: skill.metadata },
             },
         ]);
     }
@@ -13574,30 +13606,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const builtInSkills = canUseContentTools
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
-        const customSkills = await this.getCustomSkillsForAgent(
-            user,
-            agentSettings.uuid,
-        );
+        const modelServableSkills = (
+            await this.getCustomSkillsForAgent(user, agentSettings.uuid)
+        ).filter(AiAgentService.isModelServable);
         const availableSkills = [
             ...builtInSkills,
-            ...customSkills
-                .filter(
-                    (skill) =>
-                        skill.parsed.frontmatter.availability.includes(
-                            'agent',
-                        ) && !skill.parsed.frontmatter.disableModelInvocation,
-                )
-                .map((skill) => ({
-                    name: skill.name,
-                    description: getAiAgentSkillListingText(
-                        skill.parsed.frontmatter,
-                        AI_AGENT_SKILL_LISTING_MAX_CHARS,
-                    ),
-                    resources: skill.parsed.resources.map((resource) => ({
-                        name: resource.name,
-                        description: resource.description,
-                    })),
+            ...modelServableSkills.map((skill) => ({
+                name: skill.name,
+                description: getAiAgentSkillListingText(
+                    skill.parsed.frontmatter,
+                    AI_AGENT_SKILL_LISTING_MAX_CHARS,
+                ),
+                resources: skill.parsed.resources.map((resource) => ({
+                    name: resource.name,
+                    description: resource.description,
                 })),
+            })),
         ];
         const copilotConfig =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
@@ -14173,27 +14197,31 @@ Use your existing tools to inspect them when relevant to the user's question (re
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
             loadSkill: async (name, loadOptions) => {
-                const custom = customSkills.find(
+                const builtIn =
+                    await this.aiAgentToolsService.loadAgentSkill(name);
+                if (builtIn) {
+                    return {
+                        ...builtIn,
+                        body: AiAgentService.renderSkillBody(
+                            builtIn.body,
+                            loadOptions.arguments,
+                            [],
+                        ),
+                    };
+                }
+                const custom = modelServableSkills.find(
                     (skill) => skill.name === name.trim().toLowerCase(),
                 );
-                const skill =
-                    (await this.aiAgentToolsService.loadAgentSkill(name)) ??
-                    AiAgentService.toRuntimeSkill(custom);
-                if (!skill) return undefined;
-                const argumentsText = loadOptions?.arguments?.trim() ?? '';
-                // A model-initiated load without arguments must not leave a
-                // bare placeholder the model then stops to ask about.
-                const body = argumentsText
-                    ? substituteAiAgentSkillArguments(
-                          skill.body,
-                          argumentsText,
-                          custom?.parsed.frontmatter.arguments ?? [],
-                      )
-                    : skill.body.replace(
-                          /\$ARGUMENTS/g,
-                          "the user's request as written above",
-                      );
-                return { ...skill, body };
+                if (!custom) return undefined;
+                return AiAgentService.toServedSkill(
+                    custom,
+                    custom.currentVersion,
+                    AiAgentService.renderSkillBody(
+                        custom.parsed.body,
+                        loadOptions.arguments,
+                        custom.parsed.frontmatter.arguments,
+                    ),
+                );
             },
 
             perf: {

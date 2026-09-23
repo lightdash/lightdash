@@ -385,7 +385,9 @@ export const prepareRelevantContext = async (
         .map(({ entry }) => entry);
     const [skill, loadedDocuments] = await Promise.all([
         skillReference
-            ? dependencies.loadSkill(skillReference.name).catch(() => null)
+            ? dependencies
+                  .loadSkill(skillReference.name, { arguments: null })
+                  .catch(() => null)
             : null,
         Promise.all(
             documentReferences.map(async (reference) => {

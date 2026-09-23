@@ -5,6 +5,7 @@ import {
     AI_AGENT_SKILL_RESOURCE_MAX_BYTES,
 } from './skillTypes';
 import {
+    describeAiAgentSkillPlaceholders,
     getAiAgentSkillListingText,
     substituteAiAgentSkillArguments,
     suggestAiAgentSkillName,
@@ -408,6 +409,19 @@ describe('substituteAiAgentSkillArguments', () => {
         expect(
             substituteAiAgentSkillArguments('Body $ARGUMENTS \\$5', '  ', []),
         ).toBe('Body $ARGUMENTS $5');
+    });
+});
+
+describe('describeAiAgentSkillPlaceholders', () => {
+    it('turns every placeholder into prose and honours \\$ escapes', () => {
+        expect(
+            describeAiAgentSkillPlaceholders(
+                'Do $ARGUMENTS for $region in $1 (\\$5, $ARGUMENTS[2])',
+                ['region'],
+            ),
+        ).toBe(
+            "Do the user's request as written above for the region argument of the user's request in argument 1 of the user's request ($5, argument 2 of the user's request)",
+        );
     });
 });
 

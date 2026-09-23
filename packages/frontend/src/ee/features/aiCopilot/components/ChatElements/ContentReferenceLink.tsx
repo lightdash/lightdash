@@ -1,12 +1,12 @@
 import { ChartKind } from '@lightdash/common';
 import { Anchor, Box, Text, type AnchorProps } from '@mantine/core';
 import {
-    IconArrowRight,
     IconAppWindow,
+    IconArrowRight,
+    IconBolt,
     IconBrandGithub,
     IconBrush,
     IconChartBar,
-    IconBolt,
     IconClick,
     IconFile,
     IconFileText,

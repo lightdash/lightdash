@@ -719,7 +719,7 @@ export type IsThreadSqlAutoApprovedFn = (
 
 export type LoadAgentSkillFn = (
     name: string,
-    options?: { arguments?: string | null },
+    options: { arguments: string | null },
 ) => Promise<AiAgentSkill | undefined>;
 
 export type EditDbtProjectFn = (args: {

@@ -12,7 +12,7 @@ export type AiAgentSkill = {
     body: string;
     resources?: AiAgentSkillResource[];
     /** Served-version record written to the loadSkill tool result. */
-    metadata?: ServedSkillMetadata;
+    metadata: ServedSkillMetadata;
 };
 
 export type AiAgentSkillReference = Pick<
