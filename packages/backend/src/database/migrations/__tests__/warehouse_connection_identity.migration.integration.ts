@@ -33,6 +33,9 @@ const tableConfig = {
     columns: {},
 } as unknown as AllVizChartConfig;
 
+const unmappedMessage = (name: string) =>
+    `The preview has no copy of connection '${name}'. Connections are matched by name, so renaming a connection on the upstream project or on the preview breaks this mapping.`;
+
 type Project = {
     organizationId: number;
     organizationUuid: string;
@@ -717,10 +720,71 @@ describe('Multi runtime identity on the real schema', () => {
             );
             expect(map.remap(null)).toBeNull();
             expect(() => map.remap(addedLater)).toThrow(
-                new ParameterError(
-                    "The preview has no copy of connection 'Warehouse D'",
-                ),
+                new ParameterError(unmappedMessage('Warehouse D')),
             );
+        });
+
+        test.each(['upstream', 'preview'] as const)(
+            'a rename on the %s side breaks the name mapping and the remap refuses, naming the connection',
+            async (renamedSide) => {
+                const upstream = await createMultiProject();
+                const previewUuid = await createPreviewProject(upstream);
+                await identity.copyConnectionsToPreview(
+                    upstream.projectUuid,
+                    previewUuid,
+                );
+                await database('warehouse_connections')
+                    .where(
+                        'project_uuid',
+                        renamedSide === 'upstream'
+                            ? upstream.projectUuid
+                            : previewUuid,
+                    )
+                    .where('name', 'Warehouse B')
+                    .update({ name: 'Warehouse B renamed' });
+
+                const map = await identity.getPreviewConnectionMap(
+                    upstream.projectUuid,
+                    previewUuid,
+                );
+
+                expect(() => map.remap(upstream.extraUuid)).toThrow(
+                    new ParameterError(
+                        unmappedMessage(
+                            renamedSide === 'upstream'
+                                ? 'Warehouse B renamed'
+                                : 'Warehouse B',
+                        ),
+                    ),
+                );
+                expect(map.remap(null)).toBeNull();
+            },
+        );
+
+        test('copied connections keep the upstream creator, as main keeps the upstream author on copied content', async () => {
+            const upstream = await createMultiProject();
+            const previewUuid = await createPreviewProject(upstream);
+            await database('warehouse_connections')
+                .where('project_uuid', upstream.projectUuid)
+                .update({ created_by_user_uuid: upstream.userUuid });
+
+            await identity.copyConnectionsToPreview(
+                upstream.projectUuid,
+                previewUuid,
+            );
+
+            expect(
+                await database('warehouse_connections')
+                    .where('project_uuid', previewUuid)
+                    .orderBy('name')
+                    .select('name', 'created_by_user_uuid'),
+            ).toEqual([
+                { name: 'Original', created_by_user_uuid: upstream.userUuid },
+                {
+                    name: 'Warehouse B',
+                    created_by_user_uuid: upstream.userUuid,
+                },
+            ]);
         });
 
         test('a single preview of a multi upstream maps nothing, so an extra binding is refused (A-4)', async () => {
@@ -734,9 +798,7 @@ describe('Multi runtime identity on the real schema', () => {
 
             expect(map.remap(null)).toBeNull();
             expect(() => map.remap(upstream.extraUuid)).toThrow(
-                new ParameterError(
-                    "The preview has no copy of connection 'Warehouse B'",
-                ),
+                new ParameterError(unmappedMessage('Warehouse B')),
             );
         });
     });
@@ -877,9 +939,7 @@ describe('Multi runtime identity on the real schema', () => {
                     map,
                 ),
             ).rejects.toThrow(
-                new ParameterError(
-                    "The preview has no copy of connection 'Warehouse C'",
-                ),
+                new ParameterError(unmappedMessage('Warehouse C')),
             );
             expect(await previewSqlChartBindings(previewUuid)).toEqual([]);
         });
@@ -906,9 +966,7 @@ describe('Multi runtime identity on the real schema', () => {
                     map,
                 ),
             ).rejects.toThrow(
-                new ParameterError(
-                    "The preview has no copy of connection 'Warehouse B'",
-                ),
+                new ParameterError(unmappedMessage('Warehouse B')),
             );
             expect(await previewExploreBindings(previewUuid)).toEqual([]);
         });

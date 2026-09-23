@@ -53,7 +53,7 @@ export class WarehouseConnectionMap {
             throw new ParameterError(
                 name === undefined
                     ? `The preview has no copy of connection ${warehouseConnectionUuid}`
-                    : `The preview has no copy of connection '${name}'`,
+                    : `The preview has no copy of connection '${name}'. Connections are matched by name, so renaming a connection on the upstream project or on the preview breaks this mapping.`,
             );
         }
         return previewUuid;
