@@ -14,6 +14,7 @@ export type AutopilotValidatedModel = z.infer<typeof validatedModelSchema>;
 // Exact provider/model pairs cleared for cleanup. Provider ids match runtime
 // attribution; model ids match the preset modelId.
 export const DEFAULT_AUTOPILOT_VALIDATED_MODELS: AutopilotValidatedModel[] = [
+    { provider: 'anthropic', model: 'claude-opus-5-5', mode: 'cleanup' },
     { provider: 'anthropic', model: 'claude-opus-5', mode: 'cleanup' },
     { provider: 'anthropic', model: 'claude-opus-4-8', mode: 'cleanup' },
     { provider: 'anthropic', model: 'claude-opus-4-7', mode: 'cleanup' },
