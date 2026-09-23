@@ -98,6 +98,10 @@ export class DeployService extends BaseService {
             );
         }
 
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
+
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
             projectUuid,
@@ -209,6 +213,10 @@ export class DeployService extends BaseService {
                 `Deploy session is not in uploading state`,
             );
         }
+
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
 
         try {
             // Update status to finalizing

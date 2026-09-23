@@ -628,6 +628,146 @@ describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
 
+    describe('connection route guard at write entry points', () => {
+        const refuseMultiRoute = () =>
+            vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+        const upstreamUuid = 'multi-upstream-project-uuid';
+        const compileUser: SessionUser = {
+            ...user,
+            organizationUuid: 'organizationUuid',
+            organizationName: 'organizationName',
+            organizationCreatedAt: new Date('2026-08-16T00:00:00.000Z'),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['update', 'view'] },
+                { subject: 'Job', action: ['create', 'view'] },
+                { subject: 'CompileProject', action: ['manage'] },
+                { subject: 'DeployProject', action: ['manage'] },
+            ]),
+        };
+
+        test.each([
+            {
+                entryPoint: 'testAndCompileProject',
+                guardedProjectUuid: projectUuid,
+                call: () =>
+                    service.testAndCompileProject(
+                        compileUser,
+                        projectUuid,
+                        RequestMethod.WEB_APP,
+                        'guard-job-uuid',
+                    ),
+            },
+            {
+                entryPoint: 'compileProject',
+                guardedProjectUuid: projectUuid,
+                call: () =>
+                    service.compileProject(
+                        compileUser,
+                        projectUuid,
+                        RequestMethod.WEB_APP,
+                        'guard-job-uuid',
+                    ),
+            },
+            {
+                entryPoint: 'setExplores',
+                guardedProjectUuid: projectUuid,
+                call: () => service.setExplores(compileUser, projectUuid, []),
+            },
+            {
+                entryPoint: 'copyContentOnPreview',
+                guardedProjectUuid: upstreamUuid,
+                call: () =>
+                    service.copyContentOnPreview(
+                        upstreamUuid,
+                        'preview-project-uuid',
+                        compileUser,
+                    ),
+            },
+            {
+                entryPoint: '_create from an upstream',
+                guardedProjectUuid: upstreamUuid,
+                call: () =>
+                    service._create(
+                        compileUser,
+                        {
+                            name: 'Preview',
+                            type: ProjectType.PREVIEW,
+                            dbtConnection: { type: DbtProjectType.NONE },
+                            upstreamProjectUuid: upstreamUuid,
+                            dbtVersion: projectWithSensitiveFields.dbtVersion,
+                            warehouseConnection:
+                                warehouseClientMock.credentials,
+                        },
+                        'guard-job-uuid',
+                        RequestMethod.WEB_APP,
+                    ),
+            },
+        ])(
+            'refuses a project that routes multi at $entryPoint',
+            async ({ call, guardedProjectUuid }) => {
+                const guard = refuseMultiRoute();
+                const saveExplores = vi.spyOn(
+                    service,
+                    'saveExploresToCacheAndIndexCatalog',
+                );
+                try {
+                    await expect(call()).rejects.toThrow(
+                        'Multiple connections are not available',
+                    );
+                    expect(guard).toHaveBeenCalledWith(guardedProjectUuid, {
+                        kind: 'original',
+                    });
+                    expect(saveExplores).not.toHaveBeenCalled();
+                } finally {
+                    guard.mockRestore();
+                    saveExplores.mockRestore();
+                }
+            },
+        );
+
+        test('refuses the dbt Cloud webhook preview for a project that routes multi', async () => {
+            vi.mocked(
+                projectModel.getWithSensitiveFields,
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                dbtConnection: {
+                    type: DbtProjectType.DBT_CLOUD_IDE,
+                    api_key: 'dbt-cloud-key',
+                    environment_id: 'dbt-cloud-environment',
+                },
+                warehouseConnection: warehouseClientMock.credentials,
+            });
+            const guard = refuseMultiRoute();
+            const fetchSpy = vi.spyOn(global, 'fetch');
+            try {
+                await expect(
+                    service.createPreviewFromDbtCloudWebhook(
+                        projectUuid,
+                        1,
+                        1,
+                        {
+                            rawBody: null,
+                            signature: null,
+                        },
+                    ),
+                ).rejects.toThrow('Multiple connections are not available');
+                expect(guard).toHaveBeenCalledWith(projectUuid, {
+                    kind: 'original',
+                });
+                expect(fetchSpy).not.toHaveBeenCalled();
+            } finally {
+                guard.mockRestore();
+                fetchSpy.mockRestore();
+            }
+        });
+    });
+
     describe('Document counts in legacy Space listing', () => {
         it.each([
             { enabled: false, canViewDocument: true, expectedCount: 0 },
@@ -2246,6 +2386,31 @@ describe('ProjectService', () => {
             );
         };
 
+        test('refuses a preview of an upstream that routes multi', async () => {
+            const guard = vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+            vi.mocked(projectModel.createWithOptionalCredentials).mockClear();
+            try {
+                await expect(createWithoutCompile()).rejects.toThrow(
+                    'Multiple connections are not available',
+                );
+                expect(guard).toHaveBeenCalledWith(upstreamProjectUuid, {
+                    kind: 'original',
+                });
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                guard.mockRestore();
+                vi.mocked(projectModel.get).mockReset();
+            }
+        });
+
         test('queues an opted-in org preview without copying in the request', async () => {
             const result = await createWithoutCompile({
                 mode: 'async',
@@ -3559,12 +3724,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<CreateWarehouseCredentials>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             expect(mergedCredentials).toEqual(
@@ -3623,6 +3790,7 @@ describe('ProjectService', () => {
                             userId: string;
                             isRegisteredUser: boolean;
                             preloadedOrgWarehouseCredentialsUuid?: string;
+                            binding: { kind: 'original' };
                         }) => Promise<CreateWarehouseCredentials>;
                     }
                 ).getWarehouseCredentials({
@@ -3630,6 +3798,7 @@ describe('ProjectService', () => {
                     userId: sessionAccount.user.id,
                     isRegisteredUser,
                     preloadedOrgWarehouseCredentialsUuid,
+                    binding: { kind: 'original' },
                 });
 
             beforeEach(() => {
@@ -3798,12 +3967,14 @@ describe('ProjectService', () => {
                             projectUuid: string;
                             userId: string;
                             isRegisteredUser: boolean;
+                            binding: { kind: 'original' };
                         }) => Promise<CreateWarehouseCredentials>;
                     }
                 ).getWarehouseCredentials({
                     projectUuid,
                     userId: sessionAccount.user.id,
                     isRegisteredUser: true,
+                    binding: { kind: 'original' },
                 });
 
             const mockUserCredentials = (
@@ -3918,12 +4089,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             expect(mergedCredentials).toEqual(
@@ -3981,12 +4154,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             // Absent, not 'sso': the client then falls back to password auth.
@@ -4052,12 +4227,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             expect(findForProjectWithSecretsMock).toHaveBeenCalledWith(
@@ -4132,12 +4309,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             // Absent, not 'iam': the client then falls back to password auth

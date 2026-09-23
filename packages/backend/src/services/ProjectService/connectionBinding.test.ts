@@ -52,4 +52,19 @@ describe('connection bindings at warehouse credential call sites', () => {
             { file: 'services/ProjectService/ProjectService.ts', calls: 1 },
         ]);
     });
+
+    test('only the routing wrapper calls the single-route credential body', () => {
+        const directCallers = sourceFiles(backendSource)
+            .map((file) => ({
+                file: path.relative(backendSource, file),
+                calls:
+                    readFileSync(file, 'utf8').match(
+                        /\.getSingleRouteWarehouseCredentials\(/g,
+                    )?.length ?? 0,
+            }))
+            .filter(({ calls }) => calls > 0);
+        expect(directCallers).toEqual([
+            { file: 'services/ProjectService/ProjectService.ts', calls: 1 },
+        ]);
+    });
 });

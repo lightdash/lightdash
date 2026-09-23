@@ -3060,6 +3060,12 @@ export class ProjectService extends BaseService {
         ProjectService.validateDbtEnvironmentVariables(
             newProjectData.dbtConnection,
         );
+        if (newProjectData.upstreamProjectUuid) {
+            await this.projectModel.requireSingleConnectionRoute(
+                newProjectData.upstreamProjectUuid,
+                { kind: 'original' },
+            );
+        }
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
@@ -3583,6 +3589,12 @@ export class ProjectService extends BaseService {
             if (!isUserWithOrg(user)) {
                 throw new ForbiddenError('User is not part of an organization');
             }
+            if (data.upstreamProjectUuid) {
+                await this.projectModel.requireSingleConnectionRoute(
+                    data.upstreamProjectUuid,
+                    { kind: 'original' },
+                );
+            }
             const createProject = await this._resolveWarehouseClientCredentials(
                 data,
                 user.userUuid,
@@ -3816,6 +3828,10 @@ export class ProjectService extends BaseService {
                 `User does not have permission to deploy to this project`,
             );
         }
+
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
 
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
@@ -4333,6 +4349,9 @@ export class ProjectService extends BaseService {
             ) {
                 throw new ForbiddenError();
             }
+            await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+                kind: 'original',
+            });
 
             if (updatedProject.warehouseConnection === undefined) {
                 throw new Error(
@@ -9589,6 +9608,21 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        try {
+            await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+                kind: 'original',
+            });
+        } catch (error) {
+            await this._markJobAsFailed(jobUuid).catch((e) => {
+                this.logger.error(
+                    `Failed to mark compile job as failed: ${
+                        e instanceof Error ? e.stack : e
+                    }`,
+                );
+            });
+            throw error;
+        }
+
         const job: CreateJob = {
             jobUuid,
             jobType: JobType.COMPILE_PROJECT,
@@ -12144,6 +12178,9 @@ export class ProjectService extends BaseService {
         previewProjectUuid: string,
         user: SessionUser,
     ): Promise<void> {
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
         this.logger.info(
             `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
         );
@@ -13309,6 +13346,10 @@ export class ProjectService extends BaseService {
                 `dbt Cloud webhook for project ${projectUuid} processed without signature verification (no webhook_hmac_secret configured)`,
             );
         }
+
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
 
         // todo: fix this
         if (!project.createdByUserUuid) {
