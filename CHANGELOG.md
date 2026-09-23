@@ -1,3 +1,11 @@
+## [2.302.1](https://github.com/lightdash/lightdash/compare/2.302.0...2.302.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **data-apps:** upgrade coding agent to Opus 5.5 ([#29772](https://github.com/lightdash/lightdash/issues/29772)) ([357d7d3](https://github.com/lightdash/lightdash/commit/357d7d3ff92f4383d5d348f10dfa58de647a5d38))
+* remove agent token-count tooltip ([#29775](https://github.com/lightdash/lightdash/issues/29775)) ([cfd9076](https://github.com/lightdash/lightdash/commit/cfd90769cb1c4e368d9d302025b23beeb8e1f01d))
+
 # [2.302.0](https://github.com/lightdash/lightdash/compare/2.301.2...2.302.0) (2026-09-23)
 
 
