@@ -1,19 +1,22 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Button, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
+import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeLibraryCard from './ChartTypeLibraryCard';
 import ChartTypeLibraryDetailModal from './ChartTypeLibraryDetailModal';
 
 type Props = {
     projectUuid: string;
     withHeader?: boolean;
+    onShowInstalled?: (appUuid: string) => void;
     /** Called after a successful install with the installed app's uuid. */
     onInstalled?: (appUuid: string) => void;
 };
@@ -27,6 +30,7 @@ type Props = {
 const ChartTypeLibrarySection: FC<Props> = ({
     projectUuid,
     withHeader = true,
+    onShowInstalled,
     onInstalled,
 }) => {
     const flagQuery = useServerFeatureFlag(FeatureFlags.ChartTypeRegistry);
@@ -39,9 +43,6 @@ const ChartTypeLibrarySection: FC<Props> = ({
         () => registryQuery.data?.charts ?? [],
         [registryQuery.data?.charts],
     );
-    // Installed chart types (upgradable ones included) live in the installed
-    // tab only, where upgrades are offered; the library lists what there is
-    // to get — new or incompatible.
     const visibleCharts = useMemo(
         () =>
             charts.filter(
@@ -50,6 +51,9 @@ const ChartTypeLibrarySection: FC<Props> = ({
                     chart.state === 'incompatible',
             ),
         [charts],
+    );
+    const availableUpdates = charts.filter(
+        (chart) => chart.state === 'update_available' && chart.installedAppUuid,
     );
     const registryEnabled = registryQuery.data?.registryEnabled === true;
 
@@ -99,6 +103,45 @@ const ChartTypeLibrarySection: FC<Props> = ({
                         )}
                     </Group>
                 </Group>
+            )}
+
+            {onShowInstalled && availableUpdates.length > 0 && (
+                <Stack gap={4} w={420} maw="100%">
+                    <Text size="sm" fw={600} mb={4}>
+                        Updates available for installed charts
+                    </Text>
+                    {availableUpdates.map((chart) => (
+                        <Button
+                            key={chart.slug}
+                            variant="default"
+                            size="xs"
+                            h="auto"
+                            py={6}
+                            px="xs"
+                            leftSection={
+                                <MantineIcon
+                                    icon={getChartTypeIcon(chart.icon)}
+                                    size={16}
+                                />
+                            }
+                            onClick={() =>
+                                onShowInstalled(chart.installedAppUuid!)
+                            }
+                            styles={{ label: { width: '100%' } }}
+                        >
+                            <Group justify="space-between" w="100%" wrap="wrap">
+                                <Text size="xs" fw={500}>
+                                    {chart.name}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    {chart.installedRegistryVersion
+                                        ? `v${chart.installedRegistryVersion} → v${chart.version}`
+                                        : `Upgrade to v${chart.version}`}
+                                </Text>
+                            </Group>
+                        </Button>
+                    ))}
+                </Stack>
             )}
 
             <Callout variant="info">

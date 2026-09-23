@@ -14,6 +14,7 @@ import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp'
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
+import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useDataAppVizDeleteImpact } from '../features/chartTypes/hooks/useDataAppVizDeleteImpact';
 import { useDataAppVizUpgradeImpact } from '../features/chartTypes/hooks/useDataAppVizUpgradeImpact';
@@ -39,6 +40,10 @@ vi.mock('../hooks/useProjectRoute', () => ({
 
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
+}));
+
+vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
+    useDataAppVisualization: vi.fn(),
 }));
 
 vi.mock('../features/chartTypes/hooks/useDataAppVisualizations', () => ({
@@ -231,6 +236,8 @@ const setRegistryCharts = (
         data: {
             registryEnabled: true,
             charts: charts.map((chart) => ({
+                name: 'Radial gauge',
+                installedAppUuid: 'data-app-viz-1',
                 changelog: 'Adds things.',
                 installedRegistryVersion: null,
                 ...chart,
@@ -244,6 +251,9 @@ const setRegistryCharts = (
 describe('ChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+        } as ReturnType<typeof useDataAppVisualization>);
         setFlags();
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
@@ -685,6 +695,52 @@ describe('ChartTypeGallery', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
 
+        expect(mockedUpgradeMutate).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-1',
+                chartSlug: 'radial-gauge',
+                upgradeConsumingCharts: false,
+            },
+            expect.anything(),
+        );
+    });
+
+    it('opens upgrades from the library even when the chart is outside the loaded gallery', () => {
+        setData([]);
+        const viz = makeDataAppViz({ registrySlug: 'radial-gauge' });
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: viz,
+        } as ReturnType<typeof useDataAppVisualization>);
+        setRegistryCharts([
+            {
+                slug: 'radial-gauge',
+                state: 'update_available',
+                version: '1.2.0',
+            },
+        ]);
+        renderPage('/projects/project-1/chart-types?tab=chart-library');
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: /Radial gauge.*Upgrade to v1.2.0/,
+            }),
+        );
+        expect(useDataAppVisualization).toHaveBeenCalledWith(
+            'project-1',
+            'data-app-viz-1',
+            null,
+        );
+        expect(
+            screen.getByRole('dialog', { name: /Radial gauge/ }),
+        ).toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Upgrade to v1.2.0' }),
+        );
+        expect(
+            screen.getByText('3 saved charts use this chart type'),
+        ).toBeInTheDocument();
+        expect(mockedUpgradeMutate).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
         expect(mockedUpgradeMutate).toHaveBeenCalledWith(
             {
                 projectUuid: 'project-1',
