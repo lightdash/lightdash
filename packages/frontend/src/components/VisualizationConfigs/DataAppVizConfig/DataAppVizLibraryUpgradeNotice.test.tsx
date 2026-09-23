@@ -56,6 +56,7 @@ const registryUpdate: RegistryChartTypeListItem = {
     minLightdashVersion: null,
     icon: null,
     vizSchema: { fields: [], configOptions: [], colorPalette: null },
+    preview: null,
     thumbnail: null,
     thumbnailDark: null,
     screenshots: [],
