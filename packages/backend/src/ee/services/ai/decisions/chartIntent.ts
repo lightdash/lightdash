@@ -97,9 +97,9 @@ export type ChartIntentResolution =
     | { type: 'not_an_edit' }
     | { type: 'unresolved'; reason: string };
 
+// Verify rejections ('not-covered', 'verify-unavailable') stay edit attempts: they only block the fast path.
 const NON_EDIT_REASONS = new Set([
     'non-edit',
-    'not-covered',
     'intent',
     'multiple',
     'decision-unavailable',
@@ -732,6 +732,8 @@ const resolveCalendarPeriod = (
     if (years.length !== 1) return null;
     const quarter = confident(answers.calendarQuarter, threshold);
     const month = confident(answers.calendarMonth, threshold);
+    // An unsure narrowing must not widen silently to the whole year.
+    if (!quarter || !month) return null;
     const quarterNumber =
         quarter && quarter !== 'none' ? Number(quarter.slice(1)) : null;
     const monthNumber =
@@ -1127,8 +1129,12 @@ export const verifyChartPlan = async ({
     )
         return resolution;
     const steps = plannedSteps(resolution);
-    // Value filters are checked by the warehouse value lookup instead.
-    if (steps.every((step) => step.type === 'needs_values')) return resolution;
+    // Nothing to apply yet, or only value filters, which the warehouse value lookup checks.
+    if (
+        steps.length === 0 ||
+        steps.every((step) => step.type === 'needs_values')
+    )
+        return resolution;
     const answers = await decisions.evaluate({
         operation: 'chart-intent-verify',
         state: {
@@ -1146,7 +1152,7 @@ export const verifyChartPlan = async ({
             },
         },
     });
-    if (!answers) return { type: 'unresolved', reason: 'decision-unavailable' };
+    if (!answers) return { type: 'unresolved', reason: 'verify-unavailable' };
     return (decisionProbability(answers.covers) ?? 0) >= thresholds.covers
         ? resolution
         : { type: 'unresolved', reason: 'not-covered' };

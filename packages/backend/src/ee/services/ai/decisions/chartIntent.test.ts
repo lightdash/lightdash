@@ -219,6 +219,17 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('does not widen an unsure quarter to the whole year', () => {
+        expect(
+            interpret('only Q3 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarQuarter: choice('q3', 0.45),
+                calendarMonth: choice('none'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
+    });
+
     it('needs exactly one stated year for a calendar period', () => {
         expect(
             interpret('from 2022 to 2024', {
@@ -517,6 +528,8 @@ describe('isChartEditAttempt', () => {
         [{ type: 'compound', steps: [] }, true],
         [{ type: 'clarify', question: 'Which?', options: [] }, true],
         [{ type: 'unresolved', reason: 'decision-unavailable' }, false],
+        [{ type: 'unresolved', reason: 'not-covered' }, true],
+        [{ type: 'unresolved', reason: 'verify-unavailable' }, true],
         [{ type: 'not_an_edit' }, false],
     ])('%j -> %s', (resolution, expected) => {
         expect(isChartEditAttempt(resolution)).toBe(expected);
@@ -674,7 +687,38 @@ describe('decideTurn', () => {
             type: 'unresolved',
             reason: 'not-covered',
         });
-        expect(isChartEditAttempt(decision.chart!)).toBe(false);
+        expect(isChartEditAttempt(decision.chart!)).toBe(true);
+        expect(decision.simpleDataAnswer).toBe(false);
+    });
+
+    it('keeps a chart edit for the agent when verification is unavailable', async () => {
+        const evaluate = vi
+            .fn()
+            .mockResolvedValueOnce({
+                intent: choice('chart_type'),
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                chartType: choice('bar'),
+                simple: noul(0.9),
+            })
+            .mockResolvedValueOnce(null);
+        const { decision } = await decideTurn({
+            decisions: { evaluate },
+            prompt: 'as bars',
+            instructions: null,
+            conversation: [],
+            context: buildChartIntentContext({
+                prompt: 'as bars',
+                artifact,
+                explore,
+                usage: noUsage,
+            }),
+        });
+        expect(decision).toEqual({
+            simpleDataAnswer: false,
+            chart: { type: 'unresolved', reason: 'verify-unavailable' },
+        });
+        expect(isChartEditAttempt(decision.chart!)).toBe(true);
     });
 
     it('falls back to the agent when JEV is unavailable', async () => {

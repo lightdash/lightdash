@@ -94,7 +94,7 @@ const formatFilterField = (fieldId: string): string =>
 
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
 
-/** First and last day of a named calendar year, quarter or month (UTC, inclusive). */
+/** First day of a named calendar year, quarter or month and first day after it (UTC). */
 export const calendarRange = (
     period: Extract<ChartPeriod, { type: 'calendar' }>,
 ): [string, string] => {
@@ -108,21 +108,29 @@ export const calendarRange = (
         months = 1;
     }
     const start = new Date(Date.UTC(period.year, firstMonth, 1));
-    const end = new Date(Date.UTC(period.year, firstMonth + months, 0));
-    return [isoDate(start), isoDate(end)];
+    const next = new Date(Date.UTC(period.year, firstMonth + months, 1));
+    return [isoDate(start), isoDate(next)];
 };
 
-const periodExpression = (period: ChartPeriod): string => {
+const periodConditions = (period: ChartPeriod): string[] => {
     switch (period.type) {
         case 'last':
-            return `${FilterOperator.IN_THE_PAST}=${period.count}{unit:${period.unit},completed:false}`;
+            return [
+                `${FilterOperator.IN_THE_PAST}=${period.count}{unit:${period.unit},completed:false}`,
+            ];
         case 'previous':
-            return `${FilterOperator.IN_THE_PAST}=1{unit:${period.unit},completed:true}`;
+            return [
+                `${FilterOperator.IN_THE_PAST}=1{unit:${period.unit},completed:true}`,
+            ];
         case 'current':
-            return `${FilterOperator.IN_THE_CURRENT}=${period.unit}`;
+            return [`${FilterOperator.IN_THE_CURRENT}=${period.unit}`];
         case 'calendar': {
-            const [start, end] = calendarRange(period);
-            return `${FilterOperator.IN_BETWEEN}=${start},${end}`;
+            // An exclusive end keeps the whole last day on timestamp fields.
+            const [start, next] = calendarRange(period);
+            return [
+                `${FilterOperator.GREATER_THAN_OR_EQUAL}=${start}`,
+                `${FilterOperator.LESS_THAN}=${next}`,
+            ];
         }
         default:
             return assertUnreachable(period, 'Unknown chart period');
@@ -133,14 +141,21 @@ const periodRules = (
     intent: Extract<ChartIntent, { kind: 'filter_period' }>,
     explore: Explore,
 ): RuleInput[] | null => {
-    const expression = `${formatFilterField(intent.fieldId)} ${periodExpression(intent.period)}`;
+    const field = formatFilterField(intent.fieldId);
+    const conditions = periodConditions(intent.period);
     const resolved = resolveSearchFieldValuesFilterExpression({
-        expressionInput: expression,
+        expressionInput: conditions
+            .map((condition) => `${field} ${condition}`)
+            .join(' AND '),
         explore,
     });
     if (!resolved.success) return null;
     const group = resolved.data.dimensions;
-    if (!group || !isAndFilterGroup(group) || group.and.length !== 1)
+    if (
+        !group ||
+        !isAndFilterGroup(group) ||
+        group.and.length !== conditions.length
+    )
         return null;
     const exploreFields = fieldMap(explore);
     const rules = group.and.flatMap((rule) => {
@@ -158,7 +173,7 @@ const periodRules = (
             },
         ];
     });
-    return rules.length === 1 ? rules : null;
+    return rules.length === conditions.length ? rules : null;
 };
 
 const valueRules = (

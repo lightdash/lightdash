@@ -65,6 +65,11 @@ const explore = {
             label: 'Orders',
             dimensions: {
                 date: dimension('date', DimensionType.DATE, 'Date'),
+                created_at: dimension(
+                    'created_at',
+                    DimensionType.TIMESTAMP,
+                    'Created at',
+                ),
                 region: dimension('region', DimensionType.STRING, 'Region'),
                 status: dimension('status', DimensionType.STRING, 'Status'),
             },
@@ -475,17 +480,17 @@ describe('applyChartIntent', () => {
         it.each([
             [
                 { quarter: null, month: null },
-                ['2023-01-01', '2023-12-31'],
+                ['2023-01-01', '2024-01-01'],
                 'Filtered to 2023.',
             ],
             [
                 { quarter: 1, month: null },
-                ['2023-01-01', '2023-03-31'],
+                ['2023-01-01', '2023-04-01'],
                 'Filtered to Q1 2023.',
             ],
             [
                 { quarter: null, month: 3 },
-                ['2023-03-01', '2023-03-31'],
+                ['2023-03-01', '2023-04-01'],
                 'Filtered to March 2023.',
             ],
         ] as const)(
@@ -507,21 +512,53 @@ describe('applyChartIntent', () => {
                     explore,
                 });
                 expect(rulesOf(edit)).toMatchObject([
-                    { operator: FilterOperator.IN_BETWEEN },
+                    {
+                        operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                        values: [range[0]],
+                    },
+                    { operator: FilterOperator.LESS_THAN, values: [range[1]] },
                 ]);
                 expect(edit?.response).toBe(response);
             },
         );
 
-        it('ends February on the leap day', () => {
+        it('rolls December into the next year', () => {
             expect(
                 calendarRange({
                     type: 'calendar',
                     year: 2024,
                     quarter: null,
-                    month: 2,
+                    month: 12,
                 }),
-            ).toEqual(['2024-02-01', '2024-02-29']);
+            ).toEqual(['2024-12-01', '2025-01-01']);
+        });
+
+        it('keeps the whole last day of a period on a timestamp field', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_created_at',
+                    period: {
+                        type: 'calendar',
+                        year: 2024,
+                        quarter: null,
+                        month: null,
+                    },
+                },
+                artifact,
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                {
+                    fieldId: 'orders_created_at',
+                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                },
+                {
+                    fieldId: 'orders_created_at',
+                    operator: FilterOperator.LESS_THAN,
+                },
+            ]);
+            expect(edit?.response).toBe('Filtered to 2024.');
         });
 
         it('preserves other-field filters and rejects OR groups', () => {
