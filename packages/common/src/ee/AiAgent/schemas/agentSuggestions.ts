@@ -82,14 +82,13 @@ const navigateChipModelSchema = z.object({
         ),
 });
 
+// z.union, not z.discriminatedUnion: this schema is sent as an OpenAI
+// structured output, and zod renders a discriminated union as JSON Schema
+// `oneOf`, which strict structured outputs reject. Both branches are objects
+// with distinct `kind` literals, so z.union parses the same inputs.
 export const agentSuggestionsModelSchema = z.object({
     chips: z
-        .array(
-            z.discriminatedUnion('kind', [
-                promptChipModelSchema,
-                navigateChipModelSchema,
-            ]),
-        )
+        .array(z.union([promptChipModelSchema, navigateChipModelSchema]))
         .min(2)
         .max(6)
         .describe('Between 2 and 6 suggestion chips.'),

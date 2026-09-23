@@ -24,8 +24,12 @@ export type AiProjectContextTypedObjectRef =
 
 export type AiProjectContextObjectRef = string | AiProjectContextTypedObjectRef;
 
+// z.union, not z.discriminatedUnion: zod renders a discriminated union as
+// JSON Schema `oneOf`, which OpenAI's strict structured outputs reject
+// ("'oneOf' is not permitted"). Both branches are strict with distinct `type`
+// literals, so z.union parses exactly the same inputs and renders `anyOf`.
 export const aiProjectContextTypedObjectRefSchema: z.ZodType<AiProjectContextTypedObjectRef> =
-    z.discriminatedUnion('type', [
+    z.union([
         z
             .object({
                 type: z.literal('explore'),
