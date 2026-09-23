@@ -566,7 +566,7 @@ export class UserWarehouseCredentialsModel {
         userUuid: string,
         projectUuid: string,
         userWarehouseCredentialsUuid: string,
-        connectionUuid: string | null = null,
+        connectionUuid: string,
     ) {
         const [result] = await this.database(
             ProjectUserWarehouseCredentialPreferenceTableName,
