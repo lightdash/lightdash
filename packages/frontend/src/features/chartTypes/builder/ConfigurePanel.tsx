@@ -88,7 +88,7 @@ const ConfigurePanel: FC<Props> = ({
             : exploreSource?.attached
               ? `Fields from ${exploreSource.attached.label}. Changing one re-runs the query.`
               : savedChartSource?.attached
-                ? `Fields from ${savedChartSource.attached.chartName}.`
+                ? `Fields from ${savedChartSource.attached.chartName}. Changing one re-runs the query.`
                 : null;
     const { data: palettes = [] } = useColorPalettes();
 

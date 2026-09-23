@@ -11,6 +11,7 @@ import {
     type ExecuteAsyncMetricQueryRequestParams,
     type ItemsMap,
     type MetricQueryRequest,
+    type PivotConfiguration,
     type SortField,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -57,9 +58,11 @@ export const buildExplorePreviewMetricQuery = (
 export const executeExplorePreviewQuery = async ({
     projectUuid,
     query,
+    pivotConfiguration,
 }: {
     projectUuid: string;
     query: Omit<MetricQueryRequest, 'csvLimit'>;
+    pivotConfiguration?: PivotConfiguration;
 }): Promise<SavedChartPreviewQueryResult> => {
     try {
         const started = await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
@@ -69,6 +72,7 @@ export const executeExplorePreviewQuery = async ({
             body: JSON.stringify({
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
                 query,
+                pivotConfiguration,
             } satisfies ExecuteAsyncMetricQueryRequestParams),
         });
 

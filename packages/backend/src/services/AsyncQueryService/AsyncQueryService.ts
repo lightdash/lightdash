@@ -6182,6 +6182,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
         pivotResults,
+        pivotConfiguration: requestedPivotConfiguration,
         filterOverrides,
         schedulerFilters,
         dashboardFilters,
@@ -6334,6 +6335,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
             parameters,
             pivotResults,
+            pivotConfiguration: requestedPivotConfiguration,
             filters: filterOverrides,
             dashboardFilters,
         };
@@ -6349,6 +6351,7 @@ export class AsyncQueryService extends ProjectService {
                 limit,
                 parameters,
                 pivotResults,
+                pivotConfiguration: requestedPivotConfiguration,
                 filterOverrides,
                 dashboardFilters,
                 userAttributeOverrides,
@@ -6440,13 +6443,15 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
         });
 
-        const pivotConfiguration = pivotResults
-            ? derivePivotConfigurationFromChart(
-                  savedChart,
-                  metricQueryWithLimit,
-                  fields,
-              )
-            : undefined;
+        const pivotConfiguration =
+            requestedPivotConfiguration ??
+            (pivotResults
+                ? derivePivotConfigurationFromChart(
+                      savedChart,
+                      metricQueryWithLimit,
+                      fields,
+                  )
+                : undefined);
 
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
@@ -6783,6 +6788,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
         pivotResults,
+        pivotConfiguration,
         filterOverrides,
         dashboardFilters,
         userAttributeOverrides,
@@ -6795,6 +6801,7 @@ export class AsyncQueryService extends ProjectService {
         | 'limit'
         | 'parameters'
         | 'pivotResults'
+        | 'pivotConfiguration'
         | 'filterOverrides'
         | 'dashboardFilters'
         | 'userAttributeOverrides'
@@ -6846,6 +6853,7 @@ export class AsyncQueryService extends ProjectService {
                 savedChart,
                 pivotResults,
             ),
+            pivotConfiguration,
         });
         return AsyncQueryService.assertSavedMergeStarted(outcome);
     }
@@ -9255,7 +9263,16 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncMergeQuery(
         args: ExecuteAsyncMergeQueryArgs,
     ): Promise<ApiExecuteAsyncMergeQueryResults> {
-        const { chart, ...execution } = args;
+        const { chart, pivotConfiguration, ...execution } = args;
+        if (pivotConfiguration) {
+            return this.executeAsyncMergeQueryInternal({
+                ...execution,
+                pivotInput: {
+                    type: 'resolved',
+                    configuration: pivotConfiguration,
+                },
+            });
+        }
         return this.executeAsyncMergeQueryInternal({
             ...execution,
             pivotInput: chart ? { type: 'chart', chart } : undefined,

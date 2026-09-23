@@ -120,6 +120,8 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     versionUuid?: string;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    /** A caller-derived pivot layout takes precedence over the saved chart's layout. */
+    pivotConfiguration?: PivotConfiguration;
     // ANDed onto the chart's filters: callers (including embeds) can only narrow.
     filterOverrides?: Filters;
     // Scheduled-delivery overrides: replace the chart's saved rules by id,
@@ -210,6 +212,8 @@ export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
+    /** A caller-derived pivot layout takes precedence over a chart-derived layout. */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {

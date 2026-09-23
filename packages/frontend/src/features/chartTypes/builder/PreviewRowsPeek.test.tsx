@@ -75,6 +75,80 @@ describe('PreviewRowsPeek', () => {
         ).toBeVisible();
     });
 
+    it.each(['chart', 'explore'] as const)(
+        'shows pivoted %s results with series headers and populated cells',
+        (previewSource) => {
+            const pivotSchema: DataAppVizSchema = {
+                ...schema,
+                fields: [
+                    ...schema.fields,
+                    {
+                        name: 'status',
+                        label: 'Status',
+                        type: 'series',
+                        required: true,
+                    },
+                ],
+            };
+            const context = buildSampleVizContext(pivotSchema);
+            const pivotColumn =
+                context.pivotDetails!.valuesColumns[0].pivotColumnName;
+            context.rows[0][pivotColumn] = {
+                value: { raw: null, formatted: '∅' },
+            };
+            context.rows[1][pivotColumn] = {
+                value: { raw: null, formatted: '' },
+            };
+            delete context.rows[2][pivotColumn];
+            renderWithProviders(
+                <PreviewRowsPeek
+                    source={source({
+                        previewSource,
+                        attached: {
+                            uuid: 'chart-orders',
+                            status: 'ready',
+                            chartName: 'Orders',
+                            spaceName: null,
+                            rowCount: 36,
+                            columns: [],
+                            ranAt: null,
+                            message: null,
+                        },
+                    })}
+                    fields={pivotSchema.fields}
+                    context={context}
+                />,
+            );
+            const table = screen.getByRole('table');
+            expect(
+                within(table).getByRole('columnheader', {
+                    name: 'Revenue · Series A',
+                }),
+            ).toBeVisible();
+            expect(
+                within(table).queryByRole('columnheader', { name: 'Status' }),
+            ).not.toBeInTheDocument();
+            const bodyRows = within(table).getAllByRole('row').slice(1);
+            expect(bodyRows).toHaveLength(3);
+            const columns = context.pivotDetails!.valuesColumns;
+            for (const [index, row] of bodyRows.entries()) {
+                expect(
+                    within(row)
+                        .getAllByRole('cell')
+                        .map((cell) => cell.textContent),
+                ).toEqual([
+                    context.rows[index].sample_month.value.formatted,
+                    ...columns.map(
+                        (column) =>
+                            context.rows[index][column.pivotColumnName]?.value
+                                .formatted ?? '',
+                    ),
+                ]);
+            }
+            expect(screen.getByText('12 pivoted rows')).toBeVisible();
+        },
+    );
+
     it('keeps the ready saved-chart summary and View all action', async () => {
         const context = buildSampleVizContext(schema);
         const viewRows = vi.fn();

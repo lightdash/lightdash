@@ -4,6 +4,8 @@ import {
     LightdashCustomSqlProvenanceChartUuidHeader,
     MergeJoinType,
     QueryExecutionContext,
+    VizAggregationOptions,
+    VizIndexType,
     type ApiExecuteAsyncMergeQueryRequest,
 } from '@lightdash/common';
 import express from 'express';
@@ -125,6 +127,47 @@ describe('QueryController', () => {
             expect.objectContaining({
                 customSqlProvenanceChartUuid: 'chart-uuid',
             }),
+        );
+    });
+
+    it('forwards a saved-chart pivot override to the saved-chart execution', async () => {
+        const executeAsyncSavedChartQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'query-uuid',
+        });
+        const controller = new QueryController({
+            getAsyncQueryService: () => ({ executeAsyncSavedChartQuery }),
+        } as unknown as ConstructorParameters<typeof QueryController>[0]);
+        controller.setStatus = vi.fn();
+        const req = {
+            account: { isJwtUser: () => false },
+            headers: {},
+            header: vi.fn(),
+        } as unknown as express.Request;
+        const pivotConfiguration = {
+            indexColumn: [
+                { reference: 'orders_date', type: VizIndexType.TIME },
+            ],
+            valuesColumns: [
+                {
+                    reference: 'orders_count',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            groupByColumns: [{ reference: 'orders_status' }],
+            sortBy: undefined,
+        };
+
+        await controller.executeAsyncSavedChartQuery(
+            {
+                chartUuid: 'chart-uuid',
+                pivotConfiguration,
+            },
+            'project-uuid',
+            req,
+        );
+
+        expect(executeAsyncSavedChartQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ pivotConfiguration }),
         );
     });
 });

@@ -470,9 +470,23 @@ export function deriveDataAppVizPivotConfiguration(
             reference,
             aggregation: VizAggregationOptions.ANY,
         }));
+    const valuesRefs = new Set(valuesColumns.map(({ reference }) => reference));
+    const measureRefs = new Set([
+        ...metricQuery.metrics,
+        ...(metricQuery.tableCalculations ?? []).map(({ name }) => name),
+    ]);
+    const sortOnlyColumns = metricQuery.sorts
+        .filter(
+            ({ fieldId }) =>
+                !valuesRefs.has(fieldId) && measureRefs.has(fieldId),
+        )
+        .map(({ fieldId: reference }) => ({
+            reference,
+            aggregation: VizAggregationOptions.ANY,
+        }));
     const indexColumn = getIndexColumn(
         groupByColumns,
-        valuesColumns,
+        [...valuesColumns, ...sortOnlyColumns],
         fields,
         metricQuery,
     );
@@ -480,6 +494,7 @@ export function deriveDataAppVizPivotConfiguration(
         indexColumn,
         valuesColumns,
         groupByColumns,
+        ...(sortOnlyColumns.length > 0 && { sortOnlyColumns }),
     };
     const pivotConfiguration: PivotConfiguration = {
         ...partialPivotConfiguration,

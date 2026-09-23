@@ -1,11 +1,19 @@
 import {
     ChartType,
+    DimensionType,
+    FieldType,
+    MetricType,
+    VizAggregationOptions,
+    VizIndexType,
+    type ReadyQueryResultsPage,
+    type DataAppVizContext,
+    type ItemsMap,
     FeatureFlags,
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
     type SdkFeature,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -22,6 +30,11 @@ import {
 } from '../features/apps/hooks/useSdkUpgradeStatus';
 import { useUpgradeApp } from '../features/apps/hooks/useUpgradeApp';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
+import {
+    useAttachedExplore,
+    useExplorePreviewData,
+} from '../features/chartTypes/builder/useExplorePreviewData';
+import { useSavedChartBindingPreview } from '../features/chartTypes/builder/useSavedChartBindingPreview';
 import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
@@ -68,6 +81,16 @@ vi.mock('../features/chartTypes/hooks/useDataAppVizBuild', () => ({
 vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
 }));
+vi.mock('../features/chartTypes/builder/useExplorePreviewData', () => ({
+    useAttachedExplore: vi.fn(),
+    useExplorePreviewData: vi.fn(),
+}));
+vi.mock('../features/chartTypes/builder/useSavedChartBindingPreview', () => ({
+    useSavedChartBindingPreview: vi.fn(({ source, fieldMapping }) => ({
+        ...source,
+        fieldMapping,
+    })),
+}));
 vi.mock('../features/chartTypes/builder/useSavedChartPreviewData', () => ({
     useSavedChartPreviewData: vi.fn(),
 }));
@@ -90,8 +113,10 @@ vi.mock('../features/apps/components/AppPreview', () => ({
     default: ({
         version,
         onSdkManifest,
+        dataAppVizContext,
     }: {
         version: number;
+        dataAppVizContext?: DataAppVizContext;
         onSdkManifest?: (manifest: {
             sdkVersion: string;
             features: string[];
@@ -100,6 +125,9 @@ vi.mock('../features/apps/components/AppPreview', () => ({
     }) => (
         <div data-testid="app-preview">
             {`preview-v${version}`}
+            <output data-testid="viz-context">
+                {JSON.stringify(dataAppVizContext)}
+            </output>
             <button
                 type="button"
                 onClick={() =>
@@ -290,6 +318,16 @@ const staleUpgradeOffer: SdkUpgradeOffer = {
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useAttachedExplore).mockReturnValue({
+            explore: null,
+            error: null,
+            retry: vi.fn(),
+        });
+        vi.mocked(useExplorePreviewData).mockReturnValue({
+            run: { status: 'idle' },
+            isRunning: false,
+            retry: vi.fn(),
+        });
         vi.mocked(useExplores).mockReturnValue({
             data: [{ name: 'orders', label: 'Orders' }],
             isInitialLoading: false,
@@ -667,6 +705,217 @@ describe('ChartTypeBuilder', () => {
         );
     });
 
+    it.each(['chart', 'explore'] as const)(
+        'pivots %s preview rows for the bound series',
+        async (source) => {
+            const dimension = (name: string, type = DimensionType.STRING) => ({
+                fieldType: FieldType.DIMENSION as const,
+                type,
+                name,
+                label: name,
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: name,
+                hidden: false,
+            });
+            const itemsMap = {
+                orders_date: dimension('date', DimensionType.DATE),
+                orders_status: dimension('status'),
+                orders_count: {
+                    ...dimension('count'),
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.COUNT,
+                },
+            } satisfies ItemsMap;
+            const cell = (raw: string | number) => ({
+                value: { raw, formatted: String(raw) },
+            });
+            const rows = [
+                {
+                    orders_date: cell('2026-01-01'),
+                    count_placed: cell(10),
+                    count_shipped: cell(11),
+                },
+            ];
+            const pivotDetails: ReadyQueryResultsPage['pivotDetails'] = {
+                indexColumn: [
+                    { reference: 'orders_date', type: VizIndexType.TIME },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                valuesColumns: ['placed', 'shipped'].map((status, i) => ({
+                    referenceField: 'orders_count',
+                    pivotColumnName: `count_${status}`,
+                    aggregation: VizAggregationOptions.ANY,
+                    columnIndex: i + 1,
+                    pivotValues: [
+                        {
+                            referenceField: 'orders_status',
+                            value: status,
+                            formatted: status,
+                        },
+                    ],
+                })),
+                totalColumnCount: 2,
+                originalColumns: {},
+                sortBy: undefined,
+            };
+            const run = {
+                status: 'ready' as const,
+                rows,
+                itemsMap,
+                columns: Object.values(itemsMap),
+                pivotDetails,
+                rowCount: 1,
+                ranAt: new Date(),
+            };
+            setApp(appMeta());
+            vi.mocked(useAppVersionHistory).mockReturnValue(
+                historyStub([appVersion({ version: 1 })], 1),
+            );
+            vi.mocked(useDataAppVisualization).mockReturnValue({
+                data: {
+                    schema: {
+                        fields: [
+                            {
+                                name: 'date',
+                                label: 'Date',
+                                type: 'dimension',
+                                required: true,
+                            },
+                            {
+                                name: 'status',
+                                label: 'Status',
+                                type: 'series',
+                                required: true,
+                            },
+                            {
+                                name: 'count',
+                                label: 'Count',
+                                type: 'metric',
+                                required: true,
+                            },
+                        ],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                },
+            } as unknown as ReturnType<typeof useDataAppVisualization>);
+            if (source === 'chart') {
+                vi.mocked(useSavedChartPreviewData).mockReturnValue({
+                    data: {
+                        ...run,
+                        chartName: 'Orders',
+                        spaceName: null,
+                        itemsMap: {
+                            orders_status: itemsMap.orders_status,
+                            orders_date: itemsMap.orders_date,
+                            orders_count: itemsMap.orders_count,
+                        },
+                        sourceChart: {
+                            metricQuery: {
+                                ...explorerChart.metricQuery,
+                                dimensions: ['orders_status', 'orders_date'],
+                                metrics: ['orders_count'],
+                            },
+                            chartConfig: {
+                                type: ChartType.CARTESIAN,
+                                config: {
+                                    layout: {
+                                        xField: 'orders_date',
+                                        yField: ['orders_count'],
+                                    },
+                                    eChartsConfig: {},
+                                },
+                            },
+                            pivotConfig: { columns: ['orders_status'] },
+                        },
+                    },
+                    retry: vi.fn(),
+                });
+            } else {
+                vi.mocked(useAttachedExplore).mockReturnValue({
+                    explore: {
+                        name: 'orders',
+                        label: 'Orders',
+                        joinedTableLabels: [],
+                        fields: Object.entries(itemsMap).map(([id, item]) => ({
+                            id,
+                            item,
+                            label: item.label,
+                        })),
+                        itemsMap,
+                    },
+                    error: null,
+                    retry: vi.fn(),
+                });
+                vi.mocked(useExplorePreviewData).mockReturnValue({
+                    run,
+                    isRunning: false,
+                    retry: vi.fn(),
+                });
+            }
+            renderBuilder(
+                `/projects/p1/chart-types/viz-1?${source === 'chart' ? 'savedChartUuid=chart-1' : 'exploreName=orders'}`,
+            );
+            const context: DataAppVizContext = JSON.parse(
+                screen.getByTestId('viz-context').textContent!,
+            );
+            expect(context.rows).toHaveLength(1);
+            expect(context.pivotDetails?.groupByColumns).toEqual([
+                { reference: 'orders_status' },
+            ]);
+            expect(context.pivotDetails?.valuesColumns).toHaveLength(2);
+            for (const column of context.pivotDetails!.valuesColumns) {
+                expect(context.rows[0][column.pivotColumnName].value.raw).toBe(
+                    column.pivotValues[0].value === 'placed' ? 10 : 11,
+                );
+                expect(
+                    context.seriesColors[column.pivotColumnName],
+                ).toBeDefined();
+            }
+            fireEvent.click(screen.getByRole('button', { name: 'View all' }));
+            const dialog = await screen.findByRole('dialog', {
+                name: 'Query results',
+            });
+            expect(
+                within(dialog).getByRole('columnheader', {
+                    name: 'count · placed',
+                }),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByRole('columnheader', {
+                    name: 'count · shipped',
+                }),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByRole('cell', { name: '10' }),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByRole('cell', { name: '11' }),
+            ).toBeVisible();
+            if (source === 'chart') {
+                fireEvent.click(
+                    within(dialog).getByRole('button', { name: 'Close' }),
+                );
+                fireEvent.click(
+                    screen.getByRole('combobox', { name: 'Status' }),
+                );
+                fireEvent.click(screen.getByRole('option', { name: /^date$/ }));
+                const rebound: DataAppVizContext = JSON.parse(
+                    screen.getByTestId('viz-context').textContent!,
+                );
+                expect(rebound.fieldMapping.status).toBe('orders_date');
+                expect(useSavedChartBindingPreview).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        fieldMapping: expect.objectContaining({
+                            status: 'orders_date',
+                        }),
+                    }),
+                );
+            }
+        },
+    );
+
     it('uses a saved chart without sending its rows by default', () => {
         const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
         const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
@@ -674,6 +923,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useSavedChartPreviewData).mockReturnValue({
             data: {
                 status: 'ready',
+                sourceChart: null,
                 chartName: 'Orders by status',
                 spaceName: 'Sales',
                 rows: [],
@@ -705,6 +955,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useSavedChartPreviewData).mockReturnValue({
             data: {
                 status: 'ready',
+                sourceChart: null,
                 chartName: 'Orders by status',
                 spaceName: 'Sales',
                 rows: [],

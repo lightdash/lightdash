@@ -1,4 +1,6 @@
 import {
+    getErrorMessage,
+    isApiError,
     type Item,
     type ItemsMap,
     type ReadyQueryResultsPage,
@@ -8,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
+import { type SavedChartBindingSource } from '../utils/savedChartPreviewFieldMapping';
 import {
     executeSavedChartPreviewQuery,
     type SavedChartPreviewQueryResult,
@@ -25,6 +28,7 @@ export type SavedChartPreviewData =
       }
     | {
           status: 'ready';
+          sourceChart: SavedChartBindingSource | null;
           chartName: string | null;
           spaceName: string | null;
           rows: ResultRow[];
@@ -89,23 +93,31 @@ export const useSavedChartPreviewData = ({
     const spaceName = savedChart.data?.spaceName ?? null;
     const { data, error, refetch } = run;
     const ranAt = run.dataUpdatedAt;
+    const { error: metadataError, refetch: refetchMetadata } = savedChart;
 
     return useMemo(() => {
         const retry = () => {
-            if (enabled) void refetch();
+            if (enabled) {
+                void refetch();
+                void refetchMetadata();
+            }
         };
         if (!enabled) return { data: { status: 'notRun' }, retry };
-        if (error)
+        if (error || metadataError)
             return {
                 data: {
                     status: 'error',
                     chartName,
                     spaceName,
-                    message: error.message,
+                    message:
+                        error?.message ??
+                        (isApiError(metadataError)
+                            ? metadataError.error.message
+                            : getErrorMessage(metadataError)),
                 },
                 retry,
             };
-        if (!data)
+        if (!data || !savedChart.data)
             return {
                 data: { status: 'running', chartName, spaceName },
                 retry,
@@ -116,6 +128,11 @@ export const useSavedChartPreviewData = ({
                 status: 'ready',
                 chartName,
                 spaceName,
+                sourceChart: {
+                    ...savedChart.data,
+                    metricQuery:
+                        data.metricQuery ?? savedChart.data.metricQuery,
+                },
                 rows: data.rows,
                 itemsMap: data.itemsMap,
                 columns: [...dimensions, ...metrics],
@@ -125,5 +142,16 @@ export const useSavedChartPreviewData = ({
             },
             retry,
         };
-    }, [enabled, chartName, spaceName, data, error, ranAt, refetch]);
+    }, [
+        enabled,
+        chartName,
+        spaceName,
+        data,
+        error,
+        ranAt,
+        refetch,
+        savedChart.data,
+        metadataError,
+        refetchMetadata,
+    ]);
 };

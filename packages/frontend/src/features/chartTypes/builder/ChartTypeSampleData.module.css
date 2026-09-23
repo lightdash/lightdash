@@ -6,3 +6,9 @@
 .tableContainer {
     max-height: min(60vh, 640px);
 }
+
+.columnHeader {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
