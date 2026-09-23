@@ -30,6 +30,7 @@ import {
     type DataAppVizOptionValue,
     type DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
+import { type DataAppVizPreview } from './preview';
 
 export type {
     DataAppVizConfigOption,
@@ -474,6 +475,7 @@ export type AppVersionResources = {
     // versions whose generation emitted no valid schema. Optional for rows
     // predating this field.
     vizSchema?: DataAppVizSchema | null;
+    vizPreview?: DataAppVizPreview | null;
 };
 
 export type AppVersionDependencyEntry = {
@@ -1301,6 +1303,7 @@ export type DataAppVizRenderMetadata =
           state: 'ready';
           version: number;
           schema: DataAppVizSchema;
+          preview: DataAppVizPreview | null;
           latestBuildInProgress: boolean;
       }
     | {

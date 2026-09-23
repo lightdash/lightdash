@@ -44,6 +44,8 @@ const VIZ_SCHEMA = {
     configOptions: [],
 };
 
+const PREVIEW = { rows: [{ category: 'North', value: 42 }] };
+
 const sourceApp = {
     app_id: SOURCE_APP_UUID,
     project_uuid: PROJECT_UUID,
@@ -88,6 +90,7 @@ const sourceVersion = {
     resources: null,
     dependencies: null,
     viz_schema: VIZ_SCHEMA,
+    viz_preview: PREVIEW,
     data_references: DATA_REFERENCES,
 };
 
@@ -233,6 +236,7 @@ describe('version metadata propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+            { vizPreview: PREVIEW },
         );
         const duplicatedAppUuid =
             appModel.createWithVersion.mock.calls[0][0].app_id;
@@ -276,6 +280,7 @@ describe('version metadata propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+            { vizPreview: PREVIEW },
         );
     });
 
@@ -313,6 +318,7 @@ describe('version metadata propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+            { vizPreview: PREVIEW },
         );
         expect(appModel.syncPromotedApp).toHaveBeenCalledWith(
             UPSTREAM_APP_UUID,
@@ -411,7 +417,10 @@ describe('version metadata propagation on app copy paths', () => {
             { images: [] },
             DEPENDENCIES,
             VIZ_SCHEMA,
-            expect.objectContaining({ registryVersion: undefined }),
+            expect.objectContaining({
+                registryVersion: undefined,
+                vizPreview: PREVIEW,
+            }),
         );
     });
 
@@ -436,6 +445,7 @@ describe('version metadata propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+            { vizPreview: PREVIEW },
         );
         const previewAppUuid =
             appModel.createWithVersion.mock.calls[0][0].app_id;
