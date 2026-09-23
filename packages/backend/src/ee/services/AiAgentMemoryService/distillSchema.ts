@@ -72,9 +72,13 @@ const memorySchema = z
     })
     .strict();
 
+// z.union, not z.discriminatedUnion: zod renders a discriminated union as
+// JSON Schema `oneOf`, which OpenAI's strict structured outputs reject
+// outright ("'oneOf' is not permitted"). z.union renders as `anyOf`, which
+// they accept, and parses the same inputs.
 export const distillOutputSchema = z
     .object({
-        result: z.discriminatedUnion('type', [noOpSchema, memorySchema]),
+        result: z.union([noOpSchema, memorySchema]),
     })
     .strict();
 

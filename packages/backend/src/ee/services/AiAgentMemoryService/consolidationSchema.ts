@@ -68,7 +68,10 @@ const retireOperationSchema = z
     })
     .strict();
 
-export const consolidationOperationSchema = z.discriminatedUnion('type', [
+// z.union, not z.discriminatedUnion: see the note in distillSchema.ts —
+// a discriminated union renders as JSON Schema `oneOf`, which OpenAI's
+// strict structured outputs reject.
+export const consolidationOperationSchema = z.union([
     mergeOperationSchema,
     promoteOperationSchema,
     supersedeOperationSchema,

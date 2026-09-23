@@ -5627,7 +5627,7 @@ Parameters:
       "additionalProperties": false,
       "definitions": {
         "__schema2": {
-          "oneOf": [
+          "anyOf": [
             {
               "additionalProperties": false,
               "properties": {
