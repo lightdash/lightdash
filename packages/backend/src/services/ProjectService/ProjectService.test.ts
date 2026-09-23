@@ -299,6 +299,7 @@ const projectModel = {
     getWarehouseFromCache: vi.fn(async () => undefined),
     saveWarehouseToCache: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
+    listConnections: vi.fn(async () => [{ connectionUuid: 'connection-uuid' }]),
     saveExploreStreamToCache: vi.fn<ProjectModel['saveExploreStreamToCache']>(
         async (_projectUuid, explores) => {
             for await (const explore of explores) {
@@ -7035,6 +7036,64 @@ describe('ProjectService', () => {
                 projectUuid,
                 [validExplore],
                 false,
+                undefined,
+            );
+        });
+    });
+
+    describe('deploy to a project with several connections', () => {
+        const boundExplore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    connectionUuid: 'second-connection-uuid',
+                },
+            },
+        };
+
+        beforeEach(() => {
+            projectModel.saveExploresToCache.mockClear();
+            projectModel.listConnections.mockResolvedValue([
+                { connectionUuid: 'connection-uuid' },
+                { connectionUuid: 'second-connection-uuid' },
+            ]);
+        });
+
+        afterEach(() => {
+            projectModel.listConnections.mockResolvedValue([
+                { connectionUuid: 'connection-uuid' },
+            ]);
+        });
+
+        test('refuses explores that name no connection', async () => {
+            await expect(
+                service.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                    complete: true,
+                }),
+            ).rejects.toThrow(MultipleConnectionsError);
+
+            expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
+        });
+
+        test('saves explores that name their connection', async () => {
+            await service.saveExploresToCacheAndIndexCatalog({
+                userUuid: user.userUuid,
+                projectUuid,
+                explores: [boundExplore],
+                compilationSource: 'cli_deploy',
+                complete: true,
+            });
+
+            expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                projectUuid,
+                [boundExplore],
+                true,
                 undefined,
             );
         });

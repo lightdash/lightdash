@@ -174,6 +174,7 @@ import {
     MIN_RESULTS_CACHE_TTL_SECONDS,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
+    MultipleConnectionsError,
     normalizeIndexColumns,
     normalizeWarehouseCredentials,
     NotFoundError,
@@ -2759,12 +2760,30 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private async assertExploresNameConnection(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ): Promise<void> {
+        const hasUnboundExplore = explores.some((explore) => {
+            const baseTable =
+                explore.tables?.[explore.baseTable ?? explore.name];
+            return baseTable !== undefined && !baseTable.connectionUuid;
+        });
+        if (!hasUnboundExplore) return;
+        const connections =
+            await this.projectModel.listConnections(projectUuid);
+        if (connections.length > 1) {
+            throw new MultipleConnectionsError();
+        }
+    }
+
     async saveExploresToCacheAndIndexCatalog(
         args: SaveCompiledExploresArgs & {
             explores: (Explore | ExploreError)[];
         },
     ) {
         const { explores, ...metadata } = args;
+        await this.assertExploresNameConnection(args.projectUuid, explores);
         const hasDbtSources =
             args.dbtModelNames !== undefined &&
             (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
