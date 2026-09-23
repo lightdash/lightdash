@@ -367,6 +367,38 @@ describe('buildWarehouseTreeRows', () => {
         ]);
         expect(rows[0]).toMatchObject({ childCount: 1 });
     });
+
+    it('falls back to the sole catalog database for a Databricks connection with no catalog set', () => {
+        const databricksDatabases: WarehouseListedDatabase[] = [
+            {
+                name: 'DEFAULT',
+                database: 'DEFAULT',
+                schema: null,
+                isDefault: true,
+            },
+        ];
+        const databricksCatalog: WarehouseTablesCatalog = {
+            hive_metastore: {
+                default: { orders: {} },
+            },
+        };
+
+        const rows = build({
+            connections: [connection(databricksDatabases)],
+            units: { DEFAULT: loaded(databricksCatalog) },
+            expanded: [
+                `database:${CONNECTION_ID}/DEFAULT`,
+                `schema:${CONNECTION_ID}/DEFAULT/default`,
+            ],
+        });
+
+        expect(rows.map((row) => row.id)).toEqual([
+            `database:${CONNECTION_ID}/DEFAULT`,
+            `schema:${CONNECTION_ID}/DEFAULT/default`,
+            `table:${CONNECTION_ID}/DEFAULT/default/orders`,
+        ]);
+        expect(rows[0]).toMatchObject({ childCount: 1 });
+    });
 });
 
 describe('collectEnabledUnits', () => {

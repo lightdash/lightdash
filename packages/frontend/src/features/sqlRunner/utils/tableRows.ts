@@ -198,7 +198,9 @@ const findCatalogDatabase = (
     if (database in catalog) return catalog[database];
     const needle = database.toLowerCase();
     const key = Object.keys(catalog).find((k) => k.toLowerCase() === needle);
-    return key === undefined ? undefined : catalog[key];
+    if (key !== undefined) return catalog[key];
+    const keys = Object.keys(catalog);
+    return keys.length === 1 ? catalog[keys[0]] : undefined;
 };
 
 const isView = (tableType: WarehouseTableType | undefined) =>
