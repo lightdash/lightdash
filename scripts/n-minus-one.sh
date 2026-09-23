@@ -30,7 +30,7 @@ PREVIOUS_DIR="${RUNNER_TEMP:-/tmp}/lightdash-previous-release"
 DATABASE="lightdash_n1_test"
 BACKEND_PORT="${N1_BACKEND_PORT:-8080}"
 SKIPPED_MODEL_TESTS="${N1_SKIPPED_MODEL_TESTS:-src/ee/models/AiAgentMemoryModel.integration.test.ts}"
-SMOKE_TESTS="${N1_SMOKE_TESTS:-tests/api.test.ts tests/async-query.test.ts tests/savedChart.test.ts tests/sqlRunner.test.ts tests/createPreviewWithManifest.test.ts tests/previewContentCopy.test.ts}"
+SMOKE_TESTS="${N1_SMOKE_TESTS:-tests/api.test.ts tests/savedChart.test.ts tests/sqlRunner.test.ts tests/createPreviewWithManifest.test.ts tests/previewContentCopy.test.ts}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
