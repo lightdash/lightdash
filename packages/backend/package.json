@@ -36,6 +36,7 @@
         "format": "oxfmt ./src --check",
         "fix-format": "oxfmt ./src",
         "create-migration": "tsx src/scripts/create-migration.ts",
+        "check:column-names": "tsx src/scripts/check-column-names/index.ts",
         "migrate": "NODE_ENV=development tsx src/scripts/migrate/index.ts",
         "migrate-production": "NODE_ENV=production node dist/scripts/migrate/index.js",
         "migrate-or-rollback-database": "node dist/migrateOrRollbackDatabase.js",
