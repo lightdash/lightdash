@@ -500,6 +500,8 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const {
         data,
         isInitialLoading,
+        isFetching,
+        isPreviousData,
         error,
         refetch,
         hasNextPage,
@@ -527,6 +529,38 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     )
         ? visualizationConfig.chartConfig.dataAppVizUuid
         : null;
+
+    useEffect(() => {
+        const selectedTypeIsLoaded = projectTypes.some(
+            ({ dataAppVizUuid }) => dataAppVizUuid === selectedProjectUuid,
+        );
+        const shouldLoadSelectedType =
+            chartTypesEnabled &&
+            selectedProjectUuid !== null &&
+            search === '' &&
+            debouncedSearch === '' &&
+            !isPreviousData &&
+            !error &&
+            hasNextPage === true &&
+            !isFetching &&
+            !selectedTypeIsLoaded;
+
+        if (!shouldLoadSelectedType) return;
+
+        void fetchNextPage({ cancelRefetch: false });
+    }, [
+        chartTypesEnabled,
+        debouncedSearch,
+        error,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isPreviousData,
+        projectTypes,
+        search,
+        selectedProjectUuid,
+    ]);
+
     const matchesBuiltInSearch = (option: ChartTypeOption) =>
         option.label.toLowerCase().includes(debouncedSearch.toLowerCase());
 

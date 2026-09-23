@@ -2,13 +2,15 @@ import { FeatureFlags } from '@lightdash/common';
 import { Button, Menu, Stack, Text } from '@mantine/core';
 import { IconChevronDown, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
 import { getDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
+    selectUnsavedChartVersion,
     useExplorerDispatch,
+    useExplorerStore,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -20,7 +22,15 @@ import { ProvenanceGlyph } from './ChartTypeGallery';
 const AddChartTypeMenu: FC = () => {
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
+    const store = useExplorerStore();
     const queryClient = useQueryClient();
+    const pendingSelection = useRef<symbol | null>(null);
+    useEffect(
+        () => () => {
+            pendingSelection.current = null;
+        },
+        [projectUuid],
+    );
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
@@ -145,6 +155,11 @@ const AddChartTypeMenu: FC = () => {
                     // Close on install so the selection is visible at once.
                     onInstalled={(appUuid) => {
                         setIsLibraryOpen(false);
+                        const selection = Symbol();
+                        pendingSelection.current = selection;
+                        const chart = selectUnsavedChartVersion(
+                            store.getState(),
+                        );
                         // The install only returns the uuid; the selection
                         // needs the schema, so fetch the type once.
                         void queryClient
@@ -162,12 +177,20 @@ const AddChartTypeMenu: FC = () => {
                                         null,
                                     ),
                             })
-                            .then((installed) =>
+                            .then((installed) => {
+                                // A late response must not replace work done since install.
+                                if (
+                                    pendingSelection.current !== selection ||
+                                    selectUnsavedChartVersion(
+                                        store.getState(),
+                                    ) !== chart
+                                )
+                                    return;
                                 selectProjectChartType(
                                     installed,
                                     itemsMap ?? {},
-                                ),
-                            )
+                                );
+                            })
                             .catch(() => undefined);
                     }}
                 />
