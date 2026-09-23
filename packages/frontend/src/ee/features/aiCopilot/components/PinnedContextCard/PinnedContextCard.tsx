@@ -241,6 +241,12 @@ export const PinnedContextCard: FC<Props> = ({
                     {getThemeContextItemLabel(item)}
                 </ContentReferenceLink>
             );
+        case 'skill':
+            return (
+                <ContentReferenceLink kind="skill" showArrow={false}>
+                    {`/${item.name}`}
+                </ContentReferenceLink>
+            );
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }

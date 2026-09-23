@@ -697,6 +697,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentMemoryModel<AiAgentMemoryModel>(),
                     aiAgentDocumentModel:
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                    aiAgentSkillModel:
+                        models.getAiAgentSkillModel<AiAgentSkillModel>(),
                     mcpToolCallModel:
                         models.getMcpToolCallModel<McpToolCallModel>(),
                     externalSourceModel:

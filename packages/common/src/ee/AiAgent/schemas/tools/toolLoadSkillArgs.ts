@@ -18,9 +18,22 @@ export const toolLoadSkillArgsSchema = z.object({
         ),
 });
 
+/** Which skill and version the model was served; a thread reviewer reads this. */
+export const servedSkillMetadataSchema = z.object({
+    name: z.string(),
+    builtIn: z.boolean(),
+    uuid: z.string().nullable(),
+    versionNumber: z.number().nullable(),
+    contentHash: z.string().nullable(),
+});
+
+export type ServedSkillMetadata = z.infer<typeof servedSkillMetadataSchema>;
+
 export const toolLoadSkillOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: baseOutputMetadataSchema.extend({
+        skill: servedSkillMetadataSchema.optional(),
+    }),
 });
 
 export type ToolLoadSkillArgs = z.infer<typeof toolLoadSkillArgsSchema>;

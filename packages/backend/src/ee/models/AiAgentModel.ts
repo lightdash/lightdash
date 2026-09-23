@@ -153,6 +153,7 @@ import {
     AiPromptDataAppSnapshot,
     AiPromptDecisionTableName,
     AiPromptInterruptTableName,
+    AiPromptSkillSnapshot,
     AiPromptSteerTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
@@ -209,6 +210,11 @@ import {
     DbAiMcpServerTool,
 } from '../database/entities/aiAgent';
 import { AiAgentMemoryTableName } from '../database/entities/aiAgentMemory';
+import {
+    AiAgentSkillAccessTableName,
+    AiAgentSkillTableName,
+    AiAgentSkillVersionTableName,
+} from '../database/entities/aiAgentSkill';
 import { AiAgentUserPreferencesTableName } from '../database/entities/aiAgentUserPreferences';
 import {
     AiArtifactsTable,
@@ -6881,6 +6887,60 @@ export class AiAgentModel {
             ]),
         );
 
+        const skillNames = context.flatMap((c) =>
+            c.type === 'skill' ? [c.name] : [],
+        );
+        // Resolved through the prompt's agent so the row pins the version the
+        // agent serves right now; a name with no bound row is a built-in.
+        const boundSkillByName = new Map(
+            skillNames.length === 0
+                ? []
+                : (
+                      await trx(AiAgentSkillTableName)
+                          .innerJoin(
+                              AiAgentSkillAccessTableName,
+                              `${AiAgentSkillAccessTableName}.ai_agent_skill_uuid`,
+                              `${AiAgentSkillTableName}.ai_agent_skill_uuid`,
+                          )
+                          .innerJoin(
+                              AiThreadTableName,
+                              `${AiThreadTableName}.agent_uuid`,
+                              `${AiAgentSkillAccessTableName}.ai_agent_uuid`,
+                          )
+                          .innerJoin(
+                              AiPromptTableName,
+                              `${AiPromptTableName}.ai_thread_uuid`,
+                              `${AiThreadTableName}.ai_thread_uuid`,
+                          )
+                          .innerJoin(
+                              AiAgentSkillVersionTableName,
+                              `${AiAgentSkillVersionTableName}.ai_agent_skill_version_uuid`,
+                              `${AiAgentSkillTableName}.current_version_uuid`,
+                          )
+                          .where(
+                              `${AiPromptTableName}.ai_prompt_uuid`,
+                              promptUuid,
+                          )
+                          .whereIn(`${AiAgentSkillTableName}.name`, skillNames)
+                          .whereNull(`${AiAgentSkillTableName}.deleted_at`)
+                          .select<
+                              {
+                                  name: string;
+                                  skill_uuid: string;
+                                  title: string | null;
+                                  version_uuid: string;
+                                  version_number: number;
+                              }[]
+                          >({
+                              name: `${AiAgentSkillTableName}.name`,
+                              skill_uuid: `${AiAgentSkillTableName}.ai_agent_skill_uuid`,
+                              title: `${AiAgentSkillTableName}.title`,
+                              version_uuid: `${AiAgentSkillVersionTableName}.ai_agent_skill_version_uuid`,
+                              version_number: `${AiAgentSkillVersionTableName}.version_number`,
+                          })
+                  ).map((r) => [r.name, r] as const),
+        );
+
         const rows = context.map((ctx) => {
             switch (ctx.type) {
                 case 'chart': {
@@ -7061,6 +7121,22 @@ export class AiAgentModel {
                                 latestReadyVersionByAppUuid.get(ctx.appUuid) ??
                                 null,
                         } satisfies AiPromptDataAppSnapshot,
+                    };
+                }
+                case 'skill': {
+                    const bound = boundSkillByName.get(ctx.name);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'skill' as AiPromptContextEntityType,
+                        entity_uuid: bound?.skill_uuid ?? null,
+                        entity_ref: ctx.name,
+                        pinned_version_uuid: bound?.version_uuid ?? null,
+                        display_name: bound?.title ?? ctx.name,
+                        runtime_overrides: {
+                            arguments: ctx.arguments,
+                            versionNumber: bound?.version_number ?? null,
+                            builtIn: bound === undefined,
+                        } satisfies AiPromptSkillSnapshot,
                     };
                 }
                 case 'design':
@@ -7401,6 +7477,20 @@ export class AiAgentModel {
                 return { type: 'file', path: row.entity_ref ?? '' };
             case 'repository':
                 return { type: 'repository', fullName: row.entity_ref ?? '' };
+            case 'skill': {
+                const snapshot =
+                    row.runtime_overrides as AiPromptSkillSnapshot | null;
+                return {
+                    type: 'skill',
+                    name: row.entity_ref ?? '',
+                    arguments: snapshot?.arguments ?? '',
+                    skillUuid: row.entity_uuid,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    versionNumber: snapshot?.versionNumber ?? null,
+                    builtIn: snapshot?.builtIn ?? row.entity_uuid === null,
+                    displayName: row.display_name,
+                };
+            }
             case 'external_source': {
                 const snapshot =
                     row.runtime_overrides as AiPromptExternalSourceSnapshot | null;

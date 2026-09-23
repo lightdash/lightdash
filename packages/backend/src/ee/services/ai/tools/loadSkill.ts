@@ -63,6 +63,9 @@ Skill: ${skill.name}
 ${resource.content.trim()}`,
                         metadata: {
                             status: 'success' as const,
+                            ...(skill.metadata
+                                ? { skill: skill.metadata }
+                                : {}),
                         },
                     };
                 }
@@ -82,6 +85,7 @@ ${formatResourceList(
 )}`,
                     metadata: {
                         status: 'success' as const,
+                        ...(skill.metadata ? { skill: skill.metadata } : {}),
                     },
                 };
             } catch (error) {

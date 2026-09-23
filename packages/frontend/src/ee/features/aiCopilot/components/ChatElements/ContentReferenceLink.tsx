@@ -6,6 +6,7 @@ import {
     IconBrandGithub,
     IconBrush,
     IconChartBar,
+    IconBolt,
     IconClick,
     IconFile,
     IconFileText,
@@ -45,7 +46,8 @@ type ContentReferenceKind =
     | 'proposed_change'
     | 'review_finding'
     | 'preview_environment'
-    | 'scheduled_delivery';
+    | 'scheduled_delivery'
+    | 'skill';
 
 type Props = {
     chartKind?: ChartKind;
@@ -101,6 +103,12 @@ const getIconMeta = ({
                 color: 'pink.7',
                 fill: 'pink.4',
                 icon: IconBrush,
+            };
+        case 'skill':
+            return {
+                color: 'indigo.7',
+                fill: 'indigo.4',
+                icon: IconBolt,
             };
         case 'artifact':
             return {

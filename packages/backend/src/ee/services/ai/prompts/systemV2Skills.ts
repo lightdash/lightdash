@@ -13,7 +13,7 @@ export const renderAvailableSkills = (
 
     return `## Agent Skills
 
-You have optional built-in skills that load on demand.
+You have optional skills that load on demand. Some ship with Lightdash; others were written by this organization for its own workflows.
 
 - Use \`loadSkill\` when a request clearly matches a skill description or needs a specialized workflow.
 - After loading a skill, follow its instructions.

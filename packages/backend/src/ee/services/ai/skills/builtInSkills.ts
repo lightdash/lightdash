@@ -275,6 +275,17 @@ export class BuiltInSkills {
             resources: skill.resources.map((resource) =>
                 this.toAiAgentResource(resource),
             ),
+            metadata: {
+                name: skill.skill.name,
+                builtIn: true,
+                uuid: null,
+                versionNumber: null,
+                contentHash: this.getContentDigest(
+                    [skill.skill, ...skill.resources]
+                        .map((file) => file.raw)
+                        .join('\n'),
+                ),
+            },
         };
     }
 

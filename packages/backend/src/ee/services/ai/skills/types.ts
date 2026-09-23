@@ -1,3 +1,5 @@
+import type { ServedSkillMetadata } from '@lightdash/common';
+
 export type AiAgentSkillResource = {
     name: string;
     description: string;
@@ -9,6 +11,8 @@ export type AiAgentSkill = {
     description: string;
     body: string;
     resources?: AiAgentSkillResource[];
+    /** Served-version record written to the loadSkill tool result. */
+    metadata?: ServedSkillMetadata;
 };
 
 export type AiAgentSkillReference = Pick<

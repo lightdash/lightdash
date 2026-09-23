@@ -240,6 +240,8 @@ export class Compaction {
                 return `element reference ${elementReferenceToWireString(item)} in data app ${item.displayName ?? item.appUuid} (${item.appUuid}, version ${item.version}; copy it verbatim into the iterateDataApp brief)`;
             case 'data_app_restore':
                 return `data app ${item.displayName ?? item.appUuid} (${item.appUuid}) restored version ${item.restoredFromVersion} as version ${item.version}`;
+            case 'skill':
+                return `skill /${item.name}${item.arguments ? ` with arguments "${item.arguments}"` : ''}${item.versionNumber ? ` (v${item.versionNumber})` : ''}`;
             case 'design':
                 return `theme ${item.displayName ?? item.designUuid} (${item.designSlug ?? item.designUuid})`;
             default:

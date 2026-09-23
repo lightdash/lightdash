@@ -4855,6 +4855,55 @@ Parameters:
         "metadata": {
           "additionalProperties": false,
           "properties": {
+            "skill": {
+              "additionalProperties": false,
+              "properties": {
+                "builtIn": {
+                  "type": "boolean",
+                },
+                "contentHash": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "name": {
+                  "type": "string",
+                },
+                "uuid": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "versionNumber": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "name",
+                "builtIn",
+                "uuid",
+                "versionNumber",
+                "contentHash",
+              ],
+              "type": "object",
+            },
             "status": {
               "enum": [
                 "success",

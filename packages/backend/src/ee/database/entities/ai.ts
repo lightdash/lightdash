@@ -513,7 +513,16 @@ export type AiPromptContextEntityType =
     | 'data_app_element'
     | 'data_app_restore'
     | 'data_app'
-    | 'design';
+    | 'design'
+    | 'skill';
+
+// Slash-command snapshot stored in runtime_overrides; entity_ref holds the
+// skill name, entity_uuid the skill row (null for a built-in).
+export type AiPromptSkillSnapshot = {
+    arguments: string;
+    versionNumber: number | null;
+    builtIn: boolean;
+};
 
 // Element reference snapshot stored in runtime_overrides; entity_ref holds the
 // natural key so one prompt can reference several elements of the same app.
@@ -556,6 +565,7 @@ export type DbAiPromptContext = {
         | AiPromptDataAppElementSnapshot
         | AiPromptDataAppRestoreSnapshot
         | AiPromptDataAppSnapshot
+        | AiPromptSkillSnapshot
         | null;
     created_at: Date;
 };
