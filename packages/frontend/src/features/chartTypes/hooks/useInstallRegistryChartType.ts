@@ -46,6 +46,16 @@ export const useInstallRegistryChartType = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['data-app-vizs'],
             });
+            void queryClient.invalidateQueries({
+                queryKey: ['data-app-viz', projectUuid, result.appUuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'data-app-viz-render-metadata',
+                    projectUuid,
+                    result.appUuid,
+                ],
+            });
             showToastSuccess({
                 title:
                     result.action === 'upgraded'

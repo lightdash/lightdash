@@ -6,6 +6,7 @@ import {
     getAppDisplayName,
     getEffectiveOptionValues,
     getItemId,
+    isOfficialChartType,
     pruneDataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
@@ -40,6 +41,7 @@ import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
 import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizInputGuidance from './DataAppVizInputGuidance';
+import DataAppVizLibraryUpgradeNotice from './DataAppVizLibraryUpgradeNotice';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 import DataAppVizSettings from './DataAppVizSettings';
 import DataAppVizUpgradeNotice from './DataAppVizUpgradeNotice';
@@ -237,6 +239,15 @@ export const ConfigTabs: FC = memo(() => {
 
         const settings = (
             <Stack>
+                {projectUuid &&
+                    dataAppViz &&
+                    isOfficialChartType(dataAppViz) && (
+                        <DataAppVizLibraryUpgradeNotice
+                            key={dataAppViz.dataAppVizUuid}
+                            projectUuid={projectUuid}
+                            dataAppViz={dataAppViz}
+                        />
+                    )}
                 <DataAppVizSettings
                     itemsMap={effectiveItemsMap}
                     fields={fields}
