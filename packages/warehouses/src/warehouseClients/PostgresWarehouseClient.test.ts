@@ -503,6 +503,7 @@ describe('PostgresWarehouseClient', () => {
         const warehouse = new PostgresWarehouseClient({
             ...credentials,
             dbname: 'warehouse',
+            additionalDatabases: ['analytics'],
         });
         const calls: {
             database: string;
@@ -555,6 +556,97 @@ describe('PostgresWarehouseClient', () => {
 
         getCatalog.mockRestore();
         close.mockRestore();
+    });
+
+    it('reads a database the connection does not list through the default connection', async () => {
+        const warehouse = new PostgresWarehouseClient({
+            ...credentials,
+            dbname: 'warehouse',
+        });
+        const connectedDatabases: string[] = [];
+        const getCatalog = vi
+            .spyOn(PostgresClient.prototype, 'getCatalog')
+            .mockImplementation(
+                async function (
+                    this: PostgresClient<CreatePostgresCredentials>,
+                ) {
+                    connectedDatabases.push(this.credentials.dbname);
+                    return {
+                        warehouse: {
+                            public: { orders: { id: DimensionType.STRING } },
+                        },
+                    };
+                },
+            );
+        const close = vi
+            .spyOn(PostgresClient.prototype, 'close')
+            .mockResolvedValue();
+
+        const catalog = await warehouse.getCatalog([
+            { database: 'warehouse', schema: 'public', table: 'orders' },
+            { database: 'test_db', schema: 'test_schema', table: 'test_model' },
+        ]);
+
+        expect(connectedDatabases).toEqual(['warehouse']);
+        expect(close).not.toHaveBeenCalled();
+        expect(catalog).toEqual({
+            warehouse: {
+                public: { orders: { id: DimensionType.STRING } },
+            },
+        });
+
+        getCatalog.mockRestore();
+        close.mockRestore();
+    });
+
+    it('skips a listed database that does not exist and warns', async () => {
+        const warehouse = new PostgresWarehouseClient({
+            ...credentials,
+            dbname: 'warehouse',
+            additionalDatabases: ['missing_db'],
+        });
+        const getCatalog = vi
+            .spyOn(PostgresClient.prototype, 'getCatalog')
+            .mockImplementation(
+                async function (
+                    this: PostgresClient<CreatePostgresCredentials>,
+                ) {
+                    if (this.credentials.dbname === 'missing_db') {
+                        throw Object.assign(
+                            new Error('database "missing_db" does not exist'),
+                            { code: '3D000' },
+                        );
+                    }
+                    return {
+                        warehouse: {
+                            public: { orders: { id: DimensionType.STRING } },
+                        },
+                    };
+                },
+            );
+        const close = vi
+            .spyOn(PostgresClient.prototype, 'close')
+            .mockResolvedValue();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const catalog = await warehouse.getCatalog([
+            { database: 'warehouse', schema: 'public', table: 'orders' },
+            { database: 'missing_db', schema: 'public', table: 'events' },
+        ]);
+
+        expect(catalog).toEqual({
+            warehouse: {
+                public: { orders: { id: DimensionType.STRING } },
+            },
+        });
+        expect(close).toHaveBeenCalledOnce();
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('missing_db'),
+        );
+
+        getCatalog.mockRestore();
+        close.mockRestore();
+        warn.mockRestore();
     });
 });
 

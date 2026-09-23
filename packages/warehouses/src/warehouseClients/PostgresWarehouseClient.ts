@@ -932,6 +932,11 @@ const getSSLConfigFromMode = ({
     }
 };
 
+const isMissingDatabaseError = (error: unknown, database: string) =>
+    error instanceof Error &&
+    ((error as { code?: string }).code === '3D000' ||
+        error.message.includes(`database "${database}" does not exist`));
+
 export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
     protected getCatalogQueryFilters(
         databases: Set<string>,
@@ -1008,18 +1013,48 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
             return groups;
         }, new Map());
 
-        const catalogs = await Promise.all(
-            [...requestsByDatabase].map(([database, databaseRequests]) => {
-                if (database === this.credentials.dbname) {
-                    return super.getCatalog(databaseRequests);
-                }
-                return this.withClientForDatabase(database, (client) =>
-                    client.getCatalog(databaseRequests),
-                );
-            }),
+        const connectionRequests = [...requestsByDatabase]
+            .filter(([database]) => !this.opensClientForDatabase(database))
+            .flatMap(([, databaseRequests]) => databaseRequests);
+        const listedDatabases = [...requestsByDatabase].filter(([database]) =>
+            this.opensClientForDatabase(database),
         );
 
+        const catalogs = await Promise.all([
+            connectionRequests.length > 0
+                ? super.getCatalog(connectionRequests)
+                : {},
+            ...listedDatabases.map(([database, databaseRequests]) =>
+                this.getListedDatabaseCatalog(database, databaseRequests),
+            ),
+        ]);
+
         return Object.assign({}, ...catalogs);
+    }
+
+    private opensClientForDatabase(database: string): boolean {
+        if (database === this.credentials.dbname) return false;
+        return (
+            this.credentials.listAllDatabases === true ||
+            (this.credentials.additionalDatabases ?? []).includes(database)
+        );
+    }
+
+    private async getListedDatabaseCatalog(
+        database: string,
+        requests: { database: string; schema: string; table: string }[],
+    ): Promise<WarehouseCatalog> {
+        try {
+            return await this.withClientForDatabase(database, (client) =>
+                client.getCatalog(requests),
+            );
+        } catch (error) {
+            if (!isMissingDatabaseError(error, database)) throw error;
+            console.warn(
+                `Skipped the catalog for database "${database}": it does not exist on this connection`,
+            );
+            return {};
+        }
     }
 
     async getFields(
