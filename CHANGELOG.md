@@ -1,3 +1,10 @@
+## [2.305.6](https://github.com/lightdash/lightdash/compare/2.305.5...2.305.6) (2026-09-23)
+
+
+### Bug Fixes
+
+* **data-apps:** set ENABLE_PROMPT_CACHING_1H so older sandbox CLIs honour the 1h cache ([#29774](https://github.com/lightdash/lightdash/issues/29774)) ([3f0bf00](https://github.com/lightdash/lightdash/commit/3f0bf0094fe617e195f80dd4c54cfa253d80bb52))
+
 ## [2.305.5](https://github.com/lightdash/lightdash/compare/2.305.4...2.305.5) (2026-09-23)
 
 
