@@ -1,0 +1,527 @@
+import {
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
+    omitEmptySecrets,
+    ProjectType,
+    validateWarehouseConnectionName,
+    WAREHOUSE_CONNECTION_NAME_MAX_LENGTH,
+    type CreateWarehouseCredentials,
+    type Project,
+    type WarehouseConnection,
+    type WarehouseTypes,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    Button,
+    Card,
+    Group,
+    Loader,
+    Menu,
+    Stack,
+    Text,
+    TextInput,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import { useForm as useMantineForm } from '@mantine/form';
+import {
+    IconDots,
+    IconPencil,
+    IconPlugConnected,
+    IconPlus,
+    IconTrash,
+} from '@tabler/icons-react';
+import { useRef, useState, type FC } from 'react';
+import {
+    isSingleConnectionProject,
+    useCreateWarehouseConnection,
+    useDeleteWarehouseConnection,
+    useRenameWarehouseConnection,
+    useUpdateWarehouseConnection,
+    useWarehouseConnection,
+    useWarehouseConnections,
+} from '../../hooks/useWarehouseConnections';
+import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
+import classes from './ConnectionsPanel.module.css';
+import { dbtDefaults } from './DbtForms/defaultValues';
+import { FormProvider, useForm, type Form } from './formContext';
+import { getWarehouseLabel } from './ProjectConnectFlow/utils';
+import { ProjectFormProvider } from './ProjectFormProvider';
+import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
+import { warehouseValueValidators } from './WarehouseForms/validators';
+import WarehouseSchemaInput from './WarehouseSchemaInput';
+import WarehouseSettingsForm from './WarehouseSettingsForm';
+
+const unusedDbtFormValues = {
+    dbt: { ...dbtDefaults.formValues[DbtProjectType.NONE] },
+    dbtVersion: DefaultSupportedDbtVersion,
+};
+
+const ConnectionRow: FC<{
+    connection: WarehouseConnection;
+    onEdit: (connection: WarehouseConnection) => void;
+    onRename: (connection: WarehouseConnection) => void;
+    onRemove: (connection: WarehouseConnection) => void;
+}> = ({ connection, onEdit, onRename, onRemove }) => (
+    <Group className={classes.row} gap="sm" wrap="nowrap">
+        <MantineIcon
+            icon={IconPlugConnected}
+            size="lg"
+            className={classes.mark}
+        />
+        <Box className={classes.info}>
+            <Group gap={6} wrap="nowrap">
+                <Text fw={600} size="sm" truncate>
+                    {connection.name}
+                </Text>
+                {connection.isOriginal && <Badge size="sm">Original</Badge>}
+                {connection.organizationWarehouseCredentialsUuid !== null && (
+                    <Badge size="sm">Organisation credential</Badge>
+                )}
+            </Group>
+            <Text className={classes.meta} c="dimmed" truncate>
+                {getWarehouseLabel(connection.warehouseType)}
+            </Text>
+        </Box>
+        <Menu position="bottom-end">
+            <Menu.Target>
+                <ActionIcon aria-label={`Actions for ${connection.name}`}>
+                    <MantineIcon icon={IconDots} />
+                </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+                {!connection.isOriginal && (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={() => onEdit(connection)}
+                    >
+                        Edit
+                    </Menu.Item>
+                )}
+                <Menu.Item onClick={() => onRename(connection)}>
+                    Rename
+                </Menu.Item>
+                {!connection.isOriginal && (
+                    <Menu.Item
+                        color="red"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        onClick={() => onRemove(connection)}
+                    >
+                        Remove
+                    </Menu.Item>
+                )}
+            </Menu.Dropdown>
+        </Menu>
+    </Group>
+);
+
+const ConnectionFields: FC<{
+    form: Form;
+    intro: string;
+    projectUuid: string;
+    warehouseType: WarehouseTypes;
+    nameRef?: React.Ref<HTMLInputElement>;
+    savedProject?: Project;
+    showName: boolean;
+}> = ({
+    form,
+    intro,
+    projectUuid,
+    warehouseType,
+    nameRef,
+    savedProject,
+    showName,
+}) => (
+    <FormProvider form={form}>
+        <ProjectFormProvider
+            projectUuid={projectUuid}
+            savedProject={savedProject}
+        >
+            <Stack gap="md">
+                <Text size="sm" c="dimmed">
+                    {intro}
+                </Text>
+                {showName && (
+                    <TextInput
+                        ref={nameRef}
+                        label="Name"
+                        description="Shown wherever this connection is picked."
+                        placeholder="e.g. Finance warehouse"
+                        required
+                        maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
+                        {...form.getInputProps('name')}
+                    />
+                )}
+                <WarehouseSettingsForm disabled={false}>
+                    <WarehouseSchemaInput
+                        warehouseType={warehouseType}
+                        disabled={false}
+                        warehouseOnly
+                    />
+                </WarehouseSettingsForm>
+            </Stack>
+        </ProjectFormProvider>
+    </FormProvider>
+);
+
+const AddConnectionModal: FC<{
+    projectUuid: string;
+    warehouseType: WarehouseTypes;
+    onClose: () => void;
+}> = ({ projectUuid, warehouseType, onClose }) => {
+    const form = useForm({
+        initialValues: {
+            name: '',
+            warehouse: {
+                ...warehouseDefaultValues[warehouseType],
+            } as CreateWarehouseCredentials,
+            ...unusedDbtFormValues,
+        },
+        validate: {
+            name: validateWarehouseConnectionName,
+            warehouse: warehouseValueValidators[warehouseType],
+        },
+        validateInputOnBlur: true,
+    });
+    const nameRef = useRef<HTMLInputElement>(null);
+    const createMutation = useCreateWarehouseConnection(projectUuid, {
+        onSuccess: onClose,
+        onNameConflict: (message) => {
+            form.setFieldError('name', message);
+            nameRef.current?.focus();
+        },
+    });
+
+    const handleSubmit = () => {
+        if (form.validate().hasErrors) return;
+        createMutation.mutate({
+            name: form.values.name.trim(),
+            warehouseConnection: form.values.warehouse,
+        });
+    };
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title="Add a connection"
+            size="lg"
+            confirmLabel="Add connection"
+            onConfirm={handleSubmit}
+            confirmLoading={createMutation.isLoading}
+            cancelDisabled={createMutation.isLoading}
+        >
+            <ConnectionFields
+                form={form}
+                nameRef={nameRef}
+                projectUuid={projectUuid}
+                warehouseType={warehouseType}
+                showName
+                intro="Add another connection of the project's warehouse type. It is tested before it is saved."
+            />
+        </MantineModal>
+    );
+};
+
+const EditConnectionForm: FC<{
+    projectUuid: string;
+    connection: WarehouseConnection;
+    credentials: CreateWarehouseCredentials;
+    onClose: () => void;
+}> = ({ projectUuid, connection, credentials, onClose }) => {
+    const savedProject = { warehouseConnection: credentials } as Project;
+    const updateMutation = useUpdateWarehouseConnection(projectUuid, {
+        onSuccess: onClose,
+    });
+    const form = useForm({
+        initialValues: {
+            name: connection.name,
+            warehouse: credentials,
+            ...unusedDbtFormValues,
+        },
+        validate: {
+            warehouse: warehouseValueValidators[connection.warehouseType],
+        },
+        validateInputOnBlur: true,
+    });
+
+    const handleSubmit = () => {
+        if (form.validate().hasErrors) return;
+        updateMutation.mutate({
+            warehouseConnectionUuid: connection.warehouseConnectionUuid,
+            data: {
+                warehouseConnection: omitEmptySecrets(form.values.warehouse),
+            },
+        });
+    };
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title={`Edit ${connection.name}`}
+            size="lg"
+            confirmLabel="Save changes"
+            onConfirm={handleSubmit}
+            confirmLoading={updateMutation.isLoading}
+            cancelDisabled={updateMutation.isLoading}
+        >
+            <ConnectionFields
+                form={form}
+                projectUuid={projectUuid}
+                warehouseType={connection.warehouseType}
+                savedProject={savedProject}
+                showName={false}
+                intro="Leave a secret blank to keep the saved one. The connection is tested before it is saved."
+            />
+        </MantineModal>
+    );
+};
+
+const EditConnectionModal: FC<{
+    projectUuid: string;
+    connection: WarehouseConnection;
+    onClose: () => void;
+}> = ({ projectUuid, connection, onClose }) => {
+    const { data, isInitialLoading } = useWarehouseConnection(
+        projectUuid,
+        connection.warehouseConnectionUuid,
+    );
+
+    if (isInitialLoading || !data?.warehouseConnection) {
+        return (
+            <MantineModal
+                opened
+                onClose={onClose}
+                title={`Edit ${connection.name}`}
+                size="lg"
+                cancelLabel={false}
+            >
+                <Group justify="center" py="xl">
+                    <Loader size="sm" />
+                </Group>
+            </MantineModal>
+        );
+    }
+
+    return (
+        <EditConnectionForm
+            projectUuid={projectUuid}
+            connection={connection}
+            credentials={data.warehouseConnection as CreateWarehouseCredentials}
+            onClose={onClose}
+        />
+    );
+};
+
+const RenameConnectionModal: FC<{
+    projectUuid: string;
+    connection: WarehouseConnection;
+    onClose: () => void;
+}> = ({ projectUuid, connection, onClose }) => {
+    const nameRef = useRef<HTMLInputElement>(null);
+    const form = useMantineForm({
+        initialValues: { name: connection.name },
+        validate: { name: validateWarehouseConnectionName },
+    });
+    const renameMutation = useRenameWarehouseConnection(projectUuid, {
+        onSuccess: onClose,
+        onNameConflict: (message) => {
+            form.setFieldError('name', message);
+            nameRef.current?.focus();
+        },
+    });
+
+    const handleSubmit = () => {
+        if (form.validate().hasErrors) return;
+        renameMutation.mutate({
+            warehouseConnectionUuid: connection.warehouseConnectionUuid,
+            name: form.values.name.trim(),
+        });
+    };
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title="Rename connection"
+            confirmLabel="Save changes"
+            onConfirm={handleSubmit}
+            confirmLoading={renameMutation.isLoading}
+            cancelDisabled={renameMutation.isLoading}
+        >
+            <TextInput
+                ref={nameRef}
+                label="Name"
+                required
+                maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
+                {...form.getInputProps('name')}
+            />
+        </MantineModal>
+    );
+};
+
+const RemoveConnectionModal: FC<{
+    projectUuid: string;
+    connection: WarehouseConnection;
+    onClose: () => void;
+}> = ({ projectUuid, connection, onClose }) => {
+    const deleteMutation = useDeleteWarehouseConnection(projectUuid, {
+        onSuccess: onClose,
+    });
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title="Remove connection"
+            variant="delete"
+            confirmLabel="Remove"
+            confirmLoading={deleteMutation.isLoading}
+            cancelDisabled={deleteMutation.isLoading}
+            onConfirm={() =>
+                deleteMutation.mutate(connection.warehouseConnectionUuid)
+            }
+        >
+            <Stack gap="md">
+                <Text>
+                    Remove{' '}
+                    <Text span fw={600}>
+                        {connection.name}
+                    </Text>
+                    ? A connection that content still uses cannot be removed.
+                </Text>
+                {deleteMutation.error && (
+                    <Text size="sm" c="red">
+                        {deleteMutation.error.error.message}
+                    </Text>
+                )}
+            </Stack>
+        </MantineModal>
+    );
+};
+
+type ConnectionAction = {
+    kind: 'edit' | 'rename' | 'remove';
+    connection: WarehouseConnection;
+};
+
+const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => {
+    const { data, error, isInitialLoading, isEnabled } =
+        useWarehouseConnections(projectUuid);
+    const [action, setAction] = useState<ConnectionAction | null>(null);
+    const [isAddOpen, setIsAddOpen] = useState(false);
+
+    if (!isEnabled || isSingleConnectionProject(error)) {
+        return null;
+    }
+
+    const connections = data?.connections ?? [];
+    const originalWarehouseType = connections.find(
+        (connection) => connection.isOriginal,
+    )?.warehouseType;
+    const canAddConnection = data?.capabilities.canAddConnection ?? false;
+    const closeAction = () => setAction(null);
+
+    return (
+        <Card padding="lg">
+            <Stack gap="md">
+                <Title order={5}>Connections</Title>
+                {isInitialLoading && (
+                    <Group justify="center" py="md">
+                        <Loader size="sm" />
+                    </Group>
+                )}
+                {error && (
+                    <Text size="sm" c="red">
+                        Failed to load connections.
+                    </Text>
+                )}
+                {data && (
+                    <Stack gap={0}>
+                        {connections.map((connection) => (
+                            <ConnectionRow
+                                key={connection.warehouseConnectionUuid}
+                                connection={connection}
+                                onEdit={() =>
+                                    setAction({ kind: 'edit', connection })
+                                }
+                                onRename={() =>
+                                    setAction({ kind: 'rename', connection })
+                                }
+                                onRemove={() =>
+                                    setAction({ kind: 'remove', connection })
+                                }
+                            />
+                        ))}
+                    </Stack>
+                )}
+                <Group justify="flex-end">
+                    <Tooltip
+                        w={300}
+                        disabled={
+                            canAddConnection || !data?.capabilities.reason
+                        }
+                        label={data?.capabilities.reason}
+                    >
+                        <Box>
+                            <Button
+                                variant="default"
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                                disabled={
+                                    !canAddConnection || !originalWarehouseType
+                                }
+                                onClick={() => setIsAddOpen(true)}
+                            >
+                                Add connection
+                            </Button>
+                        </Box>
+                    </Tooltip>
+                </Group>
+            </Stack>
+
+            {isAddOpen && originalWarehouseType && (
+                <AddConnectionModal
+                    projectUuid={projectUuid}
+                    warehouseType={originalWarehouseType}
+                    onClose={() => setIsAddOpen(false)}
+                />
+            )}
+            {action?.kind === 'edit' && (
+                <EditConnectionModal
+                    projectUuid={projectUuid}
+                    connection={action.connection}
+                    onClose={closeAction}
+                />
+            )}
+            {action?.kind === 'rename' && (
+                <RenameConnectionModal
+                    projectUuid={projectUuid}
+                    connection={action.connection}
+                    onClose={closeAction}
+                />
+            )}
+            {action?.kind === 'remove' && (
+                <RemoveConnectionModal
+                    projectUuid={projectUuid}
+                    connection={action.connection}
+                    onClose={closeAction}
+                />
+            )}
+        </Card>
+    );
+};
+
+const ConnectionsPanel: FC<{ savedProject: Project | undefined }> = ({
+    savedProject,
+}) =>
+    savedProject && savedProject.type !== ProjectType.PREVIEW ? (
+        <ConnectionsPanelContent projectUuid={savedProject.projectUuid} />
+    ) : null;
+
+export default ConnectionsPanel;
