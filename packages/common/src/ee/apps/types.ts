@@ -1303,7 +1303,7 @@ export type DataAppVizRenderMetadata =
           state: 'ready';
           version: number;
           schema: DataAppVizSchema;
-          preview?: DataAppVizPreview | null;
+          preview: DataAppVizPreview | null;
           latestBuildInProgress: boolean;
       }
     | {
