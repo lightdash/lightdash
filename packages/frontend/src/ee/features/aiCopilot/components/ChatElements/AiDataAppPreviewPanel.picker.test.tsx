@@ -1,10 +1,27 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import {
+    act,
+    cleanup,
+    fireEvent,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import nock from 'nock';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+    type MockInstance,
+} from 'vitest';
 import type { ElementSelectedEvent } from '../../../../../features/apps/hooks/useAppSdkBridge';
+import type * as CanEditDataAppModule from '../../../../../features/apps/hooks/useCanEditDataApp';
+import useApp from '../../../../../providers/App/useApp';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import type * as ProjectAiAgentsModule from '../../hooks/useProjectAiAgents';
 import { store } from '../../store';
 import {
     clearThreadElementReferences,
@@ -74,6 +91,29 @@ vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
 }));
 
+vi.mock('../../../../../features/apps/components/AppActionsMenu', () => ({
+    default: () => null,
+}));
+
+vi.mock('../../../../../hooks/user/useUser', () => ({
+    default: function useMockUser() {
+        return useApp().user;
+    },
+}));
+
+vi.mock(
+    '../../../../../features/apps/hooks/useCanEditDataApp',
+    async (importOriginal) => ({
+        ...(await importOriginal<typeof CanEditDataAppModule>()),
+        useCanEditVerifiedDataApp: () => false,
+    }),
+);
+
+vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
+    ...(await importOriginal<typeof ProjectAiAgentsModule>()),
+    useProjectAiAgent: () => ({ data: undefined }),
+}));
+
 // eslint-disable-next-line import/first
 import { AgentChatInput } from './AgentChatInput';
 // eslint-disable-next-line import/first
@@ -131,8 +171,29 @@ const renderThread = (showInspector: boolean) => {
     return { ...view, onSubmit };
 };
 
+const disposeThread = async () => {
+    cleanup();
+    await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+    });
+};
+
 describe('AiDataAppPreviewPanel element picker', () => {
+    let createRangeSpy: MockInstance<Document['createRange']>;
+
     beforeEach(() => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        // jsdom has no range geometry; Tiptap's autofocus scrolls its selection.
+        const createRange = document.createRange.bind(document);
+        createRangeSpy = vi
+            .spyOn(document, 'createRange')
+            .mockImplementation(() => {
+                const range = createRange();
+                range.getClientRects = () => document.body.getClientRects();
+                range.getBoundingClientRect = () =>
+                    document.body.getBoundingClientRect();
+                return range;
+            });
         store.dispatch(clearPreview());
         store.dispatch(stopStreaming({ threadUuid: THREAD_UUID }));
         mocks.latestReadyVersion = 3;
@@ -140,6 +201,36 @@ describe('AiDataAppPreviewPanel element picker', () => {
         store.dispatch(
             clearThreadElementReferences({ threadUuid: THREAD_UUID }),
         );
+    });
+
+    afterEach(async () => {
+        try {
+            await disposeThread();
+        } finally {
+            createRangeSpy.mockRestore();
+            vi.useRealTimers();
+        }
+    });
+
+    it('finishes deferred work before the DOM environment is disposed', async () => {
+        renderThread(true);
+        await disposeThread();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('does not start unrelated API requests for picker interactions', async () => {
+        const unexpectedRequest = vi.fn();
+        nock.emitter.on('no match', unexpectedRequest);
+        try {
+            renderThread(true);
+            announcePicker();
+            fireEvent.click(pickerToggle()!);
+            pickElement(HEADING_LABEL);
+            await disposeThread();
+            expect(unexpectedRequest).not.toHaveBeenCalled();
+        } finally {
+            nock.emitter.removeListener('no match', unexpectedRequest);
+        }
     });
 
     it('shows the toggle only once the app announces the picker', () => {
