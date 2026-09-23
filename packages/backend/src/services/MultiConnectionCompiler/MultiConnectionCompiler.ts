@@ -19,6 +19,7 @@ import {
     type MultiConnectionCarry,
     type ProjectModel,
 } from '../../models/ProjectModel/ProjectModel';
+import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     ManifestCollisionError,
@@ -71,6 +72,7 @@ type MultiConnectionCompilerArguments = {
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     warehouseConnectionModel: WarehouseConnectionModel;
+    warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 };
 
 export class MultiConnectionCompiler {
@@ -80,10 +82,14 @@ export class MultiConnectionCompiler {
 
     private readonly warehouseConnectionModel: WarehouseConnectionModel;
 
+    private readonly warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
+
     constructor(args: MultiConnectionCompilerArguments) {
         this.projectModel = args.projectModel;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.warehouseConnectionModel = args.warehouseConnectionModel;
+        this.warehouseConnectionCompileModel =
+            args.warehouseConnectionCompileModel;
     }
 
     async planGroups(
@@ -91,7 +97,9 @@ export class MultiConnectionCompiler {
         includeUnboundSources: boolean,
     ): Promise<CompileGroupPlan[]> {
         const [connections, sources] = await Promise.all([
-            this.warehouseConnectionModel.getCompileConnections(projectUuid),
+            this.warehouseConnectionCompileModel.getCompileConnections(
+                projectUuid,
+            ),
             this.projectDbtSourcesModel.getSourcesWithBindings(projectUuid),
         ]);
         return planCompileGroups({
@@ -182,7 +190,7 @@ export class MultiConnectionCompiler {
                 warehouseClient,
                 cachedWarehouse: {
                     warehouseCatalog:
-                        await this.warehouseConnectionModel.getCatalogCache(
+                        await this.warehouseConnectionCompileModel.getCatalogCache(
                             projectUuid,
                             plan.warehouseConnectionUuid,
                         ),
@@ -377,7 +385,7 @@ export class MultiConnectionCompiler {
                 }
                 await Promise.all(
                     compiledExtraGroups.map((group) =>
-                        this.warehouseConnectionModel.saveCompileArtifacts(
+                        this.warehouseConnectionCompileModel.saveCompileArtifacts(
                             projectUuid,
                             group.plan.warehouseConnectionUuid,
                             {

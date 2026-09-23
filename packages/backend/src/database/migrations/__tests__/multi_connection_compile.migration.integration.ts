@@ -1,7 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     ExploreType,
-    FeatureFlags,
     NotFoundError,
     ParameterError,
     SingleConnectionProjectError,
@@ -19,14 +18,15 @@ import { gunzipSync } from 'node:zlib';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { EnterpriseLicenseService } from '../../../ee/services/LicenseService/LicenseService';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type CompilableDbtSource } from '../../../projectAdapters/CompileGroup';
 import { MultiConnectionCompiler } from '../../../services/MultiConnectionCompiler/MultiConnectionCompiler';
-import { WarehouseConnectionService } from '../../../services/WarehouseConnectionService/WarehouseConnectionService';
+import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     createMigratedTestDatabase,
@@ -69,6 +69,7 @@ describe('Multi-connection compile on the real schema', () => {
     let projectModel: ProjectModel;
     let projectDbtSourcesModel: ProjectDbtSourcesModel;
     let warehouseConnectionModel: WarehouseConnectionModel;
+    let warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     let compiler: MultiConnectionCompiler;
 
     const primaryModels: FixtureModel[] = [
@@ -182,8 +183,8 @@ describe('Multi-connection compile on the real schema', () => {
             Promise.resolve(),
         );
         if (withSources) {
-            await warehouseConnectionModel.bindDbtSource(
-                connectionProject,
+            await warehouseConnectionCompileModel.bindDbtSource(
+                project.project_uuid,
                 sourceUuids.finance,
                 extra.warehouseConnectionUuid,
             );
@@ -201,8 +202,8 @@ describe('Multi-connection compile on the real schema', () => {
         source: string,
         warehouseConnectionUuid: string | null,
     ) =>
-        warehouseConnectionModel.bindDbtSource(
-            await warehouseConnectionModel.getProject(fixture.projectUuid),
+        warehouseConnectionCompileModel.bindDbtSource(
+            fixture.projectUuid,
             fixture.sourceUuids[source],
             warehouseConnectionUuid,
         );
@@ -321,10 +322,14 @@ describe('Multi-connection compile on the real schema', () => {
                     encryptionUtil,
                 }),
         });
+        warehouseConnectionCompileModel = new WarehouseConnectionCompileModel({
+            database,
+        });
         compiler = new MultiConnectionCompiler({
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionModel,
+            warehouseConnectionCompileModel,
         });
     }, 600000);
 
@@ -507,10 +512,11 @@ describe('Multi-connection compile on the real schema', () => {
                     ).nodes,
                 ),
             ).toEqual(['model.finance.payments']);
-            const extraCatalog = await warehouseConnectionModel.getCatalogCache(
-                fixture.projectUuid,
-                fixture.extraConnectionUuid,
-            );
+            const extraCatalog =
+                await warehouseConnectionCompileModel.getCatalogCache(
+                    fixture.projectUuid,
+                    fixture.extraConnectionUuid,
+                );
             expect(extraCatalog?.[EXTRA_DB]?.public).toHaveProperty('payments');
             expect(extraCatalog).not.toHaveProperty(ORIGINAL_DB);
             expect(fetchedWith).toContainEqual({
@@ -771,10 +777,11 @@ describe('Multi-connection compile on the real schema', () => {
             expect(compilation.warnings).toEqual([
                 `Connection "Finance warehouse" skipped listed database "${MISSING_DB}": it does not exist.`,
             ]);
-            const catalog = await warehouseConnectionModel.getCatalogCache(
-                fixture.projectUuid,
-                fixture.extraConnectionUuid,
-            );
+            const catalog =
+                await warehouseConnectionCompileModel.getCatalogCache(
+                    fixture.projectUuid,
+                    fixture.extraConnectionUuid,
+                );
             expect(catalog?.[LISTED_DB]?.public).toHaveProperty('ledger');
             expect(catalog?.[EXTRA_DB]?.public).toHaveProperty('payments');
             expect(catalog).not.toHaveProperty(MISSING_DB);
@@ -901,22 +908,10 @@ describe('Multi-connection compile on the real schema', () => {
         });
 
         const bindingService = () =>
-            new WarehouseConnectionService({
-                warehouseConnectionModel,
+            new WarehouseConnectionBindingService({
                 projectModel,
-                featureFlagService: {
-                    get: vi.fn(async () => ({
-                        id: FeatureFlags.MultiConnectionProjects,
-                        enabled: true,
-                    })),
-                },
-                licenseService: new EnterpriseLicenseService({
-                    licenseKey: 'licence',
-                }),
-                credentialPolicy: {
-                    assertCanWriteWarehouseConnection: vi.fn(),
-                    testWarehouseConnectionCredentials: vi.fn(),
-                },
+                warehouseConnectionCompileModel,
+                credentialPolicy: new ProjectService({} as never),
             });
 
         const projectAdmin = async (projectUuid: string) => {
@@ -940,7 +935,7 @@ describe('Multi-connection compile on the real schema', () => {
             ).find((source) => source.name === 'finance')
                 ?.warehouseConnectionUuid;
 
-        test('the connections service binds a source, stores NULL for the original and refuses another project connection', async () => {
+        test('the binding service binds a source, stores NULL for the original and refuses another project connection', async () => {
             const fixture = await createProject();
             const other = await createProject();
             const account = await projectAdmin(fixture.projectUuid);
@@ -976,7 +971,7 @@ describe('Multi-connection compile on the real schema', () => {
             );
         });
 
-        test('the connections service refuses to bind a source in a single project', async () => {
+        test('the binding service refuses to bind a source in a single project', async () => {
             const fixture = await createProject();
             await database('projects')
                 .where('project_uuid', fixture.projectUuid)

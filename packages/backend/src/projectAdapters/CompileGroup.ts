@@ -17,7 +17,7 @@ import {
     type WarehouseListedDatabases,
 } from '@lightdash/warehouses';
 import { type BoundProjectDbtSource } from '../models/ProjectDbtSourcesModel';
-import { type CompileConnection } from '../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { type CompileConnection } from '../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 
 export type CompilableDbtSource = BoundProjectDbtSource & {
     dbtConnection: DbtProjectConfig;

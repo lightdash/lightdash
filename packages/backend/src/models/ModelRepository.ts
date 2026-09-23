@@ -92,6 +92,7 @@ import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWa
 import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
+import { WarehouseConnectionCompileModel } from './WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from './WarehouseConnectionModel/WarehouseConnectionModel';
 /**
  * Interface outlining all models. Add new models to
@@ -173,6 +174,7 @@ export type ModelManifest = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
     warehouseConnectionModel: WarehouseConnectionModel;
+    warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
@@ -681,6 +683,16 @@ export class ModelRepository
                 new OrganizationWarehouseCredentialsModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getWarehouseConnectionCompileModel(): WarehouseConnectionCompileModel {
+        return this.getModel(
+            'warehouseConnectionCompileModel',
+            () =>
+                new WarehouseConnectionCompileModel({
+                    database: this.database,
                 }),
         );
     }

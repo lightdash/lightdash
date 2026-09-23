@@ -88,10 +88,6 @@ export type ApiUpdateWarehouseConnectionRequest = {
     additionalDatabases?: string[];
 };
 
-export type ApiBindDbtSourceToWarehouseConnectionRequest = {
-    warehouseConnectionUuid: string | null;
-};
-
 export type ApiRenameWarehouseConnectionRequest = {
     name: string;
 };
