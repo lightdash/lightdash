@@ -123,12 +123,12 @@ export const getDataFromChartClick = (
 
     // For pivoted metrics, we need to find the value using any of the possible column names
     // and also ensure it's accessible via the hashFieldReference key
-    let selectedValue: unknown;
+    let selectedFieldValue: ResultValue | undefined;
     if (selectedField && pivotReference) {
         const possibleNames = getPivotColumnNames(pivotReference);
         const matchingName = possibleNames.find((name) => fieldValues[name]);
         if (matchingName) {
-            selectedValue = fieldValues[matchingName]?.raw;
+            selectedFieldValue = fieldValues[matchingName];
             // Also add the value under the hashFieldReference key for DrillDownMenuItem
             const hashKey = hashFieldReference(pivotReference);
             if (!fieldValues[hashKey] && fieldValues[matchingName]) {
@@ -136,15 +136,20 @@ export const getDataFromChartClick = (
             }
         }
     } else if (selectedField) {
-        selectedValue = fieldValues[getItemId(selectedField)]?.raw;
+        selectedFieldValue = fieldValues[getItemId(selectedField)];
+    }
+
+    const value = {
+        raw: selectedFieldValue?.raw,
+        formatted: formatItemValue(selectedField, selectedFieldValue?.raw),
+    };
+    if (selectedFieldValue) {
+        selectedFieldValue.formatted = value.formatted;
     }
 
     return {
         item: selectedField,
-        value: {
-            raw: selectedValue,
-            formatted: formatItemValue(selectedField, selectedValue),
-        },
+        value,
         fieldValues,
         pivotReference,
     };
