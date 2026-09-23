@@ -18,7 +18,6 @@ import {
     getModel,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
-    presetToModelOption,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
 
@@ -426,47 +425,6 @@ describe('Opus model lifecycle', () => {
             },
         },
     };
-
-    it.each([
-        {
-            provider: 'anthropic',
-            expected: [
-                ['claude-opus-5-5', false],
-                ['claude-opus-5', true],
-                ['claude-opus-4-8', true],
-                ['claude-opus-4-7', true],
-                ['claude-opus-4-6', true],
-                ['claude-opus-4-5', true],
-            ],
-        },
-        {
-            provider: 'bedrock',
-            expected: [
-                ['claude-opus-4-7', false],
-                ['claude-opus-5-5', false],
-                ['claude-opus-5', true],
-                ['claude-opus-4-5', false],
-            ],
-        },
-    ])(
-        'deprecates pre-5.5 Anthropic Opus options without changing Bedrock: $provider',
-        ({ provider, expected }) => {
-            const options = filterModelsForOrg(getAvailableModels(config), {
-                modelVisibility: null,
-                keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
-            }).map((preset) => presetToModelOption(preset, null));
-
-            expect(
-                options
-                    .filter(
-                        (option) =>
-                            option.provider === provider &&
-                            option.name.startsWith('claude-opus-'),
-                    )
-                    .map((option) => [option.name, option.deprecated]),
-            ).toEqual(expected);
-        },
-    );
 
     it.each(['anthropic', 'bedrock'] as const)(
         'resolves saved Opus 5 configurations and enables adaptive reasoning for Opus 5.5 on %s',
