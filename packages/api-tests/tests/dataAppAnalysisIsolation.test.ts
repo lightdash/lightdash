@@ -102,6 +102,8 @@ describe('Data app analysis isolation', () => {
     let admin: ApiClient;
     let viewerA: ApiClient;
     let viewerB: ApiClient;
+    let viewerAEmail: string;
+    let viewerAUserUuid: string;
     let viewerAQueryUuid: string;
     // Either created here (delete after) or pre-existing (restore after).
     let createdAttributeUuid: string | null = null;
@@ -143,11 +145,11 @@ describe('Data app analysis isolation', () => {
             }
         }
 
-        viewerA = (
-            await loginWithPermissions('member', [
-                { role: 'interactive_viewer', projectUuid },
-            ])
-        ).client;
+        const viewerALogin = await loginWithPermissions('member', [
+            { role: 'interactive_viewer', projectUuid },
+        ]);
+        viewerA = viewerALogin.client;
+        viewerAEmail = viewerALogin.email;
         viewerB = (
             await loginWithPermissions('member', [
                 { role: 'interactive_viewer', projectUuid },
@@ -155,11 +157,12 @@ describe('Data app analysis isolation', () => {
         ).client;
         const me =
             await viewerA.get<Body<{ userUuid: string }>>('/api/v1/user');
+        viewerAUserUuid = me.body.results.userUuid;
 
         // An environment may already define the attribute: grant viewer A on
         // top of it and put the original back afterwards, never replace it.
         const viewerAGrant = {
-            userUuid: me.body.results.userUuid,
+            userUuid: viewerAUserUuid,
             values: ['true'],
         };
         const existing = await admin.get<Body<UserAttribute[]>>(attributesUrl);
@@ -360,6 +363,38 @@ describe('Data app analysis isolation', () => {
             expect(resp.body.error.data).toEqual({
                 code: 'unsupported_context',
             });
+        }
+    });
+
+    it('stops serving stored analyses once the viewer loses access to the app', async () => {
+        const body = {
+            sources: [{ queryUuid: viewerAQueryUuid, label: null }],
+        };
+        const before = await viewerA.post(`${analysisUrl()}/lookup`, body);
+        expect(before.status).toBe(200);
+
+        const revoked = await admin.delete(
+            `/api/v1/projects/${projectUuid}/access/${viewerAUserUuid}`,
+        );
+        expect(revoked.status).toBe(200);
+        try {
+            const resp = await viewerA.post<ErrorBody>(
+                `${analysisUrl()}/lookup`,
+                body,
+                { failOnStatusCode: false },
+            );
+            expect(resp.status).toBe(403);
+            expectNoResults(resp.body);
+        } finally {
+            const restored = await admin.post(
+                `/api/v1/projects/${projectUuid}/access`,
+                {
+                    role: 'interactive_viewer',
+                    email: viewerAEmail,
+                    sendEmail: false,
+                },
+            );
+            expect(restored.status).toBe(200);
         }
     });
 

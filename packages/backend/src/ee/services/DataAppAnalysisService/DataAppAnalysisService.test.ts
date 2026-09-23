@@ -8,6 +8,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    ResultsExpiredError,
     TooManyRequestsError,
     type ItemsMap,
 } from '@lightdash/common';
@@ -17,6 +18,7 @@ import { assertCanViewApp } from '../AppGenerateService/appAuthz';
 import {
     DataAppAnalysisService,
     DataAppAnalysisUnavailableError,
+    DataAppSourcesExpiredError,
 } from './DataAppAnalysisService';
 
 vi.mock('../AppGenerateService/appAuthz', () => ({
@@ -333,6 +335,27 @@ describe('DataAppAnalysisService.detect', () => {
         await expect(
             service.detect(buildAccount(), 'proj-1', 'app-1', { sources: [] }),
         ).rejects.toBeInstanceOf(ParameterError);
+    });
+
+    it('reports expired source results with a distinct code and no model call', async () => {
+        const { service, asyncQueryService, aiService, analytics } =
+            buildService();
+        asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(
+            new ResultsExpiredError(),
+        );
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({
+            statusCode: 410,
+            data: { code: 'sources_expired' },
+        });
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toBeInstanceOf(DataAppSourcesExpiredError);
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(completedEvent(analytics)[0]?.properties).toMatchObject({
+            outcome: 'denied',
+        });
     });
 
     it('returns 404 for an app outside the project, before reading any query', async () => {
@@ -688,6 +711,35 @@ describe('DataAppAnalysisService reuse', () => {
             }),
         );
     });
+
+    it.each([
+        [
+            'the viewer lost access to the app',
+            () => {
+                vi.mocked(assertCanViewApp).mockRejectedValueOnce(
+                    new ForbiddenError('Insufficient permissions'),
+                );
+                return buildService();
+            },
+            { statusCode: 403 },
+        ],
+        [
+            'the org setting was turned off',
+            () => buildService({ orgSettingEnabled: false }),
+            { data: { code: 'org_setting_disabled' } },
+        ],
+    ])(
+        'does not serve a stored analysis once %s',
+        async (_label, build, expected) => {
+            const { service, dataAppAnalysisModel } = build();
+            await expect(
+                service.lookup(buildAccount(), 'proj-1', 'app-1', request),
+            ).rejects.toMatchObject(expected);
+            expect(
+                dataAppAnalysisModel.findLatestDetectByHash,
+            ).not.toHaveBeenCalled();
+        },
+    );
 
     it('returns null and runs nothing when no analysis matches', async () => {
         const { service, aiService } = buildService();

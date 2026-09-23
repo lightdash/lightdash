@@ -1157,6 +1157,12 @@ const AppGenerate: FC = () => {
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
 
+    // The preview refresh handler is declared further down; reach it lazily.
+    const refreshPreviewRef = useRef<() => void>(() => {});
+    const reloadPreviewForExpiredSources = useCallback(
+        () => refreshPreviewRef.current(),
+        [],
+    );
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
@@ -1164,6 +1170,7 @@ const AppGenerate: FC = () => {
         availability: analysisAvailability,
         // No agent picker in the builder yet; the first accessible agent is used.
         onNeedsAgent: () => {},
+        onSourcesExpired: reloadPreviewForExpiredSources,
         openThread: openAnalysisThread,
     });
     const showAnalysisInPreview =
@@ -1356,6 +1363,7 @@ const AppGenerate: FC = () => {
         interruptInFlightRequests,
         clearExternalRequests,
     ]);
+    refreshPreviewRef.current = handleRefreshPreview;
 
     const scrollToBottom = useCallback(() => {
         // Scroll the chat container itself rather than calling scrollIntoView

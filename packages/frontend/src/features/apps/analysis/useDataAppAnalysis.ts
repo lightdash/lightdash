@@ -34,16 +34,21 @@ const errorMessage = (e: unknown): string =>
     (e as ApiError)?.error?.message ??
     (e instanceof Error ? e.message : 'Something went wrong');
 
+const errorCode = (e: unknown): string | undefined =>
+    ((e as ApiError)?.error?.data as { code?: string } | undefined)?.code;
+
 // Limits an auto-run should absorb silently: the viewer's minute bucket or
 // the org's daily cap. A manual run still shows the message.
-const isLimited = (e: unknown): boolean => {
-    const error = (e as ApiError)?.error;
-    return (
-        error?.statusCode === 429 ||
-        (error?.data as { code?: string } | undefined)?.code ===
-            'budget_exhausted'
-    );
-};
+const isLimited = (e: unknown): boolean =>
+    (e as ApiError)?.error?.statusCode === 429 ||
+    errorCode(e) === 'budget_exhausted';
+
+// The stored rows behind a source are gone; the host re-runs the app once.
+const isSourcesExpired = (e: unknown): boolean =>
+    errorCode(e) === 'sources_expired';
+
+const EXPIRED_TWICE_MESSAGE =
+    'The data behind this view expired. Refresh the app and analyse again.';
 
 const LOOKUP_QUIET_MS = 400;
 
@@ -87,6 +92,7 @@ export const useDataAppAnalysis = ({
     queries,
     mountedQueryUuids,
     autoAnalyse = false,
+    onSourcesExpired,
 }: {
     projectUuid: string;
     appUuid: string;
@@ -95,6 +101,11 @@ export const useDataAppAnalysis = ({
     mountedQueryUuids: string[] | null;
     /** Run detect on a quiet view that has no stored analysis. */
     autoAnalyse?: boolean;
+    /**
+     * Re-run the app's queries (reload the iframe). Called at most once per
+     * analyse when the sources expired; the fresh view is analysed again.
+     */
+    onSourcesExpired?: () => void;
 }) => {
     const sources = useMemo(
         () =>
@@ -113,6 +124,11 @@ export const useDataAppAnalysis = ({
     const [stored, setStored] = useState<ScopedState>(() => freshState(scope));
     const current = stored.scope === scope ? stored : freshState(scope);
     const runRef = useRef(0);
+    // Set while a reload is in flight for expired sources: the next view is
+    // analysed without being asked, as a retry that never reloads again.
+    const retryAfterReloadRef = useRef(false);
+    const onSourcesExpiredRef = useRef(onSourcesExpired);
+    onSourcesExpiredRef.current = onSourcesExpired;
 
     useEffect(() => {
         if (stored.scope === scope) return;
@@ -133,6 +149,7 @@ export const useDataAppAnalysis = ({
             sourcesToAnalyse: DataAppAnalysisSource[],
             force: boolean,
             auto = false,
+            isRetry = false,
         ) => {
             runRef.current += 1;
             const run = runRef.current;
@@ -156,6 +173,26 @@ export const useDataAppAnalysis = ({
                 }));
             } catch (e) {
                 if (run !== runRef.current) return;
+                if (isSourcesExpired(e)) {
+                    const reload = onSourcesExpiredRef.current;
+                    if (reload && !isRetry) {
+                        retryAfterReloadRef.current = true;
+                        patch(scope, (prev) => ({
+                            ...prev,
+                            state: { status: 'idle' },
+                        }));
+                        reload();
+                        return;
+                    }
+                    patch(scope, (prev) => ({
+                        ...prev,
+                        state: {
+                            status: 'error',
+                            message: EXPIRED_TWICE_MESSAGE,
+                        },
+                    }));
+                    return;
+                }
                 // Auto-run hit a limit: nothing to show, the next view
                 // change tries again.
                 if (auto && isLimited(e)) {
@@ -210,8 +247,12 @@ export const useDataAppAnalysis = ({
                         return;
                     }
                     if (!found) {
-                        if (autoAnalyseRef.current)
+                        if (retryAfterReloadRef.current) {
+                            retryAfterReloadRef.current = false;
+                            void analyse(sources, false, true, true);
+                        } else if (autoAnalyseRef.current) {
                             void analyse(sources, false, true);
+                        }
                         return;
                     }
                     patch(scope, (prev) => ({

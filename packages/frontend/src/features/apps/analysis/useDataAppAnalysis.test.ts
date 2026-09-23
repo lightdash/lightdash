@@ -271,6 +271,184 @@ describe('useDataAppAnalysis', () => {
         expect(result.current.investigations).toEqual({});
     });
 
+    it('shows the analysis of the current view when an older detect resolves late', async () => {
+        const resolvers: ((v: ReturnType<typeof analysis>) => void)[] = [];
+        vi.mocked(detectDataAppAnomalies).mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolvers.push(resolve);
+                }),
+        );
+        const { result, rerender } = renderHook(
+            ({ queries }: { queries: QueryEvent[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids: null,
+                }),
+            { initialProps: { queries: [readyQuery] } },
+        );
+        await settle();
+        // Detect A on view A; the filters change; detect B on view B.
+        act(() => {
+            void result.current.analyse();
+        });
+        rerender({
+            queries: [{ ...readyQuery, id: 'req-2', queryUuid: 'q-2' }],
+        });
+        await settle();
+        act(() => {
+            void result.current.analyse();
+        });
+        expect(resolvers).toHaveLength(2);
+        expect(detectDataAppAnomalies).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                sources: [{ queryUuid: 'q-2', label: 'Orders' }],
+            }),
+        );
+
+        const late = { ...analysis('app-a'), headline: 'View A (late)' };
+        const current = { ...analysis('app-a'), headline: 'View B' };
+        await act(async () => resolvers[1](current));
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: false,
+            analysis: { headline: 'View B' },
+        });
+        await act(async () => resolvers[0](late));
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: false,
+            analysis: { headline: 'View B' },
+        });
+    });
+
+    it('auto-runs once per view generation, not once per query event', async () => {
+        const { rerender } = renderHook(
+            ({ queries }: { queries: QueryEvent[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids: null,
+                    autoAnalyse: true,
+                }),
+            { initialProps: { queries: [readyQuery] } },
+        );
+        await settle();
+        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        // Same generation: a re-emitted event and a pending sibling change
+        // nothing the analysis keys on.
+        rerender({ queries: [{ ...readyQuery, timestamp: 2 }] });
+        await settle();
+        rerender({
+            queries: [
+                { ...readyQuery, timestamp: 2 },
+                {
+                    ...readyQuery,
+                    id: 'req-p',
+                    queryUuid: null,
+                    status: 'pending',
+                },
+            ],
+        });
+        await settle();
+        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+    });
+
+    describe('expired sources', () => {
+        const expired = {
+            status: 'error',
+            error: {
+                statusCode: 410,
+                name: 'DataAppSourcesExpiredError',
+                message: 'expired',
+                data: { code: 'sources_expired' },
+            },
+        };
+        const reloadedQueries: QueryEvent[] = [
+            { ...readyQuery, id: 'req-2', timestamp: 2, queryUuid: 'q-2' },
+        ];
+
+        it('reloads the app once, then analyses the fresh view', async () => {
+            vi.mocked(detectDataAppAnomalies)
+                .mockRejectedValueOnce(expired)
+                .mockImplementation(async ({ appUuid }) => analysis(appUuid));
+            const onSourcesExpired = vi.fn();
+            const { result, rerender } = renderHook(
+                ({ queries }: { queries: QueryEvent[] }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries,
+                        mountedQueryUuids: null,
+                        onSourcesExpired,
+                    }),
+                { initialProps: { queries: [readyQuery] } },
+            );
+            await settle();
+            await act(async () => {
+                await result.current.analyse();
+            });
+            expect(onSourcesExpired).toHaveBeenCalledTimes(1);
+            expect(result.current.state.status).toBe('idle');
+
+            // The reload re-runs the app's queries under new uuids.
+            rerender({ queries: reloadedQueries });
+            await settle();
+            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(2);
+            expect(detectDataAppAnomalies).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    sources: [{ queryUuid: 'q-2', label: 'Orders' }],
+                    force: false,
+                }),
+            );
+            expect(result.current.state.status).toBe('ready');
+        });
+
+        it('gives up with a distinct error when the fresh view expires too', async () => {
+            vi.mocked(detectDataAppAnomalies).mockRejectedValue(expired);
+            const onSourcesExpired = vi.fn();
+            const { result, rerender } = renderHook(
+                ({ queries }: { queries: QueryEvent[] }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries,
+                        mountedQueryUuids: null,
+                        onSourcesExpired,
+                    }),
+                { initialProps: { queries: [readyQuery] } },
+            );
+            await settle();
+            await act(async () => {
+                await result.current.analyse();
+            });
+            rerender({ queries: reloadedQueries });
+            await settle();
+            expect(onSourcesExpired).toHaveBeenCalledTimes(1);
+            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(2);
+            expect(result.current.state).toMatchObject({
+                status: 'error',
+                message: expect.stringMatching(/expired/),
+            });
+        });
+
+        it('is a plain error where the host cannot reload the app', async () => {
+            vi.mocked(detectDataAppAnomalies).mockRejectedValue(expired);
+            const { result } = render();
+            await settle();
+            await act(async () => {
+                await result.current.analyse();
+            });
+            expect(result.current.state).toMatchObject({
+                status: 'error',
+                message: expect.stringMatching(/expired/),
+            });
+        });
+    });
+
     it('ignores a response that arrives after the app changed', async () => {
         let resolve: (value: ReturnType<typeof analysis>) => void = () => {};
         vi.mocked(detectDataAppAnomalies).mockImplementation(
