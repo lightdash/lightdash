@@ -4,18 +4,14 @@ import { type Knex } from 'knex';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds connection-scoped artifact storage and nullable staging metadata without changing legacy contracts.',
+    reason: 'Adds connection-scoped artifact storage without changing legacy contracts.',
 } as const;
 
 const CatalogCacheTable = 'project_connection_catalog_cache';
 const ManifestsTable = 'project_connection_manifests';
-const CachedExploreStagingTable = 'cached_explore_staging';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
-    await knex.raw(
-        `ALTER TABLE ${CachedExploreStagingTable} ADD COLUMN IF NOT EXISTS connection_uuid uuid NULL`,
-    );
     if (!(await knex.schema.hasTable(CatalogCacheTable))) {
         await knex.schema.createTable(CatalogCacheTable, (table) => {
             table
@@ -64,7 +60,4 @@ export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
     await knex.schema.dropTableIfExists(ManifestsTable);
     await knex.schema.dropTableIfExists(CatalogCacheTable);
-    await knex.raw(
-        `ALTER TABLE ${CachedExploreStagingTable} DROP COLUMN IF EXISTS connection_uuid`,
-    );
 }

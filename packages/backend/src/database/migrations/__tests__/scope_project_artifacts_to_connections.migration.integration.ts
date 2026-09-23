@@ -107,6 +107,7 @@ describe('connection-scoped project artifact migration', () => {
         await database.schema.createTable('cached_explore_staging', (table) => {
             table.uuid('cached_explore_uuid').primary();
             table.uuid('project_uuid').notNullable();
+            table.uuid('connection_uuid').nullable();
         });
         await database<ProjectsTable>('projects').insert({
             project_uuid: projectUuid,
@@ -173,32 +174,9 @@ describe('connection-scoped project artifact migration', () => {
     test('adds scoped tables without changing legacy contracts', async () => {
         const publicTableOidsBefore = await getPublicTableOids();
 
-        await expect(
-            database.schema.hasColumn(
-                'cached_explore_staging',
-                'connection_uuid',
-            ),
-        ).resolves.toBe(false);
-
         await up(database);
         await up(database);
 
-        await expect(
-            database.schema.hasColumn(
-                'cached_explore_staging',
-                'connection_uuid',
-            ),
-        ).resolves.toBe(true);
-        await expect(
-            database('information_schema.columns')
-                .select('data_type', 'is_nullable')
-                .where({
-                    table_schema: schema,
-                    table_name: 'cached_explore_staging',
-                    column_name: 'connection_uuid',
-                })
-                .first(),
-        ).resolves.toEqual({ data_type: 'uuid', is_nullable: 'YES' });
         await database<StagingTable>('cached_explore_staging').insert([
             {
                 cached_explore_uuid: randomUUID(),
@@ -305,7 +283,7 @@ describe('connection-scoped project artifact migration', () => {
                 'cached_explore_staging',
                 'connection_uuid',
             ),
-        ).resolves.toBe(false);
+        ).resolves.toBe(true);
         await expect(
             database<StagingTable>('cached_explore_staging').count('*'),
         ).resolves.toEqual([{ count: '2' }]);
