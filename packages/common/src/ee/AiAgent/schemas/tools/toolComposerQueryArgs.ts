@@ -8,6 +8,7 @@ import {
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
     type SemanticLayerSourceQuery,
+    type SourceQueryNodeMeta,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
@@ -51,6 +52,11 @@ const nodeDescriptionSchema = z
         'One sentence on what this query does, only when the title is not enough. Null otherwise.',
     );
 
+const nodeMetaSchema = {
+    title: nodeTitleSchema,
+    description: nodeDescriptionSchema,
+};
+
 const semanticLayerFiltersSchema = z
     .object({
         dimensions: z.unknown().optional(),
@@ -90,8 +96,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const semanticLayerNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.SEMANTIC_LAYER),
         nodeId: nodeIdSchema,
-        title: nodeTitleSchema,
-        description: nodeDescriptionSchema,
+        ...nodeMetaSchema,
         exploreName: z
             .string()
             .describe('The explore to run the metric query against.'),
@@ -118,8 +123,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const sqlNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.SQL),
         nodeId: nodeIdSchema,
-        title: nodeTitleSchema,
-        description: nodeDescriptionSchema,
+        ...nodeMetaSchema,
         sql: z
             .string()
             .describe(
@@ -131,8 +135,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const duckdbNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.DUCKDB),
         nodeId: nodeIdSchema,
-        title: nodeTitleSchema,
-        description: nodeDescriptionSchema,
+        ...nodeMetaSchema,
         sql: z
             .string()
             .describe(
@@ -149,8 +152,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const externalNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.EXTERNAL),
         nodeId: nodeIdSchema,
-        title: nodeTitleSchema,
-        description: nodeDescriptionSchema,
+        ...nodeMetaSchema,
         sql: z
             .string()
             .describe(
@@ -206,6 +208,13 @@ export type ToolComposerQueryNode = z.infer<
     typeof toolComposerQueriesArgsSchema
 >['queries'][number];
 
+const toSourceQueryNodeMeta = (
+    node: ToolComposerQueryNode,
+): SourceQueryNodeMeta => ({
+    title: node.title,
+    description: node.description ?? undefined,
+});
+
 /**
  * Converts a validated tool node into the canonical SourceQuery shape the
  * query source service takes. The explicit return types pin drift at compile
@@ -226,8 +235,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
-                title: node.title,
-                description: node.description ?? undefined,
+                ...toSourceQueryNodeMeta(node),
                 exploreName: node.exploreName,
                 dimensions: node.dimensions,
                 metrics: node.metrics,
@@ -240,8 +248,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
-                title: node.title,
-                description: node.description ?? undefined,
+                ...toSourceQueryNodeMeta(node),
                 sql: node.sql,
                 limit: node.limit,
             };
@@ -249,8 +256,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
-                title: node.title,
-                description: node.description ?? undefined,
+                ...toSourceQueryNodeMeta(node),
                 sql: node.sql,
                 references: node.references,
                 limit: node.limit,
@@ -259,8 +265,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
-                title: node.title,
-                description: node.description ?? undefined,
+                ...toSourceQueryNodeMeta(node),
                 sql: node.sql,
                 tables: node.tables,
                 limit: node.limit,
@@ -314,18 +319,19 @@ export const parsePartialToolComposerQueriesArgs = (
         const { nodeId } = node;
         if (typeof nodeId !== 'string' || nodeId.length === 0) return [];
         const sql = typeof node.sql === 'string' ? node.sql : '';
-        // Title falls back to the node id until it streams in
-        const title = typeof node.title === 'string' ? node.title : nodeId;
-        const description =
-            typeof node.description === 'string' ? node.description : null;
+        const meta = {
+            nodeId,
+            // Title falls back to the node id until it streams in
+            title: typeof node.title === 'string' ? node.title : nodeId,
+            description:
+                typeof node.description === 'string' ? node.description : null,
+        };
         switch (node.sourceType) {
             case QuerySourceType.SEMANTIC_LAYER:
                 return [
                     {
                         sourceType: QuerySourceType.SEMANTIC_LAYER,
-                        nodeId,
-                        title,
-                        description,
+                        ...meta,
                         exploreName:
                             typeof node.exploreName === 'string'
                                 ? node.exploreName
@@ -341,9 +347,7 @@ export const parsePartialToolComposerQueriesArgs = (
                 return [
                     {
                         sourceType: QuerySourceType.SQL,
-                        nodeId,
-                        title,
-                        description,
+                        ...meta,
                         sql,
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
@@ -352,9 +356,7 @@ export const parsePartialToolComposerQueriesArgs = (
                 return [
                     {
                         sourceType: QuerySourceType.DUCKDB,
-                        nodeId,
-                        title,
-                        description,
+                        ...meta,
                         sql,
                         references: asReferenceMapOrArray(node.references),
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -364,9 +366,7 @@ export const parsePartialToolComposerQueriesArgs = (
                 return [
                     {
                         sourceType: QuerySourceType.EXTERNAL,
-                        nodeId,
-                        title,
-                        description,
+                        ...meta,
                         sql,
                         tables: asReferenceMapOrArray(node.tables),
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
