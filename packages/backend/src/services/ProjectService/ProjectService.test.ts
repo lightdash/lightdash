@@ -2713,13 +2713,15 @@ describe('ProjectService', () => {
         test('rejects listing fields for an unsupported warehouse', () => {
             expect(() =>
                 assertDatabaseListingSupported({
-                    type: WarehouseTypes.POSTGRES,
-                    host: 'localhost',
-                    user: 'postgres',
-                    password: 'password',
-                    port: 5432,
-                    dbname: 'analytics',
-                    schema: 'public',
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'project',
+                    dataset: 'dataset',
+                    keyfileContents: {},
+                    timeoutSeconds: undefined,
+                    priority: undefined,
+                    retries: undefined,
+                    location: undefined,
+                    maximumBytesBilled: undefined,
                     listAllDatabases: true,
                 }),
             ).toThrowError(WarehouseDatabaseListingNotSupportedError);
@@ -2728,13 +2730,15 @@ describe('ProjectService', () => {
         test('allows an unsupported warehouse when listing fields are unset', () => {
             expect(() =>
                 assertDatabaseListingSupported({
-                    type: WarehouseTypes.POSTGRES,
-                    host: 'localhost',
-                    user: 'postgres',
-                    password: 'password',
-                    port: 5432,
-                    dbname: 'analytics',
-                    schema: 'public',
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'project',
+                    dataset: 'dataset',
+                    keyfileContents: {},
+                    timeoutSeconds: undefined,
+                    priority: undefined,
+                    retries: undefined,
+                    location: undefined,
+                    maximumBytesBilled: undefined,
                 }),
             ).not.toThrow();
         });
