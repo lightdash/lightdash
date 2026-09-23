@@ -343,6 +343,26 @@ export type WarehouseTablesCatalog = {
     };
 };
 
+export const WAREHOUSE_LISTED_DATABASES_LIMIT = 100;
+
+export type WarehouseListedDatabase = {
+    name: string;
+    database: string;
+    schema: string | null;
+    isDefault: boolean;
+};
+
+export type WarehouseDatabaseListing = {
+    databases: WarehouseListedDatabase[];
+    truncated: boolean;
+    limit: number;
+};
+
+export type ApiWarehouseDatabaseListing = {
+    status: 'ok';
+    results: WarehouseDatabaseListing;
+};
+
 export type WarehouseTables = {
     database: string;
     schema: string;
@@ -504,6 +524,15 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
 
     getAllTables(
         schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseTables>;
+
+    listDatabases(
+        tags?: Record<string, string>,
+    ): Promise<WarehouseDatabaseListing>;
+
+    getTablesForDatabase(
+        database: WarehouseListedDatabase,
         tags?: Record<string, string>,
     ): Promise<WarehouseTables>;
 

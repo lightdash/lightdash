@@ -10,9 +10,13 @@ import {
     setCatalogTimestampDomain,
     SslConfiguration,
     SupportedDbtAdapter,
+    WAREHOUSE_LISTED_DATABASES_LIMIT,
     WarehouseCatalog,
+    WarehouseDatabaseListing,
+    WarehouseListedDatabase,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTables,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
@@ -941,5 +945,69 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
             )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
             ssl,
         });
+    }
+
+    private toListedDatabase(name: string): WarehouseListedDatabase {
+        return {
+            name,
+            database: name,
+            schema: null,
+            isDefault: name === this.credentials.dbname,
+        };
+    }
+
+    private async withClientForDatabase<T>(
+        database: string,
+        operation: (client: PostgresWarehouseClient) => Promise<T>,
+    ): Promise<T> {
+        if (database === this.credentials.dbname) {
+            return operation(this);
+        }
+
+        const client = new PostgresWarehouseClient({
+            ...this.credentials,
+            dbname: database,
+        });
+        return operation(client);
+    }
+
+    async listDatabases(): Promise<WarehouseDatabaseListing> {
+        const databaseNames = new Set([this.credentials.dbname]);
+
+        const { rows } = await this.runQuery(`
+            SELECT datname
+            FROM pg_database
+            WHERE datallowconn
+              AND NOT datistemplate
+              AND has_database_privilege(datname, 'CONNECT')
+            ORDER BY datname
+            LIMIT ${WAREHOUSE_LISTED_DATABASES_LIMIT + 1}
+        `);
+        rows.forEach(({ datname }) => {
+            if (typeof datname === 'string') {
+                databaseNames.add(datname);
+            }
+        });
+
+        return {
+            databases: [...databaseNames]
+                .slice(0, WAREHOUSE_LISTED_DATABASES_LIMIT)
+                .map((database) => this.toListedDatabase(database)),
+            truncated: databaseNames.size > WAREHOUSE_LISTED_DATABASES_LIMIT,
+            limit: WAREHOUSE_LISTED_DATABASES_LIMIT,
+        };
+    }
+
+    async getTablesForDatabase(
+        listedDatabase: WarehouseListedDatabase,
+    ): Promise<WarehouseTables> {
+        const tables = await this.withClientForDatabase(
+            listedDatabase.name,
+            (client) => client.getAllTables(),
+        );
+        return tables.map((table) => ({
+            ...table,
+            database: listedDatabase.name,
+        }));
     }
 }

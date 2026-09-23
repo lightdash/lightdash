@@ -3,6 +3,7 @@ import {
     GetQueryExecutionCommand,
     GetQueryResultsCommand,
     GetTableMetadataCommand,
+    ListDatabasesCommand,
     ListTableMetadataCommand,
     QueryExecutionState,
     StartQueryExecutionCommand,
@@ -20,7 +21,10 @@ import {
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
+    WAREHOUSE_LISTED_DATABASES_LIMIT,
     WarehouseConnectionError,
+    WarehouseDatabaseListing,
+    WarehouseListedDatabase,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTables,
@@ -651,6 +655,104 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         } catch (e: unknown) {
             throw translateAthenaError(e, {
                 contextPrefix: `Failed to list tables in '${this.credentials.database}.${this.credentials.schema}'.`,
+                defaultErrorClass: 'connection',
+            });
+        }
+
+        return tables;
+    }
+
+    private toListedDatabase(name: string): WarehouseListedDatabase {
+        return {
+            name,
+            database: this.credentials.database,
+            schema: name,
+            isDefault: name === this.credentials.schema,
+        };
+    }
+
+    async listDatabases(): Promise<WarehouseDatabaseListing> {
+        const databaseNames = new Set([this.credentials.schema]);
+
+        try {
+            let nextToken: string | undefined;
+
+            do {
+                // eslint-disable-next-line no-await-in-loop
+                const response = await this.client.send(
+                    new ListDatabasesCommand({
+                        CatalogName: this.credentials.database,
+                        MaxResults: 50,
+                        NextToken: nextToken,
+                    }),
+                );
+
+                response.DatabaseList?.forEach((database) => {
+                    if (database.Name) {
+                        databaseNames.add(database.Name);
+                    }
+                });
+                nextToken = response.NextToken;
+            } while (
+                nextToken &&
+                databaseNames.size <= WAREHOUSE_LISTED_DATABASES_LIMIT
+            );
+        } catch (e: unknown) {
+            throw translateAthenaError(e, {
+                contextPrefix: `Failed to list databases in catalog '${this.credentials.database}'.`,
+                defaultErrorClass: 'connection',
+            });
+        }
+
+        const databases = [...databaseNames]
+            .slice(0, WAREHOUSE_LISTED_DATABASES_LIMIT)
+            .map((database) => this.toListedDatabase(database));
+
+        return {
+            databases,
+            truncated: databaseNames.size > WAREHOUSE_LISTED_DATABASES_LIMIT,
+            limit: WAREHOUSE_LISTED_DATABASES_LIMIT,
+        };
+    }
+
+    async getTablesForDatabase(
+        listedDatabase: WarehouseListedDatabase,
+    ): Promise<WarehouseTables> {
+        const tables: WarehouseTables = [];
+        const schema = listedDatabase.schema ?? listedDatabase.name;
+
+        try {
+            let nextToken: string | undefined;
+
+            do {
+                // eslint-disable-next-line no-await-in-loop
+                const response = await this.client.send(
+                    new ListTableMetadataCommand({
+                        CatalogName: listedDatabase.database,
+                        DatabaseName: schema,
+                        NextToken: nextToken,
+                        MaxResults: 50,
+                    }),
+                );
+
+                response.TableMetadataList?.forEach((tableMeta) => {
+                    if (tableMeta.Name) {
+                        tables.push({
+                            database: listedDatabase.database,
+                            schema,
+                            table: tableMeta.Name,
+                            tableType: getWarehouseTableType(
+                                tableMeta.TableType,
+                            ),
+                        });
+                    }
+                });
+
+                nextToken = response.NextToken;
+            } while (nextToken);
+        } catch (e: unknown) {
+            throw translateAthenaError(e, {
+                contextPrefix: `Failed to list tables in '${listedDatabase.database}.${schema}'.`,
                 defaultErrorClass: 'connection',
             });
         }

@@ -48,6 +48,12 @@ const fakeWarehouseClient: WarehouseClient = {
     getMetricSql: () => '',
     concatString: (...args: string[]) => args.join(''),
     getAllTables: async () => [],
+    listDatabases: async () => ({
+        databases: [],
+        truncated: false,
+        limit: 100,
+    }),
+    getTablesForDatabase: async () => [],
     getFields: async () => ({}),
     parseWarehouseCatalog: () => ({}),
     parseError: (error: Error) => error,

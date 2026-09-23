@@ -17,6 +17,7 @@ import {
     type TimeIntervalUnit,
     type WarehouseCatalog,
     type WarehouseClient,
+    type WarehouseDatabaseListing,
     type WarehouseTables,
 } from '../types/warehouse';
 import { defaultNullSafeEqualSql } from '../utils/warehouse';
@@ -77,6 +78,12 @@ export const warehouseClientMock: WarehouseClient = {
     },
     concatString: (...args) => `CONCAT(${args.join(', ')})`,
     getAllTables(): Promise<WarehouseTables> {
+        throw new Error('Function not implemented.');
+    },
+    listDatabases(): Promise<WarehouseDatabaseListing> {
+        throw new Error('Function not implemented.');
+    },
+    getTablesForDatabase(): Promise<WarehouseTables> {
         throw new Error('Function not implemented.');
     },
     getFields(): Promise<WarehouseCatalog> {
