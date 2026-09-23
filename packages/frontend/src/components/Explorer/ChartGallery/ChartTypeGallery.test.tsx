@@ -1276,11 +1276,12 @@ describe('ExplorerChartTypeGallery', () => {
             } as unknown as ReturnType<typeof useDataAppVisualizations>);
         });
 
-        it('shows and configures the selection without fetching later pages', async () => {
+        it('appends and configures the off-page selection in the grid without fetching', async () => {
             renderWithProviders(renderSelected());
             expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+            expect(pickableLabels().at(-1)).toBe('Zebra pulse');
             const selectedGroup = screen.getByRole('group', {
-                name: 'Selected chart type',
+                name: 'Chart types',
             });
             expect(
                 within(selectedGroup).getByRole('button', {
@@ -1319,24 +1320,15 @@ describe('ExplorerChartTypeGallery', () => {
             expect(mocks.fetchNextPage).not.toHaveBeenCalled();
         });
 
-        it('distinguishes the pinned match from an empty search for alternatives', async () => {
-            setProjectItems([selected]);
+        it('keeps a loaded selection in its normal grid position', () => {
+            setProjectItems([selected, projectChartType]);
             renderWithProviders(renderSelected());
-            await userEvent.type(
-                screen.getByRole('textbox', { name: 'Search chart types' }),
+            expect(pickableLabels()).toEqual([
+                ...BUILT_IN_LABELS,
                 'Zebra pulse',
-            );
-            expect(
-                await screen.findByText(
-                    'No other chart types match your search',
-                ),
-            ).toBeVisible();
-            expect(
-                screen.getByRole('button', {
-                    name: 'Zebra pulse',
-                    pressed: true,
-                }),
-            ).toBeVisible();
+                'Event pulse',
+            ]);
+            expect(screen.queryByText('Selected')).not.toBeInTheDocument();
         });
 
         it('does not duplicate the selection when its page is loaded manually', async () => {
@@ -1359,10 +1351,10 @@ describe('ExplorerChartTypeGallery', () => {
                 within(
                     screen.getByRole('group', { name: 'Chart types' }),
                 ).queryByRole('button', { name: 'Zebra pulse' }),
-            ).not.toBeInTheDocument();
+            ).toBeInTheDocument();
         });
 
-        it('restores focus when the last page contains only the pinned selection', async () => {
+        it('restores focus when the last page contains only the appended selection', async () => {
             const { rerender } = renderWithProviders(renderSelected());
             const more = screen.getByRole('button', {
                 name: /(?:Show .* more|Load more) chart types/,
@@ -1372,11 +1364,11 @@ describe('ExplorerChartTypeGallery', () => {
             setProjectItems([projectChartType, selected]);
             rerender(renderSelected());
             expect(
-                screen.getByRole('button', { name: 'Event pulse' }),
+                screen.getByRole('button', { name: 'Zebra pulse' }),
             ).toHaveFocus();
         });
 
-        it('moves keyboard focus to the pinned card after choosing a custom type', async () => {
+        it('keeps keyboard focus on a custom card when it is selected', async () => {
             visualizationConfig.current = {
                 chartType: ChartType.TABLE,
                 chartConfig: {},
@@ -1394,9 +1386,34 @@ describe('ExplorerChartTypeGallery', () => {
             rerender(renderSelected({ selectedProjectType: projectChartType }));
             expect(
                 within(
-                    screen.getByRole('group', { name: 'Selected chart type' }),
+                    screen.getByRole('group', { name: 'Chart types' }),
                 ).getByRole('button', { name: 'Event pulse' }),
             ).toHaveFocus();
+        });
+
+        it('focuses the first new card when paging moves the appended selection into order', async () => {
+            const { rerender } = renderWithProviders(renderSelected());
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Load more chart types' }),
+            );
+            setProjectItems([
+                projectChartType,
+                {
+                    ...projectChartType,
+                    dataAppVizUuid: 'new',
+                    name: 'New type',
+                },
+                selected,
+            ]);
+            rerender(renderSelected());
+            expect(
+                screen.getByRole('button', { name: 'New type' }),
+            ).toHaveFocus();
+            expect(pickableLabels().slice(-3)).toEqual([
+                'Event pulse',
+                'New type',
+                'Zebra pulse',
+            ]);
         });
 
         it('does not display the previous selection while the new one loads', () => {
