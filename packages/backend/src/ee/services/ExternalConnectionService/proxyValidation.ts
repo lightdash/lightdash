@@ -1,5 +1,6 @@
 import {
     CUSTOM_HEADER_LIMITS,
+    EXTERNAL_CONNECTION_IDENTITY_HEADERS,
     FORBIDDEN_CUSTOM_HEADER_NAMES,
     ParameterError,
 } from '@lightdash/common';
@@ -223,6 +224,9 @@ const FORBIDDEN_API_KEY_HEADERS = new Set([
     'expect',
     'proxy-authorization',
     'proxy-connection',
+    ...Object.values(EXTERNAL_CONNECTION_IDENTITY_HEADERS).map((name) =>
+        name.toLowerCase(),
+    ),
 ]);
 
 // RFC 7230 token chars.
@@ -274,7 +278,7 @@ export function validateCustomHeaders(
         }
         if (FORBIDDEN_CUSTOM_HEADERS.has(name.toLowerCase())) {
             throw new ParameterError(
-                `Custom header "${name}" is not allowed — credentials belong in the connection secret`,
+                `Custom header "${name}" is reserved by the proxy or used for credentials`,
             );
         }
         if (

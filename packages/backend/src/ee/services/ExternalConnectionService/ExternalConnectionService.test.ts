@@ -654,12 +654,17 @@ describe('ExternalConnectionService.testConnection', () => {
         );
 
         expect(model.getDecryptedSecret).toHaveBeenCalledWith(connectionUuid);
-        expect(executeSpy).toHaveBeenCalledWith(connection, 's3cr3t', {
-            method: 'GET',
-            path: '/v1/current',
-            query: { city: 'Berlin' },
-            body: undefined,
-        });
+        expect(executeSpy).toHaveBeenCalledWith(
+            connection,
+            's3cr3t',
+            {
+                method: 'GET',
+                path: '/v1/current',
+                query: { city: 'Berlin' },
+                body: undefined,
+            },
+            { account: adminAccount, appUuid: null },
+        );
         expect(result).toEqual(fetchResponse);
     });
 
@@ -705,6 +710,7 @@ describe('ExternalConnectionService.testConnection', () => {
             }),
             's3cr3t',
             expect.objectContaining({ method: 'POST', path: '/v2/items' }),
+            { account: adminAccount, appUuid: null },
         );
     });
 
@@ -766,6 +772,7 @@ describe('ExternalConnectionService.testConnection', () => {
             expect.objectContaining({ origin: 'https://other.example.com' }),
             'replacement-secret',
             expect.objectContaining({ method: 'GET', path: '/v1/current' }),
+            { account: adminAccount, appUuid: null },
         );
     });
 
@@ -799,6 +806,7 @@ describe('ExternalConnectionService.testConnection', () => {
             connection,
             's3cr3t',
             expect.objectContaining({ method: 'GET', path: '/v1/current' }),
+            { account: adminAccount, appUuid: null },
         );
     });
 

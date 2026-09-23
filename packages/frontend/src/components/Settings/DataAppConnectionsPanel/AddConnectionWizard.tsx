@@ -25,6 +25,7 @@ import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC, useState } from 'react';
 import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
+import { ForwardUserIdentityField } from '../../../features/externalConnections/components/ForwardUserIdentityField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
 import {
@@ -99,6 +100,7 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
     type: values.type,
     allowBrowserImages: values.allowBrowserImages,
     allowDataAppBuilderLinking: values.allowDataAppBuilderLinking,
+    forwardUserIdentity: values.forwardUserIdentity,
     secret: values.type !== 'none' ? values.secret : null,
     apiKeyName: values.type === 'api_key' ? values.apiKeyName.trim() : null,
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
@@ -323,6 +325,12 @@ const AuthStep: FC<{
                 onChange={(value) => form.setFieldValue('customHeaders', value)}
                 error={form.errors.customHeaders}
             />
+            <ForwardUserIdentityField
+                value={form.values.forwardUserIdentity}
+                onChange={(value) =>
+                    form.setFieldValue('forwardUserIdentity', value)
+                }
+            />
         </Stack>
     );
 };
@@ -406,6 +414,7 @@ export const AddConnectionWizard: FC<Props> = ({
             type: 'none',
             allowBrowserImages: false,
             allowDataAppBuilderLinking: false,
+            forwardUserIdentity: false,
             secret: '',
             apiKeyName: '',
             apiKeyLocation: 'header',

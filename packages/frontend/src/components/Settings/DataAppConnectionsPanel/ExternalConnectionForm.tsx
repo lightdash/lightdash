@@ -18,6 +18,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import { type FC, useState } from 'react';
 import { BuilderLinkingField } from '../../../features/externalConnections/components/BuilderLinkingField';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
+import { ForwardUserIdentityField } from '../../../features/externalConnections/components/ForwardUserIdentityField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
 import { SUGGESTED_GOOGLE_SCOPES } from '../../../features/externalConnections/constants';
@@ -37,6 +38,7 @@ export type ExternalConnectionFormValues = {
     type: ExternalConnectionAuthType;
     allowBrowserImages: boolean;
     allowDataAppBuilderLinking: boolean;
+    forwardUserIdentity: boolean;
     secret: string;
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
@@ -232,6 +234,13 @@ export const ExternalConnectionForm: FC<Props> = ({
                 value={form.values.customHeaders}
                 onChange={(value) => form.setFieldValue('customHeaders', value)}
                 error={form.errors.customHeaders}
+                disabled={disabled}
+            />
+            <ForwardUserIdentityField
+                value={form.values.forwardUserIdentity}
+                onChange={(value) =>
+                    form.setFieldValue('forwardUserIdentity', value)
+                }
                 disabled={disabled}
             />
 

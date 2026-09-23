@@ -24,6 +24,7 @@ export type DbExternalConnection = {
     origin: string;
     allow_browser_images: boolean;
     allow_data_app_builder_linking: boolean;
+    forward_user_identity: boolean;
     instructions: string | null;
     allowed_path_prefixes: string[];
     allowed_methods: ExternalConnectionMethod[];
@@ -79,6 +80,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
                 | 'oauth_client_auth_method'
                 | 'allow_browser_images'
                 | 'allow_data_app_builder_linking'
+                | 'forward_user_identity'
                 | 'created_by_user_uuid'
                 | 'updated_by_user_uuid'
             >
@@ -101,6 +103,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'oauth_client_auth_method'
             | 'allow_browser_images'
             | 'allow_data_app_builder_linking'
+            | 'forward_user_identity'
             | 'updated_by_user_uuid'
             | 'updated_at'
             | 'deleted_at'

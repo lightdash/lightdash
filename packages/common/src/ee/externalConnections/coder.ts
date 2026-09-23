@@ -24,6 +24,8 @@ export type ExternalConnectionAsCode = {
     allowBrowserImages?: boolean;
     /** Optional for compatibility with documents created before this field. */
     allowDataAppBuilderLinking?: boolean;
+    /** Optional for compatibility with documents created before this field. */
+    forwardUserIdentity?: boolean;
     instructions: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];

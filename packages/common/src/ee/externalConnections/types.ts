@@ -20,6 +20,15 @@ export type ExternalConnectionMethod =
     (typeof EXTERNAL_CONNECTION_METHODS)[number];
 export type ApiKeyLocation = 'header' | 'query';
 
+/** Backend-owned identity headers. Never configurable by apps or connections. */
+export const EXTERNAL_CONNECTION_IDENTITY_HEADERS = {
+    appId: 'X-Lightdash-App-Id',
+    userEmail: 'X-Lightdash-User-Email',
+    userId: 'X-Lightdash-User-Id',
+    organizationId: 'X-Lightdash-Organization-Id',
+    projectId: 'X-Lightdash-Project-Id',
+} as const;
+
 /** Bounds for a connection's custom request headers — shared by backend
  *  validation and the frontend form so both reject the same shapes. */
 export const CUSTOM_HEADER_LIMITS = {
@@ -50,6 +59,9 @@ export const FORBIDDEN_CUSTOM_HEADER_NAMES = [
     'api-key',
     'x-auth-token',
     'x-access-token',
+    ...Object.values(EXTERNAL_CONNECTION_IDENTITY_HEADERS).map((name) =>
+        name.toLowerCase(),
+    ),
 ] as const;
 
 /** READ shape returned by the API — NEVER includes the secret value. */
@@ -67,6 +79,9 @@ export type ExternalConnection = {
     allowBrowserImages?: boolean;
     /** Optional for compatibility with older servers during rolling upgrades. */
     allowDataAppBuilderLinking?: boolean;
+    /** Send available viewer identity as backend-set headers. Defaults to false.
+     * Optional for compatibility with older servers during rolling upgrades. */
+    forwardUserIdentity?: boolean;
     instructions: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];
@@ -131,6 +146,8 @@ export type CreateExternalConnection = {
     origin: string;
     allowBrowserImages?: boolean;
     allowDataAppBuilderLinking?: boolean;
+    /** Send available viewer identity as backend-set headers. Defaults to false. */
+    forwardUserIdentity?: boolean;
     instructions?: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: ExternalConnectionMethod[];

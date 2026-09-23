@@ -20,6 +20,7 @@ export type WizardValues = {
     type: ExternalConnectionAuthType;
     allowBrowserImages: boolean;
     allowDataAppBuilderLinking: boolean;
+    forwardUserIdentity: boolean;
     secret: string;
     apiKeyName: string;
     apiKeyLocation: ApiKeyLocation;
@@ -79,6 +80,7 @@ export const applyProposalToWizardValues = (
         type: proposal.type,
         allowBrowserImages: proposal.allowBrowserImages,
         allowDataAppBuilderLinking: false,
+        forwardUserIdentity: false,
         secret: '',
         apiKeyName: proposal.apiKeyName ?? '',
         apiKeyLocation: proposal.apiKeyLocation ?? 'header',

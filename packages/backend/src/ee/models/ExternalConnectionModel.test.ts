@@ -35,6 +35,7 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     origin: 'https://api.acme.com',
     allow_browser_images: false,
     allow_data_app_builder_linking: false,
+    forward_user_identity: false,
     instructions: null,
     allowed_path_prefixes: ['/v1/'],
     allowed_methods: ['GET'],
