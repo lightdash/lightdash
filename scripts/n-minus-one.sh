@@ -22,8 +22,9 @@ Steps:
      integration setup (a migrated, seeded database) on that database, except
      N1_SKIPPED_MODEL_TESTS, which fail on their own release schema too.
   4. Start the previous release's backend and scheduler on that database and
-     run its E2E API tests: the "parallel" project except N1_SMOKE_EXCLUDED_TESTS,
-     or only N1_SMOKE_TESTS when it is set.
+     run its E2E API tests: every file of the "parallel" project except
+     EXCLUDED_API_TESTS, or only N1_SMOKE_TESTS when it is set. Both run with
+     the feature settings of the preview stack (docker-compose.preview.yml).
   5. Fail if the backend or scheduler died, or if their logs show a schema
      error (undefined or ambiguous column, undefined table, not-null
      violation, no ON CONFLICT constraint).
@@ -40,7 +41,21 @@ LOG_DIR="${N1_LOG_DIR:-${RUNNER_TEMP:-/tmp}/lightdash-n1-logs}"
 STOP_TIMEOUT_SECONDS="${N1_STOP_TIMEOUT_SECONDS:-30}"
 SKIPPED_MODEL_TESTS="${N1_SKIPPED_MODEL_TESTS:-src/ee/models/AiAgentMemoryModel.integration.test.ts}"
 SMOKE_TESTS="${N1_SMOKE_TESTS:-}"
-SMOKE_EXCLUDED_TESTS="${N1_SMOKE_EXCLUDED_TESTS:-tests/async-query.test.ts}"
+EXCLUDED_API_TESTS=(
+    "tests/async-query.test.ts|it queries the jaffle tables in database postgres on port 5432, not the database this run seeds"
+)
+PREVIEW_FEATURE_ENV=(
+    GROUPS_ENABLED=true
+    MCP_ENABLED=true
+    CUSTOM_ROLES_ENABLED=true
+    SERVICE_ACCOUNT_ENABLED=true
+    EMBEDDING_ENABLED=true
+    PERSISTENT_DOWNLOAD_URLS_ENABLED=true
+    ALLOW_MULTIPLE_ORGS=true
+    EXTENDED_USAGE_ANALYTICS=true
+    MICROSOFT_TEAMS_ENABLED=true
+    SCHEDULER_ENABLED=true
+)
 SCHEMA_ERROR_PATTERN='(select|insert into|update|delete from|with) .* - (column "[^"]*" does not exist|column reference "[^"]*" is ambiguous|relation "[^"]*" does not exist|null value in column "[^"]*" .*violates not-null constraint|there is no unique or exclusion constraint matching the ON CONFLICT specification)'
 
 while [ $# -gt 0 ]; do
@@ -116,6 +131,17 @@ stop_backend() {
     SCHEDULER_PID=""
 }
 trap stop_backend EXIT
+
+is_excluded_api_test() {
+    local entry
+    for entry in "${EXCLUDED_API_TESTS[@]}"; do
+        if [ "${entry%%|*}" = "$1" ]; then
+            echo "Skipping $1: ${entry#*|}."
+            return 0
+        fi
+    done
+    return 1
+}
 
 free_port() {
     node -e 'const server = require("net").createServer(); server.listen(0, () => { console.log(server.address().port); server.close(); });'
@@ -242,12 +268,14 @@ start_previous_backend() {
     mkdir -p "$LOG_DIR"
     echo "Backend and scheduler logs: $LOG_DIR"
     start_process_group "$LOG_DIR/backend.log" \
+        env "${PREVIEW_FEATURE_ENV[@]}" \
         bash -c 'cd "$1/packages/backend" && PORT="$2" LIGHTDASH_LOG_LEVEL=warn exec node dist/index.js' \
         backend "$PREVIOUS_DIR" "$BACKEND_PORT"
     BACKEND_PID=$!
     local scheduler_port
     scheduler_port=$(free_port) || return 1
     start_process_group "$LOG_DIR/scheduler.log" \
+        env "${PREVIEW_FEATURE_ENV[@]}" \
         bash -c 'cd "$1/packages/backend" && PORT="$2" LIGHTDASH_LOG_LEVEL=warn exec env -u CI node dist/scheduler.js' \
         scheduler "$PREVIOUS_DIR" "$scheduler_port"
     SCHEDULER_PID=$!
@@ -282,10 +310,25 @@ run_previous_smoke_tests() {
             return 1
         fi
     else
-        arguments+=(--project parallel)
-        for test in $SMOKE_EXCLUDED_TESTS; do
-            arguments+=(--exclude "$test")
-        done
+        local listed
+        listed=$(cd "$PREVIOUS_DIR/packages/api-tests" &&
+            pnpm exec vitest list --config vitest.config.ts --project parallel --filesOnly) || {
+            echo "Could not list the previous release's API tests." >&2
+            return 1
+        }
+        while IFS= read -r test; do
+            if is_excluded_api_test "$test"; then
+                continue
+            fi
+            arguments+=("$test")
+        done < <(printf '%s\n' "$listed" |
+            sed -n 's|^\[parallel\] ||p' |
+            sed "s|^$PREVIOUS_DIR/packages/api-tests/||")
+        if [ ${#arguments[@]} -eq 0 ]; then
+            echo "No API tests were found in the previous release's parallel project." >&2
+            return 1
+        fi
+        arguments=(--project parallel "${arguments[@]}")
     fi
     (cd "$PREVIOUS_DIR/packages/api-tests" &&
         PGDATABASE="$DATABASE" \
