@@ -31,7 +31,7 @@ describe('ChartTypeSampleData', () => {
         renderWithProviders(<ChartTypeSampleData context={context} />);
 
         const launcher = screen.getByRole('button', {
-            name: 'View sample data · 6 rows',
+            name: 'View sample data · 12 rows',
         });
         expect(launcher).toBeVisible();
         expect(screen.queryByRole('table')).not.toBeInTheDocument();

@@ -69,7 +69,7 @@ describe('ConfigurePanel', () => {
         fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
         expect(screen.getByText('Generated options')).toBeVisible();
         expect(
-            screen.queryByText('View sample data · 6 rows'),
+            screen.queryByText('View sample data · 12 rows'),
         ).not.toBeInTheDocument();
     });
 
@@ -139,7 +139,7 @@ describe('ConfigurePanel', () => {
         expect(within(generalPanel).getAllByText('Y axis')).not.toHaveLength(0);
         expect(within(generalPanel).getByText('metric')).toBeInTheDocument();
         expect(screen.getByLabelText('About X axis')).toBeInTheDocument();
-        expect(screen.getByText('View sample data · 6 rows')).toBeVisible();
+        expect(screen.getByText('View sample data · 12 rows')).toBeVisible();
         // Required is conveyed with text, not colour alone.
         expect(screen.getByText('Required')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
@@ -157,7 +157,7 @@ describe('ConfigurePanel', () => {
             name: 'How to use this chart type',
         });
         const sampleDataLauncher = screen.getByRole('button', {
-            name: 'View sample data · 6 rows',
+            name: 'View sample data · 12 rows',
         });
         expect(sampleDataLauncher.compareDocumentPosition(disclosure)).toBe(
             Node.DOCUMENT_POSITION_PRECEDING,

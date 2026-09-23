@@ -56,7 +56,7 @@ describe('PreviewRowsPeek', () => {
         expect(
             screen.getByRole('heading', { name: 'Sample data' }),
         ).toBeVisible();
-        expect(screen.getByText('6 rows · 1 value')).toBeVisible();
+        expect(screen.getByText('12 rows · 1 value')).toBeVisible();
 
         const table = screen.getByRole('table');
         expect(table.tagName).toBe('TABLE');
