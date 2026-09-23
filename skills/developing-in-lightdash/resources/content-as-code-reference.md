@@ -21,8 +21,9 @@ Content as code has two separate scopes. A project command never includes organi
 | Google Sheets syncs  | No               | `--include-google-sheets` or `--include-all`                                              | `google-sheets/**/*.yml`        |
 | External connections | No               | `--include-external-connections`, `--external-connections <slugs...>`, or `--include-all` | `external-connections/*.yml`    |
 | Data apps            | No               | `--apps <refs...>` to select, `--include-apps`/`--include-all` for all, `--apps-only`     | `apps/<app-folder>/`            |
+| Custom chart types   | No               | `--chart-types <refs...>` to select, `--include-chart-types`/`--include-all` for all, `--chart-types-only` | `chart-types/<slug>/` |
 
-`--include-all` requests every optional project resource available to the caller. Data apps are multi-file bundles rather than YAML resources and are opt-in for both download and upload — see [Data Apps](#data-apps-enterprise) for the selection flags and how they combine.
+`--include-all` requests every optional project resource available to the caller. Data apps and custom chart types are multi-file bundles rather than YAML resources and are opt-in for both download and upload — see [Data Apps](#data-apps-enterprise) and [Custom Chart Types](#custom-chart-types-enterprise) for the selection flags and how they combine.
 
 Use `--nested` only when the repository intentionally uses the project/space folder hierarchy. Continue using the repository's existing layout instead of changing layouts during an unrelated edit.
 
@@ -75,7 +76,26 @@ Upload-only flags:
 
 Local development is under the `lightdash apps` subcommand group, separate from content as code: `apps create <name>` scaffolds a new app bundle under `<path>/apps/`, `apps preview [path]` runs a downloaded app locally against a real Lightdash instance authenticated as you, and `apps validate [paths...]` checks source, manifests, dependencies, and semantic-layer references (`--live` validates against fresh explores instead of the downloaded snapshot).
 
-Every bundle written by `apps create` or `lightdash download` carries its own authoring skills in `.claude/skills/` inside the app folder: `developing-data-apps-locally` (the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries) and `lightdash-data-app` (the `@lightdash/query-sdk` reference). Read them before editing app source — they are version-matched to the bundle and authoritative for local development.
+Every bundle written by `apps create` or `lightdash download` carries its own authoring skills inside the app folder: `developing-data-apps-locally` (the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries) and `lightdash-data-app` (the `@lightdash/query-sdk` reference). Read them before editing app source — they are version-matched to the bundle and authoritative for local development.
+
+## Custom Chart Types (Enterprise)
+
+Custom chart types are reusable visualizations built in Chart Studio. They live as multi-file bundles under `chart-types/<slug>/`, separate from `apps/`, with a `lightdash-app.yml` manifest whose `vizSchema` declares the fields and options the component reads. Their selection flags mirror the data app flags:
+
+- `--chart-types <chartTypeReferences...>` — **only** the specified chart types. On download a reference is a slug, URL, or UUID. On upload it is the slug (= the folder name), URL, or UUID; URL and UUID references are resolved against the target project.
+- `--include-chart-types` — **all** chart types: on download every chart type in the project (capped at 50; raise with `--chart-types-limit <number>`), on upload every folder under `chart-types/`.
+- `--chart-types-only` — chart types and nothing else: skips charts, dashboards, and spaces/access. Bare `--chart-types-only` means all chart types; add `--chart-types <refs...>` to select. It cannot be combined with `--apps-only`, `--spaces-only`, `--charts`, or `--dashboards`.
+
+As with apps, `--chart-types <ref>` alone is the complete command for one chart type; never add `--include-chart-types` to scope it.
+
+```bash
+lightdash download --chart-types radial-gauge --path ./lightdash
+lightdash upload --chart-types radial-gauge --path ./lightdash
+```
+
+Charts that render with a custom chart type are saved as `chartConfig.type: data_app_viz`, bound to the chart type by `config.dataAppVizSlug`. Downloading such a chart also downloads its chart type. On upload, the chart type must already exist in the target project or be selected in the same run; chart types upload before charts. Otherwise the chart fails with a "not found in this project" error.
+
+New chart types are scaffolded with `lightdash apps create "<name>" --chart-type`, which writes `<path>/chart-types/<slug>/`. Every created or downloaded chart type folder carries an `AGENTS.md` and two skills: `reusable-visualization` (the `useVizContext()` component contract) and `developing-chart-types-locally` (the `vizSchema` lockstep rule, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop). Read them before editing chart type source.
 
 ## External Connections (Enterprise)
 
@@ -162,6 +182,7 @@ Content as code does not manage:
 - general project and organization settings outside the registered resources;
 - theme deletion or default-theme selection; use the Lightdash UI;
 - every data app when the project contains more than the configured apps limit;
+- every custom chart type when the project contains more than the configured chart types limit;
 - resources that the authenticated user cannot read or that are unavailable on the server edition.
 
 Files can reference integrations such as Google Sheets, but credentials are not portable. Configure the corresponding integration on the target Lightdash instance.
@@ -196,6 +217,7 @@ lightdash download --dashboards executive-summary --path ./lightdash
 lightdash download --agents sales-agent --path ./lightdash
 lightdash download --external-connections stripe-api --path ./lightdash
 lightdash download --apps revenue-explorer --path ./lightdash
+lightdash download --chart-types radial-gauge --path ./lightdash
 lightdash download --spaces-only --path ./lightdash
 ```
 
@@ -228,13 +250,13 @@ lightdash upload --organization --path ./lightdash
 lightdash upload --path ./lightdash
 ```
 
-If data apps should also be uploaded, add `--include-apps` for all app folders on disk, or `--apps <refs...>` for specific ones:
+If data apps or custom chart types should also be uploaded, add `--include-apps` / `--include-chart-types` for all folders on disk, or `--apps <refs...>` / `--chart-types <refs...>` for specific ones:
 
 ```bash
-lightdash upload --path ./lightdash --include-apps
+lightdash upload --path ./lightdash --include-apps --include-chart-types
 ```
 
-The first command synchronizes custom roles, users, groups, and organization Data App themes before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app bundles require an explicit app flag (see [Data Apps](#data-apps-enterprise)).
+The first command synchronizes custom roles, users, groups, and organization Data App themes before project space access is reconciled. The project upload handles the project YAML files found on disk; data-app and chart type bundles require an explicit flag (see [Data Apps](#data-apps-enterprise) and [Custom Chart Types](#custom-chart-types-enterprise)).
 
 For an access-only change:
 

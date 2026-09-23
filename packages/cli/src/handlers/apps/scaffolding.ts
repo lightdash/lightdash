@@ -274,5 +274,13 @@ export const buildStaticAuthoringFiles = (args: {
         ).toString('base64'),
     });
 
-    return files;
+    // 7. Codex discovers skills in .agents/skills, not .claude/skills.
+    const agentsSkillMirrors = files
+        .filter((file) => file.path.startsWith('.claude/skills/'))
+        .map((file) => ({
+            ...file,
+            path: file.path.replace(/^\.claude\//, '.agents/'),
+        }));
+
+    return [...files, ...agentsSkillMirrors];
 };

@@ -1,6 +1,6 @@
 ---
 name: developing-in-lightdash
-description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse, apps create/preview/validate), or managing charts, dashboards, spaces and access, AI agents, scheduled content, data apps, organization Data App themes, data-app external connections, users, groups, custom roles, metrics, and dimensions as code
+description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse, apps create/preview/validate), or managing charts, dashboards, spaces and access, AI agents, scheduled content, data apps, custom chart types (Chart Studio, `apps create --chart-type`, `--chart-types`), organization Data App themes, data-app external connections, users, groups, custom roles, metrics, and dimensions as code
 ---
 
 # Developing in Lightdash
@@ -16,6 +16,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 - Defining metrics, dimensions, joins, or tables in dbt or pure Lightdash projects
 - Creating or editing charts and dashboards as code
 - Downloading, uploading, or locally developing data apps (enterprise)
+- Creating, downloading, editing, or uploading custom chart types built in Chart Studio (enterprise)
 - Creating, editing, migrating, downloading, or uploading organization Data App themes
 
 **Don't use for:** Developing the Lightdash application itself (use the codebase CLAUDE.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
@@ -33,6 +34,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Manage content as code across project and organization resources | `lightdash download`, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
 | Manage data apps as code (enterprise) | `lightdash download --apps <ref>` (one app) or `--include-apps` (all), edit bundle, `lightdash upload --apps <ref>`; local dev via `lightdash apps create/preview/validate` | [Data Apps](#working-with-data-apps-enterprise), [Content as Code](./resources/content-as-code-reference.md) |
+| Build or edit a custom chart type (enterprise) | `lightdash apps create "<name>" --chart-type` or `lightdash download --chart-types <ref>`, edit `chart-types/<slug>/src/`, `lightdash upload --chart-types <ref>` | [Custom Chart Types](#working-with-custom-chart-types-enterprise) |
 | Manage organization Data App themes as code | `lightdash download --organization`, edit `themes/<slug>/`, `lightdash upload --organization` | [Data App Themes](./resources/data-app-themes-reference.md) |
 | Manage data-app external connections (enterprise) | `lightdash download --include-external-connections`, edit YAML, `lightdash upload` | [Content as Code](./resources/content-as-code-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
@@ -51,12 +53,14 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 | **Adding `--include-apps` to an `--apps <ref>` selection** | `--include-apps` always requests ALL project apps (capped at 50), so the command downloads every app plus the ref — not just the one app | `--apps <ref>` alone downloads/uploads only that app (by slug, app URL, or UUID). Use `--include-apps` only when you want every app |
-| **Editing a data app without reading its bundled skills** | App code violates the SDK-only data access and dependency boundaries (direct `fetch`, `pnpm add`, vendored libraries) and the upload rejects or the app breaks when deployed | Every app bundle ships `.claude/skills/developing-data-apps-locally` and `.claude/skills/lightdash-data-app` — read them before editing files in an app folder (see [Data Apps](#working-with-data-apps-enterprise)) |
+| **Editing a data app without reading its bundled skills** | App code violates the SDK-only data access and dependency boundaries (direct `fetch`, `pnpm add`, vendored libraries) and the upload rejects or the app breaks when deployed | Every app bundle ships the `developing-data-apps-locally` and `lightdash-data-app` skills — read them before editing files in an app folder (see [Data Apps](#working-with-data-apps-enterprise)) |
+| **Building a reusable chart as a Vega-Lite `custom` chart** | The visualization lives inside one saved chart and can't be reused or picked from the explorer's chart type picker | For a new reusable visualization, build a custom chart type (see [Custom Chart Types](#working-with-custom-chart-types-enterprise)). Use Vega-Lite only for existing `chartConfig.type: custom` charts or when the project has no custom chart types (enterprise) |
+| **Editing a chart type without reading its bundled skills** | The component queries or fetches data itself, or its `vizSchema` drifts from what `src/` reads, so the chart type breaks or never appears in the chart type picker | Every chart type folder ships `AGENTS.md` plus the `reusable-visualization` and `developing-chart-types-locally` skills — read all three before editing files in `chart-types/<slug>/` |
 | **Inventing a theme-only CLI command or treating a missing folder as deletion** | The command does not exist, or a supposedly deleted remote theme returns on the next download | Use organization download/upload, and read [Data App Themes](./resources/data-app-themes-reference.md) before changing `themes/` |
 
 ## Before You Start
 
-When a task uses `lightdash download` or `lightdash upload`, especially for bulk edits, spaces and access, scheduled content, AI agents, data apps, organization themes, external connections, users, groups, or custom roles, **read and follow [Content as Code](./resources/content-as-code-reference.md) first**. Project and organization content require separate commands, and a default download is not a complete snapshot.
+When a task uses `lightdash download` or `lightdash upload`, especially for bulk edits, spaces and access, scheduled content, AI agents, data apps, custom chart types, organization themes, external connections, users, groups, or custom roles, **read and follow [Content as Code](./resources/content-as-code-reference.md) first**. Project and organization content require separate commands, and a default download is not a complete snapshot.
 
 For any task that creates, edits, migrates, downloads, uploads, or tests an organization Data App theme, **always read and follow [Data App Themes](./resources/data-app-themes-reference.md) before touching `themes/`**. Theme packages are strict multi-file resources, organization upload has no theme-only mode, and `lightdash lint` does not validate them.
 
@@ -243,12 +247,48 @@ lightdash apps preview                     # run the app locally against your re
 lightdash apps validate                    # check source, manifest, dependencies, and semantic-layer references
 ```
 
-**Every created or downloaded app bundle ships its own skills** in `.claude/skills/` inside the app folder:
+**Every created or downloaded app bundle ships its own skills** inside the app folder:
 
 - `developing-data-apps-locally` — the edit → validate → upload loop, local preview, SDK-only data access, and dependency boundaries
 - `lightdash-data-app` — the `@lightdash/query-sdk` reference for the app's source code
 
 When editing files inside an app folder, **read those bundled skills first**. They are version-matched to the app and authoritative for local development — this skill only covers moving apps between disk and Lightdash.
+
+### Working with Custom Chart Types (Enterprise)
+
+A custom chart type is a reusable visualization built in Chart Studio: one React component that Lightdash hands query results and settings to, offered in the explorer's chart type picker for every chart in the project. On disk it is a multi-file bundle under `chart-types/<slug>/` with a `lightdash-app.yml` manifest whose `vizSchema` declares the fields and options the component reads. It is not a data app (it runs no query of its own) and not the legacy Vega-Lite `custom` chart.
+
+**Create one locally:**
+
+```bash
+lightdash apps create "Radial Gauge" --chart-type   # scaffolds ./lightdash/chart-types/radial-gauge/
+```
+
+**Download** — `--chart-types <ref>` alone is the complete command (ref = slug, URL, or UUID):
+
+```bash
+lightdash download --chart-types radial-gauge --path ./lightdash
+lightdash download --include-chart-types   # every chart type in the project (capped at 50; raise with --chart-types-limit <n>)
+lightdash download --chart-types-only      # chart types only, skipping charts, dashboards, and spaces
+```
+
+Downloading a chart that renders with a custom chart type also downloads that chart type. In chart YAML the binding is `chartConfig.type: data_app_viz` with `config.dataAppVizSlug`, `fieldMapping`, and `optionValues`.
+
+**Upload:**
+
+```bash
+lightdash upload --chart-types radial-gauge   # one chart type (slug = folder name, URL, or UUID)
+lightdash upload --include-chart-types        # every chart type folder on disk
+```
+
+A chart YAML that binds to a chart type by `dataAppVizSlug` fails to upload unless that chart type exists in the target project. Upload the chart type first, or pass `--chart-types <ref>` in the same run (chart types upload before charts).
+
+**Edit inside the folder.** Change into `chart-types/<slug>/` and **read its `AGENTS.md` plus the `reusable-visualization` and `developing-chart-types-locally` skills before touching `src/`**:
+
+- `reusable-visualization` — the component contract: `useVizContext()` is the only channel to the host, and the component never queries or fetches anything itself
+- `developing-chart-types-locally` — keeping `vizSchema` in lockstep with the component, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop
+
+Those files are version-matched to the chart type and authoritative for editing it. This skill only covers moving chart types between disk and Lightdash.
 
 ### Working with Organization Data App Themes
 
@@ -289,8 +329,10 @@ lightdash stop-preview --name "my-feature"
 | `lightdash sql "..." -o file.csv` | Run SQL queries against warehouse |
 | `lightdash run-chart -p chart.yml` | Execute chart YAML query against warehouse |
 | `lightdash apps create <name>` | Scaffold a new data app locally (enterprise) |
+| `lightdash apps create <name> --chart-type` | Scaffold a new custom chart type locally (enterprise) |
 | `lightdash apps preview` | Run a data app locally against your Lightdash instance |
-| `lightdash apps validate` | Validate data app source, manifest, and semantic references |
+| `lightdash apps validate` | Validate data app or chart type source, manifest, and semantic references |
+| `lightdash download --chart-types <ref>` / `lightdash upload --chart-types <ref>` | Move custom chart types between disk and Lightdash (enterprise) |
 
 See [CLI Reference](./resources/cli-reference.md) for full command documentation.
 
@@ -359,7 +401,8 @@ Each path segment must be the slug of an existing (or to-be-created) space at th
 | Geographic data | `map` | Plots data points or regions on a map |
 | Flow between categories | `sankey` | Shows how values move from source to target nodes |
 | Detailed records | `table` | Displays raw data with sorting and formatting |
-| Advanced custom needs | `custom` | Full Vega-Lite spec for custom visualizations |
+| Visualization none of the above cover | Custom chart type | Reusable React component offered in the chart type picker — see [Custom Chart Types](#working-with-custom-chart-types-enterprise) |
+| Vega-Lite chart | `custom` (legacy) | For charts already saved with `chartConfig.type: custom`, or projects without custom chart types (enterprise) |
 
 | Type | Use Case | Reference |
 |------|----------|-----------|
@@ -372,7 +415,8 @@ Each path segment must be the slug of an existing (or to-be-created) space at th
 | `treemap` | Hierarchical data | [Treemap](./resources/treemap-chart-reference.md) |
 | `map` | Geographic data | [Map](./resources/map-chart-reference.md) |
 | `sankey` | Flow diagrams | [Sankey](./resources/sankey-chart-reference.md) |
-| `custom` | Vega-Lite | [Custom Viz](./resources/custom-viz-reference.md) |
+| `custom` | Legacy Vega-Lite custom chart | [Custom Viz](./resources/custom-viz-reference.md) |
+| `data_app_viz` | Chart rendered by a custom chart type | [Custom Chart Types](#working-with-custom-chart-types-enterprise) |
 
 ## Dashboards
 
@@ -423,7 +467,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 - [Treemap Chart Reference](./resources/treemap-chart-reference.md)
 - [Map Chart Reference](./resources/map-chart-reference.md)
 - [Sankey Chart Reference](./resources/sankey-chart-reference.md)
-- [Custom Viz Reference](./resources/custom-viz-reference.md)
+- [Custom Viz Reference](./resources/custom-viz-reference.md) - Legacy Vega-Lite `custom` charts
 - [Period over Period Reference](./resources/period-over-period-reference.md) - PoP comparisons (YoY, MoM, etc.)
 
 ### Dashboards & Workflows

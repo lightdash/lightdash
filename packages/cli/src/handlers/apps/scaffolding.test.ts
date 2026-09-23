@@ -155,6 +155,32 @@ describe('buildStaticAuthoringFiles — chart-type flavor', () => {
     });
 });
 
+describe.each(['app', 'chart-type'] as const)(
+    'buildStaticAuthoringFiles — %s skills for Codex',
+    (flavor) => {
+        const files = buildStaticAuthoringFiles({
+            appName: 'Revenue',
+            sdkVersion: '0.3275.0',
+            flavor,
+        });
+        const claudeSkills = files.filter((f) =>
+            f.path.startsWith('.claude/skills/'),
+        );
+
+        it('mirrors every .claude/skills file into .agents/skills', () => {
+            expect(claudeSkills.length).toBeGreaterThan(0);
+            for (const skill of claudeSkills) {
+                const mirror = files.find(
+                    (f) =>
+                        f.path ===
+                        skill.path.replace(/^\.claude\//, '.agents/'),
+                );
+                expect(mirror?.contentBase64).toBe(skill.contentBase64);
+            }
+        });
+    },
+);
+
 describe('loadVendoredBuildScaffold', () => {
     const files = loadVendoredBuildScaffold('0.3275.0');
     const byPath = (p: string) => files.find((file) => file.path === p);
