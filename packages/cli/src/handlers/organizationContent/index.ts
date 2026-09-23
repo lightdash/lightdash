@@ -17,6 +17,7 @@ import {
     isCodeResourcePhaseError,
 } from '../contentAsCode/resource';
 import { getDownloadFolder } from '../contentAsCodePaths';
+import { downloadSkills, upsertSkills } from '../skillsAsCode';
 import {
     downloadCustomRoles,
     formatCustomRoleUploadSummary,
@@ -45,6 +46,10 @@ type OrganizationContentOptions = {
     customPath?: string;
     config: Config;
     sendInvites?: boolean;
+    // Custom agent skills: names filter the set; delete names unbind
+    // everywhere and soft-delete. Absence from the folder never deletes.
+    skills?: string[];
+    deleteSkills?: string[];
 };
 
 const createCustomRolePartialUploadError = (message: string): Error =>
@@ -72,6 +77,7 @@ export const getOrganizationContentFolder = (customPath?: string): string =>
 export const downloadOrganizationContent = async ({
     customPath,
     config,
+    skills = [],
 }: OrganizationContentOptions): Promise<void> => {
     const organizationUuid = config.user?.organizationUuid;
     if (!organizationUuid) {
@@ -139,6 +145,16 @@ export const downloadOrganizationContent = async ({
             action: () => downloadThemes(organizationContentPath),
             detail: (total) => `${total} downloaded`,
         });
+        await output.runItem({
+            label: 'Skills',
+            action: () =>
+                downloadSkills({
+                    names: skills,
+                    customPath,
+                    basePath: organizationContentPath,
+                }),
+            detail: (total) => `${total} downloaded`,
+        });
 
         const renderedSummary = output.complete(
             organizationContentPath,
@@ -185,6 +201,8 @@ export const uploadOrganizationContent = async ({
     customPath,
     config,
     sendInvites = false,
+    skills = [],
+    deleteSkills = [],
 }: OrganizationContentOptions): Promise<void> => {
     assertCodeResourceDependencyOrder(ORGANIZATION_CODE_RESOURCES);
     const organizationUuid = config.user?.organizationUuid;
@@ -326,6 +344,19 @@ export const uploadOrganizationContent = async ({
             );
         }
         output.completeItem(themeSummaryMessage);
+        output.startItem('Skills');
+        const skillChanges = await upsertSkills({
+            names: skills,
+            deleteNames: deleteSkills,
+            basePath: organizationContentPath,
+            changes: {},
+        });
+        output.completeItem(
+            Object.entries(skillChanges)
+                .map(([key, value]) => `${value} ${key.replace('Skills ', '')}`)
+                .join(', ') || 'nothing to upload',
+            skillChanges['Skills failed'] ? 'warning' : undefined,
+        );
         const renderedSummary = output.complete(
             organizationContentPath,
             (Date.now() - start) / 1000,

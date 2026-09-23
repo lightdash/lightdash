@@ -207,6 +207,37 @@ export type ApiAiAgentSkillVersionResponse = {
     results: AiAgentSkillVersion;
 };
 
+/** A skill folder as code: `SKILL.md` and `resources/*.md`, keyed by path. */
+export type SkillAsCode = {
+    name: string;
+    files: AiAgentSkillFiles;
+};
+
+export type SkillAsCodeUpsertChanges = {
+    created: string[];
+    updated: string[];
+    unchanged: string[];
+    deleted: string[];
+    failed: { name: string; message: string }[];
+    warnings: string[];
+};
+
+export type ApiSkillsAsCodeListResponse = {
+    status: 'ok';
+    results: { skills: SkillAsCode[]; missingNames: string[] };
+};
+
+export type ApiSkillsAsCodeUpsertRequest = {
+    skills: SkillAsCode[];
+    /** Names to unbind everywhere and soft-delete. Absence never deletes. */
+    deleteNames?: string[];
+};
+
+export type ApiSkillsAsCodeUpsertResponse = {
+    status: 'ok';
+    results: SkillAsCodeUpsertChanges;
+};
+
 export type ApiAiAgentSkillValidationResponse = {
     status: 'ok';
     results: AiAgentSkillValidationResult;

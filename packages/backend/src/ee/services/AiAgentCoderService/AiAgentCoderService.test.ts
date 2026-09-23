@@ -117,8 +117,14 @@ const buildService = ({
         createEval: vi.fn(async () => undefined),
         updateEval: vi.fn(async () => undefined),
     };
+    const aiAgentSkillModel = {
+        findBoundToAgent: vi.fn(async () => []),
+        findByName: vi.fn(async () => undefined),
+        setAgentSkills: vi.fn(async () => undefined),
+    };
     const service = new AiAgentCoderService({
         aiAgentModel: aiAgentModel as never,
+        aiAgentSkillModel: aiAgentSkillModel as never,
         projectModel: {
             getSummary: vi.fn(async () => ({
                 projectUuid,
@@ -146,6 +152,7 @@ describe('AiAgentCoderService', () => {
         expect(result.agents).toEqual([
             {
                 ...agentAsCode,
+                skills: [],
                 evaluations: [],
                 updatedAt: agentRow.updatedAt,
             },

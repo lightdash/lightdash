@@ -19,6 +19,8 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import { paginateAsCode } from '../../../services/CoderService/pagination';
 import { type AiAgentModel } from '../../models/AiAgentModel';
+import { type AiAgentSkillModel } from '../../models/AiAgentSkillModel';
+import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
 const AGENT_AS_CODE_VERSION = CONTENT_AS_CODE_VERSIONS.ai_agent;
@@ -59,6 +61,7 @@ const groupEvaluationsByAgentUuid = (
 const toAgentAsCode = (
     agent: AgentForCode,
     evaluations: EvaluationForCode[],
+    skills?: string[],
 ): AgentAsCode => ({
     contentType: ContentAsCodeType.AI_AGENT,
     version: AGENT_AS_CODE_VERSION,
@@ -78,6 +81,7 @@ const toAgentAsCode = (
     // every YAML would trip the flag-off warning on each re-upload.
     threadRetentionHours: agent.threadRetentionHours ?? undefined,
     modelConfig: agent.modelConfig,
+    ...(skills !== undefined ? { skills: [...skills].sort() } : {}),
     evaluations: [...evaluations]
         .sort((left, right) => left.title.localeCompare(right.title))
         .map(normalizeEvaluation),
@@ -111,6 +115,7 @@ const getComparableAgent = (
 
 type Dependencies = {
     aiAgentModel: AiAgentModel;
+    aiAgentSkillModel: AiAgentSkillModel;
     projectModel: ProjectModel;
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -118,6 +123,8 @@ type Dependencies = {
 
 export class AiAgentCoderService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
+
+    private readonly aiAgentSkillModel: AiAgentSkillModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -127,12 +134,14 @@ export class AiAgentCoderService extends BaseService {
 
     constructor({
         aiAgentModel,
+        aiAgentSkillModel,
         projectModel,
         lightdashConfig,
         aiOrganizationSettingsService,
     }: Dependencies) {
         super({ serviceName: 'AiAgentCoderService' });
         this.aiAgentModel = aiAgentModel;
+        this.aiAgentSkillModel = aiAgentSkillModel;
         this.projectModel = projectModel;
         this.lightdashConfig = lightdashConfig;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
@@ -236,17 +245,86 @@ export class AiAgentCoderService extends BaseService {
             page.page.map(({ uuid }) => uuid),
         );
         const evaluationsByAgentUuid = groupEvaluationsByAgentUuid(evaluations);
+        const skillNamesByAgentUuid = new Map(
+            await Promise.all(
+                page.page.map(
+                    async ({ uuid }) =>
+                        [
+                            uuid,
+                            (
+                                await this.aiAgentSkillModel.findBoundToAgent(
+                                    uuid,
+                                )
+                            ).map((skill) => skill.name),
+                        ] as const,
+                ),
+            ),
+        );
 
         return {
             agents: page.page.map((agent) =>
                 toAgentAsCode(
                     agent,
                     evaluationsByAgentUuid.get(agent.uuid) ?? [],
+                    skillNamesByAgentUuid.get(agent.uuid) ?? [],
                 ),
             ),
             missingIds,
             total: page.total,
             offset: page.offset,
+        };
+    }
+
+    /**
+     * Resolves a declared `skills:` list to bindable rows. Built-in names are
+     * always on and are ignored with a warning; a missing or deleted name
+     * fails the agent so the rest of the upload proceeds.
+     */
+    private async resolveDeclaredSkills(
+        organizationUuid: string,
+        agent: AgentAsCode,
+        warnings: string[],
+    ): Promise<
+        | { ok: true; skillUuids: string[]; names: string[] }
+        | { ok: false; message: string }
+    > {
+        const builtInNames = new Set(await BuiltInSkills.getAllNames());
+        const declared = [...new Set(agent.skills ?? [])];
+        const custom = declared.filter((name) => {
+            if (!builtInNames.has(name)) return true;
+            warnings.push(
+                `AI agent '${agent.slug}': skill '${name}' is built in and always on, so it was ignored`,
+            );
+            return false;
+        });
+        const rows = await Promise.all(
+            custom.map(async (name) => ({
+                name,
+                skill: await this.aiAgentSkillModel.findByName({
+                    organizationUuid,
+                    name,
+                }),
+            })),
+        );
+        const missing = rows.filter(({ skill }) => !skill || skill.deletedAt);
+        if (missing.length > 0) {
+            return {
+                ok: false,
+                message: `AI agent '${agent.slug}' references skills that do not exist: ${missing
+                    .map(({ name, skill }) =>
+                        skill?.deletedAt
+                            ? `${name} (deleted; restore it in the skills library)`
+                            : name,
+                    )
+                    .join(
+                        ', ',
+                    )}. Add them to the skills folder or remove them from the agent.`,
+            };
+        }
+        return {
+            ok: true,
+            skillUuids: rows.map(({ skill }) => skill!.uuid),
+            names: rows.map(({ name }) => name),
         };
     }
 
@@ -407,18 +485,32 @@ export class AiAgentCoderService extends BaseService {
                 );
             }
         });
+        // `warnings` is shared with the loop below, so it is attached once at
+        // the end rather than spread here.
         const changes: AgentAsCodeUpsertChanges = {
             created: [],
             updated: [],
             unchanged: [],
             deleted: [],
-            ...(warnings.length > 0 ? { warnings } : {}),
         };
 
         for (const agent of agents) {
             const existing = existingBySlug.get(agent.slug);
             let agentUuid: string;
             let agentChanged = false;
+            // eslint-disable-next-line no-await-in-loop
+            const declaredSkills = await this.resolveDeclaredSkills(
+                organizationUuid,
+                agent,
+                warnings,
+            );
+            if (!declaredSkills.ok) {
+                changes.failed = [
+                    ...(changes.failed ?? []),
+                    { slug: agent.slug, message: declaredSkills.message },
+                ];
+                continue;
+            }
             if (existing) {
                 agentUuid = existing.uuid;
                 const imageUrlChanged = existing.imageUrl !== agent.imageUrl;
@@ -502,6 +594,21 @@ export class AiAgentCoderService extends BaseService {
                 agentChanged = true;
             }
 
+            if (agent.skills !== undefined) {
+                // eslint-disable-next-line no-await-in-loop
+                const bound =
+                    await this.aiAgentSkillModel.findBoundToAgent(agentUuid);
+                const currentNames = bound.map(({ name }) => name).sort();
+                if (!isEqual(currentNames, [...declaredSkills.names].sort())) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.aiAgentSkillModel.setAgentSkills({
+                        agentUuid,
+                        skillUuids: declaredSkills.skillUuids,
+                    });
+                    agentChanged = true;
+                }
+            }
+
             if (agent.evaluations !== undefined) {
                 const evaluationsByTitle = new Map(
                     (existingEvaluationsByAgentUuid.get(agentUuid) ?? []).map(
@@ -548,6 +655,9 @@ export class AiAgentCoderService extends BaseService {
             }
         }
 
-        return changes;
+        return {
+            ...changes,
+            ...(warnings.length > 0 ? { warnings } : {}),
+        };
     }
 }

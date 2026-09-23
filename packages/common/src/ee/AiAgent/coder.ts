@@ -30,6 +30,9 @@ export type AgentAsCode = {
     // uploads warn and ignore it). Omitted = leave unchanged; null = clear.
     threadRetentionHours?: number | null;
     modelConfig: AiAgentModelConfig | null;
+    // Custom skill names bound to the agent. Omitted = leave bindings
+    // unchanged; present = authoritative (bind these, unbind the rest).
+    skills?: string[];
     evaluations?: AgentAsCodeEvaluation[];
     updatedAt?: Date;
     downloadedAt?: Date;
@@ -43,6 +46,9 @@ export type AgentAsCodeUpsertChanges = {
     // Optional so a NEW CLI stays compatible with older servers that never
     // send the field.
     warnings?: string[];
+    // Agents skipped because something they reference does not exist, such
+    // as a skill name that is neither in the upload nor on the server.
+    failed?: { slug: string; message: string }[];
 };
 
 export type ApiAgentAsCodeListResponse = {

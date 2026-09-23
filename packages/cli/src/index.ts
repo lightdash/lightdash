@@ -814,6 +814,8 @@ const ORGANIZATION_MODE_OPTIONS = new Set([
     'path',
     'sendInvites',
     'verbose',
+    'skills',
+    'deleteSkills',
 ]);
 
 const withOrganizationMode =
@@ -882,6 +884,17 @@ const downloadCommand = program
     .option(
         '--include-agents',
         "include all of the project's AI agents (enterprise)",
+        false,
+    )
+    .option(
+        '--skills <names...>',
+        'specify custom agent skill names to download',
+        parseRefsArgument,
+        [],
+    )
+    .option(
+        '--include-skills',
+        'include the custom skills bound to the downloaded AI agents (enterprise)',
         false,
     )
     .option(
@@ -1064,6 +1077,18 @@ const uploadCommand = program
         [],
     )
     .option(
+        '--skills <names...>',
+        'specify custom agent skill names to upload',
+        parseRefsArgument,
+        [],
+    )
+    .option(
+        '--delete-skills <names...>',
+        'unbind these custom agent skills from every agent and delete them',
+        parseRefsArgument,
+        [],
+    )
+    .option(
         '--alerts <slugs...>',
         'specify alert slugs to upload',
         parseRefsArgument,
@@ -1138,6 +1163,7 @@ const uploadCommand = program
     .option('--spaces-only', 'upload only space definitions and access', false)
     .option('--public', 'Create new spaces as public instead of private', false)
     .option('--skip-agents', 'skip uploading AI agents', false)
+    .option('--skip-skills', 'skip uploading custom agent skills', false)
     .option('--skip-alerts', 'skip uploading alerts', false)
     .option('--skip-virtual-views', 'skip uploading virtual views', false)
     .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
