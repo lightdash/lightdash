@@ -489,6 +489,7 @@ export const lightdashConfigMock: LightdashConfig = {
         s3: null,
         e2bApiKey: null,
         sampleDataEnabled: true,
+        externalConnectionAllowedPrivateHostCidrs: {},
         e2bTemplateName: 'lightdash-data-app',
         e2bTemplateTag: '',
         e2bAiWritebackTemplateName: 'lightdash-ai-writeback',

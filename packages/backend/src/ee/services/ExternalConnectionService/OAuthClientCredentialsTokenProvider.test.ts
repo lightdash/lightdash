@@ -32,7 +32,13 @@ afterEach(() => {
 describe('OAuthClientCredentialsTokenProvider', () => {
     it('mints with Basic authentication and caches the token', async () => {
         const fetchToken = vi.fn().mockResolvedValue(tokenResponse('token-1'));
-        const provider = new OAuthClientCredentialsTokenProvider(fetchToken);
+        const allowedPrivateHostCidrs = {
+            'auth.example.com': ['10.20.0.0/16'],
+        };
+        const provider = new OAuthClientCredentialsTokenProvider({
+            allowedPrivateHostCidrs,
+            fetchToken,
+        });
 
         await expect(
             provider.getAccessToken(config, 'client secret'),
@@ -49,6 +55,7 @@ describe('OAuthClientCredentialsTokenProvider', () => {
             timeoutMs: 10_000,
             maxResponseBytes: 64 * 1024,
             allowedContentTypes: ['application/json'],
+            allowedPrivateHostCidrs,
         });
         expect(options.headers.Authorization).toBe(
             `Basic ${Buffer.from('client+id:client+secret').toString('base64')}`,
@@ -69,7 +76,10 @@ describe('OAuthClientCredentialsTokenProvider', () => {
                     resolveFetch = resolve;
                 }),
         );
-        const provider = new OAuthClientCredentialsTokenProvider(fetchToken);
+        const provider = new OAuthClientCredentialsTokenProvider({
+            allowedPrivateHostCidrs: {},
+            fetchToken,
+        });
         const bodyConfig = {
             ...config,
             clientAuthMethod: 'body' as const,
@@ -99,7 +109,10 @@ describe('OAuthClientCredentialsTokenProvider', () => {
             .fn()
             .mockResolvedValueOnce(tokenResponse('token-1', 100))
             .mockResolvedValueOnce(tokenResponse('token-2', 100));
-        const provider = new OAuthClientCredentialsTokenProvider(fetchToken);
+        const provider = new OAuthClientCredentialsTokenProvider({
+            allowedPrivateHostCidrs: {},
+            fetchToken,
+        });
 
         await expect(provider.getAccessToken(config, 'secret')).resolves.toBe(
             'token-1',
@@ -122,7 +135,10 @@ describe('OAuthClientCredentialsTokenProvider', () => {
             .fn()
             .mockResolvedValueOnce(tokenResponse('token-1'))
             .mockResolvedValueOnce(tokenResponse('token-2'));
-        const provider = new OAuthClientCredentialsTokenProvider(fetchToken);
+        const provider = new OAuthClientCredentialsTokenProvider({
+            allowedPrivateHostCidrs: {},
+            fetchToken,
+        });
 
         await provider.getAccessToken(config, 'secret');
         provider.invalidateAccessToken(config, 'secret', 'newer-token');
@@ -152,7 +168,10 @@ describe('OAuthClientCredentialsTokenProvider', () => {
                 ...tokenResponse('unused'),
                 bodyText: JSON.stringify({ token_type: 'Bearer' }),
             });
-        const provider = new OAuthClientCredentialsTokenProvider(fetchToken);
+        const provider = new OAuthClientCredentialsTokenProvider({
+            allowedPrivateHostCidrs: {},
+            fetchToken,
+        });
 
         await expect(provider.getAccessToken(config, 'one')).rejects.toThrow();
         await expect(provider.getAccessToken(config, 'two')).rejects.toThrow();

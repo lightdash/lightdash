@@ -59,6 +59,30 @@ describe('AI decision credentials', () => {
     });
 });
 
+describe('external connection private hosts', () => {
+    const variable =
+        'APP_RUNTIME_EXTERNAL_CONNECTION_ALLOWED_PRIVATE_HOST_CIDRS';
+
+    it('normalizes hosts, combines ranges, and handles prototype names', () => {
+        process.env[variable] =
+            ' API.Internal.@10.20.0.0/16,api.internal@fd12:3456::/48,api.internal@10.20.0.0/16,constructor@192.168.1.0/24 ';
+        expect(
+            parseConfig().appRuntime.externalConnectionAllowedPrivateHostCidrs,
+        ).toEqual({
+            'api.internal': ['10.20.0.0/16', 'fd12:3456::/48'],
+            constructor: ['192.168.1.0/24'],
+        });
+    });
+
+    it.each(['api.internal', 'api.internal@10.0.0.0/33'])(
+        'rejects malformed configuration: %s',
+        (entry) => {
+            process.env[variable] = entry;
+            expect(() => parseConfig()).toThrow(ParseError);
+        },
+    );
+});
+
 describe('explore summary projection threshold', () => {
     test('defaults to 2048 stored bytes per explore', () => {
         expect(

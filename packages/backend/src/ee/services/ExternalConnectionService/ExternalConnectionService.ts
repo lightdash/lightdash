@@ -37,6 +37,7 @@ import {
 import {
     secureFetch,
     SecureFetchError,
+    type AllowedPrivateHostCidrs,
 } from '../../../utils/secureFetch/secureFetch';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
@@ -69,6 +70,7 @@ import {
 } from './proxyValidation';
 
 type ExternalConnectionServiceArguments = {
+    allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
     analytics: LightdashAnalytics;
     externalConnectionModel: ExternalConnectionModel;
     appModel: AppModel;
@@ -79,6 +81,8 @@ type ExternalConnectionServiceArguments = {
 };
 
 export class ExternalConnectionService extends BaseService {
+    private readonly allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly externalConnectionModel: ExternalConnectionModel;
@@ -99,6 +103,7 @@ export class ExternalConnectionService extends BaseService {
 
     constructor(args: ExternalConnectionServiceArguments) {
         super();
+        this.allowedPrivateHostCidrs = args.allowedPrivateHostCidrs;
         this.analytics = args.analytics;
         this.externalConnectionModel = args.externalConnectionModel;
         this.appModel = args.appModel;
@@ -1010,6 +1015,7 @@ export class ExternalConnectionService extends BaseService {
                 timeoutMs: connection.timeoutMs,
                 maxResponseBytes: connection.responseMaxBytes,
                 allowedContentTypes: connection.allowedContentTypes,
+                allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
             });
 
         let fetched;

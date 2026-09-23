@@ -203,6 +203,23 @@ server-side and audits byte counts, never bodies. Admins can test a connection t
 sanitised samples that are handed to the coding agent so generated code matches the API's real shape. Connections
 are also a content-as-code resource; secrets never travel in files.
 
+### Trusted private destinations on self-hosted instances
+
+Operators can set `APP_RUNTIME_EXTERNAL_CONNECTION_ALLOWED_PRIVATE_HOST_CIDRS` to comma-separated
+`hostname@CIDR` entries, for example `api.internal.example@10.20.0.0/16,auth.internal.example@10.30.1.5/32`.
+Repeat a hostname to allow multiple ranges. Hostnames are case-insensitive and a trailing DNS dot is ignored.
+
+This instance-wide setting allows external connections, their test requests, and OAuth client-credentials
+requests to reach explicitly approved private/internal addresses. A private destination must match both
+its hostname and one of that host's CIDRs; every DNS answer is checked. Public addresses keep their existing
+behavior. Token hosts must be listed separately when they differ from the API host.
+
+Operators are trusted to choose safe destinations: explicitly allowed CIDRs can include loopback and
+metadata addresses, and hostname entries cover all HTTPS ports. HTTPS certificate verification, DNS pinning,
+redirect blocking, and connection permissions and method/path limits remain unchanged. The setting does not
+apply to other outbound fetches. It defaults to empty, takes effect at backend startup, and rejects malformed
+entries with a configuration error. Backend routing, DNS, and trusted certificates must already be available.
+
 ---
 
 ## Data apps as code
