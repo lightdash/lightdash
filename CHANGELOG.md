@@ -1,3 +1,10 @@
+# [2.304.0](https://github.com/lightdash/lightdash/compare/2.303.0...2.304.0) (2026-09-23)
+
+
+### Features
+
+* **data-apps:** stable unavailable states for AI analysis ([#29769](https://github.com/lightdash/lightdash/issues/29769)) ([eb44d93](https://github.com/lightdash/lightdash/commit/eb44d9361f78613a53a7093f2dd78e02886333a0)), closes [#29770](https://github.com/lightdash/lightdash/issues/29770)
+
 # [2.303.0](https://github.com/lightdash/lightdash/compare/2.302.1...2.303.0) (2026-09-23)
 
 
