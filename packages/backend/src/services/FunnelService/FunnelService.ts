@@ -376,8 +376,9 @@ ORDER BY ${
 
                 // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
                 const credentials =
-                    await this.projectModel.getWarehouseCredentialsForProject(
+                    await this.projectModel.getWarehouseCredentialsForBinding(
                         projectUuid,
+                        { kind: 'explore', exploreName: explore.name },
                     );
                 const sqlBuilder = warehouseSqlBuilderFromType(
                     credentials.type,
@@ -464,8 +465,9 @@ ORDER BY ${
 
                 // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
                 const credentials =
-                    await this.projectModel.getWarehouseCredentialsForProject(
+                    await this.projectModel.getWarehouseCredentialsForBinding(
                         projectUuid,
+                        { kind: 'explore', exploreName: explore.name },
                     );
                 const sqlBuilder = warehouseSqlBuilderFromType(
                     credentials.type,

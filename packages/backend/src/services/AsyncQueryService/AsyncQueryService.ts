@@ -3515,6 +3515,10 @@ export class AsyncQueryService extends ProjectService {
                 const warehouseCredentials = await this.getWarehouseCredentials(
                     {
                         projectUuid,
+                        binding: {
+                            kind: 'connection',
+                            warehouseConnectionUuid: null,
+                        },
                         userId: userUuid,
                         isRegisteredUser,
                         isServiceAccount,
@@ -5414,6 +5418,10 @@ export class AsyncQueryService extends ProjectService {
             }),
             this.getWarehouseCredentials({
                 projectUuid,
+                binding: {
+                    kind: 'explore',
+                    exploreName: inputMetricQuery.exploreName,
+                },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -6091,6 +6099,7 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -6418,6 +6427,7 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -7182,6 +7192,7 @@ export class AsyncQueryService extends ProjectService {
         ] = await Promise.all([
             this.getWarehouseCredentials({
                 projectUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -7384,6 +7395,7 @@ export class AsyncQueryService extends ProjectService {
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: { kind: 'connection', warehouseConnectionUuid: null },
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -9897,6 +9909,9 @@ export class AsyncQueryService extends ProjectService {
         ] = await Promise.all([
             this.getWarehouseCredentials({
                 projectUuid,
+                binding: chartUuid
+                    ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
+                    : { kind: 'connection', warehouseConnectionUuid: null },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -10723,6 +10738,7 @@ export class AsyncQueryService extends ProjectService {
     }> {
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: { kind: 'explore', exploreName: explore.name },
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),

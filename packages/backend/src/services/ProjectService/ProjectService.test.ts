@@ -34,6 +34,7 @@ import {
     MetricType,
     MissingWarehouseCredentialsError,
     NotFoundError,
+    NotImplementedError,
     OrganizationMemberRole,
     ParameterError,
     PreAggregateMissReason,
@@ -95,6 +96,7 @@ import { OrganizationWarehouseCredentialsModel } from '../../models/Organization
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -270,6 +272,7 @@ const projectModel = {
         allExplores.map(exploreToSummaryWithAttributes),
     ),
     lockProcess: vi.fn((projectUuid, fun) => fun()),
+    ...singleRouteProjectModelMethods,
     getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
@@ -4682,6 +4685,41 @@ describe('ProjectService', () => {
     });
 
     describe('getWarehouseCredentialsForEmbed', () => {
+        test('refuses a project that routes multi before loading credentials', async () => {
+            const binding = {
+                kind: 'explore' as const,
+                exploreName: 'orders',
+            };
+            const requireSingleConnectionRoute = vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+            const loadCredentials = vi.spyOn(
+                projectModel,
+                'getWarehouseCredentialsForProject',
+            );
+            loadCredentials.mockClear();
+
+            await expect(
+                service.getWarehouseCredentialsForEmbed({
+                    projectUuid,
+                    account: buildAccount({
+                        accountType: 'jwt',
+                        userType: 'anonymous',
+                    }) as never,
+                    binding,
+                }),
+            ).rejects.toThrow('Multiple connections are not available');
+            expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+                projectUuid,
+                binding,
+            );
+            expect(loadCredentials).not.toHaveBeenCalled();
+        });
+
         test('should refresh Databricks oauth_m2m credentials so the access token is populated', async () => {
             const { exchangeDatabricksOAuthCredentials } =
                 await import('@lightdash/warehouses');
@@ -4717,6 +4755,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 // The mock buildAccount returns Account; AnonymousAccount is structurally compatible.
                 account: embedAccount as never,
+                binding: { kind: 'explore', exploreName: 'orders' },
             });
 
             expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledWith(
@@ -4753,6 +4792,7 @@ describe('ProjectService', () => {
                 service.getWarehouseCredentialsForEmbed({
                     projectUuid,
                     account: embedAccount as never,
+                    binding: { kind: 'explore', exploreName: 'orders' },
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
         });

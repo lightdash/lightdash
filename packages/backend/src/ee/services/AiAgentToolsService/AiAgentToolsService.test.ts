@@ -23,6 +23,7 @@ import {
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
+import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
@@ -691,6 +692,7 @@ describe('AiAgentToolsService', () => {
             const getWarehouseFields = vi.fn();
             const service = makeService({
                 projectModel: {
+                    ...singleRouteProjectModelMethods,
                     getWarehouseCredentialsForProject: vi
                         .fn()
                         .mockResolvedValue({
@@ -769,6 +771,7 @@ describe('AiAgentToolsService', () => {
                 });
                 const service = makeService({
                     projectModel: {
+                        ...singleRouteProjectModelMethods,
                         getWarehouseCredentialsForProject: vi
                             .fn()
                             .mockResolvedValue({
@@ -804,6 +807,7 @@ describe('AiAgentToolsService', () => {
             });
             const service = makeService({
                 projectModel: {
+                    ...singleRouteProjectModelMethods,
                     getWarehouseCredentialsForProject: vi
                         .fn()
                         .mockResolvedValue({

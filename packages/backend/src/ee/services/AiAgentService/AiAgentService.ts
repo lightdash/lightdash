@@ -12472,8 +12472,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             : false;
 
         const warehouseCredentials = canRunSql
-            ? await this.projectModel.getWarehouseCredentialsForProject(
+            ? await this.projectModel.getWarehouseCredentialsForBinding(
                   prompt.projectUuid,
+                  { kind: 'connection', warehouseConnectionUuid: null },
               )
             : null;
         const warehouseType = warehouseCredentials?.type ?? null;

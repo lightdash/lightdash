@@ -351,6 +351,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { type ConnectionBinding } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -2107,6 +2108,19 @@ export class ProjectService extends BaseService {
         If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like Snowflake on SSO).
     */
     protected async getWarehouseCredentials({
+        binding,
+        ...args
+    }: Parameters<ProjectService['getSingleRouteWarehouseCredentials']>[0] & {
+        binding: ConnectionBinding;
+    }) {
+        await this.projectModel.requireSingleConnectionRoute(
+            args.projectUuid,
+            binding,
+        );
+        return this.getSingleRouteWarehouseCredentials(args);
+    }
+
+    private async getSingleRouteWarehouseCredentials({
         projectUuid,
         userId,
         isRegisteredUser,
@@ -2292,14 +2306,17 @@ export class ProjectService extends BaseService {
     async getWarehouseCredentialsForEmbed({
         projectUuid,
         account,
+        binding,
     }: {
         projectUuid: string;
         account: AnonymousAccount;
+        binding: ConnectionBinding;
     }) {
         return this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: false,
+            binding,
         });
     }
 
@@ -2983,8 +3000,9 @@ export class ProjectService extends BaseService {
     }> {
         const project = await this.getProject(projectUuid, account);
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
+                { kind: 'original' },
             );
         if (credentials.type !== WarehouseTypes.DATABRICKS) {
             throw new ParameterError(
@@ -3060,8 +3078,9 @@ export class ProjectService extends BaseService {
             data.upstreamProjectUuid
         ) {
             newProjectData.warehouseConnection =
-                await this.projectModel.getWarehouseCredentialsForProject(
+                await this.projectModel.getWarehouseCredentialsForBinding(
                     data.upstreamProjectUuid,
+                    { kind: 'original' },
                 );
         } else if (
             newProjectData.type === ProjectType.PREVIEW &&
@@ -3072,8 +3091,9 @@ export class ProjectService extends BaseService {
             // When creating a preview from CLI with credentials, merge with upstream credentials
             // to preserve advanced settings like requireUserCredentials
             const upstreamCredentials =
-                await this.projectModel.getWarehouseCredentialsForProject(
+                await this.projectModel.getWarehouseCredentialsForBinding(
                     data.upstreamProjectUuid,
+                    { kind: 'original' },
                 );
             if (upstreamCredentials) {
                 newProjectData.warehouseConnection = mergeWarehouseCredentials(
@@ -6194,8 +6214,9 @@ export class ProjectService extends BaseService {
 
         // Get warehouse credentials to build the SQL builder (no full connection needed for compilation)
         const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
+                { kind: 'explore', exploreName: sourceExplore.name },
             );
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -7293,8 +7314,9 @@ export class ProjectService extends BaseService {
         );
 
         const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
+                { kind: 'explore', exploreName },
             );
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
@@ -8223,6 +8245,7 @@ export class ProjectService extends BaseService {
                     const warehouseCredentials =
                         await this.getWarehouseCredentials({
                             projectUuid,
+                            binding: { kind: 'explore', exploreName },
                             userId: account.user.id,
                             isRegisteredUser: account.isRegisteredUser(),
                             isServiceAccount: account.isServiceAccount(),
@@ -8452,6 +8475,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
                 userId: user.userUuid,
                 isRegisteredUser: true,
             }),
@@ -8517,6 +8541,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
                 userId: userUuid,
                 isRegisteredUser: true,
             }),
@@ -8586,6 +8611,9 @@ export class ProjectService extends BaseService {
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: sqlChartUuid
+                ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                : { kind: 'connection', warehouseConnectionUuid: null },
             userId: userUuid,
             isRegisteredUser: true,
         });
@@ -8916,6 +8944,7 @@ export class ProjectService extends BaseService {
         ] = await Promise.all([
             this.getWarehouseCredentials({
                 projectUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
                 userId: user.userUuid,
                 isRegisteredUser: true,
             }),
@@ -10232,6 +10261,7 @@ export class ProjectService extends BaseService {
 
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: { kind: 'connection', warehouseConnectionUuid: null },
             userId: user.userUuid,
             isRegisteredUser: true,
         });
@@ -10286,6 +10316,7 @@ export class ProjectService extends BaseService {
 
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: { kind: 'connection', warehouseConnectionUuid: null },
             userId: user.userUuid,
             isRegisteredUser: true,
         });
@@ -10348,6 +10379,7 @@ export class ProjectService extends BaseService {
         }
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
+            binding: { kind: 'connection', warehouseConnectionUuid: null },
             userId: user.userUuid,
             isRegisteredUser: true,
         });
@@ -12298,8 +12330,9 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
+                { kind: 'original' },
             );
         return this.userWarehouseCredentialsModel.findForProject(
             project.projectUuid,
@@ -12321,8 +12354,9 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
+                { kind: 'original' },
             );
         return {
             type: credentials.type,
@@ -12475,6 +12509,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -12555,6 +12590,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
