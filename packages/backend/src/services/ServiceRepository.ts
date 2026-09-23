@@ -457,6 +457,12 @@ export class ServiceRepository
                             projectUuid,
                             warehouseConnection,
                         ),
+                    assertCanWriteProjectConnection: (account, project, data) =>
+                        this.getProjectService().assertCanWriteProjectConnection(
+                            account,
+                            project,
+                            data,
+                        ),
                 }),
         );
     }

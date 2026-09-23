@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     ParameterError,
     supportsMultipleConnections,
+    validateConnectionName,
     type Account,
     type ApiCreateConnectionRequest,
     type ApiUpdateConnectionRequest,
@@ -15,6 +16,7 @@ import {
     type ConnectionCapabilities,
     type ConnectionWithCredentials,
     type CreateWarehouseCredentials,
+    type ProjectSummary,
     type RegisteredAccount,
     type WarehouseConnectionTestResults,
     type WarehouseTypes,
@@ -40,6 +42,14 @@ type ConnectionServiceArguments = {
         projectUuid: string,
         warehouseConnection: CreateWarehouseCredentials,
     ) => Promise<WarehouseConnectionTestResults>;
+    assertCanWriteProjectConnection: (
+        account: Account,
+        project: ProjectSummary,
+        data: {
+            warehouseConnection?: CreateWarehouseCredentials;
+            organizationWarehouseCredentialsUuid?: string;
+        },
+    ) => void;
 };
 
 const CONNECTION_NAME_INDEX = 'warehouse_credentials_project_name_unique';
@@ -90,6 +100,8 @@ export class ConnectionService extends BaseService {
 
     private readonly testWarehouseConnection: ConnectionServiceArguments['testWarehouseConnection'];
 
+    private readonly assertCanWriteProjectConnection: ConnectionServiceArguments['assertCanWriteProjectConnection'];
+
     constructor(args: ConnectionServiceArguments) {
         super({ serviceName: 'ConnectionService' });
         this.connectionModel = args.connectionModel;
@@ -97,12 +109,14 @@ export class ConnectionService extends BaseService {
         this.licenseService = args.licenseService;
         this.projectModel = args.projectModel;
         this.testWarehouseConnection = args.testWarehouseConnection;
+        this.assertCanWriteProjectConnection =
+            args.assertCanWriteProjectConnection;
     }
 
     private async assertCanManageProject(
         account: Account,
         projectUuid: string,
-    ): Promise<string> {
+    ): Promise<ProjectSummary> {
         const project = await this.projectModel.getSummary(projectUuid);
         if (
             this.createAuditedAbility(account).cannot(
@@ -121,7 +135,23 @@ export class ConnectionService extends BaseService {
                 'You do not have permission to manage this project',
             );
         }
-        return project.organizationUuid;
+        return project;
+    }
+
+    private static parseConnectionName(name: string): string {
+        const error = validateConnectionName(name);
+        if (error) {
+            throw new ParameterError(error);
+        }
+        return name.trim();
+    }
+
+    private static toWriteGuardInput(input: ConnectionWriteInput) {
+        return {
+            warehouseConnection: input.warehouseConnection,
+            organizationWarehouseCredentialsUuid:
+                input.organizationWarehouseCredentialsUuid ?? undefined,
+        };
     }
 
     private static assertWarehouseTypeMatches(
@@ -323,7 +353,7 @@ export class ConnectionService extends BaseService {
         connections: Connection[];
         capabilities: ConnectionCapabilities;
     }> {
-        const organizationUuid = await this.assertCanManageProject(
+        const { organizationUuid } = await this.assertCanManageProject(
             account,
             projectUuid,
         );
@@ -370,10 +400,13 @@ export class ConnectionService extends BaseService {
         projectUuid: string,
         request: ApiCreateConnectionRequest,
     ): Promise<Connection> {
-        const organizationUuid = await this.assertCanManageProject(
-            account,
-            projectUuid,
-        );
+        const project = await this.assertCanManageProject(account, projectUuid);
+        const { organizationUuid } = project;
+        this.assertCanWriteProjectConnection(account, project, {
+            organizationWarehouseCredentialsUuid:
+                request.organizationWarehouseCredentialsUuid,
+        });
+        const name = ConnectionService.parseConnectionName(request.name);
         const existingConnections =
             await this.connectionModel.listByProject(projectUuid);
         const [firstExistingConnection] = existingConnections;
@@ -386,7 +419,15 @@ export class ConnectionService extends BaseService {
                 throw new ForbiddenError(reason);
             }
         }
-        const input = await this.resolveCreateInput(projectUuid, request);
+        const input = await this.resolveCreateInput(projectUuid, {
+            ...request,
+            name,
+        });
+        this.assertCanWriteProjectConnection(
+            account,
+            project,
+            ConnectionService.toWriteGuardInput(input),
+        );
         ConnectionService.assertWarehouseTypeMatches(
             existingConnections,
             input.warehouseConnection.type,
@@ -440,11 +481,20 @@ export class ConnectionService extends BaseService {
         connectionUuid: string,
         request: ApiUpdateConnectionRequest,
     ): Promise<Connection> {
-        await this.assertCanManageProject(account, projectUuid);
+        const project = await this.assertCanManageProject(account, projectUuid);
+        this.assertCanWriteProjectConnection(account, project, {
+            organizationWarehouseCredentialsUuid:
+                request.organizationWarehouseCredentialsUuid ?? undefined,
+        });
         const input = await this.resolveUpdateInput(
             projectUuid,
             connectionUuid,
             request,
+        );
+        this.assertCanWriteProjectConnection(
+            account,
+            project,
+            ConnectionService.toWriteGuardInput(input),
         );
         ConnectionService.assertWarehouseTypeMatches(
             await this.connectionModel.listByProject(projectUuid),
@@ -495,12 +545,14 @@ export class ConnectionService extends BaseService {
         connectionUuid: string,
         name: string,
     ): Promise<Connection> {
-        await this.assertCanManageProject(account, projectUuid);
+        const project = await this.assertCanManageProject(account, projectUuid);
+        this.assertCanWriteProjectConnection(account, project, {});
+        const parsedName = ConnectionService.parseConnectionName(name);
         try {
             return await this.connectionModel.rename(
                 projectUuid,
                 connectionUuid,
-                name,
+                parsedName,
             );
         } catch (error) {
             return ConnectionService.mapConnectionNameConflict(error);
@@ -512,7 +564,8 @@ export class ConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<void> {
-        await this.assertCanManageProject(account, projectUuid);
+        const project = await this.assertCanManageProject(account, projectUuid);
+        this.assertCanWriteProjectConnection(account, project, {});
         await this.connectionModel.transaction(async (transactionModel) => {
             await transactionModel.lockProject(projectUuid);
             await transactionModel.getByUuid(projectUuid, connectionUuid);

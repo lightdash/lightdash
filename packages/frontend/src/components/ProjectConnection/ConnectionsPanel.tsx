@@ -1,7 +1,9 @@
 import {
+    CONNECTION_NAME_MAX_LENGTH,
     DbtProjectType,
     DefaultSupportedDbtVersion,
     omitEmptySecrets,
+    validateConnectionName,
     type Connection,
     type CreateWarehouseCredentials,
     type Project,
@@ -53,17 +55,12 @@ import { warehouseValueValidators } from './WarehouseForms/validators';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
-const NAME_MAX_LENGTH = 64;
-
 // Connections hold warehouse credentials only. The shared project form context
 // still requires dbt fields, so they are filled and never rendered.
 const unusedDbtFormValues = {
     dbt: { ...dbtDefaults.formValues[DbtProjectType.NONE] },
     dbtVersion: DefaultSupportedDbtVersion,
 };
-
-const validateName = (value: string) =>
-    value.trim().length === 0 ? 'Enter a name' : null;
 
 const formatCreatedAt = (createdAt: Date) =>
     new Date(createdAt).toLocaleDateString();
@@ -154,7 +151,7 @@ const ConnectionFields: FC<{
                     description="Shown wherever this connection is picked."
                     placeholder="e.g. Analytics warehouse"
                     required
-                    maxLength={NAME_MAX_LENGTH}
+                    maxLength={CONNECTION_NAME_MAX_LENGTH}
                     {...form.getInputProps('name')}
                 />
                 <WarehouseSettingsForm disabled={false}>
@@ -214,7 +211,7 @@ const AddConnectionModal: FC<{
             ...unusedDbtFormValues,
         },
         validate: {
-            name: validateName,
+            name: validateConnectionName,
             warehouse: warehouseValueValidators[warehouseType],
         },
         validateInputOnBlur: true,
@@ -286,7 +283,7 @@ const EditConnectionModalInner: FC<{
             ...unusedDbtFormValues,
         },
         validate: {
-            name: validateName,
+            name: validateConnectionName,
             warehouse: warehouseValueValidators[connection.warehouseType],
         },
         validateInputOnBlur: true,
@@ -382,7 +379,7 @@ const RenameConnectionModal: FC<{
     const nameRef = useRef<HTMLInputElement>(null);
     const form = useMantineForm({
         initialValues: { name: connection?.name ?? '' },
-        validate: { name: validateName },
+        validate: { name: validateConnectionName },
     });
     const renameMutation = useRenameConnection(projectUuid, {
         onSuccess: onClose,
@@ -418,7 +415,7 @@ const RenameConnectionModal: FC<{
                     ref={nameRef}
                     label="Name"
                     required
-                    maxLength={NAME_MAX_LENGTH}
+                    maxLength={CONNECTION_NAME_MAX_LENGTH}
                     {...form.getInputProps('name')}
                 />
                 <Text size="sm" c="dimmed">

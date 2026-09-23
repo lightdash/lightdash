@@ -1,14 +1,18 @@
 import { Ability } from '@casl/ability';
 import {
     ConflictError,
+    DuckdbConnectionType,
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    SnowflakeAuthenticationType,
+    WarehouseDatabaseListingNotSupportedError,
     WarehouseTypes,
     type ApiCreateConnectionRequest,
     type ApiUpdateConnectionRequest,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -19,6 +23,7 @@ import {
     type ConnectionBoundContent,
     type ConnectionModel,
 } from '../../models/ConnectionModel/ConnectionModel';
+import { ProjectService } from '../ProjectService/ProjectService';
 import { ConnectionService } from './ConnectionService';
 
 const projectUuid = 'project-uuid';
@@ -42,6 +47,18 @@ const viewerAccount = fromSession(
     },
     'session-cookie',
 );
+
+const organizationCredentialsAdminAccount = fromSession(
+    {
+        ...adminUser,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'manage' },
+            { subject: 'OrganizationWarehouseCredentials', action: 'view' },
+        ]),
+    },
+    'session-cookie',
+);
+const organizationWarehouseCredentialsUuid = 'organization-credentials-uuid';
 
 const warehouseConnection: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
@@ -105,6 +122,7 @@ const projectModel = {
     getSummary: vi.fn(),
 };
 const testWarehouseConnection = vi.fn();
+const projectService = new ProjectService({} as never);
 
 const getService = () =>
     new ConnectionService({
@@ -113,6 +131,12 @@ const getService = () =>
         licenseService: licenseService as never,
         projectModel: projectModel as never,
         testWarehouseConnection,
+        assertCanWriteProjectConnection: (account, project, data) =>
+            projectService.assertCanWriteProjectConnection(
+                account,
+                project,
+                data,
+            ),
     });
 
 const duplicateNameError = () => {
@@ -473,13 +497,14 @@ describe('ConnectionService', () => {
     });
 
     it('loads an organization credential owned by the project organization', async () => {
-        const organizationWarehouseCredentialsUuid =
-            'organization-credentials-uuid';
-
-        await getService().create(adminAccount, projectUuid, {
-            name: 'Shared',
-            organizationWarehouseCredentialsUuid,
-        });
+        await getService().create(
+            organizationCredentialsAdminAccount,
+            projectUuid,
+            {
+                name: 'Shared',
+                organizationWarehouseCredentialsUuid,
+            },
+        );
 
         expect(
             connectionModel.getOrganizationCredentialsForProject,
@@ -562,5 +587,270 @@ describe('ConnectionService', () => {
             ),
         );
         expect(connectionModel.delete).not.toHaveBeenCalled();
+    });
+    describe('project update guards', () => {
+        const snowflakeConnection: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'user',
+            password: 'password',
+            database: 'analytics',
+            warehouse: 'compute',
+            schema: 'public',
+        };
+        const snowflakeProjectConnection = {
+            ...firstConnection,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+
+        it('refuses to attach an organization credential on create without permission to view it', async () => {
+            await expect(
+                getService().create(adminAccount, projectUuid, {
+                    name: 'Shared',
+                    organizationWarehouseCredentialsUuid,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(
+                connectionModel.getOrganizationCredentialsForProject,
+            ).not.toHaveBeenCalled();
+            expect(connectionModel.create).not.toHaveBeenCalled();
+        });
+
+        it('refuses to attach an organization credential on update without permission to view it', async () => {
+            await expect(
+                getService().update(adminAccount, projectUuid, connectionUuid, {
+                    organizationWarehouseCredentialsUuid,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(
+                connectionModel.getOrganizationCredentialsForProject,
+            ).not.toHaveBeenCalled();
+            expect(connectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it('refuses to update a connection that keeps an organization credential without permission to view it', async () => {
+            connectionModel.getByUuid.mockResolvedValue({
+                ...firstConnection,
+                organizationWarehouseCredentialsUuid,
+            });
+
+            await expect(
+                getService().update(adminAccount, projectUuid, connectionUuid, {
+                    additionalDatabases: ['analytics_eu'],
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(connectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it('attaches an organization credential on update with permission to view it', async () => {
+            await expect(
+                getService().update(
+                    organizationCredentialsAdminAccount,
+                    projectUuid,
+                    connectionUuid,
+                    { organizationWarehouseCredentialsUuid },
+                ),
+            ).resolves.toEqual(firstConnection);
+            expect(connectionModel.update).toHaveBeenCalledWith(
+                projectUuid,
+                connectionUuid,
+                expect.objectContaining({
+                    organizationWarehouseCredentialsUuid,
+                }),
+            );
+        });
+
+        it('refuses every write on the internal analytics project', async () => {
+            projectModel.getSummary.mockResolvedValue({
+                organizationUuid,
+                projectUuid,
+                name: 'Analytics',
+                provisioningSource: 'analytics',
+            });
+            const service = getService();
+
+            await Promise.all(
+                [
+                    service.create(adminAccount, projectUuid, createInput),
+                    service.update(adminAccount, projectUuid, connectionUuid, {
+                        warehouseConnection,
+                    }),
+                    service.rename(
+                        adminAccount,
+                        projectUuid,
+                        connectionUuid,
+                        'Renamed',
+                    ),
+                    service.delete(adminAccount, projectUuid, connectionUuid),
+                ].map((call) =>
+                    expect(call).rejects.toEqual(
+                        new ForbiddenError(
+                            'Internal analytics configuration is managed by the backend',
+                        ),
+                    ),
+                ),
+            );
+            expect(connectionModel.create).not.toHaveBeenCalled();
+            expect(connectionModel.update).not.toHaveBeenCalled();
+            expect(connectionModel.rename).not.toHaveBeenCalled();
+            expect(connectionModel.delete).not.toHaveBeenCalled();
+        });
+
+        it('refuses embedded DuckDB credentials on create', async () => {
+            connectionModel.listByProject.mockResolvedValue([]);
+
+            await expect(
+                getService().create(adminAccount, projectUuid, {
+                    name: 'Embedded',
+                    warehouseConnection: {
+                        type: WarehouseTypes.DUCKDB,
+                        connectionType: DuckdbConnectionType.EMBEDDED,
+                        dataset: 'jaffle_shop',
+                    },
+                }),
+            ).rejects.toEqual(
+                new ParameterError(
+                    'Embedded DuckDB connections can only be provisioned internally',
+                ),
+            );
+            expect(testWarehouseConnection).not.toHaveBeenCalled();
+            expect(connectionModel.create).not.toHaveBeenCalled();
+        });
+
+        it('refuses database listing on a warehouse without listing support', async () => {
+            const redshiftConnection = {
+                ...firstConnection,
+                warehouseType: WarehouseTypes.REDSHIFT,
+            };
+            connectionModel.listByProject.mockResolvedValue([
+                redshiftConnection,
+            ]);
+            connectionModel.getByUuid.mockResolvedValue(redshiftConnection);
+            connectionModel.getCredentials.mockResolvedValue(
+                otherWarehouseConnection,
+            );
+
+            await expect(
+                getService().update(adminAccount, projectUuid, connectionUuid, {
+                    listAllDatabases: true,
+                }),
+            ).rejects.toBeInstanceOf(WarehouseDatabaseListingNotSupportedError);
+            expect(testWarehouseConnection).not.toHaveBeenCalled();
+            expect(connectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it('refuses Snowflake authorization code authentication on create', async () => {
+            connectionModel.listByProject.mockResolvedValue([]);
+
+            await expect(
+                getService().create(adminAccount, projectUuid, {
+                    name: 'Snowflake',
+                    warehouseConnection: {
+                        ...snowflakeConnection,
+                        authenticationType:
+                            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(testWarehouseConnection).not.toHaveBeenCalled();
+            expect(connectionModel.create).not.toHaveBeenCalled();
+        });
+
+        it('refuses Snowflake external browser authentication without user credentials on update', async () => {
+            connectionModel.listByProject.mockResolvedValue([
+                snowflakeProjectConnection,
+            ]);
+            connectionModel.getByUuid.mockResolvedValue(
+                snowflakeProjectConnection,
+            );
+            connectionModel.getCredentials.mockResolvedValue(
+                snowflakeConnection,
+            );
+
+            await expect(
+                getService().update(adminAccount, projectUuid, connectionUuid, {
+                    warehouseConnection: {
+                        ...snowflakeConnection,
+                        authenticationType:
+                            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(testWarehouseConnection).not.toHaveBeenCalled();
+            expect(connectionModel.update).not.toHaveBeenCalled();
+        });
+
+        it('saves Snowflake external browser authentication when users bring their own credentials', async () => {
+            connectionModel.listByProject.mockResolvedValue([
+                snowflakeProjectConnection,
+            ]);
+            connectionModel.getByUuid.mockResolvedValue(
+                snowflakeProjectConnection,
+            );
+            connectionModel.getCredentials.mockResolvedValue(
+                snowflakeConnection,
+            );
+
+            await getService().update(
+                adminAccount,
+                projectUuid,
+                connectionUuid,
+                {
+                    warehouseConnection: {
+                        ...snowflakeConnection,
+                        authenticationType:
+                            SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        requireUserCredentials: true,
+                    },
+                },
+            );
+
+            expect(connectionModel.update).toHaveBeenCalled();
+        });
+
+        it.each([
+            ['empty', ''],
+            ['whitespace-only', '   '],
+            ['over-long', 'a'.repeat(65)],
+        ])('refuses an %s name on create and rename', async (_label, name) => {
+            const service = getService();
+
+            await expect(
+                service.create(adminAccount, projectUuid, {
+                    ...createInput,
+                    name,
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            await expect(
+                service.rename(adminAccount, projectUuid, connectionUuid, name),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(connectionModel.create).not.toHaveBeenCalled();
+            expect(connectionModel.rename).not.toHaveBeenCalled();
+        });
+
+        it('trims a name before it saves it', async () => {
+            const service = getService();
+
+            await service.create(adminAccount, projectUuid, {
+                ...createInput,
+                name: '  Analytics  ',
+            });
+            await service.rename(
+                adminAccount,
+                projectUuid,
+                connectionUuid,
+                ` ${'a'.repeat(64)} `,
+            );
+
+            expect(connectionModel.create).toHaveBeenCalledWith(
+                projectUuid,
+                createInput,
+            );
+            expect(connectionModel.rename).toHaveBeenCalledWith(
+                projectUuid,
+                connectionUuid,
+                'a'.repeat(64),
+            );
+        });
     });
 });

@@ -229,6 +229,8 @@ export {
     mergeWarehouseCredentials,
     normalizeWarehouseCredentials,
     CONNECTION_NAME_CONFLICT_MESSAGE,
+    CONNECTION_NAME_MAX_LENGTH,
+    validateConnectionName,
     MULTI_CONNECTION_WAREHOUSE_TYPES,
     ProjectType,
     RedshiftAuthenticationType,

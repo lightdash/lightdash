@@ -1398,6 +1398,17 @@ export type Connection = {
 export const CONNECTION_NAME_CONFLICT_MESSAGE =
     'A connection with this name already exists in this project.';
 
+export const CONNECTION_NAME_MAX_LENGTH = 64;
+
+export const validateConnectionName = (name: string): string | null => {
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) return 'Enter a name';
+    if (trimmedName.length > CONNECTION_NAME_MAX_LENGTH) {
+        return `Name must be ${CONNECTION_NAME_MAX_LENGTH} characters or fewer`;
+    }
+    return null;
+};
+
 export type ConnectionCapabilities = {
     canAddConnection: boolean;
     reason?: string;

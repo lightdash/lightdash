@@ -2025,6 +2025,35 @@ export class ProjectService extends BaseService {
         }
     }
 
+    assertCanWriteProjectConnection(
+        account: Account,
+        project: Pick<
+            ProjectSummary,
+            'organizationUuid' | 'provisioningSource'
+        >,
+        data: {
+            warehouseConnection?: CreateWarehouseCredentials;
+            organizationWarehouseCredentialsUuid?: string;
+        },
+    ): void {
+        if (project.provisioningSource === 'analytics')
+            throw new ForbiddenError(
+                'Internal analytics configuration is managed by the backend',
+            );
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
+        ProjectService.assertDatabaseListingSupported(data.warehouseConnection);
+        ProjectService.assertPersistableSnowflakeAuthentication(
+            data.warehouseConnection,
+        );
+        this.assertCanUseOrganizationWarehouseCredentials(
+            account,
+            project.organizationUuid,
+            data,
+        );
+    }
+
     // The project-update form sends masked oauthClientId / oauthClientSecret
     // (placeholder values), so merge them in from the saved project before
     // _resolveWarehouseClientCredentials runs the M2M token exchange. No-op for
