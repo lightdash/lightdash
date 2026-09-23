@@ -1,3 +1,10 @@
+# [2.303.0](https://github.com/lightdash/lightdash/compare/2.302.1...2.303.0) (2026-09-23)
+
+
+### Features
+
+* **ai:** introduce Opus 5.5 and deprecate Opus 5 ([#29773](https://github.com/lightdash/lightdash/issues/29773)) ([fc5f44e](https://github.com/lightdash/lightdash/commit/fc5f44e40d1a2898b59fc559b41418609b98f98b))
+
 ## [2.302.1](https://github.com/lightdash/lightdash/compare/2.302.0...2.302.1) (2026-09-23)
 
 
