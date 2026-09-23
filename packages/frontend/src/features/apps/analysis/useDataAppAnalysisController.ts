@@ -104,6 +104,7 @@ export const useDataAppAnalysisController = ({
         appUuid: appUuid ?? '',
         queries,
         mountedQueryUuids,
+        enabled: availability.status === 'available',
         autoAnalyse: autoAnalyseResolved,
         onSourcesExpired,
     });

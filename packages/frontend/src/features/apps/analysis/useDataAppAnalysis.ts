@@ -91,12 +91,18 @@ export const useDataAppAnalysis = ({
     appUuid,
     queries,
     mountedQueryUuids,
+    enabled,
     autoAnalyse = false,
     onSourcesExpired,
 }: {
     projectUuid: string;
     appUuid: string;
     queries: QueryEvent[];
+    /**
+     * Analysis is on for this org and viewer. Off, the hook makes no request
+     * at all, so apps in orgs without the feature behave exactly as before.
+     */
+    enabled: boolean;
     /** Exact on-screen queries from an SDK that reports them; null otherwise. */
     mountedQueryUuids: string[] | null;
     /** Run detect on a quiet view that has no stored analysis. */
@@ -223,6 +229,7 @@ export const useDataAppAnalysis = ({
     // same rows) opens with its findings; a miss runs detect only when the
     // app asks for analysis on load.
     const shouldLookUp =
+        enabled &&
         sources.length > 0 &&
         !inFlight &&
         current.lookedUpSignature !== signature &&

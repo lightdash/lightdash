@@ -50,6 +50,7 @@ const render = (autoAnalyse = false) =>
                 appUuid,
                 queries: [readyQuery],
                 mountedQueryUuids: null,
+                enabled: true,
                 autoAnalyse,
             }),
         { initialProps: { appUuid: 'app-a' } },
@@ -73,6 +74,29 @@ describe('useDataAppAnalysis', () => {
         vi.useRealTimers();
     });
 
+    it('makes no request at all until analysis is available', async () => {
+        const { rerender } = renderHook(
+            ({ enabled }: { enabled: boolean }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries: [readyQuery],
+                    mountedQueryUuids: null,
+                    enabled,
+                    autoAnalyse: true,
+                }),
+            { initialProps: { enabled: false } },
+        );
+        await settle();
+        expect(lookupDataAppAnalysis).not.toHaveBeenCalled();
+        expect(detectDataAppAnomalies).not.toHaveBeenCalled();
+
+        rerender({ enabled: true });
+        await settle();
+        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
+        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+    });
+
     it('drops a lookup response that arrives after the view changed', async () => {
         const resolvers: ((v: unknown) => void)[] = [];
         vi.mocked(lookupDataAppAnalysis).mockImplementation(
@@ -88,6 +112,7 @@ describe('useDataAppAnalysis', () => {
                     appUuid: 'app-a',
                     queries,
                     mountedQueryUuids: null,
+                    enabled: true,
                 }),
             { initialProps: { queries: [readyQuery] } },
         );
@@ -116,6 +141,7 @@ describe('useDataAppAnalysis', () => {
                     appUuid: 'app-a',
                     queries,
                     mountedQueryUuids: null,
+                    enabled: true,
                 }),
             { initialProps: { queries: [readyQuery] } },
         );
@@ -235,6 +261,7 @@ describe('useDataAppAnalysis', () => {
                     appUuid: 'app-a',
                     queries,
                     mountedQueryUuids: null,
+                    enabled: true,
                     autoAnalyse: true,
                 }),
             { initialProps: { queries: [readyQuery] } },
@@ -286,6 +313,7 @@ describe('useDataAppAnalysis', () => {
                     appUuid: 'app-a',
                     queries,
                     mountedQueryUuids: null,
+                    enabled: true,
                 }),
             { initialProps: { queries: [readyQuery] } },
         );
@@ -332,6 +360,7 @@ describe('useDataAppAnalysis', () => {
                     appUuid: 'app-a',
                     queries,
                     mountedQueryUuids: null,
+                    enabled: true,
                     autoAnalyse: true,
                 }),
             { initialProps: { queries: [readyQuery] } },
@@ -383,6 +412,7 @@ describe('useDataAppAnalysis', () => {
                         appUuid: 'app-a',
                         queries,
                         mountedQueryUuids: null,
+                        enabled: true,
                         onSourcesExpired,
                     }),
                 { initialProps: { queries: [readyQuery] } },
@@ -417,6 +447,7 @@ describe('useDataAppAnalysis', () => {
                         appUuid: 'app-a',
                         queries,
                         mountedQueryUuids: null,
+                        enabled: true,
                         onSourcesExpired,
                     }),
                 { initialProps: { queries: [readyQuery] } },
@@ -444,6 +475,7 @@ describe('useDataAppAnalysis', () => {
                         appUuid: 'app-a',
                         queries,
                         mountedQueryUuids: null,
+                        enabled: true,
                         onSourcesExpired: vi.fn(),
                     }),
                 { initialProps: { queries: [readyQuery] } },
@@ -478,6 +510,7 @@ describe('useDataAppAnalysis', () => {
                         appUuid,
                         queries: [readyQuery],
                         mountedQueryUuids: null,
+                        enabled: true,
                         onSourcesExpired: vi.fn(),
                     }),
                 { initialProps: { appUuid: 'app-a' } },
@@ -501,6 +534,7 @@ describe('useDataAppAnalysis', () => {
                         appUuid: 'app-a',
                         queries,
                         mountedQueryUuids: null,
+                        enabled: true,
                         onSourcesExpired: vi.fn(),
                     }),
                 { initialProps: { queries: [readyQuery] } },
