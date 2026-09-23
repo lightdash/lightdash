@@ -1456,7 +1456,7 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:AiAgentSkill',
-        description: 'View the organization skills library for AI agents',
+        description: 'View AI agent skills',
         isEnterprise: true,
         group: ScopeGroup.AI,
         dependencies: [{ name: 'view:Project' }],
@@ -1464,8 +1464,7 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:AiAgentSkill',
-        description:
-            'Create, edit, delete AI agent skills and choose which agents use them',
+        description: 'Create and manage AI agent skills',
         isEnterprise: true,
         group: ScopeGroup.AI,
         dependencies: [{ name: 'view:Project' }],
