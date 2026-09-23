@@ -1391,6 +1391,48 @@ describe('AsyncQueryService', () => {
             });
             trackAccount.mockRestore();
         });
+
+        test('uses an explicit pivot configuration before a chart-derived layout', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn: [
+                    { reference: 'orders_date', type: VizIndexType.TIME },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_count',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: undefined,
+            };
+            const executeInternal = vi
+                .spyOn(service as AnyType, 'executeAsyncMergeQueryInternal')
+                .mockResolvedValue({ outcome: 'started', query: {} });
+
+            await service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                mode: { type: 'interactive' },
+                chart: {
+                    chartConfig: { type: ChartType.TABLE, config: {} },
+                    pivotConfig: { columns: ['source_chart_series'] },
+                },
+                pivotConfiguration,
+            });
+
+            expect(executeInternal).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    pivotInput: {
+                        type: 'resolved',
+                        configuration: pivotConfiguration,
+                    },
+                }),
+            );
+        });
     });
 
     describe('getJwtDashboardQueryContext', () => {
@@ -6503,6 +6545,81 @@ describe('AsyncQueryService', () => {
                 }),
             );
         });
+
+        test('uses an explicit pivot configuration instead of the saved chart layout', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => bigNumberChart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn: [
+                    { reference: 'a_dim2', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'a_metric1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: pivotColumn }],
+                sortBy: undefined,
+            };
+
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            const executeAsyncQuery = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+            service['executeAsyncQuery'] = executeAsyncQuery;
+
+            await service.executeAsyncSavedChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                chartUuid: bigNumberChart.uuid,
+                context: QueryExecutionContext.CHART,
+                invalidateCache: false,
+                pivotResults: true,
+                pivotConfiguration,
+            });
+
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ pivotConfiguration }),
+            );
+            expect(executeAsyncQuery).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({ pivotConfiguration }),
+            );
+        });
     });
 
     describe('executeAsyncSavedChartQuery for embedded AI agent tokens', () => {
@@ -7208,6 +7325,40 @@ describe('AsyncQueryService', () => {
             expect(
                 Object.keys(result.appliedDashboardFiltersBySourceId ?? {}),
             ).toEqual(['a', 'b']);
+        });
+
+        test('forwards a saved-chart pivot override to merged chart execution', async () => {
+            const { service, mergeSpy } = buildService();
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn: [
+                    { reference: 'a_a_dim1', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'a_a_met1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'a_b_dim1' }],
+                sortBy: undefined,
+            };
+            (service as AnyType).getMergeSourceExplores = vi
+                .fn()
+                .mockResolvedValue({});
+
+            await service.executeAsyncSavedChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                chartUuid: mergedChart.uuid,
+                context: QueryExecutionContext.CHART,
+                invalidateCache: false,
+                pivotResults: false,
+                pivotConfiguration,
+            });
+
+            expect(mergeSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ pivotConfiguration }),
+            );
         });
 
         test('refuses a tile filter that names a merged column instead of dropping it', async () => {

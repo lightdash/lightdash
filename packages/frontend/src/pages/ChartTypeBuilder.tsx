@@ -52,6 +52,7 @@ import {
     useExplorePreviewData,
     type LivePreviewRun,
 } from '../features/chartTypes/builder/useExplorePreviewData';
+import { useSavedChartBindingPreview } from '../features/chartTypes/builder/useSavedChartBindingPreview';
 import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
@@ -62,8 +63,8 @@ import {
 } from '../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
-import { pivotPreviewResults } from '../features/chartTypes/utils/pivotPreviewResults';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
+import { mapSavedChartPreviewFields } from '../features/chartTypes/utils/savedChartPreviewFieldMapping';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import useToaster from '../hooks/toaster/useToaster';
@@ -139,9 +140,12 @@ const ChartTypeBuilder: FC = () => {
 
     const [searchParams] = useSearchParams();
     const savedChartUuid = searchParams.get(SAVED_CHART_PARAM);
-    const { data: previewData, retry: retryPreview } = useSavedChartPreviewData(
-        { projectUuid, savedChartUuid, enabled: canPreviewSavedChart },
-    );
+    const savedChartPreview = useSavedChartPreviewData({
+        projectUuid,
+        savedChartUuid,
+        enabled: canPreviewSavedChart,
+    });
+    const sourcePreviewData = savedChartPreview.data;
     const exploreName =
         savedChartUuid === null ? searchParams.get(EXPLORE_PARAM) : null;
     const attachedExplore = useAttachedExplore({
@@ -171,8 +175,8 @@ const ChartTypeBuilder: FC = () => {
         dataAppVizUuid: activeVizUuid ?? null,
         creationExperience: 'chart_type_builder',
         itemsMap:
-            previewData.status === 'ready'
-                ? previewData.itemsMap
+            sourcePreviewData.status === 'ready'
+                ? sourcePreviewData.itemsMap
                 : (loadedExplore?.itemsMap ?? NO_ITEMS),
         chartReference,
     });
@@ -274,29 +278,69 @@ const ChartTypeBuilder: FC = () => {
     const explorePreview = useExplorePreviewData({
         projectUuid,
         explore: loadedExplore,
-        fieldIds: exploreFieldIds,
+        schema,
+        fieldMapping: exploreFieldMapping,
     });
     const exploreRun =
         explorePreview.run.status === 'ready' ? explorePreview.run : null;
+    const sourceRun: LivePreviewRun | null =
+        sourcePreviewData.status === 'ready' ? sourcePreviewData : exploreRun;
+
+    const sourceChart =
+        sourcePreviewData.status === 'ready'
+            ? sourcePreviewData.sourceChart
+            : null;
+    // Source bindings first, then whatever the author rebound in the sidebar. An
+    // explore's bindings keep only the fields its latest run returned.
+    const previewFieldMapping = useMemo(() => {
+        if (!schema || !sourceRun) return NO_MAPPING;
+        if (exploreName !== null) {
+            return reconcileDataAppVizFieldMapping(
+                schema.fields,
+                sourceRun.itemsMap,
+                exploreFieldMapping,
+            );
+        }
+        const automapped = mapSavedChartPreviewFields({
+            fields: schema.fields,
+            itemsMap: sourceRun.itemsMap,
+            sourceChart,
+            dataAppVizUuid: activeVizUuid ?? null,
+        });
+        return reconcileDataAppVizFieldMapping(
+            schema.fields,
+            sourceRun.itemsMap,
+            {
+                ...automapped,
+                ...fieldMappingOverrides,
+            },
+        );
+    }, [
+        schema,
+        sourceRun,
+        exploreName,
+        exploreFieldMapping,
+        fieldMappingOverrides,
+        sourceChart,
+        activeVizUuid,
+    ]);
+    const {
+        data: previewData,
+        retry: retryPreview,
+        fieldMapping: savedAppliedFieldMapping,
+    } = useSavedChartBindingPreview({
+        projectUuid,
+        savedChartUuid,
+        source: savedChartPreview,
+        schema,
+        fieldMapping: previewFieldMapping,
+    });
     const liveRun: LivePreviewRun | null =
         previewData.status === 'ready' ? previewData : exploreRun;
-    // The run's rows, listable before any version declares a schema.
-    const liveRows = useMemo<ChartTypeRows | null>(
-        () =>
-            liveRun
-                ? {
-                      rows: liveRun.rows,
-                      pivotDetails: liveRun.pivotDetails,
-                      labels: Object.fromEntries(
-                          Object.entries(liveRun.itemsMap).map(([id, item]) => [
-                              id,
-                              getItemLabelWithoutTableName(item),
-                          ]),
-                      ),
-                  }
-                : null,
-        [liveRun],
-    );
+    const renderedFieldMapping =
+        savedChartUuid !== null
+            ? savedAppliedFieldMapping
+            : (exploreRun?.fieldMapping ?? previewFieldMapping);
 
     const { showToastError } = useToaster();
     const previewError =
@@ -320,54 +364,29 @@ const ChartTypeBuilder: FC = () => {
         });
     }, [exploreError, showToastError]);
 
-    // Automap first, then whatever the author rebound in the sidebar. An
-    // explore's bindings keep only the fields its latest run returned.
-    const previewFieldMapping = useMemo(() => {
-        if (!schema || !liveRun) return NO_MAPPING;
-        if (exploreName !== null) {
-            return reconcileDataAppVizFieldMapping(
-                schema.fields,
-                liveRun.itemsMap,
-                exploreFieldMapping,
-            );
-        }
-        const automapped = autoMapDataAppVizFields(
-            schema.fields,
-            liveRun.itemsMap,
-        );
-        return reconcileDataAppVizFieldMapping(
-            schema.fields,
-            liveRun.itemsMap,
-            {
-                ...automapped,
-                ...fieldMappingOverrides,
-            },
-        );
-    }, [
-        schema,
-        liveRun,
-        exploreName,
-        exploreFieldMapping,
-        fieldMappingOverrides,
-    ]);
-    const previewResults = useMemo(
+    // Inspect the rendered pivot, or the source rows before a schema exists.
+    const liveRows = useMemo<ChartTypeRows | null>(
         () =>
-            schema && liveRun
-                ? pivotPreviewResults({
-                      schema,
-                      fieldMapping: previewFieldMapping,
-                      itemsMap: liveRun.itemsMap,
+            liveRun
+                ? {
                       rows: liveRun.rows,
                       pivotDetails: liveRun.pivotDetails,
-                  })
+                      labels: Object.fromEntries(
+                          Object.entries(liveRun.itemsMap).map(([id, item]) => [
+                              id,
+                              getItemLabelWithoutTableName(item),
+                          ]),
+                      ),
+                  }
                 : null,
-        [schema, liveRun, previewFieldMapping],
+        [liveRun],
     );
+
     const resolvedColors = useDataAppVizResolvedColors({
         itemsMap: liveRun?.itemsMap ?? NO_ITEMS,
-        rows: previewResults?.rows ?? NO_ROWS,
-        fieldMapping: previewFieldMapping,
-        pivotDetails: previewResults?.pivotDetails ?? null,
+        rows: liveRun?.rows ?? NO_ROWS,
+        fieldMapping: renderedFieldMapping,
+        pivotDetails: liveRun?.pivotDetails ?? null,
         colorPalette,
     });
     const vizPreviewData =
@@ -379,7 +398,8 @@ const ChartTypeBuilder: FC = () => {
     // Rebuilt on any option or palette edit.
     const previewContext = useMemo(() => {
         if (!schema) return null;
-        if (!liveRun || !previewResults) {
+        if (!liveRun) {
+            if (savedChartUuid !== null || exploreName !== null) return null;
             return buildSampleVizContext(
                 schema,
                 colorPalette,
@@ -390,22 +410,23 @@ const ChartTypeBuilder: FC = () => {
         return buildExplorerVizContext({
             schema,
             itemsMap: liveRun.itemsMap,
-            persistedFieldMapping: previewFieldMapping,
-            rows: previewResults.rows,
-            pivotDetails: previewResults.pivotDetails,
+            persistedFieldMapping: renderedFieldMapping,
+            rows: liveRun.rows,
+            pivotDetails: liveRun.pivotDetails,
             colorPalette,
             optionValues: panel.optionValues,
             resolvedColors,
         });
     }, [
         schema,
+        savedChartUuid,
+        exploreName,
         liveRun,
         colorPalette,
         panel.optionValues,
         resolvedColors,
-        previewFieldMapping,
+        renderedFieldMapping,
         vizPreviewData,
-        previewResults,
     ]);
 
     // What the next build is told it is changing: the schema on screen, bound
@@ -432,22 +453,26 @@ const ChartTypeBuilder: FC = () => {
                 },
             );
         }
-        if (!latestReadySchema || !liveRun) return NO_MAPPING;
-        const automapped = autoMapDataAppVizFields(
-            latestReadySchema.fields,
-            liveRun.itemsMap,
-        );
+        if (!latestReadySchema || !sourceRun) return NO_MAPPING;
+        const automapped = mapSavedChartPreviewFields({
+            fields: latestReadySchema.fields,
+            itemsMap: sourceRun.itemsMap,
+            sourceChart,
+            dataAppVizUuid: activeVizUuid ?? null,
+        });
         return reconcileDataAppVizFieldMapping(
             latestReadySchema.fields,
-            liveRun.itemsMap,
+            sourceRun.itemsMap,
             { ...automapped, ...fieldMappingOverrides },
         );
     }, [
         exploreName,
         latestReadySchema,
         loadedExplore,
-        liveRun,
+        sourceRun,
         fieldMappingOverrides,
+        sourceChart,
+        activeVizUuid,
     ]);
     const currentBuildContext: VizBuildRequest['context'] =
         (liveRun || loadedExplore) && latestReadySchema
@@ -691,9 +716,9 @@ const ChartTypeBuilder: FC = () => {
                 },
             };
         }
-        return liveRun
+        return sourceRun
             ? {
-                  itemsMap: liveRun.itemsMap,
+                  itemsMap: sourceRun.itemsMap,
                   fieldMapping: previewFieldMapping,
                   onFieldChange,
                   addToQuery: null,
@@ -708,7 +733,7 @@ const ChartTypeBuilder: FC = () => {
         loadedExplore,
         onFieldChange,
         previewFieldMapping,
-        liveRun,
+        sourceRun,
         schema,
     ]);
 
@@ -874,7 +899,7 @@ const ChartTypeBuilder: FC = () => {
                 opened={isRowsModalOpen && liveRows !== null}
                 onClose={() => setIsRowsModalOpen(false)}
                 title="Query results"
-                subtitle={`Rows returned by ${
+                subtitle={`${liveRows?.pivotDetails ? 'Pivoted preview of rows' : 'Rows'} returned by ${
                     exploreSource.attached?.label ??
                     savedChartSource.attached?.chartName ??
                     'the saved chart'

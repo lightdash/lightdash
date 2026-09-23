@@ -43,6 +43,8 @@ export type ExecuteAsyncSavedChartRequestParams =
         versionUuid?: string;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        /** Overrides the saved chart's native pivot with a caller-derived layout. */
+        pivotConfiguration?: PivotConfiguration;
         // ANDed onto the chart's own filters server-side (narrowing only).
         filters?: Filters;
         // Filters whose target field is absent from the chart's explore are

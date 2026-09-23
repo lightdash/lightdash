@@ -1,6 +1,7 @@
 import {
     QueryExecutionContext,
     QueryHistoryStatus,
+    VizAggregationOptions,
     type ApiExecuteAsyncMetricQueryResults,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,16 +15,27 @@ import {
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../queryRunner/executeQuery', () => ({ pollForResults: vi.fn() }));
 
+const executedMetricQuery = {
+    exploreName: 'orders',
+    dimensions: ['merge_status'],
+    metrics: ['orders_orders_count'],
+    tableCalculations: [],
+    filters: {},
+    sorts: [],
+    limit: 500,
+};
+
 describe('executeSavedChartPreviewQuery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(lightdashApi).mockResolvedValue({
             queryUuid: 'preview-query',
+            metricQuery: executedMetricQuery,
             fields: { orders_status: { name: 'orders_status' } },
         } as unknown as ApiExecuteAsyncMetricQueryResults);
     });
 
-    it('starts an unpivoted bounded query and returns its ready rows', async () => {
+    it('requests the saved chart’s backend pivot and returns its ready rows', async () => {
         const rows = [
             {
                 orders_status: {
@@ -62,6 +74,7 @@ describe('executeSavedChartPreviewQuery', () => {
         ).resolves.toEqual({
             rows,
             itemsMap: { orders_status: { name: 'orders_status' } },
+            metricQuery: executedMetricQuery,
             pivotDetails,
         });
 
@@ -73,13 +86,45 @@ describe('executeSavedChartPreviewQuery', () => {
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
                 chartUuid: 'chart-1',
                 limit: SAVED_CHART_PREVIEW_ROW_LIMIT,
-                pivotResults: false,
+                pivotResults: true,
             }),
         });
         expect(pollForResults).toHaveBeenCalledWith(
             'project-1',
             'preview-query',
         );
+    });
+
+    it('sends an explicit preview pivot without changing the saved chart', async () => {
+        vi.mocked(pollForResults).mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            rows: [],
+            pivotDetails: null,
+        } as unknown as Awaited<ReturnType<typeof pollForResults>>);
+        const pivotConfiguration = {
+            sortBy: [],
+            indexColumn: [],
+            groupByColumns: [{ reference: 'orders_status' }],
+            valuesColumns: [
+                {
+                    reference: 'orders_count',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+        };
+        await executeSavedChartPreviewQuery({
+            projectUuid: 'project-1',
+            chartUuid: 'chart-1',
+            pivotResults: false,
+            pivotConfiguration,
+        });
+        expect(
+            JSON.parse(String(vi.mocked(lightdashApi).mock.calls[0][0].body)),
+        ).toMatchObject({
+            chartUuid: 'chart-1',
+            pivotResults: false,
+            pivotConfiguration,
+        });
     });
 
     it('maps a failed chart-query request to its API error message', async () => {
@@ -106,7 +151,7 @@ describe('executeSavedChartPreviewQuery', () => {
         vi.mocked(pollForResults).mockResolvedValue({
             status: QueryHistoryStatus.ERROR,
             error: 'The warehouse is unavailable',
-        } as Awaited<ReturnType<typeof pollForResults>>);
+        } as unknown as Awaited<ReturnType<typeof pollForResults>>);
 
         await expect(
             executeSavedChartPreviewQuery({

@@ -1,7 +1,12 @@
 import {
+    deriveDataAppVizPivotConfig,
+    deriveDataAppVizPivotConfiguration,
+    getDataAppVizFieldIds,
     getItemId,
     getVisibleFields,
     isDimension,
+    type DataAppVizFieldMapping,
+    type DataAppVizSchema,
     type Item,
     type ItemsMap,
     type ReadyQueryResultsPage,
@@ -31,6 +36,8 @@ export type LivePreviewRun = {
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     rowCount: number;
     ranAt: Date;
+    /** Bindings that produced these rows; retained while a changed run settles. */
+    fieldMapping?: DataAppVizFieldMapping;
 };
 
 export type LoadedExplore = {
@@ -123,51 +130,115 @@ export const useAttachedExplore = ({
 
 /**
  * Run an ad-hoc query over the explore fields the chart inputs are bound to.
- * The field set is debounced so a burst of changes runs once; the previous
- * rows stay on screen while a changed set re-runs.
+ * The complete binding request is debounced so a burst of changes runs once;
+ * the previous rows and their applied bindings stay on screen meanwhile.
  */
 export const useExplorePreviewData = ({
     projectUuid,
     explore,
-    fieldIds,
+    schema,
+    fieldMapping,
 }: {
     projectUuid: string | undefined;
     /** Null runs nothing. */
     explore: LoadedExplore | null;
-    fieldIds: string[];
+    schema: DataAppVizSchema | null;
+    fieldMapping: DataAppVizFieldMapping;
 }): ExplorePreviewRun => {
     const exploreName = explore?.name ?? null;
-    const fieldKey = explore
-        ? fieldIds.filter((id) => id in explore.itemsMap).join(',')
-        : '';
-    const [debouncedFieldKey] = useDebouncedValue(
-        fieldKey,
+    const bindingRequestKey = useMemo(() => {
+        if (!explore || !schema) return '';
+        const mappedFields = Object.fromEntries(
+            schema.fields.flatMap((field) => {
+                const value = fieldMapping[field.name];
+                return value === undefined ? [] : [[field.name, value]];
+            }),
+        );
+        return JSON.stringify({
+            exploreName: explore.name,
+            fields: schema.fields,
+            fieldMapping: mappedFields,
+        });
+    }, [explore, fieldMapping, schema]);
+    const [debouncedBindingRequestKey] = useDebouncedValue(
+        bindingRequestKey,
         FIELD_CHANGE_DEBOUNCE_MS,
     );
+    const bindingRequest = useMemo<{
+        exploreName: string;
+        fields: DataAppVizSchema['fields'];
+        fieldMapping: DataAppVizFieldMapping;
+    } | null>(
+        () =>
+            debouncedBindingRequestKey === ''
+                ? null
+                : JSON.parse(debouncedBindingRequestKey),
+        [debouncedBindingRequestKey],
+    );
+    const currentFieldIds = schema
+        ? [
+              ...new Set(
+                  schema.fields.flatMap((field) =>
+                      getDataAppVizFieldIds(fieldMapping[field.name]),
+                  ),
+              ),
+          ].filter((id) => explore && id in explore.itemsMap)
+        : [];
+    const debouncedFieldIds = bindingRequest
+        ? [
+              ...new Set(
+                  bindingRequest.fields.flatMap((field) =>
+                      getDataAppVizFieldIds(
+                          bindingRequest.fieldMapping[field.name],
+                      ),
+                  ),
+              ),
+          ].filter((id) => explore && id in explore.itemsMap)
+        : [];
 
     const canRun =
-        Boolean(projectUuid) && explore !== null && debouncedFieldKey !== '';
+        Boolean(projectUuid) &&
+        explore !== null &&
+        bindingRequest?.exploreName === exploreName &&
+        debouncedFieldIds.length > 0;
     const query = useQuery<
-        SavedChartPreviewQueryResult & { exploreName: string },
+        SavedChartPreviewQueryResult & {
+            exploreName: string;
+            fieldMapping: DataAppVizFieldMapping;
+        },
         Error
     >({
         queryKey: [
             'chart-type-explore-preview',
             projectUuid,
-            exploreName,
-            debouncedFieldKey,
+            debouncedBindingRequestKey,
         ],
-        queryFn: async () => ({
-            ...(await executeExplorePreviewQuery({
-                projectUuid: projectUuid ?? '',
-                query: buildExplorePreviewMetricQuery(
-                    exploreName ?? '',
-                    explore?.itemsMap ?? {},
-                    debouncedFieldKey.split(','),
-                ),
-            })),
-            exploreName: exploreName ?? '',
-        }),
+        queryFn: async () => {
+            const metricQuery = buildExplorePreviewMetricQuery(
+                bindingRequest?.exploreName ?? '',
+                explore?.itemsMap ?? {},
+                debouncedFieldIds,
+            );
+            const appliedFieldMapping = bindingRequest?.fieldMapping ?? {};
+            const pivotConfig = deriveDataAppVizPivotConfig(
+                bindingRequest?.fields ?? [],
+                appliedFieldMapping,
+            );
+            return {
+                ...(await executeExplorePreviewQuery({
+                    projectUuid: projectUuid ?? '',
+                    query: metricQuery,
+                    pivotConfiguration: deriveDataAppVizPivotConfiguration(
+                        appliedFieldMapping,
+                        pivotConfig,
+                        metricQuery,
+                        explore?.itemsMap ?? {},
+                    ),
+                })),
+                exploreName: bindingRequest?.exploreName ?? '',
+                fieldMapping: appliedFieldMapping,
+            };
+        },
         enabled: canRun,
         keepPreviousData: true,
         retry: false,
@@ -179,7 +250,9 @@ export const useExplorePreviewData = ({
     // Rows kept from an earlier set only count while they belong to this
     // explore and something is still bound.
     const data =
-        query.data && query.data.exploreName === exploreName && fieldKey !== ''
+        query.data &&
+        query.data.exploreName === exploreName &&
+        currentFieldIds.length > 0
             ? query.data
             : null;
 
@@ -188,12 +261,19 @@ export const useExplorePreviewData = ({
             if (canRun) void refetch();
         };
         const isRunning =
-            fieldKey !== '' &&
-            (fieldKey !== debouncedFieldKey || isFetching || (!data && !error));
-        if (fieldKey === '') {
+            Boolean(projectUuid) &&
+            currentFieldIds.length > 0 &&
+            (bindingRequestKey !== debouncedBindingRequestKey ||
+                isFetching ||
+                (!data && !error));
+        if (currentFieldIds.length === 0) {
             return { run: { status: 'idle' }, isRunning: false, retry };
         }
-        if (error && !isFetching && fieldKey === debouncedFieldKey) {
+        if (
+            error &&
+            !isFetching &&
+            bindingRequestKey === debouncedBindingRequestKey
+        ) {
             return {
                 run: { status: 'error', message: error.message },
                 isRunning: false,
@@ -211,6 +291,7 @@ export const useExplorePreviewData = ({
                 pivotDetails: data.pivotDetails,
                 rowCount: data.rows.length,
                 ranAt: new Date(dataUpdatedAt),
+                fieldMapping: data.fieldMapping,
             },
             isRunning,
             retry,
@@ -219,10 +300,12 @@ export const useExplorePreviewData = ({
         canRun,
         data,
         dataUpdatedAt,
-        debouncedFieldKey,
+        debouncedBindingRequestKey,
         error,
-        fieldKey,
+        bindingRequestKey,
+        currentFieldIds.length,
         isFetching,
+        projectUuid,
         refetch,
     ]);
 };

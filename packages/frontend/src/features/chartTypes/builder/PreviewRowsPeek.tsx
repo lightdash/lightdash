@@ -4,7 +4,7 @@ import {
     type DataAppVizContext,
     type DataAppVizField,
 } from '@lightdash/common';
-import { Button, Group, Stack, Table, Text } from '@mantine/core';
+import { Box, Button, Group, Stack, Table, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useMemo, useState, type FC } from 'react';
@@ -182,9 +182,8 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
     const isChart = source.previewSource !== 'sample';
     const attached = source.attached;
 
-    // A query's rows carry every result column, so only the mapped ones show.
-    // The sample only has the declared slots; a pivoted sample is laid out
-    // long-form (one row per series value) so it reads in a narrow column.
+    // Live pivots use their rendered columns; flat queries show mapped fields.
+    // Samples retain their compact long-form layout.
     const display = useMemo<DisplayRows | null>(() => {
         if (!context) return null;
         if (isChart) {
@@ -195,14 +194,24 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                     ),
                 ),
             ];
+            const columns = context.pivotDetails
+                ? getChartTypeRowColumns(rowsFromVizContext(context)).map(
+                      ({ reference, label }) => ({ id: reference, label }),
+                  )
+                : ids.map((id) => ({
+                      id,
+                      label: context.fields[id]?.label ?? id,
+                  }));
             return {
-                columns: ids.map((id) => ({
-                    id,
-                    label: context.fields[id]?.label ?? id,
-                })),
+                columns,
                 rows: context.rows.map((row) =>
                     Object.fromEntries(
-                        ids.map((id) => [id, row[id]?.value.formatted ?? '']),
+                        columns.map(({ id }) => [
+                            id,
+                            context.pivotDetails && row[id]?.value.raw == null
+                                ? '—'
+                                : (row[id]?.value.formatted ?? ''),
+                        ]),
                     ),
                 ),
             };
@@ -212,17 +221,20 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
     if (!context || !display || display.columns.length === 0) return null;
     if (isChart && attached?.status !== 'ready') return null;
 
+    const isPivoted = isChart && context.pivotDetails !== null;
     const { columns } = display;
     const rows = display.rows.slice(0, PEEK_ROWS);
     let summary: string;
     if (isChart) {
-        const rowCount = attached?.rowCount ?? 0;
+        const rowCount = isPivoted
+            ? context.rows.length
+            : (attached?.rowCount ?? 0);
         const ran = attached?.ranAt
             ? ` · ran ${formatDistanceToNow(attached.ranAt, {
                   addSuffix: true,
               })}`
             : '';
-        summary = `${plural(rowCount, 'row')}${ran}`;
+        summary = `${plural(rowCount, isPivoted ? 'pivoted row' : 'row')}${ran}`;
     } else {
         summary = sampleSummary(fields, context, display.rows.length);
     }
@@ -232,51 +244,64 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
             <Text component="h3" fz="sm" fw={600}>
                 {isChart ? 'Query results' : 'Sample data'}
             </Text>
-            <Table
-                className={classes.table}
-                horizontalSpacing={0}
-                verticalSpacing={0}
+            <Box
+                className={classes.tableViewport}
+                role="region"
+                aria-label={
+                    isChart ? 'Query results preview' : 'Sample data preview'
+                }
+                tabIndex={0}
             >
-                <Table.Thead className={classes.headerRow}>
-                    <Table.Tr>
-                        {columns.map((column) => (
-                            <Table.Th
-                                key={column.id}
-                                className={classes.headerCell}
-                            >
-                                <Text
-                                    component="span"
-                                    fz="xs"
-                                    fw={500}
-                                    truncate
-                                >
-                                    {column.label}
-                                </Text>
-                            </Table.Th>
-                        ))}
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {rows.map((row, index) => (
-                        <Table.Tr
-                            // Result rows carry no stable id of their own.
-                            key={index}
-                            className={classes.row}
-                        >
+                <Table
+                    miw={isPivoted ? columns.length * 150 : undefined}
+                    data-pivoted={isPivoted || undefined}
+                    className={classes.table}
+                    horizontalSpacing={0}
+                    verticalSpacing={0}
+                >
+                    <Table.Thead className={classes.headerRow}>
+                        <Table.Tr>
                             {columns.map((column) => (
-                                <Table.Td
+                                <Table.Th
                                     key={column.id}
-                                    className={classes.cell}
+                                    className={classes.headerCell}
                                 >
-                                    <Text component="span" fz="xs" truncate>
-                                        {row[column.id] ?? ''}
+                                    <Text
+                                        component="span"
+                                        fz="xs"
+                                        fw={500}
+                                        truncate={!isPivoted}
+                                        lineClamp={isPivoted ? 2 : undefined}
+                                        title={column.label}
+                                    >
+                                        {column.label}
                                     </Text>
-                                </Table.Td>
+                                </Table.Th>
                             ))}
                         </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
+                    </Table.Thead>
+                    <Table.Tbody>
+                        {rows.map((row, index) => (
+                            <Table.Tr
+                                // Result rows carry no stable id of their own.
+                                key={index}
+                                className={classes.row}
+                            >
+                                {columns.map((column) => (
+                                    <Table.Td
+                                        key={column.id}
+                                        className={classes.cell}
+                                    >
+                                        <Text component="span" fz="xs" truncate>
+                                            {row[column.id] ?? ''}
+                                        </Text>
+                                    </Table.Td>
+                                ))}
+                            </Table.Tr>
+                        ))}
+                    </Table.Tbody>
+                </Table>
+            </Box>
             <Group justify="space-between" gap="xs" wrap="nowrap">
                 <Text fz="xs" c="dimmed" truncate>
                     {summary}

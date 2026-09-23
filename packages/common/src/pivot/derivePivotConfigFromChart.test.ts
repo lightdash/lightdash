@@ -179,6 +179,109 @@ describe('derivePivotConfigurationFromChart', () => {
                 },
             ]);
         });
+
+        it('keeps sorted unbound measures out of the index and available for per-series sorting', () => {
+            const tableCalculation: TableCalculation = {
+                name: 'revenue_per_order',
+                displayName: 'Revenue per order',
+                type: TableCalculationType.NUMBER,
+                sql: '${payments_total_revenue} / ${orders_count}',
+            };
+            const items: ItemsMap = {
+                ...mockItems,
+                orders_order_date: {
+                    sql: '${TABLE}.order_date',
+                    name: 'order_date',
+                    type: DimensionType.DATE,
+                    label: 'Order date',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    hidden: false,
+                    fieldType: FieldType.DIMENSION,
+                },
+                orders_count: {
+                    sql: 'COUNT(${TABLE}.order_id)',
+                    name: 'count',
+                    type: MetricType.COUNT,
+                    label: 'Order count',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    hidden: false,
+                    fieldType: FieldType.METRIC,
+                },
+                [tableCalculation.name]: tableCalculation,
+            };
+            const seriesAnchor = [
+                { reference: 'orders_status', value: 'shipped' },
+            ];
+            const metricQuery: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: ['orders_order_date', 'orders_status'],
+                metrics: ['payments_total_revenue', 'orders_count'],
+                tableCalculations: [tableCalculation],
+                sorts: [
+                    {
+                        fieldId: tableCalculation.name,
+                        descending: true,
+                        pivotValues: seriesAnchor,
+                    },
+                    {
+                        fieldId: 'orders_count',
+                        descending: false,
+                        pivotValues: seriesAnchor,
+                    },
+                ],
+            };
+
+            expect(
+                deriveDataAppVizPivotConfiguration(
+                    {
+                        category: 'orders_order_date',
+                        value: 'payments_total_revenue',
+                        series: 'orders_status',
+                    },
+                    savedChart.pivotConfig,
+                    metricQuery,
+                    items,
+                ),
+            ).toEqual({
+                indexColumn: [
+                    {
+                        reference: 'orders_order_date',
+                        type: VizIndexType.TIME,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'payments_total_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortOnlyColumns: [
+                    {
+                        reference: tableCalculation.name,
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'orders_count',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                sortBy: [
+                    {
+                        reference: tableCalculation.name,
+                        direction: SortByDirection.DESC,
+                        pivotValues: seriesAnchor,
+                    },
+                    {
+                        reference: 'orders_count',
+                        direction: SortByDirection.ASC,
+                        pivotValues: seriesAnchor,
+                    },
+                ],
+            });
+        });
     });
 
     it('derives pivot configuration for Cartesian charts with pivot config', () => {

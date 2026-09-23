@@ -6,6 +6,8 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ExecuteAsyncSavedChartRequestParams,
     type ItemsMap,
+    type MetricQuery,
+    type PivotConfiguration,
     type ReadyQueryResultsPage,
     type ResultRow,
 } from '@lightdash/common';
@@ -17,22 +19,23 @@ export const SAVED_CHART_PREVIEW_ROW_LIMIT = 500;
 
 export type SavedChartPreviewQueryResult = {
     rows: ResultRow[];
+    /** Actual result fields, including aliases introduced by saved merges. */
+    metricQuery?: MetricQuery;
     itemsMap: ItemsMap;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
 };
 
-/**
- * Run a saved chart's own query once and hand back its rows.
- *
- * Unpivoted on purpose: the chart type binds the result columns itself, so a
- * preview pivots these rows using its current bindings, not the source chart's.
- */
+/** Run the saved query with its native pivot or an explicit preview override. */
 export const executeSavedChartPreviewQuery = async ({
     projectUuid,
     chartUuid,
+    pivotResults = true,
+    pivotConfiguration,
 }: {
     projectUuid: string;
     chartUuid: string;
+    pivotResults?: boolean;
+    pivotConfiguration?: PivotConfiguration;
 }): Promise<SavedChartPreviewQueryResult> => {
     try {
         const query = await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
@@ -43,7 +46,8 @@ export const executeSavedChartPreviewQuery = async ({
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
                 chartUuid,
                 limit: SAVED_CHART_PREVIEW_ROW_LIMIT,
-                pivotResults: false,
+                pivotResults,
+                pivotConfiguration,
             } satisfies ExecuteAsyncSavedChartRequestParams),
         });
 
@@ -57,6 +61,7 @@ export const executeSavedChartPreviewQuery = async ({
 
         return {
             rows: results.rows,
+            metricQuery: query.metricQuery,
             itemsMap: query.fields,
             pivotDetails: results.pivotDetails,
         };

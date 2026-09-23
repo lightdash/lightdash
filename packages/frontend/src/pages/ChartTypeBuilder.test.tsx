@@ -3,6 +3,9 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    VizAggregationOptions,
+    VizIndexType,
+    type ReadyQueryResultsPage,
     type DataAppVizContext,
     type ItemsMap,
     FeatureFlags,
@@ -10,7 +13,7 @@ import {
     type ApiGetAppResponse,
     type SdkFeature,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -31,6 +34,7 @@ import {
     useAttachedExplore,
     useExplorePreviewData,
 } from '../features/chartTypes/builder/useExplorePreviewData';
+import { useSavedChartBindingPreview } from '../features/chartTypes/builder/useSavedChartBindingPreview';
 import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
@@ -80,6 +84,12 @@ vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
 vi.mock('../features/chartTypes/builder/useExplorePreviewData', () => ({
     useAttachedExplore: vi.fn(),
     useExplorePreviewData: vi.fn(),
+}));
+vi.mock('../features/chartTypes/builder/useSavedChartBindingPreview', () => ({
+    useSavedChartBindingPreview: vi.fn(({ source, fieldMapping }) => ({
+        ...source,
+        fieldMapping,
+    })),
 }));
 vi.mock('../features/chartTypes/builder/useSavedChartPreviewData', () => ({
     useSavedChartPreviewData: vi.fn(),
@@ -697,7 +707,7 @@ describe('ChartTypeBuilder', () => {
 
     it.each(['chart', 'explore'] as const)(
         'pivots %s preview rows for the bound series',
-        (source) => {
+        async (source) => {
             const dimension = (name: string, type = DimensionType.STRING) => ({
                 fieldType: FieldType.DIMENSION as const,
                 type,
@@ -720,18 +730,42 @@ describe('ChartTypeBuilder', () => {
             const cell = (raw: string | number) => ({
                 value: { raw, formatted: String(raw) },
             });
-            const rows = ['placed', 'shipped'].map((status, i) => ({
-                orders_date: cell('2026-01-01'),
-                orders_status: cell(status),
-                orders_count: cell(i + 10),
-            }));
+            const rows = [
+                {
+                    orders_date: cell('2026-01-01'),
+                    count_placed: cell(10),
+                    count_shipped: cell(11),
+                },
+            ];
+            const pivotDetails: ReadyQueryResultsPage['pivotDetails'] = {
+                indexColumn: [
+                    { reference: 'orders_date', type: VizIndexType.TIME },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                valuesColumns: ['placed', 'shipped'].map((status, i) => ({
+                    referenceField: 'orders_count',
+                    pivotColumnName: `count_${status}`,
+                    aggregation: VizAggregationOptions.ANY,
+                    columnIndex: i + 1,
+                    pivotValues: [
+                        {
+                            referenceField: 'orders_status',
+                            value: status,
+                            formatted: status,
+                        },
+                    ],
+                })),
+                totalColumnCount: 2,
+                originalColumns: {},
+                sortBy: undefined,
+            };
             const run = {
                 status: 'ready' as const,
                 rows,
                 itemsMap,
                 columns: Object.values(itemsMap),
-                pivotDetails: null,
-                rowCount: 2,
+                pivotDetails,
+                rowCount: 1,
                 ranAt: new Date(),
             };
             setApp(appMeta());
@@ -768,7 +802,34 @@ describe('ChartTypeBuilder', () => {
             } as unknown as ReturnType<typeof useDataAppVisualization>);
             if (source === 'chart') {
                 vi.mocked(useSavedChartPreviewData).mockReturnValue({
-                    data: { ...run, chartName: 'Orders', spaceName: null },
+                    data: {
+                        ...run,
+                        chartName: 'Orders',
+                        spaceName: null,
+                        itemsMap: {
+                            orders_status: itemsMap.orders_status,
+                            orders_date: itemsMap.orders_date,
+                            orders_count: itemsMap.orders_count,
+                        },
+                        sourceChart: {
+                            metricQuery: {
+                                ...explorerChart.metricQuery,
+                                dimensions: ['orders_status', 'orders_date'],
+                                metrics: ['orders_count'],
+                            },
+                            chartConfig: {
+                                type: ChartType.CARTESIAN,
+                                config: {
+                                    layout: {
+                                        xField: 'orders_date',
+                                        yField: ['orders_count'],
+                                    },
+                                    eChartsConfig: {},
+                                },
+                            },
+                            pivotConfig: { columns: ['orders_status'] },
+                        },
+                    },
                     retry: vi.fn(),
                 });
             } else {
@@ -812,6 +873,46 @@ describe('ChartTypeBuilder', () => {
                     context.seriesColors[column.pivotColumnName],
                 ).toBeDefined();
             }
+            fireEvent.click(screen.getByRole('button', { name: 'View all' }));
+            const dialog = await screen.findByRole('dialog', {
+                name: 'Query results',
+            });
+            expect(
+                within(dialog).getByRole('columnheader', {
+                    name: 'count · placed',
+                }),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByRole('columnheader', {
+                    name: 'count · shipped',
+                }),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByRole('cell', { name: '10' }),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByRole('cell', { name: '11' }),
+            ).toBeVisible();
+            if (source === 'chart') {
+                fireEvent.click(
+                    within(dialog).getByRole('button', { name: 'Close' }),
+                );
+                fireEvent.click(
+                    screen.getByRole('combobox', { name: 'Status' }),
+                );
+                fireEvent.click(screen.getByRole('option', { name: /^date$/ }));
+                const rebound: DataAppVizContext = JSON.parse(
+                    screen.getByTestId('viz-context').textContent!,
+                );
+                expect(rebound.fieldMapping.status).toBe('orders_date');
+                expect(useSavedChartBindingPreview).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        fieldMapping: expect.objectContaining({
+                            status: 'orders_date',
+                        }),
+                    }),
+                );
+            }
         },
     );
 
@@ -822,6 +923,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useSavedChartPreviewData).mockReturnValue({
             data: {
                 status: 'ready',
+                sourceChart: null,
                 chartName: 'Orders by status',
                 spaceName: 'Sales',
                 rows: [],
@@ -853,6 +955,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useSavedChartPreviewData).mockReturnValue({
             data: {
                 status: 'ready',
+                sourceChart: null,
                 chartName: 'Orders by status',
                 spaceName: 'Sales',
                 rows: [],

@@ -233,7 +233,11 @@ describe('ConfigurePanel', () => {
             },
         });
 
-        expect(screen.getByText('Fields from Orders.')).toBeVisible();
+        expect(
+            screen.getByText(
+                'Fields from Orders. Changing one re-runs the query.',
+            ),
+        ).toBeVisible();
         unmount();
 
         const exploreSource: ExploreSourceControls = {
