@@ -375,7 +375,7 @@ describe('DataAppVizTestPanel', () => {
             vi.fn(),
         ] as unknown as ReturnType<typeof useQueryExecutor>);
 
-        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(screen.getByPlaceholderText('Select a table'));
         await user.click(await screen.findByText('Orders'));
         await user.click(screen.getByRole('button', { name: 'Source' }));
         await user.click(
@@ -395,7 +395,7 @@ describe('DataAppVizTestPanel', () => {
         );
 
         expect(
-            screen.getByPlaceholderText('Select an explore'),
+            screen.getByPlaceholderText('Select a table'),
         ).toBeInTheDocument();
         // Declared fields are visible before an explore is chosen.
         expect(screen.getByText('Source')).toBeInTheDocument();
@@ -461,7 +461,7 @@ describe('DataAppVizTestPanel', () => {
             />,
         );
 
-        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(screen.getByPlaceholderText('Select a table'));
         await user.click(await screen.findByText('Orders'));
 
         expect(
@@ -501,7 +501,7 @@ describe('DataAppVizTestPanel', () => {
             screen.queryByRole('button', { name: /run test query/i }),
         ).not.toBeInTheDocument();
 
-        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(screen.getByPlaceholderText('Select a table'));
         await user.click(await screen.findByText('Orders'));
 
         // Still disabled — no field is mapped yet.
@@ -651,7 +651,7 @@ describe('DataAppVizTestPanel', () => {
             />,
         );
 
-        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(screen.getByPlaceholderText('Select a table'));
         await user.click(await screen.findByText('Orders'));
 
         expect(fieldSelectItems.map((items) => items.map(getItemId))).toEqual([
@@ -680,7 +680,7 @@ describe('DataAppVizTestPanel', () => {
             />,
         );
 
-        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(screen.getByPlaceholderText('Select a table'));
         await user.click(await screen.findByText('Orders'));
         await user.click(screen.getByRole('button', { name: 'Source' }));
         await user.click(screen.getByRole('button', { name: 'Target' }));
@@ -764,7 +764,7 @@ describe('DataAppVizTestPanel', () => {
             />,
         );
 
-        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(screen.getByPlaceholderText('Select a table'));
         await user.click(await screen.findByText('Orders'));
         await user.click(screen.getByRole('button', { name: 'Source' }));
         await user.click(screen.getByRole('button', { name: 'Target' }));

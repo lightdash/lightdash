@@ -18,7 +18,7 @@
     opacity: 0.5;
 }
 
-/* One meaning: which chart. Everything else lives in its menu. */
+/* One meaning: which source. It opens the preview data picker. */
 .chip {
     display: inline-flex;
     align-items: center;

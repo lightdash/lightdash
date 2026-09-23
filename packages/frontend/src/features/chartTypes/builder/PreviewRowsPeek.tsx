@@ -11,13 +11,29 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartTypeRowColumns, rowsFromVizContext } from './chartTypeRows';
 import { ChartTypeRowsModal } from './ChartTypeSampleData';
+import { type AttachedExplore } from './exploreSource';
 import classes from './PreviewRowsPeek.module.css';
-import { type SavedChartSourceControls } from './savedChartSource';
+import {
+    type AttachedSavedChart,
+    type SavedChartSourceControls,
+} from './savedChartSource';
 
 const PEEK_ROWS = 3;
 
+/** What the peek reads from whichever source is attached. */
+export type PreviewRowsSource = Pick<
+    SavedChartSourceControls,
+    'previewSource' | 'viewRows'
+> & {
+    attached:
+        | (Pick<AttachedSavedChart, 'rowCount' | 'ranAt'> & {
+              status: AttachedSavedChart['status'] | AttachedExplore['status'];
+          })
+        | null;
+};
+
 type Props = {
-    source: SavedChartSourceControls;
+    source: PreviewRowsSource;
     /** The declared slots; which of them are series and metrics shapes the
      *  sample's summary line. */
     fields: DataAppVizField[];
@@ -163,7 +179,7 @@ const sampleSummary = (
  *  what they amount to, and the way out to the full table. */
 const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
     const [isSampleModalOpen, setIsSampleModalOpen] = useState(false);
-    const isChart = source.previewSource === 'chart';
+    const isChart = source.previewSource !== 'sample';
     const attached = source.attached;
 
     // A query's rows carry every result column, so only the mapped ones show.
@@ -231,7 +247,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                                 <Text
                                     component="span"
                                     fz="xs"
-                                    fw={600}
+                                    fw={500}
                                     truncate
                                 >
                                     {column.label}
@@ -285,7 +301,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                     opened={isSampleModalOpen}
                     onClose={() => setIsSampleModalOpen(false)}
                     title="Sample data"
-                    subtitle="Rows generated from the chart inputs, used until a saved chart is attached."
+                    subtitle="Rows generated from the chart inputs, used until a table or saved chart is attached."
                 />
             )}
         </Stack>

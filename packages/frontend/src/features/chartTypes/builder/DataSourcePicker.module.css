@@ -1,0 +1,65 @@
+.dropdown {
+    border-radius: var(--mantine-radius-md);
+}
+
+.sectionHeader {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 6px 4px 4px;
+    background: var(--mantine-color-body);
+
+    &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background-color: var(--mantine-color-default-border);
+    }
+}
+
+.groupLabel {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 4px;
+
+    &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background-color: var(--mantine-color-default-border);
+    }
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    padding: 4px 6px;
+    border-radius: var(--mantine-radius-sm);
+
+    &:hover,
+    &[data-combobox-selected] {
+        background-color: var(--mantine-color-default-hover);
+    }
+
+    &[data-combobox-active] {
+        background-color: var(--mantine-color-blue-light);
+    }
+
+    &[data-combobox-active]:hover,
+    &[data-combobox-active][data-combobox-selected] {
+        background-color: var(--mantine-color-blue-light-hover);
+    }
+}
+
+.selectedIcon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--mantine-color-blue-light-color);
+}

@@ -1,11 +1,11 @@
 .sourceRow {
-    padding: var(--mantine-spacing-xs) 10px;
-    border: 1px solid var(--mantine-color-ldGray-2);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-}
 
-.sourceButton:hover {
-    background: var(--mantine-color-default-hover);
+    &:hover {
+        background: var(--mantine-color-default-hover);
+    }
 }
 
 .iconTile,
@@ -24,7 +24,7 @@
     color: var(--mantine-color-ldGray-7);
 }
 
-/* The saved chart reads as data, in the dimension colour the canvas card uses. */
+/* A real source reads as data, in the dimension colour the canvas card uses. */
 .iconTileAccent {
     background: var(--ld-field-dimension-bg);
     color: var(--ld-field-dimension-color);

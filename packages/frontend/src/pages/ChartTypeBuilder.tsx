@@ -3,6 +3,7 @@ import {
     ChartType,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
+    getDataAppVizFieldIds,
     getItemLabelWithoutTableName,
     type AppChartReference,
     type DataAppVizFieldMapping,
@@ -35,12 +36,22 @@ import { type ChartTypeRows } from '../features/chartTypes/builder/chartTypeRows
 import { ChartTypeRowsModal } from '../features/chartTypes/builder/ChartTypeSampleData';
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
 import {
+    type AttachedExplore,
+    type ExploreSourceControls,
+    type PickedExplore,
+} from '../features/chartTypes/builder/exploreSource';
+import {
     type PickedSavedChart,
     type PreviewSource,
     type SavedChartSourceControls,
 } from '../features/chartTypes/builder/savedChartSource';
 import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { useConfigurePanelState } from '../features/chartTypes/builder/useConfigurePanelState';
+import {
+    useAttachedExplore,
+    useExplorePreviewData,
+    type LivePreviewRun,
+} from '../features/chartTypes/builder/useExplorePreviewData';
 import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
@@ -52,7 +63,6 @@ import {
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
-import { savedChartExamplePrompts } from '../features/chartTypes/utils/savedChartExamplePrompts';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import useToaster from '../hooks/toaster/useToaster';
@@ -74,6 +84,10 @@ const NO_SAMPLE_ROWS: Record<string, string>[] = [];
 /** The saved chart a create session starts from, kept in the URL so a refresh
  *  and the `/new` → `/chart-types/:uuid` move both keep the selection. */
 const SAVED_CHART_PARAM = 'savedChartUuid';
+/** The explore a create session binds its inputs to. Only the name: the
+ *  bindings decide the query, so a refresh re-derives it. Never set
+ *  alongside a saved chart. */
+const EXPLORE_PARAM = 'exploreName';
 
 /**
  * The dedicated chart type builder. Mounted at both `chart-types/new`
@@ -127,28 +141,14 @@ const ChartTypeBuilder: FC = () => {
     const { data: previewData, retry: retryPreview } = useSavedChartPreviewData(
         { projectUuid, savedChartUuid, enabled: canPreviewSavedChart },
     );
-    const liveRun = previewData.status === 'ready' ? previewData : null;
-    const itemsMap = liveRun?.itemsMap ?? NO_ITEMS;
-    // The author's lens: sample rows even while a chart is attached.
-    const [sampleLens, setSampleLens] = useState(false);
-    const previewRun = sampleLens ? null : liveRun;
-    // The run's rows, listable before any version declares a schema.
-    const liveRows = useMemo<ChartTypeRows | null>(
-        () =>
-            liveRun
-                ? {
-                      rows: liveRun.rows,
-                      pivotDetails: liveRun.pivotDetails,
-                      labels: Object.fromEntries(
-                          Object.entries(liveRun.itemsMap).map(([id, item]) => [
-                              id,
-                              getItemLabelWithoutTableName(item),
-                          ]),
-                      ),
-                  }
-                : null,
-        [liveRun],
-    );
+    const exploreName =
+        savedChartUuid === null ? searchParams.get(EXPLORE_PARAM) : null;
+    const attachedExplore = useAttachedExplore({
+        projectUuid,
+        exploreName,
+        enabled: canPreviewSavedChart,
+    });
+    const loadedExplore = attachedExplore.explore;
     const [isRowsModalOpen, setIsRowsModalOpen] = useState(false);
     const [sourceRevision, setSourceRevision] = useState(0);
     // Slots the author rebound by hand, layered over the automap.
@@ -169,22 +169,34 @@ const ChartTypeBuilder: FC = () => {
         projectUuid,
         dataAppVizUuid: activeVizUuid ?? null,
         creationExperience: 'chart_type_builder',
-        itemsMap,
+        itemsMap:
+            previewData.status === 'ready'
+                ? previewData.itemsMap
+                : (loadedExplore?.itemsMap ?? NO_ITEMS),
         chartReference,
     });
     const { build, history, isBuilding, isHistoryOpen, setIncludeSampleData } =
         workspace;
     const panel = useConfigurePanelState(activeVizUuid ?? null);
 
-    const setSavedChartParam = useCallback(
-        (uuid: string | null) => {
+    // One source at a time: attaching either clears the other's param.
+    const setSourceParams = useCallback(
+        (source: {
+            savedChartUuid: string | null;
+            exploreName: string | null;
+        }) => {
             const next = new URLSearchParams(location.search);
-            if (uuid === null) next.delete(SAVED_CHART_PARAM);
-            else next.set(SAVED_CHART_PARAM, uuid);
+            next.delete(SAVED_CHART_PARAM);
+            next.delete(EXPLORE_PARAM);
+            if (source.savedChartUuid !== null) {
+                next.set(SAVED_CHART_PARAM, source.savedChartUuid);
+            }
+            if (source.exploreName !== null) {
+                next.set(EXPLORE_PARAM, source.exploreName);
+            }
             setSourceRevision((current) => current + 1);
             setIncludeSampleData(false);
             setFieldMappingOverrides(NO_MAPPING);
-            setSampleLens(false);
             void navigate(
                 { pathname: location.pathname, search: next.toString() },
                 { replace: true },
@@ -193,16 +205,11 @@ const ChartTypeBuilder: FC = () => {
         [location.pathname, location.search, navigate, setIncludeSampleData],
     );
 
-    const { showToastError } = useToaster();
-    const previewError =
-        previewData.status === 'error' ? previewData.message : null;
-    useEffect(() => {
-        if (previewError === null) return;
-        showToastError({
-            title: 'Couldn’t load the saved chart’s data',
-            subtitle: previewError,
-        });
-    }, [previewError, showToastError]);
+    const setSavedChartParam = useCallback(
+        (uuid: string | null) =>
+            setSourceParams({ savedChartUuid: uuid, exploreName: null }),
+        [setSourceParams],
+    );
 
     // On `/new`, move to the edit route as soon as the build claims an app so
     // a refresh mid-build lands on the in-progress version.
@@ -232,9 +239,97 @@ const ChartTypeBuilder: FC = () => {
         panel.colorPaletteUuid,
     );
     const schema = workspace.dataAppViz?.schema ?? null;
-    // Automap first, then whatever the author rebound in the sidebar.
+
+    // With an explore attached, the bindings are the query. They bind against
+    // the explore's whole field list, never the run's columns, so the field
+    // set depends only on the schema, the explore and the author's picks and
+    // cannot chase its own results. The automap stands in for bindings the
+    // model could suggest, and the field list is not yet a build reference;
+    // both are backend work.
+    const exploreFieldMapping = useMemo(() => {
+        if (!schema || !loadedExplore) return NO_MAPPING;
+        return reconcileDataAppVizFieldMapping(
+            schema.fields,
+            loadedExplore.itemsMap,
+            {
+                ...autoMapDataAppVizFields(
+                    schema.fields,
+                    loadedExplore.itemsMap,
+                ),
+                ...fieldMappingOverrides,
+            },
+        );
+    }, [schema, loadedExplore, fieldMappingOverrides]);
+    const exploreFieldIds = useMemo(
+        () => [
+            ...new Set(
+                Object.values(exploreFieldMapping).flatMap(
+                    getDataAppVizFieldIds,
+                ),
+            ),
+        ],
+        [exploreFieldMapping],
+    );
+    const explorePreview = useExplorePreviewData({
+        projectUuid,
+        explore: loadedExplore,
+        fieldIds: exploreFieldIds,
+    });
+    const exploreRun =
+        explorePreview.run.status === 'ready' ? explorePreview.run : null;
+    const liveRun: LivePreviewRun | null =
+        previewData.status === 'ready' ? previewData : exploreRun;
+    // The run's rows, listable before any version declares a schema.
+    const liveRows = useMemo<ChartTypeRows | null>(
+        () =>
+            liveRun
+                ? {
+                      rows: liveRun.rows,
+                      pivotDetails: liveRun.pivotDetails,
+                      labels: Object.fromEntries(
+                          Object.entries(liveRun.itemsMap).map(([id, item]) => [
+                              id,
+                              getItemLabelWithoutTableName(item),
+                          ]),
+                      ),
+                  }
+                : null,
+        [liveRun],
+    );
+
+    const { showToastError } = useToaster();
+    const previewError =
+        previewData.status === 'error' ? previewData.message : null;
+    useEffect(() => {
+        if (previewError === null) return;
+        showToastError({
+            title: 'Couldn’t load the saved chart’s data',
+            subtitle: previewError,
+        });
+    }, [previewError, showToastError]);
+    const exploreError =
+        explorePreview.run.status === 'error'
+            ? explorePreview.run.message
+            : null;
+    useEffect(() => {
+        if (exploreError === null) return;
+        showToastError({
+            title: 'Couldn’t run the table query',
+            subtitle: exploreError,
+        });
+    }, [exploreError, showToastError]);
+
+    // Automap first, then whatever the author rebound in the sidebar. An
+    // explore's bindings keep only the fields its latest run returned.
     const previewFieldMapping = useMemo(() => {
         if (!schema || !liveRun) return NO_MAPPING;
+        if (exploreName !== null) {
+            return reconcileDataAppVizFieldMapping(
+                schema.fields,
+                liveRun.itemsMap,
+                exploreFieldMapping,
+            );
+        }
         const automapped = autoMapDataAppVizFields(
             schema.fields,
             liveRun.itemsMap,
@@ -247,9 +342,15 @@ const ChartTypeBuilder: FC = () => {
                 ...fieldMappingOverrides,
             },
         );
-    }, [schema, liveRun, fieldMappingOverrides]);
+    }, [
+        schema,
+        liveRun,
+        exploreName,
+        exploreFieldMapping,
+        fieldMappingOverrides,
+    ]);
     const resolvedColors = useDataAppVizResolvedColors({
-        itemsMap,
+        itemsMap: liveRun?.itemsMap ?? NO_ITEMS,
         rows: liveRun?.rows ?? NO_ROWS,
         fieldMapping: previewFieldMapping,
         pivotDetails: liveRun?.pivotDetails ?? null,
@@ -264,7 +365,7 @@ const ChartTypeBuilder: FC = () => {
     // Rebuilt on any option or palette edit.
     const previewContext = useMemo(() => {
         if (!schema) return null;
-        if (!previewRun) {
+        if (!liveRun) {
             return buildSampleVizContext(
                 schema,
                 colorPalette,
@@ -274,17 +375,17 @@ const ChartTypeBuilder: FC = () => {
         }
         return buildExplorerVizContext({
             schema,
-            itemsMap: previewRun.itemsMap,
+            itemsMap: liveRun.itemsMap,
             persistedFieldMapping: previewFieldMapping,
-            rows: previewRun.rows,
-            pivotDetails: previewRun.pivotDetails,
+            rows: liveRun.rows,
+            pivotDetails: liveRun.pivotDetails,
             colorPalette,
             optionValues: panel.optionValues,
             resolvedColors,
         });
     }, [
         schema,
-        previewRun,
+        liveRun,
         colorPalette,
         panel.optionValues,
         resolvedColors,
@@ -302,6 +403,20 @@ const ChartTypeBuilder: FC = () => {
             ? schema
             : null);
     const buildFieldMapping = useMemo(() => {
+        if (exploreName !== null) {
+            if (!latestReadySchema || !loadedExplore) return NO_MAPPING;
+            return reconcileDataAppVizFieldMapping(
+                latestReadySchema.fields,
+                loadedExplore.itemsMap,
+                {
+                    ...autoMapDataAppVizFields(
+                        latestReadySchema.fields,
+                        loadedExplore.itemsMap,
+                    ),
+                    ...fieldMappingOverrides,
+                },
+            );
+        }
         if (!latestReadySchema || !liveRun) return NO_MAPPING;
         const automapped = autoMapDataAppVizFields(
             latestReadySchema.fields,
@@ -312,9 +427,15 @@ const ChartTypeBuilder: FC = () => {
             liveRun.itemsMap,
             { ...automapped, ...fieldMappingOverrides },
         );
-    }, [latestReadySchema, liveRun, fieldMappingOverrides]);
+    }, [
+        exploreName,
+        latestReadySchema,
+        loadedExplore,
+        liveRun,
+        fieldMappingOverrides,
+    ]);
     const currentBuildContext: VizBuildRequest['context'] =
-        liveRun && latestReadySchema
+        (liveRun || loadedExplore) && latestReadySchema
             ? { schema: latestReadySchema, fieldMapping: buildFieldMapping }
             : undefined;
     const sampleRows = useMemo(
@@ -326,7 +447,33 @@ const ChartTypeBuilder: FC = () => {
     );
 
     const previewDataSource = useMemo<ChartTypePreviewDataSource>(() => {
-        if (sampleLens) return { kind: 'sample' };
+        if (exploreName !== null) {
+            const label = loadedExplore?.label ?? exploreName;
+            const { run } = explorePreview;
+            switch (run.status) {
+                case 'idle':
+                    return { kind: 'sample' };
+                case 'running':
+                    return { kind: 'loading', chartName: label };
+                case 'error':
+                    return {
+                        kind: 'error',
+                        chartName: label,
+                        message: run.message,
+                    };
+                case 'ready':
+                    return {
+                        kind: 'live',
+                        chartName: label,
+                        rowCount: run.rowCount,
+                    };
+                default:
+                    return assertUnreachable(
+                        run,
+                        'Unknown explore preview status',
+                    );
+            }
+        }
         switch (previewData.status) {
             case 'notRun':
                 return { kind: 'sample' };
@@ -350,13 +497,13 @@ const ChartTypeBuilder: FC = () => {
                     'Unknown saved chart preview status',
                 );
         }
-    }, [previewData, sampleLens]);
+    }, [previewData, exploreName, explorePreview, loadedExplore]);
 
     // One object for every surface that offers the saved chart: the canvas
     // card, the composer chip and the sidebar.
     const savedChartSource = useMemo<SavedChartSourceControls>(() => {
         const previewSource: PreviewSource =
-            savedChartUuid !== null && !sampleLens ? 'chart' : 'sample';
+            savedChartUuid !== null ? 'chart' : 'sample';
         const attach = (chart: PickedSavedChart) =>
             setSavedChartParam(chart.uuid);
         const controls = {
@@ -371,9 +518,8 @@ const ChartTypeBuilder: FC = () => {
             includeRows: workspace.includeSampleData,
             setIncludeRows: setIncludeSampleData,
             previewSource,
-            setPreviewSource: (source: PreviewSource) =>
-                setSampleLens(source === 'sample'),
         };
+        if (savedChartUuid === null) return { ...controls, attached: null };
         switch (previewData.status) {
             case 'notRun':
                 return { ...controls, attached: null };
@@ -382,6 +528,7 @@ const ChartTypeBuilder: FC = () => {
                     ...controls,
                     attached: {
                         status: 'running',
+                        uuid: savedChartUuid,
                         chartName: previewData.chartName ?? 'Saved chart',
                         spaceName: previewData.spaceName,
                         rowCount: null,
@@ -395,6 +542,7 @@ const ChartTypeBuilder: FC = () => {
                     ...controls,
                     attached: {
                         status: 'error',
+                        uuid: savedChartUuid,
                         chartName: previewData.chartName ?? 'Saved chart',
                         spaceName: previewData.spaceName,
                         rowCount: null,
@@ -408,6 +556,7 @@ const ChartTypeBuilder: FC = () => {
                     ...controls,
                     attached: {
                         status: 'ready',
+                        uuid: savedChartUuid,
                         chartName: previewData.chartName ?? 'Saved chart',
                         spaceName: previewData.spaceName,
                         rowCount: previewData.rowCount,
@@ -431,31 +580,122 @@ const ChartTypeBuilder: FC = () => {
         setIncludeSampleData,
         savedChartUuid,
         sourceRevision,
-        sampleLens,
     ]);
 
-    const inputsBinding = useMemo<ChartInputsBinding | null>(
-        () =>
-            previewRun
-                ? {
-                      itemsMap: previewRun.itemsMap,
-                      fieldMapping: previewFieldMapping,
-                      onFieldChange: (fieldName, fieldId) =>
-                          setFieldMappingOverrides((current) => ({
-                              ...current,
-                              // An empty array is an explicit clear, for a
-                              // single slot as much as a multiple one.
-                              [fieldName]: fieldId ?? [],
-                          })),
-                  }
-                : null,
-        [previewRun, previewFieldMapping],
+    const exploreSource = useMemo<ExploreSourceControls>(() => {
+        const { run } = explorePreview;
+        const attached: AttachedExplore | null =
+            exploreName === null
+                ? null
+                : {
+                      name: exploreName,
+                      label: loadedExplore?.label ?? exploreName,
+                      joinedTableLabels: loadedExplore?.joinedTableLabels ?? [],
+                      fieldCount: loadedExplore?.fields.length ?? 0,
+                      queriedFieldCount: exploreFieldIds.length,
+                      status:
+                          attachedExplore.error !== null ||
+                          run.status === 'error'
+                              ? 'error'
+                              : loadedExplore === null
+                                ? 'loading'
+                                : run.status,
+                      isRunning: explorePreview.isRunning,
+                      rowCount: run.status === 'ready' ? run.rowCount : null,
+                      ranAt: run.status === 'ready' ? run.ranAt : null,
+                      message:
+                          attachedExplore.error ??
+                          (run.status === 'error' ? run.message : null),
+                  };
+        return {
+            sourceIdentity:
+                exploreName === null
+                    ? null
+                    : `${projectUuid}:explore:${exploreName}:${sourceRevision}`,
+            attached,
+            previewSource: exploreName !== null ? 'explore' : 'sample',
+            includeRows: workspace.includeSampleData,
+            setIncludeRows: setIncludeSampleData,
+            attach: (explore: PickedExplore) =>
+                setSourceParams({
+                    savedChartUuid: null,
+                    exploreName: explore.name,
+                }),
+            detach: () =>
+                setSourceParams({ savedChartUuid: null, exploreName: null }),
+            viewRows: () => setIsRowsModalOpen(true),
+            retry:
+                attachedExplore.error !== null
+                    ? attachedExplore.retry
+                    : explorePreview.retry,
+        };
+    }, [
+        attachedExplore,
+        exploreFieldIds,
+        explorePreview,
+        exploreName,
+        loadedExplore,
+        projectUuid,
+        setIncludeSampleData,
+        setSourceParams,
+        sourceRevision,
+        workspace.includeSampleData,
+    ]);
+
+    const onFieldChange = useCallback(
+        (fieldName: string, fieldId: string | string[] | null) =>
+            setFieldMappingOverrides((current) => ({
+                ...current,
+                // An empty array is an explicit clear, for a single slot as
+                // much as a multiple one.
+                [fieldName]: fieldId ?? [],
+            })),
+        [],
     );
 
-    const examplePrompts = useMemo(
-        () => (liveRun ? savedChartExamplePrompts(liveRun.itemsMap) : null),
-        [liveRun],
-    );
+    // With an explore attached, every slot lists the whole explore: the run's
+    // fields first, the rest under "Add to query". Binding one of those
+    // changes the query, which re-runs; nothing rebuilds.
+    const inputsBinding = useMemo<ChartInputsBinding | null>(() => {
+        if (exploreName !== null) {
+            if (!loadedExplore || !schema) return null;
+            const runItems = exploreRun?.itemsMap ?? NO_ITEMS;
+            const bound = new Set(exploreFieldIds);
+            return {
+                itemsMap: runItems,
+                fieldMapping: exploreFieldMapping,
+                onFieldChange,
+                addToQuery: {
+                    items: loadedExplore.fields
+                        .filter((field) => !(field.id in runItems))
+                        .map((field) => field.item),
+                    isPending: (fieldId) =>
+                        explorePreview.isRunning &&
+                        bound.has(fieldId) &&
+                        !(fieldId in runItems),
+                },
+            };
+        }
+        return liveRun
+            ? {
+                  itemsMap: liveRun.itemsMap,
+                  fieldMapping: previewFieldMapping,
+                  onFieldChange,
+                  addToQuery: null,
+              }
+            : null;
+    }, [
+        exploreFieldIds,
+        exploreFieldMapping,
+        exploreName,
+        explorePreview.isRunning,
+        exploreRun,
+        loadedExplore,
+        onFieldChange,
+        previewFieldMapping,
+        liveRun,
+        schema,
+    ]);
 
     const explorerDestination = useMemo(() => {
         if (!explorerChart || !activeVizUuid) return null;
@@ -561,6 +801,7 @@ const ChartTypeBuilder: FC = () => {
             isStale={workspace.isFetchingSchema}
             previewDataSource={previewDataSource}
             savedChartSource={savedChartSource}
+            exploreSource={exploreSource}
             inputsBinding={inputsBinding}
         />
     ) : null;
@@ -609,7 +850,7 @@ const ChartTypeBuilder: FC = () => {
                 sampleRows={sampleRows}
                 currentBuildContext={currentBuildContext}
                 savedChartSource={savedChartSource}
-                examplePrompts={examplePrompts}
+                exploreSource={exploreSource}
                 syncPreviewUrlState
                 configurePanel={configurePanel}
             />
@@ -619,7 +860,9 @@ const ChartTypeBuilder: FC = () => {
                 onClose={() => setIsRowsModalOpen(false)}
                 title="Query results"
                 subtitle={`Rows returned by ${
-                    savedChartSource.attached?.chartName ?? 'the saved chart'
+                    exploreSource.attached?.label ??
+                    savedChartSource.attached?.chartName ??
+                    'the saved chart'
                 }.`}
             />
             {isPreviewTableOpen && activeVizUuid && (

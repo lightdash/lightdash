@@ -9,9 +9,9 @@ import { useElementPicker } from '../../apps/hooks/useElementPicker';
 import { refToWireString } from '../../apps/utils/elementRefs';
 import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
 import BuilderCanvas from './BuilderCanvas';
-import { type BuilderPromptExamples } from './builderExamplePrompts';
 import BuilderPromptBar from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
+import { type ExploreSourceControls } from './exploreSource';
 import { type SavedChartSourceControls } from './savedChartSource';
 import { type ChartTypeBuilderWorkspaceState } from './useChartTypeBuilderWorkspace';
 import VersionHistoryPanel from './VersionHistoryPanel';
@@ -26,8 +26,8 @@ type Props = {
     currentBuildContext?: VizBuildRequest['context'];
     /** The saved chart the session runs on; null on hosts that offer none. */
     savedChartSource?: SavedChartSourceControls | null;
-    /** Starter prompts rewritten around that chart's fields. */
-    examplePrompts?: BuilderPromptExamples | null;
+    /** The explore the session queries; null on hosts that offer none. */
+    exploreSource?: ExploreSourceControls | null;
     /** Whether the previewed viz may write its own state into the page URL. */
     syncPreviewUrlState: boolean;
     /** The previewed version's options beside it; null when the host
@@ -49,7 +49,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     sampleRows = [],
     currentBuildContext,
     savedChartSource = null,
-    examplePrompts = null,
+    exploreSource = null,
     syncPreviewUrlState,
     configurePanel,
     configurationSidebar,
@@ -151,7 +151,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     setScreenshotAvailable
                                 }
                                 savedChartSource={savedChartSource}
-                                examplePrompts={examplePrompts}
+                                exploreSource={exploreSource}
                             />
                             {isPromptBarMounted && (
                                 <BuilderPromptBar
@@ -177,6 +177,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     modelSelection={modelSelection}
                                     clarification={clarification}
                                     savedChartSource={savedChartSource}
+                                    exploreSource={exploreSource}
                                     includeSampleData={includeSampleData}
                                     onIncludeSampleDataChange={
                                         setIncludeSampleData

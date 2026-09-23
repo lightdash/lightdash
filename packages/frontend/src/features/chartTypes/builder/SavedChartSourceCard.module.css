@@ -7,6 +7,18 @@
         var(--mantine-spacing-sm) 14px;
 }
 
+/* Side by side the two offers stretch to one height, so each one centres
+   what it holds instead of leaving the shorter one top-heavy. */
+.emptyCard {
+    display: flex;
+    align-items: center;
+}
+
+.emptyCard > * {
+    flex: 1;
+    min-width: 0;
+}
+
 .attachedCard {
     background: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-2);

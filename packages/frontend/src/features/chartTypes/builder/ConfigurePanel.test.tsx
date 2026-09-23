@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { buildSampleVizContext } from '../utils/sampleVizContext';
 import ConfigurePanel from './ConfigurePanel';
+import { type ExploreSourceControls } from './exploreSource';
+import { type SavedChartSourceControls } from './savedChartSource';
 
 vi.mock('../../../hooks/appearance/useOrganizationAppearance', () => ({
     useColorPalettes: () => ({ data: [] }),
@@ -198,6 +200,82 @@ describe('ConfigurePanel', () => {
             'true',
         );
         expect(screen.getByText('Chart inputs')).toBeVisible();
+    });
+
+    it('names the attached source the chart inputs pick fields from', () => {
+        const savedChartSource: SavedChartSourceControls = {
+            sourceIdentity: 'chart-orders:0',
+            attached: {
+                uuid: 'chart-orders',
+                status: 'ready',
+                chartName: 'Orders',
+                spaceName: 'Sales',
+                rowCount: 6,
+                columns: [],
+                ranAt: null,
+                message: null,
+            },
+            previewSource: 'chart',
+            includeRows: false,
+            setIncludeRows: vi.fn(),
+            attach: vi.fn(),
+            detach: vi.fn(),
+            viewRows: vi.fn(),
+            retry: vi.fn(),
+        };
+        const { unmount } = renderPanel({
+            schema: schemaWithFields,
+            savedChartSource,
+            previewDataSource: {
+                kind: 'live',
+                chartName: 'Orders',
+                rowCount: 6,
+            },
+        });
+
+        expect(screen.getByText('Fields from Orders.')).toBeVisible();
+        unmount();
+
+        const exploreSource: ExploreSourceControls = {
+            sourceIdentity: 'explore-orders:0',
+            attached: {
+                name: 'orders',
+                label: 'Orders',
+                joinedTableLabels: [],
+                fieldCount: 12,
+                queriedFieldCount: 3,
+                status: 'ready',
+                isRunning: false,
+                rowCount: 6,
+                ranAt: null,
+                message: null,
+            },
+            previewSource: 'explore',
+            includeRows: false,
+            setIncludeRows: vi.fn(),
+            attach: vi.fn(),
+            detach: vi.fn(),
+            viewRows: vi.fn(),
+            retry: vi.fn(),
+        };
+        const explorePanel = renderPanel({
+            schema: schemaWithFields,
+            exploreSource,
+            previewDataSource: {
+                kind: 'live',
+                chartName: 'Orders',
+                rowCount: 6,
+            },
+        });
+        expect(
+            screen.getByText(
+                'Fields from Orders. Changing one re-runs the query.',
+            ),
+        ).toBeVisible();
+        explorePanel.unmount();
+
+        renderPanel({ schema: schemaWithFields });
+        expect(screen.queryByText(/^Fields from/)).not.toBeInTheDocument();
     });
 
     it('hides the chart inputs section when the schema declares no fields', () => {

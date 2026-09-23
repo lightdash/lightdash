@@ -1,6 +1,8 @@
 import {
     getDataAppVizFieldIds,
     getItemId,
+    isCustomDimension,
+    isDimension,
     type DataAppVizField,
     type DataAppVizFieldMapping,
     type Item,
@@ -33,6 +35,15 @@ export type ChartTypePreviewDataSource =
     | { kind: 'error'; chartName: string | null; message: string }
     | { kind: 'live'; chartName: string | null; rowCount: number };
 
+/** Fields a source can bind beyond the ones its query returned, offered
+ *  under the select's "Add to query" group. Binding one is what adds it:
+ *  the source re-runs its query over the bound fields. */
+export type ChartInputsAddToQuery = {
+    items: Item[];
+    /** A bound field whose run has not returned yet. */
+    isPending: (fieldId: string) => boolean;
+};
+
 /** Binding the declared slots to a real run's columns. Null keeps the
  *  read-only list every sample-data session shows. */
 export type ChartInputsBinding = {
@@ -42,7 +53,17 @@ export type ChartInputsBinding = {
         fieldName: string,
         fieldId: string | string[] | null,
     ) => void;
+    /** Null when the source's query is fixed, as a saved chart's is. */
+    addToQuery: ChartInputsAddToQuery | null;
 };
+
+type Pools = Record<'dimension' | 'metric' | 'column', Item[]>;
+
+const toPools = (dimensions: Item[], metrics: Item[]): Pools => ({
+    dimension: dimensions,
+    metric: metrics,
+    column: [...metrics, ...dimensions],
+});
 
 type Props = {
     fields: DataAppVizField[];
@@ -51,16 +72,22 @@ type Props = {
     boundLabels?: Record<string, string> | null;
     /** Real columns to bind against; null leaves the inputs read-only. */
     binding?: ChartInputsBinding | null;
+    /** Where the inputs' fields come from; null on sample data. */
+    sourceHint: string | null;
 };
 
 const BindingControl: FC<{
     field: DataAppVizField;
     binding: ChartInputsBinding;
-    pools: Record<'dimension' | 'metric' | 'column', Item[]>;
-}> = ({ field, binding, pools }) => {
+    pools: Pools;
+    addPools: Pools;
+}> = ({ field, binding, pools, addPools }) => {
     const items = pools[poolKeyForSlot(field)];
+    const addItems = addPools[poolKeyForSlot(field)];
+    const hasNoItems = items.length === 0 && addItems.length === 0;
     const value = binding.fieldMapping[field.name];
     const selectedIds = getDataAppVizFieldIds(value);
+    const addToQuery = binding.addToQuery;
 
     if (field.multiple) {
         return (
@@ -68,10 +95,12 @@ const BindingControl: FC<{
                 header={null}
                 label={field.label}
                 items={items}
+                addItems={addItems}
                 selectedIds={selectedIds}
-                addDisabled={items.length === 0}
+                addDisabled={hasNoItems}
                 addPosition="footer"
-                emptyPlaceholder={`This query has no ${poolKeyForSlot(field)} to bind`}
+                emptyPlaceholder={`This query has no ${poolKeyForSlot(field)} to pick`}
+                isFieldPending={addToQuery?.isPending}
                 onChange={(ids) => binding.onFieldChange(field.name, ids)}
             />
         );
@@ -82,13 +111,21 @@ const BindingControl: FC<{
             size="xs"
             aria-label={field.label}
             placeholder={
-                items.length === 0
-                    ? `This query has no ${poolKeyForSlot(field)} to bind`
+                hasNoItems
+                    ? `This query has no ${poolKeyForSlot(field)} to pick`
                     : `Select ${field.label.toLowerCase()}`
             }
-            disabled={items.length === 0}
-            item={items.find((item) => getItemId(item) === selectedIds[0])}
+            disabled={hasNoItems}
+            item={[...items, ...addItems].find(
+                (item) => getItemId(item) === selectedIds[0],
+            )}
             items={items}
+            addItems={addItems}
+            loading={
+                selectedIds[0] !== undefined &&
+                addToQuery !== null &&
+                addToQuery.isPending(selectedIds[0])
+            }
             onChange={(newField) =>
                 binding.onFieldChange(
                     field.name,
@@ -106,25 +143,41 @@ const ChartInputsList: FC<Props> = ({
     fields,
     boundLabels = null,
     binding = null,
+    sourceHint,
 }) => {
     const pools = useMemo(() => {
         const { dimensions, metrics } = getDataAppVizFieldItems(
             binding?.itemsMap ?? {},
         );
-        return {
-            dimension: dimensions,
-            metric: metrics,
-            column: [...metrics, ...dimensions],
-        };
+        return toPools(dimensions, metrics);
     }, [binding?.itemsMap]);
+    const addItems = binding?.addToQuery?.items;
+    const addPools = useMemo(() => {
+        const items = addItems ?? [];
+        return toPools(
+            items.filter(
+                (item) => isDimension(item) || isCustomDimension(item),
+            ),
+            items.filter(
+                (item) => !isDimension(item) && !isCustomDimension(item),
+            ),
+        );
+    }, [addItems]);
 
     if (fields.length === 0) return null;
 
     return (
         <Stack gap="xs">
-            <Text component="h3" fz="sm" fw={600}>
-                Chart inputs
-            </Text>
+            <Stack gap="xxs">
+                <Text component="h3" fz="sm" fw={600}>
+                    Chart inputs
+                </Text>
+                {sourceHint !== null && (
+                    <Text fz="xs" c="dimmed">
+                        {sourceHint}
+                    </Text>
+                )}
+            </Stack>
             <Stack gap={6}>
                 {fields.map((field) => {
                     const isUnbound =
@@ -193,7 +246,7 @@ const ChartInputsList: FC<Props> = ({
                                 </Group>
                             </Group>
                             {boundLabels?.[field.name] && (
-                                <Text size="xs" c="ldGray.7" mt={2}>
+                                <Text size="xs" c="ldGray.7" mt="xxs">
                                     {boundLabels[field.name]}
                                 </Text>
                             )}
@@ -203,6 +256,7 @@ const ChartInputsList: FC<Props> = ({
                                         field={field}
                                         binding={binding}
                                         pools={pools}
+                                        addPools={addPools}
                                     />
                                     {isUnbound && (
                                         <Text size="xs" c="dimmed" mt={4}>

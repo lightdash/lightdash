@@ -39,7 +39,7 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
             <Select
                 size="xs"
                 label="Test with data"
-                placeholder="Select an explore"
+                placeholder="Select a table"
                 searchable
                 data={exploreOptions}
                 value={exploreName}
@@ -109,7 +109,7 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                         selectedIds={selectedIds}
                                         describedBy={guidanceId}
                                         addDisabled={items.length === 0}
-                                        emptyPlaceholder={`You need at least one ${poolKeyForSlot(field)} in the selected explore`}
+                                        emptyPlaceholder={`You need at least one ${poolKeyForSlot(field)} in the selected table`}
                                         onChange={(ids) =>
                                             setField(field.name, ids)
                                         }

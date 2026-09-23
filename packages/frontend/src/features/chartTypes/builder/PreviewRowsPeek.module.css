@@ -1,7 +1,7 @@
 .table {
     width: 100%;
     table-layout: fixed;
-    border: 1px solid var(--mantine-color-ldGray-2);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-sm);
     border-collapse: separate;
     border-spacing: 0;
@@ -10,7 +10,7 @@
 
 .headerRow {
     background: var(--mantine-color-ldGray-0);
-    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .row:not(:last-child) {
@@ -18,12 +18,12 @@
 }
 
 .headerCell {
-    padding: 6px 8px;
+    padding: 6px var(--mantine-spacing-xs);
     color: var(--mantine-color-ldGray-7);
 }
 
 .cell {
-    padding: 5px 8px;
+    padding: 5px var(--mantine-spacing-xs);
     font-variant-numeric: tabular-nums;
 }
 
