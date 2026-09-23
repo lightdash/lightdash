@@ -50,10 +50,12 @@ if [ -z "$PREVIOUS_REF" ] && [ "$PREPARE_ONLY" = false ]; then
     usage >&2
     exit 2
 fi
-case "$DATABASE" in
-    *_test) ;;
-    *) echo "--database must end in _test: the integration setup appends _test to its connection database" >&2; exit 2 ;;
-esac
+if [ "$PREPARE_ONLY" = false ]; then
+    case "$DATABASE" in
+        *_test) ;;
+        *) echo "--database must end in _test: the integration setup appends _test to its connection database" >&2; exit 2 ;;
+    esac
+fi
 
 : "${PGHOST:?PGHOST is required}"
 : "${PGUSER:?PGUSER is required}"
