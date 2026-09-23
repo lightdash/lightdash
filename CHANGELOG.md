@@ -1,3 +1,10 @@
+## [2.305.3](https://github.com/lightdash/lightdash/compare/2.305.2...2.305.3) (2026-09-23)
+
+
+### Bug Fixes
+
+* **ai:** deprecate Anthropic Opus models earlier than 5.5 ([#29782](https://github.com/lightdash/lightdash/issues/29782)) ([485a02e](https://github.com/lightdash/lightdash/commit/485a02ed74213ace433a0be7e5cd361989b4c733))
+
 ## [2.305.2](https://github.com/lightdash/lightdash/compare/2.305.1...2.305.2) (2026-09-23)
 
 
