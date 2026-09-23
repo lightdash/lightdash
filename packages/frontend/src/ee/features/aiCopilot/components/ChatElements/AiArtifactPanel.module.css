@@ -34,6 +34,15 @@
     min-height: 0;
 }
 
+/* Composer artifact: body edge to edge, only the head keeps padding. */
+.composerContent {
+    padding: 0;
+}
+
+.composerHead {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
+}
+
 /* Room for the floating chart-type pill overlaying the content bottom. */
 .withPillClearance {
     padding-bottom: calc(var(--mantine-spacing-md) + 40px);
