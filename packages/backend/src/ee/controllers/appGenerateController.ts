@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     assertRegisteredAccount,
+    DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ParameterError,
     type ApiAppFileUploadResponse,
     type ApiAppImageUrlResponse,
@@ -41,6 +42,8 @@ import {
     type ApiUpdateAppResponse,
     type ApiUpgradeAppResponse,
     type DataAppActivityFilters,
+    type DataAppVizListSortBy,
+    type DataAppVizListSortDirection,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
@@ -231,6 +234,8 @@ export class AppGenerateController extends BaseController {
 
     /**
      * @summary List project data app visualizations
+     * @param sortBy Order by creation time (the default) or by name
+     * @param sortDirection Defaults to desc
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -242,6 +247,8 @@ export class AppGenerateController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
         @Query() search?: string,
+        @Query() sortBy?: DataAppVizListSortBy,
+        @Query() sortDirection?: DataAppVizListSortDirection,
     ): Promise<ApiListDataAppVizsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -251,6 +258,12 @@ export class AppGenerateController extends BaseController {
                 projectUuid,
                 page && pageSize ? { page, pageSize } : undefined,
                 search,
+                {
+                    sortBy: sortBy ?? DEFAULT_DATA_APP_VIZ_LIST_SORT.sortBy,
+                    sortDirection:
+                        sortDirection ??
+                        DEFAULT_DATA_APP_VIZ_LIST_SORT.sortDirection,
+                },
             );
         return {
             status: 'ok',

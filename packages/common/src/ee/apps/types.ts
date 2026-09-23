@@ -1263,6 +1263,18 @@ export const isOfficialChartType = (
     viz: Pick<DataAppViz, 'registrySlug'>,
 ): boolean => viz.registrySlug !== null;
 
+/** Order of a data app viz list; the default is newest first. */
+export type DataAppVizListSortBy = 'createdAt' | 'name';
+export type DataAppVizListSortDirection = 'asc' | 'desc';
+export type DataAppVizListSort = {
+    sortBy: DataAppVizListSortBy;
+    sortDirection: DataAppVizListSortDirection;
+};
+export const DEFAULT_DATA_APP_VIZ_LIST_SORT: DataAppVizListSort = {
+    sortBy: 'createdAt',
+    sortDirection: 'desc',
+};
+
 export type ApiListDataAppVizsResponse = ApiSuccess<
     KnexPaginatedData<DataAppViz[]>
 >;

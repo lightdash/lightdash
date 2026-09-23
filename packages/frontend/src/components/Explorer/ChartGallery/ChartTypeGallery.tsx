@@ -49,6 +49,7 @@ import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/ty
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import classes from './ChartTypeGallery.module.css';
+import { PICKER_SORT } from './pickerSort';
 import {
     projectChartTypeItem,
     useChartTypeOptions,
@@ -507,6 +508,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     } = useDataAppVisualizations(
         chartTypesEnabled ? projectUuid : undefined,
         debouncedSearch,
+        PICKER_SORT,
     );
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
     const canFork = useCanCreateDataApp(projectUuid);
@@ -596,11 +598,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         };
     };
     // One grid: the built-ins in their familiar order, then everything the
-    // project has, by name, wherever it came from.
+    // project has in the server's name order, wherever it came from.
     const projectItems = chartTypesEnabled
-        ? projectTypes
-              .map(toProjectItem)
-              .sort((a, b) => a.label.localeCompare(b.label))
+        ? projectTypes.map(toProjectItem)
         : [];
     const items = [...builtInItems, ...projectItems];
 

@@ -246,6 +246,45 @@ describe('AppModel.setMetadataIfUnset', () => {
     });
 });
 
+describe('AppModel.listDataAppVisualizations', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new AppModel({ database });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('defaults to newest-first', async () => {
+        tracker.on.select(AppsTableName).responseOnce([]);
+
+        await model.listDataAppVisualizations(projectUuid);
+
+        expect(tracker.history.select[0].sql).toContain(
+            'order by "apps"."created_at" desc, "apps"."app_id" asc',
+        );
+    });
+
+    it('sorts by name when asked', async () => {
+        tracker.on.select(AppsTableName).responseOnce([]);
+
+        await model.listDataAppVisualizations(
+            projectUuid,
+            undefined,
+            undefined,
+            { sortBy: 'name', sortDirection: 'asc' },
+        );
+
+        expect(tracker.history.select[0].sql).toContain(
+            'order by "apps"."name" asc, "apps"."app_id" asc',
+        );
+    });
+});
+
 describe('AppModel.findDashboardsContainingApp', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new AppModel({ database });
