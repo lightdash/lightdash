@@ -310,7 +310,6 @@ const projectModel = {
     getWarehouseFromCache: vi.fn(async () => undefined),
     saveWarehouseToCache: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
-    listConnections: vi.fn(async () => [{ connectionUuid: 'connection-uuid' }]),
     saveExploreStreamToCache: vi.fn<ProjectModel['saveExploreStreamToCache']>(
         async (_projectUuid, explores) => {
             for await (const explore of explores) {
@@ -7301,15 +7300,21 @@ describe('ProjectService', () => {
 
         beforeEach(() => {
             projectModel.saveExploresToCache.mockClear();
-            projectModel.listConnections.mockResolvedValue([
-                { connectionUuid: 'connection-uuid' },
-                { connectionUuid: 'second-connection-uuid' },
+            projectModel.getCompileConnections.mockResolvedValue([
+                {
+                    connectionUuid: 'dbt_project-connection-uuid',
+                    name: 'Warehouse',
+                },
+                { connectionUuid: 'second-connection-uuid', name: 'Second' },
             ]);
         });
 
         afterEach(() => {
-            projectModel.listConnections.mockResolvedValue([
-                { connectionUuid: 'connection-uuid' },
+            projectModel.getCompileConnections.mockResolvedValue([
+                {
+                    connectionUuid: 'dbt_project-connection-uuid',
+                    name: 'Warehouse',
+                },
             ]);
         });
 

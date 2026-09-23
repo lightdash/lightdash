@@ -2650,7 +2650,7 @@ export class ProjectService extends BaseService {
         });
         if (!hasUnboundExplore) return;
         const connections =
-            await this.projectModel.listConnections(projectUuid);
+            await this.projectModel.getCompileConnections(projectUuid);
         if (connections.length > 1) {
             throw new MultipleConnectionsError();
         }
