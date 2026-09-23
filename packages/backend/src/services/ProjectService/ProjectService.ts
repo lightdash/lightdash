@@ -255,8 +255,8 @@ import {
     WarehouseConnectionError,
     WarehouseConnectionTestResults,
     WarehouseCredentials,
-    WarehouseDatabaseListingNotSupportedError,
     WarehouseDatabaseListing,
+    WarehouseDatabaseListingNotSupportedError,
     WarehouseListedDatabase,
     WarehouseTables,
     WarehouseTablesCatalog,
@@ -423,7 +423,7 @@ const getWarehouseDatabase = (
         case WarehouseTypes.SNOWFLAKE:
             return credentials.database.toLowerCase();
         case WarehouseTypes.DATABRICKS:
-            return credentials.catalog;
+            return credentials.catalog || 'DEFAULT';
         case WarehouseTypes.ATHENA:
             return credentials.database;
         case WarehouseTypes.DUCKDB:
@@ -10325,9 +10325,10 @@ export class ProjectService extends BaseService {
 
         let warehouseTables: WarehouseTables;
         try {
-            warehouseTables = listedDatabase
-                ? await warehouseClient.getTablesForDatabase(listedDatabase)
-                : await warehouseClient.getAllTables();
+            warehouseTables =
+                listedDatabase && supportsDatabaseListing(credentials.type)
+                    ? await warehouseClient.getTablesForDatabase(listedDatabase)
+                    : await warehouseClient.getAllTables();
         } finally {
             await sshTunnel.disconnect();
         }
