@@ -8869,6 +8869,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "forwardUserIdentity": {
+                        "type": "boolean",
+                        "description": "Optional for compatibility with documents created before this field."
+                    },
                     "allowDataAppBuilderLinking": {
                         "type": "boolean",
                         "description": "Optional for compatibility with documents created before this field."
@@ -14614,6 +14618,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "forwardUserIdentity": {
+                        "type": "boolean",
+                        "description": "Send available viewer identity as backend-set headers. Defaults to false.\nOptional for compatibility with older servers during rolling upgrades."
+                    },
                     "allowDataAppBuilderLinking": {
                         "type": "boolean",
                         "description": "Optional for compatibility with older servers during rolling upgrades."
@@ -14775,6 +14783,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "forwardUserIdentity": {
+                        "type": "boolean",
+                        "description": "Send available viewer identity as backend-set headers. Defaults to false."
+                    },
                     "allowDataAppBuilderLinking": {
                         "type": "boolean"
                     },
@@ -14931,6 +14943,10 @@
                     },
                     "allowDataAppBuilderLinking": {
                         "type": "boolean"
+                    },
+                    "forwardUserIdentity": {
+                        "type": "boolean",
+                        "description": "Send available viewer identity as backend-set headers. Defaults to false."
                     },
                     "instructions": {
                         "type": "string",
@@ -64442,7 +64458,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.307.0",
+        "version": "2.308.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

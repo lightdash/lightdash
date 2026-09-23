@@ -1,3 +1,10 @@
+# [2.308.0](https://github.com/lightdash/lightdash/compare/2.307.0...2.308.0) (2026-09-23)
+
+
+### Features
+
+* forward viewer identity through data app connections ([#29787](https://github.com/lightdash/lightdash/issues/29787)) ([035be5b](https://github.com/lightdash/lightdash/commit/035be5bf331b70a4f9be45ad0038ef8dde72c9ea))
+
 # [2.307.0](https://github.com/lightdash/lightdash/compare/2.306.0...2.307.0) (2026-09-23)
 
 
