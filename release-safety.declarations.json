@@ -38,9 +38,9 @@
             "requiredStop": false
         },
         "warehouse-connections-drop-project-uniqueness": {
-            "reason": "This migration must ship after the release containing migration 20260917140000 and the SPK-2188 connection cutover. Older binaries upsert warehouse credentials on project_id and can create duplicate rows or fail after the unique constraint is removed. Self-hosted upgrades that skip the earlier release must use the Recreate strategy.",
+            "reason": "This migration must ship after the release containing migration 20260923100000 and the SPK-2188 connection cutover. Older binaries upsert warehouse credentials on project_id and can create duplicate rows or fail after the unique constraint is removed. Self-hosted upgrades that skip the earlier release must use the Recreate strategy.",
             "requiredStop": true,
-            "migration": "packages/backend/src/database/migrations/20260917170000_contract_warehouse_credentials_connections.ts"
+            "migration": "packages/backend/src/database/migrations/20260923100300_contract_warehouse_credentials_connections.ts"
         }
     }
 }

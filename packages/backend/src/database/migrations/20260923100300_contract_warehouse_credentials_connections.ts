@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 
 /**
  * Release ordering: this migration must ship in a release after the release that
- * carries 20260917140000 and SPK-2188. Older binaries upsert credentials on
+ * carries 20260923100000 and SPK-2188. Older binaries upsert credentials on
  * project_id and break after its unique constraint is removed. Self-hosted
  * upgrades that skip that release must use the Recreate strategy.
  */
