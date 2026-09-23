@@ -1,3 +1,10 @@
+## [2.305.5](https://github.com/lightdash/lightdash/compare/2.305.4...2.305.5) (2026-09-23)
+
+
+### Bug Fixes
+
+* **ai:** deprecate Anthropic Sonnet 4.6, default to Sonnet 5 ([#29784](https://github.com/lightdash/lightdash/issues/29784)) ([fe60c64](https://github.com/lightdash/lightdash/commit/fe60c64afb4b6a22ad62bde0d2974cad5f5dc6c3))
+
 ## [2.305.4](https://github.com/lightdash/lightdash/compare/2.305.3...2.305.4) (2026-09-23)
 
 
