@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.308.0",
-  "previousVersion": "2.307.0",
-  "releaseDate": "2026-09-23T12:59:59.009Z",
+  "version": "2.308.1",
+  "previousVersion": "2.308.0",
+  "releaseDate": "2026-09-23T13:08:17.897Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260923120000_add_external_connection_user_identity.ts",
-        "edition": "ee",
-        "tables": [
-          "external_connections"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
