@@ -208,9 +208,7 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
                     Object.fromEntries(
                         columns.map(({ id }) => [
                             id,
-                            context.pivotDetails && row[id]?.value.raw == null
-                                ? '—'
-                                : (row[id]?.value.formatted ?? ''),
+                            row[id]?.value.formatted ?? '',
                         ]),
                     ),
                 ),

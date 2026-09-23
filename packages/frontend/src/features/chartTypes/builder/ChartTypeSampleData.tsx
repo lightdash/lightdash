@@ -48,6 +48,13 @@ export const ChartTypeRowsModal: FC<ModalProps> = ({
             availableColumns.map((column) => ({
                 id: column.reference,
                 header: column.label,
+                Header: () => (
+                    <span className={classes.columnHeader}>{column.label}</span>
+                ),
+                size: Math.max(
+                    180,
+                    Math.min(360, column.label.length * 7 + 32),
+                ),
                 accessorFn: (row) => cellValue(row[column.reference]),
                 enableSorting: false,
             })),

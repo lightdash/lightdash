@@ -91,6 +91,15 @@ describe('PreviewRowsPeek', () => {
                 ],
             };
             const context = buildSampleVizContext(pivotSchema);
+            const pivotColumn =
+                context.pivotDetails!.valuesColumns[0].pivotColumnName;
+            context.rows[0][pivotColumn] = {
+                value: { raw: null, formatted: '∅' },
+            };
+            context.rows[1][pivotColumn] = {
+                value: { raw: null, formatted: '' },
+            };
+            delete context.rows[2][pivotColumn];
             renderWithProviders(
                 <PreviewRowsPeek
                     source={source({
@@ -131,8 +140,8 @@ describe('PreviewRowsPeek', () => {
                     context.rows[index].sample_month.value.formatted,
                     ...columns.map(
                         (column) =>
-                            context.rows[index][column.pivotColumnName].value
-                                .formatted,
+                            context.rows[index][column.pivotColumnName]?.value
+                                .formatted ?? '',
                     ),
                 ]);
             }
