@@ -1,3 +1,10 @@
+## [2.314.1](https://github.com/lightdash/lightdash/compare/2.314.0...2.314.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **chart-studio:** align upgrade color and simplify input spacing ([#29820](https://github.com/lightdash/lightdash/issues/29820)) ([28c91a3](https://github.com/lightdash/lightdash/commit/28c91a3b1cfcc8dc5d5a6e954bd74e5bd2d07d7e))
+
 # [2.314.0](https://github.com/lightdash/lightdash/compare/2.313.0...2.314.0) (2026-09-23)
 
 
