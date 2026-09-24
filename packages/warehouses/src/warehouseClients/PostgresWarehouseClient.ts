@@ -992,6 +992,7 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
             WHERE datallowconn
               AND NOT datistemplate
               AND has_database_privilege(datname, 'CONNECT')
+              AND datname !~ '[;/?:@&=+$,#]'
             ORDER BY datname
             LIMIT $1
         `,

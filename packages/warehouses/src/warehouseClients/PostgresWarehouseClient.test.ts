@@ -232,6 +232,9 @@ describe('PostgresWarehouseClient', () => {
                 "has_database_privilege(datname, 'CONNECT')",
             );
             expect(runQuery.mock.calls[0][0]).toContain('ORDER BY datname');
+            expect(runQuery.mock.calls[0][0]).toMatch(
+                /datname !~ '\[;\/\?:@&=\+\$,#\]'\s+ORDER BY datname\s+LIMIT \$1/,
+            );
             expect(runQuery.mock.calls[0][0]).toContain('LIMIT $1');
             expect(runQuery.mock.calls[0][0]).not.toContain('101');
             expect(runQuery.mock.calls[0][3]).toEqual([101]);
