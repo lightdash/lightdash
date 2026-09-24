@@ -6027,6 +6027,24 @@ export class AiAgentModel {
             });
     }
 
+    /** Corrects a version's labels in place, keeping the stored chart config in sync. */
+    async updateArtifactVersionMetadata(
+        artifactVersionUuid: string,
+        update: {
+            title: string;
+            description: string | null;
+            chartConfig: Record<string, unknown>;
+        },
+    ): Promise<void> {
+        await this.database(AiArtifactVersionsTableName)
+            .update({
+                title: update.title,
+                description: update.description,
+                chart_config: update.chartConfig,
+            } satisfies Partial<DbAiArtifactVersion>)
+            .where({ ai_artifact_version_uuid: artifactVersionUuid });
+    }
+
     async isSavedSqlInProject(
         savedSqlUuid: string,
         projectUuid: string,

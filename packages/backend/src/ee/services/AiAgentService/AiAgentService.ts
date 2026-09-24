@@ -12372,66 +12372,50 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (resolved.type === 'fallback') return resolved;
         const { edit, undoneTo, explore } = resolved;
 
-        const [current, interrupted, metadata] = await Promise.all([
+        const [current, interrupted] = await Promise.all([
             this.aiAgentModel.getArtifact(chart.latest.artifactUuid),
             this.aiAgentModel.hasAiPromptInterrupt(prompt.promptUuid),
-            undoneTo || !edit.changed
-                ? null
-                : this.refreshChartMetadata({
-                      user,
-                      prompt,
-                      decisions,
-                      current: {
-                          title:
-                              chart.artifact.title ?? edit.config.config.title,
-                          description:
-                              chart.artifact.description ??
-                              edit.config.config.description ??
-                              null,
-                      },
-                      artifact: edit.config,
-                      explore,
-                  }),
         ]);
         if (current?.versionUuid !== chart.latest.versionUuid)
             return { type: 'fallback', reason: 'stale-artifact' };
         if (interrupted) return { type: 'fallback', reason: 'interrupted' };
 
+        const currentMetadata: ChartMetadata = {
+            title: chart.artifact.title ?? edit.config.config.title,
+            description:
+                chart.artifact.description ??
+                edit.config.config.description ??
+                null,
+        };
         const saved = edit.changed
             ? await this.aiAgentModel.createOrUpdateArtifact({
                   threadUuid: prompt.threadUuid,
                   promptUuid: prompt.promptUuid,
                   artifactType: 'chart',
                   title:
-                      (undoneTo ? undoneTo.title : metadata?.title) ??
+                      (undoneTo ? undoneTo.title : currentMetadata.title) ??
                       undefined,
                   description:
                       (undoneTo
                           ? undoneTo.description
-                          : metadata?.description) ?? undefined,
-                  vizConfig: metadata
-                      ? {
-                            ...edit.config,
-                            config: {
-                                ...edit.config.config,
-                                title: metadata.title,
-                                description: metadata.description ?? undefined,
-                            },
-                        }
-                      : { ...edit.config },
+                          : currentMetadata.description) ?? undefined,
+                  vizConfig: { ...edit.config },
               })
             : null;
-        const value =
+        // The edit text streams first; the title check and value lookup finish before the stream closes.
+        const pendingText =
             saved && !undoneTo
-                ? await this.describeSingleValue({
+                ? this.completeChartEdit({
                       user,
                       prompt,
                       agent,
-                      artifact: saved,
+                      decisions,
+                      saved,
                       config: edit.config,
+                      current: currentMetadata,
                       explore,
                   })
-                : null;
+                : Promise.resolve(null);
 
         return {
             type: 'applied',
@@ -12439,11 +12423,76 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
                 prompt,
                 agent,
-                text: value ? `${edit.response} ${value}` : edit.response,
+                text: edit.response,
+                pendingText,
                 responseStartedAt,
                 decisionUsage,
             }),
         };
+    }
+
+    /** Refreshes a stale title in place and returns the one-number result, if any; never throws. */
+    private async completeChartEdit({
+        user,
+        prompt,
+        agent,
+        decisions,
+        saved,
+        config,
+        current,
+        explore,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        decisions: AiDecisionClient;
+        saved: AiArtifact;
+        config: AiSemanticChartArtifactConfig;
+        current: ChartMetadata;
+        explore: Explore;
+    }): Promise<string | null> {
+        const [metadata, value] = await Promise.all([
+            this.refreshChartMetadata({
+                user,
+                prompt,
+                decisions,
+                current,
+                artifact: config,
+                explore,
+            }),
+            this.describeSingleValue({
+                user,
+                prompt,
+                agent,
+                artifact: saved,
+                config,
+                explore,
+            }),
+        ]);
+        if (
+            metadata.title !== current.title ||
+            metadata.description !== current.description
+        ) {
+            await this.aiAgentModel
+                .updateArtifactVersionMetadata(saved.versionUuid, {
+                    title: metadata.title,
+                    description: metadata.description,
+                    chartConfig: {
+                        ...config,
+                        config: {
+                            ...config.config,
+                            title: metadata.title,
+                            description: metadata.description ?? undefined,
+                        },
+                    },
+                })
+                .catch((error) =>
+                    Logger.warn(
+                        `Chart title update failed; keeping the previous title: ${String(error)}`,
+                    ),
+                );
+        }
+        return value;
     }
 
     /** A one-number chart's value, run the same way the chart panel runs it; null for anything else. */
@@ -12526,6 +12575,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt,
         agent,
         text,
+        pendingText,
         responseStartedAt,
         decisionUsage,
     }: {
@@ -12533,42 +12583,50 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt: AiWebAppPrompt;
         agent: AiAgent;
         text: string;
+        /** Appended to `text` when it resolves; the prompt is persisted after it settles. */
+        pendingText: Promise<string | null>;
         responseStartedAt: number;
         decisionUsage: () => { inputTokens: number; outputTokens: number };
     }): Promise<AgentResponseStream> {
-        await this.persistTrackedPromptUpdate(
-            {
-                promptUuid: prompt.promptUuid,
-                response: text,
-                tokenUsage: initialPromptTokenUsage(
-                    0,
-                    decisionUsage().inputTokens,
-                    decisionUsage().outputTokens,
-                ),
-                responseTiming: {
-                    startedAt: new Date(responseStartedAt).toISOString(),
-                    firstTokenAt: new Date().toISOString(),
-                    finishedAt: new Date().toISOString(),
-                },
-            },
-            {
-                organizationUuid: user.organizationUuid!,
-                projectUuid: prompt.projectUuid,
-                agentUuid: agent.uuid,
-                threadUuid: prompt.threadUuid,
-                userUuid: user.userUuid,
-            },
-        );
-        this.prometheusMetrics?.aiAgentStreamResponseDurationHistogram?.observe(
-            Date.now() - responseStartedAt,
-        );
+        const firstTokenAt = new Date().toISOString();
         this.prometheusMetrics?.aiAgentTTFTHistogram?.observe(
             { model: 'chart-edit', mode: 'stream' },
             Date.now() - responseStartedAt,
         );
+        // Runs independently of the client so the prompt is persisted even if it disconnects.
+        const completion = (async () => {
+            const extra = await pendingText.catch(() => null);
+            await this.persistTrackedPromptUpdate(
+                {
+                    promptUuid: prompt.promptUuid,
+                    response: extra ? `${text} ${extra}` : text,
+                    tokenUsage: initialPromptTokenUsage(
+                        0,
+                        decisionUsage().inputTokens,
+                        decisionUsage().outputTokens,
+                    ),
+                    responseTiming: {
+                        startedAt: new Date(responseStartedAt).toISOString(),
+                        firstTokenAt,
+                        finishedAt: new Date().toISOString(),
+                    },
+                },
+                {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid: prompt.projectUuid,
+                    agentUuid: agent.uuid,
+                    threadUuid: prompt.threadUuid,
+                    userUuid: user.userUuid,
+                },
+            );
+            this.prometheusMetrics?.aiAgentStreamResponseDurationHistogram?.observe(
+                Date.now() - responseStartedAt,
+            );
+            return extra;
+        })();
 
         const stream = createUIMessageStream({
-            execute: ({ writer }) => {
+            execute: async ({ writer }) => {
                 writer.write({ type: 'start' });
                 writer.write({ type: 'text-start', id: prompt.promptUuid });
                 writer.write({
@@ -12576,6 +12634,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     id: prompt.promptUuid,
                     delta: text,
                 });
+                const extra = await completion;
+                if (extra)
+                    writer.write({
+                        type: 'text-delta',
+                        id: prompt.promptUuid,
+                        delta: ` ${extra}`,
+                    });
                 writer.write({ type: 'text-end', id: prompt.promptUuid });
                 writer.write({ type: 'finish' });
             },
@@ -12852,6 +12917,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     text: `${chartResolution.question}\n\n${chartResolution.options
                         .map(({ prompt: option }) => `- ${option}`)
                         .join('\n')}`,
+                    pendingText: Promise.resolve(null),
                     responseStartedAt,
                     decisionUsage: () => ({
                         inputTokens: decisionUsage?.inputTokens ?? 0,
