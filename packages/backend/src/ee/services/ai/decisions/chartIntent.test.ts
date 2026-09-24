@@ -160,11 +160,42 @@ describe('interpretChartIntent', () => {
             interpret('drop the cancelled ones', {
                 intent: choice('filter'),
                 filterKind: choice('exclude_values'),
-                filterField: choice('orders_status'),
+                valueFilterField: choice('orders_status'),
             }),
         ).toEqual({
             type: 'needs_values',
-            filter: { fieldId: 'orders_status', exclude: true },
+            filter: {
+                fieldId: 'orders_status',
+                exclude: true,
+                alternativeFieldIds: [],
+            },
+        });
+    });
+
+    it('keeps runner-up value fields when the field choice is uncertain', () => {
+        expect(
+            interpret('exclude west', {
+                intent: choice('filter'),
+                filterKind: choice('exclude_values'),
+                valueFilterField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.45,
+                    probabilities: {
+                        orders_region: 0.45,
+                        orders_city: 0.4,
+                        orders_status: 0.05,
+                        none: 0.1,
+                    },
+                },
+            }),
+        ).toEqual({
+            type: 'needs_values',
+            filter: {
+                fieldId: 'orders_region',
+                exclude: true,
+                alternativeFieldIds: ['orders_city'],
+            },
         });
     });
 
@@ -173,7 +204,7 @@ describe('interpretChartIntent', () => {
             interpret('only the ones from the website', {
                 intent: choice('filter'),
                 filterKind: choice('include_values'),
-                filterField: choice('none'),
+                valueFilterField: choice('none'),
             }),
         ).toEqual({ type: 'unresolved', reason: 'filter-field' });
     });
@@ -549,7 +580,14 @@ describe('isChartEditAttempt', () => {
     it.each<[ChartIntentResolution, boolean]>([
         [{ type: 'intent', intent: { kind: 'undo' } }, true],
         [
-            { type: 'needs_values', filter: { fieldId: 'a', exclude: false } },
+            {
+                type: 'needs_values',
+                filter: {
+                    fieldId: 'a',
+                    exclude: false,
+                    alternativeFieldIds: [],
+                },
+            },
             true,
         ],
         [{ type: 'unresolved', reason: 'add-field' }, true],
@@ -783,7 +821,11 @@ describe('selectFilterValues', () => {
             selectFilterValues({
                 decisions: { evaluate },
                 prompt: 'just shipped and completed',
-                filter: { fieldId: 'orders_status', exclude: false },
+                filter: {
+                    fieldId: 'orders_status',
+                    exclude: false,
+                    alternativeFieldIds: [],
+                },
                 fieldLabel: 'Status',
                 candidates: ['shipped', 'placed', 'completed'],
             }),
@@ -797,7 +839,11 @@ describe('selectFilterValues', () => {
                     evaluate: vi.fn().mockResolvedValue({ value0: noul(0.1) }),
                 },
                 prompt: 'only the website ones',
-                filter: { fieldId: 'orders_status', exclude: false },
+                filter: {
+                    fieldId: 'orders_status',
+                    exclude: false,
+                    alternativeFieldIds: [],
+                },
                 fieldLabel: 'Status',
                 candidates: ['placed'],
             }),

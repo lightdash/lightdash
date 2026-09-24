@@ -44,6 +44,8 @@ export type ChartMetadataContext = {
     fieldsContext: FieldInfo[];
     /** Raw chart configuration as JSON string */
     chartConfigJson?: string;
+    /** An existing title whose voice and format the new title should follow. */
+    styleReferenceTitle?: string;
 };
 
 /**
@@ -91,7 +93,11 @@ IMPORTANT: Use the human-readable field labels provided, NOT the technical field
 ALWAYS look at the chart type and its configuration so you know how to best represent the title and description.
 Be direct - avoid phrases like "This chart shows..." and also avoid mentioning what the chart type is, but what the chart is about.
 Reference filters in the title if there is a maximum of 2 filters applied. For example, date filters are super relevant on chart titles. If there are more than 2 filters, reference them in the description.
-`,
+${
+    context.styleReferenceTitle
+        ? `\nMatch the voice and format of this existing title (statement or question, casing, length), but describe the chart as it is now: "${context.styleReferenceTitle}"\n`
+        : ''
+}`,
             },
             {
                 role: 'user',
