@@ -201,8 +201,7 @@ describe('interpretChartIntent', () => {
             interpret('only March 2024', {
                 intent: choice('filter'),
                 filterKind: choice('calendar_period'),
-                calendarMonth: choice('m3'),
-                calendarQuarter: choice('none'),
+                calendarPeriod: choice('m3'),
             }),
         ).toEqual({
             type: 'intent',
@@ -219,13 +218,31 @@ describe('interpretChartIntent', () => {
         });
     });
 
-    it('does not widen an unsure quarter to the whole year', () => {
+    it('reads a named quarter as one calendar period', () => {
         expect(
             interpret('only Q3 2024', {
                 intent: choice('filter'),
                 filterKind: choice('calendar_period'),
-                calendarQuarter: choice('q3', 0.45),
-                calendarMonth: choice('none'),
+                calendarPeriod: choice('q3'),
+            }),
+        ).toMatchObject({
+            intent: {
+                period: {
+                    type: 'calendar',
+                    year: 2024,
+                    quarter: 3,
+                    month: null,
+                },
+            },
+        });
+    });
+
+    it('does not widen an unsure period to the whole year', () => {
+        expect(
+            interpret('only Q3 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarPeriod: choice('q3', 0.45),
             }),
         ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
     });

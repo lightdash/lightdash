@@ -513,25 +513,19 @@ export const buildChartIntentQuestions = ({
         },
     };
     if (numbers.some(isYear)) {
-        questions.calendarQuarter = {
+        questions.calendarPeriod = {
             type: 'choice',
-            instructions: 'If the user names a calendar quarter, which one?',
+            instructions:
+                'Which calendar period does `prompt` itself name? Pick the most specific one: a named month over its quarter, a named quarter over its year. Periods mentioned only in `conversation` do not count.',
             criteria: {
+                year: 'The whole year, with no quarter or month named',
                 q1: 'First quarter (Q1)',
                 q2: 'Second quarter (Q2)',
                 q3: 'Third quarter (Q3)',
                 q4: 'Fourth quarter (Q4)',
-                none: 'No quarter is named',
-            },
-        };
-        questions.calendarMonth = {
-            type: 'choice',
-            instructions: 'If the user names a calendar month, which one?',
-            criteria: {
                 ...Object.fromEntries(
                     MONTHS.map((name, index) => [`m${index + 1}`, name]),
                 ),
-                none: 'No month is named',
             },
         };
     }
@@ -722,7 +716,7 @@ const resolveSort = (
     };
 };
 
-/** A named calendar year, optionally narrowed to one quarter or month, all read from the prompt. */
+/** A named calendar year, quarter or month; JEV picks the single most specific period the prompt names. */
 const resolveCalendarPeriod = (
     answers: DecisionAnswers,
     numbers: number[],
@@ -730,20 +724,14 @@ const resolveCalendarPeriod = (
 ): Extract<ChartPeriod, { type: 'calendar' }> | null => {
     const years = numbers.filter(isYear);
     if (years.length !== 1) return null;
-    const quarter = confident(answers.calendarQuarter, threshold);
-    const month = confident(answers.calendarMonth, threshold);
-    // An unsure narrowing must not widen silently to the whole year.
-    if (!quarter || !month) return null;
-    const quarterNumber =
-        quarter && quarter !== 'none' ? Number(quarter.slice(1)) : null;
-    const monthNumber =
-        month && month !== 'none' ? Number(month.slice(1)) : null;
-    if (quarterNumber !== null && monthNumber !== null) return null;
+    const period = confident(answers.calendarPeriod, threshold);
+    if (!period) return null;
+    const number = Number(period.slice(1));
     return {
         type: 'calendar',
         year: years[0],
-        quarter: quarterNumber,
-        month: monthNumber,
+        quarter: period.startsWith('q') ? number : null,
+        month: period.startsWith('m') ? number : null,
     };
 };
 
