@@ -411,12 +411,11 @@ describe('composer artifact viz switcher', () => {
             screen.getByRole('columnheader', { name: 'status' }),
         ).toBeInTheDocument();
         // Only the stored query is ever read: kinds are built from its rows.
-        expect(mocks.rows.mock.calls.map(([, queryUuid]) => queryUuid)).toEqual(
-            expect.arrayContaining(['query']),
-        );
-        expect(new Set(mocks.rows.mock.calls.map(([, q]) => q))).toEqual(
-            new Set(['query']),
-        );
+        const readQueryUuids = mocks.rows.mock.calls
+            .map(([, queryUuid]) => queryUuid)
+            .filter((queryUuid) => queryUuid !== undefined);
+        expect(readQueryUuids.length).toBeGreaterThan(0);
+        expect(new Set(readQueryUuids)).toEqual(new Set(['query']));
         expect(mocks.query).toHaveBeenLastCalledWith(
             expect.anything(),
             expect.objectContaining({ enabled: false }),
@@ -444,5 +443,144 @@ describe('composer artifact viz switcher', () => {
         renderComposer(statusResults);
         expect(screen.queryAllByRole('radio')).toHaveLength(0);
         expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+    });
+});
+
+const composerConfigWithNodeResults: AiComposerChartArtifactConfig = {
+    ...composerConfig,
+    nodeResults: {
+        orders: { queryUuid: 'orders-query' },
+        amounts: { queryUuid: 'amounts-query' },
+        joined: { queryUuid: 'query' },
+    },
+};
+
+describe('composer displayed node', () => {
+    const ordersResults = resultsOf(
+        {
+            status: { reference: 'status', type: 'string' },
+            n: { reference: 'n', type: 'number' },
+        },
+        [{ status: 'completed', n: 3 }],
+    );
+    const amountsResults = resultsOf(
+        { avg_amount: { reference: 'avg_amount', type: 'number' } },
+        [{ avg_amount: 12.5 }],
+    );
+    const resultsByQuery: Record<string, ReturnType<typeof resultsOf>> = {
+        query: statusResults,
+        'orders-query': ordersResults,
+        'amounts-query': amountsResults,
+    };
+
+    const renderComposer = (
+        chartConfig: AiComposerChartArtifactConfig = composerConfigWithNodeResults,
+    ) => {
+        mocks.artifact.mockReturnValue({
+            data: {
+                artifactType: 'chart',
+                title: 'Orders vs amounts',
+                chartConfig,
+            },
+            isLoading: false,
+            error: null,
+            refetch: mocks.retry,
+        });
+        mocks.rows.mockImplementation(
+            (_project: string, queryUuid: string | undefined) =>
+                queryUuid === undefined
+                    ? { ...statusResults, rows: [], columns: undefined }
+                    : resultsByQuery[queryUuid],
+        );
+        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+    };
+
+    const expandPipeline = () =>
+        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+
+    it('displays a node result from List mode with its title and a way back', () => {
+        renderComposer();
+        expandPipeline();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Display Average amount' }),
+        );
+        expect(
+            screen.getByRole('columnheader', { name: 'avg_amount' }),
+        ).toBeInTheDocument();
+        // Header and pipeline row both name the node.
+        expect(screen.getAllByText('Average amount')).toHaveLength(2);
+        expect(screen.queryByText('Orders vs amounts')).not.toBeInTheDocument();
+        expect(
+            document.getElementById('composer-pipeline-node-amounts'),
+        ).toHaveAttribute('data-displayed', 'true');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
+        expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
+        expect(
+            screen.getByRole('columnheader', { name: 'status' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Back to result' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('displays a node result from Graph mode', () => {
+        renderComposer();
+        expandPipeline();
+        fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
+        fireEvent.click(screen.getByLabelText('Display Orders by status'));
+        expect(
+            screen.getByRole('columnheader', { name: 'n' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByLabelText('Display Orders by status'),
+        ).toHaveAttribute('data-displayed', 'true');
+    });
+
+    it('resets to the terminal node when a new version opens', () => {
+        const { rerender } = renderComposer();
+        expandPipeline();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Display Average amount' }),
+        );
+        expect(screen.getAllByText('Average amount')).toHaveLength(2);
+        rerender(
+            <AiArtifactPanel
+                artifact={{ ...artifact, versionUuid: 'another-version' }}
+            />,
+        );
+        expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Back to result' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('leaves nodes of artifacts without per-node results inert', () => {
+        renderComposer(composerConfig);
+        expandPipeline();
+        expect(
+            screen.queryAllByRole('button', { name: /^Display / }),
+        ).toHaveLength(0);
+        expect(screen.getByText('Average amount')).toBeInTheDocument();
+    });
+
+    it('shows the expired empty state for an expired node result', () => {
+        resultsByQuery['amounts-query'] = {
+            ...amountsResults,
+            rows: [],
+            columns: undefined,
+            error: { error: { message: 'Gone' } },
+        } as unknown as ReturnType<typeof resultsOf>;
+        renderComposer();
+        expandPipeline();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Display Average amount' }),
+        );
+        expect(
+            screen.getByText(/These results have expired/),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Back to result' }),
+        ).toBeInTheDocument();
     });
 });

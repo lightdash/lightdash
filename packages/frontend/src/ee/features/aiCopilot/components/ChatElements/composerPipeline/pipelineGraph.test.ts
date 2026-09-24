@@ -29,6 +29,11 @@ const duckdb = (
 const measured = (nodes: PipelineFlowNode[]) =>
     nodes.map((node) => ({ ...node, measured: { width: 160, height: 40 } }));
 
+const noDisplay = {
+    displayedNodeId: '',
+    displayableNodeIds: new Set<string>(),
+};
+
 const xOf = (nodes: PipelineFlowNode[], id: string) =>
     nodes.find((node) => node.id === id)!.position.x;
 
@@ -42,18 +47,49 @@ describe('toPipelineFlow', () => {
                 ],
                 'joined',
             ),
+            noDisplay,
         );
         expect(nodes.map((node) => node.data)).toEqual([
             {
                 title: 'Orders by status',
                 sourceLabel: 'Warehouse SQL',
                 isTerminal: false,
+                isDisplayed: false,
+                isDisplayable: false,
             },
             {
                 title: 'Orders with amounts',
                 sourceLabel: null,
                 isTerminal: true,
+                isDisplayed: false,
+                isDisplayable: false,
             },
+        ]);
+    });
+
+    it('marks the displayed node and the nodes with a stored result', () => {
+        const { nodes } = toPipelineFlow(
+            groupPipeline(
+                [
+                    sql('orders', 'Orders by status'),
+                    duckdb('joined', 'Orders with amounts', ['orders']),
+                ],
+                'joined',
+            ),
+            {
+                displayedNodeId: 'orders',
+                displayableNodeIds: new Set(['orders']),
+            },
+        );
+        expect(
+            nodes.map(({ id, data }) => [
+                id,
+                data.isDisplayed,
+                data.isDisplayable,
+            ]),
+        ).toEqual([
+            ['orders', true, true],
+            ['joined', false, false],
         ]);
     });
 
@@ -68,6 +104,7 @@ describe('toPipelineFlow', () => {
                 ],
                 'final',
             ),
+            noDisplay,
         );
         expect(edges.map((edge) => [edge.source, edge.target])).toEqual([
             ['a', 'ab'],
@@ -82,7 +119,9 @@ describe('toPipelineFlow', () => {
                 [duckdb('final', 'Final', { prev: 'uuid-1' })],
                 'final',
             ),
+            noDisplay,
         );
+        const marks = { isDisplayed: false, isDisplayable: false };
         expect(nodes.map((node) => [node.id, node.data])).toEqual([
             [
                 'earlier:uuid-1',
@@ -90,9 +129,18 @@ describe('toPipelineFlow', () => {
                     title: 'prev',
                     sourceLabel: 'Earlier result',
                     isTerminal: false,
+                    ...marks,
                 },
             ],
-            ['final', { title: 'Final', sourceLabel: null, isTerminal: true }],
+            [
+                'final',
+                {
+                    title: 'Final',
+                    sourceLabel: null,
+                    isTerminal: true,
+                    ...marks,
+                },
+            ],
         ]);
         expect(edges.map((edge) => [edge.source, edge.target])).toEqual([
             ['earlier:uuid-1', 'final'],
@@ -104,7 +152,7 @@ describe('toPipelineFlow', () => {
     });
 
     it('returns empty arrays for an empty pipeline', () => {
-        expect(toPipelineFlow([])).toEqual({ nodes: [], edges: [] });
+        expect(toPipelineFlow([], noDisplay)).toEqual({ nodes: [], edges: [] });
         expect(layoutPipelineFlow([], [])).toEqual([]);
     });
 });
@@ -120,6 +168,7 @@ describe('layoutPipelineFlow', () => {
                 ],
                 'final',
             ),
+            noDisplay,
         );
         const laidOut = layoutPipelineFlow(measured(nodes), edges);
         expect(xOf(laidOut, 'a')).toBeLessThan(xOf(laidOut, 'ab'));
@@ -140,6 +189,7 @@ describe('layoutPipelineFlow', () => {
                 ],
                 'x',
             ),
+            noDisplay,
         );
         const laidOut = layoutPipelineFlow(measured(nodes), edges);
         const terminalX = xOf(laidOut, 'x');

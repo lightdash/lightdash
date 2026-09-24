@@ -12,6 +12,8 @@ type PipelineFlowNodeData = {
     title: string;
     sourceLabel: string | null;
     isTerminal: boolean;
+    isDisplayed: boolean;
+    isDisplayable: boolean;
 };
 
 export type PipelineFlowNode = Node<PipelineFlowNodeData, 'pipeline'>;
@@ -33,6 +35,10 @@ const NODE_GAP = 12;
 /** One flow node per pipeline node, one edge per read (read node -> reader). */
 export const toPipelineFlow = (
     layers: PipelineLayer[],
+    display: {
+        displayedNodeId: string;
+        displayableNodeIds: ReadonlySet<string>;
+    },
 ): { nodes: PipelineFlowNode[]; edges: Edge[] } => {
     const pipelineNodes = layers.flatMap((layer) => layer.nodes);
     const nodes = pipelineNodes.map<PipelineFlowNode>((node) => ({
@@ -43,6 +49,8 @@ export const toPipelineFlow = (
             title: node.title,
             sourceLabel: graphLabelOf(node),
             isTerminal: node.isTerminal,
+            isDisplayed: node.nodeId === display.displayedNodeId,
+            isDisplayable: display.displayableNodeIds.has(node.nodeId),
         },
     }));
     const edges = pipelineNodes.flatMap<Edge>((node) =>

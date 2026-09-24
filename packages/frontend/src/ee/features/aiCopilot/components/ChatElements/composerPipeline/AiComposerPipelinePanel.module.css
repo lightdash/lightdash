@@ -114,9 +114,20 @@
     border-radius: var(--mantine-radius-sm);
 }
 
-.node:hover,
-.node.selected {
+.node.displayed {
     background-color: var(--mantine-color-default-hover);
+    box-shadow: inset 2px 0 0 var(--mantine-color-blue-5);
+}
+
+.nodeHeadButton {
+    width: 100%;
+    border-radius: var(--mantine-radius-sm);
+    cursor: pointer;
+}
+
+.nodeHeadButton:hover .nodeTitle,
+.nodeHeadButton:focus-visible .nodeTitle {
+    text-decoration: underline;
 }
 
 .nodeHead {
@@ -232,6 +243,20 @@
 
 .graphNode[data-terminal='true'] {
     border-color: var(--mantine-color-blue-5);
+}
+
+.graphNode[data-displayed='true'] {
+    background: var(--mantine-color-default-hover);
+    box-shadow: 0 0 0 1px var(--mantine-color-blue-5);
+}
+
+.graphNode[aria-disabled='true'] {
+    cursor: default;
+    color: var(--mantine-color-dimmed);
+}
+
+.graphNode[aria-disabled='true']:hover {
+    background: var(--mantine-color-body);
 }
 
 .graphNodeText {
