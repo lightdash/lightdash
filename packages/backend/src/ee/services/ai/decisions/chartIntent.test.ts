@@ -5,12 +5,13 @@ import {
     type AiSemanticChartArtifactConfig,
     type Explore,
 } from '@lightdash/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DecisionAnswers } from './AiDecisionClient';
 import {
     buildChartIntentContext,
     buildChartIntentQuestions,
     decideTurn,
+    extractAmountCandidates,
     extractNumberCandidates,
     interpretChartIntent,
     isChartEditAttempt,
@@ -848,6 +849,158 @@ describe('metric, breakdown and grain edits', () => {
                 chartType: null,
             },
         });
+    });
+});
+
+describe('date ranges and thresholds', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+    const ask = (prompt: string, answers: Partial<DecisionAnswers>) =>
+        interpret(prompt, {
+            intent: choice('filter'),
+            filterField: choice('orders_date'),
+            ...answers,
+        });
+
+    it('only asks choices with at least two real options', () => {
+        const context = buildChartIntentContext({
+            filterRules: [],
+            prompt: 'x',
+            artifact,
+            explore,
+            usage: noUsage,
+        });
+        ['top 5', 'before 2024', 'since june 2024', 'over 10k'].forEach(
+            (prompt) =>
+                Object.values(
+                    buildChartIntentQuestions({ prompt, context }),
+                ).forEach((question) => {
+                    if (question.type === 'choice')
+                        expect(
+                            Object.keys(question.criteria).filter(
+                                (key) => key !== 'none',
+                            ).length,
+                        ).toBeGreaterThan(0);
+                }),
+        );
+    });
+
+    it('reads amounts with separators, decimals and suffixes', () => {
+        expect(extractAmountCandidates('under $1,000, 27k or 4.5')).toEqual([
+            1000, 27000, 4.5,
+        ]);
+    });
+
+    it('builds an explicit range with an inclusive last day', () => {
+        expect(
+            ask('13 to 20 May 2026', {
+                filterKind: choice('date_range'),
+                rangeShape: choice('between'),
+                startDay: choice('13'),
+                startMonth: choice('m5'),
+                startYear: choice('none'),
+                endDay: choice('20'),
+                endMonth: choice('m5'),
+                endYear: choice('2026'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_period',
+                fieldId: 'orders_date',
+                period: {
+                    type: 'range',
+                    start: '2026-05-13',
+                    end: '2026-05-21',
+                },
+            },
+        });
+    });
+
+    it('builds open ranges from a start or before an end', () => {
+        expect(
+            ask('since March 2024', {
+                filterKind: choice('date_range'),
+                rangeShape: choice('since'),
+                startMonth: choice('m3'),
+                startYear: choice('2024'),
+                startDay: choice('none'),
+            }),
+        ).toMatchObject({
+            intent: { period: { start: '2024-03-01', end: null } },
+        });
+        expect(
+            ask('before 2023', {
+                filterKind: choice('date_range'),
+                rangeShape: choice('before'),
+                endYear: choice('2023'),
+                endMonth: choice('none'),
+                endDay: choice('none'),
+            }),
+        ).toMatchObject({
+            intent: { period: { start: null, end: '2023-01-01' } },
+        });
+    });
+
+    it('puts a yearless range in the latest year that is not in the future', () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-03-10T12:00:00Z'));
+        expect(
+            ask('may 13 to 20', {
+                filterKind: choice('date_range'),
+                rangeShape: choice('between'),
+                startDay: choice('13'),
+                startMonth: choice('m5'),
+                endDay: choice('20'),
+                endMonth: choice('m5'),
+            }),
+        ).toMatchObject({
+            intent: {
+                period: { start: '2025-05-13', end: '2025-05-21' },
+            },
+        });
+    });
+
+    it('never guesses a range bound it cannot anchor to a month or year', () => {
+        expect(
+            ask('since the 5th', {
+                filterKind: choice('date_range'),
+                rangeShape: choice('since'),
+                startDay: choice('5'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-range' });
+    });
+
+    it('filters a chart metric above a stated amount', () => {
+        expect(
+            ask('count over 1,000', {
+                filterKind: choice('number_threshold'),
+                thresholdField: choice('orders_count'),
+                comparison: choice('gt'),
+                amountLow: choice('1000'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_number',
+                fieldId: 'orders_count',
+                comparison: 'gt',
+                values: [1000],
+            },
+        });
+    });
+
+    it('needs an upper bound above the lower one for between', () => {
+        expect(
+            ask('count between 50 and 10', {
+                filterKind: choice('number_threshold'),
+                thresholdField: choice('orders_count'),
+                comparison: choice('between'),
+                amountLow: choice('50'),
+                amountHigh: choice('10'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-threshold' });
     });
 });
 

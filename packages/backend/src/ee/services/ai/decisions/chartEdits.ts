@@ -18,7 +18,12 @@ import {
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
 import { resolveSearchFieldValuesFilterExpression } from '../utils/filterExpressions';
-import type { ChartIntent, ChartPeriod, ChartTypeOption } from './chartIntent';
+import type {
+    ChartIntent,
+    ChartPeriod,
+    ChartTypeOption,
+    NumberComparison,
+} from './chartIntent';
 
 export type ChartEdit = {
     config: AiSemanticChartArtifactConfig;
@@ -132,6 +137,17 @@ const periodConditions = (period: ChartPeriod): string[] => {
                 `${FilterOperator.LESS_THAN}=${next}`,
             ];
         }
+        case 'range':
+            return [
+                ...(period.start
+                    ? [
+                          `${FilterOperator.GREATER_THAN_OR_EQUAL}=${period.start}`,
+                      ]
+                    : []),
+                ...(period.end
+                    ? [`${FilterOperator.LESS_THAN}=${period.end}`]
+                    : []),
+            ];
         default:
             return assertUnreachable(period, 'Unknown chart period');
     }
@@ -230,6 +246,28 @@ const MONTH_NAMES = [
     'December',
 ];
 
+const formatDay = (iso: string) => {
+    const [year, month, day] = iso.split('-').map(Number);
+    return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
+};
+
+/** The exclusive end is shown as the last day it keeps. */
+const describeRange = ({
+    start,
+    end,
+}: Extract<ChartPeriod, { type: 'range' }>): string => {
+    const lastDay = end
+        ? formatDay(
+              new Date(Date.parse(`${end}T00:00:00Z`) - 86_400_000)
+                  .toISOString()
+                  .slice(0, 10),
+          )
+        : null;
+    if (start && lastDay) return `${formatDay(start)} to ${lastDay}`;
+    if (start) return `dates from ${formatDay(start)}`;
+    return `dates up to ${lastDay ?? ''}`;
+};
+
 const describePeriod = ({
     period,
 }: Extract<ChartIntent, { kind: 'filter_period' }>): string => {
@@ -246,6 +284,8 @@ const describePeriod = ({
             if (period.month !== null)
                 return `Filtered to ${MONTH_NAMES[period.month - 1]} ${period.year}.`;
             return `Filtered to ${period.year}.`;
+        case 'range':
+            return `Filtered to ${describeRange(period)}.`;
         default:
             return assertUnreachable(period, 'Unknown chart period');
     }
@@ -826,6 +866,79 @@ const applyDimensionEdit = (
     };
 };
 
+const COMPARISON_OPERATORS: Record<NumberComparison, FilterOperator> = {
+    gt: FilterOperator.GREATER_THAN,
+    gte: FilterOperator.GREATER_THAN_OR_EQUAL,
+    lt: FilterOperator.LESS_THAN,
+    lte: FilterOperator.LESS_THAN_OR_EQUAL,
+    between: FilterOperator.IN_BETWEEN,
+};
+
+const COMPARISON_WORDS: Record<NumberComparison, string> = {
+    gt: 'above',
+    gte: 'at least',
+    lt: 'below',
+    lte: 'at most',
+    between: 'between',
+};
+
+/** Threshold on a numeric dimension (row filter) or a chart metric (group filter). */
+const applyNumberFilter = (
+    intent: Extract<ChartIntent, { kind: 'filter_number' }>,
+    artifact: AiSemanticChartArtifactConfig,
+    explore: Explore,
+): ChartEdit | null => {
+    const field = fieldMap(explore).get(intent.fieldId);
+    const current = normalizePersistedFilters(
+        artifact.config.queryConfig.filters,
+    );
+    if (!field || !current) return null;
+    const onMetric = !isDimension(field);
+    if (
+        onMetric &&
+        !artifact.config.queryConfig.metrics.includes(intent.fieldId)
+    )
+        return null;
+    if (
+        !onMetric &&
+        getFilterTypeFromItemType(field.type) !== FilterType.NUMBER
+    )
+        return null;
+    const group = onMetric ? current.metrics : current.dimensions;
+    if (group && group.connector !== 'and') return null;
+    const rule: RuleInput = {
+        fieldId: intent.fieldId,
+        fieldType: field.type,
+        fieldFilterType: FilterType.NUMBER,
+        operator: COMPARISON_OPERATORS[intent.comparison],
+        values: intent.values,
+    };
+    const rules = [
+        ...(group?.rules ?? []).filter(
+            ({ fieldId }) => fieldId !== intent.fieldId,
+        ),
+        rule,
+    ];
+    const parsed = filterExpressionResolvedFiltersSchema.safeParse({
+        ...current,
+        [onMetric ? 'metrics' : 'dimensions']: { connector: 'and', rules },
+    });
+    if (!parsed.success || 'type' in parsed.data) return null;
+    const config = reparse(artifact, {
+        ...artifact.config,
+        queryConfig: { ...artifact.config.queryConfig, filters: parsed.data },
+    });
+    if (!config) return null;
+    const amounts = intent.values
+        .map((value) => value.toLocaleString('en-US'))
+        .join(' and ');
+    return {
+        config,
+        response: `Filtered to **${labelOf(explore, intent.fieldId)}** ${COMPARISON_WORDS[intent.comparison]} ${amounts}.`,
+        changed: true,
+    };
+};
+
 /** Pure reducer: applies one typed intent to the chart, or returns null so the full agent can take over. */
 export const applyChartIntent = ({
     intent,
@@ -848,6 +961,8 @@ export const applyChartIntent = ({
             return applyFilter(intent, artifact, explore);
         case 'remove_filter':
             return applyRemoveFilter(intent, artifact, explore);
+        case 'filter_number':
+            return applyNumberFilter(intent, artifact, explore);
         case 'add_metric':
         case 'remove_metric':
         case 'swap_metric':
