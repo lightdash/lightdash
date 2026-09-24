@@ -1,3 +1,10 @@
+# [2.317.0](https://github.com/lightdash/lightdash/compare/2.316.1...2.317.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agent:** composer artifact pipeline Graph mode ([#29805](https://github.com/lightdash/lightdash/issues/29805)) ([7fe57bf](https://github.com/lightdash/lightdash/commit/7fe57bf9c1bd3f4e655aa457237e7fc63ba3b5b3))
+
 ## [2.316.1](https://github.com/lightdash/lightdash/compare/2.316.0...2.316.1) (2026-09-24)
 
 

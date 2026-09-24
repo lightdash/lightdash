@@ -151,6 +151,8 @@ import { ValidationController } from './../controllers/validationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { WarehouseConnectController } from './../controllers/warehouseConnectController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { WarehouseConnectionBindingController } from './../controllers/warehouseConnectionBindingController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { WarehouseConnectionController } from './../controllers/warehouseConnectionController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { WarehouseConnectionUserCredentialsController } from './../controllers/warehouseConnectionUserCredentialsController';
@@ -43001,6 +43003,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiBindDbtSourceToWarehouseConnectionRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                warehouseConnectionUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseConnectCode: {
         dataType: 'refAlias',
         type: {
@@ -52034,6 +52054,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                connectionWarnings: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
                 baseTableNames: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -95274,6 +95298,82 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateWarehouseConnectionUserCredentials',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsWarehouseConnectionBindingController_bindDbtSourceToWarehouseConnection: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        projectDbtSourceUuid: {
+            in: 'path',
+            name: 'projectDbtSourceUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiBindDbtSourceToWarehouseConnectionRequest',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.put(
+        '/api/v1/projects/:projectUuid/warehouse-connections/dbt-sources/:projectDbtSourceUuid',
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionBindingController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionBindingController.prototype
+                .bindDbtSourceToWarehouseConnection,
+        ),
+
+        async function WarehouseConnectionBindingController_bindDbtSourceToWarehouseConnection(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsWarehouseConnectionBindingController_bindDbtSourceToWarehouseConnection,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<WarehouseConnectionBindingController>(
+                        WarehouseConnectionBindingController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'bindDbtSourceToWarehouseConnection',
                     controller,
                     response,
                     next,
