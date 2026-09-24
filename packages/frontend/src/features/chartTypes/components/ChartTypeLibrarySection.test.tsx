@@ -99,7 +99,7 @@ const renderSection = () =>
     renderWithProviders(<ChartTypeLibrarySection projectUuid={PROJECT_UUID} />);
 
 describe('ChartTypeLibrarySection', () => {
-    it('shows compact upgrade rows and removes them once installed', () => {
+    it('shows compact upgrade rows and removes them once installed', async () => {
         setFlag(true);
         const onShowInstalled = vi.fn();
         setRegistryData([
@@ -122,12 +122,17 @@ describe('ChartTypeLibrarySection', () => {
                 onShowInstalled={onShowInstalled}
             />,
         );
+        const toggle = screen.getByRole('button', {
+            name: 'Updates available for 1 already installed chart',
+        });
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
         expect(
-            screen.getByText('Updates available for installed charts'),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: /Radial gauge/ }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(toggle);
         expect(screen.queryByText('Current chart')).not.toBeInTheDocument();
         fireEvent.click(
-            screen.getByRole('button', {
+            await screen.findByRole('button', {
                 name: /Radial gauge.*v1.0.0 → v1.2.0/,
             }),
         );
@@ -142,7 +147,7 @@ describe('ChartTypeLibrarySection', () => {
             />,
         );
         expect(
-            screen.queryByText('Updates available for installed charts'),
+            screen.queryByRole('button', { name: /Updates available for/ }),
         ).not.toBeInTheDocument();
     });
 

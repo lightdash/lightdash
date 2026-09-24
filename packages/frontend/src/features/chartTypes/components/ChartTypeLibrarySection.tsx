@@ -1,10 +1,26 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
+import {
+    Button,
+    Collapse,
+    Group,
+    Paper,
+    SimpleGrid,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
+import TruncatedText from '../../../components/common/TruncatedText';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -12,6 +28,7 @@ import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeLibraryCard from './ChartTypeLibraryCard';
 import ChartTypeLibraryDetailModal from './ChartTypeLibraryDetailModal';
+import classes from './ChartTypeLibrarySection.module.css';
 
 type Props = {
     projectUuid: string;
@@ -37,6 +54,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
     const flagEnabled = flagQuery.data?.enabled ?? false;
     const registryQuery = useRegistryChartTypes(projectUuid, flagEnabled);
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+    const [updatesOpen, { toggle: toggleUpdates }] = useDisclosure(false);
     const { track } = useTracking();
 
     const charts = useMemo(
@@ -106,41 +124,72 @@ const ChartTypeLibrarySection: FC<Props> = ({
             )}
 
             {onShowInstalled && availableUpdates.length > 0 && (
-                <Stack gap={4} w={420} maw="100%">
-                    <Text size="sm" fw={600} mb={4}>
-                        Updates available for installed charts
-                    </Text>
-                    {availableUpdates.map((chart) => (
-                        <Button
-                            key={chart.slug}
-                            variant="default"
-                            size="xs"
-                            h="auto"
-                            py={6}
-                            px="xs"
-                            leftSection={
-                                <MantineIcon
-                                    icon={getChartTypeIcon(chart.icon)}
-                                    size={16}
-                                />
-                            }
-                            onClick={() =>
-                                onShowInstalled(chart.installedAppUuid!)
-                            }
-                            styles={{ label: { width: '100%' } }}
+                <Stack gap="xs">
+                    <Button
+                        variant="subtle"
+                        size="xs"
+                        className={classes.updatesToggle}
+                        aria-expanded={updatesOpen}
+                        leftSection={
+                            <MantineIcon icon={IconInfoCircle} size={14} />
+                        }
+                        rightSection={
+                            <MantineIcon
+                                icon={
+                                    updatesOpen
+                                        ? IconChevronUp
+                                        : IconChevronDown
+                                }
+                                size={14}
+                            />
+                        }
+                        onClick={toggleUpdates}
+                    >
+                        Updates available for {availableUpdates.length} already
+                        installed{' '}
+                        {availableUpdates.length === 1 ? 'chart' : 'charts'}
+                    </Button>
+                    <Collapse expanded={updatesOpen}>
+                        <SimpleGrid
+                            cols={{ base: 2, sm: 3, md: 4, lg: 5 }}
+                            spacing="xs"
                         >
-                            <Group justify="space-between" w="100%" wrap="wrap">
-                                <Text size="xs" fw={500}>
-                                    {chart.name}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {chart.installedRegistryVersion
-                                        ? `v${chart.installedRegistryVersion} → v${chart.version}`
-                                        : `Upgrade to v${chart.version}`}
-                                </Text>
-                            </Group>
-                        </Button>
-                    ))}
+                            {availableUpdates.map((chart) => (
+                                <PolymorphicPaperButton
+                                    key={chart.slug}
+                                    component="button"
+                                    px="xs"
+                                    py={6}
+                                    className={classes.updateTile}
+                                    onClick={() =>
+                                        onShowInstalled(chart.installedAppUuid!)
+                                    }
+                                >
+                                    <Group gap="xs" wrap="nowrap">
+                                        <MantineIcon
+                                            icon={getChartTypeIcon(chart.icon)}
+                                            size={14}
+                                            color="dimmed"
+                                        />
+                                        <Stack gap={0} miw={0}>
+                                            <TruncatedText
+                                                maxWidth="100%"
+                                                fz="xs"
+                                                fw={500}
+                                            >
+                                                {chart.name}
+                                            </TruncatedText>
+                                            <Text fz="xs" c="dimmed">
+                                                {chart.installedRegistryVersion
+                                                    ? `v${chart.installedRegistryVersion} → v${chart.version}`
+                                                    : `Upgrade to v${chart.version}`}
+                                            </Text>
+                                        </Stack>
+                                    </Group>
+                                </PolymorphicPaperButton>
+                            ))}
+                        </SimpleGrid>
+                    </Collapse>
                 </Stack>
             )}
 
