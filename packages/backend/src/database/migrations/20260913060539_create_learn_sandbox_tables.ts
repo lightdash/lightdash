@@ -1,5 +1,10 @@
 import { Knex } from 'knex';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates three empty Learn sandbox tables (workspace files, commands, command output); no existing table, column or row is touched',
+} as const;
+
 const FILES = 'learn_workspace_files';
 const COMMANDS = 'learn_commands';
 const OUTPUT = 'learn_command_output';
