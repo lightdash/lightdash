@@ -135,6 +135,12 @@ export const serializeCustomChartTypeSchema = (
                 details ? ` — ${details}` : ''
             }`,
         );
+        if (field.configOptions?.length) {
+            lines.push('  per-field options:');
+            for (const option of field.configOptions) {
+                lines.push(`  ${serializeOptionDetail(option)}`);
+            }
+        }
     }
     if (type.schema.configOptions.length === 0) {
         lines.push('configOptions: none');

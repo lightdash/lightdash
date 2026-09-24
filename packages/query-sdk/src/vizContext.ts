@@ -140,6 +140,11 @@ export type DataAppVizContextMessage = {
     rows: VizContextRow[];
     /** Absent when the installed host predates config-option delivery. */
     options?: Record<string, VizContextOptionValue>;
+    /** Absent when the installed host predates per-field option delivery. */
+    fieldOptions?: Record<
+        string,
+        Record<string, Record<string, VizContextOptionValue>>
+    >;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
     /** Absent when the installed host predates resolved-color delivery. */
@@ -285,6 +290,16 @@ export type VizContext = {
     /** Config option name → current value (the user's choice, else the declared default). */
     options: Record<string, VizContextOptionValue>;
     /**
+     * Slot name → bound query field id → per-field option name → current
+     * value, for slots that declare `configOptions`. A pivoted column takes
+     * the values of its field (`pivotDetails.valuesColumns[].referenceField`).
+     * Empty when the host predates per-field options.
+     */
+    fieldOptions: Record<
+        string,
+        Record<string, Record<string, VizContextOptionValue>>
+    >;
+    /**
      * Lightdash palette selected for this chart. The resolved-colour helpers
      * use it after fixed and shared assignments. Empty only when the host
      * resolved no palette; keep a fallback array in your own code for that.
@@ -311,6 +326,7 @@ type VizContextValue = {
     fields: Record<string, VizFieldMetadata>;
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
+    fieldOptions: VizContext['fieldOptions'];
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
@@ -398,6 +414,30 @@ const normalizeValueColors = (
     );
 };
 
+const normalizeFieldOptions = (value: unknown): VizContext['fieldOptions'] => {
+    if (!isPlainRecord(value)) return {};
+
+    return Object.fromEntries(
+        Object.entries(value).flatMap(([slot, byFieldId]) =>
+            isPlainRecord(byFieldId)
+                ? [
+                      [
+                          slot,
+                          Object.fromEntries(
+                              Object.entries(byFieldId).map(
+                                  ([fieldId, options]) => [
+                                      fieldId,
+                                      normalizeOptions(options),
+                                  ],
+                              ),
+                          ),
+                      ] as const,
+                  ]
+                : [],
+        ),
+    );
+};
+
 type VizColorContext = Pick<
     VizContext,
     'colorPalette' | 'seriesColors' | 'valueColors'
@@ -447,6 +487,7 @@ export function toVizContextState(
         fields: normalizeFields(message.fields),
         rows: Array.isArray(message.rows) ? message.rows : [],
         options: normalizeOptions(message.options),
+        fieldOptions: normalizeFieldOptions(message.fieldOptions),
         colorPalette: Array.isArray(message.colorPalette)
             ? message.colorPalette.filter(
                   (color): color is string => typeof color === 'string',
@@ -765,7 +806,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * `fieldMapping[name]`, or iterate that value when the slot declares multiple
  * fields, then read cells with `getFormatted`/`getRaw` and label axes and
  * legends with `getFieldLabel`. Read a declared config option with
- * `options[name]`, and colour series with
+ * `options[name]` and a per-field option with
+ * `fieldOptions[name][fieldId]`, and colour series with
  * `resolveSeriesColor` / `resolveValueColor`.
  */
 export function useVizContext(): VizContext {
@@ -812,6 +854,7 @@ export function useVizContext(): VizContext {
         fields: context?.fields ?? {},
         rows: context?.rows ?? [],
         options: context?.options ?? {},
+        fieldOptions: context?.fieldOptions ?? {},
         colorPalette: context?.colorPalette ?? [],
         seriesColors: context?.seriesColors ?? {},
         valueColors: context?.valueColors ?? {},

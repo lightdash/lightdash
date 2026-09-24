@@ -5,6 +5,7 @@ import {
     DimensionType,
     FieldType,
     getItemId,
+    getItemLabelWithoutTableName,
     MetricType,
     OrganizationMemberRole,
     type CompiledDimension,
@@ -15,11 +16,12 @@ import {
     type DataAppVizPaletteDeclaration,
     type DataAppVizSchemaChanges,
     type DataAppVizField,
+    type DataAppVizFieldOptionValues,
     type Item,
     type ItemsMap,
     type TableCalculation,
 } from '@lightdash/common';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -330,13 +332,15 @@ describe('DataAppVizConfigTabs', () => {
     const setField = vi.fn();
     const setPivotDimensions = vi.fn();
     const upgradeDataAppVizVersion = vi.fn();
+    const setFieldOption = vi.fn();
 
     const mockContext = (
         itemsMap: ItemsMap,
         dataAppVizUuid: string | null = 'data-app-viz-uuid',
         optionValues: Record<string, boolean | number | string> = {},
-        fieldMapping: Record<string, string> = {},
+        fieldMapping: Record<string, string | string[]> = {},
         dataAppVizVersion?: number,
+        fieldOptionValues: DataAppVizFieldOptionValues = {},
     ) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap,
@@ -352,12 +356,14 @@ describe('DataAppVizConfigTabs', () => {
                                   dataAppVizVersion,
                                   fieldMapping,
                                   optionValues,
+                                  fieldOptionValues,
                               },
                     dataAppVizUuid,
                     setDataAppVizUuid,
                     clearDataAppViz,
                     setField,
                     setOption,
+                    setFieldOption,
                     upgradeDataAppVizVersion,
                 },
             },
@@ -376,6 +382,7 @@ describe('DataAppVizConfigTabs', () => {
         setField.mockClear();
         setPivotDimensions.mockClear();
         upgradeDataAppVizVersion.mockClear();
+        setFieldOption.mockClear();
         defaultAbility.update([]);
         vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
             data: undefined,
@@ -832,8 +839,204 @@ describe('DataAppVizConfigTabs', () => {
             5,
             { source: 'orders_visible', value: 'orders_visible_metric' },
             {},
+            {},
         );
         expect(setPivotDimensions).toHaveBeenCalled();
+    });
+
+    it('carries per-field option values through an upgrade, pruning what no longer fits', async () => {
+        const user = userEvent.setup();
+        const dashed: DataAppVizConfigOption = {
+            type: 'boolean',
+            name: 'dashed',
+            label: 'Dashed',
+            default: false,
+        };
+        const width: DataAppVizConfigOption = {
+            type: 'number',
+            name: 'width',
+            label: 'Width',
+            default: 1,
+        };
+        mockSchema([], null, {
+            schema: {
+                fields: [
+                    {
+                        name: 'source',
+                        label: 'Source',
+                        type: 'dimension',
+                        required: true,
+                        configOptions: [
+                            {
+                                type: 'boolean',
+                                name: 'bold',
+                                label: 'Bold',
+                                default: false,
+                            },
+                        ],
+                    },
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric',
+                        required: true,
+                        configOptions: [dashed, width],
+                    },
+                ],
+                configOptions: [],
+                colorPalette: null,
+            },
+        });
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            {},
+            { source: 'orders_visible', value: 'orders_visible_metric' },
+            3,
+            {
+                source: { orders_visible: { bold: true } },
+                value: {
+                    orders_visible_metric: { dashed: true, width: 3 },
+                    orders_hidden_metric: { dashed: true },
+                },
+            },
+        );
+        vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
+            data: {
+                state: 'ready',
+                version: 5,
+                schema: {
+                    fields: [
+                        {
+                            name: 'value',
+                            label: 'Value',
+                            type: 'metric',
+                            required: true,
+                            configOptions: [dashed],
+                        },
+                    ],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+                latestBuildInProgress: false,
+            },
+        } as unknown as ReturnType<typeof useDataAppVizRenderMetadata>);
+
+        renderWithProviders(<ConfigTabs />);
+        await user.click(screen.getByRole('button', { name: 'upgrade' }));
+
+        const [version, fieldMapping, , fieldOptionValues] =
+            upgradeDataAppVizVersion.mock.calls[0];
+        expect(version).toBe(5);
+        expect(fieldMapping).toEqual({ value: 'orders_visible_metric' });
+        expect(fieldOptionValues).toEqual({
+            value: { orders_visible_metric: { dashed: true } },
+        });
+    });
+
+    it('renders per-field options once per bound field, in selection order', async () => {
+        const user = userEvent.setup();
+        mockSchema([], null, {
+            schema: {
+                fields: [
+                    {
+                        name: 'values',
+                        label: 'Values',
+                        type: 'metric',
+                        required: true,
+                        multiple: true,
+                        configOptions: [
+                            {
+                                type: 'boolean',
+                                name: 'dashed',
+                                label: 'Dashed',
+                                default: false,
+                            },
+                        ],
+                    },
+                ],
+                configOptions: [],
+                colorPalette: null,
+            },
+        });
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            {},
+            { values: ['table_calculation', 'orders_visible_metric'] },
+            undefined,
+            { values: { orders_visible_metric: { dashed: true } } },
+        );
+
+        renderWithProviders(<ConfigTabs />);
+
+        const groups = screen.getAllByRole('group', { name: / options$/ });
+        expect(groups.map((group) => group.getAttribute('aria-label'))).toEqual(
+            [
+                `${getItemLabelWithoutTableName(tableCalculation)} options`,
+                `${getItemLabelWithoutTableName(queryColumns.orders_visible_metric)} options`,
+            ],
+        );
+        expect(within(groups[0]).getByLabelText('Dashed')).not.toBeChecked();
+        expect(within(groups[1]).getByLabelText('Dashed')).toBeChecked();
+
+        await user.click(within(groups[0]).getByLabelText('Dashed'));
+
+        expect(setFieldOption).toHaveBeenCalledWith(
+            'data-app-viz-uuid',
+            'values',
+            'table_calculation',
+            'dashed',
+            true,
+        );
+    });
+
+    it('lists only inputs with options in a grouped per-field tab', async () => {
+        const user = userEvent.setup();
+        mockSchema([], null, {
+            schema: {
+                fields: [
+                    {
+                        name: 'category',
+                        label: 'Category',
+                        type: 'dimension',
+                        required: false,
+                    },
+                    {
+                        name: 'values',
+                        label: 'Values',
+                        type: 'metric',
+                        required: true,
+                        multiple: true,
+                        configOptions: [
+                            {
+                                type: 'boolean',
+                                name: 'dashed',
+                                label: 'Dashed',
+                                group: 'Series',
+                                default: false,
+                            },
+                        ],
+                    },
+                ],
+                configOptions: [],
+                colorPalette: null,
+            },
+        });
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            {},
+            { values: ['orders_visible_metric'] },
+        );
+
+        renderWithProviders(<ConfigTabs />);
+        await user.click(screen.getByRole('tab', { name: 'Series' }));
+
+        const panel = screen.getByRole('tabpanel');
+        expect(within(panel).getByText('Values')).toBeInTheDocument();
+        expect(within(panel).queryByText('Category')).not.toBeInTheDocument();
+        expect(within(panel).getByLabelText('Dashed')).toBeInTheDocument();
     });
 
     it('keeps missing mappings readable without repeating a warning', () => {

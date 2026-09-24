@@ -1,6 +1,7 @@
 import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
+    getDataAppVizFieldOptions,
     getEffectiveOptionValues,
     getDataAppVizPreviewSchema,
     getPivotValueColumnName,
@@ -8,6 +9,7 @@ import {
     VizIndexType,
     type DataAppVizContext,
     type DataAppVizField,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
     type DataAppVizPreview,
@@ -313,6 +315,7 @@ export const buildSampleVizContext = (
     colorPalette: string[] = ECHARTS_DEFAULT_COLORS,
     optionValues: DataAppVizOptionValues = {},
     preview: DataAppVizPreview | null = null,
+    fieldOptionValues: DataAppVizFieldOptionValues = {},
 ): DataAppVizContext => {
     const parsedPreview = getDataAppVizPreviewSchema(schema).safeParse(preview);
     const demo = parsedPreview.success ? parsedPreview.data : null;
@@ -331,17 +334,17 @@ export const buildSampleVizContext = (
     // that keeps the flat sample.
     const shouldPivot = fields.series.length > 0 && fields.metrics.length > 0;
 
+    // One representative column per input keeps the preview readable while
+    // collection inputs retain the same array binding contract as real data.
+    const fieldMapping = Object.fromEntries(
+        schema.fields.map((field) => [
+            field.name,
+            field.multiple ? [sampleColumnId(field)] : sampleColumnId(field),
+        ]),
+    );
+
     return {
-        // One representative column per input keeps the preview readable while
-        // collection inputs retain the same array binding contract as real data.
-        fieldMapping: Object.fromEntries(
-            schema.fields.map((field) => [
-                field.name,
-                field.multiple
-                    ? [sampleColumnId(field)]
-                    : sampleColumnId(field),
-            ]),
-        ),
+        fieldMapping,
         // Fabricated columns have no semantic-layer item; the declared slot
         // label stands in so previews still show human names.
         fields: Object.fromEntries(
@@ -354,6 +357,11 @@ export const buildSampleVizContext = (
             ...demo?.optionValues,
             ...optionValues,
         }),
+        fieldOptions: getDataAppVizFieldOptions(
+            schema.fields,
+            fieldMapping,
+            fieldOptionValues,
+        ),
         colorPalette,
         seriesColors: {},
         valueColors: {},

@@ -404,7 +404,7 @@ file**. It has four parts: `fields`, `configOptions`, `colorPalette` and optiona
 the field-mapping UI and the chart config panel from it, so the component is unusable
 without it.
 
-The correspondence is exact in both directions: **every key read from `fieldMapping` or `options` is declared, and everything declared is read.** A declared
+The correspondence is exact in both directions: **every key read from `fieldMapping`, `options` or `fieldOptions` is declared, and everything declared is read.** A declared
 option nothing reads is a dead control the viewer can move with no effect.
 
 ### `fields`
@@ -425,6 +425,11 @@ One entry per input the component reads:
 - `description` — optional reusable mapping help, maximum 160 characters. Use one
   or two short, plain sentences explaining the field's role in the chart. Keep it agnostic
   to any business, explore, or query; do not imply fixed categories or values.
+- `configOptions` — optional per-field options: settings the viewer sets separately for
+  each query field bound to this input, such as a colour or line style per measure. Same
+  option shape and types as the chart-wide `configOptions` below. With a `group` they render in
+  that config tab, listed per bound field (like a Series tab); without one, under the field's picker.
+  See "Per-field options".
 
 Do not generate field examples. Viewers supply their own values; describe the field's
 role and data shape without prescribing categories from a particular business.
@@ -462,6 +467,24 @@ legends and series. For pivoted metrics, iterate the selected ids first and then
 leave their declarations unchanged when adding a separate multiple input. Keep field
 names stable across compatible upgrades so saved selections can be reconciled.
 
+### Per-field options
+
+Declare `configOptions` on an input when each of its fields needs its own value. The config
+panel shows the controls once per selected field, under that field's name. Read the current
+values from `fieldOptions[inputName][fieldId]`; every bound field is present, with declared
+defaults filled in:
+
+```tsx
+const { fieldMapping, fieldOptions } = useVizContext();
+const values = Array.isArray(fieldMapping.values) ? fieldMapping.values : [];
+const lineColor = (id: string) =>
+  (fieldOptions.values?.[id]?.color as string | undefined) ?? '#7162FF'; // declared default
+```
+
+When results are pivoted, every pivot column of a field takes that field's values: map a
+column back to its field with `pivotDetails.valuesColumns[].referenceField`. Hosts that
+predate per-field options send no `fieldOptions`, so always fall back to the declared default.
+
 ### `inputGuidance`
 
 Optional reusable help shown above the mappings, maximum 200 characters. Use at most two
@@ -474,9 +497,10 @@ component infer semantics or transform host data.
 
 ### `configOptions`
 
-One entry per setting the viewer can change without regenerating the viz. Every option is a
-whole-viz value applying to the entire chart — there is no per-series option. Colour series
-and groups with the SDK's resolved-colour helpers.
+One entry per setting the viewer can change without regenerating the viz. Every option here is a
+whole-viz value applying to the entire chart; a setting that differs per field belongs on
+that input's `configOptions` instead. Colour series and groups with the SDK's resolved-colour
+helpers.
 
 Every option has:
 
@@ -592,8 +616,8 @@ Where the answer is yes, make that literal the option's `default`, declare the o
 read the option in its place. Leave it hardcoded only where changing it would break the
 chart.
 
-Then check both directions: every key you read from `options` is declared, and every option
-you declared is read somewhere. `colorPalette` is declared when you use either resolved-
+Then check both directions: every key you read from `options` or `fieldOptions` is declared,
+and every option you declared is read somewhere. `colorPalette` is declared when you use either resolved-
 colour helper or colour from `colorPalette` — it is never read from `options`.
 
 Before returning the declaration, add a `description` to each slot whose role

@@ -1,4 +1,5 @@
 import {
+    getDataAppVizFieldIds,
     getErrorMessage,
     type DataAppVizContext,
     type DataAppVizSchema,
@@ -9,6 +10,7 @@ import Callout from '../../../components/common/Callout';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizOptionTabs from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionTabs';
 import { useDataAppVizTestContext } from '../hooks/useDataAppVizTestContext';
+import DataAppVizTestFieldOptions from './DataAppVizTestFieldOptions';
 import DataAppVizTestInputs from './DataAppVizTestInputs';
 
 type Props = {
@@ -61,6 +63,30 @@ const DataAppVizTestPanel: FC<Props> = ({
                     onChange={setOption}
                     colorPalette={schema.colorPalette}
                     resolvedColorPalette={colorPalette}
+                    fields={schema.fields}
+                    fieldMapping={state.fieldMapping}
+                    renderFieldOptions={(group) =>
+                        schema.fields.map(
+                            (field) =>
+                                (field.configOptions ?? []).some(
+                                    (option) => option.group === group,
+                                ) &&
+                                getDataAppVizFieldIds(
+                                    state.fieldMapping[field.name],
+                                ).length > 0 && (
+                                    <Stack key={field.name} gap="xs">
+                                        <Text fz="xs" fw={600}>
+                                            {field.label}
+                                        </Text>
+                                        <DataAppVizTestFieldOptions
+                                            field={field}
+                                            group={group}
+                                            state={state}
+                                        />
+                                    </Stack>
+                                ),
+                        )
+                    }
                     paletteControl={
                         <PalettePicker
                             label="Color palette"

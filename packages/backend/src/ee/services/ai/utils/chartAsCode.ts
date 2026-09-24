@@ -119,6 +119,8 @@ export const prepareChartAsCode = ({
                               customConfig.fieldMapping,
                           ),
                           optionValues: customConfig.options ?? undefined,
+                          fieldOptionValues:
+                              customConfig.fieldOptions ?? undefined,
                       },
                   }
                 : getRunQueryChartConfig({

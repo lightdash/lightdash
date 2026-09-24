@@ -527,6 +527,25 @@ export const renameChartConfigType = (
                                 : replaceId(binding),
                         ]),
                     ),
+                    ...(dataAppVizConfig.config.fieldOptionValues
+                        ? {
+                              fieldOptionValues: Object.fromEntries(
+                                  Object.entries(
+                                      dataAppVizConfig.config.fieldOptionValues,
+                                  ).map(([field, byFieldId]) => [
+                                      field,
+                                      Object.fromEntries(
+                                          Object.entries(byFieldId).map(
+                                              ([fieldId, values]) => [
+                                                  replaceId(fieldId),
+                                                  values,
+                                              ],
+                                          ),
+                                      ),
+                                  ]),
+                              ),
+                          }
+                        : {}),
                 },
             };
         }

@@ -14,6 +14,7 @@ import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfi
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
+import DataAppVizTestFieldOptions from './DataAppVizTestFieldOptions';
 
 type Props = {
     schema: DataAppVizSchema;
@@ -152,6 +153,13 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                         />
                                     </>
                                 ))}
+                            {exploreName && (
+                                <DataAppVizTestFieldOptions
+                                    field={field}
+                                    group={null}
+                                    state={state}
+                                />
+                            )}
                         </Stack>
                     );
                 })}

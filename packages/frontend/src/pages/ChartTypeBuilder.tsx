@@ -6,6 +6,7 @@ import {
     FeatureFlags,
     getDataAppVizFieldIds,
     getItemLabelWithoutTableName,
+    pruneDataAppVizFieldOptionValues,
     type CreateSavedChartVersion,
     type AppChartReference,
     type DataAppVizFieldMapping,
@@ -472,6 +473,7 @@ const ChartTypeBuilder: FC = () => {
                 colorPalette,
                 panel.optionValues,
                 vizPreviewData,
+                panel.fieldOptionValues,
             );
         }
         return buildExplorerVizContext({
@@ -482,6 +484,7 @@ const ChartTypeBuilder: FC = () => {
             pivotDetails: liveRun.pivotDetails,
             colorPalette,
             optionValues: panel.optionValues,
+            fieldOptionValues: panel.fieldOptionValues,
             resolvedColors,
         });
     }, [
@@ -491,6 +494,7 @@ const ChartTypeBuilder: FC = () => {
         liveRun,
         colorPalette,
         panel.optionValues,
+        panel.fieldOptionValues,
         resolvedColors,
         renderedFieldMapping,
         vizPreviewData,
@@ -911,6 +915,14 @@ const ChartTypeBuilder: FC = () => {
                         : null);
             }
             if (!chart) return null;
+            // Values keyed by the previewed fields only carry over when bound.
+            const fieldOptionValues = schema
+                ? pruneDataAppVizFieldOptionValues(
+                      schema.fields,
+                      fieldMapping,
+                      panel.fieldOptionValues,
+                  )
+                : null;
             const destination = getExplorerUrlFromCreateSavedChartVersion(
                 projectUuid,
                 {
@@ -933,6 +945,10 @@ const ChartTypeBuilder: FC = () => {
                                 : {}),
                             fieldMapping,
                             optionValues: panel.optionValues,
+                            ...(fieldOptionValues &&
+                            Object.keys(fieldOptionValues).length > 0
+                                ? { fieldOptionValues }
+                                : {}),
                         },
                     },
                 },
@@ -966,6 +982,7 @@ const ChartTypeBuilder: FC = () => {
             schema,
             workspace.previewVersion,
             panel.optionValues,
+            panel.fieldOptionValues,
             panel.colorPaletteUuid,
         ],
     );
@@ -1060,6 +1077,8 @@ const ChartTypeBuilder: FC = () => {
             schema={schema}
             optionValues={panel.optionValues}
             onOptionChange={panel.onOptionChange}
+            fieldOptionValues={panel.fieldOptionValues}
+            onFieldOptionChange={panel.onFieldOptionChange}
             colorPaletteUuid={panel.colorPaletteUuid}
             onPaletteChange={panel.onPaletteChange}
             resolvedColorPalette={colorPalette}

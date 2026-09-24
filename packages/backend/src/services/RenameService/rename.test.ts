@@ -769,6 +769,12 @@ describe('renameChartConfigType', () => {
 
                     metrics: ['payment_amount', 'orders_count', 'payment_tax'],
                 },
+                fieldOptionValues: {
+                    metrics: {
+                        payment_amount: { color: '#ff0000' },
+                        orders_count: { color: '#00ff00' },
+                    },
+                },
             },
         } as DataAppVizChartConfig;
 
@@ -777,6 +783,14 @@ describe('renameChartConfigType', () => {
         expect((result as DataAppVizChartConfig).config?.fieldMapping).toEqual({
             category: 'invoice_category',
             metrics: ['invoice_amount', 'orders_count', 'invoice_tax'],
+        });
+        expect(
+            (result as DataAppVizChartConfig).config?.fieldOptionValues,
+        ).toEqual({
+            metrics: {
+                invoice_amount: { color: '#ff0000' },
+                orders_count: { color: '#00ff00' },
+            },
         });
     });
 

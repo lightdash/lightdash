@@ -98,4 +98,44 @@ describe('VizSchemaChangesList', () => {
         expect(screen.queryByText('Removed')).not.toBeInTheDocument();
         expect(screen.getByText('Updated')).toBeInTheDocument();
     });
+
+    it('names a per-field option change on an updated field', () => {
+        const value = {
+            name: 'value',
+            label: 'Value',
+            type: 'metric' as const,
+            required: true,
+        };
+        renderWithProviders(
+            <VizSchemaChangesList
+                changes={{
+                    ...changes,
+                    fields: {
+                        added: [],
+                        removed: [],
+                        changed: [
+                            {
+                                before: value,
+                                after: {
+                                    ...value,
+                                    configOptions: [
+                                        {
+                                            type: 'color',
+                                            name: 'color',
+                                            label: 'Colour',
+                                            default: '#000000',
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                }}
+            />,
+        );
+
+        expect(
+            screen.getByText('per-field options changed'),
+        ).toBeInTheDocument();
+    });
 });

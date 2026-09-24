@@ -8,6 +8,7 @@ const initialConfig: DataAppVizChart = {
     dataAppVizUuid: 'viz-1',
     fieldMapping: { category: 'orders_status' },
     optionValues: { showLegend: false },
+    fieldOptionValues: {},
 };
 
 describe('useDataAppVizVisualizationConfig', () => {
@@ -43,6 +44,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 value: 'orders_count',
             },
             optionValues: { showLegend: false },
+            fieldOptionValues: {},
         });
     });
 
@@ -75,6 +77,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 5,
                 { category: 'orders_status', value: 'orders_count' },
                 {},
+                {},
             ),
         );
 
@@ -83,6 +86,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             dataAppVizVersion: 5,
             fieldMapping: { category: 'orders_status', value: 'orders_count' },
             optionValues: {},
+            fieldOptionValues: {},
         });
     });
 
@@ -99,6 +103,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                     category: 'orders_status',
                     values: ['orders_total', 'orders_count'],
                 },
+                {},
                 {},
             ),
         );
@@ -128,13 +133,14 @@ describe('useDataAppVizVisualizationConfig', () => {
             ),
         );
 
-        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}));
+        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}, {}));
 
         expect(onConfigChange).toHaveBeenLastCalledWith({
             dataAppVizUuid: 'viz-1',
             dataAppVizVersion: 5,
             fieldMapping: {},
             optionValues: {},
+            fieldOptionValues: {},
         });
     });
 
@@ -144,7 +150,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             useDataAppVizVisualizationConfig(undefined, onConfigChange),
         );
 
-        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}));
+        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}, {}));
 
         expect(onConfigChange).not.toHaveBeenCalled();
         expect(result.current.validConfig).toBeNull();
@@ -177,6 +183,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             dataAppVizUuid: 'viz-1',
             fieldMapping: { category: 'orders_status' },
             optionValues: { showLegend: false, barColor: '#ff0000' },
+            fieldOptionValues: {},
         });
     });
 
@@ -206,7 +213,109 @@ describe('useDataAppVizVisualizationConfig', () => {
                 barColor: '#ff0000',
                 title: 'Revenue',
             },
+            fieldOptionValues: {},
         });
+    });
+
+    it('stores per-field option values for each field independently', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                {
+                    ...initialConfig,
+                    fieldMapping: { values: ['orders_total', 'orders_count'] },
+                },
+                onConfigChange,
+            ),
+        );
+
+        act(() => {
+            result.current.setFieldOption(
+                'viz-1',
+                'values',
+                'orders_total',
+                'color',
+                '#ff0000',
+            );
+            result.current.setFieldOption(
+                'viz-1',
+                'values',
+                'orders_count',
+                'color',
+                '#00ff00',
+            );
+            result.current.setFieldOption(
+                'viz-1',
+                'values',
+                'orders_total',
+                'dashed',
+                true,
+            );
+        });
+
+        expect(onConfigChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                optionValues: { showLegend: false },
+                fieldOptionValues: {
+                    values: {
+                        orders_total: { color: '#ff0000', dashed: true },
+                        orders_count: { color: '#00ff00' },
+                    },
+                },
+            }),
+        );
+    });
+
+    it('keeps per-field values on reorder and drops them with the field', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig({
+                ...initialConfig,
+                fieldMapping: { values: ['orders_total', 'orders_count'] },
+                fieldOptionValues: {
+                    values: {
+                        orders_total: { color: '#ff0000' },
+                        orders_count: { color: '#00ff00' },
+                    },
+                },
+            }),
+        );
+
+        act(() =>
+            result.current.setField('values', ['orders_count', 'orders_total']),
+        );
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({
+            values: {
+                orders_total: { color: '#ff0000' },
+                orders_count: { color: '#00ff00' },
+            },
+        });
+
+        act(() => result.current.setField('values', ['orders_count']));
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({
+            values: { orders_count: { color: '#00ff00' } },
+        });
+
+        act(() => result.current.setField('values', null));
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({});
+    });
+
+    it('ignores a per-field edit for a viz the chart no longer uses', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+
+        act(() =>
+            result.current.setFieldOption(
+                'viz-2',
+                'category',
+                'orders_status',
+                'color',
+                '#ff0000',
+            ),
+        );
+
+        expect(onConfigChange).not.toHaveBeenCalled();
     });
 
     it('keeps both field edits when two selects change in the same commit', () => {
@@ -233,6 +342,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 series: 'orders_channel',
             },
             optionValues: { showLegend: false },
+            fieldOptionValues: {},
         });
     });
 
@@ -251,6 +361,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 value: 'orders_count',
             },
             optionValues: { showLegend: false },
+            fieldOptionValues: {},
         });
     });
 
@@ -309,6 +420,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             dataAppVizUuid: 'viz-2',
             fieldMapping: {},
             optionValues: {},
+            fieldOptionValues: {},
         });
     });
 
@@ -364,6 +476,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             dataAppVizUuid: 'viz-1',
             fieldMapping: { category: 'orders_status' },
             optionValues: { showLegend: false, barColor: '#ff0000' },
+            fieldOptionValues: {},
         });
     });
 
@@ -383,6 +496,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 dataAppVizUuid: 'viz-2',
                 fieldMapping: { value: 'orders_total' },
                 optionValues: {},
+                fieldOptionValues: {},
             },
         });
 
@@ -399,6 +513,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             dataAppVizUuid: 'viz-2',
             fieldMapping: { value: 'orders_total' },
             optionValues: { barColor: '#00ff00' },
+            fieldOptionValues: {},
         });
     });
 
@@ -452,6 +567,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 dataAppVizUuid: '',
                 fieldMapping: {},
                 optionValues: {},
+                fieldOptionValues: {},
             }),
         );
 

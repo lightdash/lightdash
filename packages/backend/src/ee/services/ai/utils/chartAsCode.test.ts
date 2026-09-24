@@ -74,6 +74,7 @@ describe('deterministic chart-as-code', () => {
                 ...queryTool,
                 chartConfig: {
                     customChartTypeSlug: 'cohort-waterfall',
+                    fieldOptions: null,
                     fieldMapping: {
                         x: 'a_dim1',
                         y: 'a_met1',

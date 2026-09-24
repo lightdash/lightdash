@@ -235,6 +235,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Show real field labels and semantic-layer formats in reusable visualizations — axis titles, legends and default labels read "Total order amount" instead of the raw field id.',
         wiring: 'Read display names with getFieldLabel(context, fieldId) — it falls back to the raw field id on hosts that send no metadata — and build axis-tick or legend formatters from useVizContext().fields[fieldId]?.format; treat the whole fields map as possibly empty.',
     },
+    {
+        key: 'viz-field-options',
+        appliesTo: ['chart_type'],
+        label: 'Per-field options',
+        description:
+            'Let viewers style each field of a reusable visualization separately — for example a colour or line style per metric — from the chart config panel.',
+        wiring: 'Declare configOptions on the field (input) whose fields each need their own setting, then read useVizContext().fieldOptions[fieldName][fieldId]?.[optionName] for each bound field id. A pivoted column uses the values of its field: look it up through pivotDetails.valuesColumns[].referenceField. Treat fieldOptions as possibly empty and fall back to the declared default.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

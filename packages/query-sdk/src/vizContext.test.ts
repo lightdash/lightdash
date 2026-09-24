@@ -216,6 +216,31 @@ describe('toVizContextState', () => {
         });
     });
 
+    it('carries per-field option values keyed by slot and field id', () => {
+        expect(
+            toVizContextState(
+                message({
+                    fieldOptions: {
+                        values: {
+                            orders_total: { color: '#7162FF', dashed: true },
+                            orders_count: { color: '#00AA00', width: {} },
+                        },
+                        broken: 'nope',
+                    } as never,
+                }),
+            ).fieldOptions,
+        ).toEqual({
+            values: {
+                orders_total: { color: '#7162FF', dashed: true },
+                orders_count: { color: '#00AA00' },
+            },
+        });
+    });
+
+    it('defaults per-field options to an empty object for older hosts', () => {
+        expect(toVizContextState(message({})).fieldOptions).toEqual({});
+    });
+
     it('defaults options to an empty object when the host omits them', () => {
         expect(toVizContextState(message({})).options).toEqual({});
     });
@@ -324,6 +349,7 @@ describe('toVizContextState', () => {
             fields: {},
             rows: [],
             options: {},
+            fieldOptions: {},
             colorPalette: [],
             seriesColors: {},
             valueColors: {},

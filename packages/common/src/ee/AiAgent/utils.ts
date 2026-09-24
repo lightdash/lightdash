@@ -254,5 +254,8 @@ export const getDataAppVizChartFromArtifact = (
             : { dataAppVizVersion: artifactConfig.dataAppVizVersion }),
         fieldMapping: chartConfig.fieldMapping,
         ...(chartConfig.options ? { optionValues: chartConfig.options } : {}),
+        ...(chartConfig.fieldOptions
+            ? { fieldOptionValues: chartConfig.fieldOptions }
+            : {}),
     };
 };

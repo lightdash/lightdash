@@ -879,6 +879,8 @@ export type DataAppVizField = {
     description?: string;
     /** Scalar display examples for this slot, independent of any one query. */
     examples?: Array<string | number | boolean | null>;
+    /** Options set once per query field bound to this slot. */
+    configOptions?: DataAppVizConfigOption[];
 };
 
 /** The full declaration a data app viz emits: data-binding fields + config form. */
@@ -937,61 +939,6 @@ const optionBase = {
             'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
         ),
 };
-
-const vizField = (strict: boolean) =>
-    z.object({
-        name: z
-            .string()
-            .min(1)
-            .describe(
-                'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
-            ),
-        label: z
-            .string()
-            .describe('Human label shown in the field-mapping UI.'),
-        type: z
-            .enum(['dimension', 'metric', 'series', 'column'])
-            .describe(
-                'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart, column = any result column (metric or dimension) — use when the chart handles non-numeric values.',
-            ),
-        required: z
-            .boolean()
-            .describe(
-                'false only when the chart still renders with this field unmapped.',
-            ),
-        multiple: z
-            .boolean()
-            .nullable()
-            .transform((value) => value ?? undefined)
-            .optional()
-            .describe(
-                'Whether this slot accepts an ordered collection of fields. Omit or set false for one field.',
-            ),
-        description: optionalInputHelp(
-            strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,
-        ).describe(
-            strict
-                ? 'Optional mapping help in one or two short, plain sentences (maximum 160 characters). Explain what this field represents and how to choose it, without naming a particular query.'
-                : 'Optional reusable mapping help explaining what this field represents.',
-        ),
-    });
-
-const vizFieldsDescription =
-    'Every data column the component reads. Declare exactly what you read — no more, no less.';
-
-const vizFieldsForRead = z
-    .array(
-        vizField(false).extend({
-            examples: nullableOptionalFieldExamples().describe(
-                'Optional legacy scalar display examples for this field. Each value stands alone.',
-            ),
-        }),
-    )
-    .describe(vizFieldsDescription);
-
-const vizFieldsForGeneration = z
-    .array(vizField(true))
-    .describe(vizFieldsDescription);
 
 const vizConfigOptions = z.array(
     z.discriminatedUnion('type', [
@@ -1055,6 +1002,69 @@ const vizConfigOptions = z.array(
         }),
     ]),
 );
+
+const vizField = (strict: boolean) =>
+    z.object({
+        name: z
+            .string()
+            .min(1)
+            .describe(
+                'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
+            ),
+        label: z
+            .string()
+            .describe('Human label shown in the field-mapping UI.'),
+        type: z
+            .enum(['dimension', 'metric', 'series', 'column'])
+            .describe(
+                'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart, column = any result column (metric or dimension) — use when the chart handles non-numeric values.',
+            ),
+        required: z
+            .boolean()
+            .describe(
+                'false only when the chart still renders with this field unmapped.',
+            ),
+        multiple: z
+            .boolean()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Whether this slot accepts an ordered collection of fields. Omit or set false for one field.',
+            ),
+        description: optionalInputHelp(
+            strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,
+        ).describe(
+            strict
+                ? 'Optional mapping help in one or two short, plain sentences (maximum 160 characters). Explain what this field represents and how to choose it, without naming a particular query.'
+                : 'Optional reusable mapping help explaining what this field represents.',
+        ),
+        configOptions: vizConfigOptions
+            .refine(uniqueNames, 'duplicate option name')
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Optional settings the viewer sets separately for each query field bound to this slot — e.g. a colour or line style per metric. Same option types as `configOptions`; the component reads them from `fieldOptions[slot name][field id]`, and a pivoted column uses the values of its `referenceField`. Null when every bound field shares the chart-wide options.',
+            ),
+    });
+
+const vizFieldsDescription =
+    'Every data column the component reads. Declare exactly what you read — no more, no less.';
+
+const vizFieldsForRead = z
+    .array(
+        vizField(false).extend({
+            examples: nullableOptionalFieldExamples().describe(
+                'Optional legacy scalar display examples for this field. Each value stands alone.',
+            ),
+        }),
+    )
+    .describe(vizFieldsDescription);
+
+const vizFieldsForGeneration = z
+    .array(vizField(true))
+    .describe(vizFieldsDescription);
 
 const vizColorPalette = z
     .object({
@@ -1445,11 +1455,18 @@ export type DataAppVizFieldMetadata = {
 // `drillDown.enabled` and `pointMenu.enabled` are required so every push site
 // decides availability explicitly. `fields` carries display metadata for every
 // bound field id, so a viz labels axes and legends without parsing raw ids.
+// `fieldOptions` carries effective per-field option values (field name → field
+// id → option name → value) for every field bound to a slot that declares
+// options; a pivoted column takes the values of its `referenceField`.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string | string[]>;
     fields: Record<string, DataAppVizFieldMetadata>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
+    fieldOptions: Record<
+        string,
+        Record<string, Record<string, DataAppVizOptionValue>>
+    >;
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;

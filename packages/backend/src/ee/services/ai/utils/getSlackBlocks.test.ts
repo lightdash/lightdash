@@ -596,6 +596,7 @@ describe('Slack AI agent blocks', () => {
                             },
                             chartConfig: {
                                 customChartTypeSlug: 'fuzzy-bar',
+                                fieldOptions: null,
                                 fieldMapping: {
                                     x: 'orders_order_date_month',
                                     y: 'orders_unique_order_count',
@@ -712,6 +713,7 @@ describe('Slack AI agent blocks', () => {
                             },
                             chartConfig: {
                                 customChartTypeSlug: 'fuzzy-bar',
+                                fieldOptions: null,
                                 fieldMapping: {
                                     x: 'orders_order_date_month',
                                     y: 'orders_unique_order_count',
@@ -791,6 +793,7 @@ describe('Slack AI agent blocks', () => {
                             },
                             chartConfig: {
                                 customChartTypeSlug: 'fuzzy-bar',
+                                fieldOptions: null,
                                 fieldMapping: {
                                     x: 'orders_order_date_month',
                                     y: 'orders_unique_order_count',

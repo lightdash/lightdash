@@ -75,6 +75,7 @@ const build = (
         pivotDetails: null,
         colorPalette: ['#111', '#222'],
         optionValues: {},
+        fieldOptionValues: {},
         resolvedColors: {
             seriesColors: { count_new: '#00ff00' },
             valueColors: {

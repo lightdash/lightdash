@@ -1,4 +1,5 @@
 import {
+    isSameDataAppVizConfigOptionList,
     type DataAppVizConfigOption,
     type DataAppVizConfigOptionChange,
     type DataAppVizField,
@@ -65,6 +66,13 @@ const describeFieldChange = ({ before, after }: DataAppVizFieldChange) => {
         );
     if (before.label !== after.label)
         parts.push(`renamed from "${before.label}"`);
+    if (
+        !isSameDataAppVizConfigOptionList(
+            before.configOptions ?? [],
+            after.configOptions ?? [],
+        )
+    )
+        parts.push('per-field options changed');
     return parts.join(', ');
 };
 

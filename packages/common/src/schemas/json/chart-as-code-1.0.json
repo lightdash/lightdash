@@ -1280,6 +1280,10 @@
             "$ref": "#/$defs/Record_string.string-or-string-Array_",
             "description": "Maps a viz field name to one query field id or an ordered collection."
         },
+        "DataAppVizFieldOptionValues": {
+            "$ref": "#/$defs/Record_string.Record_string.DataAppVizOptionValues__",
+            "description": "Viz field (input) name → bound query field id → that field's option values."
+        },
         "DataAppVizOptionValue": {
             "anyOf": [
                 {
@@ -2744,6 +2748,10 @@
                 "fieldMapping": {
                     "$ref": "#/$defs/DataAppVizFieldMapping"
                 },
+                "fieldOptionValues": {
+                    "$ref": "#/$defs/DataAppVizFieldOptionValues",
+                    "description": "Per-field option values the user explicitly changed, for inputs that\ndeclare `configOptions`. Absent on charts saved before per-field options\nshipped."
+                },
                 "optionValues": {
                     "$ref": "#/$defs/DataAppVizOptionValues",
                     "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
@@ -3081,6 +3089,14 @@
             "properties": {},
             "type": "object"
         },
+        "Record_string.DataAppVizOptionValues_": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DataAppVizOptionValues"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.FieldId_": {
             "additionalProperties": {
                 "type": "string"
@@ -3108,6 +3124,14 @@
         "Record_string.Partial_PieChartValueOptions__": {
             "additionalProperties": {
                 "$ref": "#/$defs/Partial_PieChartValueOptions_"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
+        "Record_string.Record_string.DataAppVizOptionValues__": {
+            "additionalProperties": {
+                "$ref": "#/$defs/Record_string.DataAppVizOptionValues_"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},

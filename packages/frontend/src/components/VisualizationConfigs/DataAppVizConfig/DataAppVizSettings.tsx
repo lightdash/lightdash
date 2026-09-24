@@ -11,7 +11,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
-import { useId, useMemo, type FC } from 'react';
+import { useId, useMemo, type FC, type ReactNode } from 'react';
 import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
@@ -32,6 +32,11 @@ type Props = {
         fieldName: string,
         fieldId: string | string[] | null,
     ) => void;
+    /** Per-field options of an input, rendered under its field select. */
+    renderFieldOptions: (
+        field: DataAppVizField,
+        fieldIds: string[],
+    ) => ReactNode;
 };
 
 /**
@@ -45,6 +50,7 @@ const DataAppVizSettings: FC<Props> = ({
     fields,
     fieldMapping,
     onFieldChange,
+    renderFieldOptions,
 }) => {
     const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
@@ -190,6 +196,9 @@ const DataAppVizSettings: FC<Props> = ({
                                     />
                                 </>
                             )}
+                            {(field.configOptions ?? []).length > 0 &&
+                                selectedIds.length > 0 &&
+                                renderFieldOptions(field, selectedIds)}
                         </Config.Section>
                     </Config>
                 );
