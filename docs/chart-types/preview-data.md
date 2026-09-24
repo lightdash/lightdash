@@ -59,6 +59,11 @@ Numeric colour overrides use the same sample IDs in
 `auto`), and requires a matching `colorOptions.gradient` declaration. Automatic
 bounds are calculated from the preview's supplied values.
 
+Conditional overrides use `fieldColorValues[inputName][sampleFieldId].rules`
+and require a matching `colorOptions.rules` declaration. Rules are ordered; the
+last enabled match wins over a gradient, with fixed/palette colour as fallback.
+An explicit empty array disables the declared default rules.
+
 `rows`, `optionValues`, `fieldOptionValues`, and `fieldColorValues` can be supplied
 independently. Without rows,
 Lightdash generates twelve monthly points with three series where applicable.

@@ -107,6 +107,42 @@ describe('per-field preview options', () => {
 });
 
 describe('per-field preview colors', () => {
+    it('accepts rules-only colors and rejects a rule where no rules are declared', () => {
+        const rules = [
+            {
+                enabled: true,
+                color: '#ff0000',
+                operator: 'eq' as const,
+                value: 5,
+            },
+        ];
+        const preview = {
+            fieldColorValues: { value: { sample_value: { rules } } },
+        };
+        const rulesOnly = getDataAppVizPreviewSchema({
+            ...schema,
+            fields: [{ ...schema.fields[0], colorOptions: { rules } }],
+        });
+        const gradientOnly = getDataAppVizPreviewSchema({
+            ...schema,
+            fields: [
+                {
+                    ...schema.fields[0],
+                    colorOptions: {
+                        gradient: {
+                            enabled: true,
+                            start: '#000',
+                            end: '#fff',
+                            min: 'auto',
+                            max: 'auto',
+                        },
+                    },
+                },
+            ],
+        });
+        expect(rulesOnly.safeParse(preview).success).toBe(true);
+        expect(gradientOnly.safeParse(preview).success).toBe(false);
+    });
     const validator = getDataAppVizPreviewSchema({
         ...schema,
         fields: [

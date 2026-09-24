@@ -3,16 +3,26 @@ import {
     type DataAppVizFieldColorValues,
     type DataAppVizFieldMapping,
 } from '../../types/savedCharts';
+import assertUnreachable from '../../utils/assertUnreachable';
 import { getColorFromRange } from '../../utils/colors';
-import { dataAppVizColorGradientSchema } from './dataAppVizFieldColorsSchema';
+import {
+    dataAppVizColorGradientSchema,
+    dataAppVizColorRuleSchema,
+} from './dataAppVizFieldColorsSchema';
 import { getDataAppVizFieldIds } from './dataAppVizFieldMapping';
-import { type DataAppVizContext, type DataAppVizField } from './types';
+import {
+    type DataAppVizColorRule,
+    type DataAppVizContext,
+    type DataAppVizField,
+} from './types';
 
 const boundIds = (binding: string | string[] | undefined): string[] =>
     getDataAppVizFieldIds(binding).filter((fieldId) => fieldId.length > 0);
 
-const validOverride = (value: unknown) =>
+const validGradientOverride = (value: unknown) =>
     dataAppVizColorGradientSchema.safeParse(value);
+const validRulesOverride = (value: unknown) =>
+    dataAppVizColorRuleSchema.array().safeParse(value);
 
 /** Explicit overrides still declared for fields that remain bound. */
 export const pruneDataAppVizFieldColorValues = (
@@ -22,14 +32,26 @@ export const pruneDataAppVizFieldColorValues = (
 ): DataAppVizFieldColorValues =>
     Object.fromEntries(
         fields.flatMap((field) => {
-            if (!field.colorOptions?.gradient) return [];
+            if (!field.colorOptions?.gradient && !field.colorOptions?.rules)
+                return [];
             const byId = Object.fromEntries(
                 boundIds(fieldMapping[field.name]).flatMap((fieldId) => {
-                    const parsed = validOverride(
+                    const gradient = validGradientOverride(
                         values[field.name]?.[fieldId]?.gradient,
                     );
-                    return parsed.success
-                        ? [[fieldId, { gradient: parsed.data }]]
+                    const rules = validRulesOverride(
+                        values[field.name]?.[fieldId]?.rules,
+                    );
+                    const explicit = {
+                        ...(field.colorOptions?.gradient && gradient.success
+                            ? { gradient: gradient.data }
+                            : {}),
+                        ...(field.colorOptions?.rules && rules.success
+                            ? { rules: rules.data }
+                            : {}),
+                    };
+                    return Object.keys(explicit).length > 0
+                        ? [[fieldId, explicit]]
                         : [];
                 }),
             );
@@ -45,16 +67,34 @@ export const getEffectiveDataAppVizFieldColorValues = (
 ): DataAppVizFieldColorValues =>
     Object.fromEntries(
         fields.flatMap((field) => {
-            const declared = field.colorOptions?.gradient;
-            if (!declared) return [];
+            const declared = field.colorOptions;
+            if (!declared?.gradient && !declared?.rules) return [];
             const byId = Object.fromEntries(
                 boundIds(fieldMapping[field.name]).map((fieldId) => {
-                    const parsed = validOverride(
+                    const gradient = validGradientOverride(
                         values[field.name]?.[fieldId]?.gradient,
+                    );
+                    const rules = validRulesOverride(
+                        values[field.name]?.[fieldId]?.rules,
                     );
                     return [
                         fieldId,
-                        { gradient: parsed.success ? parsed.data : declared },
+                        {
+                            ...(declared.gradient
+                                ? {
+                                      gradient: gradient.success
+                                          ? gradient.data
+                                          : declared.gradient,
+                                  }
+                                : {}),
+                            ...(declared.rules
+                                ? {
+                                      rules: rules.success
+                                          ? rules.data
+                                          : declared.rules,
+                                  }
+                                : {}),
+                        },
                     ];
                 }),
             );
@@ -70,6 +110,37 @@ export const getDataAppVizNumericValueKey = (
     if (typeof raw === 'string' && raw.trim().length === 0) return undefined;
     const numeric = Number(raw);
     return Number.isFinite(numeric) ? String(numeric) : undefined;
+};
+
+const matchesRule = (rule: DataAppVizColorRule, numeric: number): boolean => {
+    if (!rule.enabled) return false;
+    switch (rule.operator) {
+        case 'eq':
+            return numeric === rule.value;
+        case 'neq':
+            return numeric !== rule.value;
+        case 'lt':
+            return numeric < rule.value;
+        case 'lte':
+            return numeric <= rule.value;
+        case 'gt':
+            return numeric > rule.value;
+        case 'gte':
+            return numeric >= rule.value;
+        case 'between':
+            return (
+                rule.min <= rule.max &&
+                numeric >= rule.min &&
+                numeric <= rule.max
+            );
+        case 'notBetween':
+            return (
+                rule.min <= rule.max &&
+                (numeric < rule.min || numeric > rule.max)
+            );
+        default:
+            return assertUnreachable(rule, 'Unknown data app viz color rule');
+    }
 };
 
 /** Resolve colors for the actual finite raw values supplied to the viz. */
@@ -95,8 +166,12 @@ export const resolveDataAppVizFieldColors = ({
         Object.entries(effective).flatMap(([slot, byId]) => {
             const colorsById = Object.fromEntries(
                 Object.entries(byId).flatMap(([fieldId, value]) => {
-                    const { gradient } = value;
-                    if (!gradient?.enabled) return [];
+                    const { gradient, rules = [] } = value;
+                    if (
+                        !gradient?.enabled &&
+                        rules.every((rule) => !rule.enabled)
+                    )
+                        return [];
                     const columns = [
                         fieldId,
                         ...(pivotDetails?.valuesColumns
@@ -128,21 +203,35 @@ export const resolveDataAppVizFieldColors = ({
                     if (numericValues.size === 0) return [];
                     let observedMin = Infinity;
                     let observedMax = -Infinity;
-                    numericValues.forEach((numeric) => {
-                        observedMin = Math.min(observedMin, numeric);
-                        observedMax = Math.max(observedMax, numeric);
-                    });
+                    if (gradient?.enabled) {
+                        numericValues.forEach((numeric) => {
+                            observedMin = Math.min(observedMin, numeric);
+                            observedMax = Math.max(observedMax, numeric);
+                        });
+                    }
                     const min =
-                        gradient.min === 'auto' ? observedMin : gradient.min;
+                        gradient?.min === 'auto' ? observedMin : gradient?.min;
                     const max =
-                        gradient.max === 'auto' ? observedMax : gradient.max;
+                        gradient?.max === 'auto' ? observedMax : gradient?.max;
                     const colors = Object.fromEntries(
                         [...numericValues].flatMap((numeric) => {
-                            const color = getColorFromRange(
-                                numeric,
-                                { start: gradient.start, end: gradient.end },
-                                { min, max },
+                            const lastRule = rules.findLast((rule) =>
+                                matchesRule(rule, numeric),
                             );
+                            const color =
+                                lastRule?.color ??
+                                (gradient?.enabled &&
+                                min !== undefined &&
+                                max !== undefined
+                                    ? getColorFromRange(
+                                          numeric,
+                                          {
+                                              start: gradient.start,
+                                              end: gradient.end,
+                                          },
+                                          { min, max },
+                                      )
+                                    : undefined);
                             return color ? [[String(numeric), color]] : [];
                         }),
                     );

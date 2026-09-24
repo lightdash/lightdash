@@ -1,4 +1,7 @@
-import { type DataAppVizConfigOption } from './dataAppVizConfigOptions';
+import {
+    type DataAppVizColorRule,
+    type DataAppVizConfigOption,
+} from './dataAppVizConfigOptions';
 import { type DataAppVizField, type DataAppVizSchema } from './types';
 
 export type DataAppVizFieldChange = {
@@ -82,6 +85,26 @@ const isSameOptions = (
     );
 };
 
+const isSameRule = (
+    a: DataAppVizColorRule,
+    b: DataAppVizColorRule,
+): boolean => {
+    if (
+        a.enabled !== b.enabled ||
+        a.color !== b.color ||
+        a.operator !== b.operator
+    ) {
+        return false;
+    }
+    if ('value' in a && 'value' in b) return a.value === b.value;
+    if ('min' in a && 'min' in b) return a.min === b.min && a.max === b.max;
+    return false;
+};
+
+const isSameRules = (a: DataAppVizColorRule[], b: DataAppVizColorRule[]) =>
+    a.length === b.length &&
+    a.every((rule, index) => isSameRule(rule, b[index]));
+
 const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
     a.label === b.label &&
     a.type === b.type &&
@@ -92,7 +115,10 @@ const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
     a.colorOptions?.gradient?.start === b.colorOptions?.gradient?.start &&
     a.colorOptions?.gradient?.end === b.colorOptions?.gradient?.end &&
     a.colorOptions?.gradient?.min === b.colorOptions?.gradient?.min &&
-    a.colorOptions?.gradient?.max === b.colorOptions?.gradient?.max;
+    a.colorOptions?.gradient?.max === b.colorOptions?.gradient?.max &&
+    (a.colorOptions?.rules === undefined) ===
+        (b.colorOptions?.rules === undefined) &&
+    isSameRules(a.colorOptions?.rules ?? [], b.colorOptions?.rules ?? []);
 
 export const diffDataAppVizSchema = (
     before: DataAppVizSchema,

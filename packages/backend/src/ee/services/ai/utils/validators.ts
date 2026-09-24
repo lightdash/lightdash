@@ -1849,6 +1849,14 @@ export function validateCustomChartTypeChartConfig(
                         `Field colours for "${slot}" reference unbound field "${fieldId}".`,
                     );
                 }
+                if (
+                    values.rules !== undefined &&
+                    declaration.colorOptions?.rules === undefined
+                ) {
+                    errors.push(
+                        `Input "${slot}" does not declare conditional colours.`,
+                    );
+                }
                 if (values.gradient && !declaration.colorOptions?.gradient) {
                     errors.push(
                         `Input "${slot}" does not declare gradient colours.`,

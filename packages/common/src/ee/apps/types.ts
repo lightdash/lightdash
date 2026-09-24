@@ -29,17 +29,22 @@ import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
     type DataAppVizColorGradient,
+    type DataAppVizColorRule,
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
     type DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
-import { dataAppVizColorGradientSchema } from './dataAppVizFieldColorsSchema';
+import {
+    dataAppVizColorGradientSchema,
+    dataAppVizColorRuleSchema,
+} from './dataAppVizFieldColorsSchema';
 import { type DataAppVizPreview } from './preview';
 
 export type {
     DataAppVizConfigOption,
     DataAppVizConfigOptionType,
     DataAppVizColorGradient,
+    DataAppVizColorRule,
     DataAppVizOptionValue,
     DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
@@ -882,8 +887,11 @@ export type DataAppVizField = {
     multiple?: boolean;
     /** Settings available independently for each field bound to this slot. */
     configOptions?: DataAppVizConfigOption[];
-    /** Numeric color scale available independently for each bound field. */
-    colorOptions?: { gradient?: DataAppVizColorGradient };
+    /** Numeric colors available independently for each bound field. */
+    colorOptions?: {
+        gradient?: DataAppVizColorGradient;
+        rules?: DataAppVizColorRule[];
+    };
     /** Explain what belongs in this slot for a reusable visualization. */
     description?: string;
     /** Scalar display examples for this slot, independent of any one query. */
@@ -1051,12 +1059,15 @@ const vizField = (strict: boolean) =>
                 'Optional settings for each bound field, keyed by its query field id. Use boolean, select, number, text and color controls for independent labels, styles, colors and axis placement when the chart supports them.',
             ),
         colorOptions: z
-            .object({ gradient: dataAppVizColorGradientSchema.optional() })
+            .object({
+                gradient: dataAppVizColorGradientSchema.optional(),
+                rules: z.array(dataAppVizColorRuleSchema).optional(),
+            })
             .nullable()
             .transform((value) => value ?? undefined)
             .optional()
             .describe(
-                'Optional per-bound-field numeric gradient. Use finite raw values, fixed hex endpoints, and auto or custom min/max bounds. The component reads resolved colors from fieldColors.',
+                'Optional per-bound-field numeric colors: an ordered array of fixed-hex rules and/or a two-endpoint gradient. Last matching enabled rule wins, then gradient, then the component fallback. The component reads resolved colors from fieldColors.',
             ),
         description: optionalInputHelp(
             strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,

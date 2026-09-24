@@ -100,6 +100,32 @@ const minimal: CustomChartType = {
 };
 
 describe('serializeCustomChartTypeForPrompt', () => {
+    it('mentions numeric field rules', () => {
+        const chart: CustomChartType = {
+            ...minimal,
+            schema: {
+                ...minimal.schema,
+                fields: [
+                    {
+                        ...minimal.schema.fields[0],
+                        colorOptions: {
+                            rules: [
+                                {
+                                    enabled: true,
+                                    color: '#ff0000',
+                                    operator: 'eq',
+                                    value: 5,
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        };
+        expect(serializeCustomChartTypeForPrompt(chart)).toContain(
+            'Status: numeric color rules',
+        );
+    });
     it('mentions declared numeric field gradients', () => {
         const chart: CustomChartType = {
             ...minimal,
@@ -185,6 +211,39 @@ describe('serializeCustomChartTypeForPrompt', () => {
 });
 
 describe('serializeCustomChartTypeSchema', () => {
+    it('lists ordered color rules with their conditions', () => {
+        const chart: CustomChartType = {
+            ...minimal,
+            schema: {
+                ...minimal.schema,
+                fields: [
+                    {
+                        ...minimal.schema.fields[0],
+                        colorOptions: {
+                            rules: [
+                                {
+                                    enabled: true,
+                                    color: '#ff0000',
+                                    operator: 'gte',
+                                    value: 5,
+                                },
+                                {
+                                    enabled: false,
+                                    color: '#00ff00',
+                                    operator: 'between',
+                                    min: 1,
+                                    max: 3,
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        };
+        expect(serializeCustomChartTypeSchema(chart)).toContain(
+            'fieldColorRules for status (per bound field id; last matching enabled rule wins):\n- enabled: true, color: "#ff0000", operator: gte, value: 5\n- enabled: false, color: "#00ff00", operator: between, min: 1, max: 3',
+        );
+    });
     it('describes gradient defaults and bound field scope', () => {
         const chart: CustomChartType = {
             ...minimal,

@@ -767,6 +767,14 @@ describe('renameChartConfigType', () => {
                 fieldColorValues: {
                     metrics: {
                         payment_amount: {
+                            rules: [
+                                {
+                                    enabled: true,
+                                    operator: 'lt' as const,
+                                    value: 0,
+                                    color: '#ff0000',
+                                },
+                            ],
                             gradient: {
                                 enabled: true,
                                 start: '#000000',
@@ -801,6 +809,14 @@ describe('renameChartConfigType', () => {
         ).toEqual({
             metrics: {
                 invoice_amount: {
+                    rules: [
+                        {
+                            enabled: true,
+                            operator: 'lt' as const,
+                            value: 0,
+                            color: '#ff0000',
+                        },
+                    ],
                     gradient: {
                         enabled: true,
                         start: '#000000',

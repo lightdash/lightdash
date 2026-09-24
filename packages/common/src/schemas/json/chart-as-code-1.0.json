@@ -1316,9 +1316,69 @@
             "required": ["max", "min", "end", "start", "enabled"],
             "type": "object"
         },
+        "DataAppVizColorRule": {
+            "allOf": [
+                {
+                    "properties": {
+                        "color": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        }
+                    },
+                    "required": ["color", "enabled"],
+                    "type": "object"
+                },
+                {
+                    "anyOf": [
+                        {
+                            "properties": {
+                                "operator": {
+                                    "enum": [
+                                        "eq",
+                                        "neq",
+                                        "lt",
+                                        "lte",
+                                        "gt",
+                                        "gte"
+                                    ],
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "format": "double",
+                                    "type": "number"
+                                }
+                            },
+                            "required": ["value", "operator"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "max": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "min": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "operator": {
+                                    "enum": ["between", "notBetween"],
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["max", "min", "operator"],
+                            "type": "object"
+                        }
+                    ]
+                }
+            ],
+            "description": "Ordered numeric condition. Later matching enabled rules take precedence."
+        },
         "DataAppVizFieldColorValues": {
-            "$ref": "#/$defs/Record_string.Record_string._gradient_63_-DataAppVizColorGradient___",
-            "description": "Explicit gradient overrides, grouped by declared slot and bound field ID."
+            "$ref": "#/$defs/Record_string.Record_string._gradient_63_-DataAppVizColorGradient--rules_63_-DataAppVizColorRule-Array___",
+            "description": "Explicit numeric color overrides, grouped by declared slot and bound field ID."
         },
         "DataAppVizFieldMapping": {
             "$ref": "#/$defs/Record_string.string-or-string-Array_",
@@ -2791,7 +2851,7 @@
             "properties": {
                 "fieldColorValues": {
                     "$ref": "#/$defs/DataAppVizFieldColorValues",
-                    "description": "Explicit per-field gradient overrides; declarations provide defaults."
+                    "description": "Explicit per-field numeric color overrides; declarations provide defaults."
                 },
                 "fieldMapping": {
                     "$ref": "#/$defs/DataAppVizFieldMapping"
@@ -3113,11 +3173,17 @@
             "required": ["value", "field"],
             "type": "object"
         },
-        "Record_string._gradient_63_-DataAppVizColorGradient-or-undefined__": {
+        "Record_string._gradient_63_-DataAppVizColorGradient-or-undefined--rules_63_-DataAppVizColorRule-Array-or-undefined__": {
             "additionalProperties": {
                 "properties": {
                     "gradient": {
                         "$ref": "#/$defs/DataAppVizColorGradient"
+                    },
+                    "rules": {
+                        "items": {
+                            "$ref": "#/$defs/DataAppVizColorRule"
+                        },
+                        "type": "array"
                     }
                 },
                 "type": "object"
@@ -3190,9 +3256,9 @@
             "properties": {},
             "type": "object"
         },
-        "Record_string.Record_string._gradient_63_-DataAppVizColorGradient___": {
+        "Record_string.Record_string._gradient_63_-DataAppVizColorGradient--rules_63_-DataAppVizColorRule-Array___": {
             "additionalProperties": {
-                "$ref": "#/$defs/Record_string._gradient_63_-DataAppVizColorGradient-or-undefined__"
+                "$ref": "#/$defs/Record_string._gradient_63_-DataAppVizColorGradient-or-undefined--rules_63_-DataAppVizColorRule-Array-or-undefined__"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},

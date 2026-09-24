@@ -29,6 +29,247 @@ const fields: DataAppVizField[] = [
 const cell = (raw: unknown) => ({ value: { raw, formatted: String(raw) } });
 
 describe('data app viz field colors', () => {
+    it('uses the last matching enabled rule before a gradient', () => {
+        const withRules: DataAppVizField[] = [
+            {
+                ...fields[0],
+                colorOptions: {
+                    ...fields[0].colorOptions,
+                    rules: [
+                        {
+                            enabled: true,
+                            color: '#ff0000',
+                            operator: 'gte',
+                            value: 5,
+                        },
+                        {
+                            enabled: false,
+                            color: '#0000ff',
+                            operator: 'eq',
+                            value: 5,
+                        },
+                        {
+                            enabled: true,
+                            color: '#00ff00',
+                            operator: 'between',
+                            min: 5,
+                            max: 8,
+                        },
+                    ],
+                },
+            },
+        ];
+        expect(
+            resolveDataAppVizFieldColors({
+                fields: withRules,
+                fieldMapping: { values: 'a' },
+                rows: [
+                    { a: cell(0) },
+                    { a: cell(5) },
+                    { a: cell(8) },
+                    { a: cell(10) },
+                ],
+                pivotDetails: null,
+            }),
+        ).toEqual({
+            values: {
+                a: {
+                    '0': '#000',
+                    '5': '#00ff00',
+                    '8': '#00ff00',
+                    '10': '#ff0000',
+                },
+            },
+        });
+    });
+
+    it('supports rules-only declarations and explicit empty overrides', () => {
+        const withRules: DataAppVizField[] = [
+            {
+                ...fields[0],
+                colorOptions: {
+                    rules: [
+                        {
+                            enabled: true,
+                            color: '#ff0000',
+                            operator: 'eq',
+                            value: 5,
+                        },
+                    ],
+                },
+            },
+        ];
+        const args = {
+            fields: withRules,
+            fieldMapping: { values: 'a' },
+            rows: [{ a: cell(5) }],
+            pivotDetails: null,
+        };
+        expect(resolveDataAppVizFieldColors(args)).toEqual({
+            values: { a: { '5': '#ff0000' } },
+        });
+        const override = { values: { a: { rules: [] } } };
+        expect(
+            getEffectiveDataAppVizFieldColorValues(
+                withRules,
+                { values: 'a' },
+                override,
+            ).values.a.rules,
+        ).toEqual([]);
+        expect(
+            pruneDataAppVizFieldColorValues(
+                withRules,
+                { values: 'a' },
+                override,
+            ),
+        ).toEqual(override);
+        expect(
+            resolveDataAppVizFieldColors({
+                ...args,
+                fieldColorValues: override,
+            }),
+        ).toEqual({});
+        expect(
+            pruneDataAppVizFieldColorValues(
+                withRules,
+                { values: [] },
+                override,
+            ),
+        ).toEqual({});
+    });
+
+    it('rejects an invalid saved rules array as a whole', () => {
+        const withRules: DataAppVizField[] = [
+            {
+                ...fields[0],
+                colorOptions: {
+                    rules: [
+                        {
+                            enabled: true,
+                            color: '#ff0000',
+                            operator: 'eq',
+                            value: 5,
+                        },
+                    ],
+                },
+            },
+        ];
+        const invalid = {
+            values: {
+                a: {
+                    rules: [
+                        {
+                            enabled: true,
+                            color: '#00ff00',
+                            operator: 'eq' as const,
+                            value: 5,
+                        },
+                        {
+                            enabled: true,
+                            color: 'red',
+                            operator: 'eq' as const,
+                            value: 5,
+                        },
+                    ],
+                },
+            },
+        };
+        expect(
+            pruneDataAppVizFieldColorValues(
+                withRules,
+                { values: 'a' },
+                invalid,
+            ),
+        ).toEqual({});
+        expect(
+            getEffectiveDataAppVizFieldColorValues(
+                withRules,
+                { values: 'a' },
+                invalid,
+            ).values.a.rules,
+        ).toEqual(withRules[0].colorOptions?.rules);
+    });
+
+    it('matches each numeric operator and treats reversed ranges as no match', () => {
+        const ruleFields: DataAppVizField[] = [
+            {
+                ...fields[0],
+                colorOptions: {
+                    rules: [
+                        {
+                            enabled: true,
+                            color: '#010101',
+                            operator: 'neq',
+                            value: 2,
+                        },
+                        {
+                            enabled: true,
+                            color: '#020202',
+                            operator: 'lt',
+                            value: 2,
+                        },
+                        {
+                            enabled: true,
+                            color: '#030303',
+                            operator: 'lte',
+                            value: 2,
+                        },
+                        {
+                            enabled: true,
+                            color: '#040404',
+                            operator: 'gt',
+                            value: 2,
+                        },
+                        {
+                            enabled: true,
+                            color: '#050505',
+                            operator: 'notBetween',
+                            min: 1,
+                            max: 3,
+                        },
+                        {
+                            enabled: true,
+                            color: '#060606',
+                            operator: 'between',
+                            min: 3,
+                            max: 1,
+                        },
+                        {
+                            enabled: true,
+                            color: '#070707',
+                            operator: 'notBetween',
+                            min: 3,
+                            max: 1,
+                        },
+                    ],
+                },
+            },
+        ];
+        expect(
+            resolveDataAppVizFieldColors({
+                fields: ruleFields,
+                fieldMapping: { values: 'a' },
+                rows: [
+                    { a: cell(0) },
+                    { a: cell(1) },
+                    { a: cell(2) },
+                    { a: cell(3) },
+                    { a: cell(4) },
+                ],
+                pivotDetails: null,
+            }),
+        ).toEqual({
+            values: {
+                a: {
+                    '0': '#050505',
+                    '1': '#030303',
+                    '2': '#030303',
+                    '3': '#040404',
+                    '4': '#050505',
+                },
+            },
+        });
+    });
     it('preserves settings by bound field ID through reorder and prunes removed IDs', () => {
         const override: DataAppVizFieldColorValues = {
             values: {

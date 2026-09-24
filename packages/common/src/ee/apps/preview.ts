@@ -138,19 +138,52 @@ export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
                 const field = schema.fields.find(
                     (item) => item.name === fieldName,
                 );
-                if (!field?.colorOptions?.gradient) {
+                if (
+                    !field?.colorOptions?.gradient &&
+                    !field?.colorOptions?.rules
+                ) {
                     ctx.addIssue({
                         code: 'custom',
                         path: ['fieldColorValues', fieldName],
                         message: 'Unknown preview color field',
                     });
                 }
-                Object.keys(byId).forEach((fieldId) => {
+                Object.entries(byId).forEach(([fieldId, value]) => {
                     if (fieldId !== getDataAppVizPreviewFieldId(fieldName)) {
                         ctx.addIssue({
                             code: 'custom',
                             path: ['fieldColorValues', fieldName, fieldId],
                             message: `Expected preview field ID "${getDataAppVizPreviewFieldId(fieldName)}"`,
+                        });
+                    }
+                    if (
+                        value.gradient !== undefined &&
+                        !field?.colorOptions?.gradient
+                    ) {
+                        ctx.addIssue({
+                            code: 'custom',
+                            path: [
+                                'fieldColorValues',
+                                fieldName,
+                                fieldId,
+                                'gradient',
+                            ],
+                            message: 'Gradient is not declared for this field',
+                        });
+                    }
+                    if (
+                        value.rules !== undefined &&
+                        !field?.colorOptions?.rules
+                    ) {
+                        ctx.addIssue({
+                            code: 'custom',
+                            path: [
+                                'fieldColorValues',
+                                fieldName,
+                                fieldId,
+                                'rules',
+                            ],
+                            message: 'Rules are not declared for this field',
                         });
                     }
                 });

@@ -697,3 +697,57 @@ describe('per-field gradient validation', () => {
         },
     );
 });
+
+describe('conditional field colours', () => {
+    const rules = [
+        { enabled: true, operator: 'lt' as const, value: 0, color: '#ff0000' },
+    ];
+    const schema: DataAppVizSchema = {
+        ...vizSchema,
+        fields: vizSchema.fields.map((field) =>
+            field.name === 'y'
+                ? { ...field, colorOptions: { rules: [] } }
+                : field,
+        ),
+    };
+    it('accepts rules on a declared bound field and an explicit empty override', () => {
+        for (const override of [rules, []]) {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    {
+                        ...buildChartConfig(validMapping),
+                        fieldColorValues: {
+                            y: { orders_revenue: { rules: override } },
+                        },
+                    },
+                    schema,
+                    selectedFields,
+                ),
+            ).not.toThrow();
+        }
+    });
+    it('rejects rules when the input does not declare them', () => {
+        expect(() =>
+            validateCustomChartTypeChartConfig(
+                {
+                    ...buildChartConfig(validMapping),
+                    fieldColorValues: { y: { orders_revenue: { rules } } },
+                },
+                vizSchema,
+                selectedFields,
+            ),
+        ).toThrow('does not declare conditional colours');
+    });
+    it('rejects rule overrides for an unbound field', () => {
+        expect(() =>
+            validateCustomChartTypeChartConfig(
+                {
+                    ...buildChartConfig(validMapping),
+                    fieldColorValues: { y: { missing: { rules } } },
+                },
+                schema,
+                selectedFields,
+            ),
+        ).toThrow('unbound field');
+    });
+});

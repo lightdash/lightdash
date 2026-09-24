@@ -1,5 +1,6 @@
 import {
     type DataAppVizColorGradient,
+    type DataAppVizColorRule,
     type DataAppVizOptionValue,
 } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -807,10 +808,13 @@ export type DataAppVizFieldOptionValues = Record<
     Record<string, DataAppVizOptionValues>
 >;
 
-/** Explicit gradient overrides, grouped by declared slot and bound field ID. */
+/** Explicit numeric color overrides, grouped by declared slot and bound field ID. */
 export type DataAppVizFieldColorValues = Record<
     string,
-    Record<string, { gradient?: DataAppVizColorGradient }>
+    Record<
+        string,
+        { gradient?: DataAppVizColorGradient; rules?: DataAppVizColorRule[] }
+    >
 >;
 
 /** Host-resolved colors for finite raw numeric values of each bound field. */
@@ -841,7 +845,7 @@ export type DataAppVizChart = {
     optionValues?: DataAppVizOptionValues;
     /** Only explicitly changed per-field settings; defaults come from the viz. */
     fieldOptionValues?: DataAppVizFieldOptionValues;
-    /** Explicit per-field gradient overrides; declarations provide defaults. */
+    /** Explicit per-field numeric color overrides; declarations provide defaults. */
     fieldColorValues?: DataAppVizFieldColorValues;
 };
 

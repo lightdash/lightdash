@@ -62,6 +62,18 @@ export type DataAppVizColorGradient = {
     max: number | 'auto';
 };
 
+/** Ordered numeric condition. Later matching enabled rules take precedence. */
+export type DataAppVizColorRule = {
+    enabled: boolean;
+    color: string;
+} & (
+    | {
+          operator: 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte';
+          value: number;
+      }
+    | { operator: 'between' | 'notBetween'; min: number; max: number }
+);
+
 /**
  * Declared by a viz that colours from the resolved Lightdash palette. Not a
  * config option: it carries no value of its own, it only asks the config panel

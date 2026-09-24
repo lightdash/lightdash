@@ -3,6 +3,7 @@ import {
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
     type DataAppVizColorGradient,
+    type DataAppVizColorRule,
     type DataAppVizFieldColorValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
@@ -70,6 +71,14 @@ export interface DataAppVizVisualizationConfigAndData {
         fieldId: string,
         declaredDefault: DataAppVizColorGradient,
         patch: Partial<DataAppVizColorGradient>,
+    ) => void;
+    setFieldRules: (
+        dataAppVizUuid: string,
+        dataAppVizVersion: number | undefined,
+        fieldName: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorRule[],
+        update: (rules: DataAppVizColorRule[]) => DataAppVizColorRule[],
     ) => void;
 }
 
@@ -372,6 +381,9 @@ const useDataAppVizVisualizationConfig = (
                     [fieldName]: {
                         ...selected.fieldColorValues?.[fieldName],
                         [fieldId]: {
+                            ...selected.fieldColorValues?.[fieldName]?.[
+                                fieldId
+                            ],
                             gradient: {
                                 ...(selected.fieldColorValues?.[fieldName]?.[
                                     fieldId
@@ -379,6 +391,47 @@ const useDataAppVizVisualizationConfig = (
                                 ...patch,
                             },
                         },
+                    },
+                },
+            });
+        },
+        [commit],
+    );
+
+    const setFieldRules = useCallback(
+        (
+            dataAppVizUuid: string,
+            dataAppVizVersion: number | undefined,
+            fieldName: string,
+            fieldId: string,
+            declaredDefault: DataAppVizColorRule[],
+            update: (rules: DataAppVizColorRule[]) => DataAppVizColorRule[],
+        ) => {
+            if (!isOwningChartConfigRef.current) return;
+            const selected = configRef.current;
+            if (
+                selected === null ||
+                selected.dataAppVizUuid !== dataAppVizUuid ||
+                selected.dataAppVizVersion !== dataAppVizVersion
+            )
+                return;
+            const binding = selected.fieldMapping[fieldName];
+            if (
+                binding !== fieldId &&
+                (!Array.isArray(binding) || !binding.includes(fieldId))
+            )
+                return;
+            const current = selected.fieldColorValues?.[fieldName]?.[fieldId];
+            const rules = current?.rules ?? declaredDefault;
+            const nextRules = update(rules);
+            if (nextRules === rules) return;
+            commit({
+                ...selected,
+                fieldColorValues: {
+                    ...selected.fieldColorValues,
+                    [fieldName]: {
+                        ...selected.fieldColorValues?.[fieldName],
+                        [fieldId]: { ...current, rules: nextRules },
                     },
                 },
             });
@@ -397,6 +450,7 @@ const useDataAppVizVisualizationConfig = (
         setOption,
         setFieldOption,
         setFieldGradient,
+        setFieldRules,
     };
 };
 

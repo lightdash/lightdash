@@ -70,6 +70,44 @@ const fields: DataAppVizField[] = [
 ];
 
 describe('DataAppVizSettings field options', () => {
+    it('shows rules for numeric bindings even without other settings', async () => {
+        const user = userEvent.setup();
+        const onFieldRulesChange = vi.fn();
+        renderWithProviders(
+            <DataAppVizSettings
+                itemsMap={itemsMap}
+                fields={[
+                    {
+                        ...fields[0],
+                        colorOptions: { rules: [] },
+                        configOptions: [],
+                    },
+                ]}
+                fieldMapping={{ values: ['orders_total', 'orders_count'] }}
+                colorPalette={['#222222']}
+                onFieldChange={vi.fn()}
+                onFieldOptionChange={vi.fn()}
+                onFieldGradientChange={vi.fn()}
+                onFieldRulesChange={onFieldRulesChange}
+            />,
+        );
+
+        expect(screen.getAllByText('Color rules')).toHaveLength(2);
+        await user.click(
+            screen.getAllByRole('button', { name: 'Add rule' })[1],
+        );
+        const [slot, fieldId, declaredDefault, update] =
+            onFieldRulesChange.mock.lastCall!;
+        expect([slot, fieldId, declaredDefault]).toEqual([
+            'values',
+            'orders_count',
+            [],
+        ]);
+        expect(update([])).toEqual([
+            { enabled: true, color: '#222222', operator: 'gt', value: 0 },
+        ]);
+    });
+
     it('shows independent controls for each bound field and preserves fixed hex colors', async () => {
         const user = userEvent.setup();
         const onFieldOptionChange = vi.fn();
@@ -89,6 +127,7 @@ describe('DataAppVizSettings field options', () => {
                 onFieldChange={vi.fn()}
                 onFieldOptionChange={onFieldOptionChange}
                 onFieldGradientChange={onFieldGradientChange}
+                onFieldRulesChange={vi.fn()}
             />,
         );
 

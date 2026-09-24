@@ -39,6 +39,54 @@ const base: DataAppVizSchema = {
 };
 
 describe('diffDataAppVizSchema', () => {
+    it('reports changes to a field rule declaration', () => {
+        const rules = [
+            {
+                enabled: true,
+                color: '#ff0000',
+                operator: 'eq' as const,
+                value: 5,
+            },
+        ];
+        const before: DataAppVizSchema = {
+            ...base,
+            fields: [
+                { ...base.fields[0], colorOptions: { rules } },
+                ...base.fields.slice(1),
+            ],
+        };
+        const after: DataAppVizSchema = {
+            ...before,
+            fields: [
+                {
+                    ...before.fields[0],
+                    colorOptions: {
+                        rules: [{ ...rules[0], color: '#00ff00' }],
+                    },
+                },
+                ...before.fields.slice(1),
+            ],
+        };
+        expect(diffDataAppVizSchema(before, after).fields.changed).toHaveLength(
+            1,
+        );
+    });
+
+    it('distinguishes an absent rule capability from an empty declaration', () => {
+        const withEmptyRules: DataAppVizSchema = {
+            ...base,
+            fields: [
+                { ...base.fields[0], colorOptions: { rules: [] } },
+                ...base.fields.slice(1),
+            ],
+        };
+        expect(
+            diffDataAppVizSchema(base, withEmptyRules).fields.changed,
+        ).toHaveLength(1);
+        expect(
+            diffDataAppVizSchema(withEmptyRules, base).fields.changed,
+        ).toHaveLength(1);
+    });
     it('reports changes to a field gradient declaration', () => {
         const gradient = {
             enabled: true,

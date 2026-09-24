@@ -165,6 +165,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Declare colorOptions.gradient on a viz schema field. Read colors with resolveFieldColor(useVizContext(), slotName, fieldId, rawValue, fallbackColor); use the actual bound field ID. The helper returns the fallback on older hosts or for values outside the scale.',
     },
     {
+        key: 'viz-field-conditional-colors',
+        appliesTo: ['chart_type'],
+        label: 'Field color rules',
+        description:
+            'Color each bound numeric field with ordered conditions. Offer it when selected values or ranges need fixed colors that take priority over a gradient.',
+        wiring: 'Declare colorOptions.rules on a viz schema field. Read the final color with resolveFieldColor(useVizContext(), slotName, fieldId, rawValue, fallbackColor); the host applies the last matching enabled rule before any gradient.',
+    },
+    {
         key: 'viz-pivoted-results',
         appliesTo: ['chart_type'],
         label: 'Pivoted results',

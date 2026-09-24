@@ -14,6 +14,7 @@ import {
     type DataAppVizFieldOptionValues,
     type DataAppVizFieldColorValues,
     type DataAppVizColorGradient,
+    type DataAppVizColorRule,
     type DataAppVizOptionValue,
     type Item,
     type ItemsMap,
@@ -30,6 +31,7 @@ import DataAppVizFieldGuidance, {
 } from './DataAppVizFieldGuidance';
 import DataAppVizGradientControl from './DataAppVizGradientControl';
 import DataAppVizOptionControl from './DataAppVizOptionControl';
+import DataAppVizRulesControl from './DataAppVizRulesControl';
 import OrderedDataAppVizFieldSelect from './OrderedDataAppVizFieldSelect';
 
 type Props = {
@@ -57,6 +59,12 @@ type Props = {
         declaredDefault: DataAppVizColorGradient,
         patch: Partial<DataAppVizColorGradient>,
     ) => void;
+    onFieldRulesChange: (
+        fieldName: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorRule[],
+        update: (rules: DataAppVizColorRule[]) => DataAppVizColorRule[],
+    ) => void;
 };
 
 /**
@@ -75,6 +83,7 @@ const DataAppVizSettings: FC<Props> = ({
     colorPalette = [],
     onFieldOptionChange,
     onFieldGradientChange,
+    onFieldRulesChange,
 }) => {
     const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
@@ -124,6 +133,7 @@ const DataAppVizSettings: FC<Props> = ({
             {fields.map((field) => {
                 const configOptions = field.configOptions ?? [];
                 const declaredGradient = field.colorOptions?.gradient;
+                const declaredRules = field.colorOptions?.rules;
                 const guidanceId = field.description?.trim()
                     ? `${guidanceIdPrefix}-${field.name}`
                     : undefined;
@@ -232,7 +242,9 @@ const DataAppVizSettings: FC<Props> = ({
                                     />
                                 </>
                             )}
-                            {(configOptions.length > 0 || declaredGradient) &&
+                            {(configOptions.length > 0 ||
+                                declaredGradient ||
+                                declaredRules !== undefined) &&
                                 selectedIds.map((fieldId) => {
                                     const boundItem = [
                                         ...items,
@@ -291,6 +303,30 @@ const DataAppVizSettings: FC<Props> = ({
                                                                 fieldId,
                                                                 declaredGradient,
                                                                 patch,
+                                                            )
+                                                        }
+                                                    />
+                                                )}
+                                            {boundItem &&
+                                                isNumericItem(boundItem) &&
+                                                declaredRules !== undefined && (
+                                                    <DataAppVizRulesControl
+                                                        value={
+                                                            effectiveFieldColors[
+                                                                field.name
+                                                            ]?.[fieldId]
+                                                                ?.rules ??
+                                                            declaredRules
+                                                        }
+                                                        colorPalette={
+                                                            colorPalette
+                                                        }
+                                                        onChange={(update) =>
+                                                            onFieldRulesChange(
+                                                                field.name,
+                                                                fieldId,
+                                                                declaredRules,
+                                                                update,
                                                             )
                                                         }
                                                     />

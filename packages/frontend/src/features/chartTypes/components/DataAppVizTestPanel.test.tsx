@@ -526,6 +526,72 @@ describe('DataAppVizTestPanel', () => {
         );
     });
 
+    it('shows rules-only controls and publishes their colors to the test preview', async () => {
+        const rules = [
+            { enabled: true, color: '#ff0000', operator: 'gte', value: 10 },
+        ] as const;
+        const rulesSchema: DataAppVizSchema = {
+            fields: [
+                {
+                    name: 'value',
+                    label: 'Value',
+                    type: 'metric',
+                    required: true,
+                    colorOptions: { rules: [...rules] },
+                },
+            ],
+            configOptions: [],
+            colorPalette: null,
+        };
+        const numericRows: ResultRow[] = [
+            { orders_visible_metric: { value: { raw: 10, formatted: '10' } } },
+        ];
+        exploreByProjectMock.mockReturnValue({ data: exploreWithHiddenFields });
+        vi.mocked(useQueryExecutor).mockReturnValue([
+            {
+                query: {
+                    data: { queryUuid: 'query-1' },
+                    isFetching: false,
+                    error: null,
+                },
+                queryResults: {
+                    rows: numericRows,
+                    queryUuid: 'query-1',
+                    pivotDetails: null,
+                    isFetchingFirstPage: false,
+                    error: null,
+                },
+            },
+            vi.fn(),
+        ] as unknown as ReturnType<typeof useQueryExecutor>);
+        const onContextChange = vi.fn();
+        renderWithProviders(
+            <TestDataAppVizPanel
+                projectUuid="p1"
+                schema={rulesSchema}
+                onContextChange={onContextChange}
+            />,
+        );
+        const user = userEvent.setup();
+        await user.click(screen.getByPlaceholderText('Select a table'));
+        await user.click(await screen.findByText('Orders'));
+        await user.click(screen.getByRole('button', { name: 'Value' }));
+        expect(screen.getByText('Color rules')).toBeVisible();
+        expect(screen.getByText('Rule 1')).toBeVisible();
+        await user.click(
+            screen.getByRole('button', { name: /run test query/i }),
+        );
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    fieldColors: {
+                        value: { orders_visible_metric: { '10': '#ff0000' } },
+                    },
+                }),
+            ),
+        );
+    });
+
     it('lists the declared fields and the explore picker up-front', () => {
         renderWithProviders(
             <TestDataAppVizPanel

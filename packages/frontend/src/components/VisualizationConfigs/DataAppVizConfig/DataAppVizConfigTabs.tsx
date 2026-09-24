@@ -180,6 +180,7 @@ export const ConfigTabs: FC = memo(() => {
         setOption,
         setFieldOption,
         setFieldGradient,
+        setFieldRules,
         upgradeDataAppVizVersion,
     } = visualizationConfig.chartConfig;
 
@@ -310,6 +311,26 @@ export const ConfigTabs: FC = memo(() => {
                             fieldId,
                             declaredDefault,
                             patch,
+                        );
+                    }}
+                    onFieldRulesChange={(
+                        fieldName,
+                        fieldId,
+                        declaredDefault,
+                        update,
+                    ) => {
+                        if (
+                            currentFieldContractKeyRef.current !==
+                            fieldContractKey
+                        )
+                            return;
+                        setFieldRules(
+                            selectedViz.dataAppVizUuid,
+                            selectedViz.dataAppVizVersion,
+                            fieldName,
+                            fieldId,
+                            declaredDefault,
+                            update,
                         );
                     }}
                 />

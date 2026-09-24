@@ -17,6 +17,10 @@ columns, and sends the resulting colors in `fieldColors`. Call
 one. It returns the fallback for missing values, values outside custom bounds,
 or hosts that predate this capability. Gradient endpoints are fixed hex colors;
 the chart palette is a separate fallback chosen by the visualization.
+The same `colorOptions` declaration may include ordered numeric `rules`.
+The host applies the last matching enabled rule first, then the gradient, then
+the fallback passed to `resolveFieldColor`. A saved empty rule list overrides
+declared default rules.
 
 ## Quick start
 
