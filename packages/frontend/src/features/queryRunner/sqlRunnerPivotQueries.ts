@@ -88,6 +88,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
     fields,
     context,
     parameters,
+    warehouseConnectionUuid,
 }: {
     projectUuid: string;
     limit?: number;
@@ -96,6 +97,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
     fields: SqlRunnerField[];
     context?: QueryExecutionContext;
     parameters: ParametersValuesMap;
+    warehouseConnectionUuid?: string | null;
 }): RunPivotQuery => {
     return async (query: SqlRunnerQuery) => {
         if (!query.pivot?.values.length) {
@@ -124,6 +126,9 @@ export const getPivotQueryFunctionForSqlQuery = ({
                 sortBy,
             },
             parameters,
+            ...(warehouseConnectionUuid === undefined
+                ? {}
+                : { warehouseConnectionUuid }),
         });
 
         const columns: VizColumn[] = Object.keys(pivotResults.columns).map(

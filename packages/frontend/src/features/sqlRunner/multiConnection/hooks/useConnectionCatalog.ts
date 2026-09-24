@@ -58,7 +58,10 @@ const tablesQueryKey = (
     database,
 ];
 
-const tableFieldsQueryKey = (projectUuid: string, identity: TableIdentity) => [
+export const tableFieldsQueryKey = (
+    projectUuid: string,
+    identity: TableIdentity,
+) => [
     'sqlRunner',
     'connections',
     projectUuid,
@@ -90,7 +93,10 @@ const fetchTables = (
         body: undefined,
     });
 
-const fetchTableFields = (projectUuid: string, identity: TableIdentity) =>
+export const fetchTableFields = (
+    projectUuid: string,
+    identity: TableIdentity,
+) =>
     lightdashApi<WarehouseTableSchema>({
         url: `${connectionUrl(
             projectUuid,

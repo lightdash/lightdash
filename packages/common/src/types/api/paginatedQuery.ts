@@ -93,6 +93,7 @@ export type ExecuteAsyncSqlQueryRequestParams =
         sql: string;
         limit?: number;
         pivotConfiguration?: PivotConfiguration;
+        warehouseConnectionUuid?: string | null;
     };
 
 export type ExecuteAsyncComposeSqlQueryRequestParams =

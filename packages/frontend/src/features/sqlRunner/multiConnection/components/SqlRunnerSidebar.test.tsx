@@ -20,6 +20,7 @@ import { renderWithProviders } from '../../../../testing/testUtils';
 import { Sidebar } from '../../components/Sidebar';
 import { store } from '../../store';
 import { resetState, setProjectUuid } from '../../store/sqlRunnerSlice';
+import { SqlRunnerConnectionScope } from './SqlRunnerConnectionScope';
 import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
 vi.mock('../../../../api', () => ({
@@ -114,7 +115,9 @@ const serveApi = (connectionRoute: 'single' | 'multi') =>
 const renderSidebar = () => {
     renderWithProviders(
         <Provider store={store}>
-            <SqlRunnerSidebar />
+            <SqlRunnerConnectionScope isEditingSavedChart={false}>
+                <SqlRunnerSidebar />
+            </SqlRunnerConnectionScope>
         </Provider>,
     );
     return userEvent.setup();

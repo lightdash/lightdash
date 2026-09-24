@@ -17,6 +17,7 @@ import MantineModal, {
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useModalSteps } from '../../../hooks/useModalSteps';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -24,7 +25,12 @@ import useApp from '../../../providers/App/useApp';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { EditorTabs, updateName } from '../store/sqlRunnerSlice';
+import {
+    EditorTabs,
+    selectConnectionRequest,
+    updateName,
+    type SqlRunnerConnectionRequest,
+} from '../store/sqlRunnerSlice';
 import { SqlQueryBeforeSaveAlert } from './SqlQueryBeforeSaveAlert';
 
 enum ModalStep {
@@ -54,6 +60,7 @@ type SaveSqlChartModalContentProps = Props & {
     limit: number;
     currentVizConfig: AllVizChartConfig;
     hasUnrunChanges: boolean;
+    connectionRequest: SqlRunnerConnectionRequest;
     redirectOnSuccess?: boolean;
     onSaved?: (
         data: ApiCreateSqlChart['results'],
@@ -89,10 +96,12 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
     limit,
     currentVizConfig,
     hasUnrunChanges,
+    connectionRequest,
     redirectOnSuccess,
     onSaved,
 }) => {
     const { user } = useApp();
+    const { showToastError } = useToaster();
 
     const initialStep = hasUnrunChanges
         ? ModalStep.Warning
@@ -177,6 +186,12 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
+        if (!connectionRequest.ready) {
+            showToastError({
+                title: 'Choose a connection before you save this chart',
+            });
+            return;
+        }
         if (currentVizConfig && sql) {
             try {
                 await createSavedSqlChart({
@@ -186,6 +201,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                     limit: limit ?? DEFAULT_SQL_LIMIT,
                     config: currentVizConfig,
                     spaceUuid: spaceUuid,
+                    ...connectionRequest.field,
                 });
 
                 onClose();
@@ -205,6 +221,8 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         createSavedSqlChart,
         limit,
         onClose,
+        connectionRequest,
+        showToastError,
     ]);
 
     const handleNextStep = () => {
@@ -376,6 +394,7 @@ export const SaveSqlChartModal: FC<Props> = (props) => {
     const description = useAppSelector((state) => state.sqlRunner.description);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
+    const connectionRequest = useAppSelector(selectConnectionRequest);
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -403,6 +422,7 @@ export const SaveSqlChartModal: FC<Props> = (props) => {
             limit={limit ?? DEFAULT_SQL_LIMIT}
             currentVizConfig={currentVizConfig}
             hasUnrunChanges={hasUnrunChanges}
+            connectionRequest={connectionRequest}
             onSaved={(_, savedName) => {
                 dispatch(updateName(savedName));
             }}

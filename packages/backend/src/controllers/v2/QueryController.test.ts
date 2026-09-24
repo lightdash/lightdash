@@ -57,6 +57,40 @@ describe('QueryController', () => {
         );
     });
 
+    it.each([
+        { name: 'an extra connection', field: 'finance-uuid' },
+        { name: 'the original as null', field: null },
+        { name: 'no connection field', field: undefined },
+    ])('forwards $name to the SQL runner query', async ({ field }) => {
+        const executeAsyncSqlQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'query-uuid',
+        });
+        const controller = new QueryController({
+            getAsyncQueryService: () => ({ executeAsyncSqlQuery }),
+        } as unknown as ConstructorParameters<typeof QueryController>[0]);
+        controller.setStatus = vi.fn();
+        const req = {
+            account: {},
+            headers: {},
+            header: vi.fn(),
+        } as unknown as express.Request;
+
+        await controller.executeAsyncSqlQuery(
+            {
+                sql: 'select 1',
+                ...(field === undefined
+                    ? {}
+                    : { warehouseConnectionUuid: field }),
+            },
+            'project-uuid',
+            req,
+        );
+
+        expect(
+            executeAsyncSqlQuery.mock.calls[0][0].warehouseConnectionUuid,
+        ).toBe(field);
+    });
+
     it('forwards the signed Data App preview token to metric-query execution', async () => {
         const executeAsyncMetricQuery = vi.fn().mockResolvedValue({
             queryUuid: 'query-uuid',

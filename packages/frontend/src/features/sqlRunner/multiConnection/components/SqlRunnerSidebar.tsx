@@ -1,19 +1,17 @@
 import { Center, Loader, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { useContext, type FC } from 'react';
 import { useProject } from '../../../../hooks/useProject';
 import { Sidebar } from '../../components/Sidebar';
 import { useAppSelector } from '../../store/hooks';
+import { ActiveConnectionContext } from '../hooks/activeConnectionContext';
 import { useSqlRunnerConnections } from '../hooks/useConnectionCatalog';
-import { ActiveConnectionProvider } from './ActiveConnectionProvider';
 import { MultiConnectionSidebar } from './MultiConnectionSidebar';
 
 const MultiConnectionSidebarContainer: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
-    const { data: connections, error } = useSqlRunnerConnections(
-        projectUuid,
-        true,
-    );
+    const activeConnection = useContext(ActiveConnectionContext);
+    const { error } = useSqlRunnerConnections(projectUuid, true);
     if (error?.error.name === 'SingleConnectionProjectError') {
         return <Sidebar />;
     }
@@ -26,21 +24,14 @@ const MultiConnectionSidebarContainer: FC<{ projectUuid: string }> = ({
             </Center>
         );
     }
-    if (!connections) {
+    if (!activeConnection) {
         return (
             <Center p="sm">
                 <Loader size="sm" />
             </Center>
         );
     }
-    return (
-        <ActiveConnectionProvider
-            projectUuid={projectUuid}
-            connections={connections}
-        >
-            <MultiConnectionSidebar />
-        </ActiveConnectionProvider>
-    );
+    return <MultiConnectionSidebar />;
 };
 
 export const SqlRunnerSidebar: FC = () => {

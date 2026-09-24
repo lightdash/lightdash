@@ -13,6 +13,7 @@ import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegrati
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { selectConnectionRequest } from '../../sqlRunner/store/sqlRunnerSlice';
 import { useCreateVirtualView } from '../hooks/useVirtualView';
 
 const validationSchema = z.object({
@@ -55,6 +56,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     );
 
     const name = useAppSelector((state) => state.sqlRunner.name);
+    const connectionRequest = useAppSelector(selectConnectionRequest);
 
     const {
         mutateAsync: createVirtualView,
@@ -82,7 +84,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
 
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
-            if (!columns) {
+            if (!columns || !connectionRequest.ready) {
                 return;
             }
 
@@ -95,6 +97,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                     Object.keys(parameterValues).length > 0
                         ? parameterValues
                         : undefined,
+                ...connectionRequest.field,
             });
 
             onClose();
@@ -106,6 +109,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
             sql,
             parameterValues,
             createVirtualView,
+            connectionRequest,
         ],
     );
 

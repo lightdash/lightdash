@@ -11,6 +11,7 @@ import {
     type VizTableConfig,
     type WarehouseTypes,
     formatSql,
+    getFieldQuoteChar,
 } from '@lightdash/common';
 import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -40,6 +41,17 @@ export const compareSqlQueries = (
         formatSql(currentSql, warehouseConnectionType)
     );
 };
+
+export type SqlRunnerConnection = {
+    warehouseConnectionUuid: string | null;
+    name: string;
+    warehouseType: WarehouseTypes;
+};
+
+export type SqlRunnerConnectionRoute =
+    | { route: 'pending' }
+    | { route: 'single' }
+    | { route: 'multi'; connection: SqlRunnerConnection | null };
 
 export interface SqlRunnerState {
     projectUuid: string;
@@ -92,6 +104,7 @@ export interface SqlRunnerState {
     queryError: ApiErrorDetail | SerializedError | Error | undefined;
     editorHighlightError: MonacoHighlightChar | undefined;
     parameterValues: ParametersValuesMap;
+    connectionRoute: SqlRunnerConnectionRoute;
 }
 
 export const initialState: SqlRunnerState = {
@@ -145,7 +158,15 @@ export const initialState: SqlRunnerState = {
     queryError: undefined,
     editorHighlightError: undefined,
     parameterValues: {},
+    connectionRoute: { route: 'pending' },
 };
+
+const connectionUuidOf = (
+    connectionRoute: SqlRunnerConnectionRoute | undefined,
+): string | null | undefined =>
+    connectionRoute?.route === 'multi'
+        ? connectionRoute.connection?.warehouseConnectionUuid
+        : undefined;
 
 const sqlHistoryReducer = createHistoryReducer<string | undefined>({
     maxHistoryItems: 5,
@@ -167,6 +188,8 @@ export const sqlRunnerSlice = createSlice({
         selectColumns: (state) => state.sqlColumns,
         selectRows: (state) => state.sqlRows,
         selectParameterValues: (state) => state.parameterValues,
+        selectConnectionRoute: (state) =>
+            state.connectionRoute ?? initialState.connectionRoute,
         selectSqlQueryResults: (state) => {
             if (state.sqlColumns === undefined || state.sqlRows === undefined) {
                 return undefined;
@@ -319,6 +342,27 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.editorHighlightError = action.payload;
         },
+        setConnectionRoute: (
+            state,
+            action: PayloadAction<SqlRunnerConnectionRoute>,
+        ) => {
+            const previous = connectionUuidOf(state.connectionRoute);
+            const next = connectionUuidOf(action.payload);
+            state.connectionRoute = action.payload;
+            if (action.payload.route === 'multi' && action.payload.connection) {
+                state.warehouseConnectionType =
+                    action.payload.connection.warehouseType;
+                state.quoteChar = getFieldQuoteChar(
+                    action.payload.connection.warehouseType,
+                );
+            }
+            if (previous !== undefined && previous !== next) {
+                state.sqlColumns = undefined;
+                state.sqlRows = undefined;
+                state.queryUuid = undefined;
+                state.fileUrl = undefined;
+            }
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -328,6 +372,12 @@ export const sqlRunnerSlice = createSlice({
             })
             .addCase(runSqlQuery.fulfilled, (state, action) => {
                 state.queryIsLoading = false;
+                if (
+                    action.payload.warehouseConnectionUuid !==
+                    connectionUuidOf(state.connectionRoute)
+                ) {
+                    return;
+                }
                 state.sqlColumns = action.payload.columns;
                 state.sqlRows = action.payload.results;
                 state.queryUuid = action.payload.queryUuid;
@@ -432,6 +482,7 @@ export const {
     updateParameterValue,
     clearParameterValues,
     setParameterValues,
+    setConnectionRoute,
 } = sqlRunnerSlice.actions;
 
 export const {
@@ -446,7 +497,43 @@ export const {
     selectSavedSqlChart,
     selectSqlQueryResults,
     selectParameterValues,
+    selectConnectionRoute,
 } = sqlRunnerSlice.selectors;
+
+export const selectIsConnectionReady = createSelector(
+    [sqlRunnerSlice.selectors.selectConnectionRoute],
+    (connectionRoute) =>
+        connectionRoute.route === 'single' ||
+        (connectionRoute.route === 'multi' &&
+            connectionRoute.connection !== null),
+);
+
+export const selectConnectionUuid = createSelector(
+    [sqlRunnerSlice.selectors.selectConnectionRoute],
+    (connectionRoute) => connectionUuidOf(connectionRoute),
+);
+
+export type SqlRunnerConnectionRequest =
+    | { ready: true; field: { warehouseConnectionUuid?: string | null } }
+    | { ready: false };
+
+export const selectConnectionRequest = createSelector(
+    [sqlRunnerSlice.selectors.selectConnectionRoute],
+    (connectionRoute): SqlRunnerConnectionRequest => {
+        if (connectionRoute.route === 'single')
+            return { ready: true, field: {} };
+        if (connectionRoute.route === 'multi' && connectionRoute.connection) {
+            return {
+                ready: true,
+                field: {
+                    warehouseConnectionUuid:
+                        connectionRoute.connection.warehouseConnectionUuid,
+                },
+            };
+        }
+        return { ready: false };
+    },
+);
 
 export const selectSqlRunnerResultsRunner = createSelector(
     [
@@ -457,8 +544,18 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectSql,
         (_state, sortBy?: VizSortBy[]) => sortBy,
         selectParameterValues,
+        sqlRunnerSlice.selectors.selectConnectionRoute,
     ],
-    (columns, rows, projectUuid, limit, sql, sortBy, parameterValues) => {
+    (
+        columns,
+        rows,
+        projectUuid,
+        limit,
+        sql,
+        sortBy,
+        parameterValues,
+        connectionRoute,
+    ) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],
             rows: rows || [],
@@ -467,6 +564,7 @@ export const selectSqlRunnerResultsRunner = createSelector(
             sql,
             sortBy,
             parameters: parameterValues,
+            warehouseConnectionUuid: connectionUuidOf(connectionRoute),
         });
     },
 );

@@ -17,6 +17,7 @@ const createVirtualView = async ({
     sql,
     columns,
     parameterValues,
+    warehouseConnectionUuid,
 }: {
     projectUuid: string;
 } & CreateVirtualViewPayload) =>
@@ -28,6 +29,9 @@ const createVirtualView = async ({
             sql,
             columns,
             parameterValues,
+            ...(warehouseConnectionUuid === undefined
+                ? {}
+                : { warehouseConnectionUuid }),
         }),
     });
 

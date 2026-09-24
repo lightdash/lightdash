@@ -106,11 +106,13 @@ export const useDetectedTableFields = ({
     quoteChar,
     projectUuid,
     transformedData,
+    connectionId,
 }: {
     sql: string;
     quoteChar: string;
     projectUuid: string;
     transformedData?: { database: string; tablesBySchema: TablesBySchema };
+    connectionId?: string;
 }) => {
     // Parse SQL to detect table references
     const detectedTables = useMemo(() => {
@@ -160,11 +162,19 @@ export const useDetectedTableFields = ({
                 projectUuid,
                 tableName: actualTableName, // Use actual table name from catalog
                 schema: matchingSchema.schema.toString(), // Use actual schema name from catalog
+                ...(connectionId
+                    ? {
+                          connection: {
+                              connectionId,
+                              database: transformedData.database,
+                          },
+                      }
+                    : {}),
             });
 
             return acc;
         }, []);
-    }, [detectedTables, transformedData, projectUuid]);
+    }, [detectedTables, transformedData, projectUuid, connectionId]);
 
     // Use the new multi-table fields hook
     const result = useMultipleTableFields(tableReferences);

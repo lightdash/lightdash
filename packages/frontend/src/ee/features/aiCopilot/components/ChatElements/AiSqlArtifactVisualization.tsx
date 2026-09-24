@@ -11,6 +11,12 @@ import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SaveSqlChartModalContent } from '../../../../../features/sqlRunner/components/SaveSqlChartModal';
+import { type SqlRunnerConnectionRequest } from '../../../../../features/sqlRunner/store/sqlRunnerSlice';
+
+const NO_CONNECTION_FIELD: SqlRunnerConnectionRequest = {
+    ready: true,
+    field: {},
+};
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../../providers/App/useApp';
@@ -136,6 +142,7 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 limit={limit}
                 currentVizConfig={getAiArtifactTableConfig(columns)}
                 hasUnrunChanges={false}
+                connectionRequest={NO_CONNECTION_FIELD}
                 redirectOnSuccess={false}
                 onSaved={async ({ savedSqlUuid: newSavedSqlUuid }) => {
                     await linkSavedSql({ savedSqlUuid: newSavedSqlUuid });

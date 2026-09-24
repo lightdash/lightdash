@@ -29,6 +29,7 @@ import {
 } from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { DEFAULT_SQL_LIMIT } from '../../constants';
+import { useSavedChartConnection } from '../../hooks/useSavedChartConnection';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -74,28 +75,43 @@ export const HeaderEdit: FC = () => {
     >(savedSqlChart);
     const [initialChartConfig, setInitialChartConfig] = useState(config);
 
+    const { connectionRequest, hasConnectionChange, markSaved } =
+        useSavedChartConnection(savedSqlChart);
+
     const hasChanges = useMemo(() => {
         if (!initialSavedSqlChart) return false;
         const changedSql = sql !== initialSavedSqlChart.sql;
         const changedLimit = limit !== initialSavedSqlChart.limit;
         const changedConfig = !isEqual(config, initialChartConfig);
 
-        return changedSql || changedLimit || changedConfig;
-    }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
+        return (
+            changedSql || changedLimit || changedConfig || hasConnectionChange
+        );
+    }, [
+        initialSavedSqlChart,
+        initialChartConfig,
+        sql,
+        limit,
+        config,
+        hasConnectionChange,
+    ]);
 
     const onSave = useCallback(() => {
+        if (!connectionRequest.ready) return;
         if (config && sql) {
             mutate({
                 versionedData: {
                     config,
                     sql,
                     limit: limit ?? DEFAULT_SQL_LIMIT,
+                    ...connectionRequest.field,
                 },
             });
             setInitialChartConfig(config);
             setInitialSavedSqlChart({ sql, limit: limit ?? DEFAULT_SQL_LIMIT });
+            markSaved();
         }
-    }, [config, sql, mutate, limit]);
+    }, [config, sql, mutate, limit, connectionRequest, markSaved]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,

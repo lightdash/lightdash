@@ -191,6 +191,7 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
+    warehouseConnectionUuid?: string | null;
 };
 
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {

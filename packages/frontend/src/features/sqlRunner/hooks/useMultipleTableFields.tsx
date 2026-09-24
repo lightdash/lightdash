@@ -3,6 +3,10 @@ import { useQueries } from '@tanstack/react-query';
 import isEmpty from 'lodash/isEmpty';
 import { useMemo } from 'react';
 import {
+    fetchTableFields as fetchConnectionTableFields,
+    tableFieldsQueryKey as connectionTableFieldsQueryKey,
+} from '../multiConnection/hooks/useConnectionCatalog';
+import {
     fetchTableFields,
     type WarehouseTableFieldWithContext,
 } from './useTableFields';
@@ -11,6 +15,7 @@ export type TableReference = {
     projectUuid: string;
     tableName: string;
     schema: string;
+    connection?: { connectionId: string; database: string };
 };
 
 export const useMultipleTableFields = (tableReferences: TableReference[]) => {
@@ -24,33 +29,48 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                     (r) =>
                         r.projectUuid === ref.projectUuid &&
                         r.schema === ref.schema &&
-                        r.tableName === ref.tableName,
+                        r.tableName === ref.tableName &&
+                        r.connection?.connectionId ===
+                            ref.connection?.connectionId,
                 ),
         );
 
-        return uniqueReferences.map((ref) => ({
-            queryKey: [
-                'sqlRunner',
-                'tables',
-                ref.tableName,
-                ref.projectUuid,
-                ref.schema,
-            ],
-            queryFn: () =>
-                fetchTableFields({
-                    projectUuid: ref.projectUuid,
+        return uniqueReferences.map((ref) => {
+            const { connection } = ref;
+            const identity = connection && {
+                connectionId: connection.connectionId,
+                database: connection.database,
+                schema: ref.schema,
+                table: ref.tableName,
+            };
+            return {
+                queryKey: identity
+                    ? connectionTableFieldsQueryKey(ref.projectUuid, identity)
+                    : [
+                          'sqlRunner',
+                          'tables',
+                          ref.tableName,
+                          ref.projectUuid,
+                          ref.schema,
+                      ],
+                queryFn: () =>
+                    identity
+                        ? fetchConnectionTableFields(ref.projectUuid, identity)
+                        : fetchTableFields({
+                              projectUuid: ref.projectUuid,
+                              tableName: ref.tableName,
+                              schema: ref.schema,
+                          }),
+                retry: false,
+                enabled: !!(ref.projectUuid && ref.tableName && ref.schema),
+                staleTime: 5 * 60 * 1000, // 5 minutes - keep data fresh but allow caching
+                meta: {
                     tableName: ref.tableName,
                     schema: ref.schema,
-                }),
-            retry: false,
-            enabled: !!(ref.projectUuid && ref.tableName && ref.schema),
-            staleTime: 5 * 60 * 1000, // 5 minutes - keep data fresh but allow caching
-            meta: {
-                tableName: ref.tableName,
-                schema: ref.schema,
-                projectUuid: ref.projectUuid,
-            },
-        }));
+                    projectUuid: ref.projectUuid,
+                },
+            };
+        });
     }, [tableReferences]);
 
     const results = useQueries({

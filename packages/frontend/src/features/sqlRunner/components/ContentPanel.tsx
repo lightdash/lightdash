@@ -54,13 +54,14 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
+import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     clearParameterValues,
     EditorTabs,
     selectActiveChartType,
     selectActiveEditorTab,
-    selectFetchResultsOnLoad,
+    selectConnectionUuid,
     selectLimit,
     selectParameterValues,
     selectProjectUuid,
@@ -81,15 +82,14 @@ import { executeSqlDownloadQuery } from '../utils/executeSqlDownloadQuery';
 import styles from './ContentPanel.module.css';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
-import { SqlEditor } from './SqlEditor';
 import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
 import { SqlRunnerChart } from './SqlRunnerChart';
+import { SqlRunnerEditor } from './SqlRunnerEditor';
 
 export const ContentPanel: FC = () => {
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
-    const fetchResultsOnLoad = useAppSelector(selectFetchResultsOnLoad);
     const projectUuid = useAppSelector(selectProjectUuid);
     const sql = useAppSelector(selectSql);
     const queryUuid = useAppSelector(selectQueryUuid);
@@ -226,28 +226,8 @@ export const ContentPanel: FC = () => {
         ['mod + enter', () => handleRunQuery, { preventDefault: true }],
     ]);
 
-    useEffect(
-        // When the user opens the sql runner and the query results are not yet loaded, run the query and then change to the visualization tab
-        function handleEditModeOnLoad() {
-            if (fetchResultsOnLoad && !hasQueryResults) {
-                void handleRunQuery(sql);
-            } else if (
-                fetchResultsOnLoad &&
-                hasQueryResults &&
-                mode === 'default'
-            ) {
-                dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-            }
-        },
-        [
-            fetchResultsOnLoad,
-            handleRunQuery,
-            hasQueryResults,
-            dispatch,
-            sql,
-            mode,
-        ],
-    );
+    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
+    useRunQueryOnLoad({ runQuery: handleRunQuery, hasQueryResults });
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
@@ -407,11 +387,19 @@ export const ContentPanel: FC = () => {
                     sql,
                     limit: downloadLimit,
                     parameterValues,
+                    warehouseConnectionUuid,
                 });
             }
             return queryUuid;
         },
-        [sql, projectUuid, limit, queryUuid, parameterValues],
+        [
+            sql,
+            projectUuid,
+            limit,
+            queryUuid,
+            parameterValues,
+            warehouseConnectionUuid,
+        ],
     );
 
     const getDownloadPivotQueryUuid = useCallback(async () => {
@@ -651,7 +639,7 @@ export const ContentPanel: FC = () => {
                                             activeEditorTab === EditorTabs.SQL
                                         }
                                     >
-                                        <SqlEditor
+                                        <SqlRunnerEditor
                                             resetHighlightError={() =>
                                                 dispatch(
                                                     setEditorHighlightError(

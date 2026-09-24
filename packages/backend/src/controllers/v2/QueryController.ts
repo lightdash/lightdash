@@ -584,6 +584,7 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 limit: body.limit,
                 parameters: body.parameters,
+                warehouseConnectionUuid: body.warehouseConnectionUuid,
             });
 
         return {

@@ -27,7 +27,7 @@ import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
  * @returns The results and the results runner
  */
 export const runSqlQuery = createAsyncThunk<
-    ResultsAndColumns,
+    ResultsAndColumns & { warehouseConnectionUuid: string | null | undefined },
     {
         sql: string;
         limit: number;
@@ -39,17 +39,42 @@ export const runSqlQuery = createAsyncThunk<
     'sqlRunner/runSqlQuery',
     async (
         { sql, limit, projectUuid, parameterValues },
-        { rejectWithValue },
+        { rejectWithValue, getState },
     ) => {
+        const connectionRoute = (getState() as RootState).sqlRunner
+            .connectionRoute ?? { route: 'pending' };
+        if (connectionRoute.route === 'pending') {
+            return rejectWithValue({
+                statusCode: 400,
+                name: 'ParameterError',
+                message: 'The project is still loading. Run the query again.',
+                data: {},
+            });
+        }
+        const connection =
+            connectionRoute.route === 'multi'
+                ? connectionRoute.connection
+                : undefined;
+        if (connection === null) {
+            return rejectWithValue({
+                statusCode: 400,
+                name: 'ParameterError',
+                message: 'Choose a connection before you run this query.',
+                data: {},
+            });
+        }
+        const warehouseConnectionUuid = connection?.warehouseConnectionUuid;
         try {
             // SQL Runner is edit-only — always skip cache, matching explore edit mode.
-            return await executeSqlQuery(
+            const results = await executeSqlQuery(
                 projectUuid,
                 sql,
                 limit,
                 parameterValues,
                 true,
+                warehouseConnectionUuid,
             );
+            return { ...results, warehouseConnectionUuid };
         } catch (error) {
             if (isApiError(error)) {
                 return rejectWithValue(error.error);

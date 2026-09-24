@@ -22,5 +22,6 @@ export const getAiSqlArtifactDownloadQueryUuid = async ({
         projectUuid,
         sql,
         limit,
+        warehouseConnectionUuid: undefined,
     });
 };
