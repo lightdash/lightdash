@@ -4425,8 +4425,11 @@ export class ProjectModel {
         return this.connectionRouter.requireSingleRoute(projectUuid, binding);
     }
 
-    async getConnectionRoute(projectUuid: string): Promise<ConnectionRoute> {
-        return this.connectionRouter.getRoute(projectUuid);
+    async getConnectionRoute(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<ConnectionRoute> {
+        return this.connectionRouter.getTaggedRoute(projectUuid, binding);
     }
 
     async resolveWarehouseCredentialRead(

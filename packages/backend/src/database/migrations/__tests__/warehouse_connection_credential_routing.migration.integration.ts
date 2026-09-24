@@ -632,6 +632,26 @@ describe('Credential reads by connection binding on the real schema', () => {
             });
         });
 
+        test('a NULL-bound explore loads the original even when an extra-bound explore was cached first', async () => {
+            const fixture = await createMultiProject();
+            await cacheExplore(
+                fixture.projectUuid,
+                'payments',
+                fixture.extraConnectionUuid,
+            );
+            await cacheExplore(fixture.projectUuid, 'orders', null);
+
+            await expect(
+                readCredentials(fixture.projectUuid, fixture.userUuid, {
+                    kind: 'explore',
+                    exploreName: 'orders',
+                }),
+            ).resolves.toEqual({
+                ...originalCredentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+        });
+
         test('an explore bound to an extra connection loads the extra connection', async () => {
             const fixture = await createMultiProject();
             await cacheExplore(
