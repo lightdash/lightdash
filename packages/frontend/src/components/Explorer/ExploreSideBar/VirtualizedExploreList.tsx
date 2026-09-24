@@ -1,7 +1,11 @@
-import { type SummaryExplore } from '@lightdash/common';
+import {
+    type SummaryExplore,
+    type WarehouseConnectionForUserCredentials,
+} from '@lightdash/common';
 import { Box, Divider } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { getConnectionName } from '../../common/connectionName';
 import ExploreNavLink from './ExploreNavLink';
 import {
     collectMatchingGroupPathsFromArray,
@@ -42,6 +46,7 @@ interface VirtualizedExploreListProps {
     preAggregateExplores: SummaryExplore[];
     externalSourceExplores: SummaryExplore[];
     searchQuery: string;
+    connections: WarehouseConnectionForUserCredentials[] | null;
     onExploreClick: (explore: SummaryExplore) => void;
 }
 
@@ -71,6 +76,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     preAggregateExplores,
     externalSourceExplores,
     searchQuery,
+    connections,
     onExploreClick,
 }) => {
     const [expandedGroupPaths, setExpandedGroupPaths] = useState<Set<string>>(
@@ -291,6 +297,10 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                         >
                             <ExploreNavLink
                                 explore={item.explore}
+                                connectionName={getConnectionName(
+                                    connections,
+                                    item.explore.warehouseConnectionUuid,
+                                )}
                                 query={searchQuery}
                                 onClick={() => onExploreClick(item.explore)}
                             />
@@ -318,7 +328,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     return null;
             }
         },
-        [searchQuery, toggleGroup, toggleSection, onExploreClick],
+        [searchQuery, connections, toggleGroup, toggleSection, onExploreClick],
     );
 
     return (
