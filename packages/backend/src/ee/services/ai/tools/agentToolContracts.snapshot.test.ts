@@ -225,6 +225,7 @@ const makeAgentTools = (
         }),
         runComposerQueries: getRunComposerQueries({
             createOrUpdateArtifact: noop,
+            listThreadComposerPipelines: noop,
             enableDataAccess: true,
             canRunSql: true,
             getPrompt: noop,

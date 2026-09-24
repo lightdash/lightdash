@@ -13692,6 +13692,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 return artifact;
             },
 
+            listThreadComposerPipelines: async (threadUuid) =>
+                (
+                    await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
+                        threadUuid,
+                    )
+                ).filter(isAiComposerChartArtifactConfig),
+
             waitForSqlApproval: (toolCallId, timeoutMs) =>
                 this.aiAgentModel.waitForSqlApproval(toolCallId, timeoutMs),
             recordSqlApproval: (toolCallId, decision, decidedByUserUuid) =>

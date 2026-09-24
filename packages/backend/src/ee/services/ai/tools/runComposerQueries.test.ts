@@ -1,6 +1,8 @@
 import {
     QuerySourceType,
+    type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
+    type SemanticLayerSourceQuery,
     type ToolComposerQueriesArgs,
 } from '@lightdash/common';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
@@ -148,6 +150,7 @@ const makeTool = ({
         waitForSqlApproval,
         recordSqlApproval: vi.fn().mockResolvedValue(true),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+        listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
         maxQueryLimit: 5000,
         enableDataAccess,
         canRunSql,
@@ -491,6 +494,276 @@ describe('getRunComposerQueries', () => {
         expect(output.metadata?.status).toBe('success');
         expect(output.result).not.toContain('```csv');
         expect(output.result).toContain('query-3');
+    });
+});
+
+const ORDERS_UUID = 'bcf89bb4-1111-4aaa-8bbb-000000000001';
+const CUSTOMERS_UUID = '5e0a91c2-2222-4aaa-8bbb-000000000002';
+const ENRICHED_UUID = '7d3f22a0-3333-4aaa-8bbb-000000000003';
+const RANKED_UUID = 'a41c9e07-4444-4aaa-8bbb-000000000004';
+
+const ordersNode: SemanticLayerSourceQuery = {
+    sourceType: QuerySourceType.SEMANTIC_LAYER,
+    nodeId: 'orders',
+    title: 'Orders by customer',
+    exploreName: 'orders',
+    dimensions: ['orders_customer_id'],
+    metrics: ['orders_total_order_amount'],
+    limit: 500,
+};
+
+const customersNode: SemanticLayerSourceQuery = {
+    sourceType: QuerySourceType.SEMANTIC_LAYER,
+    nodeId: 'customers',
+    title: 'Customers',
+    exploreName: 'customers',
+    dimensions: ['customers_customer_id', 'customers_first_name'],
+    metrics: [],
+    limit: 500,
+};
+
+const version1: AiComposerChartArtifactConfig = {
+    source: 'composer',
+    schemaVersion: 1,
+    queries: [
+        ordersNode,
+        customersNode,
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'enriched',
+            title: 'Orders with customer names',
+            sql: 'SELECT * FROM orders JOIN customers ON orders_customer_id = customers_customer_id',
+            references: ['orders', 'customers'],
+            limit: 500,
+        },
+    ],
+    terminalNodeId: 'enriched',
+    lastQueryUuid: ENRICHED_UUID,
+    nodeResults: {
+        orders: { queryUuid: ORDERS_UUID },
+        customers: { queryUuid: CUSTOMERS_UUID },
+        enriched: { queryUuid: ENRICHED_UUID },
+    },
+};
+
+// Reused v1's enriched, so its pipeline already carries suffixed copies
+const version2: AiComposerChartArtifactConfig = {
+    source: 'composer',
+    schemaVersion: 1,
+    queries: [
+        { ...ordersNode, nodeId: 'orders_bcf89bb4' },
+        { ...customersNode, nodeId: 'customers_5e0a91c2' },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'enriched_7d3f22a0',
+            title: 'Orders with customer names',
+            sql: 'SELECT * FROM orders JOIN customers ON orders_customer_id = customers_customer_id',
+            references: {
+                orders: 'orders_bcf89bb4',
+                customers: 'customers_5e0a91c2',
+            },
+            limit: 500,
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'ranked',
+            title: 'Customers ranked by spend',
+            sql: 'SELECT *, rank() OVER (ORDER BY orders_total_order_amount DESC) AS spend_rank FROM enriched',
+            references: { enriched: 'enriched_7d3f22a0' },
+            limit: 500,
+        },
+    ],
+    terminalNodeId: 'ranked',
+    lastQueryUuid: RANKED_UUID,
+    nodeResults: {
+        orders_bcf89bb4: { queryUuid: ORDERS_UUID },
+        customers_5e0a91c2: { queryUuid: CUSTOMERS_UUID },
+        enriched_7d3f22a0: { queryUuid: ENRICHED_UUID },
+        ranked: { queryUuid: RANKED_UUID },
+    },
+};
+
+const readerNode = (
+    references: Record<string, string>,
+    nodeId = 'summary',
+): ComposerNode => ({
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId,
+    title: 'Spend summary',
+    description: null,
+    sql: 'SELECT count(*) FROM o',
+    references,
+    limit: 500,
+});
+
+const runReuse = async ({
+    queries,
+    earlierPipelines,
+}: {
+    queries: ComposerNode[];
+    earlierPipelines: AiComposerChartArtifactConfig[];
+}) => {
+    const { tool, dependencies } = makeTool();
+    dependencies.listThreadComposerPipelines.mockResolvedValue(
+        earlierPipelines,
+    );
+    const submissions = queries.map((node, index) => ({
+        nodeId: node.nodeId,
+        sourceType: node.sourceType,
+        queryUuid: `run-query-${index}`,
+    }));
+    dependencies.runComposerQueries.mockResolvedValue({
+        submissions,
+        terminal: {
+            queryUuid: submissions[submissions.length - 1].queryUuid,
+            columns: {},
+            rows: [],
+            rowCount: 0,
+        },
+    });
+
+    const output = await executeTool(
+        tool,
+        makeArgs({
+            queries,
+            terminalNodeId: queries[queries.length - 1].nodeId,
+        }),
+    );
+
+    expect(dependencies.listThreadComposerPipelines).toHaveBeenCalledWith(
+        'thread-uuid',
+    );
+    const [{ vizConfig }] = dependencies.createOrUpdateArtifact.mock.calls[0];
+    return { output, vizConfig: vizConfig as AiComposerChartArtifactConfig };
+};
+
+describe('composer artifact with reused nodes', () => {
+    it('copies nodes reused from an earlier version and rewrites the reader', async () => {
+        const { output, vizConfig } = await runReuse({
+            queries: [readerNode({ o: ORDERS_UUID, c: CUSTOMERS_UUID })],
+            earlierPipelines: [version1],
+        });
+
+        expect(vizConfig.queries).toEqual([
+            { ...ordersNode, nodeId: 'orders_bcf89bb4' },
+            { ...customersNode, nodeId: 'customers_5e0a91c2' },
+            expect.objectContaining({
+                nodeId: 'summary',
+                references: { o: 'orders_bcf89bb4', c: 'customers_5e0a91c2' },
+            }),
+        ]);
+        expect(vizConfig.nodeResults).toEqual({
+            orders_bcf89bb4: { queryUuid: ORDERS_UUID },
+            customers_5e0a91c2: { queryUuid: CUSTOMERS_UUID },
+            summary: { queryUuid: 'run-query-0' },
+        });
+        expect(vizConfig.terminalNodeId).toBe('summary');
+        expect(vizConfig.lastQueryUuid).toBe('run-query-0');
+        expect(output.result).toContain(
+            '- summary (duckdb): queryUuid run-query-0',
+        );
+        expect(output.result).not.toContain('orders_bcf89bb4');
+    });
+
+    it('copies a reused transformation with its reads, converting array references to map form', async () => {
+        const { vizConfig } = await runReuse({
+            queries: [readerNode({ e: ENRICHED_UUID })],
+            earlierPipelines: [version1],
+        });
+
+        expect(vizConfig.queries.map((node) => node.nodeId)).toEqual([
+            'orders_bcf89bb4',
+            'customers_5e0a91c2',
+            'enriched_7d3f22a0',
+            'summary',
+        ]);
+        expect(vizConfig.queries[2]).toEqual(
+            expect.objectContaining({
+                sql: 'SELECT * FROM orders JOIN customers ON orders_customer_id = customers_customer_id',
+                references: {
+                    orders: 'orders_bcf89bb4',
+                    customers: 'customers_5e0a91c2',
+                },
+            }),
+        );
+        expect(vizConfig.queries[3]).toEqual(
+            expect.objectContaining({ references: { e: 'enriched_7d3f22a0' } }),
+        );
+        expect(Object.keys(vizConfig.nodeResults ?? {})).toEqual(
+            vizConfig.queries.map((node) => node.nodeId),
+        );
+    });
+
+    it('copies a node reached directly from v1 and transitively via v2 once', async () => {
+        const { vizConfig } = await runReuse({
+            queries: [readerNode({ o: ORDERS_UUID, r: RANKED_UUID })],
+            earlierPipelines: [version1, version2],
+        });
+
+        expect(vizConfig.queries.map((node) => node.nodeId)).toEqual([
+            'orders_bcf89bb4',
+            'customers_5e0a91c2',
+            'enriched_7d3f22a0',
+            'ranked_a41c9e07',
+            'summary',
+        ]);
+        expect(vizConfig.queries[3]).toEqual(
+            expect.objectContaining({
+                references: { enriched: 'enriched_7d3f22a0' },
+            }),
+        );
+        expect(vizConfig.queries[4]).toEqual(
+            expect.objectContaining({
+                references: { o: 'orders_bcf89bb4', r: 'ranked_a41c9e07' },
+            }),
+        );
+        expect(vizConfig.nodeResults).toEqual({
+            orders_bcf89bb4: { queryUuid: ORDERS_UUID },
+            customers_5e0a91c2: { queryUuid: CUSTOMERS_UUID },
+            enriched_7d3f22a0: { queryUuid: ENRICHED_UUID },
+            ranked_a41c9e07: { queryUuid: RANKED_UUID },
+            summary: { queryUuid: 'run-query-0' },
+        });
+    });
+
+    it('leaves an unknown queryUuid untouched and invents no node', async () => {
+        const unknownUuid = '99999999-5555-4aaa-8bbb-000000000005';
+        const { vizConfig } = await runReuse({
+            queries: [readerNode({ o: ORDERS_UUID, prev: unknownUuid })],
+            earlierPipelines: [version1],
+        });
+
+        expect(vizConfig.queries.map((node) => node.nodeId)).toEqual([
+            'orders_bcf89bb4',
+            'summary',
+        ]);
+        expect(vizConfig.queries[1]).toEqual(
+            expect.objectContaining({
+                references: { o: 'orders_bcf89bb4', prev: unknownUuid },
+            }),
+        );
+    });
+
+    it("stores only this run's nodes without an earlier artifact", async () => {
+        const { vizConfig } = await runReuse({
+            queries: [
+                semanticNode,
+                readerNode({ o: 'revenue', prev: ORDERS_UUID }),
+            ],
+            earlierPipelines: [],
+        });
+
+        expect(vizConfig.queries).toEqual([
+            expect.objectContaining({ nodeId: 'revenue' }),
+            expect.objectContaining({
+                nodeId: 'summary',
+                references: { o: 'revenue', prev: ORDERS_UUID },
+            }),
+        ]);
+        expect(vizConfig.nodeResults).toEqual({
+            revenue: { queryUuid: 'run-query-0' },
+            summary: { queryUuid: 'run-query-1' },
+        });
     });
 });
 
