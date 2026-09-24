@@ -1,9 +1,3 @@
-/**
- * Postgres refuses a `jsonb` value whose container exceeds this, with
- * "total size of jsonb array elements exceeds the maximum".
- */
-export const POSTGRES_JSONB_MAX_BYTES = 268_435_455;
-
 /** Bound a chunk by bytes as well as rows. The same 1,000 rows are 46 MB in one project and
  *  230 MB in another, so a row count alone does not bound anything. */
 export const DEFAULT_CHUNK_MAX_BYTES = 32 * 1024 * 1024;
@@ -75,23 +69,3 @@ export async function* chunkAsyncRowsByBytes<R>(
         yield { rows: current, bytes: currentBytes };
     }
 }
-
-/**
- * Serialised size of an explore set as one JSON array, without holding the array as a string.
- * Each element is serialised and released; only the running total is kept.
- */
-export const serialisedArrayBytes = <T>(items: readonly T[]): number =>
-    items.reduce(
-        (total, item) => total + Buffer.byteLength(JSON.stringify(item)) + 1,
-        1,
-    );
-
-/**
- * The whole-set cache row is one jsonb value, so it has a ceiling chunking cannot move. Name
- * the size and the limit rather than letting Postgres or V8 surface an opaque error.
- */
-export const describeWholeSetOverflow = (
-    exploreCount: number,
-    bytes: number,
-): string =>
-    `Cannot cache ${exploreCount} explores for this project: they serialise to ${bytes} bytes, over the ${POSTGRES_JSONB_MAX_BYTES} byte limit for a single jsonb value. Reduce the number of models or the size of their metadata.`;
