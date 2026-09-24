@@ -2,8 +2,8 @@ import { Ability } from '@casl/ability';
 import {
     ChartType,
     DashboardTileTypes,
-    NotImplementedError,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     PromotionAction,
     SessionUser,
@@ -42,6 +42,14 @@ import {
     user,
 } from './PromoteService.mock';
 
+const connectionState = vi.hoisted(() => ({
+    routes: new Map<string, 'single' | 'multi'>(),
+    connections: new Map<
+        string,
+        { warehouseConnectionUuid: string; name: string; isOriginal: boolean }[]
+    >(),
+}));
+
 const projectModel = {
     getSummary: vi.fn(async () => ({
         upstreamProjectUuid: existingUpstreamDashboard.projectUuid,
@@ -50,7 +58,18 @@ const projectModel = {
     getUpstreamDashboardUuidFromPreview: vi.fn(
         async (): Promise<string | null> => null,
     ),
-    requireSingleConnectionRoute: vi.fn(async () => 'single'),
+    getConnectionRoute: vi.fn(
+        async (projectUuid: string) =>
+            connectionState.routes.get(projectUuid) ?? 'single',
+    ),
+};
+
+const warehouseConnectionModel = {
+    getProject: vi.fn(async (projectUuid: string) => ({ projectUuid })),
+    list: vi.fn(
+        async ({ projectUuid }: { projectUuid: string }) =>
+            connectionState.connections.get(projectUuid) ?? [],
+    ),
 };
 
 const chartTransaction = {} as Knex.Transaction;
@@ -176,6 +195,7 @@ describe('PromoteService chart changes', () => {
         dashboardModel: {} as DashboardModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        warehouseConnectionModel: warehouseConnectionModel as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -442,6 +462,7 @@ describe('PromoteService dashboard changes', () => {
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        warehouseConnectionModel: warehouseConnectionModel as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -922,6 +943,7 @@ describe('PromoteService promoting and mutating changes', () => {
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        warehouseConnectionModel: warehouseConnectionModel as never,
     });
     afterEach(() => {
         vi.clearAllMocks();
@@ -1856,13 +1878,44 @@ describe('PromoteService promoting and mutating changes', () => {
         );
     });
 
-    describe('into an upstream that routes multi', () => {
-        const refuseMultiRoute = () =>
-            projectModel.requireSingleConnectionRoute.mockRejectedValueOnce(
-                new NotImplementedError(
-                    'Multiple connections are not available',
-                ),
-            );
+    describe('SQL chart connections', () => {
+        const sourceProjectUuid = promotedSqlChart.project.projectUuid;
+        const targetProjectUuid = existingUpstreamDashboard.projectUuid;
+        const sourceFinance = {
+            warehouseConnectionUuid: 'source-finance-uuid',
+            name: 'Finance',
+            isOriginal: false,
+        };
+        const targetFinance = {
+            warehouseConnectionUuid: 'target-finance-uuid',
+            name: 'Finance',
+            isOriginal: false,
+        };
+        const original = (warehouseConnectionUuid: string) => ({
+            warehouseConnectionUuid,
+            name: 'Warehouse',
+            isOriginal: true,
+        });
+
+        const setProject = (
+            projectUuid: string,
+            connections: (typeof sourceFinance)[] | null,
+        ) => {
+            if (connections === null) {
+                connectionState.routes.set(projectUuid, 'single');
+                connectionState.connections.delete(projectUuid);
+            } else {
+                connectionState.routes.set(projectUuid, 'multi');
+                connectionState.connections.set(projectUuid, connections);
+            }
+        };
+
+        const sourceChartOn = (warehouseConnectionUuid: string | null) =>
+            savedSqlModel.getByUuid.mockResolvedValue({
+                ...promotedSqlChart,
+                warehouseConnectionUuid,
+            });
+
         const expectNoUpstreamWrites = () => {
             expect(savedSqlModel.create).not.toHaveBeenCalled();
             expect(savedSqlModel.update).not.toHaveBeenCalled();
@@ -1873,16 +1926,11 @@ describe('PromoteService promoting and mutating changes', () => {
             expect(savedChartModel.create).not.toHaveBeenCalled();
         };
 
-        test('promoteSqlChart refuses before any write', async () => {
-            refuseMultiRoute();
-            (spaceModel.find as import('vitest').Mock).mockImplementation(
-                async () => [],
-            );
-
-            const error = await service
+        const promoteSql = () =>
+            service
                 .promoteSqlChart(
                     userWithPromotePermissions,
-                    promotedSqlChart.project.projectUuid,
+                    sourceProjectUuid,
                     promotedSqlChart.savedSqlUuid,
                 )
                 .then(
@@ -1890,22 +1938,8 @@ describe('PromoteService promoting and mutating changes', () => {
                     (e: unknown) => e,
                 );
 
-            expectNoUpstreamWrites();
-            expect(error).toBeInstanceOf(NotImplementedError);
-            expect(
-                projectModel.requireSingleConnectionRoute,
-            ).toHaveBeenCalledWith(existingUpstreamDashboard.projectUuid, {
-                kind: 'original',
-            });
-        });
-
-        test('promoteDashboard refuses before any write', async () => {
-            refuseMultiRoute();
-            (spaceModel.find as import('vitest').Mock).mockImplementation(
-                async () => [],
-            );
-
-            const error = await service
+        const promoteSqlTile = () =>
+            service
                 .promoteDashboard(
                     userWithPromotePermissions,
                     promotedDashboardWithSqlTile.dashboard.uuid,
@@ -1916,13 +1950,162 @@ describe('PromoteService promoting and mutating changes', () => {
                     (e: unknown) => e,
                 );
 
+        beforeEach(() => {
+            (spaceModel.find as import('vitest').Mock).mockImplementation(
+                async () => [],
+            );
+        });
+
+        afterEach(() => {
+            connectionState.routes.clear();
+            connectionState.connections.clear();
+            savedSqlModel.getByUuid.mockReset();
+            savedSqlModel.getByUuid.mockResolvedValue(promotedSqlChart);
+        });
+
+        test('a SQL chart on an extra connection is promoted onto the connection with the same name', async () => {
+            setProject(sourceProjectUuid, [
+                original('source-original'),
+                sourceFinance,
+            ]);
+            setProject(targetProjectUuid, [
+                original('target-original'),
+                targetFinance,
+            ]);
+            sourceChartOn(sourceFinance.warehouseConnectionUuid);
+
+            await promoteSql();
+            expect(savedSqlModel.create).toHaveBeenCalledWith(
+                expect.any(String),
+                targetProjectUuid,
+                expect.objectContaining({ slug: promotedSqlChart.slug }),
+                {
+                    kind: 'connection',
+                    warehouseConnectionUuid:
+                        targetFinance.warehouseConnectionUuid,
+                },
+            );
+        });
+
+        test('a SQL chart on the original is promoted onto the original of a multi upstream', async () => {
+            setProject(targetProjectUuid, [
+                original('target-original'),
+                targetFinance,
+            ]);
+            sourceChartOn(null);
+
+            await promoteSql();
+            expect(savedSqlModel.create).toHaveBeenCalledWith(
+                expect.any(String),
+                targetProjectUuid,
+                expect.objectContaining({ slug: promotedSqlChart.slug }),
+                { kind: 'connection', warehouseConnectionUuid: null },
+            );
+        });
+
+        test('a promotion between single projects writes the way main does', async () => {
+            sourceChartOn(null);
+
+            await promoteSql();
+            expect(savedSqlModel.create).toHaveBeenCalledWith(
+                expect.any(String),
+                targetProjectUuid,
+                expect.objectContaining({ slug: promotedSqlChart.slug }),
+            );
+        });
+
+        test.each([
+            ['a single upstream', null],
+            ['a multi upstream without it', [original('target-original')]],
+        ])(
+            'refuses to promote a SQL chart on an extra connection into %s, before any write (D4)',
+            async (_name, targetConnections) => {
+                setProject(sourceProjectUuid, [
+                    original('source-original'),
+                    sourceFinance,
+                ]);
+                setProject(targetProjectUuid, targetConnections);
+                sourceChartOn(sourceFinance.warehouseConnectionUuid);
+
+                expect(await promoteSql()).toEqual(
+                    new ParameterError(
+                        'The upstream project has no connection named "Finance".',
+                    ),
+                );
+                expectNoUpstreamWrites();
+            },
+        );
+
+        test('a dashboard SQL tile on an extra connection is promoted onto the connection with the same name', async () => {
+            setProject(sourceProjectUuid, [
+                original('source-original'),
+                sourceFinance,
+            ]);
+            setProject(targetProjectUuid, [
+                original('target-original'),
+                targetFinance,
+            ]);
+            sourceChartOn(sourceFinance.warehouseConnectionUuid);
+            const passThrough = async (
+                _user: unknown,
+                changes: PromotionChanges,
+            ) => changes;
+            const internals = service as unknown as Record<
+                | 'getOrCreateDashboard'
+                | 'upsertDataApps'
+                | 'upsertCharts'
+                | 'updateDashboard'
+                | 'upsertSqlCharts',
+                (...args: unknown[]) => Promise<PromotionChanges>
+            >;
+            (
+                [
+                    'getOrCreateDashboard',
+                    'upsertDataApps',
+                    'upsertCharts',
+                    'updateDashboard',
+                    'upsertSqlCharts',
+                ] as const
+            ).forEach((method) =>
+                vi
+                    .spyOn(internals, method)
+                    .mockImplementation(passThrough as never),
+            );
+
+            await promoteSqlTile();
+
+            expect(internals.upsertSqlCharts).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                expect.any(Array),
+                new Map([
+                    [
+                        promotedSqlChart.savedSqlUuid,
+                        {
+                            kind: 'connection',
+                            warehouseConnectionUuid:
+                                targetFinance.warehouseConnectionUuid,
+                        },
+                    ],
+                ]),
+            );
+            vi.restoreAllMocks();
+        });
+
+        test('a dashboard whose SQL tile names a connection the upstream lacks is refused before any write (D4)', async () => {
+            setProject(sourceProjectUuid, [
+                original('source-original'),
+                sourceFinance,
+            ]);
+            setProject(targetProjectUuid, null);
+            sourceChartOn(sourceFinance.warehouseConnectionUuid);
+
+            expect(await promoteSqlTile()).toEqual(
+                new ParameterError(
+                    'The upstream project has no connection named "Finance".',
+                ),
+            );
             expectNoUpstreamWrites();
-            expect(error).toBeInstanceOf(NotImplementedError);
-            expect(
-                projectModel.requireSingleConnectionRoute,
-            ).toHaveBeenCalledWith(existingUpstreamDashboard.projectUuid, {
-                kind: 'original',
-            });
         });
     });
 });
@@ -2029,6 +2212,7 @@ describe('PromoteService data app promotion', () => {
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        warehouseConnectionModel: warehouseConnectionModel as never,
     };
 
     const serviceWithApps = new PromoteService({

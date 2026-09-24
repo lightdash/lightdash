@@ -133,6 +133,7 @@ export type SqlChartAsCode = Pick<
     downloadedAt?: Date;
     /** Direct user/group grants. Omission leaves the existing policy unchanged on upload. */
     access?: ContentAsCodeDirectAccess;
+    connection?: string;
 };
 
 export type ApiChartAsCodeListResponse = {

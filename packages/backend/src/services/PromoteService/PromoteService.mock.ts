@@ -308,6 +308,7 @@ export const promotedSqlChart = {
         chartConfig: {},
     } as unknown as SqlChart['config'],
     chartKind: ChartKind.TABLE,
+    warehouseConnectionUuid: null as string | null,
     createdAt: new Date(),
     createdBy: updatedByUser,
     lastUpdatedAt: new Date(),

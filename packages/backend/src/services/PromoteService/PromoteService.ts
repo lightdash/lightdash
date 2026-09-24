@@ -38,9 +38,17 @@ import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
-import { SavedSqlModel } from '../../models/SavedSqlModel';
+import {
+    SavedSqlModel,
+    type SqlChartConnectionBinding,
+} from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import {
+    getContentConnectionName,
+    listContentConnections,
+    type ContentConnectionModels,
+} from '../CoderService/handlers/contentConnections';
 import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
@@ -120,6 +128,7 @@ type PromoteServiceArguments = {
     // AppGenerateService depends on PromoteService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+    warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
 };
 
 type SavedSqlChart = Awaited<ReturnType<SavedSqlModel['getByUuid']>>;
@@ -144,6 +153,8 @@ export class PromoteService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
+
     private readonly getAppGenerateService?: () =>
         | AppGenerateService
         | undefined;
@@ -159,6 +170,60 @@ export class PromoteService extends BaseService {
         this.dashboardModel = args.dashboardModel;
         this.spacePermissionService = args.spacePermissionService;
         this.getAppGenerateService = args.getAppGenerateService;
+        this.warehouseConnectionModel = args.warehouseConnectionModel;
+    }
+
+    private async getPromotedSqlChartBindings(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+        sqlCharts: Pick<
+            SavedSqlChart,
+            'savedSqlUuid' | 'warehouseConnectionUuid'
+        >[],
+    ): Promise<ReadonlyMap<string, SqlChartConnectionBinding | undefined>> {
+        const models = {
+            projectModel: this.projectModel,
+            warehouseConnectionModel: this.warehouseConnectionModel,
+        };
+        const [sourceConnections, targetConnections] = await Promise.all([
+            listContentConnections(models, sourceProjectUuid),
+            listContentConnections(models, targetProjectUuid),
+        ]);
+        return new Map(
+            sqlCharts.map((sqlChart) => {
+                const name = getContentConnectionName(
+                    sourceConnections,
+                    sqlChart.warehouseConnectionUuid,
+                );
+                if (targetConnections.length === 0) {
+                    if (name !== undefined) {
+                        throw new ParameterError(
+                            `The upstream project has no connection named "${name}".`,
+                        );
+                    }
+                    return [sqlChart.savedSqlUuid, undefined] as const;
+                }
+                const target = targetConnections.find((connection) =>
+                    name === undefined
+                        ? connection.isOriginal
+                        : connection.name === name,
+                );
+                if (!target) {
+                    throw new ParameterError(
+                        `The upstream project has no connection named "${name}".`,
+                    );
+                }
+                return [
+                    sqlChart.savedSqlUuid,
+                    {
+                        kind: 'connection',
+                        warehouseConnectionUuid: target.isOriginal
+                            ? null
+                            : target.warehouseConnectionUuid,
+                    },
+                ] as const;
+            }),
+        );
     }
 
     private async trackAnalytics(
@@ -1027,6 +1092,10 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         promotionChanges: PromotionChanges,
         promotedSqlCharts: PromotedSqlChartChange[],
+        bindings: ReadonlyMap<
+            string,
+            SqlChartConnectionBinding | undefined
+        > = new Map(),
     ): Promise<PromotionChanges> {
         if (promotedSqlCharts.length === 0) {
             return promotionChanges;
@@ -1055,8 +1124,8 @@ export class PromoteService extends BaseService {
         await Promise.all(
             sqlChangesWithResolvedSpaces
                 .filter((change) => change.action === PromotionAction.UPDATE)
-                .map((sqlChartChange) =>
-                    this.savedSqlModel.update({
+                .map((sqlChartChange) => {
+                    const sqlChartUpdate = {
                         userUuid: user.userUuid,
                         savedSqlUuid: sqlChartChange.data.uuid,
                         sqlChart: {
@@ -1064,24 +1133,37 @@ export class PromoteService extends BaseService {
                                 sqlChartChange.data.unversionedData,
                             versionedData: sqlChartChange.data.versionedData,
                         },
-                    }),
-                ),
+                    };
+                    const binding = bindings.get(sqlChartChange.data.oldUuid);
+                    return binding === undefined
+                        ? this.savedSqlModel.update(sqlChartUpdate)
+                        : this.savedSqlModel.update(sqlChartUpdate, binding);
+                }),
         );
 
         const createdSqlCharts = await Promise.all(
             sqlChangesWithResolvedSpaces
                 .filter((change) => change.action === PromotionAction.CREATE)
-                .map((sqlChartChange) =>
-                    this.savedSqlModel.create(
-                        user.userUuid,
-                        sqlChartChange.data.projectUuid,
-                        {
-                            ...sqlChartChange.data.unversionedData,
-                            ...sqlChartChange.data.versionedData,
-                            slug: sqlChartChange.data.slug,
-                        },
-                    ),
-                ),
+                .map((sqlChartChange) => {
+                    const sqlChartToCreate = {
+                        ...sqlChartChange.data.unversionedData,
+                        ...sqlChartChange.data.versionedData,
+                        slug: sqlChartChange.data.slug,
+                    };
+                    const binding = bindings.get(sqlChartChange.data.oldUuid);
+                    return binding === undefined
+                        ? this.savedSqlModel.create(
+                              user.userUuid,
+                              sqlChartChange.data.projectUuid,
+                              sqlChartToCreate,
+                          )
+                        : this.savedSqlModel.create(
+                              user.userUuid,
+                              sqlChartChange.data.projectUuid,
+                              sqlChartToCreate,
+                              binding,
+                          );
+                }),
         );
 
         const sqlChartUuidMap = new Map<string, string>();
@@ -1540,9 +1622,10 @@ export class PromoteService extends BaseService {
                 upstreamSqlChart,
             );
 
-            await this.projectModel.requireSingleConnectionRoute(
+            const sqlChartBindings = await this.getPromotedSqlChartBindings(
+                savedSqlChart.project.projectUuid,
                 upstreamProjectUuid,
-                { kind: 'original' },
+                [promotedSqlChart.chart],
             );
 
             const { promotionChanges, sqlChartChange } =
@@ -1557,9 +1640,12 @@ export class PromoteService extends BaseService {
                 promotionChanges,
             );
 
-            await this.upsertSqlCharts(user, promotionChangesWithSpaces, [
-                sqlChartChange,
-            ]);
+            await this.upsertSqlCharts(
+                user,
+                promotionChangesWithSpaces,
+                [sqlChartChange],
+                sqlChartBindings,
+            );
 
             const promotedSqlChartUuid =
                 await this.getUpstreamPromotedSqlChartUuid(
@@ -2697,9 +2783,12 @@ export class PromoteService extends BaseService {
                     ),
             );
 
-            await this.projectModel.requireSingleConnectionRoute(
+            const sqlChartBindings = await this.getPromotedSqlChartBindings(
+                dashboard.projectUuid,
                 upstreamProjectUuid,
-                { kind: 'original' },
+                promotedSqlCharts.map(
+                    ({ promotedSqlChart }) => promotedSqlChart.chart,
+                ),
             );
 
             // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
@@ -2739,6 +2828,7 @@ export class PromoteService extends BaseService {
                 user,
                 promotionChanges,
                 sqlChanges,
+                sqlChartBindings,
             );
 
             promotionChanges = await this.updateDashboard(

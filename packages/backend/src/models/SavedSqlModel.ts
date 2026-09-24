@@ -62,8 +62,9 @@ type SelectSavedSql = Pick<
     | 'first_viewed_at'
     | 'last_viewed_at'
 > &
-    Pick<DbSavedSqlVersion, 'sql' | 'limit' | 'config' | 'chart_kind'> &
-    Pick<DbSpace, 'space_uuid' | 'path'> &
+    Pick<DbSavedSqlVersion, 'sql' | 'limit' | 'config' | 'chart_kind'> & {
+        warehouse_connection_uuid: string | null;
+    } & Pick<DbSpace, 'space_uuid' | 'path'> &
     Pick<DbProject, 'project_uuid'> &
     Pick<DbOrganization, 'organization_uuid'> & {
         updated_at: Date;
@@ -138,6 +139,7 @@ export class SavedSqlModel {
             limit: row.limit,
             config: row.config as SqlChart['config'],
             chartKind: row.chart_kind,
+            warehouseConnectionUuid: row.warehouse_connection_uuid,
             space: {
                 uuid: row.space_uuid,
                 name: row.spaceName,
@@ -228,6 +230,7 @@ export class SavedSqlModel {
                 `${SavedSqlVersionsTableName}.limit`,
                 `${SavedSqlVersionsTableName}.config`,
                 `${SavedSqlVersionsTableName}.chart_kind`,
+                `${SavedSqlVersionsTableName}.warehouse_connection_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
                 `createdByUser.user_uuid as created_by_user_uuid`,
                 `createdByUser.first_name as created_by_user_first_name`,

@@ -24,6 +24,11 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../../BaseService';
 import { ProjectService } from '../../ProjectService/ProjectService';
+import {
+    getContentConnectionName,
+    listContentConnections,
+    resolveContentConnection,
+} from './contentConnections';
 
 type VirtualViewCoderArguments = {
     projectModel: ProjectModel;
@@ -58,15 +63,12 @@ export class VirtualViewCoder extends BaseService {
     private async listConnections(
         projectUuid: string,
     ): Promise<WarehouseConnection[]> {
-        if (
-            (await this.projectModel.getConnectionRoute(projectUuid, {
-                kind: 'original',
-            })) !== 'multi'
-        ) {
-            return [];
-        }
-        return this.warehouseConnectionModel.list(
-            await this.warehouseConnectionModel.getProject(projectUuid),
+        return listContentConnections(
+            {
+                projectModel: this.projectModel,
+                warehouseConnectionModel: this.warehouseConnectionModel,
+            },
+            projectUuid,
         );
     }
 
@@ -75,32 +77,23 @@ export class VirtualViewCoder extends BaseService {
         connections: WarehouseConnection[],
         warehouseConnectionUuid: string | null,
     ): VirtualViewAsCode {
-        const connection = connections.find(
-            (candidate) =>
-                !candidate.isOriginal &&
-                candidate.warehouseConnectionUuid === warehouseConnectionUuid,
+        const connection = getContentConnectionName(
+            connections,
+            warehouseConnectionUuid,
         );
-        return connection
-            ? { ...virtualView, connection: connection.name }
-            : virtualView;
+        return connection === undefined
+            ? virtualView
+            : { ...virtualView, connection };
     }
 
     private async resolveConnection(
         projectUuid: string,
         name: string | undefined,
     ): Promise<string | null> {
-        if (name === undefined) return null;
-        const connection = (await this.listConnections(projectUuid)).find(
-            (candidate) => candidate.name === name,
+        return resolveContentConnection(
+            await this.listConnections(projectUuid),
+            name,
         );
-        if (!connection) {
-            throw new ParameterError(
-                `This project has no connection named "${name}".`,
-            );
-        }
-        return connection.isOriginal
-            ? null
-            : connection.warehouseConnectionUuid;
     }
 
     private static transform(virtualView: Explore): VirtualViewAsCode | null {

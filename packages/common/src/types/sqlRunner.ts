@@ -238,6 +238,7 @@ export type SqlChart = {
     limit: number;
     config: AllVizChartConfig;
     chartKind: ChartKind;
+    warehouseConnectionUuid: string | null;
     createdAt: Date;
     createdBy: Pick<
         LightdashUser,
