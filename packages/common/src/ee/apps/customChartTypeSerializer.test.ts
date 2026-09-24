@@ -100,6 +100,31 @@ const minimal: CustomChartType = {
 };
 
 describe('serializeCustomChartTypeForPrompt', () => {
+    it('mentions declared numeric field gradients', () => {
+        const chart: CustomChartType = {
+            ...minimal,
+            schema: {
+                ...minimal.schema,
+                fields: [
+                    {
+                        ...minimal.schema.fields[0],
+                        colorOptions: {
+                            gradient: {
+                                enabled: true,
+                                start: '#000000',
+                                end: '#ffffff',
+                                min: 'auto',
+                                max: 10,
+                            },
+                        },
+                    },
+                ],
+            },
+        };
+        expect(serializeCustomChartTypeForPrompt(chart)).toContain(
+            'Status: numeric gradient',
+        );
+    });
     it('mentions field settings when a chart declares them', () => {
         const chart: CustomChartType = {
             ...minimal,
@@ -160,6 +185,31 @@ describe('serializeCustomChartTypeForPrompt', () => {
 });
 
 describe('serializeCustomChartTypeSchema', () => {
+    it('describes gradient defaults and bound field scope', () => {
+        const chart: CustomChartType = {
+            ...minimal,
+            schema: {
+                ...minimal.schema,
+                fields: [
+                    {
+                        ...minimal.schema.fields[0],
+                        colorOptions: {
+                            gradient: {
+                                enabled: true,
+                                start: '#000000',
+                                end: '#ffffff',
+                                min: 'auto',
+                                max: 10,
+                            },
+                        },
+                    },
+                ],
+            },
+        };
+        expect(serializeCustomChartTypeSchema(chart)).toContain(
+            'fieldColorGradient for status (per bound field id): enabled: true, start: "#000000", end: "#ffffff", min: auto, max: 10',
+        );
+    });
     it('lists each declared field option with its type and default', () => {
         const chart: CustomChartType = {
             ...minimal,

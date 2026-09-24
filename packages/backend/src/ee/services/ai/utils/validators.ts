@@ -1832,6 +1832,32 @@ export function validateCustomChartTypeChartConfig(
         });
     });
 
+    Object.entries(chartConfig.fieldColorValues ?? {}).forEach(
+        ([slot, fields]) => {
+            const declaration = vizSchema.fields.find(
+                (field) => field.name === slot,
+            );
+            if (!declaration) {
+                errors.push(`Unknown field colour input "${slot}".`);
+                return;
+            }
+            const binding = chartConfig.fieldMapping[slot];
+            const boundIds = Array.isArray(binding) ? binding : [binding];
+            Object.entries(fields).forEach(([fieldId, values]) => {
+                if (!boundIds.includes(fieldId)) {
+                    errors.push(
+                        `Field colours for "${slot}" reference unbound field "${fieldId}".`,
+                    );
+                }
+                if (values.gradient && !declaration.colorOptions?.gradient) {
+                    errors.push(
+                        `Input "${slot}" does not declare gradient colours.`,
+                    );
+                }
+            });
+        },
+    );
+
     if (chartConfig.options) {
         const declaredOptions = vizSchema.configOptions;
         const declaredOptionNames = declaredOptions.map(

@@ -645,3 +645,55 @@ describe('per-field settings validation', () => {
         },
     );
 });
+
+describe('per-field gradient validation', () => {
+    const gradient = {
+        enabled: true,
+        start: '#000000',
+        end: '#ffffff',
+        min: 'auto' as const,
+        max: 100,
+    };
+    const schema: DataAppVizSchema = {
+        ...multiVizSchema,
+        fields: multiVizSchema.fields.map((field) =>
+            field.name === 'y'
+                ? { ...field, colorOptions: { gradient } }
+                : field,
+        ),
+    };
+    const config = {
+        ...buildChartConfig({
+            ...validMapping,
+            y: ['orders_revenue', 'revenue_running_total'],
+        }),
+        fieldColorValues: { y: { orders_revenue: { gradient } } },
+    };
+    it('accepts declared gradients for bound fields', () => {
+        expect(() =>
+            validateCustomChartTypeChartConfig(config, schema, selectedFields),
+        ).not.toThrow();
+    });
+    it.each([
+        [
+            { missing: { orders_revenue: { gradient } } },
+            'Unknown field colour input',
+        ],
+        [{ y: { missing: { gradient } } }, 'unbound field'],
+        [
+            { x: { orders_order_date_month: { gradient } } },
+            'does not declare gradient',
+        ],
+    ])(
+        'rejects undeclared or unbound gradient configuration %#',
+        (fieldColorValues, message) => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    { ...config, fieldColorValues },
+                    schema,
+                    selectedFields,
+                ),
+            ).toThrow(message);
+        },
+    );
+});

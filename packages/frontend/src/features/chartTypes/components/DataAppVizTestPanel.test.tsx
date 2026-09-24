@@ -432,6 +432,100 @@ describe('DataAppVizTestPanel', () => {
         });
     });
 
+    it('publishes bound numeric gradient colors to the test preview', async () => {
+        const gradient = {
+            enabled: false,
+            start: '#000000',
+            end: '#ffffff',
+            min: 'auto',
+            max: 'auto',
+        } as const;
+        const gradientSchema: DataAppVizSchema = {
+            fields: [
+                {
+                    name: 'value',
+                    label: 'Value',
+                    type: 'metric',
+                    required: true,
+                    colorOptions: { gradient },
+                },
+            ],
+            configOptions: [],
+            colorPalette: null,
+        };
+        const numericRows: ResultRow[] = [
+            { orders_visible_metric: { value: { raw: 0, formatted: '0' } } },
+            { orders_visible_metric: { value: { raw: 10, formatted: '10' } } },
+        ];
+        exploreByProjectMock.mockReturnValue({ data: exploreWithHiddenFields });
+        vi.mocked(useQueryExecutor).mockReturnValue([
+            {
+                query: {
+                    data: { queryUuid: 'query-1' },
+                    isFetching: false,
+                    error: null,
+                },
+                queryResults: {
+                    rows: numericRows,
+                    queryUuid: 'query-1',
+                    pivotDetails: null,
+                    isFetchingFirstPage: false,
+                    error: null,
+                },
+            },
+            vi.fn(),
+        ] as unknown as ReturnType<typeof useQueryExecutor>);
+        const onContextChange = vi.fn();
+        const current: { value?: DataAppVizTestContextState } = {};
+        const state = () => {
+            if (!current.value)
+                throw new Error('Test context has not rendered');
+            return current.value;
+        };
+        const Probe = () => {
+            current.value = useDataAppVizTestContext({
+                projectUuid: 'p1',
+                schema: gradientSchema,
+                onContextChange,
+            });
+            return null;
+        };
+        renderWithProviders(
+            <ChartColorMappingContext.Provider
+                value={{ colorMappings: new Map() }}
+            >
+                <Probe />
+            </ChartColorMappingContext.Provider>,
+        );
+
+        act(() => state().handleExploreChange('orders'));
+        act(() => state().setField('value', 'orders_visible_metric'));
+        act(() =>
+            state().setFieldGradient(
+                'value',
+                'orders_visible_metric',
+                gradient,
+                { enabled: true },
+            ),
+        );
+        act(() => state().handleRun());
+
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    fieldColors: {
+                        value: {
+                            orders_visible_metric: {
+                                '0': '#000',
+                                '10': '#fff',
+                            },
+                        },
+                    },
+                }),
+            ),
+        );
+    });
+
     it('lists the declared fields and the explore picker up-front', () => {
         renderWithProviders(
             <TestDataAppVizPanel
@@ -571,6 +665,7 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldColors: {},
                 fieldOptions: {
                     source: { orders_visible: { color: '#ff0000' } },
                 },
@@ -597,6 +692,7 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldColors: {},
                 fieldOptions: {
                     source: { orders_visible: { color: '#ff0000' } },
                 },
@@ -657,6 +753,7 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldColors: {},
                 fieldOptions: {
                     source: { orders_visible: { color: '#ff0000' } },
                 },
@@ -683,6 +780,7 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldColors: {},
                 fieldOptions: {
                     source: { orders_visible: { color: '#ff0000' } },
                 },

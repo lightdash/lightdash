@@ -3,6 +3,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
     getEffectiveDataAppVizFieldOptionValues,
+    resolveDataAppVizFieldColors,
     getDataAppVizPreviewFieldId,
     getDataAppVizPreviewSchema,
     getPivotValueColumnName,
@@ -338,6 +339,11 @@ export const buildSampleVizContext = (
             field.multiple ? [sampleColumnId(field)] : sampleColumnId(field),
         ]),
     );
+    const sampleData = demo?.rows
+        ? buildDemoSample(schema, fields, demo.rows, shouldPivot)
+        : shouldPivot
+          ? buildPivotedSample(fields)
+          : buildFlatSample(fields);
 
     return {
         // One representative column per input keeps the preview readable while
@@ -348,6 +354,13 @@ export const buildSampleVizContext = (
             sampleFieldMapping,
             demo?.fieldOptionValues,
         ),
+        fieldColors: resolveDataAppVizFieldColors({
+            fields: schema.fields,
+            fieldMapping: sampleFieldMapping,
+            fieldColorValues: demo?.fieldColorValues,
+            rows: sampleData.rows,
+            pivotDetails: sampleData.pivotDetails,
+        }),
         // Fabricated columns have no semantic-layer item; the declared slot
         // label stands in so previews still show human names.
         fields: Object.fromEntries(
@@ -367,10 +380,6 @@ export const buildSampleVizContext = (
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
         pointMenu: { enabled: false },
-        ...(demo?.rows
-            ? buildDemoSample(schema, fields, demo.rows, shouldPivot)
-            : shouldPivot
-              ? buildPivotedSample(fields)
-              : buildFlatSample(fields)),
+        ...sampleData,
     };
 };

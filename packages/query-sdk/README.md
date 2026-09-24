@@ -10,6 +10,14 @@ at `fieldOptions[slotName]?.[fieldId]?.[optionName]`. The map is `{}` when an ol
 host does not send it, so use the declared default as a fallback. The same
 field id can have independent settings in different slots.
 
+A slot may also declare `colorOptions.gradient` for each bound numeric field.
+The host resolves the scale from the supplied raw values, including pivoted
+columns, and sends the resulting colors in `fieldColors`. Call
+`resolveFieldColor(context, slotName, fieldId, rawValue, fallbackColor)` to read
+one. It returns the fallback for missing values, values outside custom bounds,
+or hosts that predate this capability. Gradient endpoints are fixed hex colors;
+the chart palette is a separate fallback chosen by the visualization.
+
 ## Quick start
 
 ```tsx
@@ -153,19 +161,19 @@ strings, numbers, or arrays of either. They are sent at the top level of the API
 
 `useLightdash(query)` returns:
 
-| Field     | Type            | Description                                                      |
-| --------- | --------------- | ---------------------------------------------------------------- |
-| `data`    | `Row[]`         | Array of flat objects. Numbers are numbers, strings are strings. |
-| `columns` | `Column[]`      | Field metadata for returned rows.                                |
-| `format`  | `(row, fieldName) => string` | Server-formatted value for a field.                  |
-| `totalResults` | `number \| null` | Total rows returned by the loaded source query. |
-| `loading` | `boolean`       | True while the query is running.                                 |
-| `error`   | `Error \| null` | Error if the query failed.                                       |
-| `refetch` | `() => void`    | Re-run the query.                                                |
-| `queryUuid` | `string \| null` | Async query UUID for the loaded source query.                 |
-| `getUnderlyingData` | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>` | Fetch raw rows behind an aggregated metric value. |
+| Field                    | Type                                                                                         | Description                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `data`                   | `Row[]`                                                                                      | Array of flat objects. Numbers are numbers, strings are strings.                   |
+| `columns`                | `Column[]`                                                                                   | Field metadata for returned rows.                                                  |
+| `format`                 | `(row, fieldName) => string`                                                                 | Server-formatted value for a field.                                                |
+| `totalResults`           | `number \| null`                                                                             | Total rows returned by the loaded source query.                                    |
+| `loading`                | `boolean`                                                                                    | True while the query is running.                                                   |
+| `error`                  | `Error \| null`                                                                              | Error if the query failed.                                                         |
+| `refetch`                | `() => void`                                                                                 | Re-run the query.                                                                  |
+| `queryUuid`              | `string \| null`                                                                             | Async query UUID for the loaded source query.                                      |
+| `getUnderlyingData`      | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>`                                 | Fetch raw rows behind an aggregated metric value.                                  |
 | `downloadUnderlyingData` | `({ row, metric, fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for raw rows behind an aggregated metric value. |
-| `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for this query. |
+| `downloadResults`        | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>`              | Schedule a backend CSV/XLSX export for this query.                                 |
 
 ## Underlying data
 

@@ -157,6 +157,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Declare configOptions on a viz schema field, then read useVizContext().fieldOptions[slotName]?.[fieldId]?.[optionName] using actual ids from fieldMapping[slotName]. The map is empty on older hosts.',
     },
     {
+        key: 'viz-field-gradient-colors',
+        appliesTo: ['chart_type'],
+        label: 'Field color gradients',
+        description:
+            'Color each bound numeric field with an independent two-color scale. Offer it when viewers need to compare values using fixed colors and auto or custom bounds.',
+        wiring: 'Declare colorOptions.gradient on a viz schema field. Read colors with resolveFieldColor(useVizContext(), slotName, fieldId, rawValue, fallbackColor); use the actual bound field ID. The helper returns the fallback on older hosts or for values outside the scale.',
+    },
+    {
         key: 'viz-pivoted-results',
         appliesTo: ['chart_type'],
         label: 'Pivoted results',

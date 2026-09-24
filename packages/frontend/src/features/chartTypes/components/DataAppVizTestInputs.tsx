@@ -2,6 +2,7 @@ import {
     getDataAppVizFieldIds,
     getItemId,
     getItemLabelWithoutTableName,
+    isNumericItem,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
@@ -10,6 +11,7 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
+import DataAppVizGradientControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizGradientControl';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
@@ -35,7 +37,9 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
         dimensions,
         metrics,
         effectiveFieldOptions,
+        effectiveFieldColors,
         setFieldOption,
+        setFieldGradient,
         colorPalette,
     } = state;
 
@@ -54,6 +58,7 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
             <Stack gap="xs">
                 {schema.fields.map((field) => {
                     const configOptions = field.configOptions ?? [];
+                    const declaredGradient = field.colorOptions?.gradient;
                     const guidanceId = field.description?.trim()
                         ? `${guidanceIdPrefix}-${field.name}`
                         : undefined;
@@ -159,7 +164,8 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                     </>
                                 ))}
                             {exploreName &&
-                                configOptions.length > 0 &&
+                                (configOptions.length > 0 ||
+                                    declaredGradient) &&
                                 selectedIds.map((fieldId) => (
                                     <Stack key={fieldId} gap="xs" mt="xs">
                                         <Text size="xs" fw={600}>
@@ -196,6 +202,33 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                                 }
                                             />
                                         ))}
+                                        {declaredGradient &&
+                                            isNumericItem(
+                                                items.find(
+                                                    (candidate) =>
+                                                        getItemId(candidate) ===
+                                                        fieldId,
+                                                ),
+                                            ) && (
+                                                <DataAppVizGradientControl
+                                                    value={
+                                                        effectiveFieldColors[
+                                                            field.name
+                                                        ]?.[fieldId]
+                                                            ?.gradient ??
+                                                        declaredGradient
+                                                    }
+                                                    colorPalette={colorPalette}
+                                                    onChange={(patch) =>
+                                                        setFieldGradient(
+                                                            field.name,
+                                                            fieldId,
+                                                            declaredGradient,
+                                                            patch,
+                                                        )
+                                                    }
+                                                />
+                                            )}
                                     </Stack>
                                 ))}
                         </Stack>

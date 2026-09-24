@@ -272,7 +272,7 @@ lightdash download --include-chart-types   # every chart type in the project (ca
 lightdash download --chart-types-only      # chart types only, skipping charts, dashboards, and spaces
 ```
 
-Downloading a chart that renders with a custom chart type also downloads that chart type. In chart YAML the binding is `chartConfig.type: data_app_viz` with `config.dataAppVizSlug`, `fieldMapping`, and `optionValues`. Per-field overrides use `fieldOptionValues[inputName][fieldId][optionName]`, where each option is declared in that input’s `configOptions`. The renderer reads their effective values from `useVizContext().fieldOptions`; omitted overrides use declared defaults.
+Downloading a chart that renders with a custom chart type also downloads that chart type. In chart YAML the binding is `chartConfig.type: data_app_viz` with `config.dataAppVizSlug`, `fieldMapping`, and `optionValues`. Per-field overrides use `fieldOptionValues[inputName][fieldId][optionName]`, where each option is declared in that input’s `configOptions`. The renderer reads their effective values from `useVizContext().fieldOptions`; omitted overrides use declared defaults. Numeric colour overrides use `fieldColorValues[inputName][fieldId]`, matching that input’s `colorOptions` declaration; the renderer applies them with `resolveFieldColor` from the query SDK.
 
 **Upload:**
 

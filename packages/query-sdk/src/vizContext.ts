@@ -55,6 +55,12 @@ export type VizContextFieldOptions = Record<
     Record<string, Record<string, VizContextOptionValue>>
 >;
 
+/** Declared slot → bound field id → canonical raw numeric value → hex color. */
+export type VizContextFieldColors = Record<
+    string,
+    Record<string, Record<string, string>>
+>;
+
 /**
  * The host's complete backend-pivot layout metadata. This is a structural
  * mirror because query-sdk is published without a dependency on
@@ -148,6 +154,8 @@ export type DataAppVizContextMessage = {
     options?: Record<string, VizContextOptionValue>;
     /** Absent when the installed host predates per-field settings. */
     fieldOptions?: VizContextFieldOptions;
+    /** Absent when the installed host predates numeric field colors. */
+    fieldColors?: VizContextFieldColors;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
     /** Absent when the installed host predates resolved-color delivery. */
@@ -294,6 +302,8 @@ export type VizContext = {
     options: Record<string, VizContextOptionValue>;
     /** Settings keyed by declared slot and actual query field id; empty on older hosts. */
     fieldOptions: VizContextFieldOptions;
+    /** Host-resolved numeric colors keyed by slot, field ID and raw value. */
+    fieldColors: VizContextFieldColors;
     /**
      * Lightdash palette selected for this chart. The resolved-colour helpers
      * use it after fixed and shared assignments. Empty only when the host
@@ -322,6 +332,7 @@ type VizContextValue = {
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     fieldOptions: VizContextFieldOptions;
+    fieldColors: VizContextFieldColors;
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
@@ -438,6 +449,36 @@ const normalizeValueColors = (
     );
 };
 
+const normalizeFieldColors = (value: unknown): VizContextFieldColors => {
+    if (!isPlainRecord(value)) return {};
+    return Object.fromEntries(
+        Object.entries(value).flatMap(([slot, fields]) =>
+            isPlainRecord(fields)
+                ? [
+                      [
+                          slot,
+                          Object.fromEntries(
+                              Object.entries(fields).flatMap(
+                                  ([fieldId, colors]) =>
+                                      isPlainRecord(colors)
+                                          ? [
+                                                [
+                                                    fieldId,
+                                                    normalizeStringRecord(
+                                                        colors,
+                                                    ),
+                                                ],
+                                            ]
+                                          : [],
+                              ),
+                          ),
+                      ],
+                  ]
+                : [],
+        ),
+    );
+};
+
 type VizColorContext = Pick<
     VizContext,
     'colorPalette' | 'seriesColors' | 'valueColors'
@@ -475,6 +516,25 @@ export const resolveValueColor = (
         : (context.valueColors[fieldId]?.[String(rawValue)] ??
           getPaletteColor(context.colorPalette, index));
 
+/** Lookup a host-resolved numeric field color, falling back for unknown values. */
+export const resolveFieldColor = (
+    context: Pick<VizContext, 'fieldColors'>,
+    slot: string,
+    fieldId: string,
+    rawValue: unknown,
+    fallbackColor?: string,
+): string | undefined => {
+    if (typeof rawValue !== 'number' && typeof rawValue !== 'string')
+        return fallbackColor;
+    if (typeof rawValue === 'string' && rawValue.trim().length === 0)
+        return fallbackColor;
+    const numeric = Number(rawValue);
+    return Number.isFinite(numeric)
+        ? (context.fieldColors[slot]?.[fieldId]?.[String(numeric)] ??
+              fallbackColor)
+        : fallbackColor;
+};
+
 /**
  * Normalises an inbound host message into provider state. Optional capabilities
  * are absent from hosts predating them and receive stable fallback values.
@@ -488,6 +548,7 @@ export function toVizContextState(
         rows: Array.isArray(message.rows) ? message.rows : [],
         options: normalizeOptions(message.options),
         fieldOptions: normalizeFieldOptions(message.fieldOptions),
+        fieldColors: normalizeFieldColors(message.fieldColors),
         colorPalette: Array.isArray(message.colorPalette)
             ? message.colorPalette.filter(
                   (color): color is string => typeof color === 'string',
@@ -806,7 +867,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * `fieldMapping[name]`, or iterate that value when the slot declares multiple
  * fields, then read cells with `getFormatted`/`getRaw` and label axes and
  * legends with `getFieldLabel`. Read a chart option with `options[name]`, a
- * per-field option with `fieldOptions[slotName]?.[fieldId]?.[name]`, and colour series with
+ * per-field option with `fieldOptions[slotName]?.[fieldId]?.[name]`, numeric
+ * gradients with `resolveFieldColor`, and palette colors with
  * `resolveSeriesColor` / `resolveValueColor`.
  */
 export function useVizContext(): VizContext {
@@ -854,6 +916,7 @@ export function useVizContext(): VizContext {
         rows: context?.rows ?? [],
         options: context?.options ?? {},
         fieldOptions: context?.fieldOptions ?? {},
+        fieldColors: context?.fieldColors ?? {},
         colorPalette: context?.colorPalette ?? [],
         seriesColors: context?.seriesColors ?? {},
         valueColors: context?.valueColors ?? {},

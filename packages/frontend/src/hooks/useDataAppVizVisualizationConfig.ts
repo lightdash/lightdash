@@ -2,6 +2,8 @@ import {
     type DataAppVizChart,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
+    type DataAppVizColorGradient,
+    type DataAppVizFieldColorValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
 } from '@lightdash/common';
@@ -17,7 +19,7 @@ export type SelectedDataAppViz = Pick<
     'dataAppVizUuid' | 'dataAppVizVersion' | 'fieldMapping'
 > &
     Required<Pick<DataAppVizChart, 'optionValues'>> &
-    Pick<DataAppVizChart, 'fieldOptionValues'>;
+    Pick<DataAppVizChart, 'fieldOptionValues' | 'fieldColorValues'>;
 
 export interface DataAppVizVisualizationConfigAndData {
     validConfig: SelectedDataAppViz | null;
@@ -42,6 +44,7 @@ export interface DataAppVizVisualizationConfigAndData {
         fieldMapping: DataAppVizFieldMapping,
         optionValues: DataAppVizOptionValues,
         fieldOptionValues?: DataAppVizFieldOptionValues,
+        fieldColorValues?: DataAppVizFieldColorValues,
     ) => void;
     /** Back to pointing at no viz; bindings and options go with it. */
     clearDataAppViz: () => void;
@@ -59,6 +62,14 @@ export interface DataAppVizVisualizationConfigAndData {
         fieldId: string,
         optionName: string,
         value: DataAppVizOptionValue,
+    ) => void;
+    setFieldGradient: (
+        dataAppVizUuid: string,
+        dataAppVizVersion: number | undefined,
+        fieldName: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorGradient,
+        patch: Partial<DataAppVizColorGradient>,
     ) => void;
 }
 
@@ -83,6 +94,9 @@ const toSelected = (
               optionValues: chartConfig.optionValues ?? {},
               ...(chartConfig.fieldOptionValues
                   ? { fieldOptionValues: chartConfig.fieldOptionValues }
+                  : {}),
+              ...(chartConfig.fieldColorValues
+                  ? { fieldColorValues: chartConfig.fieldColorValues }
                   : {}),
           }
         : null;
@@ -177,11 +191,15 @@ const useDataAppVizVisualizationConfig = (
             fieldMapping: DataAppVizFieldMapping,
             optionValues: DataAppVizOptionValues,
             fieldOptionValues: DataAppVizFieldOptionValues = {},
+            fieldColorValues: DataAppVizFieldColorValues = {},
         ) => {
             const selected = configRef.current;
             if (selected === null) return;
-            const { fieldOptionValues: _previousFieldOptions, ...rest } =
-                selected;
+            const {
+                fieldOptionValues: _previousFieldOptions,
+                fieldColorValues: _previousFieldColors,
+                ...rest
+            } = selected;
             commit({
                 ...rest,
                 dataAppVizVersion,
@@ -189,6 +207,9 @@ const useDataAppVizVisualizationConfig = (
                 optionValues,
                 ...(Object.keys(fieldOptionValues).length
                     ? { fieldOptionValues }
+                    : {}),
+                ...(Object.keys(fieldColorValues).length
+                    ? { fieldColorValues }
                     : {}),
             });
         },
@@ -223,12 +244,35 @@ const useDataAppVizVisualizationConfig = (
                     fieldOptionValues[fieldName] = values;
                 else delete fieldOptionValues[fieldName];
             }
-            const { fieldOptionValues: _old, ...rest } = selected;
+            const fieldColorValues = { ...selected.fieldColorValues };
+            if (fieldColorValues[fieldName]) {
+                const boundIds = new Set(
+                    typeof fieldMapping[fieldName] === 'string'
+                        ? [fieldMapping[fieldName]]
+                        : (fieldMapping[fieldName] ?? []),
+                );
+                const values = Object.fromEntries(
+                    Object.entries(fieldColorValues[fieldName]).filter(([id]) =>
+                        boundIds.has(id),
+                    ),
+                );
+                if (Object.keys(values).length)
+                    fieldColorValues[fieldName] = values;
+                else delete fieldColorValues[fieldName];
+            }
+            const {
+                fieldOptionValues: _oldOptions,
+                fieldColorValues: _oldColors,
+                ...rest
+            } = selected;
             commit({
                 ...rest,
                 fieldMapping,
                 ...(Object.keys(fieldOptionValues).length
                     ? { fieldOptionValues }
+                    : {}),
+                ...(Object.keys(fieldColorValues).length
+                    ? { fieldColorValues }
                     : {}),
             });
         },
@@ -298,6 +342,50 @@ const useDataAppVizVisualizationConfig = (
         [commit],
     );
 
+    const setFieldGradient = useCallback(
+        (
+            dataAppVizUuid: string,
+            dataAppVizVersion: number | undefined,
+            fieldName: string,
+            fieldId: string,
+            declaredDefault: DataAppVizColorGradient,
+            patch: Partial<DataAppVizColorGradient>,
+        ) => {
+            if (!isOwningChartConfigRef.current) return;
+            const selected = configRef.current;
+            if (
+                selected === null ||
+                selected.dataAppVizUuid !== dataAppVizUuid ||
+                selected.dataAppVizVersion !== dataAppVizVersion
+            )
+                return;
+            const binding = selected.fieldMapping[fieldName];
+            if (
+                binding !== fieldId &&
+                (!Array.isArray(binding) || !binding.includes(fieldId))
+            )
+                return;
+            commit({
+                ...selected,
+                fieldColorValues: {
+                    ...selected.fieldColorValues,
+                    [fieldName]: {
+                        ...selected.fieldColorValues?.[fieldName],
+                        [fieldId]: {
+                            gradient: {
+                                ...(selected.fieldColorValues?.[fieldName]?.[
+                                    fieldId
+                                ]?.gradient ?? declaredDefault),
+                                ...patch,
+                            },
+                        },
+                    },
+                },
+            });
+        },
+        [commit],
+    );
+
     return {
         validConfig: config,
         dataAppVizUuid: config?.dataAppVizUuid ?? null,
@@ -308,6 +396,7 @@ const useDataAppVizVisualizationConfig = (
         setField,
         setOption,
         setFieldOption,
+        setFieldGradient,
     };
 };
 

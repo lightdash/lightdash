@@ -3,6 +3,7 @@ import {
     type DataAppVizContext,
     type DataAppVizOptionValue,
     type DataAppVizFieldOptionValues,
+    type DataAppVizFieldColors,
 } from '@lightdash/common';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { Transport } from './types';
@@ -14,6 +15,7 @@ import {
     getFormatted,
     getRaw,
     resolveSeriesColor,
+    resolveFieldColor,
     resolveValueColor,
     resolveVizFixtureUrl,
     toVizContextState,
@@ -51,6 +53,9 @@ const optionValueTypesMatchHost: Assert<
 const fieldOptionValuesMatchHost: Assert<
     Equal<VizContext['fieldOptions'], DataAppVizFieldOptionValues>
 > = true;
+const fieldColorsMatchHost: Assert<
+    Equal<VizContext['fieldColors'], DataAppVizFieldColors>
+> = true;
 const hostPayloadIsAcceptedBySdk: Assert<
     IsAssignable<
         DataAppVizContext,
@@ -78,6 +83,9 @@ const inboundOptionsRemainOptional: Assert<
 const inboundFieldOptionsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'fieldOptions'>
 > = true;
+const inboundFieldColorsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'fieldColors'>
+> = true;
 const inboundPaletteRemainsOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'colorPalette'>
 > = true;
@@ -94,8 +102,12 @@ void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
     optionValueTypesMatchHost,
+    fieldOptionValuesMatchHost,
+    fieldColorsMatchHost,
     hostPayloadIsAcceptedBySdk,
     inboundOptionsRemainOptional,
+    inboundFieldOptionsRemainOptional,
+    inboundFieldColorsRemainOptional,
     inboundPaletteRemainsOptional,
     inboundSeriesColorsRemainOptional,
     inboundValueColorsRemainOptional,
@@ -284,6 +296,67 @@ describe('toVizContextState', () => {
         });
     });
 
+    it('accepts resolved numeric colors and uses a fallback for missing or invalid values', () => {
+        const context = toVizContextState(
+            message({
+                fieldColors: {
+                    values: { orders_total: { '1': '#000', '2.5': '#fff' } },
+                },
+            }),
+        );
+        expect(
+            resolveFieldColor(
+                context,
+                'values',
+                'orders_total',
+                ' 2.50 ',
+                '#123456',
+            ),
+        ).toBe('#fff');
+        expect(
+            resolveFieldColor(context, 'values', 'orders_total', 1, '#123456'),
+        ).toBe('#000');
+        expect(
+            resolveFieldColor(
+                context,
+                'values',
+                'orders_total',
+                '2oops',
+                '#123456',
+            ),
+        ).toBe('#123456');
+        expect(
+            resolveFieldColor(
+                context,
+                'values',
+                'orders_total',
+                null,
+                '#123456',
+            ),
+        ).toBe('#123456');
+        expect(
+            resolveFieldColor(
+                toVizContextState(message({})),
+                'values',
+                'orders_total',
+                1,
+                '#123456',
+            ),
+        ).toBe('#123456');
+        expect(
+            toVizContextState(
+                message({
+                    fieldColors: {
+                        values: {
+                            orders_total: { '1': '#000', bad: null as never },
+                        },
+                        invalid: [] as never,
+                    },
+                }),
+            ).fieldColors,
+        ).toEqual({ values: { orders_total: { '1': '#000' } } });
+    });
+
     it('falls back to an empty object for a non-object options payload', () => {
         expect(
             toVizContextState(message({ options: ['not-an-object'] as never }))
@@ -373,6 +446,7 @@ describe('toVizContextState', () => {
 
         expect(state.seriesColors).toEqual({});
         expect(state.valueColors).toEqual({});
+        expect(state.fieldColors).toEqual({});
     });
 
     it('still normalises fieldMapping and rows', () => {
@@ -389,6 +463,7 @@ describe('toVizContextState', () => {
             rows: [],
             options: {},
             fieldOptions: {},
+            fieldColors: {},
             colorPalette: [],
             seriesColors: {},
             valueColors: {},

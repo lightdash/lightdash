@@ -686,4 +686,119 @@ describe('useDataAppVizVisualizationConfig', () => {
 
         expect(result.current.validConfig?.fieldOptionValues).toBeUndefined();
     });
+
+    it('saves independent gradient edits and discards removed bindings', () => {
+        const onConfigChange = vi.fn();
+        const declaredDefault = {
+            enabled: false,
+            start: '#000000',
+            end: '#ffffff',
+            min: 'auto',
+            max: 'auto',
+        } as const;
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                {
+                    ...initialConfig,
+                    fieldMapping: { values: ['a', 'b'] },
+                },
+                onConfigChange,
+            ),
+        );
+
+        act(() => {
+            result.current.setFieldGradient(
+                'viz-1',
+                undefined,
+                'values',
+                'a',
+                declaredDefault,
+                { enabled: true },
+            );
+            result.current.setFieldGradient(
+                'viz-1',
+                undefined,
+                'values',
+                'a',
+                declaredDefault,
+                { start: '#ff0000' },
+            );
+            result.current.setFieldGradient(
+                'viz-1',
+                undefined,
+                'values',
+                'b',
+                declaredDefault,
+                { end: '#00ff00' },
+            );
+        });
+        expect(result.current.validConfig?.fieldColorValues).toEqual({
+            values: {
+                a: {
+                    gradient: {
+                        ...declaredDefault,
+                        enabled: true,
+                        start: '#ff0000',
+                    },
+                },
+                b: { gradient: { ...declaredDefault, end: '#00ff00' } },
+            },
+        });
+        const saved = onConfigChange.mock.lastCall?.[0] as DataAppVizChart;
+        expect(
+            renderHook(() => useDataAppVizVisualizationConfig(saved)).result
+                .current.validConfig?.fieldColorValues,
+        ).toEqual(saved.fieldColorValues);
+
+        act(() => result.current.setField('values', ['b', 'a']));
+        expect(
+            result.current.validConfig?.fieldColorValues?.values?.a,
+        ).toBeDefined();
+        act(() => result.current.setField('values', ['b']));
+        act(() => result.current.setField('values', ['b', 'a']));
+        expect(result.current.validConfig?.fieldColorValues).toEqual({
+            values: { b: { gradient: { ...declaredDefault, end: '#00ff00' } } },
+        });
+    });
+
+    it('clears gradients on upgrade and rejects pending edits from the old version', () => {
+        const gradient = {
+            enabled: true,
+            start: '#000000',
+            end: '#ffffff',
+            min: 'auto',
+            max: 'auto',
+        } as const;
+        const initial = {
+            ...initialConfig,
+            dataAppVizVersion: 1,
+            fieldMapping: { values: ['a'] },
+            fieldColorValues: { values: { a: { gradient } } },
+        };
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initial),
+        );
+
+        act(() =>
+            result.current.upgradeDataAppVizVersion(
+                2,
+                { values: ['a'] },
+                {},
+                {},
+                {},
+            ),
+        );
+        act(() =>
+            result.current.setFieldGradient(
+                'viz-1',
+                1,
+                'values',
+                'a',
+                gradient,
+                { end: '#ff0000' },
+            ),
+        );
+
+        expect(result.current.validConfig?.fieldColorValues).toBeUndefined();
+    });
 });

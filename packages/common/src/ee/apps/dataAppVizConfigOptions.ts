@@ -53,6 +53,15 @@ export type DataAppVizConfigOption =
 /** A persisted config value; its shape is set by the option's declared `type`. */
 export type DataAppVizOptionValue = boolean | number | string;
 
+/** Numeric color scale declared for each field bound to a slot. */
+export type DataAppVizColorGradient = {
+    enabled: boolean;
+    start: string;
+    end: string;
+    min: number | 'auto';
+    max: number | 'auto';
+};
+
 /**
  * Declared by a viz that colours from the resolved Lightdash palette. Not a
  * config option: it carries no value of its own, it only asks the config panel

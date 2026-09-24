@@ -764,6 +764,19 @@ describe('renameChartConfigType', () => {
             type: ChartType.DATA_APP_VIZ,
             config: {
                 dataAppVizUuid: 'viz-uuid',
+                fieldColorValues: {
+                    metrics: {
+                        payment_amount: {
+                            gradient: {
+                                enabled: true,
+                                start: '#000000',
+                                end: '#ffffff',
+                                min: 0,
+                                max: 100,
+                            },
+                        },
+                    },
+                },
                 fieldMapping: {
                     category: 'payment_category',
 
@@ -782,6 +795,22 @@ describe('renameChartConfigType', () => {
         } as DataAppVizChartConfig;
 
         const result = renameChartConfigType(chartConfig, tableRename);
+
+        expect(
+            (result as DataAppVizChartConfig).config?.fieldColorValues,
+        ).toEqual({
+            metrics: {
+                invoice_amount: {
+                    gradient: {
+                        enabled: true,
+                        start: '#000000',
+                        end: '#ffffff',
+                        min: 0,
+                        max: 100,
+                    },
+                },
+            },
+        });
 
         expect((result as DataAppVizChartConfig).config?.fieldMapping).toEqual({
             category: 'invoice_category',

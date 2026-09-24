@@ -495,9 +495,50 @@ const series = valueIds.map((fieldId) => ({
 ```
 
 The color picker saves a fixed hex value for that bound field. For palette-driven
-series, use `resolveSeriesColor` or `resolveValueColor` instead. Gradient fills
-and conditional color rules are a separate later capability; this option is one
-color per field.
+series, use `resolveSeriesColor` or `resolveValueColor`.
+
+### Numeric field gradients
+
+Declare `colorOptions.gradient` on an input to expose a two-endpoint gradient
+for each bound numeric field. The declaration is its default configuration:
+
+```json
+"colorOptions": {
+  "gradient": {
+    "enabled": true,
+    "start": "#ffffff",
+    "end": "#2166ac",
+    "min": "auto",
+    "max": "auto"
+  }
+}
+```
+
+Read the shared runtime's resolved colour with the SDK helper. Pass the field's
+fixed colour option or its resolved palette colour as the fallback:
+
+```tsx
+const context = useVizContext();
+const colour = resolveFieldColor(
+  context, 'values', fieldId, getRaw(row, fieldId),
+  context.fieldOptions.values?.[fieldId]?.color as string | undefined,
+);
+```
+
+Import `resolveFieldColor` from `@lightdash/query-sdk`. The host resolves all
+numeric values supplied to the chart, including pivot columns referencing the
+original bound field; when drawing a pivot column, pass its original field ID
+and the raw value from that generated column. Automatic bounds use finite
+numbers and nonempty strings that parse completely as finite numbers. Missing,
+boolean, non-numeric and non-finite values fall back. Reversed bounds and values
+outside custom bounds also fall back; equal bounds use the end colour. Colours
+interpolate in sRGB using the same calculation as built-in table gradients.
+
+The SDK's `fieldColors` is a resolved map, not configuration to edit. Saved-chart
+overrides live in `fieldColorValues[inputName][fieldId].gradient`; endpoints are
+fixed hex values and palette changes do not change them. The helper returns its
+fallback on older hosts and when the gradient is disabled. Keep any fixed field
+colour option independent of the gradient so it remains a useful fallback.
 
 ### `inputGuidance`
 

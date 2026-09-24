@@ -39,6 +39,35 @@ const base: DataAppVizSchema = {
 };
 
 describe('diffDataAppVizSchema', () => {
+    it('reports changes to a field gradient declaration', () => {
+        const gradient = {
+            enabled: true,
+            start: '#000000',
+            end: '#ffffff',
+            min: 'auto' as const,
+            max: 'auto' as const,
+        };
+        const before: DataAppVizSchema = {
+            ...base,
+            fields: [
+                { ...base.fields[0], colorOptions: { gradient } },
+                ...base.fields.slice(1),
+            ],
+        };
+        const after: DataAppVizSchema = {
+            ...before,
+            fields: [
+                {
+                    ...before.fields[0],
+                    colorOptions: { gradient: { ...gradient, end: '#ff0000' } },
+                },
+                ...before.fields.slice(1),
+            ],
+        };
+        expect(diffDataAppVizSchema(before, after).fields.changed).toHaveLength(
+            1,
+        );
+    });
     it('reports nothing for identical declarations', () => {
         const changes = diffDataAppVizSchema(base, structuredClone(base));
 

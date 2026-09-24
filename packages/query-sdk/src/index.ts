@@ -113,12 +113,14 @@ export {
     getFieldLabel,
     resolveSeriesColor,
     resolveValueColor,
+    resolveFieldColor,
 } from './vizContext';
 export type {
     VizContext,
     VizContextCell,
     VizContextOptionValue,
     VizContextFieldOptions,
+    VizContextFieldColors,
     VizContextPivotDetails,
     VizContextRow,
     VizFieldFormat,

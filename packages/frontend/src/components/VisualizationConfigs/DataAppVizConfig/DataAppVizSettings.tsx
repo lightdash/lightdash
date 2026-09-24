@@ -3,13 +3,17 @@ import {
     getItemLabelWithoutTableName,
     getDataAppVizFieldIds,
     getEffectiveDataAppVizFieldOptionValues,
+    getEffectiveDataAppVizFieldColorValues,
     isCustomDimension,
     isDimension,
     isMetric,
+    isNumericItem,
     isTableCalculation,
     type DataAppVizField,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
+    type DataAppVizFieldColorValues,
+    type DataAppVizColorGradient,
     type DataAppVizOptionValue,
     type Item,
     type ItemsMap,
@@ -24,6 +28,7 @@ import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from './DataAppVizFieldGuidance';
+import DataAppVizGradientControl from './DataAppVizGradientControl';
 import DataAppVizOptionControl from './DataAppVizOptionControl';
 import OrderedDataAppVizFieldSelect from './OrderedDataAppVizFieldSelect';
 
@@ -38,12 +43,19 @@ type Props = {
         fieldId: string | string[] | null,
     ) => void;
     fieldOptionValues?: DataAppVizFieldOptionValues;
+    fieldColorValues?: DataAppVizFieldColorValues;
     colorPalette?: string[];
     onFieldOptionChange: (
         fieldName: string,
         fieldId: string,
         optionName: string,
         value: DataAppVizOptionValue,
+    ) => void;
+    onFieldGradientChange: (
+        fieldName: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorGradient,
+        patch: Partial<DataAppVizColorGradient>,
     ) => void;
 };
 
@@ -59,8 +71,10 @@ const DataAppVizSettings: FC<Props> = ({
     fieldMapping,
     onFieldChange,
     fieldOptionValues = {},
+    fieldColorValues = {},
     colorPalette = [],
     onFieldOptionChange,
+    onFieldGradientChange,
 }) => {
     const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
@@ -93,6 +107,11 @@ const DataAppVizSettings: FC<Props> = ({
         fieldMapping,
         fieldOptionValues,
     );
+    const effectiveFieldColors = getEffectiveDataAppVizFieldColorValues(
+        fields,
+        fieldMapping,
+        fieldColorValues,
+    );
 
     return (
         <Stack>
@@ -104,6 +123,7 @@ const DataAppVizSettings: FC<Props> = ({
 
             {fields.map((field) => {
                 const configOptions = field.configOptions ?? [];
+                const declaredGradient = field.colorOptions?.gradient;
                 const guidanceId = field.description?.trim()
                     ? `${guidanceIdPrefix}-${field.name}`
                     : undefined;
@@ -212,7 +232,7 @@ const DataAppVizSettings: FC<Props> = ({
                                     />
                                 </>
                             )}
-                            {configOptions.length > 0 &&
+                            {(configOptions.length > 0 || declaredGradient) &&
                                 selectedIds.map((fieldId) => {
                                     const boundItem = [
                                         ...items,
@@ -251,6 +271,30 @@ const DataAppVizSettings: FC<Props> = ({
                                                     }
                                                 />
                                             ))}
+                                            {boundItem &&
+                                                isNumericItem(boundItem) &&
+                                                declaredGradient && (
+                                                    <DataAppVizGradientControl
+                                                        value={
+                                                            effectiveFieldColors[
+                                                                field.name
+                                                            ]?.[fieldId]
+                                                                ?.gradient ??
+                                                            declaredGradient
+                                                        }
+                                                        colorPalette={
+                                                            colorPalette
+                                                        }
+                                                        onChange={(patch) =>
+                                                            onFieldGradientChange(
+                                                                field.name,
+                                                                fieldId,
+                                                                declaredGradient,
+                                                                patch,
+                                                            )
+                                                        }
+                                                    />
+                                                )}
                                         </Stack>
                                     );
                                 })}

@@ -105,3 +105,83 @@ describe('per-field preview options', () => {
         ).toBe(false);
     });
 });
+
+describe('per-field preview colors', () => {
+    const validator = getDataAppVizPreviewSchema({
+        ...schema,
+        fields: [
+            {
+                ...schema.fields[0],
+                colorOptions: {
+                    gradient: {
+                        enabled: true,
+                        start: '#000000',
+                        end: '#ffffff',
+                        min: 'auto',
+                        max: 'auto',
+                    },
+                },
+            },
+        ],
+    });
+
+    it('accepts a valid override for the sample field ID', () => {
+        expect(
+            validator.safeParse({
+                fieldColorValues: {
+                    value: {
+                        sample_value: {
+                            gradient: {
+                                enabled: true,
+                                start: '#ff0000',
+                                end: '#00ff00',
+                                min: 0,
+                                max: 100,
+                            },
+                        },
+                    },
+                },
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects a stale field ID, unknown slot and invalid hex color', () => {
+        expect(
+            validator.safeParse({
+                fieldColorValues: {
+                    value: {
+                        stale: {
+                            gradient: {
+                                enabled: true,
+                                start: '#000',
+                                end: '#fff',
+                                min: 'auto',
+                                max: 'auto',
+                            },
+                        },
+                    },
+                },
+            }).success,
+        ).toBe(false);
+        expect(
+            validator.safeParse({ fieldColorValues: { missing: {} } }).success,
+        ).toBe(false);
+        expect(
+            validator.safeParse({
+                fieldColorValues: {
+                    value: {
+                        sample_value: {
+                            gradient: {
+                                enabled: true,
+                                start: 'red',
+                                end: '#fff',
+                                min: 'auto',
+                                max: 'auto',
+                            },
+                        },
+                    },
+                },
+            }).success,
+        ).toBe(false);
+    });
+});

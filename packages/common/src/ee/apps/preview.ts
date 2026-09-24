@@ -1,14 +1,17 @@
 import { z } from 'zod';
 import {
+    type DataAppVizFieldColorValues,
     type DataAppVizFieldOptionValues,
     type DataAppVizOptionValues,
 } from '../../types/savedCharts';
+import { dataAppVizFieldColorValuesSchema } from './dataAppVizFieldColorsSchema';
 import { type DataAppVizSchema } from './types';
 
 export type DataAppVizPreview = {
     rows?: Record<string, string | number | boolean | null>[];
     optionValues?: DataAppVizOptionValues;
     fieldOptionValues?: DataAppVizFieldOptionValues;
+    fieldColorValues?: DataAppVizFieldColorValues;
 };
 
 const previewValueSchema = z.union([z.string(), z.number(), z.boolean()]);
@@ -29,6 +32,7 @@ export const dataAppVizPreviewSchema = z.object({
             ),
         )
         .optional(),
+    fieldColorValues: dataAppVizFieldColorValuesSchema.optional(),
 });
 
 export const getDataAppVizPreviewFieldId = (fieldName: string): string =>
@@ -127,6 +131,29 @@ export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
                         message: 'Unknown preview field',
                     });
                 }
+            },
+        );
+        Object.entries(preview.fieldColorValues ?? {}).forEach(
+            ([fieldName, byId]) => {
+                const field = schema.fields.find(
+                    (item) => item.name === fieldName,
+                );
+                if (!field?.colorOptions?.gradient) {
+                    ctx.addIssue({
+                        code: 'custom',
+                        path: ['fieldColorValues', fieldName],
+                        message: 'Unknown preview color field',
+                    });
+                }
+                Object.keys(byId).forEach((fieldId) => {
+                    if (fieldId !== getDataAppVizPreviewFieldId(fieldName)) {
+                        ctx.addIssue({
+                            code: 'custom',
+                            path: ['fieldColorValues', fieldName, fieldId],
+                            message: `Expected preview field ID "${getDataAppVizPreviewFieldId(fieldName)}"`,
+                        });
+                    }
+                });
             },
         );
     });

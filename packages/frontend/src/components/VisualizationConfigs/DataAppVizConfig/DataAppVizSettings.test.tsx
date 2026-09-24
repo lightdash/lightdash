@@ -43,6 +43,15 @@ const fields: DataAppVizField[] = [
         type: 'metric',
         required: true,
         multiple: true,
+        colorOptions: {
+            gradient: {
+                enabled: false,
+                start: '#111111',
+                end: '#eeeeee',
+                min: 'auto',
+                max: 'auto',
+            },
+        },
         configOptions: [
             {
                 type: 'boolean',
@@ -64,6 +73,7 @@ describe('DataAppVizSettings field options', () => {
     it('shows independent controls for each bound field and preserves fixed hex colors', async () => {
         const user = userEvent.setup();
         const onFieldOptionChange = vi.fn();
+        const onFieldGradientChange = vi.fn();
         renderWithProviders(
             <DataAppVizSettings
                 itemsMap={itemsMap}
@@ -78,6 +88,7 @@ describe('DataAppVizSettings field options', () => {
                 colorPalette={['#111111', '#222222']}
                 onFieldChange={vi.fn()}
                 onFieldOptionChange={onFieldOptionChange}
+                onFieldGradientChange={onFieldGradientChange}
             />,
         );
 
@@ -90,6 +101,18 @@ describe('DataAppVizSettings field options', () => {
             'orders_count',
             'visible',
             false,
+        );
+
+        const gradients = screen.getAllByRole('switch', {
+            name: 'Use gradient',
+        });
+        expect(gradients).toHaveLength(2);
+        await user.click(gradients[0]);
+        expect(onFieldGradientChange).toHaveBeenCalledWith(
+            'values',
+            'orders_total',
+            fields[0].colorOptions?.gradient,
+            { enabled: true },
         );
 
         const colorButtons = screen.getAllByRole('button', { name: 'Color' });

@@ -1,4 +1,7 @@
-import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
+import {
+    type DataAppVizColorGradient,
+    type DataAppVizOptionValue,
+} from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
@@ -804,6 +807,18 @@ export type DataAppVizFieldOptionValues = Record<
     Record<string, DataAppVizOptionValues>
 >;
 
+/** Explicit gradient overrides, grouped by declared slot and bound field ID. */
+export type DataAppVizFieldColorValues = Record<
+    string,
+    Record<string, { gradient?: DataAppVizColorGradient }>
+>;
+
+/** Host-resolved colors for finite raw numeric values of each bound field. */
+export type DataAppVizFieldColors = Record<
+    string,
+    Record<string, Record<string, string>>
+>;
+
 export type DataAppVizChart = {
     /**
      * The reusable data app viz this chart renders with (by reference).
@@ -826,6 +841,8 @@ export type DataAppVizChart = {
     optionValues?: DataAppVizOptionValues;
     /** Only explicitly changed per-field settings; defaults come from the viz. */
     fieldOptionValues?: DataAppVizFieldOptionValues;
+    /** Explicit per-field gradient overrides; declarations provide defaults. */
+    fieldColorValues?: DataAppVizFieldColorValues;
 };
 
 export type CartesianChart = {

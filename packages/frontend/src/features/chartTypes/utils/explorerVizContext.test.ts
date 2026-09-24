@@ -85,6 +85,42 @@ const build = (
     });
 
 describe('buildExplorerVizContext', () => {
+    it('resolves a saved gradient against the active numeric binding', () => {
+        const gradient = {
+            enabled: true,
+            start: '#000000',
+            end: '#ffffff',
+            min: 'auto',
+            max: 'auto',
+        } as const;
+        const context = build({
+            schema: {
+                ...schema,
+                fields: schema.fields.map((field) =>
+                    field.name === 'value'
+                        ? { ...field, colorOptions: { gradient } }
+                        : field,
+                ),
+            },
+            persistedFieldMapping: { value: 'orders_count' },
+            rows: [
+                { orders_count: { value: { raw: 0, formatted: '0' } } },
+                { orders_count: { value: { raw: 10, formatted: '10' } } },
+            ],
+            fieldColorValues: {
+                value: {
+                    orders_count: {
+                        gradient: { ...gradient, end: '#ff0000' },
+                    },
+                },
+            },
+        });
+
+        expect(context.fieldColors).toEqual({
+            value: { orders_count: { '0': '#000', '10': '#f00' } },
+        });
+    });
+
     it('resolves per-field defaults and keeps values with field IDs', () => {
         const fieldSchema: DataAppVizSchema = {
             ...schema,

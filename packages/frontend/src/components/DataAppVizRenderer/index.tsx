@@ -3,6 +3,7 @@ import {
     deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     getEffectiveDataAppVizFieldOptionValues,
+    resolveDataAppVizFieldColors,
     hasCustomBinDimension,
     type ApiError,
     type DataAppVizContext,
@@ -177,6 +178,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
     const fieldOptionValues = config?.fieldOptionValues;
+    const fieldColorValues = config?.fieldColorValues;
     const rows = resultsData?.rows;
     const pivotDetails = resultsData?.pivotDetails ?? null;
 
@@ -513,6 +515,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 reconciledFieldMapping,
                 fieldOptionValues,
             ),
+            fieldColors: resolveDataAppVizFieldColors({
+                fields: fields ?? [],
+                fieldMapping: reconciledFieldMapping,
+                fieldColorValues,
+                rows,
+                pivotDetails,
+            }),
             // Already resolved through the full palette cascade and dark-mode
             // corrected by the visualization context.
             colorPalette,
@@ -532,6 +541,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         configOptions,
         optionValues,
         fieldOptionValues,
+        fieldColorValues,
         fields,
         colorPalette,
         resolvedColors,

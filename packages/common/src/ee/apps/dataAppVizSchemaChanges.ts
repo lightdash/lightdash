@@ -87,7 +87,12 @@ const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
     a.type === b.type &&
     a.required === b.required &&
     (a.multiple === true) === (b.multiple === true) &&
-    isSameOptions(a.configOptions ?? [], b.configOptions ?? []);
+    isSameOptions(a.configOptions ?? [], b.configOptions ?? []) &&
+    a.colorOptions?.gradient?.enabled === b.colorOptions?.gradient?.enabled &&
+    a.colorOptions?.gradient?.start === b.colorOptions?.gradient?.start &&
+    a.colorOptions?.gradient?.end === b.colorOptions?.gradient?.end &&
+    a.colorOptions?.gradient?.min === b.colorOptions?.gradient?.min &&
+    a.colorOptions?.gradient?.max === b.colorOptions?.gradient?.max;
 
 export const diffDataAppVizSchema = (
     before: DataAppVizSchema,
