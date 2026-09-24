@@ -26,23 +26,9 @@ const queries: SourceQuery[] = [
     },
 ];
 
-const duckdb = (
-    nodeId: string,
-    title: string,
-    references: string[],
-): SourceQuery => ({
-    sourceType: QuerySourceType.DUCKDB,
-    nodeId,
-    title,
-    sql: 'select 1',
-    references,
-});
-
 const renderPanel = (props: {
     defaultExpanded?: boolean;
     defaultMode?: 'list' | 'graph';
-    queries?: SourceQuery[];
-    terminalNodeId?: string;
 }) =>
     renderWithProviders(
         <AiComposerPipelinePanel
@@ -53,6 +39,11 @@ const renderPanel = (props: {
             <div>results</div>
         </AiComposerPipelinePanel>,
     );
+
+// React Flow hides nodes until measured (never in jsdom) and hidden elements
+// get no accessible name, so match the aria-label attribute directly.
+const nodeButtons = () => screen.getAllByLabelText(/^Go to /);
+const nodeButton = (title: string) => screen.getByLabelText(`Go to ${title}`);
 
 describe('AiComposerPipelinePanel graph mode', () => {
     it('shows the List / Graph switch only when expanded', () => {
@@ -65,71 +56,28 @@ describe('AiComposerPipelinePanel graph mode', () => {
         expect(screen.getByRole('radio', { name: 'List' })).toBeChecked();
     });
 
-    it('renders one graph node per pipeline node and one edge per reference', () => {
+    it('renders one node button per pipeline node and marks the terminal', () => {
         renderPanel({ defaultExpanded: true, defaultMode: 'graph' });
-        expect(screen.getAllByRole('button', { name: /^Go to / })).toHaveLength(
-            3,
+        expect(nodeButtons()).toHaveLength(3);
+        expect(nodeButton('Orders with amounts')).toHaveAttribute(
+            'data-terminal',
+            'true',
         );
-        expect(
-            screen.getByRole('button', { name: 'Go to Orders with amounts' }),
-        ).toHaveAttribute('data-terminal', 'true');
-        expect(screen.getAllByTestId('composer-pipeline-edge')).toHaveLength(2);
+        expect(nodeButton('Orders by status')).toHaveAttribute(
+            'data-terminal',
+            'false',
+        );
         expect(screen.queryByText('Sources')).toBeNull();
     });
 
     it('jumps to the selected row in List mode when a graph node is clicked', () => {
         renderPanel({ defaultExpanded: true, defaultMode: 'graph' });
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Go to Average amount' }),
-        );
+        fireEvent.click(nodeButton('Average amount'));
         expect(screen.getByRole('radio', { name: 'List' })).toBeChecked();
         const row = document.getElementById('composer-pipeline-node-amounts');
         expect(row).toHaveAttribute('data-selected', 'true');
         expect(
             document.getElementById('composer-pipeline-node-orders'),
         ).toHaveAttribute('data-selected', 'false');
-    });
-
-    it('puts the terminal in the last column of a multi-sink pipeline', () => {
-        renderPanel({
-            defaultExpanded: true,
-            defaultMode: 'graph',
-            queries: [
-                queries[0],
-                duckdb('x', 'X', ['orders']),
-                duckdb('y', 'Y', ['x']),
-            ],
-            terminalNodeId: 'x',
-        });
-        const columnOf = (name: string) =>
-            Number(
-                screen
-                    .getByRole('button', { name: `Go to ${name}` })
-                    .getAttribute('transform')
-                    ?.match(/translate\((\d+)/)?.[1],
-            );
-        expect(columnOf('Orders by status')).toBeLessThan(columnOf('Y'));
-        expect(columnOf('Y')).toBeLessThan(columnOf('X'));
-    });
-
-    it('renders an empty pipeline without NaN geometry', () => {
-        const { container } = renderPanel({
-            defaultExpanded: true,
-            defaultMode: 'graph',
-            queries: [],
-            terminalNodeId: 'none',
-        });
-        expect(container.innerHTML).not.toContain('NaN');
-        expect(screen.queryByRole('button', { name: /^Go to / })).toBeNull();
-    });
-
-    it('scopes clip path ids per panel instance', () => {
-        renderPanel({ defaultExpanded: true, defaultMode: 'graph' });
-        renderPanel({ defaultExpanded: true, defaultMode: 'graph' });
-        const ids = [...document.querySelectorAll('clipPath')].map(
-            (element) => element.id,
-        );
-        expect(ids).toHaveLength(6);
-        expect(new Set(ids).size).toBe(6);
     });
 });

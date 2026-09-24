@@ -1,17 +1,7 @@
-import { type MetricsTreeSource } from '@lightdash/common';
-import {
-    BaseEdge,
-    getSimpleBezierPath,
-    type Edge,
-    type EdgeProps,
-} from '@xyflow/react';
+import { BaseEdge, getSimpleBezierPath, type EdgeProps } from '@xyflow/react';
 import React, { type FC } from 'react';
 
-type DefaultEdgeData = Edge<{
-    createdFrom?: MetricsTreeSource;
-}>;
-
-const DefaultEdge: FC<EdgeProps<DefaultEdgeData>> = ({
+const DefaultEdge: FC<EdgeProps> = ({
     sourceX,
     sourceY,
     targetX,

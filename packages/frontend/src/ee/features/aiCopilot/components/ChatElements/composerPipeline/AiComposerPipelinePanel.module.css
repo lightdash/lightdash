@@ -203,60 +203,67 @@
     line-height: 1.5;
 }
 
-.graphScroll {
+.graph {
     flex: 1;
     min-height: 0;
-    overflow: auto;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
 }
 
-.graph {
-    display: block;
-    font-family: var(--mantine-font-family);
-}
-
-.graphEdge {
-    fill: none;
-    stroke: var(--mantine-color-ldGray-3);
-    stroke-width: 1.25;
+/* Nodes sit at the origin until measured and laid out. */
+.flowPending {
+    opacity: 0;
 }
 
 .graphNode {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: 6px 10px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-body);
+    font: inherit;
+    color: inherit;
     cursor: pointer;
-    outline: none;
 }
 
-.graphNodeBox {
-    fill: var(--mantine-color-body);
-    stroke: var(--mantine-color-default-border);
-    stroke-width: 1;
+.graphNode:hover,
+.graphNode:focus-visible {
+    background: var(--mantine-color-default-hover);
 }
 
-.graphNode:hover .graphNodeBox,
-.graphNode:focus-visible .graphNodeBox {
-    stroke: var(--mantine-color-ldGray-4);
-    fill: var(--mantine-color-default-hover);
+.graphNode[data-terminal='true'] {
+    border-color: var(--mantine-color-blue-5);
 }
 
-.graphNode[data-terminal='true'] .graphNodeBox {
-    stroke: var(--mantine-color-ldGray-7);
-    stroke-width: 1.5;
-}
-
-.graphNodeDot {
-    fill: var(--mantine-color-green-6);
+.graphNodeText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    text-align: left;
 }
 
 .graphNodeTitle {
-    font-size: 12px;
-    fill: var(--mantine-color-text);
+    max-width: 220px;
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1.3;
+    color: var(--mantine-color-text);
 }
 
 .graphNodeType {
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 500;
     letter-spacing: 0.06em;
-    fill: var(--mantine-color-dimmed);
+    text-transform: uppercase;
+    color: var(--mantine-color-dimmed);
+}
+
+.handle {
+    width: 1px;
+    height: 1px;
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .splitHandle {

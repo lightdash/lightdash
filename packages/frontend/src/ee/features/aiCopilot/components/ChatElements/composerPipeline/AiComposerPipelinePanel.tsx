@@ -11,11 +11,13 @@ import {
     ActionIcon,
     Box,
     Group,
+    Paper,
     SegmentedControl,
     Text,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import {
     IconChevronRight,
     IconDatabase,
@@ -23,27 +25,46 @@ import {
     IconHelpCircle,
     IconSitemap,
 } from '@tabler/icons-react';
+import {
+    Handle,
+    Position,
+    ReactFlow,
+    ReactFlowProvider,
+    useNodesInitialized,
+    useNodesState,
+    useReactFlow,
+    type EdgeTypes,
+    type NodeProps,
+    type NodeTypes,
+} from '@xyflow/react';
 import { clsx } from 'clsx';
 import {
     useEffect,
-    useId,
     useMemo,
     useRef,
     useState,
     type FC,
-    type KeyboardEvent,
     type ReactNode,
 } from 'react';
+import '@xyflow/react/dist/style.css';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
+import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
+    sourceLabelOf,
     type PipelineLayer,
     type PipelineNode,
 } from './groupPipeline';
+import {
+    layoutPipelineFlow,
+    toPipelineFlow,
+    type PipelineFlowNode,
+} from './pipelineGraph';
 
 const TRANSFORMATIONS_HELP =
     'Transformations run in DuckDB on top of the source results. They never touch the warehouse.';
@@ -52,14 +73,6 @@ const pipelineNodeRowId = (nodeId: string) =>
     `composer-pipeline-node-${nodeId}`;
 
 export type PipelineMode = 'list' | 'graph';
-
-const NODE_W = 160;
-const NODE_H = 40;
-const COL_GAP = 56;
-const ROW_GAP = 12;
-const GRAPH_PAD = 8;
-const TEXT_X = 22;
-const TEXT_W = NODE_W - TEXT_X - 8;
 
 const layerLabel = (layer: PipelineLayer) => {
     const single = layer.nodes.length === 1;
@@ -75,14 +88,14 @@ const layerLabel = (layer: PipelineLayer) => {
     }
 };
 
-const sourceLabel = (query: SourceQuery) => {
+const sourceIcon = (query: SourceQuery) => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
-            return { label: 'Semantic layer', icon: IconSitemap };
+            return IconSitemap;
         case QuerySourceType.SQL:
-            return { label: 'Warehouse SQL', icon: IconDatabase };
+            return IconDatabase;
         case QuerySourceType.EXTERNAL:
-            return { label: 'External data', icon: IconFileSpreadsheet };
+            return IconFileSpreadsheet;
         case QuerySourceType.DUCKDB:
             return null;
         default:
@@ -142,7 +155,8 @@ const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
     node,
     selected,
 }) => {
-    const source = sourceLabel(node.query);
+    const sourceLabel = sourceLabelOf(node.query);
+    const sourceIconOf = sourceIcon(node.query);
     const sql = useMemo(() => formattedSqlOf(node.query), [node.query]);
     return (
         <Box
@@ -157,10 +171,10 @@ const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
                     {node.title}
                     {node.isTerminal ? ' · result' : ''}
                 </Text>
-                {source && (
+                {sourceLabel && sourceIconOf && (
                     <Text component="span" className={styles.nodeType}>
-                        <MantineIcon icon={source.icon} size={11} />
-                        {source.label}
+                        <MantineIcon icon={sourceIconOf} size={11} />
+                        {sourceLabel}
                     </Text>
                 )}
             </Box>
@@ -241,165 +255,111 @@ const PipelineList: FC<{
     );
 };
 
-/**
- * Columns by depth, with the terminal alone in the last column wherever it
- * sits; columns left empty by a multi-sink pipeline are compacted away.
- */
-const layoutGraph = (nodes: PipelineNode[]) => {
-    const others = nodes.filter((node) => !node.isTerminal);
-    const lastColumn =
-        others.length === 0
-            ? 0
-            : Math.max(...others.map((node) => node.depth)) + 1;
-    const columns = new Map<number, PipelineNode[]>();
-    nodes.forEach((node) => {
-        const column = node.isTerminal ? lastColumn : node.depth;
-        columns.set(column, [...(columns.get(column) ?? []), node]);
-    });
-    const ordered = [...columns.keys()]
-        .sort((a, b) => a - b)
-        .map((column) => columns.get(column)!);
-    const tallest = Math.max(0, ...ordered.map((column) => column.length));
-    const height = tallest * NODE_H + (tallest - 1) * ROW_GAP + GRAPH_PAD * 2;
-    const width =
-        ordered.length * NODE_W +
-        (ordered.length - 1) * COL_GAP +
-        GRAPH_PAD * 2;
-    const positions = new Map<string, { x: number; y: number }>();
-    ordered.forEach((columnNodes, column) => {
-        const columnHeight =
-            columnNodes.length * NODE_H + (columnNodes.length - 1) * ROW_GAP;
-        const offset = (height - GRAPH_PAD * 2 - columnHeight) / 2;
-        columnNodes.forEach((node, row) => {
-            positions.set(node.nodeId, {
-                x: GRAPH_PAD + column * (NODE_W + COL_GAP),
-                y: GRAPH_PAD + offset + row * (NODE_H + ROW_GAP),
-            });
-        });
-    });
-    return { width, height, positions };
-};
+const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
+    <Paper
+        component="button"
+        type="button"
+        className={styles.graphNode}
+        data-terminal={data.isTerminal}
+        aria-label={`Go to ${data.title}`}
+        title={data.title}
+    >
+        <Handle
+            type="target"
+            position={Position.Left}
+            className={styles.handle}
+        />
+        <Box className={styles.dot} />
+        <Box className={styles.graphNodeText}>
+            <Text component="span" className={styles.graphNodeTitle} truncate>
+                {data.title}
+            </Text>
+            {data.sourceLabel && (
+                <Text component="span" className={styles.graphNodeType}>
+                    {data.sourceLabel}
+                </Text>
+            )}
+        </Box>
+        <Handle
+            type="source"
+            position={Position.Right}
+            className={styles.handle}
+        />
+    </Paper>
+);
 
-const GraphNode: FC<{
-    node: PipelineNode;
-    x: number;
-    y: number;
-    idPrefix: string;
-    onSelect: (nodeId: string) => void;
-}> = ({ node, x, y, idPrefix, onSelect }) => {
-    const source = sourceLabel(node.query);
-    const clipId = `${idPrefix}-clip-${node.nodeId}`;
-    const onKeyDown = (event: KeyboardEvent<SVGGElement>) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        onSelect(node.nodeId);
-    };
-    return (
-        <g
-            className={styles.graphNode}
-            data-terminal={node.isTerminal}
-            transform={`translate(${x} ${y})`}
-            onClick={() => onSelect(node.nodeId)}
-            onKeyDown={onKeyDown}
-            role="button"
-            tabIndex={0}
-            aria-label={`Go to ${node.title}`}
-        >
-            <title>{node.title}</title>
-            <clipPath id={clipId}>
-                <rect x={TEXT_X} y={0} width={TEXT_W} height={NODE_H} />
-            </clipPath>
-            <rect
-                className={styles.graphNodeBox}
-                width={NODE_W}
-                height={NODE_H}
-                rx={6}
-            />
-            <circle
-                className={styles.graphNodeDot}
-                cx={12}
-                cy={NODE_H / 2}
-                r={3}
-            />
-            <g clipPath={`url(#${clipId})`}>
-                <text
-                    className={styles.graphNodeTitle}
-                    x={TEXT_X}
-                    y={source ? 17 : NODE_H / 2 + 4}
-                >
-                    {node.title}
-                </text>
-                {source && (
-                    <text className={styles.graphNodeType} x={TEXT_X} y={31}>
-                        {source.label.toUpperCase()}
-                    </text>
-                )}
-            </g>
-        </g>
-    );
-};
+const nodeTypes: NodeTypes = { pipeline: PipelineFlowNodeView };
+const edgeTypes: EdgeTypes = { pipeline: DefaultEdge };
+const FIT_VIEW_OPTIONS = { padding: 0.1, maxZoom: 1 };
 
-/** Layers as columns, nodes as boxes, reads as curved edges. */
-const PipelineGraph: FC<{
+const PipelineFlow: FC<{
     layers: PipelineLayer[];
     onSelect: (nodeId: string) => void;
 }> = ({ layers, onSelect }) => {
-    // useId separators are not valid in url(#...) references
-    const idPrefix = `composer-pipeline-${useId().replace(/\W/g, '')}`;
-    const nodes = useMemo(
-        () => layers.flatMap((layer) => layer.nodes),
-        [layers],
-    );
-    const { width, height, positions } = useMemo(
-        () => layoutGraph(nodes),
-        [nodes],
-    );
-    if (nodes.length === 0) return null;
+    const flow = useMemo(() => toPipelineFlow(layers), [layers]);
+    const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
+    const [laidOut, setLaidOut] = useState(false);
+    const initialized = useNodesInitialized();
+    const { fitView } = useReactFlow();
+    const { ref, width, height } = useElementSize();
+
+    useEffect(() => {
+        setNodes(flow.nodes);
+        setLaidOut(false);
+    }, [flow.nodes, setNodes]);
+
+    // Positions need measured sizes, so lay out once React Flow has them.
+    useEffect(() => {
+        if (!initialized || laidOut) return;
+        setNodes((current) => layoutPipelineFlow(current, flow.edges));
+        setLaidOut(true);
+    }, [initialized, laidOut, flow.edges, setNodes]);
+
+    useEffect(() => {
+        if (laidOut) void fitView(FIT_VIEW_OPTIONS);
+    }, [laidOut, width, height, fitView]);
+
     return (
-        <Box className={styles.graphScroll}>
-            <svg
-                className={styles.graph}
-                width={width}
-                height={height}
-                viewBox={`0 0 ${width} ${height}`}
-                aria-label="Pipeline graph"
-            >
-                {nodes.flatMap((node) =>
-                    node.readNodeIds.map((readId) => {
-                        const from = positions.get(readId)!;
-                        const to = positions.get(node.nodeId)!;
-                        const x1 = from.x + NODE_W;
-                        const y1 = from.y + NODE_H / 2;
-                        const x2 = to.x;
-                        const y2 = to.y + NODE_H / 2;
-                        const mid = (x1 + x2) / 2;
-                        return (
-                            <path
-                                key={`${readId}->${node.nodeId}`}
-                                className={styles.graphEdge}
-                                data-testid="composer-pipeline-edge"
-                                d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`}
-                            />
-                        );
-                    }),
+        <Box className={styles.graph} ref={ref}>
+            <ReactFlow<PipelineFlowNode>
+                className={clsx(
+                    reactFlowStyles.reactFlow,
+                    !laidOut && styles.flowPending,
                 )}
-                {nodes.map((node) => {
-                    const { x, y } = positions.get(node.nodeId)!;
-                    return (
-                        <GraphNode
-                            key={node.nodeId}
-                            node={node}
-                            x={x}
-                            y={y}
-                            idPrefix={idPrefix}
-                            onSelect={onSelect}
-                        />
-                    );
-                })}
-            </svg>
+                nodes={nodes}
+                edges={flow.edges}
+                onNodesChange={onNodesChange}
+                onNodeClick={(_, node) => onSelect(node.data.nodeId)}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                fitView
+                fitViewOptions={FIT_VIEW_OPTIONS}
+                minZoom={0.25}
+                maxZoom={1.5}
+                attributionPosition="top-right"
+                nodesDraggable={false}
+                nodesConnectable={false}
+                nodesFocusable={false}
+                edgesFocusable={false}
+                elementsSelectable={false}
+                zoomOnScroll={false}
+                zoomOnDoubleClick={false}
+                preventScrolling={false}
+            />
         </Box>
     );
 };
+
+/** Nodes as boxes, reads as edges, laid out left to right. */
+const PipelineGraph: FC<{
+    layers: PipelineLayer[];
+    onSelect: (nodeId: string) => void;
+}> = ({ layers, onSelect }) =>
+    layers.length === 0 ? null : (
+        <ReactFlowProvider>
+            <PipelineFlow layers={layers} onSelect={onSelect} />
+        </ReactFlowProvider>
+    );
 
 const PipelineBar: FC<{
     nodeCount: number;

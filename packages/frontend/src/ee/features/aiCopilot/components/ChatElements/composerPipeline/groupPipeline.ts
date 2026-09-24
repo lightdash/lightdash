@@ -1,4 +1,8 @@
-import { QuerySourceType, type SourceQuery } from '@lightdash/common';
+import {
+    assertUnreachable,
+    QuerySourceType,
+    type SourceQuery,
+} from '@lightdash/common';
 
 export type PipelineNode = {
     nodeId: string;
@@ -20,6 +24,22 @@ export type PipelineLayer = {
     depth: number;
     kind: PipelineLayerKind;
     nodes: PipelineNode[];
+};
+
+/** User-facing label of where a source node reads from; null for transformations. */
+export const sourceLabelOf = (query: SourceQuery): string | null => {
+    switch (query.sourceType) {
+        case QuerySourceType.SEMANTIC_LAYER:
+            return 'Semantic layer';
+        case QuerySourceType.SQL:
+            return 'Warehouse SQL';
+        case QuerySourceType.EXTERNAL:
+            return 'External data';
+        case QuerySourceType.DUCKDB:
+            return null;
+        default:
+            return assertUnreachable(query, 'Unknown source type');
+    }
 };
 
 const nodeIdOf = (query: SourceQuery, index: number) =>

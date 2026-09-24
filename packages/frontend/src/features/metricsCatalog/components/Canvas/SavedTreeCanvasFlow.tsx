@@ -18,9 +18,12 @@ import {
     type EdgeTypes,
     type NodeTypes,
 } from '@xyflow/react';
+import { clsx } from 'clsx';
 import { useMemo, type FC } from 'react';
 import '@xyflow/react/dist/style.css';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import DefaultEdge from '../../../../components/common/ReactFlow/DefaultEdge';
+import reactFlowStyles from '../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../components/common/ResizableSplitter';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import { CanvasTimeFramePicker } from '../visualization/CanvasTimeFramePicker';
@@ -34,7 +37,6 @@ import {
     type YamlDriverInfo,
 } from './CanvasYamlDriversContext';
 import MetricsSidebar from './MetricsSidebar';
-import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import ExpandedNode, {
     type ExpandedNodeData,
 } from './TreeComponents/nodes/ExpandedNode';
@@ -201,7 +203,10 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                         <Stack h="100%" gap={0}>
                             <Box style={{ flex: 1, minHeight: 0 }}>
                                 <ReactFlow
-                                    className={styles.reactFlow}
+                                    className={clsx(
+                                        reactFlowStyles.reactFlow,
+                                        styles.reactFlow,
+                                    )}
                                     nodes={flow.currentNodes}
                                     edges={flow.currentEdges}
                                     fitView
