@@ -1,3 +1,10 @@
+# [2.318.0](https://github.com/lightdash/lightdash/compare/2.317.0...2.318.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agent:** semantic and SQL artifacts render edge to edge like composer ([#29852](https://github.com/lightdash/lightdash/issues/29852)) ([3d97939](https://github.com/lightdash/lightdash/commit/3d97939ec8fc3c81fbfc8a35a90ed6b294192bf1))
+
 # [2.317.0](https://github.com/lightdash/lightdash/compare/2.316.1...2.317.0) (2026-09-24)
 
 
