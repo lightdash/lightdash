@@ -75,16 +75,20 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                         showToastWarning({
                             key: TOAST_KEY_FOR_REFRESH_JOB,
                             title: completionToast.title,
-                            action: job.projectUuid
-                                ? {
-                                      children: 'View errors',
-                                      icon: IconArrowRight,
-                                      onClick: () =>
-                                          navigate(
-                                              `/generalSettings/projectManagement/${job.projectUuid}/validator`,
-                                          ),
-                                  }
-                                : undefined,
+                            subtitle: completionToast.message,
+                            action:
+                                job.projectUuid &&
+                                job.jobType === JobType.COMPILE_PROJECT &&
+                                (job.jobResults?.errorCount ?? 0) > 0
+                                    ? {
+                                          children: 'View errors',
+                                          icon: IconArrowRight,
+                                          onClick: () =>
+                                              navigate(
+                                                  `/generalSettings/projectManagement/${job.projectUuid}/validator`,
+                                              ),
+                                      }
+                                    : undefined,
                         });
                     } else {
                         showToastSuccess({

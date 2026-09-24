@@ -158,6 +158,43 @@ describe('Enable multiple connections', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('hides the extra credential toggle and explains the primary setting in the switch dialog', async () => {
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Enable multiple connections',
+            }),
+        );
+        const form = await fillForm(user);
+        await user.click(
+            within(form).getByRole('button', { name: /advanced/i }),
+        );
+        expect(
+            within(form).getByText(
+                'Require users to provide their own credentials follows the primary connection.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(form).queryByText(
+                'Require users to provide their own credentials',
+            ),
+        ).not.toBeInTheDocument();
+
+        await user.click(
+            within(form).getByRole('button', { name: 'Review the switch' }),
+        );
+        await screen.findByText(/Its connection test passed/);
+        const body = JSON.parse(callsTo(`${switchUrl}/preview`)[0].body!) as {
+            connection: {
+                warehouseConnection: { requireUserCredentials?: boolean };
+            };
+        };
+        expect(body.connection.warehouseConnection.requireUserCredentials).toBe(
+            false,
+        );
+    });
+
     it('disables the switch and says why when the project cannot switch', async () => {
         routeApi({
             availability: {

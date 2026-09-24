@@ -61,6 +61,7 @@ type CompileJob = BaseJob & {
         indexCatalogJobUuid: string;
         errorCount?: number;
         total?: number;
+        connectionWarnings?: string[];
     };
 };
 

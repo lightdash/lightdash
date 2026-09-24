@@ -1,6 +1,6 @@
 import { getFieldQuoteChar } from '@lightdash/common';
 import { Stack } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useMount, useUnmount } from 'react-use';
@@ -16,6 +16,7 @@ import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { SqlRunnerConnectionScope } from '../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
+import { useSqlRunnerConnections } from '../features/sqlRunner/multiConnection/hooks/useConnectionCatalog';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -68,7 +69,13 @@ const SqlRunner = ({
     });
 
     const { data: project } = useProject(projectUuid);
+    const { data: shareConnections, error: shareConnectionsError } =
+        useSqlRunnerConnections(
+            projectUuid,
+            !!share && project?.connectionRoute === 'multi',
+        );
     const { showToastError } = useToaster();
+    const appliedShareId = useRef<string | null>(null);
 
     useEffect(() => {
         if (shareState.error) {
@@ -78,18 +85,51 @@ const SqlRunner = ({
             });
             return;
         }
-        if (shareState.sqlRunnerState) {
+        if (
+            share &&
+            shareState.sqlRunnerState &&
+            project &&
+            appliedShareId.current !== share
+        ) {
+            if (
+                project.connectionRoute === 'multi' &&
+                !shareConnections &&
+                !shareConnectionsError
+            )
+                return;
+            const routesSingle =
+                project.connectionRoute !== 'multi' ||
+                shareConnectionsError?.error.name ===
+                    'SingleConnectionProjectError';
+            const hintedConnectionExists = shareConnections?.some(
+                (connection) =>
+                    shareState.warehouseConnectionUuid === null
+                        ? connection.isOriginal
+                        : connection.warehouseConnectionUuid ===
+                          shareState.warehouseConnectionUuid,
+            );
+            appliedShareId.current = share;
             dispatch(
                 setState({
                     ...shareState.sqlRunnerState,
-                    fetchResultsOnLoad: true,
+                    connectionRoute: store.getState().sqlRunner.connectionRoute,
+                    fetchResultsOnLoad:
+                        routesSingle || hintedConnectionExists === true,
                 }),
             );
             if (shareState.chartConfig) {
                 dispatch(setChartConfig(shareState.chartConfig));
             }
         }
-    }, [shareState, dispatch, showToastError]);
+    }, [
+        share,
+        shareState,
+        project,
+        shareConnections,
+        shareConnectionsError,
+        dispatch,
+        showToastError,
+    ]);
     useUnmount(() => {
         dispatch(resetState());
         dispatch(resetChartState());
@@ -170,6 +210,8 @@ const SqlRunner = ({
         <SqlRunnerConnectionScope
             isEditingSavedChart={!!params.slug}
             connectionHint={connectionHint}
+            isSharedLink={!!share}
+            sharedConnectionUuid={shareState.warehouseConnectionUuid}
         >
             <Page
                 title="SQL Runner"

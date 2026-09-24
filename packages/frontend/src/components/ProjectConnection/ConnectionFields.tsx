@@ -31,6 +31,7 @@ export const ConnectionFields: FC<{
         <ProjectFormProvider
             projectUuid={projectUuid}
             savedProject={savedProject}
+            isProjectExtraConnection
         >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">

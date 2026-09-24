@@ -10,6 +10,7 @@ import {
     SingleConnectionProjectError,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
+    WarehouseTypes,
     type Account,
     type ApiCreateWarehouseConnectionRequest,
     type ApiUpdateWarehouseConnectionRequest,
@@ -23,7 +24,6 @@ import {
     type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
     type WarehouseCredentials,
-    type WarehouseTypes,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -271,6 +271,30 @@ export class WarehouseConnectionService extends BaseService {
               );
     }
 
+    private async inheritPrimaryCredentialRequirement(
+        projectUuid: string,
+        source: WarehouseConnectionCredentialSource,
+    ): Promise<WarehouseConnectionCredentialSource> {
+        if (
+            source.kind === 'organization' ||
+            (source.credentials.type !== WarehouseTypes.POSTGRES &&
+                source.credentials.type !== WarehouseTypes.ATHENA)
+        )
+            return source;
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        return {
+            kind: 'project',
+            credentials: {
+                ...source.credentials,
+                requireUserCredentials:
+                    originalCredentials.requireUserCredentials,
+            },
+        };
+    }
+
     private assertCanWrite(
         account: Account,
         summary: ProjectSummary,
@@ -319,14 +343,31 @@ export class WarehouseConnectionService extends BaseService {
         if (connection.isOriginal) {
             return { ...connection, warehouseConnection: null };
         }
+        const source =
+            await this.warehouseConnectionModel.getExtraCredentialSource(
+                project,
+                warehouseConnectionUuid,
+            );
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseConnection = toNonSensitiveCredentials(
+            source.credentials,
+        );
+        if (
+            warehouseConnection.type === WarehouseTypes.POSTGRES ||
+            warehouseConnection.type === WarehouseTypes.ATHENA
+        ) {
+            warehouseConnection.requireUserCredentials =
+                getExtraConnectionRequireUserCredentials(
+                    originalCredentials,
+                    source,
+                ) === true;
+        }
         return {
             ...connection,
-            warehouseConnection: toNonSensitiveCredentials(
-                await this.warehouseConnectionModel.getCredentials(
-                    project,
-                    warehouseConnectionUuid,
-                ),
-            ),
+            warehouseConnection,
         };
     }
 
@@ -532,12 +573,19 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
-        const source = WarehouseConnectionService.toCreateSource(request);
+        const requestedSource =
+            WarehouseConnectionService.toCreateSource(request);
         this.assertCanWrite(
             account,
             summary,
-            source,
-            source.kind === 'project' ? source.credentials : null,
+            requestedSource,
+            requestedSource.kind === 'project'
+                ? requestedSource.credentials
+                : null,
+        );
+        const source = await this.inheritPrimaryCredentialRequirement(
+            projectUuid,
+            requestedSource,
         );
         const name = WarehouseConnectionService.parseName(request.name);
         const blockReason = await this.getAddConnectionBlockReason(
@@ -671,11 +719,17 @@ export class WarehouseConnectionService extends BaseService {
                 'Edit the original connection in the project settings.',
             );
         }
-        const source = await this.resolveUpdateSource(
+        const requestedSource = await this.resolveUpdateSource(
             project,
             existing,
             request,
         );
+        const source = requestedSource
+            ? await this.inheritPrimaryCredentialRequirement(
+                  projectUuid,
+                  requestedSource,
+              )
+            : null;
         const effectiveSource: WarehouseConnectionCredentialSource | null =
             source ??
             (existing.organizationWarehouseCredentialsUuid !== null

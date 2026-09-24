@@ -34,6 +34,7 @@ type SqlRunnerStateWithoutExcludedKeys = Omit<
 type SqlRunnerShareParams = {
     sqlRunnerState: SqlRunnerStateWithoutExcludedKeys;
     chartConfig: AllVizChartConfig | undefined;
+    warehouseConnectionUuid?: string | null;
 };
 
 function isSqlRunnerShareParams(value: unknown): value is SqlRunnerShareParams {
@@ -67,6 +68,14 @@ export const useCreateSqlRunnerShareUrl = () => {
         const shareStateParams: SqlRunnerShareParams = {
             sqlRunnerState: sqlRunnerStateWithoutExcludedKeys,
             chartConfig: config,
+            ...(sqlRunnerState.connectionRoute.route === 'multi' &&
+            sqlRunnerState.connectionRoute.connection
+                ? {
+                      warehouseConnectionUuid:
+                          sqlRunnerState.connectionRoute.connection
+                              .warehouseConnectionUuid,
+                  }
+                : {}),
         };
 
         const shareUrl = await createShareUrl({
@@ -81,6 +90,7 @@ type SqlRunnerShare = {
     sqlRunnerState: SqlRunnerState | undefined;
     chartConfig: AllVizChartConfig | undefined;
     error: Error | null;
+    warehouseConnectionUuid: string | null | undefined;
 };
 
 export const useSqlRunnerShareUrl = (
@@ -94,6 +104,7 @@ export const useSqlRunnerShareUrl = (
             : null;
         let sqlRunnerState: SqlRunnerState | undefined;
         let chartConfig: AllVizChartConfig | undefined;
+        let warehouseConnectionUuid: string | null | undefined;
         if (data?.params) {
             try {
                 const sqlRunnerParams = JSON.parse(data.params);
@@ -104,6 +115,14 @@ export const useSqlRunnerShareUrl = (
                         connectionRoute: initialState.connectionRoute,
                     };
                     chartConfig = sqlRunnerParams.chartConfig;
+                    if (
+                        typeof sqlRunnerParams.warehouseConnectionUuid ===
+                            'string' ||
+                        sqlRunnerParams.warehouseConnectionUuid === null
+                    ) {
+                        warehouseConnectionUuid =
+                            sqlRunnerParams.warehouseConnectionUuid;
+                    }
                 } else {
                     // handle legacy share links where params are just the sql runner state
                     sqlRunnerState = {
@@ -120,6 +139,7 @@ export const useSqlRunnerShareUrl = (
             sqlRunnerState,
             chartConfig,
             error,
+            warehouseConnectionUuid,
         };
     }, [data, apiError]);
 };

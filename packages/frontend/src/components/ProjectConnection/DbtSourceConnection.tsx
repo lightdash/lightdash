@@ -1,12 +1,13 @@
 import {
+    JobStatusType,
     type DbtSourceBindings,
     type ProjectDbtSourceSummary,
 } from '@lightdash/common';
 import { Alert, Button, Group, Select, Stack, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { useBindDbtSource } from '../../hooks/useDbtSourceBindings';
-import { useRefreshServer } from '../../hooks/useRefreshServer';
+import { useJob, useRefreshServer } from '../../hooks/useRefreshServer';
 import MantineIcon from '../common/MantineIcon';
 
 export type ReboundDbtSource = {
@@ -99,6 +100,14 @@ export const DbtSourceReboundNote: FC<{
     onDismiss: () => void;
 }> = ({ rebound, onDismiss }) => {
     const { mutate: compile, isLoading } = useRefreshServer();
+    const [compileJobUuid, setCompileJobUuid] = useState<string>();
+    useJob(
+        compileJobUuid,
+        (job) => {
+            if (job.jobStatus === JobStatusType.DONE) onDismiss();
+        },
+        () => undefined,
+    );
     return (
         <Alert
             color="blue"
@@ -120,7 +129,10 @@ export const DbtSourceReboundNote: FC<{
                         onClick={() =>
                             compile(
                                 { syncContent: false },
-                                { onSuccess: onDismiss },
+                                {
+                                    onSuccess: (result) =>
+                                        setCompileJobUuid(result.jobUuid),
+                                },
                             )
                         }
                     >

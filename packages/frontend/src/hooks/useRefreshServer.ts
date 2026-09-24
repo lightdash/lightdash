@@ -60,16 +60,32 @@ export const jobStatusLabel = (status: JobStatusType, jobType?: JobType) => {
 
 export const getJobCompletionToast = (
     job: Job,
-): { variant: 'success' | 'warning'; title: string } => {
-    if (
+): { variant: 'success' | 'warning'; title: string; message?: string } => {
+    const tableErrors =
         job.jobType === JobType.COMPILE_PROJECT &&
         job.jobResults?.errorCount !== undefined &&
         job.jobResults.errorCount > 0 &&
         job.jobResults.total !== undefined
+            ? `${job.jobResults.errorCount} of ${job.jobResults.total} tables have errors`
+            : null;
+    if (
+        job.jobType === JobType.COMPILE_PROJECT &&
+        job.jobResults?.connectionWarnings?.length
     ) {
         return {
             variant: 'warning',
-            title: `Synced: ${job.jobResults.errorCount} of ${job.jobResults.total} tables have errors`,
+            title: tableErrors
+                ? `Connections failed to compile; ${tableErrors}`
+                : 'Connections failed to compile',
+            message: job.jobResults.connectionWarnings
+                .map((warning) => `- ${warning}`)
+                .join('\n'),
+        };
+    }
+    if (tableErrors) {
+        return {
+            variant: 'warning',
+            title: `Synced: ${tableErrors}`,
         };
     }
 

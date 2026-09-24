@@ -54,7 +54,7 @@ describe('SQL runner share links and the active connection', () => {
         } as never);
     });
 
-    it('a share link does not carry the connection route', async () => {
+    it('a share link carries the connection UUID outside the route', async () => {
         store.dispatch(setConnectionRoute(financeRoute));
         const { result } = renderHook(() => useCreateSqlRunnerShareUrl(), {
             wrapper,
@@ -69,6 +69,46 @@ describe('SQL runner share links and the active connection', () => {
                 .params,
         );
         expect(params.sqlRunnerState).not.toHaveProperty('connectionRoute');
+        expect(params.warehouseConnectionUuid).toBe('finance-uuid');
+    });
+
+    it('keeps a single-project share free of connection fields', async () => {
+        store.dispatch(setConnectionRoute({ route: 'single' }));
+        const { result } = renderHook(() => useCreateSqlRunnerShareUrl(), {
+            wrapper,
+        });
+        await act(async () => {
+            await result.current();
+        });
+        const params = JSON.parse(
+            (createShareUrl.mock.calls[0] as unknown as [{ params: string }])[0]
+                .params,
+        );
+        expect(params).not.toHaveProperty('warehouseConnectionUuid');
+        expect(params.sqlRunnerState).not.toHaveProperty('connectionRoute');
+    });
+
+    it('marks an original warehouse separately from the route', async () => {
+        store.dispatch(
+            setConnectionRoute({
+                route: 'multi',
+                connection: {
+                    ...financeRoute.connection,
+                    warehouseConnectionUuid: null,
+                },
+            }),
+        );
+        const { result } = renderHook(() => useCreateSqlRunnerShareUrl(), {
+            wrapper,
+        });
+        await act(async () => {
+            await result.current();
+        });
+        const params = JSON.parse(
+            (createShareUrl.mock.calls[0] as unknown as [{ params: string }])[0]
+                .params,
+        );
+        expect(params.warehouseConnectionUuid).toBeNull();
     });
 
     it('a shared state waits for the viewer connection and sends no request', async () => {
@@ -91,6 +131,7 @@ describe('SQL runner share links and the active connection', () => {
         expect(result.current.sqlRunnerState?.connectionRoute).toEqual({
             route: 'pending',
         });
+        expect(result.current.warehouseConnectionUuid).toBeUndefined();
         store.dispatch(setState(result.current.sqlRunnerState!));
         await store.dispatch(
             runSqlQuery({
@@ -102,5 +143,29 @@ describe('SQL runner share links and the active connection', () => {
         );
 
         expect(executeSqlQuery).not.toHaveBeenCalled();
+    });
+
+    it('reads a separate connection hint without trusting a serialized route', () => {
+        vi.mocked(useGetShare).mockReturnValue({
+            data: {
+                params: JSON.stringify({
+                    sqlRunnerState: {
+                        sql: 'select 1',
+                        connectionRoute: financeRoute,
+                    },
+                    chartConfig: null,
+                    warehouseConnectionUuid: 'finance-uuid',
+                }),
+            },
+            error: null,
+        } as never);
+        const { result } = renderHook(() => useSqlRunnerShareUrl('share-id'), {
+            wrapper,
+        });
+
+        expect(result.current.warehouseConnectionUuid).toBe('finance-uuid');
+        expect(result.current.sqlRunnerState?.connectionRoute).toEqual({
+            route: 'pending',
+        });
     });
 });

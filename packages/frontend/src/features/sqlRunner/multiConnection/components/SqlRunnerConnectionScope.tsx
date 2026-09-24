@@ -88,8 +88,16 @@ export const SqlRunnerConnectionScope: FC<
     PropsWithChildren<{
         isEditingSavedChart: boolean;
         connectionHint?: string | null;
+        sharedConnectionUuid?: string | null;
+        isSharedLink?: boolean;
     }>
-> = ({ isEditingSavedChart, connectionHint, children }) => {
+> = ({
+    isEditingSavedChart,
+    connectionHint,
+    sharedConnectionUuid,
+    isSharedLink = false,
+    children,
+}) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
     const isMulti = project?.connectionRoute === 'multi';
@@ -115,6 +123,8 @@ export const SqlRunnerConnectionScope: FC<
             projectUuid={projectUuid}
             connections={connections}
             connectionHint={connectionHint}
+            sharedConnectionUuid={sharedConnectionUuid}
+            isSharedLink={isSharedLink}
         >
             <ActiveConnectionStoreSync
                 isEditingSavedChart={isEditingSavedChart}
