@@ -81,3 +81,31 @@ describe('AiComposerPipelinePanel graph mode', () => {
         ).toHaveAttribute('data-selected', 'false');
     });
 });
+
+describe('AiComposerPipelinePanel earlier result placeholder', () => {
+    it('lists the placeholder by alias without counting it or showing the uuid', () => {
+        const uuid = 'bcf89bb4-c964-4c1e-9a55-0d6a3f1a2b3c';
+        renderWithProviders(
+            <AiComposerPipelinePanel
+                queries={[
+                    {
+                        sourceType: QuerySourceType.DUCKDB,
+                        nodeId: 'ranked',
+                        title: 'Ranked orders',
+                        sql: 'select 1',
+                        references: { prev: uuid },
+                    },
+                ]}
+                terminalNodeId="ranked"
+                defaultExpanded
+            >
+                <div>results</div>
+            </AiComposerPipelinePanel>,
+        );
+        expect(screen.getByText('1 step')).toBeInTheDocument();
+        expect(screen.getByText('prev')).toBeInTheDocument();
+        expect(screen.getByText('Earlier result')).toBeInTheDocument();
+        expect(screen.getByText('Reads prev')).toBeInTheDocument();
+        expect(document.body.textContent).not.toContain(uuid);
+    });
+});

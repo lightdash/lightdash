@@ -153,54 +153,63 @@ const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
     );
 };
 
-const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
-    node,
-    selected,
-}) => {
-    const label = sourceLabelOf(node.query);
-    const icon = sourceIcon(node.query);
-    const sql = useMemo(() => formattedSqlOf(node.query), [node.query]);
+const SourceType: FC<{ query: SourceQuery }> = ({ query }) => {
+    const label = sourceLabelOf(query);
+    const icon = sourceIcon(query);
+    if (!label || !icon) return null;
     return (
-        <Box
-            className={clsx(styles.node, selected && styles.selected)}
-            id={pipelineNodeRowId(node.nodeId)}
-            data-node-id={node.nodeId}
-            data-selected={selected}
-        >
-            <Box className={styles.nodeHead}>
-                <Box className={styles.dot} />
-                <Text component="span" className={styles.nodeTitle}>
-                    {node.title}
-                    {node.isTerminal ? ' · result' : ''}
-                </Text>
-                {label && icon && (
-                    <Text component="span" className={styles.nodeType}>
-                        <MantineIcon icon={icon} size={11} />
-                        {label}
-                    </Text>
-                )}
-            </Box>
-            {node.description && (
-                <Text className={styles.nodeDescription}>
-                    {node.description}
-                </Text>
-            )}
-            {node.reads.length > 0 && (
-                <Text className={styles.nodeReads}>
-                    Reads {node.reads.join(', ')}
-                </Text>
-            )}
-            {node.query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
-                <SemanticFields query={node.query} />
+        <Text component="span" className={styles.nodeType}>
+            <MantineIcon icon={icon} size={11} />
+            {label}
+        </Text>
+    );
+};
+
+const QueryDetails: FC<{ query: SourceQuery }> = ({ query }) => {
+    const sql = useMemo(() => formattedSqlOf(query), [query]);
+    return (
+        <>
+            {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
+                <SemanticFields query={query} />
             )}
             {sql && (
                 <Box className={styles.code}>
                     <CodeBlock code={sql} language="sql" />
                 </Box>
             )}
-        </Box>
+        </>
     );
 };
+
+const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
+    node,
+    selected,
+}) => (
+    <Box
+        className={clsx(styles.node, selected && styles.selected)}
+        id={pipelineNodeRowId(node.nodeId)}
+        data-node-id={node.nodeId}
+        data-selected={selected}
+    >
+        <Box className={styles.nodeHead}>
+            <Box className={styles.dot} />
+            <Text component="span" className={styles.nodeTitle}>
+                {node.title}
+                {node.isTerminal ? ' · result' : ''}
+            </Text>
+            {node.kind === 'query' && <SourceType query={node.query} />}
+        </Box>
+        {node.description && (
+            <Text className={styles.nodeDescription}>{node.description}</Text>
+        )}
+        {node.reads.length > 0 && (
+            <Text className={styles.nodeReads}>
+                Reads {node.reads.join(', ')}
+            </Text>
+        )}
+        {node.kind === 'query' && <QueryDetails query={node.query} />}
+    </Box>
+);
 
 const PipelineList: FC<{
     layers: PipelineLayer[];
