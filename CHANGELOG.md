@@ -1,3 +1,10 @@
+## [2.319.2](https://github.com/lightdash/lightdash/compare/2.319.1...2.319.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* load custom chart types in embedded Explore ([#29844](https://github.com/lightdash/lightdash/issues/29844)) ([8c61338](https://github.com/lightdash/lightdash/commit/8c61338f79c43d5f89f3bfaaaa9e5b43509b9854))
+
 ## [2.319.1](https://github.com/lightdash/lightdash/compare/2.319.0...2.319.1) (2026-09-24)
 
 

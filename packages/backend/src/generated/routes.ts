@@ -18607,6 +18607,217 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartTypeIcon: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['number'] },
+                { dataType: 'enum', enums: ['list'] },
+                { dataType: 'enum', enums: ['target'] },
+                { dataType: 'enum', enums: ['table'] },
+                { dataType: 'enum', enums: ['stack'] },
+                { dataType: 'enum', enums: ['chart-bar'] },
+                { dataType: 'enum', enums: ['chart-histogram'] },
+                { dataType: 'enum', enums: ['chart-line'] },
+                { dataType: 'enum', enums: ['chart-area'] },
+                { dataType: 'enum', enums: ['chart-area-line'] },
+                { dataType: 'enum', enums: ['chart-arrows'] },
+                { dataType: 'enum', enums: ['chart-arrows-vertical'] },
+                { dataType: 'enum', enums: ['chart-candle'] },
+                { dataType: 'enum', enums: ['chart-infographic'] },
+                { dataType: 'enum', enums: ['chart-dots'] },
+                { dataType: 'enum', enums: ['chart-dots-2'] },
+                { dataType: 'enum', enums: ['chart-bubble'] },
+                { dataType: 'enum', enums: ['chart-scatter-3d'] },
+                { dataType: 'enum', enums: ['chart-grid-dots'] },
+                { dataType: 'enum', enums: ['chart-pie'] },
+                { dataType: 'enum', enums: ['chart-pie-2'] },
+                { dataType: 'enum', enums: ['chart-donut'] },
+                { dataType: 'enum', enums: ['chart-donut-2'] },
+                { dataType: 'enum', enums: ['chart-arcs'] },
+                { dataType: 'enum', enums: ['chart-circles'] },
+                { dataType: 'enum', enums: ['chart-radar'] },
+                { dataType: 'enum', enums: ['chart-treemap'] },
+                { dataType: 'enum', enums: ['chart-sankey'] },
+                { dataType: 'enum', enums: ['hierarchy'] },
+                { dataType: 'enum', enums: ['hierarchy-2'] },
+                { dataType: 'enum', enums: ['binary-tree'] },
+                { dataType: 'enum', enums: ['sitemap'] },
+                { dataType: 'enum', enums: ['topology-star'] },
+                { dataType: 'enum', enums: ['network'] },
+                { dataType: 'enum', enums: ['git-branch'] },
+                { dataType: 'enum', enums: ['git-merge'] },
+                { dataType: 'enum', enums: ['arrows-split'] },
+                { dataType: 'enum', enums: ['map'] },
+                { dataType: 'enum', enums: ['world'] },
+                { dataType: 'enum', enums: ['timeline'] },
+                { dataType: 'enum', enums: ['calendar'] },
+                { dataType: 'enum', enums: ['clock'] },
+                { dataType: 'enum', enums: ['layout-grid'] },
+                { dataType: 'enum', enums: ['layout-kanban'] },
+                { dataType: 'enum', enums: ['grid-dots'] },
+                { dataType: 'enum', enums: ['square-number-1'] },
+                { dataType: 'enum', enums: ['percentage'] },
+                { dataType: 'enum', enums: ['trending-up'] },
+                { dataType: 'enum', enums: ['trending-down'] },
+                { dataType: 'enum', enums: ['gauge'] },
+                { dataType: 'enum', enums: ['activity'] },
+                { dataType: 'enum', enums: ['wave-sine'] },
+                { dataType: 'enum', enums: ['filter'] },
+                { dataType: 'enum', enums: ['puzzle'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppViz: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                registrySlug: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdByUserUuid: { dataType: 'string', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                icon: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ChartTypeIcon' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                schema: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppVizSchema' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                spaceUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                projectUuid: { dataType: 'string', required: true },
+                description: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
+                dataAppVizUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'KnexPaginatedData_DataAppViz-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                data: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DataAppViz' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess_KnexPaginatedData_DataAppViz-Array__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'KnexPaginatedData_DataAppViz-Array_',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiListDataAppVizsResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_KnexPaginatedData_DataAppViz-Array__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizListSortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['createdAt'] },
+                { dataType: 'enum', enums: ['name'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizListSortDirection: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['asc'] },
+                { dataType: 'enum', enums: ['desc'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DataAppViz_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DataAppViz', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetDataAppVizResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_DataAppViz_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.string-or-number-or-boolean-or-null_': {
         dataType: 'refAlias',
         type: {
@@ -19475,70 +19686,6 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_EmbedProjectApp-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ChartTypeIcon: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['number'] },
-                { dataType: 'enum', enums: ['list'] },
-                { dataType: 'enum', enums: ['target'] },
-                { dataType: 'enum', enums: ['table'] },
-                { dataType: 'enum', enums: ['stack'] },
-                { dataType: 'enum', enums: ['chart-bar'] },
-                { dataType: 'enum', enums: ['chart-histogram'] },
-                { dataType: 'enum', enums: ['chart-line'] },
-                { dataType: 'enum', enums: ['chart-area'] },
-                { dataType: 'enum', enums: ['chart-area-line'] },
-                { dataType: 'enum', enums: ['chart-arrows'] },
-                { dataType: 'enum', enums: ['chart-arrows-vertical'] },
-                { dataType: 'enum', enums: ['chart-candle'] },
-                { dataType: 'enum', enums: ['chart-infographic'] },
-                { dataType: 'enum', enums: ['chart-dots'] },
-                { dataType: 'enum', enums: ['chart-dots-2'] },
-                { dataType: 'enum', enums: ['chart-bubble'] },
-                { dataType: 'enum', enums: ['chart-scatter-3d'] },
-                { dataType: 'enum', enums: ['chart-grid-dots'] },
-                { dataType: 'enum', enums: ['chart-pie'] },
-                { dataType: 'enum', enums: ['chart-pie-2'] },
-                { dataType: 'enum', enums: ['chart-donut'] },
-                { dataType: 'enum', enums: ['chart-donut-2'] },
-                { dataType: 'enum', enums: ['chart-arcs'] },
-                { dataType: 'enum', enums: ['chart-circles'] },
-                { dataType: 'enum', enums: ['chart-radar'] },
-                { dataType: 'enum', enums: ['chart-treemap'] },
-                { dataType: 'enum', enums: ['chart-sankey'] },
-                { dataType: 'enum', enums: ['hierarchy'] },
-                { dataType: 'enum', enums: ['hierarchy-2'] },
-                { dataType: 'enum', enums: ['binary-tree'] },
-                { dataType: 'enum', enums: ['sitemap'] },
-                { dataType: 'enum', enums: ['topology-star'] },
-                { dataType: 'enum', enums: ['network'] },
-                { dataType: 'enum', enums: ['git-branch'] },
-                { dataType: 'enum', enums: ['git-merge'] },
-                { dataType: 'enum', enums: ['arrows-split'] },
-                { dataType: 'enum', enums: ['map'] },
-                { dataType: 'enum', enums: ['world'] },
-                { dataType: 'enum', enums: ['timeline'] },
-                { dataType: 'enum', enums: ['calendar'] },
-                { dataType: 'enum', enums: ['clock'] },
-                { dataType: 'enum', enums: ['layout-grid'] },
-                { dataType: 'enum', enums: ['layout-kanban'] },
-                { dataType: 'enum', enums: ['grid-dots'] },
-                { dataType: 'enum', enums: ['square-number-1'] },
-                { dataType: 'enum', enums: ['percentage'] },
-                { dataType: 'enum', enums: ['trending-up'] },
-                { dataType: 'enum', enums: ['trending-down'] },
-                { dataType: 'enum', enums: ['gauge'] },
-                { dataType: 'enum', enums: ['activity'] },
-                { dataType: 'enum', enums: ['wave-sine'] },
-                { dataType: 'enum', enums: ['filter'] },
-                { dataType: 'enum', enums: ['puzzle'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartRegistryArtifact: {
         dataType: 'refAlias',
         type: {
@@ -19800,153 +19947,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppViz: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                registrySlug: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                createdByUserUuid: { dataType: 'string', required: true },
-                createdAt: { dataType: 'datetime', required: true },
-                icon: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'ChartTypeIcon' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                schema: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DataAppVizSchema' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                spaceUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                projectUuid: { dataType: 'string', required: true },
-                description: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-                slug: { dataType: 'string', required: true },
-                dataAppVizUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'KnexPaginatedData_DataAppViz-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                pagination: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'KnexPaginateArgs' },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                totalResults: {
-                                    dataType: 'double',
-                                    required: true,
-                                },
-                                totalPageCount: {
-                                    dataType: 'double',
-                                    required: true,
-                                },
-                            },
-                        },
-                    ],
-                },
-                data: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DataAppViz' },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess_KnexPaginatedData_DataAppViz-Array__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    ref: 'KnexPaginatedData_DataAppViz-Array_',
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiListDataAppVizsResponse: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'ApiSuccess_KnexPaginatedData_DataAppViz-Array__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizListSortBy: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['createdAt'] },
-                { dataType: 'enum', enums: ['name'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppVizListSortDirection: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['asc'] },
-                { dataType: 'enum', enums: ['desc'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSuccess_DataAppViz_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'DataAppViz', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiGetDataAppVizResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccess_DataAppViz_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizDeleteImpact: {
@@ -75937,6 +75937,282 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getEmbedAppPreviewToken',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_listEmbedProjectDataAppVisualizations: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        page: { default: 1, in: 'query', name: 'page', dataType: 'double' },
+        pageSize: {
+            default: 25,
+            in: 'query',
+            name: 'pageSize',
+            dataType: 'double',
+        },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+        sortBy: { in: 'query', name: 'sortBy', ref: 'DataAppVizListSortBy' },
+        sortDirection: {
+            in: 'query',
+            name: 'sortDirection',
+            ref: 'DataAppVizListSortDirection',
+        },
+    };
+    app.get(
+        '/api/v1/embed/:projectUuid/visualizations',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.listEmbedProjectDataAppVisualizations,
+        ),
+
+        async function EmbedController_listEmbedProjectDataAppVisualizations(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_listEmbedProjectDataAppVisualizations,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'listEmbedProjectDataAppVisualizations',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_getEmbedProjectDataAppVisualization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        version: { in: 'query', name: 'version', dataType: 'double' },
+    };
+    app.get(
+        '/api/v1/embed/:projectUuid/visualizations/:dataAppVizUuid',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.getEmbedProjectDataAppVisualization,
+        ),
+
+        async function EmbedController_getEmbedProjectDataAppVisualization(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_getEmbedProjectDataAppVisualization,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getEmbedProjectDataAppVisualization',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_getEmbedProjectDataAppVizRenderMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        version: { in: 'query', name: 'version', dataType: 'double' },
+    };
+    app.get(
+        '/api/v1/embed/:projectUuid/visualizations/:dataAppVizUuid/render-metadata',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.getEmbedProjectDataAppVizRenderMetadata,
+        ),
+
+        async function EmbedController_getEmbedProjectDataAppVizRenderMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_getEmbedProjectDataAppVizRenderMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getEmbedProjectDataAppVizRenderMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsEmbedController_getEmbedProjectDataAppVizPreviewToken: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        version: {
+            in: 'path',
+            name: 'version',
+            required: true,
+            dataType: 'double',
+        },
+    };
+    app.get(
+        '/api/v1/embed/:projectUuid/visualizations/:dataAppVizUuid/versions/:version/preview-token',
+        ...fetchMiddlewares<RequestHandler>(EmbedController),
+        ...fetchMiddlewares<RequestHandler>(
+            EmbedController.prototype.getEmbedProjectDataAppVizPreviewToken,
+        ),
+
+        async function EmbedController_getEmbedProjectDataAppVizPreviewToken(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsEmbedController_getEmbedProjectDataAppVizPreviewToken,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getEmbedProjectDataAppVizPreviewToken',
                     controller,
                     response,
                     next,

@@ -19888,6 +19888,205 @@
                 "type": "object",
                 "description": "The full declaration a data app viz emits: data-binding fields + config form."
             },
+            "ChartTypeIcon": {
+                "type": "string",
+                "enum": [
+                    "number",
+                    "list",
+                    "target",
+                    "table",
+                    "stack",
+                    "chart-bar",
+                    "chart-histogram",
+                    "chart-line",
+                    "chart-area",
+                    "chart-area-line",
+                    "chart-arrows",
+                    "chart-arrows-vertical",
+                    "chart-candle",
+                    "chart-infographic",
+                    "chart-dots",
+                    "chart-dots-2",
+                    "chart-bubble",
+                    "chart-scatter-3d",
+                    "chart-grid-dots",
+                    "chart-pie",
+                    "chart-pie-2",
+                    "chart-donut",
+                    "chart-donut-2",
+                    "chart-arcs",
+                    "chart-circles",
+                    "chart-radar",
+                    "chart-treemap",
+                    "chart-sankey",
+                    "hierarchy",
+                    "hierarchy-2",
+                    "binary-tree",
+                    "sitemap",
+                    "topology-star",
+                    "network",
+                    "git-branch",
+                    "git-merge",
+                    "arrows-split",
+                    "map",
+                    "world",
+                    "timeline",
+                    "calendar",
+                    "clock",
+                    "layout-grid",
+                    "layout-kanban",
+                    "grid-dots",
+                    "square-number-1",
+                    "percentage",
+                    "trending-up",
+                    "trending-down",
+                    "gauge",
+                    "activity",
+                    "wave-sine",
+                    "filter",
+                    "puzzle"
+                ]
+            },
+            "DataAppViz": {
+                "properties": {
+                    "registrySlug": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "schema": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizSchema"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "dataAppVizUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "registrySlug",
+                    "createdByUserUuid",
+                    "createdAt",
+                    "icon",
+                    "schema",
+                    "spaceUuid",
+                    "projectUuid",
+                    "description",
+                    "name",
+                    "slug",
+                    "dataAppVizUuid"
+                ],
+                "type": "object"
+            },
+            "KnexPaginatedData_DataAppViz-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppViz"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_DataAppViz-Array__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_DataAppViz-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiListDataAppVizsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_DataAppViz-Array__"
+            },
+            "DataAppVizListSortBy": {
+                "type": "string",
+                "enum": ["createdAt", "name"],
+                "description": "Order of a data app viz list; the default is newest first."
+            },
+            "DataAppVizListSortDirection": {
+                "type": "string",
+                "enum": ["asc", "desc"]
+            },
+            "ApiSuccess_DataAppViz_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppViz"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGetDataAppVizResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppViz_"
+            },
             "Record_string.string-or-number-or-boolean-or-null_": {
                 "properties": {},
                 "additionalProperties": {
@@ -20801,65 +21000,6 @@
             "ApiEmbedProjectAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_EmbedProjectApp-Array_"
             },
-            "ChartTypeIcon": {
-                "type": "string",
-                "enum": [
-                    "number",
-                    "list",
-                    "target",
-                    "table",
-                    "stack",
-                    "chart-bar",
-                    "chart-histogram",
-                    "chart-line",
-                    "chart-area",
-                    "chart-area-line",
-                    "chart-arrows",
-                    "chart-arrows-vertical",
-                    "chart-candle",
-                    "chart-infographic",
-                    "chart-dots",
-                    "chart-dots-2",
-                    "chart-bubble",
-                    "chart-scatter-3d",
-                    "chart-grid-dots",
-                    "chart-pie",
-                    "chart-pie-2",
-                    "chart-donut",
-                    "chart-donut-2",
-                    "chart-arcs",
-                    "chart-circles",
-                    "chart-radar",
-                    "chart-treemap",
-                    "chart-sankey",
-                    "hierarchy",
-                    "hierarchy-2",
-                    "binary-tree",
-                    "sitemap",
-                    "topology-star",
-                    "network",
-                    "git-branch",
-                    "git-merge",
-                    "arrows-split",
-                    "map",
-                    "world",
-                    "timeline",
-                    "calendar",
-                    "clock",
-                    "layout-grid",
-                    "layout-kanban",
-                    "grid-dots",
-                    "square-number-1",
-                    "percentage",
-                    "trending-up",
-                    "trending-down",
-                    "gauge",
-                    "activity",
-                    "wave-sine",
-                    "filter",
-                    "puzzle"
-                ]
-            },
             "ChartRegistryArtifact": {
                 "properties": {
                     "sha256": {
@@ -21106,146 +21246,6 @@
                     }
                 },
                 "type": "object"
-            },
-            "DataAppViz": {
-                "properties": {
-                    "registrySlug": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdByUserUuid": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "icon": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ChartTypeIcon"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "schema": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DataAppVizSchema"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "spaceUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "dataAppVizUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "registrySlug",
-                    "createdByUserUuid",
-                    "createdAt",
-                    "icon",
-                    "schema",
-                    "spaceUuid",
-                    "projectUuid",
-                    "description",
-                    "name",
-                    "slug",
-                    "dataAppVizUuid"
-                ],
-                "type": "object"
-            },
-            "KnexPaginatedData_DataAppViz-Array_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalResults": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalResults", "totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/DataAppViz"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiSuccess_KnexPaginatedData_DataAppViz-Array__": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_DataAppViz-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiListDataAppVizsResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_DataAppViz-Array__"
-            },
-            "DataAppVizListSortBy": {
-                "type": "string",
-                "enum": ["createdAt", "name"],
-                "description": "Order of a data app viz list; the default is newest first."
-            },
-            "DataAppVizListSortDirection": {
-                "type": "string",
-                "enum": ["asc", "desc"]
-            },
-            "ApiSuccess_DataAppViz_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DataAppViz"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiGetDataAppVizResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_DataAppViz_"
             },
             "DataAppVizDeleteImpact": {
                 "properties": {
@@ -64849,7 +64849,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.319.1",
+        "version": "2.319.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
