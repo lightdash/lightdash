@@ -1,3 +1,10 @@
+## [2.329.1](https://github.com/lightdash/lightdash/compare/2.329.0...2.329.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai:** correct why Output.object throws two different errors ([#29921](https://github.com/lightdash/lightdash/issues/29921)) ([5cbb037](https://github.com/lightdash/lightdash/commit/5cbb037f54141182d4c866e251eecf7f4c80080c))
+
 # [2.329.0](https://github.com/lightdash/lightdash/compare/2.328.0...2.329.0) (2026-09-24)
 
 
