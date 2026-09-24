@@ -351,13 +351,15 @@ const DashboardHeader = memo(
         const { user, health } = useApp();
         const preAggregatesEnabled =
             health.data?.preAggregates.enabled ?? false;
-        const userCanViewPreAggregateAudit = !!user.data?.ability.can(
+        const hasDashboardManageAbility = !!user.data?.ability.can(
             'manage',
             subject('Dashboard', dashboard),
         );
+        // Read-only, so verification does not restrict it
+        const userCanViewPreAggregateAudit = hasDashboardManageAbility;
         const userCanManageDashboard =
             !!user.data &&
-            userCanViewPreAggregateAudit &&
+            hasDashboardManageAbility &&
             canMutateVerifiedContent(
                 user.data.ability,
                 {
@@ -938,8 +940,7 @@ const DashboardHeader = memo(
                                 withArrow
                                 disabled={
                                     !compact &&
-                                    !userCanManageDashboard &&
-                                    !userCanViewPreAggregateAudit &&
+                                    !hasDashboardManageAbility &&
                                     !userCanExportData &&
                                     !userCanViewContentAsCode &&
                                     !canViewDashboardComments &&
