@@ -1,19 +1,30 @@
 import {
     AI_AGENT_SKILL_FILE_NAME,
+    buildAiAgentSkillMarkdown,
     isReservedAiAgentSkillName,
     isValidAiAgentSkillName,
-    suggestAiAgentSkillName,
+    splitAiAgentSkillFrontmatter,
     type AiAgentSkillFiles,
     type AiAgentSkillIssue,
     type AiAgentSkillSummary,
 } from '@lightdash/common';
-import { Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import {
+    Box,
+    Code,
+    Group,
+    Input,
+    Stack,
+    Text,
+    Textarea,
+    TextInput,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconBolt } from '@tabler/icons-react';
+import { IconBolt, IconMarkdown } from '@tabler/icons-react';
 import { useState } from 'react';
 import Callout from '../../../../components/common/Callout';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../components/common/InlineErrorState';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import {
     useAiAgentSkill,
@@ -21,17 +32,15 @@ import {
     useUpdateAiAgentSkill,
     useValidateAiAgentSkill,
 } from '../hooks/useAiAgentSkills';
+import styles from './AiAgentSkillModal.module.css';
 
-const templateFor = (name: string, title: string) => `---
-name: ${name}
-title: ${title}
-description: Describe when the agent should use this skill and what it does.
-argument-hint: "[what to pass after /${name}]"
----
+const INSTRUCTIONS_PLACEHOLDER = `## When to use
+Weekly performance review for a region.
 
-Write the instructions the agent should follow here. Use $ARGUMENTS where the
-text typed after /${name} should go.
-`;
+## Steps
+1. Pull revenue and orders for the last 7 days in $ARGUMENTS.
+2. Compare with the previous week and flag moves over 10%.
+3. Summarise the top three movers and one risk.`;
 
 const nameError = (name: string): string | null => {
     if (name.length === 0) return 'A name is required';
@@ -64,10 +73,7 @@ const IssueList = ({
                         key={`${issue.code}-${issue.path}-${issue.message}`}
                         size="xs"
                     >
-                        <Text span ff="monospace">
-                            {issue.path}
-                        </Text>
-                        : {issue.message}
+                        {issue.message}
                     </Text>
                 ))}
             </Stack>
@@ -92,66 +98,62 @@ const SkillForm = ({
     const updateSkill = useUpdateAiAgentSkill();
     const validate = useValidateAiAgentSkill();
 
+    // Other frontmatter keys (title, argument hint, ...) survive an edit untouched.
+    const existing = splitAiAgentSkillFrontmatter(
+        existingFiles[AI_AGENT_SKILL_FILE_NAME] ?? '',
+    ) ?? { data: {}, body: '' };
     const form = useForm({
         initialValues: {
-            title: skill?.title ?? '',
             name: skill?.name ?? '',
-            markdown: existingFiles[AI_AGENT_SKILL_FILE_NAME] ?? '',
+            description:
+                typeof existing.data.description === 'string'
+                    ? existing.data.description
+                    : '',
+            instructions: existing.body.trim(),
         },
         validate: {
             name: (value) => (isEditing ? null : nameError(value)),
         },
         validateInputOnChange: ['name'],
     });
-    // The name follows the title until typed by hand; once saved it is the
-    // slug, the folder and the /command, so it cannot change afterwards.
-    const [nameTouched, setNameTouched] = useState(isEditing);
-    const [markdownTouched, setMarkdownTouched] = useState(isEditing);
-    const [validatedMarkdown, setValidatedMarkdown] = useState<string | null>(
-        null,
-    );
+    const [validatedFor, setValidatedFor] = useState<string | null>(null);
 
-    // Resources beyond SKILL.md stay as they are; this editor only touches the
-    // main file in the first cut.
-    const filesFor = (markdown: string): AiAgentSkillFiles => ({
+    const filesFor = (values: typeof form.values): AiAgentSkillFiles => ({
         ...existingFiles,
-        [AI_AGENT_SKILL_FILE_NAME]: markdown,
+        [AI_AGENT_SKILL_FILE_NAME]: buildAiAgentSkillMarkdown(
+            {
+                ...existing.data,
+                name: values.name,
+                description: values.description,
+            },
+            values.instructions,
+        ),
     });
+    const currentFiles = filesFor(form.values);
+    const currentKey = currentFiles[AI_AGENT_SKILL_FILE_NAME];
 
-    const applyTemplate = () => {
-        if (markdownTouched) return;
-        form.setFieldValue(
-            'markdown',
-            templateFor(
-                form.values.name || 'my-skill',
-                form.values.title || 'My skill',
-            ),
-        );
+    const runValidation = () => {
+        if (nameError(form.values.name) !== null) return;
+        setValidatedFor(currentKey);
+        validate.mutate(currentFiles);
     };
 
-    const runValidation = (markdown: string) => {
-        setValidatedMarkdown(markdown);
-        validate.mutate(filesFor(markdown));
-    };
-
-    const validation =
-        validatedMarkdown === form.values.markdown ? validate.data : undefined;
+    const validation = validatedFor === currentKey ? validate.data : undefined;
     const hasBlockingErrors = validation !== undefined && !validation.valid;
 
     const handleSave = async () => {
-        const { markdown } = form.values;
-        const result = await validate.mutateAsync(filesFor(markdown));
-        setValidatedMarkdown(markdown);
+        const result = await validate.mutateAsync(currentFiles);
+        setValidatedFor(currentKey);
         if (!result.valid) return;
         try {
             if (isEditing) {
                 await updateSkill.mutateAsync({
                     skillUuid: skill.uuid,
-                    files: filesFor(markdown),
+                    files: currentFiles,
                 });
             } else {
                 await createSkill.mutateAsync({
-                    files: filesFor(markdown),
+                    files: currentFiles,
                     projectUuid: null,
                     agentUuids: bindToAgentUuid ? [bindToAgentUuid] : [],
                 });
@@ -163,86 +165,98 @@ const SkillForm = ({
         onClose();
     };
 
-    const saving = createSkill.isLoading || updateSkill.isLoading;
-    const saveLabel = (() => {
-        if (isEditing) return 'Save new version';
-        return bindToAgentUuid ? 'Create and bind' : 'Create skill';
-    })();
-
     return (
         <MantineModal
             opened
             onClose={onClose}
-            size="xl"
+            size="lg"
             icon={IconBolt}
             title={isEditing ? `Edit /${skill.name}` : 'New skill'}
             onConfirm={() => void handleSave()}
-            confirmLabel={saveLabel}
-            confirmLoading={saving || validate.isLoading}
+            confirmLabel={isEditing ? 'Save new version' : 'Create skill'}
+            confirmLoading={
+                createSkill.isLoading ||
+                updateSkill.isLoading ||
+                validate.isLoading
+            }
             confirmDisabled={
-                form.values.markdown.trim().length === 0 ||
+                form.values.description.trim().length === 0 ||
+                form.values.instructions.trim().length === 0 ||
                 hasBlockingErrors ||
                 (!isEditing && nameError(form.values.name) !== null)
             }
         >
-            <Stack gap="md">
-                {!isEditing && bindToAgentUuid ? (
-                    <Callout variant="info">
-                        Saving publishes version 1 and binds the skill to this
-                        agent. It also joins the organization library, where any
-                        agent can use it.
-                    </Callout>
-                ) : null}
-                {!isEditing ? (
-                    <Group grow align="flex-start">
-                        <TextInput
-                            label="Title"
-                            placeholder="Weekly review"
-                            value={form.values.title}
-                            onChange={(event) => {
-                                const title = event.currentTarget.value;
-                                form.setFieldValue('title', title);
-                                if (!nameTouched) {
-                                    form.setFieldValue(
-                                        'name',
-                                        suggestAiAgentSkillName(title),
-                                    );
-                                }
-                            }}
-                            onBlur={applyTemplate}
-                        />
-                        <TextInput
-                            label="Name"
-                            description="The /command and the folder name. Cannot change later."
-                            placeholder="weekly-review"
-                            {...form.getInputProps('name')}
-                            onChange={(event) => {
-                                setNameTouched(true);
-                                form.setFieldValue(
-                                    'name',
-                                    event.currentTarget.value,
-                                );
-                            }}
-                            onBlur={applyTemplate}
-                        />
-                    </Group>
-                ) : null}
-                <Textarea
-                    label={AI_AGENT_SKILL_FILE_NAME}
-                    description="Frontmatter needs name and description. The body is what the agent reads; $ARGUMENTS receives the text typed after the command."
-                    autosize
-                    minRows={14}
-                    maxRows={30}
-                    value={form.values.markdown}
-                    onChange={(event) => {
-                        setMarkdownTouched(true);
-                        form.setFieldValue(
-                            'markdown',
-                            event.currentTarget.value,
-                        );
-                    }}
-                    onBlur={() => runValidation(form.values.markdown)}
+            <Stack gap="lg">
+                <TextInput
+                    label="Name"
+                    placeholder="weekly-review"
+                    leftSection={
+                        <Text size="sm" c="dimmed" ff="monospace">
+                            /
+                        </Text>
+                    }
+                    leftSectionWidth={24}
+                    classNames={{ input: styles.nameInput }}
+                    disabled={isEditing}
+                    description={
+                        isEditing
+                            ? 'The name is the command and cannot change.'
+                            : undefined
+                    }
+                    data-autofocus={!isEditing}
+                    {...form.getInputProps('name')}
+                    onBlur={runValidation}
                 />
+                <TextInput
+                    label="Description"
+                    placeholder="Summarise the week for a region, with movers and risks"
+                    description="The agent reads this to decide when to use the skill."
+                    inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'description',
+                        'error',
+                    ]}
+                    {...form.getInputProps('description')}
+                    onBlur={runValidation}
+                />
+                <Input.Wrapper label="Instructions">
+                    <Box className={styles.editor}>
+                        <Textarea
+                            variant="unstyled"
+                            autosize
+                            minRows={10}
+                            maxRows={24}
+                            placeholder={INSTRUCTIONS_PLACEHOLDER}
+                            classNames={{ input: styles.editorInput }}
+                            aria-label="Instructions"
+                            {...form.getInputProps('instructions')}
+                            onBlur={runValidation}
+                        />
+                        <Group
+                            justify="space-between"
+                            px="md"
+                            py={6}
+                            className={styles.editorFooter}
+                        >
+                            <Group gap={6}>
+                                <MantineIcon
+                                    icon={IconMarkdown}
+                                    color="dimmed"
+                                />
+                                <Text size="xs" c="dimmed">
+                                    Markdown
+                                </Text>
+                            </Group>
+                            <Group gap={6}>
+                                <Code fz="xs">$ARGUMENTS</Code>
+                                <Text size="xs" c="dimmed">
+                                    text typed after the command
+                                </Text>
+                            </Group>
+                        </Group>
+                    </Box>
+                </Input.Wrapper>
                 {validation ? (
                     <>
                         <IssueList

@@ -1,0 +1,27 @@
+.editor {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+}
+
+.editor:focus-within {
+    border-color: var(--mantine-primary-color-filled);
+}
+
+.editorInput {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.7;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border: 0;
+    background: transparent;
+}
+
+.editorFooter {
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+}
+
+.nameInput {
+    font-family: var(--mantine-font-family-monospace);
+}
