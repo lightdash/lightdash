@@ -632,6 +632,31 @@ describe('interpretChartIntent', () => {
         ).toEqual({ type: 'unresolved', reason: 'remove-filter' });
     });
 
+    it('asks which filter to remove when JEV splits between two', () => {
+        expect(
+            interpretFiltered('show everything again', {
+                intent: choice('remove_filter'),
+                removeFilterField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.5,
+                    probabilities: {
+                        orders_region: 0.5,
+                        orders_date: 0.42,
+                        none: 0.08,
+                    },
+                },
+            }),
+        ).toEqual({
+            type: 'clarify',
+            question: 'Which filter should I remove?',
+            options: [
+                { label: 'Region', prompt: 'Remove the Region filter' },
+                { label: 'Date', prompt: 'Remove the Date filter' },
+            ],
+        });
+    });
+
     it('treats low-confidence intents as unresolved', () => {
         expect(interpret('hmm', { intent: choice('chart_type', 0.3) })).toEqual(
             { type: 'unresolved', reason: 'intent' },
