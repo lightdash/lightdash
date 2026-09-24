@@ -333,6 +333,29 @@ const fill = (row: VizContextRow) =>
     getGradientColor(scale, getRaw(row, valueId), domain) ?? '#DEE2E6';
 ```
 
+## Conditional formatting (chart types)
+
+A chart type that declares `conditionalFormatting` gets the table's conditional
+formatting editor. Lightdash evaluates the rules; the chart only asks for the
+colour of each value it draws and decides where to use it (a bar fill, a label,
+a cell). Colour ranges blend in OKLab, like gradients.
+
+- `getConditionalFormattingColor(context, rowIndex, columnName)` returns the hex
+  colour of `rows[rowIndex][columnName]`, or `null` when no rule matched.
+- For pivoted rows, pass the pivot column name; a rule on a metric applies to
+  all of its pivot columns.
+- Hosts that predate conditional formatting send no colours, so the helper
+  returns `null` and the chart keeps its normal colours.
+
+```tsx
+import { getConditionalFormattingColor } from '@lightdash/query-sdk';
+
+const context = useVizContext();
+const valueId = context.fieldMapping.value as string;
+const fill = (rowIndex: number) =>
+    getConditionalFormattingColor(context, rowIndex, valueId) ?? '#7162FF';
+```
+
 ## How it works
 
 1. `createClient()` sets up auth and the API transport

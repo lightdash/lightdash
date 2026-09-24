@@ -143,6 +143,14 @@ export const serializeCustomChartTypeSchema = (
             }
         }
     }
+    if (type.schema.conditionalFormatting) {
+        const eligibleSlots = type.schema.fields
+            .filter((field) => field.type !== 'series')
+            .map((field) => field.name);
+        lines.push(
+            `conditionalFormatting: supported — conditionalFormattings may target numeric fields bound to: ${eligibleSlots.join(', ')}`,
+        );
+    }
     if (type.schema.configOptions.length === 0) {
         lines.push('configOptions: none');
     } else {

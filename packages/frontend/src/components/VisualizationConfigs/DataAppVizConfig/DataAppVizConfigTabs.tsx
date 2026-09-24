@@ -4,13 +4,17 @@ import {
     diffDataAppVizSchema,
     FeatureFlags,
     getAppDisplayName,
+    getDataAppVizConditionalFormattingFieldIds,
     getEffectiveOptionValues,
     getItemId,
     getItemLabelWithoutTableName,
+    isFilterableItem,
     isOfficialChartType,
+    pruneDataAppVizConditionalFormattings,
     pruneDataAppVizFieldOptionValues,
     pruneDataAppVizOptionValues,
     type DataAppVizField,
+    type DataAppVizFieldMapping,
     type ItemsMap,
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
@@ -43,6 +47,7 @@ import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOption';
 import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
+import { ConditionalFormattingList } from '../TableConfigPanel/ConditionalFormattingList';
 import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizFieldOptions from './DataAppVizFieldOptions';
 import DataAppVizFieldOptionSections from './DataAppVizFieldOptionSections';
@@ -182,9 +187,21 @@ export const ConfigTabs: FC = memo(() => {
         setField,
         setOption,
         setFieldOption,
+        setConditionalFormattings,
         upgradeDataAppVizVersion,
     } = visualizationConfig.chartConfig;
     const fields = dataAppViz?.schema?.fields ?? [];
+    const vizSchema = dataAppViz?.schema;
+    const getConditionalFormattingFieldIds = (
+        fieldMapping: DataAppVizFieldMapping,
+    ) =>
+        vizSchema
+            ? getDataAppVizConditionalFormattingFieldIds(
+                  vizSchema,
+                  fieldMapping,
+                  effectiveItemsMap,
+              )
+            : [];
 
     const selectedOption: CustomChartTypeOption | null =
         selected !== null
@@ -218,6 +235,15 @@ export const ConfigTabs: FC = memo(() => {
             }
 
             setField(fieldName, fieldId);
+            if (selectedViz.conditionalFormattings.length > 0) {
+                setConditionalFormattings(
+                    selectedViz.dataAppVizUuid,
+                    pruneDataAppVizConditionalFormattings(
+                        selectedViz.conditionalFormattings,
+                        getConditionalFormattingFieldIds(nextFieldMapping),
+                    ),
+                );
+            }
             setPivotDimensions(
                 deriveDataAppVizPivotConfig(fields, nextFieldMapping)?.columns,
             );
@@ -241,6 +267,14 @@ export const ConfigTabs: FC = memo(() => {
                     upgradeTarget.schema.fields,
                     nextBindings,
                     selectedViz.fieldOptionValues,
+                ),
+                pruneDataAppVizConditionalFormattings(
+                    selectedViz.conditionalFormattings,
+                    getDataAppVizConditionalFormattingFieldIds(
+                        upgradeTarget.schema,
+                        nextBindings,
+                        effectiveItemsMap,
+                    ),
                 ),
             );
             setPivotDimensions(
@@ -371,6 +405,30 @@ export const ConfigTabs: FC = memo(() => {
                             renderFieldOptions={renderFieldOptions}
                         />
                     )}
+                    conditionalFormatting={
+                        vizSchema?.conditionalFormatting ?? null
+                    }
+                    conditionalFormattingControl={
+                        <ConditionalFormattingList
+                            fields={getConditionalFormattingFieldIds(
+                                effectiveBindings,
+                            ).flatMap((fieldId) => {
+                                const item = effectiveItemsMap[fieldId];
+                                return isFilterableItem(item) ? [item] : [];
+                            })}
+                            conditionalFormattings={
+                                selectedViz.conditionalFormattings
+                            }
+                            onChange={(conditionalFormattings) =>
+                                setConditionalFormattings(
+                                    selectedViz.dataAppVizUuid,
+                                    conditionalFormattings,
+                                )
+                            }
+                            colorPalette={resolvedColorPalette}
+                            showTableStyleControls={false}
+                        />
+                    }
                 />
             </>
         );

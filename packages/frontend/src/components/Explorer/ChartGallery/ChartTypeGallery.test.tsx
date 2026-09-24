@@ -51,7 +51,11 @@ const projectChartType = {
     spaceUuid: null,
     createdAt: new Date('2026-08-20T00:00:00Z'),
     createdByUserUuid: 'user-uuid',
-    schema: { fields: [], configOptions: [], colorPalette: null },
+    schema: {
+        fields: [],
+        configOptions: [],
+        colorPalette: null,
+    },
     icon: null,
     registrySlug: null,
 } satisfies DataAppViz;

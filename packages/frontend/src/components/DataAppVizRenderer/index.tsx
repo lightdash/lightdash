@@ -1,6 +1,7 @@
 import {
     ChartType,
     deriveDataAppVizFieldMetadata,
+    getDataAppVizConditionalFormattingColors,
     getDataAppVizFieldOptions,
     getDataAppVizContextOptions,
     hasCustomBinDimension,
@@ -27,6 +28,7 @@ import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { type SdkManifest } from '../../features/apps/hooks/useAppSdkBridge';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { useConditionalFormattingColorRangeAdjuster } from '../../features/chartTypes/hooks/useConditionalFormattingColorRangeAdjuster';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
@@ -177,6 +179,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
     const fieldOptionValues = config?.fieldOptionValues;
+    const conditionalFormattings = config?.conditionalFormattings;
     const rows = resultsData?.rows;
     const pivotDetails = resultsData?.pivotDetails ?? null;
 
@@ -247,6 +250,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     );
     const configOptions = readyMetadata?.schema.configOptions;
     const fields = readyMetadata?.schema.fields;
+    const conditionalFormattingDeclaration =
+        readyMetadata?.schema.conditionalFormatting;
 
     const metricQuery = resultsData?.metricQuery;
     const sourceQueryUuid = resultsData?.queryUuid;
@@ -494,6 +499,36 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         isDashboardSurface,
     ]);
 
+    const adjustColorRange = useConditionalFormattingColorRangeAdjuster();
+    const conditionalFormattingColors = useMemo(
+        () =>
+            rows && fields && reconciledFieldMapping
+                ? getDataAppVizConditionalFormattingColors({
+                      schema: {
+                          fields,
+                          conditionalFormatting:
+                              conditionalFormattingDeclaration,
+                      },
+                      fieldMapping: reconciledFieldMapping,
+                      itemsMap: itemsMap ?? {},
+                      conditionalFormattings: conditionalFormattings ?? [],
+                      rows,
+                      pivotDetails,
+                      adjustColorRange,
+                  })
+                : [],
+        [
+            rows,
+            fields,
+            conditionalFormattingDeclaration,
+            reconciledFieldMapping,
+            itemsMap,
+            conditionalFormattings,
+            pivotDetails,
+            adjustColorRange,
+        ],
+    );
+
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
         if (!rows || !configOptions || !fields || !reconciledFieldMapping)
             return undefined;
@@ -518,6 +553,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             // corrected by the visualization context.
             colorPalette,
             ...resolvedColors,
+            conditionalFormattingColors,
             pivotDetails,
             underlyingData: {
                 enabled: underlyingDataEnabled,
@@ -536,6 +572,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         fieldOptionValues,
         colorPalette,
         resolvedColors,
+        conditionalFormattingColors,
         pivotDetails,
         underlyingDataEnabled,
         underlyingDataOpenEnabled,

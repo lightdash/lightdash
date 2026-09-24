@@ -260,6 +260,7 @@ describe('AiVisualizationRenderer custom chart type answers', () => {
         chartConfig: {
             customChartTypeSlug: 'cohort-waterfall',
             fieldOptions: null,
+            conditionalFormattings: null,
             fieldMapping: {
                 x: 'orders_order_month',
                 y: 'orders_total_revenue',

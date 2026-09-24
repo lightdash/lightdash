@@ -1,23 +1,28 @@
 import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
+    getDataAppVizConditionalFormattingColors,
     getDataAppVizFieldOptions,
     getDataAppVizContextOptions,
     getDataAppVizPreviewSchema,
     getPivotValueColumnName,
+    TableCalculationType,
     VizAggregationOptions,
     VizIndexType,
+    type ConditionalFormattingColorRange,
     type DataAppVizContext,
     type DataAppVizField,
     type DataAppVizFieldOptionValues,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
     type DataAppVizPreview,
+    type ItemsMap,
     type PivotValuesColumn,
     type ResultColumn,
     type ResultColumns,
     type ResultRow,
 } from '@lightdash/common';
+import { getSampleConditionalFormattings } from './sampleConditionalFormatting';
 
 // ISO raw values so vizzes that build a time axis can parse them.
 const SAMPLE_CATEGORIES = [
@@ -312,6 +317,9 @@ const buildDemoSample = (
  */
 export const buildSampleVizContext = (
     schema: DataAppVizSchema,
+    adjustColorRange: (
+        colorRange: ConditionalFormattingColorRange,
+    ) => ConditionalFormattingColorRange,
     colorPalette: string[] = ECHARTS_DEFAULT_COLORS,
     optionValues: DataAppVizOptionValues = {},
     preview: DataAppVizPreview | null = null,
@@ -349,6 +357,20 @@ export const buildSampleVizContext = (
           ? buildPivotedSample(fields)
           : buildFlatSample(fields);
 
+    // Sample metrics are numbers, described as numeric calculations so the
+    // sample conditional formatting rule can target them.
+    const sampleItemsMap: ItemsMap = Object.fromEntries(
+        fields.metrics.map((field) => [
+            sampleColumnId(field),
+            {
+                name: sampleColumnId(field),
+                displayName: field.label,
+                sql: sampleColumnId(field),
+                type: TableCalculationType.NUMBER,
+            },
+        ]),
+    );
+
     return {
         fieldMapping,
         // Fabricated columns have no semantic-layer item; the declared slot
@@ -372,6 +394,16 @@ export const buildSampleVizContext = (
         colorPalette,
         seriesColors: {},
         valueColors: {},
+        conditionalFormattingColors: getDataAppVizConditionalFormattingColors({
+            schema,
+            fieldMapping,
+            itemsMap: sampleItemsMap,
+            conditionalFormattings: getSampleConditionalFormattings(
+                colorPalette[0],
+            ),
+            ...sample,
+            adjustColorRange,
+        }),
         // Sample rows come from no query — there is nothing to drill into.
         underlyingData: { enabled: false },
         drillDown: { enabled: false },

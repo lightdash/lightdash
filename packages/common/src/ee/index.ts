@@ -18,6 +18,7 @@ export * from './apps/elementReference';
 export * from './apps/sdkFeatures';
 export * from './apps/dataAppVizSchemaChanges';
 export * from './apps/dataAppVizFieldMapping';
+export * from './apps/dataAppVizConditionalFormatting';
 export * from './apps/dataAppVizFieldOptions';
 export * from './apps/dataAppVizGradient';
 export * from './apps/types';

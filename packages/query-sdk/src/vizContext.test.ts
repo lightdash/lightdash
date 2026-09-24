@@ -9,6 +9,7 @@ import {
     buildVizDrillDown,
     buildVizPointMenu,
     buildVizUnderlyingData,
+    getConditionalFormattingColor,
     getFieldLabel,
     getFormatted,
     getRaw,
@@ -257,6 +258,37 @@ describe('toVizContextState', () => {
         });
     });
 
+    it('looks up conditional formatting colours by row and column', () => {
+        const state = toVizContextState(
+            message({
+                conditionalFormattingColors: [
+                    { orders_total: '#00ff00', broken: 3 },
+                    'nope',
+                ] as never,
+            }),
+        );
+
+        expect(state.conditionalFormattingColors).toEqual([
+            { orders_total: '#00ff00' },
+            {},
+        ]);
+        expect(getConditionalFormattingColor(state, 0, 'orders_total')).toBe(
+            '#00ff00',
+        );
+        expect(getConditionalFormattingColor(state, 0, 'broken')).toBeNull();
+        expect(
+            getConditionalFormattingColor(state, 5, 'orders_total'),
+        ).toBeNull();
+    });
+
+    it('has no conditional formatting colours for older hosts', () => {
+        const state = toVizContextState(message({}));
+        expect(state.conditionalFormattingColors).toEqual([]);
+        expect(
+            getConditionalFormattingColor(state, 0, 'orders_total'),
+        ).toBeNull();
+    });
+
     it('defaults per-field options to an empty object for older hosts', () => {
         expect(toVizContextState(message({})).fieldOptions).toEqual({});
     });
@@ -373,6 +405,7 @@ describe('toVizContextState', () => {
             colorPalette: [],
             seriesColors: {},
             valueColors: {},
+            conditionalFormattingColors: [],
             pivotDetails: null,
             underlyingDataEnabled: false,
             underlyingDataOpenEnabled: false,

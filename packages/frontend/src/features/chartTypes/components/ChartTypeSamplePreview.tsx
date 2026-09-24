@@ -6,6 +6,7 @@ import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedCo
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import AppIframePreview from '../../apps/AppIframePreview';
 import { usePreviewOrigin } from '../../apps/previewOrigin';
+import { useConditionalFormattingColorRangeAdjuster } from '../hooks/useConditionalFormattingColorRangeAdjuster';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
@@ -64,17 +65,19 @@ const ChartTypeSamplePreview: FC<Props> = ({
             : undefined;
 
     const colorPalette = useResolvedColorPalette(projectUuid);
+    const adjustColorRange = useConditionalFormattingColorRangeAdjuster();
     const sampleContext = useMemo(
         () =>
             readyMetadata
                 ? buildSampleVizContext(
                       readyMetadata.schema,
+                      adjustColorRange,
                       colorPalette,
                       {},
                       readyMetadata.preview ?? null,
                   )
                 : undefined,
-        [readyMetadata, colorPalette],
+        [readyMetadata, colorPalette, adjustColorRange],
     );
 
     // @mantine/hooks' useElementSize never observes an element mounted after

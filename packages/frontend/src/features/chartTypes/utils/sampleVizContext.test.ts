@@ -1,9 +1,13 @@
 import {
     getDataAppVizFieldIds,
     type DataAppVizSchema,
+    type ConditionalFormattingColorRange,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { buildSampleVizContext } from './sampleVizContext';
+
+const keepColorRange = (colorRange: ConditionalFormattingColorRange) =>
+    colorRange;
 
 const baseSchema: DataAppVizSchema = {
     fields: [
@@ -39,7 +43,7 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         fields: schema.fields.filter((f) => f.type !== 'series'),
     };
     it('maps every declared field, required or not', () => {
-        const context = buildSampleVizContext(schema);
+        const context = buildSampleVizContext(schema, keepColorRange);
 
         expect(Object.keys(context.fieldMapping)).toEqual([
             'category',
@@ -49,24 +53,29 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
     });
 
     it('resolves options to their declared defaults', () => {
-        const context = buildSampleVizContext(schema);
+        const context = buildSampleVizContext(schema, keepColorRange);
 
         expect(context.options).toEqual({ showLegend: true });
     });
 
     it('is deterministic', () => {
-        expect(buildSampleVizContext(schema)).toEqual(
-            buildSampleVizContext(schema),
+        expect(buildSampleVizContext(schema, keepColorRange)).toEqual(
+            buildSampleVizContext(schema, keepColorRange),
         );
     });
 
     it('uses one labeled sample column while preserving a multiple binding', () => {
-        const context = buildSampleVizContext({
-            ...flatSchema,
-            fields: flatSchema.fields.map((field) =>
-                field.name === 'value' ? { ...field, multiple: true } : field,
-            ),
-        });
+        const context = buildSampleVizContext(
+            {
+                ...flatSchema,
+                fields: flatSchema.fields.map((field) =>
+                    field.name === 'value'
+                        ? { ...field, multiple: true }
+                        : field,
+                ),
+            },
+            keepColorRange,
+        );
 
         expect(context.fieldMapping.value).toEqual(['sample_value']);
         expect(context.fields.sample_value.label).toBe('Value');
@@ -77,24 +86,27 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
     });
 
     it('includes single and multiple column slots in sample rows', () => {
-        const context = buildSampleVizContext({
-            ...flatSchema,
-            fields: [
-                {
-                    name: 'column',
-                    label: 'Column',
-                    type: 'column',
-                    required: true,
-                },
-                {
-                    name: 'columns',
-                    label: 'Columns',
-                    type: 'column',
-                    required: true,
-                    multiple: true,
-                },
-            ],
-        });
+        const context = buildSampleVizContext(
+            {
+                ...flatSchema,
+                fields: [
+                    {
+                        name: 'column',
+                        label: 'Column',
+                        type: 'column',
+                        required: true,
+                    },
+                    {
+                        name: 'columns',
+                        label: 'Columns',
+                        type: 'column',
+                        required: true,
+                        multiple: true,
+                    },
+                ],
+            },
+            keepColorRange,
+        );
 
         for (const id of Object.values(context.fieldMapping).flatMap(
             getDataAppVizFieldIds,
@@ -109,17 +121,20 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
             const source = withSeries ? schema : flatSchema;
             const value = source.fields.find((field) => field.name === 'value');
             if (!value) throw new Error('Missing value field');
-            const context = buildSampleVizContext({
-                ...source,
-                fields: [
-                    ...source.fields.map((field) =>
-                        field.name === 'value'
-                            ? { ...field, multiple: true }
-                            : field,
-                    ),
-                    { ...value, name: 'value_1', label: 'Other value' },
-                ],
-            });
+            const context = buildSampleVizContext(
+                {
+                    ...source,
+                    fields: [
+                        ...source.fields.map((field) =>
+                            field.name === 'value'
+                                ? { ...field, multiple: true }
+                                : field,
+                        ),
+                        { ...value, name: 'value_1', label: 'Other value' },
+                    ],
+                },
+                keepColorRange,
+            );
             const mappedIds = Object.values(context.fieldMapping).flatMap(
                 getDataAppVizFieldIds,
             );
@@ -151,14 +166,14 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
 
     describe('without a series field', () => {
         it('leaves the rows flat', () => {
-            const context = buildSampleVizContext(flatSchema);
+            const context = buildSampleVizContext(flatSchema, keepColorRange);
 
             expect(context.pivotDetails).toBeNull();
             expect(context.rows.length).toBe(12);
         });
 
         it('writes a cell for every mapped column in every row', () => {
-            const context = buildSampleVizContext(flatSchema);
+            const context = buildSampleVizContext(flatSchema, keepColorRange);
 
             for (const row of context.rows) {
                 for (const columnId of Object.values(
@@ -171,7 +186,7 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         });
 
         it('gives dimensions date raw values with display-formatted labels', () => {
-            const context = buildSampleVizContext(flatSchema);
+            const context = buildSampleVizContext(flatSchema, keepColorRange);
             const [columnId] = getDataAppVizFieldIds(
                 context.fieldMapping.category,
             );
@@ -186,31 +201,34 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
 
     describe('with a series field', () => {
         it('counts pivot groups independently of separately declared metrics', () => {
-            const context = buildSampleVizContext({
-                ...schema,
-                fields: [
-                    ...schema.fields,
-                    {
-                        name: 'second',
-                        label: 'Second measure',
-                        type,
-                        required: true,
-                    },
-                    {
-                        name: 'third',
-                        label: 'Third measure',
-                        type,
-                        required: true,
-                    },
-                ],
-            });
+            const context = buildSampleVizContext(
+                {
+                    ...schema,
+                    fields: [
+                        ...schema.fields,
+                        {
+                            name: 'second',
+                            label: 'Second measure',
+                            type,
+                            required: true,
+                        },
+                        {
+                            name: 'third',
+                            label: 'Third measure',
+                            type,
+                            required: true,
+                        },
+                    ],
+                },
+                keepColorRange,
+            );
 
             expect(context.pivotDetails?.valuesColumns).toHaveLength(9);
             expect(context.pivotDetails?.totalColumnCount).toBe(3);
         });
 
         it('pivots the metric into one column per series value', () => {
-            const context = buildSampleVizContext(schema);
+            const context = buildSampleVizContext(schema, keepColorRange);
 
             expect(context.pivotDetails?.valuesColumns).toEqual([
                 expect.objectContaining({
@@ -234,7 +252,10 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         });
 
         it('indexes rows on the dimension and keys metrics by pivot column', () => {
-            const { rows, pivotDetails } = buildSampleVizContext(schema);
+            const { rows, pivotDetails } = buildSampleVizContext(
+                schema,
+                keepColorRange,
+            );
 
             expect(pivotDetails).not.toBeNull();
             if (!pivotDetails) return;
@@ -255,7 +276,7 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         });
 
         it('declares the dimension as the index and the series as the pivot column', () => {
-            const context = buildSampleVizContext(schema);
+            const context = buildSampleVizContext(schema, keepColorRange);
 
             expect(context.pivotDetails?.indexColumn).toEqual([
                 { reference: 'sample_category', type: 'time' },
@@ -266,7 +287,7 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         });
 
         it('describes the unpivoted columns behind the pivot', () => {
-            const context = buildSampleVizContext(schema);
+            const context = buildSampleVizContext(schema, keepColorRange);
 
             expect(context.pivotDetails?.originalColumns).toEqual({
                 sample_category: {
@@ -288,17 +309,20 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         });
 
         it('stays flat when there is no value field to spread', () => {
-            const context = buildSampleVizContext({
-                ...schema,
-                fields: schema.fields.filter((f) => f.name !== 'value'),
-            });
+            const context = buildSampleVizContext(
+                {
+                    ...schema,
+                    fields: schema.fields.filter((f) => f.name !== 'value'),
+                },
+                keepColorRange,
+            );
 
             expect(context.pivotDetails).toBeNull();
         });
     });
 
     it('leaves host-resolved colors empty for synthetic rows', () => {
-        const context = buildSampleVizContext(schema);
+        const context = buildSampleVizContext(schema, keepColorRange);
 
         expect(context.seriesColors).toEqual({});
         expect(context.valueColors).toEqual({});
@@ -323,7 +347,7 @@ describe('mixed metric and column fields', () => {
                     },
                 ],
             };
-            const context = buildSampleVizContext(schema);
+            const context = buildSampleVizContext(schema, keepColorRange);
             const metricKey = pivoted
                 ? 'sample_value_any_Series A'
                 : 'sample_value';
@@ -371,12 +395,14 @@ describe('authored preview data', () => {
                         multiple: true,
                     })),
                 },
+                keepColorRange,
                 undefined,
                 {},
                 preview,
             );
             const scalarContext = buildSampleVizContext(
                 schema,
+                keepColorRange,
                 undefined,
                 {},
                 preview,
@@ -409,6 +435,7 @@ describe('authored preview data', () => {
         };
         const context = buildSampleVizContext(
             schema,
+            keepColorRange,
             ['#123456'],
             {},
             {
@@ -436,25 +463,38 @@ describe('authored preview data', () => {
     it('merges demo options over defaults and explicit options over demo options', () => {
         const preview = { optionValues: { showLegend: false } };
         expect(
-            buildSampleVizContext(baseSchema, undefined, {}, preview).options
-                .showLegend,
+            buildSampleVizContext(
+                baseSchema,
+                keepColorRange,
+                undefined,
+                {},
+                preview,
+            ).options.showLegend,
         ).toBe(false);
         expect(
             buildSampleVizContext(
                 baseSchema,
+                keepColorRange,
                 undefined,
                 { showLegend: true },
                 preview,
             ).options.showLegend,
         ).toBe(true);
         expect(
-            buildSampleVizContext(baseSchema, undefined, {}, preview).rows,
-        ).toEqual(buildSampleVizContext(baseSchema).rows);
+            buildSampleVizContext(
+                baseSchema,
+                keepColorRange,
+                undefined,
+                {},
+                preview,
+            ).rows,
+        ).toEqual(buildSampleVizContext(baseSchema, keepColorRange).rows);
     });
 
     it('pivots authored series, preserving sparse groups and column metadata', () => {
         const context = buildSampleVizContext(
             baseSchema,
+            keepColorRange,
             undefined,
             {},
             {
@@ -487,6 +527,7 @@ describe('authored preview data', () => {
                     (field) => field.type !== 'metric',
                 ),
             },
+            keepColorRange,
             undefined,
             {},
             {
@@ -500,10 +541,11 @@ describe('authored preview data', () => {
         expect(
             buildSampleVizContext(
                 baseSchema,
+                keepColorRange,
                 undefined,
                 {},
                 { rows: [{ removedField: 1 }] },
             ),
-        ).toEqual(buildSampleVizContext(baseSchema));
+        ).toEqual(buildSampleVizContext(baseSchema, keepColorRange));
     });
 });

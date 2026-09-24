@@ -1,10 +1,16 @@
-import { type DataAppVizSchema } from '@lightdash/common';
+import {
+    type DataAppVizSchema,
+    type ConditionalFormattingColorRange,
+} from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { buildSampleVizContext } from '../utils/sampleVizContext';
 import { ChartTypeSampleData } from './ChartTypeSampleData';
+
+const keepColorRange = (colorRange: ConditionalFormattingColorRange) =>
+    colorRange;
 
 const flatSchema: DataAppVizSchema = {
     fields: [
@@ -27,7 +33,7 @@ const flatSchema: DataAppVizSchema = {
 
 describe('ChartTypeSampleData', () => {
     it('opens flat sample values in a modal and restores focus after Escape', async () => {
-        const context = buildSampleVizContext(flatSchema);
+        const context = buildSampleVizContext(flatSchema, keepColorRange);
         renderWithProviders(<ChartTypeSampleData context={context} />);
 
         const launcher = screen.getByRole('button', {
@@ -85,19 +91,22 @@ describe('ChartTypeSampleData', () => {
     });
 
     it('uses pivot metadata for every series column', async () => {
-        const context = buildSampleVizContext({
-            ...flatSchema,
-            fields: [
-                flatSchema.fields[0],
-                { ...flatSchema.fields[1], multiple: true },
-                {
-                    name: 'series',
-                    label: 'Region',
-                    type: 'series',
-                    required: false,
-                },
-            ],
-        });
+        const context = buildSampleVizContext(
+            {
+                ...flatSchema,
+                fields: [
+                    flatSchema.fields[0],
+                    { ...flatSchema.fields[1], multiple: true },
+                    {
+                        name: 'series',
+                        label: 'Region',
+                        type: 'series',
+                        required: false,
+                    },
+                ],
+            },
+            keepColorRange,
+        );
         renderWithProviders(<ChartTypeSampleData context={context} />);
         const user = userEvent.setup();
         await user.click(
@@ -132,18 +141,21 @@ describe('ChartTypeSampleData', () => {
     it.each(['scalar', 'undefined'] as const)(
         'normalizes %s pivot index metadata',
         async (variant) => {
-            const context = buildSampleVizContext({
-                ...flatSchema,
-                fields: [
-                    ...flatSchema.fields,
-                    {
-                        name: 'series',
-                        label: 'Region',
-                        type: 'series',
-                        required: false,
-                    },
-                ],
-            });
+            const context = buildSampleVizContext(
+                {
+                    ...flatSchema,
+                    fields: [
+                        ...flatSchema.fields,
+                        {
+                            name: 'series',
+                            label: 'Region',
+                            type: 'series',
+                            required: false,
+                        },
+                    ],
+                },
+                keepColorRange,
+            );
             if (!context.pivotDetails) throw new Error('Expected pivoted data');
             const indexColumn = context.pivotDetails.indexColumn;
             const normalizedContext = {
@@ -185,11 +197,14 @@ describe('ChartTypeSampleData', () => {
     it('hides an empty sample context with no columns', () => {
         renderWithProviders(
             <ChartTypeSampleData
-                context={buildSampleVizContext({
-                    fields: [],
-                    configOptions: [],
-                    colorPalette: null,
-                })}
+                context={buildSampleVizContext(
+                    {
+                        fields: [],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                    keepColorRange,
+                )}
             />,
         );
 

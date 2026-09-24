@@ -9,6 +9,7 @@ const initialConfig: DataAppVizChart = {
     fieldMapping: { category: 'orders_status' },
     optionValues: { showLegend: false },
     fieldOptionValues: {},
+    conditionalFormattings: [],
 };
 
 describe('useDataAppVizVisualizationConfig', () => {
@@ -45,6 +46,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             },
             optionValues: { showLegend: false },
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -78,6 +80,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 { category: 'orders_status', value: 'orders_count' },
                 {},
                 {},
+                [],
             ),
         );
 
@@ -87,6 +90,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             fieldMapping: { category: 'orders_status', value: 'orders_count' },
             optionValues: {},
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -105,6 +109,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 },
                 {},
                 {},
+                [],
             ),
         );
 
@@ -133,7 +138,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             ),
         );
 
-        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}, {}));
+        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}, {}, []));
 
         expect(onConfigChange).toHaveBeenLastCalledWith({
             dataAppVizUuid: 'viz-1',
@@ -141,6 +146,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             fieldMapping: {},
             optionValues: {},
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -150,7 +156,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             useDataAppVizVisualizationConfig(undefined, onConfigChange),
         );
 
-        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}, {}));
+        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}, {}, []));
 
         expect(onConfigChange).not.toHaveBeenCalled();
         expect(result.current.validConfig).toBeNull();
@@ -184,6 +190,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             fieldMapping: { category: 'orders_status' },
             optionValues: { showLegend: false, barColor: '#ff0000' },
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -214,6 +221,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 title: 'Revenue',
             },
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -318,6 +326,29 @@ describe('useDataAppVizVisualizationConfig', () => {
         expect(onConfigChange).not.toHaveBeenCalled();
     });
 
+    it('stores conditional formatting rules for the viz they were edited on', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+        const rules = [
+            {
+                target: { fieldId: 'orders_count' },
+                color: '#ff0000',
+                rules: [],
+            },
+        ];
+
+        act(() => result.current.setConditionalFormattings('viz-2', rules));
+        expect(onConfigChange).not.toHaveBeenCalled();
+
+        act(() => result.current.setConditionalFormattings('viz-1', rules));
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            ...initialConfig,
+            conditionalFormattings: rules,
+        });
+    });
+
     it('keeps both field edits when two selects change in the same commit', () => {
         const onConfigChange = vi.fn();
         const { result } = renderHook(() =>
@@ -343,6 +374,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             },
             optionValues: { showLegend: false },
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -362,6 +394,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             },
             optionValues: { showLegend: false },
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -421,6 +454,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             fieldMapping: {},
             optionValues: {},
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -477,6 +511,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             fieldMapping: { category: 'orders_status' },
             optionValues: { showLegend: false, barColor: '#ff0000' },
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -497,6 +532,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 fieldMapping: { value: 'orders_total' },
                 optionValues: {},
                 fieldOptionValues: {},
+                conditionalFormattings: [],
             },
         });
 
@@ -514,6 +550,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             fieldMapping: { value: 'orders_total' },
             optionValues: { barColor: '#00ff00' },
             fieldOptionValues: {},
+            conditionalFormattings: [],
         });
     });
 
@@ -568,6 +605,7 @@ describe('useDataAppVizVisualizationConfig', () => {
                 fieldMapping: {},
                 optionValues: {},
                 fieldOptionValues: {},
+                conditionalFormattings: [],
             }),
         );
 

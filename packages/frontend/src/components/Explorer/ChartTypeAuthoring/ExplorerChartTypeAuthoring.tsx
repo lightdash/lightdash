@@ -2,6 +2,7 @@ import {
     ChartType,
     FeatureFlags,
     getAppDisplayName,
+    type ConditionalFormattingConfig,
     type DataAppVizFieldOptionValues,
     type DataAppVizOptionValues,
     type ItemsMap,
@@ -13,6 +14,7 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
 import { useChartTypeBuilderWorkspace } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { useConditionalFormattingColorRangeAdjuster } from '../../../features/chartTypes/hooks/useConditionalFormattingColorRangeAdjuster';
 import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import {
@@ -47,6 +49,7 @@ import ExplorerChartTypeAuthoringView from './ExplorerChartTypeAuthoringView';
 const NO_ITEMS: ItemsMap = {};
 const NO_OPTIONS: DataAppVizOptionValues = {};
 const NO_FIELD_OPTIONS: DataAppVizFieldOptionValues = {};
+const NO_CONDITIONAL_FORMATTINGS: ConditionalFormattingConfig[] = [];
 
 type Props = {
     authoring: ChartTypeAuthoringState;
@@ -162,6 +165,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const optionValues = chartTypeConfig?.optionValues ?? NO_OPTIONS;
     const fieldOptionValues =
         chartTypeConfig?.fieldOptionValues ?? NO_FIELD_OPTIONS;
+    const conditionalFormattings =
+        chartTypeConfig?.conditionalFormattings ?? NO_CONDITIONAL_FORMATTINGS;
     const previewFieldMapping = useMemo(
         () =>
             schema
@@ -206,6 +211,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         pivotDetails: resultsData.pivotDetails ?? null,
         colorPalette,
     });
+    const adjustColorRange = useConditionalFormattingColorRangeAdjuster();
     const previewContext = useMemo(
         () =>
             schema
@@ -218,6 +224,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                       colorPalette,
                       optionValues,
                       fieldOptionValues,
+                      conditionalFormattings,
+                      adjustColorRange,
                       resolvedColors,
                   })
                 : null,
@@ -230,6 +238,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             colorPalette,
             optionValues,
             fieldOptionValues,
+            conditionalFormattings,
+            adjustColorRange,
             resolvedColors,
         ],
     );

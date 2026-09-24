@@ -1306,12 +1306,20 @@ describe('BuilderPromptBar', () => {
     it('does not restore queued row consent for editing after the source changes', async () => {
         const send = vi.fn();
         const chartAContext = {
-            schema: { fields: [], configOptions: [], colorPalette: null },
+            schema: {
+                fields: [],
+                configOptions: [],
+                colorPalette: null,
+            },
             fieldMapping: {},
             sampleRows: [{ customer_email: 'alice@example.com' }],
         } as NonNullable<VizBuildRequest['context']>;
         const chartBContext = {
-            schema: { fields: [], configOptions: [], colorPalette: null },
+            schema: {
+                fields: [],
+                configOptions: [],
+                colorPalette: null,
+            },
             fieldMapping: {},
             sampleRows: [{ account_balance: '$1,000' }],
         } as NonNullable<VizBuildRequest['context']>;
@@ -1372,12 +1380,20 @@ describe('BuilderPromptBar', () => {
         const send = vi.fn();
         const interrupt = vi.fn();
         const chartAContext = {
-            schema: { fields: [], configOptions: [], colorPalette: null },
+            schema: {
+                fields: [],
+                configOptions: [],
+                colorPalette: null,
+            },
             fieldMapping: {},
             sampleRows: [{ customer_email: 'alice@example.com' }],
         } as NonNullable<VizBuildRequest['context']>;
         const chartBContext = {
-            schema: { fields: [], configOptions: [], colorPalette: null },
+            schema: {
+                fields: [],
+                configOptions: [],
+                colorPalette: null,
+            },
             fieldMapping: {},
             sampleRows: [{ account_balance: '$1,000' }],
         } as NonNullable<VizBuildRequest['context']>;

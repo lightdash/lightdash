@@ -45,6 +45,8 @@ const tabs = (
         renderFieldOptions={(group) => (
             <Box data-testid="field-options">{group}</Box>
         )}
+        conditionalFormatting={null}
+        conditionalFormattingControl={null}
     />
 );
 

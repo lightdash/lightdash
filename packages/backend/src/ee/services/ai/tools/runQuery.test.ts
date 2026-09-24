@@ -1347,6 +1347,7 @@ describe('getRunQuery custom chart types', () => {
     const customChartConfig = {
         customChartTypeSlug: 'cohort-waterfall',
         fieldOptions: null,
+        conditionalFormattings: null,
         fieldMapping: { x: 'a_dim1', y: 'a_met1' },
         options: { showLegend: true },
     };

@@ -16,7 +16,11 @@ const metadata = (version: number): DataAppVizRenderMetadata => ({
     version,
     latestBuildInProgress: false,
     preview: null,
-    schema: { fields: [], configOptions: [], colorPalette: null },
+    schema: {
+        fields: [],
+        configOptions: [],
+        colorPalette: null,
+    },
 });
 
 const forbidden = {

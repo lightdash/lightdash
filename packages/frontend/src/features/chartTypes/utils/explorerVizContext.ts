@@ -1,7 +1,10 @@
 import {
     deriveDataAppVizFieldMetadata,
+    getDataAppVizConditionalFormattingColors,
     getDataAppVizFieldOptions,
     getDataAppVizContextOptions,
+    type ConditionalFormattingColorRange,
+    type ConditionalFormattingConfig,
     type DataAppVizContext,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
@@ -28,6 +31,10 @@ type Args = {
     colorPalette: string[];
     optionValues: DataAppVizOptionValues;
     fieldOptionValues: DataAppVizFieldOptionValues;
+    conditionalFormattings: ConditionalFormattingConfig[];
+    adjustColorRange: (
+        colorRange: ConditionalFormattingColorRange,
+    ) => ConditionalFormattingColorRange;
     resolvedColors: DataAppVizResolvedColors;
 };
 
@@ -58,6 +65,8 @@ export const buildExplorerVizContext = ({
     colorPalette,
     optionValues,
     fieldOptionValues,
+    conditionalFormattings,
+    adjustColorRange,
     resolvedColors,
 }: Args): DataAppVizContext => {
     const fieldMapping = resolveExplorerVizFieldMapping({
@@ -81,6 +90,15 @@ export const buildExplorerVizContext = ({
         ),
         colorPalette,
         ...resolvedColors,
+        conditionalFormattingColors: getDataAppVizConditionalFormattingColors({
+            schema,
+            fieldMapping,
+            itemsMap,
+            conditionalFormattings,
+            rows,
+            pivotDetails,
+            adjustColorRange,
+        }),
         pivotDetails,
         underlyingData: { enabled: false },
         drillDown: { enabled: false },

@@ -252,6 +252,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Let viewers pick a colour gradient (two to five colours, automatic or fixed minimum and maximum) for a reusable visualization or for each of its fields, for heatmaps, colour-scaled bars or choropleth-style shading.',
         wiring: "Declare a configOption with type 'gradient' and a default { colors, min, max } (min/max a number or 'auto'), chart-wide or on a field. Colour each value with getGradientColor(gradient, value, domain?): a per-field gradient arrives with automatic bounds already resolved from that field's values; a chart-wide one arrives with null bounds that the domain you pass fills. It returns null for missing or non-numeric values and clamps values outside the range to the end colours.",
     },
+    {
+        key: 'viz-conditional-formatting',
+        appliesTo: ['chart_type'],
+        label: 'Conditional formatting',
+        description:
+            'Let viewers colour the values of a reusable visualization with the same conditional formatting rules and colour ranges as tables, for highlighting bars, labels or cells that meet a condition.',
+        wiring: 'Declare conditionalFormatting: {} (optionally with a group tab) on the viz schema, then colour each drawn value with getConditionalFormattingColor(context, rowIndex, columnName) — rowIndex indexes useVizContext().rows and columnName is the column the value was read from (a pivoted column name for pivoted rows). It returns null when no rule matched or the host predates conditional formatting; the chart decides where to apply the colour (bar fill, text, cell).',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

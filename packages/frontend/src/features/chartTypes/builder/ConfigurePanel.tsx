@@ -126,6 +126,8 @@ const ConfigurePanel: FC<Props> = ({
                 schema.colorPalette,
                 schema.fields,
                 previewContext?.fieldMapping ?? {},
+                // Builder previews use sample rules, so there is no editor tab.
+                null,
             ),
         [
             schema.configOptions,

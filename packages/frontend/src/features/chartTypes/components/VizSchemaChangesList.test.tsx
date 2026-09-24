@@ -65,6 +65,7 @@ const changes: DataAppVizSchemaChanges = {
         ],
     },
     colorPalette: 'added',
+    conditionalFormatting: 'unchanged',
 };
 
 describe('VizSchemaChangesList', () => {
@@ -90,6 +91,7 @@ describe('VizSchemaChangesList', () => {
                     fields: { added: [], removed: [], changed: [] },
                     configOptions: changes.configOptions,
                     colorPalette: 'unchanged',
+                    conditionalFormatting: 'unchanged',
                 }}
             />,
         );

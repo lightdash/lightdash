@@ -830,6 +830,12 @@ export type DataAppVizChart = {
      * shipped.
      */
     fieldOptionValues?: DataAppVizFieldOptionValues;
+    /**
+     * Conditional formatting rules on the chart's bound numeric fields, for
+     * vizzes that declare `conditionalFormatting`. Absent on charts saved
+     * before conditional formatting shipped.
+     */
+    conditionalFormattings?: ConditionalFormattingConfig[];
 };
 
 export type CartesianChart = {

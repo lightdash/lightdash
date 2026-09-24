@@ -399,8 +399,8 @@ highlighted:
 ## The declaration
 
 Alongside the component you emit one structured declaration — as **structured output, not a
-file**. It has four parts: `fields`, `configOptions`, `colorPalette` and optional
-`inputGuidance`. Lightdash builds
+file**. It has five parts: `fields`, `configOptions`, `colorPalette`, `conditionalFormatting`
+and optional `inputGuidance`. Lightdash builds
 the field-mapping UI and the chart config panel from it, so the component is unusable
 without it.
 
@@ -558,6 +558,26 @@ name.
 This is not a config option. There is one palette per chart, it has no `name` and no
 `default`, and its colours arrive on `colorPalette` — never on `options`.
 
+### `conditionalFormatting`
+
+Whether the viewer gets the same conditional formatting editor as tables: single-colour
+rules ("greater than 100 → red") and colour ranges, each on one numeric field bound to the
+chart. Declare `{ "group": "..." }` when the component can colour individual values (a bar
+fill, a label, a cell), or `null` when it cannot. `group` works like the palette's.
+
+This is not a config option: it has no `name` and no `default`, and the rules never arrive
+on `options`. Lightdash evaluates them and hands you the result. For each value you draw,
+call `getConditionalFormattingColor(context, rowIndex, columnName)` with the index into
+`rows` and the column you read the value from (the pivot column name for pivoted rows). It
+returns a hex colour, or `null` when no rule matched or the host predates conditional
+formatting; draw your normal colour then. You decide where the colour goes.
+
+```tsx
+import { getConditionalFormattingColor } from '@lightdash/query-sdk';
+const fill = (rowIndex: number) =>
+  getConditionalFormattingColor(context, rowIndex, valField) ?? seriesColor;
+```
+
 ## Worked example
 
 Component and declaration lining up. Your chart will differ; the correspondence must not.
@@ -615,6 +635,7 @@ fields: [{ "name": "category", "label": "Category", "type": "dimension", "requir
 configOptions: [{ "name": "showLabels", "label": "Show value labels", "group": "Labels", "type": "boolean", "default": true },
                 { "name": "maxBars", "label": "Max bars", "type": "number", "default": 10, "min": 1, "max": 50 }]
 colorPalette: {}
+conditionalFormatting: null
 inputGuidance: "Use one row per category in display order. Reshape queries with separate category columns into category/value rows before mapping."
 ```
 
@@ -632,6 +653,8 @@ minimum, not a menu:
 - every accent colour that is not a series colour (a target line, a highlight) → `color`
 - the series colours, whenever the chart draws more than one series → resolved-colour
   helper plus `colorPalette`
+- values a viewer may want highlighted by threshold (bars, cells, labels) →
+  `getConditionalFormattingColor` plus `conditionalFormatting`
 
 Where the answer is yes, make that literal the option's `default`, declare the option, and
 read the option in its place. Leave it hardcoded only where changing it would break the

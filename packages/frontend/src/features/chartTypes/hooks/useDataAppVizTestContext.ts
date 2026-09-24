@@ -2,6 +2,7 @@ import {
     deriveDataAppVizFieldMetadata,
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
+    getDataAppVizConditionalFormattingColors,
     getDataAppVizContextOptions,
     getDataAppVizFieldOptions,
     getDataAppVizFieldIds,
@@ -33,6 +34,8 @@ import {
     isMappingComplete,
 } from '../components/dataAppVizTestQuery';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
+import { getSampleConditionalFormattings } from '../utils/sampleConditionalFormatting';
+import { useConditionalFormattingColorRangeAdjuster } from './useConditionalFormattingColorRangeAdjuster';
 import { useDataAppVizResolvedColors } from './useDataAppVizResolvedColors';
 
 type Run = {
@@ -148,6 +151,7 @@ export const useDataAppVizTestContext = ({
     }, [selectedPalette, projectPalette, colorScheme]);
 
     const rows = queryResults.rows;
+    const adjustColorRange = useConditionalFormattingColorRangeAdjuster();
     const resolvedColors = useDataAppVizResolvedColors({
         itemsMap,
         rows,
@@ -188,6 +192,18 @@ export const useDataAppVizTestContext = ({
                 ),
                 colorPalette,
                 ...resolvedColors,
+                conditionalFormattingColors:
+                    getDataAppVizConditionalFormattingColors({
+                        schema,
+                        fieldMapping: run.fieldMapping,
+                        itemsMap,
+                        conditionalFormattings: getSampleConditionalFormattings(
+                            colorPalette[0],
+                        ),
+                        rows,
+                        pivotDetails: queryResults.pivotDetails ?? null,
+                        adjustColorRange,
+                    }),
                 pivotDetails: queryResults.pivotDetails ?? null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
@@ -201,12 +217,12 @@ export const useDataAppVizTestContext = ({
         itemsMap,
         queryResults.queryUuid,
         queryResults.pivotDetails,
-        schema.configOptions,
+        schema,
         optionValues,
-        schema.fields,
         fieldOptionValues,
         colorPalette,
         resolvedColors,
+        adjustColorRange,
         onContextChange,
     ]);
     // Clear the preview when the consumer unmounts.

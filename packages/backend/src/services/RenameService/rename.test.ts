@@ -775,6 +775,19 @@ describe('renameChartConfigType', () => {
                         orders_count: { color: '#00ff00' },
                     },
                 },
+                conditionalFormattings: [
+                    {
+                        target: { fieldId: 'payment_amount' },
+                        color: '#ff0000',
+                        rules: [
+                            {
+                                id: 'above-tax',
+                                operator: FilterOperator.GREATER_THAN,
+                                compareTarget: { fieldId: 'payment_tax' },
+                            },
+                        ],
+                    },
+                ],
             },
         } as DataAppVizChartConfig;
 
@@ -792,6 +805,21 @@ describe('renameChartConfigType', () => {
                 orders_count: { color: '#00ff00' },
             },
         });
+        expect(
+            (result as DataAppVizChartConfig).config?.conditionalFormattings,
+        ).toEqual([
+            {
+                target: { fieldId: 'invoice_amount' },
+                color: '#ff0000',
+                rules: [
+                    {
+                        id: 'above-tax',
+                        operator: FilterOperator.GREATER_THAN,
+                        compareTarget: { fieldId: 'invoice_tax' },
+                    },
+                ],
+            },
+        ]);
     });
 
     test('should rename table prefix in cartesian chart config', () => {

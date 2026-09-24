@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { FilterOperator } from '../../../../types/filter';
 import { MergeJoinType } from '../../../../types/mergeQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { isHexCodeColor } from '../../../../utils/colors';
 import { dataAppVizGradientValueSchema } from '../../../apps/dataAppVizGradient';
 import {
     customMetricsSchema,
@@ -230,6 +232,80 @@ const customChartTypeOptionValueSchema = z.union([
     dataAppVizGradientValueSchema,
 ]);
 
+const hexColorSchema = z
+    .string()
+    .refine(isHexCodeColor, 'expected a hex colour');
+
+const customChartTypeRangeBoundSchema = z.union([
+    z.number(),
+    z.literal('auto'),
+]);
+
+// Conditional formatting rules for custom chart types that declare
+// conditionalFormatting; converted to saved chart rules on the way out.
+const customChartTypeConditionalFormattingSchema = z.union([
+    z.object({
+        type: z.literal('single'),
+        fieldId: z
+            .string()
+            .describe(
+                'Numeric field id bound in fieldMapping whose values this rule colours.',
+            ),
+        color: hexColorSchema.describe(
+            'Hex colour for values that match every condition.',
+        ),
+        conditions: z
+            .array(
+                z.object({
+                    operator: z.enum([
+                        FilterOperator.EQUALS,
+                        FilterOperator.NOT_EQUALS,
+                        FilterOperator.LESS_THAN,
+                        FilterOperator.LESS_THAN_OR_EQUAL,
+                        FilterOperator.GREATER_THAN,
+                        FilterOperator.GREATER_THAN_OR_EQUAL,
+                        FilterOperator.IN_BETWEEN,
+                        FilterOperator.NOT_IN_BETWEEN,
+                    ]),
+                    values: z
+                        .array(z.number())
+                        .nullable()
+                        .describe(
+                            'Numbers to compare against (two for inBetween and notInBetween). null when compareFieldId is set.',
+                        ),
+                    compareFieldId: z
+                        .string()
+                        .nullable()
+                        .describe(
+                            'Another numeric field id bound in fieldMapping to compare against in the same row. null when comparing against values.',
+                        ),
+                }),
+            )
+            .min(1)
+            .describe('Conditions that must all match.'),
+    }),
+    z.object({
+        type: z.literal('range'),
+        fieldId: z
+            .string()
+            .describe(
+                'Numeric field id bound in fieldMapping whose values this range colours.',
+            ),
+        startColor: hexColorSchema.describe('Hex colour at min.'),
+        endColor: hexColorSchema.describe('Hex colour at max.'),
+        min: customChartTypeRangeBoundSchema.describe(
+            "A fixed number, or 'auto' for the field's smallest value.",
+        ),
+        max: customChartTypeRangeBoundSchema.describe(
+            "A fixed number, or 'auto' for the field's largest value.",
+        ),
+    }),
+]);
+
+export type ToolRunQueryCustomChartTypeConditionalFormatting = z.infer<
+    typeof customChartTypeConditionalFormattingSchema
+>;
+
 // Custom chart type branch of chartConfig — LLM-authored. Discriminated
 // structurally from the builtin branch by customChartTypeSlug.
 const chartConfigCustomChartTypeSchema = z.object({
@@ -273,6 +349,13 @@ const chartConfigCustomChartTypeSchema = z.object({
         .default(null)
         .describe(
             "Values for the type's per-field options: slot name → field id bound to that slot → option name → value. Only for slots that declare per-field options. null to use the declared defaults.",
+        ),
+    conditionalFormattings: z
+        .array(customChartTypeConditionalFormattingSchema)
+        .nullish()
+        .default(null)
+        .describe(
+            'Conditional formatting rules, only for a type that supports conditional formatting. Later rules win when several match a value. null for none.',
         ),
 });
 

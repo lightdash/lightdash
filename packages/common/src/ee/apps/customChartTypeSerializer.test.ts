@@ -249,6 +249,23 @@ describe('serializeCustomChartTypeSchema', () => {
         );
     });
 
+    it('says which slots conditional formatting can target when the type supports it', () => {
+        expect(
+            serializeCustomChartTypeSchema({
+                ...cohortWaterfall,
+                schema: {
+                    ...cohortWaterfall.schema,
+                    conditionalFormatting: {},
+                },
+            }),
+        ).toContain(
+            'conditionalFormatting: supported — conditionalFormattings may target numeric fields bound to: cohort_period, revenue',
+        );
+        expect(serializeCustomChartTypeSchema(cohortWaterfall)).not.toContain(
+            'conditionalFormatting',
+        );
+    });
+
     it('omits empty examples', () => {
         expect(
             serializeCustomChartTypeSchema({

@@ -93,6 +93,8 @@ const DataAppVizTestPanel: FC<Props> = ({
                             showPreview={false}
                         />
                     }
+                    conditionalFormatting={null}
+                    conditionalFormattingControl={null}
                 />
 
                 {error != null && (

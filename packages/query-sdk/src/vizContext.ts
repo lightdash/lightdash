@@ -153,6 +153,8 @@ export type DataAppVizContextMessage = {
     seriesColors?: Record<string, string>;
     /** Absent when the installed host predates resolved-color delivery. */
     valueColors?: Record<string, Record<string, string>>;
+    /** Absent when the installed host predates conditional formatting delivery. */
+    conditionalFormattingColors?: Array<Record<string, string>>;
     /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
     pivotDetails?: VizContextPivotDetails | null;
     /** Absent when the installed host predates underlying-data delivery. */
@@ -311,6 +313,12 @@ export type VizContext = {
     seriesColors: Record<string, string>;
     /** Query field id → raw value → final color resolved by the Lightdash host. */
     valueColors: Record<string, Record<string, string>>;
+    /**
+     * Aligned with `rows`: column name → colour for each cell a conditional
+     * formatting rule matched. Read it with `getConditionalFormattingColor`.
+     * Empty without rules or when the host predates conditional formatting.
+     */
+    conditionalFormattingColors: Array<Record<string, string>>;
     /** Metadata that maps generated pivot column names back to their metric and series values. */
     pivotDetails: VizContextPivotDetails | null;
     /** False until the first context arrives — render a placeholder while false. */
@@ -332,6 +340,7 @@ type VizContextValue = {
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
+    conditionalFormattingColors: VizContext['conditionalFormattingColors'];
     pivotDetails: VizContextPivotDetails | null;
     underlyingDataEnabled: boolean;
     underlyingDataOpenEnabled: boolean;
@@ -493,6 +502,19 @@ export const resolveValueColor = (
           getPaletteColor(context.colorPalette, index));
 
 /**
+ * The conditional formatting colour of the cell at `rows[rowIndex][columnName]`
+ * (a pivoted column name for pivoted rows), or null when no rule matched or the
+ * host predates conditional formatting. The chart decides where to apply it:
+ * a bar fill, a label, a cell background.
+ */
+export const getConditionalFormattingColor = (
+    context: Pick<VizContext, 'conditionalFormattingColors'>,
+    rowIndex: number,
+    columnName: string,
+): string | null =>
+    context.conditionalFormattingColors[rowIndex]?.[columnName] ?? null;
+
+/**
  * Normalises an inbound host message into provider state. Optional capabilities
  * are absent from hosts predating them and receive stable fallback values.
  */
@@ -512,6 +534,11 @@ export function toVizContextState(
             : [],
         seriesColors: normalizeStringRecord(message.seriesColors),
         valueColors: normalizeValueColors(message.valueColors),
+        conditionalFormattingColors: Array.isArray(
+            message.conditionalFormattingColors,
+        )
+            ? message.conditionalFormattingColors.map(normalizeStringRecord)
+            : [],
         pivotDetails: message.pivotDetails ?? null,
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
@@ -824,8 +851,9 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * fields, then read cells with `getFormatted`/`getRaw` and label axes and
  * legends with `getFieldLabel`. Read a declared config option with
  * `options[name]` and a per-field option with
- * `fieldOptions[name][fieldId]`, and colour series with
- * `resolveSeriesColor` / `resolveValueColor`.
+ * `fieldOptions[name][fieldId]`, colour series with
+ * `resolveSeriesColor` / `resolveValueColor`, and colour values by the
+ * chart's conditional formatting with `getConditionalFormattingColor`.
  */
 export function useVizContext(): VizContext {
     const fromProvider = useContext(VizContextContext);
@@ -875,6 +903,7 @@ export function useVizContext(): VizContext {
         colorPalette: context?.colorPalette ?? [],
         seriesColors: context?.seriesColors ?? {},
         valueColors: context?.valueColors ?? {},
+        conditionalFormattingColors: context?.conditionalFormattingColors ?? [],
         pivotDetails: context?.pivotDetails ?? null,
         ready: context !== null,
         underlyingData,

@@ -111,6 +111,7 @@ export {
     getFormatted,
     getRaw,
     getFieldLabel,
+    getConditionalFormattingColor,
     resolveSeriesColor,
     resolveValueColor,
 } from './vizContext';

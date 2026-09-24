@@ -32,7 +32,11 @@ describe('DataAppVizResultCard', () => {
     it('renders gracefully with an empty fields array', () => {
         renderWithProviders(
             <DataAppVizResultCard
-                schema={{ fields: [], configOptions: [], colorPalette: null }}
+                schema={{
+                    fields: [],
+                    configOptions: [],
+                    colorPalette: null,
+                }}
             />,
         );
 
