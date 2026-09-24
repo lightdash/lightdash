@@ -342,6 +342,7 @@ import {
 import {
     applyChartIntent,
     getFilterFieldIds,
+    getFilterRules,
     type ChartEdit,
 } from '../ai/decisions/chartEdits';
 import {
@@ -11957,6 +11958,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 extraAddableFields: catalogFields.map(
                     ({ candidate }) => candidate,
                 ),
+                filterRules: getFilterRules(chartConfig) ?? [],
             }),
         };
     }

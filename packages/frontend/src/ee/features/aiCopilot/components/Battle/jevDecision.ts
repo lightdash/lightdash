@@ -6,6 +6,7 @@ const EDIT_LABELS: Record<string, string> = {
     filter_period: 'date range',
     add_field: 'breakdown',
     sort: 'sort',
+    remove_filter: 'filter removal',
     clear_filters: 'clear filters',
     clear_sort: 'clear sort',
     stack: 'stack',

@@ -9,11 +9,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DecisionAnswers } from './AiDecisionClient';
 import {
     buildChartIntentContext,
+    buildChartIntentQuestions,
     decideTurn,
     extractNumberCandidates,
     interpretChartIntent,
     isChartEditAttempt,
     selectFilterValues,
+    type ChartFilterRule,
     type ChartIntentResolution,
 } from './chartIntent';
 
@@ -101,6 +103,7 @@ const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
         } as DecisionAnswers,
         prompt,
         context: buildChartIntentContext({
+            filterRules: [],
             prompt,
             artifact,
             explore,
@@ -487,6 +490,7 @@ describe('interpretChartIntent', () => {
             },
         };
         const context = buildChartIntentContext({
+            filterRules: [],
             prompt: 'segment by place',
             artifact,
             explore,
@@ -518,6 +522,7 @@ describe('interpretChartIntent', () => {
 
     it('orders clarification chips by verified then chart usage', () => {
         const context = buildChartIntentContext({
+            filterRules: [],
             prompt: 'segment by place',
             artifact,
             explore,
@@ -569,6 +574,64 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    const interpretFiltered = (
+        prompt: string,
+        answers: Partial<DecisionAnswers>,
+    ) =>
+        interpretChartIntent({
+            answers: {
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                ...answers,
+            } as DecisionAnswers,
+            prompt,
+            context: buildChartIntentContext({
+                filterRules: [
+                    {
+                        fieldId: 'orders_date',
+                        operator: 'inBetween',
+                        values: ['2024-01-01', '2024-12-31'],
+                    },
+                    {
+                        fieldId: 'orders_region',
+                        operator: 'equals',
+                        values: ['North'],
+                    },
+                ],
+                prompt,
+                artifact,
+                explore,
+                usage: noUsage,
+            }),
+        });
+
+    it('removes the one filter JEV picks among the chart filters', () => {
+        expect(
+            interpretFiltered('show every region again', {
+                intent: choice('remove_filter'),
+                removeFilterField: choice('orders_region'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'remove_filter', fieldId: 'orders_region' },
+        });
+    });
+
+    it('does not remove a filter JEV cannot tie to the chart filters', () => {
+        expect(
+            interpretFiltered('show every status again', {
+                intent: choice('remove_filter'),
+                removeFilterField: choice('none'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'remove-filter' });
+        expect(
+            interpretFiltered('show every region again', {
+                intent: choice('remove_filter'),
+                removeFilterField: choice('orders_region', 0.4),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'remove-filter' });
+    });
+
     it('treats low-confidence intents as unresolved', () => {
         expect(interpret('hmm', { intent: choice('chart_type', 0.3) })).toEqual(
             { type: 'unresolved', reason: 'intent' },
@@ -606,8 +669,36 @@ describe('isChartEditAttempt', () => {
 });
 
 describe('buildChartIntentContext', () => {
+    it('offers the chart filters as removal options only when there are some', () => {
+        const questionsFor = (filterRules: ChartFilterRule[]) =>
+            buildChartIntentQuestions({
+                prompt: 'show everything again',
+                context: buildChartIntentContext({
+                    filterRules,
+                    prompt: 'show everything again',
+                    artifact,
+                    explore,
+                    usage: noUsage,
+                }),
+            });
+        const region = {
+            fieldId: 'orders_region',
+            operator: 'equals',
+            values: ['North'],
+        };
+        expect(questionsFor([]).removeFilterField).toBeUndefined();
+        expect(questionsFor([region]).removeFilterField).toMatchObject({
+            type: 'choice',
+            criteria: {
+                orders_region: 'Region (Orders)',
+                none: expect.any(String),
+            },
+        });
+    });
+
     it('offers only unselected visible dimensions as addable fields', () => {
         const context = buildChartIntentContext({
+            filterRules: [],
             prompt: 'segment by region',
             artifact,
             explore,
@@ -635,6 +726,7 @@ describe('buildChartIntentContext', () => {
             chartUsage: 0,
         }));
         const context = buildChartIntentContext({
+            filterRules: [],
             prompt: 'segment by warehouse zone',
             artifact,
             explore,
@@ -699,6 +791,7 @@ describe('decideTurn', () => {
             instructions: null,
             conversation: [],
             context: buildChartIntentContext({
+                filterRules: [],
                 prompt: 'as a line',
                 artifact,
                 explore,
@@ -746,6 +839,7 @@ describe('decideTurn', () => {
             instructions: null,
             conversation: [],
             context: buildChartIntentContext({
+                filterRules: [],
                 prompt: 'stacked 100% bars',
                 artifact,
                 explore,
@@ -777,6 +871,7 @@ describe('decideTurn', () => {
             instructions: null,
             conversation: [],
             context: buildChartIntentContext({
+                filterRules: [],
                 prompt: 'as bars',
                 artifact,
                 explore,
@@ -797,6 +892,7 @@ describe('decideTurn', () => {
             instructions: null,
             conversation: [],
             context: buildChartIntentContext({
+                filterRules: [],
                 prompt: 'as a line',
                 artifact,
                 explore,
