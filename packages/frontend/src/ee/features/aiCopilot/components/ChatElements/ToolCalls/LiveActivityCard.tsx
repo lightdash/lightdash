@@ -683,12 +683,14 @@ export const LiveActivityCard: FC<Props> = ({
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
         latestGroup?.toolName === 'runComposerQueries' ? isActive : ''
     }`;
-    const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
-    const [expandedFor, setExpandedFor] = useState(expandKey);
-    if (expandedFor !== expandKey) {
-        setExpandedFor(expandKey);
-        setUserExpanded(null);
-    }
+    const [userToggle, setUserToggle] = useState<{
+        key: string;
+        value: boolean;
+    } | null>(null);
+    const userExpanded =
+        userToggle?.key === expandKey ? userToggle.value : null;
+    const setUserExpanded = (value: boolean) =>
+        setUserToggle({ key: expandKey, value });
 
     if (toolGroups.length === 0 && !pendingContent) return null;
 

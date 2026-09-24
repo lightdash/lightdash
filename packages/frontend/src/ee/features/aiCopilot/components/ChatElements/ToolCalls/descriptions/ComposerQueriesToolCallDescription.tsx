@@ -187,14 +187,14 @@ const ComposerQueryNode: FC<{
     const active = isActiveStatus(nodeStatus);
     // Active and failed nodes open by default; a user toggle wins until the status changes.
     const defaultOpen = active || nodeStatus?.status === 'error';
-    const [userOpen, setUserOpen] = useState<boolean | null>(null);
-    const [toggledForStatus, setToggledForStatus] = useState(
-        nodeStatus?.status,
-    );
-    if (toggledForStatus !== nodeStatus?.status) {
-        setToggledForStatus(nodeStatus?.status);
-        setUserOpen(null);
-    }
+    const [userToggle, setUserToggle] = useState<{
+        status: ComposerQueryNodeStatus['status'] | undefined;
+        open: boolean;
+    } | null>(null);
+    const userOpen =
+        userToggle?.status === nodeStatus?.status ? userToggle?.open : null;
+    const setUserOpen = (value: boolean) =>
+        setUserToggle({ status: nodeStatus?.status, open: value });
     const open = userOpen ?? defaultOpen;
     const statusText = nodeStatus ? getNodeStatusText(nodeStatus) : null;
     const showApproval =
