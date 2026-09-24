@@ -10,6 +10,7 @@ import {
 import {
     ActionIcon,
     Box,
+    Button,
     Group,
     Paper,
     SegmentedControl,
@@ -45,12 +46,12 @@ import {
     useRef,
     useState,
     type FC,
+    type KeyboardEvent,
     type ReactNode,
 } from 'react';
 import '@xyflow/react/dist/style.css';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { PolymorphicGroupButton } from '../../../../../../components/common/PolymorphicGroupButton';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
@@ -167,14 +168,31 @@ const SourceType: FC<{ query: SourceQuery }> = ({ query }) => {
 
 const QueryDetails: FC<{ query: SourceQuery }> = ({ query }) => {
     const sql = useMemo(() => formattedSqlOf(query), [query]);
+    const [queryOpen, setQueryOpen] = useState(false);
     return (
         <>
             {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
                 <SemanticFields query={query} />
             )}
             {sql && (
-                <Box className={styles.code}>
-                    <CodeBlock code={sql} language="sql" />
+                // Reading or copying the query must not display the node.
+                <Box
+                    className={styles.details}
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={() => setQueryOpen((value) => !value)}
+                        aria-expanded={queryOpen}
+                    >
+                        {queryOpen ? 'Hide query' : 'View query'}
+                    </Button>
+                    {queryOpen && (
+                        <Box className={styles.code}>
+                            <CodeBlock code={sql} language="sql" />
+                        </Box>
+                    )}
                 </Box>
             )}
         </>
@@ -206,27 +224,37 @@ const PipelineNodeRow: FC<{ node: PipelineNode } & NodeDisplay> = ({
             {node.kind === 'query' && <SourceType query={node.query} />}
         </>
     );
+    // The whole card is the click target; it holds other controls, so it is
+    // a div with a button role rather than a native button.
+    const clickable = displayable
+        ? {
+              role: 'button',
+              tabIndex: 0,
+              onClick: () => onDisplayNode(node.nodeId),
+              onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onDisplayNode(node.nodeId);
+                  }
+              },
+              'aria-pressed': displayed,
+              'aria-label': `Display ${node.title}`,
+          }
+        : {};
     return (
         <Box
-            className={clsx(styles.node, displayed && styles.displayed)}
+            className={clsx(
+                styles.node,
+                displayable && styles.clickable,
+                displayed && styles.displayed,
+            )}
             id={pipelineNodeRowId(node.nodeId)}
             data-node-id={node.nodeId}
             data-displayed={displayed}
+            {...clickable}
         >
-            {displayable ? (
-                <PolymorphicGroupButton
-                    component="button"
-                    type="button"
-                    className={clsx(styles.nodeHead, styles.nodeHeadButton)}
-                    onClick={() => onDisplayNode(node.nodeId)}
-                    aria-pressed={displayed}
-                    aria-label={`Display ${node.title}`}
-                >
-                    {head}
-                </PolymorphicGroupButton>
-            ) : (
-                <Box className={styles.nodeHead}>{head}</Box>
-            )}
+            <Box className={styles.nodeHead}>{head}</Box>
             {node.description && (
                 <Text className={styles.nodeDescription}>
                     {node.description}

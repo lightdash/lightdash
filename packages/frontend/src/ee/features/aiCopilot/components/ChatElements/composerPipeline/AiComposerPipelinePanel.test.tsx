@@ -1,5 +1,5 @@
 import { QuerySourceType, type SourceQuery } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { AiComposerPipelinePanel } from './AiComposerPipelinePanel';
@@ -163,5 +163,35 @@ describe('AiComposerPipelinePanel earlier result placeholder', () => {
         expect(screen.getByText('Earlier result')).toBeInTheDocument();
         expect(screen.getByText('Reads prev')).toBeInTheDocument();
         expect(document.body.textContent).not.toContain(uuid);
+    });
+});
+
+describe('AiComposerPipelinePanel query details', () => {
+    it('keeps the query collapsed until View query is clicked, without displaying the node', () => {
+        const onDisplayNode = vi.fn();
+        renderPanel({ defaultExpanded: true, onDisplayNode });
+        const row = () =>
+            document.getElementById('composer-pipeline-node-amounts')!;
+        const code = () => row().querySelector('code');
+        expect(code()).toBeNull();
+        fireEvent.click(
+            within(row()).getByRole('button', { name: 'View query' }),
+        );
+        expect(code()).toHaveTextContent(/select\s+2/i);
+        expect(onDisplayNode).not.toHaveBeenCalled();
+        fireEvent.click(
+            within(row()).getByRole('button', { name: 'Hide query' }),
+        );
+        expect(code()).toBeNull();
+    });
+
+    it('displays a node from the keyboard', () => {
+        const onDisplayNode = vi.fn();
+        renderPanel({ defaultExpanded: true, onDisplayNode });
+        fireEvent.keyDown(
+            screen.getByRole('button', { name: 'Display Average amount' }),
+            { key: 'Enter' },
+        );
+        expect(onDisplayNode).toHaveBeenCalledWith('amounts');
     });
 });
