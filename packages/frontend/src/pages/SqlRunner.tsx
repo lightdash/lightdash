@@ -10,7 +10,7 @@ import {
     resetChartState,
     setChartConfig,
 } from '../components/DataViz/store/actions/commonChartActions';
-import { Sidebar } from '../features/sqlRunner';
+import { SqlRunnerSidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
@@ -166,7 +166,7 @@ const SqlRunner = ({
             title="SQL Runner"
             noContentPadding
             flexContent
-            sidebar={<Sidebar />}
+            sidebar={<SqlRunnerSidebar />}
             sidebarTitle="Tables"
         >
             <Stack gap={0} flex={1} miw={0}>

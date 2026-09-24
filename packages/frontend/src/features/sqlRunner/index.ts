@@ -1,1 +1,1 @@
-export * from './components/Sidebar';
+export * from './multiConnection/components/SqlRunnerSidebar';

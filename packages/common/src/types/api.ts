@@ -438,6 +438,7 @@ import {
     type ValidationResponse,
 } from './validation';
 import {
+    type ApiWarehouseDatabaseListing,
     type ApiWarehouseTableFields,
     type ApiWarehouseTablesCatalog,
 } from './warehouse';
@@ -1298,6 +1299,7 @@ type ApiResults =
     | ApiWarehouseConnectionUserCredentialsResponse['results']
     | ApiWarehouseConnectionsForUserCredentialsResponse['results']
     | ApiSqlRunnerWarehouseConnectionsResponse['results']
+    | ApiWarehouseDatabaseListing['results']
     | Document
     | DocumentList
     | ContentReviewRequest

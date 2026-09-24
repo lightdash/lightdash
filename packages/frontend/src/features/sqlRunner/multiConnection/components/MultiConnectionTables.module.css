@@ -1,0 +1,94 @@
+.groupButton {
+    width: 100%;
+    padding: rem(6px) rem(8px);
+    padding-inline-start: calc(rem(8px) + var(--tree-depth, 0) * rem(14px));
+    border-radius: var(--mantine-radius-md);
+    color: var(--mantine-color-text);
+    transition: background-color 120ms ease;
+}
+
+.groupButton:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.tableButton {
+    border-radius: var(--mantine-radius-md);
+    padding: rem(4px) rem(8px);
+    padding-inline-start: calc(rem(28px) + var(--tree-depth, 0) * rem(14px));
+    color: var(--mantine-color-ldGray-7);
+    transition:
+        background-color 120ms ease,
+        color 120ms ease;
+}
+
+.tableButton:hover {
+    background-color: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+.tableButton[data-active] {
+    background-color: light-dark(rgb(24 24 27 / 0.07), rgb(236 236 238 / 0.09));
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.tableButton[data-active]:hover {
+    background-color: light-dark(rgb(24 24 27 / 0.1), rgb(236 236 238 / 0.13));
+}
+
+.rowIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.tableButton[data-active] .rowIcon {
+    color: var(--mantine-color-text);
+}
+
+.messageRow {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: rem(6px) rem(8px);
+    padding-inline-start: calc(rem(48px) + var(--tree-depth, 0) * rem(14px));
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.copyButton {
+    position: absolute;
+    top: rem(4px);
+    right: rem(6px);
+}
+
+.searchInput {
+    min-width: 0;
+    flex: 1;
+}
+
+.searchSection[data-position='right'] {
+    justify-content: flex-end;
+    align-items: center;
+    padding-inline-end: rem(4px);
+}
+
+.typeFilter {
+    --sc-padding: 0 rem(6px);
+    flex-shrink: 0;
+    height: rem(26px);
+    padding: rem(2px);
+}
+
+.typeFilterLabel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 0;
+    line-height: 0;
+}
