@@ -342,26 +342,6 @@
     user-select: none;
 }
 
-/* Skill chips are neutral inline code, not a colored content pill. */
-.contentMention[data-content-type='skill'] {
-    padding: 1px 6px;
-    border-radius: var(--mantine-radius-sm);
-    font-family: var(--mantine-font-family-monospace);
-    font-weight: 400;
-    font-size: 0.9em;
-
-    @mixin light {
-        color: var(--mantine-color-text);
-        background-color: var(--mantine-color-ldGray-1);
-        border-color: var(--mantine-color-ldGray-1);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-text);
-        background-color: var(--mantine-color-ldDark-3);
-        border-color: var(--mantine-color-ldDark-3);
-    }
-}
 
 .skillMenuItem {
     padding: 6px var(--mantine-spacing-sm);

@@ -26,7 +26,18 @@ export const SkillMentionNodeView = ({ node }: NodeViewProps) => {
                     : undefined
             }
         >
-            <MantineIcon icon={IconLicense} size={12} color="dimmed" />
+            <Box
+                component="span"
+                className={styles.contentMentionIcon}
+                data-rendered-icon="true"
+            >
+                <MantineIcon
+                    icon={IconLicense}
+                    size={12}
+                    color="indigo.6"
+                    stroke={1.8}
+                />
+            </Box>
             <Box component="span" className={styles.contentMentionLabel}>
                 /{name}
             </Box>
