@@ -295,17 +295,27 @@ describe('ExportResults large export warning', () => {
         const warning = screen.getByTestId('large-export-warning');
         expect(warning).toHaveTextContent('Large export');
         expect(warning).toHaveTextContent(
-            'This export is about 5 million cells. Exports that take longer than 10 minutes fail. Filter the results or use a scheduled delivery to Google Sheets.',
+            'This export is about 5 million cells. Exports must finish within 10 minutes, and one this large may take longer. Filter the results or use a scheduled delivery to Google Sheets.',
         );
         expect(screen.getByTestId('chart-export-results-button')).toBeEnabled();
     });
 
-    it('omits the timeout sentence when the timeout is unknown', () => {
+    it('uses the singular unit for a one-minute timeout', () => {
+        renderLargeExport({}, 60_000);
+
+        expect(screen.getByTestId('large-export-warning')).toHaveTextContent(
+            'Exports must finish within 1 minute, and one this large may take longer.',
+        );
+    });
+
+    it('omits the timeout when it is unknown', () => {
         renderLargeExport({}, 0);
 
-        expect(
-            screen.getByTestId('large-export-warning'),
-        ).not.toHaveTextContent('Exports that take longer');
+        const warning = screen.getByTestId('large-export-warning');
+        expect(warning).toHaveTextContent(
+            'This export is about 5 million cells and may take a long time to finish. Filter the results or use a scheduled delivery to Google Sheets.',
+        );
+        expect(warning).not.toHaveTextContent('Exports must finish');
     });
 
     it('does not warn below the threshold', () => {
