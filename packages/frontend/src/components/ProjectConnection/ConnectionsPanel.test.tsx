@@ -229,18 +229,88 @@ describe('ConnectionsPanel', () => {
         await user.click(
             await screen.findByRole('button', { name: 'Add connection' }),
         );
-        expect(
-            await screen.findByText(
-                "Follows the primary connection's setting.",
-            ),
-        ).toBeInTheDocument();
         const advanced = screen.getByRole('button', { name: /advanced/i });
         await user.click(advanced);
+        expect(
+            screen.getByText(
+                'Require users to provide their own credentials follows the primary connection.',
+            ),
+        ).toBeInTheDocument();
         expect(
             screen.queryByText(
                 'Require users to provide their own credentials',
             ),
         ).not.toBeInTheDocument();
+    });
+
+    it('hides the ineffective toggle when editing an organisation credential extra', async () => {
+        const shared = {
+            ...extra,
+            name: 'Shared',
+            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
+        };
+        mockApi.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url === listUrl && method === 'GET')
+                    return {
+                        connections: [original, shared],
+                        capabilities: { canAddConnection: true, reason: null },
+                    };
+                if (url === `${listUrl}/extra-uuid` && method === 'GET')
+                    return {
+                        ...shared,
+                        warehouseConnection: {
+                            type: WarehouseTypes.POSTGRES,
+                            host: 'shared.internal',
+                            dbname: 'analytics',
+                            schema: 'public',
+                            port: 5432,
+                            requireUserCredentials: true,
+                        },
+                    };
+                if (url === `${listUrl}/extra-uuid` && method === 'PATCH')
+                    return shared;
+                throw new Error(`Unexpected ${method} ${url}`);
+            },
+        );
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Actions for Shared' }),
+        );
+        await user.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+        const title = await screen.findByText('Edit Shared');
+        const dialog = title.closest<HTMLElement>(
+            '[role="alertdialog"], [role="dialog"]',
+        )!;
+        await user.click(
+            within(dialog).getByRole('button', { name: /advanced/i }),
+        );
+        expect(
+            within(dialog).getByText(
+                'Require users to provide their own credentials follows the primary connection.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).queryByText(
+                'Require users to provide their own credentials',
+            ),
+        ).not.toBeInTheDocument();
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Save changes' }),
+        );
+        await waitFor(() =>
+            expect(
+                mockApi.mock.calls.filter(
+                    ([call]) => (call as { method: string }).method === 'PATCH',
+                ),
+            ).toHaveLength(1),
+        );
+        const patch = mockApi.mock.calls.find(
+            ([call]) => (call as { method: string }).method === 'PATCH',
+        )![0] as { body: string };
+        expect(JSON.parse(patch.body)).not.toHaveProperty(
+            'organizationWarehouseCredentialsUuid',
+        );
     });
 
     it('shows why a bound connection cannot be removed', async () => {

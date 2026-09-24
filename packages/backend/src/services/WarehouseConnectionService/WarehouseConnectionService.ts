@@ -343,14 +343,31 @@ export class WarehouseConnectionService extends BaseService {
         if (connection.isOriginal) {
             return { ...connection, warehouseConnection: null };
         }
+        const source =
+            await this.warehouseConnectionModel.getExtraCredentialSource(
+                project,
+                warehouseConnectionUuid,
+            );
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseConnection = toNonSensitiveCredentials(
+            source.credentials,
+        );
+        if (
+            warehouseConnection.type === WarehouseTypes.POSTGRES ||
+            warehouseConnection.type === WarehouseTypes.ATHENA
+        ) {
+            warehouseConnection.requireUserCredentials =
+                getExtraConnectionRequireUserCredentials(
+                    originalCredentials,
+                    source,
+                ) === true;
+        }
         return {
             ...connection,
-            warehouseConnection: toNonSensitiveCredentials(
-                await this.warehouseConnectionModel.getCredentials(
-                    project,
-                    warehouseConnectionUuid,
-                ),
-            ),
+            warehouseConnection,
         };
     }
 
@@ -556,15 +573,19 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
-        const source = await this.inheritPrimaryCredentialRequirement(
-            projectUuid,
-            WarehouseConnectionService.toCreateSource(request),
-        );
+        const requestedSource =
+            WarehouseConnectionService.toCreateSource(request);
         this.assertCanWrite(
             account,
             summary,
-            source,
-            source.kind === 'project' ? source.credentials : null,
+            requestedSource,
+            requestedSource.kind === 'project'
+                ? requestedSource.credentials
+                : null,
+        );
+        const source = await this.inheritPrimaryCredentialRequirement(
+            projectUuid,
+            requestedSource,
         );
         const name = WarehouseConnectionService.parseName(request.name);
         const blockReason = await this.getAddConnectionBlockReason(

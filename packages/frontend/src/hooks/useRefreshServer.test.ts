@@ -48,4 +48,19 @@ describe('getJobCompletionToast', () => {
                 '- Connection "Finance" failed: invalid password\n- Connection "Reporting" failed: timed out',
         });
     });
+
+    test('keeps the explore error count alongside connection warnings', () => {
+        const job = compileJob(3, 10);
+        job.jobResults = {
+            ...job.jobResults!,
+            connectionWarnings: [
+                'Connection "Finance" failed: invalid password',
+            ],
+        };
+        expect(getJobCompletionToast(job)).toEqual({
+            variant: 'warning',
+            title: 'Connections failed to compile; 3 of 10 tables have errors',
+            message: '- Connection "Finance" failed: invalid password',
+        });
+    });
 });

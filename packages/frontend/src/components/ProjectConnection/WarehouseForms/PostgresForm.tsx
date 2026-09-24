@@ -6,6 +6,7 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    Text,
 } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
@@ -127,7 +128,12 @@ const PostgresForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        {!isProjectExtraConnection && (
+                        {isProjectExtraConnection ? (
+                            <Text size="sm" c="dimmed">
+                                Require users to provide their own credentials
+                                follows the primary connection.
+                            </Text>
+                        ) : (
                             <BooleanSwitch
                                 name="warehouse.requireUserCredentials"
                                 {...form.getInputProps(

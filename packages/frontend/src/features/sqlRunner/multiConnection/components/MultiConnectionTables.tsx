@@ -288,7 +288,7 @@ const missingCredentialMessage = (
     error: string | undefined,
 ) =>
     error && isMissingCredentialError(error)
-        ? `${connectionName ?? 'This connection'} needs your warehouse credentials. Select them from the credentials switcher in the navigation bar.`
+        ? `${connectionName ?? 'This connection'} needs your warehouse credentials. Add or select them in the credentials switcher in the navigation bar.`
         : error;
 
 const ErrorItem: FC<{

@@ -12,7 +12,6 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     selectConnectionRoute,
     setConnectionRoute,
-    setFetchResultsOnLoad,
     type SqlRunnerConnectionRoute,
 } from '../../store/sqlRunnerSlice';
 import { useActiveConnection } from '../hooks/useActiveConnection';
@@ -37,18 +36,9 @@ const toStoreConnection = (connection: SqlRunnerWarehouseConnection) => ({
     warehouseType: connection.warehouseType,
 });
 
-const ActiveConnectionStoreSync: FC<{
-    isEditingSavedChart: boolean;
-    sharedConnectionUuid?: string | null;
-    isSharedLink: boolean;
-    shareStateLoaded: boolean;
-}> = ({
+const ActiveConnectionStoreSync: FC<{ isEditingSavedChart: boolean }> = ({
     isEditingSavedChart,
-    sharedConnectionUuid,
-    isSharedLink,
-    shareStateLoaded,
 }) => {
-    const dispatch = useAppDispatch();
     const { connections, activeConnection, switchConnection } =
         useActiveConnection();
     const savedSqlChart = useAppSelector(
@@ -57,31 +47,6 @@ const ActiveConnectionStoreSync: FC<{
     const [appliedChartUuid, setAppliedChartUuid] = useState<
         string | undefined
     >(undefined);
-    useEffect(() => {
-        if (
-            isSharedLink &&
-            shareStateLoaded &&
-            !connections.some((connection) =>
-                sharedConnectionUuid === null
-                    ? connection.isOriginal
-                    : connection.warehouseConnectionUuid ===
-                      sharedConnectionUuid,
-            )
-        ) {
-            dispatch(
-                setFetchResultsOnLoad({
-                    shouldFetch: false,
-                    shouldOpenChartOnLoad: false,
-                }),
-            );
-        }
-    }, [
-        connections,
-        dispatch,
-        isSharedLink,
-        shareStateLoaded,
-        sharedConnectionUuid,
-    ]);
     const chartBinding = savedSqlChart
         ? connections.find((connection) =>
               savedSqlChart.warehouseConnectionUuid === null
@@ -125,14 +90,12 @@ export const SqlRunnerConnectionScope: FC<
         connectionHint?: string | null;
         sharedConnectionUuid?: string | null;
         isSharedLink?: boolean;
-        shareStateLoaded?: boolean;
     }>
 > = ({
     isEditingSavedChart,
     connectionHint,
     sharedConnectionUuid,
     isSharedLink = false,
-    shareStateLoaded = false,
     children,
 }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -165,9 +128,6 @@ export const SqlRunnerConnectionScope: FC<
         >
             <ActiveConnectionStoreSync
                 isEditingSavedChart={isEditingSavedChart}
-                sharedConnectionUuid={sharedConnectionUuid}
-                isSharedLink={isSharedLink}
-                shareStateLoaded={shareStateLoaded}
             />
             {children}
         </ActiveConnectionProvider>

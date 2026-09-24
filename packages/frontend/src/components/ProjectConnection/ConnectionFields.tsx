@@ -18,7 +18,6 @@ export const ConnectionFields: FC<{
     nameRef?: React.Ref<HTMLInputElement>;
     savedProject?: Project;
     showName: boolean;
-    isProjectExtraConnection: boolean;
 }> = ({
     form,
     intro,
@@ -27,13 +26,12 @@ export const ConnectionFields: FC<{
     nameRef,
     savedProject,
     showName,
-    isProjectExtraConnection,
 }) => (
     <FormProvider form={form}>
         <ProjectFormProvider
             projectUuid={projectUuid}
             savedProject={savedProject}
-            isProjectExtraConnection={isProjectExtraConnection}
+            isProjectExtraConnection
         >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
@@ -57,11 +55,6 @@ export const ConnectionFields: FC<{
                         warehouseOnly
                     />
                 </WarehouseSettingsForm>
-                {isProjectExtraConnection && (
-                    <Text size="sm" c="dimmed">
-                        Follows the primary connection&apos;s setting.
-                    </Text>
-                )}
             </Stack>
         </ProjectFormProvider>
     </FormProvider>

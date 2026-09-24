@@ -265,7 +265,6 @@ describe('SqlRunnerConnectionScope', () => {
                 <SqlRunnerConnectionScope
                     isEditingSavedChart={false}
                     isSharedLink
-                    shareStateLoaded
                     sharedConnectionUuid="finance-uuid"
                 >
                     <SqlRunnerSidebar />
@@ -297,7 +296,7 @@ describe('SqlRunnerConnectionScope', () => {
             setState({
                 ...store.getState().sqlRunner,
                 sql: 'select 1',
-                fetchResultsOnLoad: true,
+                fetchResultsOnLoad: false,
             }),
         );
         window.localStorage.setItem(
@@ -309,7 +308,6 @@ describe('SqlRunnerConnectionScope', () => {
                 <SqlRunnerConnectionScope
                     isEditingSavedChart={false}
                     isSharedLink
-                    shareStateLoaded
                     sharedConnectionUuid="missing-uuid"
                 >
                     <SqlRunnerSidebar />
@@ -348,7 +346,7 @@ describe('SqlRunnerConnectionScope', () => {
         await pickFinance(user);
         expect(
             await screen.findByText(
-                /Finance.*credentials switcher in the navigation bar/i,
+                /Finance.*Add or select them in the credentials switcher in the navigation bar/i,
             ),
         ).toBeInTheDocument();
     });

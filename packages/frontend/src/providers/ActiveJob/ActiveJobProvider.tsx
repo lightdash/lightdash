@@ -77,7 +77,9 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                             title: completionToast.title,
                             subtitle: completionToast.message,
                             action:
-                                job.projectUuid && !completionToast.message
+                                job.projectUuid &&
+                                job.jobType === JobType.COMPILE_PROJECT &&
+                                (job.jobResults?.errorCount ?? 0) > 0
                                     ? {
                                           children: 'View errors',
                                           icon: IconArrowRight,
