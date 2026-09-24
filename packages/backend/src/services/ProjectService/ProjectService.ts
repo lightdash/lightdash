@@ -359,6 +359,10 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import {
+    type WarehouseConnectionIdentityModel,
+    type WarehouseConnectionMap,
+} from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
+import {
     WarehouseConnectionModel,
     type WarehouseConnectionProject,
 } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -392,6 +396,7 @@ import {
     MultiConnectionCompiler,
     withConnectionWarnings,
     type MultiConnectionCompilation,
+    type MultiConnectionSave,
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
@@ -501,6 +506,7 @@ export type ProjectServiceArguments = {
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
+    warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
     fileStorageClient: FileStorageClient;
@@ -613,8 +619,10 @@ type PreparedExploreStream = {
     projectContext: ProjectContextEntry[] | undefined;
     stagedMergedManifest?: Buffer;
     onCompiled?: (summary: ExploreCompilationSummary) => void;
-    multiConnection: MultiConnectionCompilation | null;
+    multiConnection: PreparedMultiConnectionSave | null;
 };
+
+type PreparedMultiConnectionSave = MultiConnectionSave & { warnings: string[] };
 
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
@@ -656,6 +664,8 @@ export class ProjectService extends BaseService {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
     warehouseConnectionModel: WarehouseConnectionModel;
+
+    warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
 
     multiConnectionCompiler: MultiConnectionCompiler;
     warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
@@ -752,6 +762,7 @@ export class ProjectService extends BaseService {
         warehouseConnectionModel,
         warehouseConnectionCompileModel,
         warehouseConnectionTablesModel,
+        warehouseConnectionIdentityModel,
         emailModel,
         schedulerClient,
         downloadFileModel,
@@ -804,6 +815,8 @@ export class ProjectService extends BaseService {
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
+        this.warehouseConnectionIdentityModel =
+            warehouseConnectionIdentityModel;
         this.multiConnectionCompiler = new MultiConnectionCompiler({
             projectModel,
             projectDbtSourcesModel,
@@ -2293,7 +2306,19 @@ export class ProjectService extends BaseService {
         Then if `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
         If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like Snowflake on SSO).
     */
-    protected async getWarehouseCredentials({
+    protected async getWarehouseCredentials(
+        args: Parameters<
+            ProjectService['getSingleRouteWarehouseCredentials']
+        >[0] & {
+            binding: ConnectionBinding;
+        },
+    ) {
+        const { warehouseCredentials } =
+            await this.getWarehouseCredentialsWithConnection(args);
+        return warehouseCredentials;
+    }
+
+    protected async getWarehouseCredentialsWithConnection({
         binding,
         ...args
     }: Parameters<ProjectService['getSingleRouteWarehouseCredentials']>[0] & {
@@ -2305,15 +2330,24 @@ export class ProjectService extends BaseService {
         );
         switch (target.kind) {
             case 'original':
-                return this.getSingleRouteWarehouseCredentials(args);
+                return {
+                    warehouseCredentials:
+                        await this.getSingleRouteWarehouseCredentials(args),
+                    warehouseConnectionUuid: null,
+                };
             case 'extra':
-                return this.getExtraConnectionWarehouseCredentials({
-                    projectUuid: args.projectUuid,
+                return {
+                    warehouseCredentials:
+                        await this.getExtraConnectionWarehouseCredentials({
+                            projectUuid: args.projectUuid,
+                            warehouseConnectionUuid:
+                                target.warehouseConnectionUuid,
+                            userId: args.userId,
+                            isRegisteredUser: args.isRegisteredUser,
+                            isServiceAccount: args.isServiceAccount,
+                        }),
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
-                    userId: args.userId,
-                    isRegisteredUser: args.isRegisteredUser,
-                    isServiceAccount: args.isServiceAccount,
-                });
+                };
             default:
                 return assertUnreachable(target, 'Unknown credential target');
         }
@@ -2900,7 +2934,7 @@ export class ProjectService extends BaseService {
         args: Omit<SaveCompiledExploresArgs, 'complete'> & {
             exploreStream: AsyncIterable<Explore | ExploreError>;
             onCompiled?: (summary: ExploreCompilationSummary) => void;
-            multiConnection: MultiConnectionCompilation | null;
+            multiConnection: PreparedMultiConnectionSave | null;
         },
     ) {
         const { exploreStream, onCompiled, multiConnection, ...metadata } =
@@ -3291,6 +3325,66 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private async copyConnectionsFromMultiUpstream(
+        upstreamProjectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<WarehouseConnectionMap | null> {
+        if (
+            (await this.projectModel.getConnectionRoute(
+                upstreamProjectUuid,
+            )) !== 'multi'
+        ) {
+            return null;
+        }
+        return this.warehouseConnectionIdentityModel.copyConnectionsToPreview(
+            upstreamProjectUuid,
+            previewProjectUuid,
+        );
+    }
+
+    private async getMultiUpstreamExplores(
+        upstreamProjectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<PreparedMultiConnectionSave | null> {
+        if (
+            (await this.projectModel.getConnectionRoute(
+                upstreamProjectUuid,
+            )) !== 'multi'
+        ) {
+            return null;
+        }
+        const [connectionMap, upstreamExplores] = await Promise.all([
+            this.warehouseConnectionIdentityModel.getPreviewConnectionMap(
+                upstreamProjectUuid,
+                previewProjectUuid,
+            ),
+            this.warehouseConnectionIdentityModel.getExploresWithBindings(
+                upstreamProjectUuid,
+            ),
+        ]);
+        const bindings = new Map(
+            upstreamExplores.map(({ explore, warehouseConnectionUuid }) => [
+                explore.name,
+                connectionMap.remap(warehouseConnectionUuid),
+            ]),
+        );
+        if (
+            (await this.projectModel.getConnectionRoute(previewProjectUuid)) !==
+            'multi'
+        ) {
+            return null;
+        }
+        return {
+            exploreStream: (async function* upstreamStream() {
+                yield* upstreamExplores.map(({ explore }) => explore);
+            })(),
+            bindingOf: (exploreName) => bindings.get(exploreName) ?? null,
+            carry: { kind: 'connections', warehouseConnectionUuids: [] },
+            persistArtifacts: async () => {},
+            warnings: [],
+        };
+    }
+
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
@@ -3334,12 +3428,6 @@ export class ProjectService extends BaseService {
         ProjectService.validateDbtEnvironmentVariables(
             newProjectData.dbtConnection,
         );
-        if (newProjectData.upstreamProjectUuid) {
-            await this.projectModel.requireSingleConnectionRoute(
-                newProjectData.upstreamProjectUuid,
-                { kind: 'original' },
-            );
-        }
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
@@ -3419,10 +3507,14 @@ export class ProjectService extends BaseService {
             createProject.type === ProjectType.PREVIEW &&
             createProject.upstreamProjectUuid
         ) {
+            const connectionMap = await this.copyConnectionsFromMultiUpstream(
+                createProject.upstreamProjectUuid,
+                projectUuid,
+            );
             await this.copyPreviewDbtSources({
                 upstreamProjectUuid: createProject.upstreamProjectUuid,
                 previewProjectUuid: projectUuid,
-                warehouseConnectionUuidMap: new Map(),
+                warehouseConnectionUuidMap: connectionMap?.uuids ?? new Map(),
             });
         }
 
@@ -3864,12 +3956,6 @@ export class ProjectService extends BaseService {
             if (!isUserWithOrg(user)) {
                 throw new ForbiddenError('User is not part of an organization');
             }
-            if (data.upstreamProjectUuid) {
-                await this.projectModel.requireSingleConnectionRoute(
-                    data.upstreamProjectUuid,
-                    { kind: 'original' },
-                );
-            }
             const createProject = await this._resolveWarehouseClientCredentials(
                 data,
                 user.userUuid,
@@ -3947,79 +4033,103 @@ export class ProjectService extends BaseService {
                           },
                       );
 
-            const projectUuid = await this.jobModel.tryJobStep(
-                jobUuid,
-                JobStepType.CREATING_PROJECT,
-                async () => {
-                    const newProjectUuid = await this.projectModel.create(
-                        user.userUuid,
-                        user.organizationUuid,
-                        createProject,
-                        await this.getPreviewExpiresAt(
-                            createProject.type,
-                            createProject.upstreamProjectUuid,
-                            createProject.expiresInHours,
-                        ),
-                    );
-                    // Give admin user permissions to user who created this project even if he is an admin
-                    if (user.email) {
-                        await this.projectModel.createProjectAccess(
-                            newProjectUuid,
-                            user.email,
-                            ProjectMemberRole.ADMIN,
+            const { projectUuid, connectionMap } =
+                await this.jobModel.tryJobStep(
+                    jobUuid,
+                    JobStepType.CREATING_PROJECT,
+                    async () => {
+                        const newProjectUuid = await this.projectModel.create(
+                            user.userUuid,
+                            user.organizationUuid,
+                            createProject,
+                            await this.getPreviewExpiresAt(
+                                createProject.type,
+                                createProject.upstreamProjectUuid,
+                                createProject.expiresInHours,
+                            ),
                         );
-                    }
+                        const newConnectionMap =
+                            createProject.upstreamProjectUuid
+                                ? await this.copyConnectionsFromMultiUpstream(
+                                      createProject.upstreamProjectUuid,
+                                      newProjectUuid,
+                                  )
+                                : null;
+                        if (
+                            createProject.upstreamProjectUuid &&
+                            newConnectionMap
+                        ) {
+                            await this.copyPreviewDbtSources({
+                                upstreamProjectUuid:
+                                    createProject.upstreamProjectUuid,
+                                previewProjectUuid: newProjectUuid,
+                                warehouseConnectionUuidMap:
+                                    newConnectionMap.uuids,
+                            });
+                        }
+                        // Give admin user permissions to user who created this project even if he is an admin
+                        if (user.email) {
+                            await this.projectModel.createProjectAccess(
+                                newProjectUuid,
+                                user.email,
+                                ProjectMemberRole.ADMIN,
+                            );
+                        }
 
-                    await this.replaceYamlTagsWithoutPermissionCheck(
-                        user,
-                        user.organizationUuid,
-                        newProjectUuid,
-                        // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
-                        Object.entries(
-                            lightdashProjectConfig.spotlight?.categories || {},
-                        ).map(([key, category]) => ({
-                            yamlReference: key,
-                            name: category.label,
-                            color: category.color ?? 'gray',
-                        })),
-                    );
-                    await this.replaceProjectParameters({
-                        user,
-                        projectUuid: newProjectUuid,
-                        parameters: lightdashProjectConfig.parameters,
-                    });
-                    await this.projectModel.setTableGroups(
-                        newProjectUuid,
-                        lightdashProjectConfig.table_groups,
-                    );
-                    // Mirrors CLI deploy semantics: only overwrite stored
-                    // defaults when the config file defines them
-                    if (lightdashProjectConfig.defaults) {
-                        await this.projectModel.updateProjectDefaults(
+                        await this.replaceYamlTagsWithoutPermissionCheck(
+                            user,
+                            user.organizationUuid,
                             newProjectUuid,
-                            lightdashProjectConfig.defaults,
+                            // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                            Object.entries(
+                                lightdashProjectConfig.spotlight?.categories ||
+                                    {},
+                            ).map(([key, category]) => ({
+                                yamlReference: key,
+                                name: category.label,
+                                color: category.color ?? 'gray',
+                            })),
                         );
-                    }
-                    await this.replaceProjectContext(
-                        newProjectUuid,
-                        projectContext,
-                    );
-                    if (explores.length > 0) {
-                        await this.saveExploresToCacheAndIndexCatalog({
-                            userUuid: user.userUuid,
+                        await this.replaceProjectParameters({
+                            user,
                             projectUuid: newProjectUuid,
-                            explores,
-                            compilationSource: 'create_project',
-                            jobUuid,
-                            requestMethod: method,
-                            projectConfigDefaults:
-                                lightdashProjectConfig.defaults,
-                            complete: true,
+                            parameters: lightdashProjectConfig.parameters,
                         });
-                    }
-                    return newProjectUuid;
-                },
-            );
+                        await this.projectModel.setTableGroups(
+                            newProjectUuid,
+                            lightdashProjectConfig.table_groups,
+                        );
+                        // Mirrors CLI deploy semantics: only overwrite stored
+                        // defaults when the config file defines them
+                        if (lightdashProjectConfig.defaults) {
+                            await this.projectModel.updateProjectDefaults(
+                                newProjectUuid,
+                                lightdashProjectConfig.defaults,
+                            );
+                        }
+                        await this.replaceProjectContext(
+                            newProjectUuid,
+                            projectContext,
+                        );
+                        if (explores.length > 0 && newConnectionMap === null) {
+                            await this.saveExploresToCacheAndIndexCatalog({
+                                userUuid: user.userUuid,
+                                projectUuid: newProjectUuid,
+                                explores,
+                                compilationSource: 'create_project',
+                                jobUuid,
+                                requestMethod: method,
+                                projectConfigDefaults:
+                                    lightdashProjectConfig.defaults,
+                                complete: true,
+                            });
+                        }
+                        return {
+                            projectUuid: newProjectUuid,
+                            connectionMap: newConnectionMap,
+                        };
+                    },
+                );
 
             await this.jobModel.update(jobUuid, {
                 jobStatus: JobStatusType.DONE,
@@ -4027,6 +4137,14 @@ export class ProjectService extends BaseService {
                     projectUuid,
                 },
             });
+            if (connectionMap) {
+                await this.scheduleCompileProject(
+                    user,
+                    projectUuid,
+                    method,
+                    true,
+                );
+            }
             const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 event: 'project.created',
@@ -9564,9 +9682,9 @@ export class ProjectService extends BaseService {
             project.upstreamProjectUuid
         ) {
             const { upstreamProjectUuid } = project;
-            await this.projectModel.requireSingleConnectionRoute(
+            const multiUpstreamExplores = await this.getMultiUpstreamExplores(
                 upstreamProjectUuid,
-                { kind: 'original' },
+                projectUuid,
             );
             const [
                 upstreamExplores,
@@ -9580,9 +9698,11 @@ export class ProjectService extends BaseService {
                 this.projectModel.getTableGroups(upstreamProjectUuid),
             ]);
             return consume({
-                exploreStream: (async function* upstreamStream() {
-                    yield* Object.values(upstreamExplores);
-                })(),
+                exploreStream:
+                    multiUpstreamExplores?.exploreStream ??
+                    (async function* upstreamStream() {
+                        yield* Object.values(upstreamExplores);
+                    })(),
                 lightdashProjectConfig: {
                     spotlight: DEFAULT_SPOTLIGHT_CONFIG,
                     parameters: Object.fromEntries(
@@ -9595,7 +9715,7 @@ export class ProjectService extends BaseService {
                     defaults: upstreamProject.projectDefaults,
                 },
                 projectContext: undefined,
-                multiConnection: null,
+                multiConnection: multiUpstreamExplores,
             });
         }
 
@@ -12604,16 +12724,27 @@ export class ProjectService extends BaseService {
 
         // The training project's explores are a shipped bundle, never
         // compiled from dbt, so copy the cache instead of scheduling a compile.
-        const explores = Object.values(
-            await this.projectModel.getAllExploresFromCache(
-                trainingProjectUuid,
-            ),
-        );
-        await this.projectModel.saveExploresToCache(
+        const multiUpstreamExplores = await this.getMultiUpstreamExplores(
+            trainingProjectUuid,
             projectUuid,
-            explores,
-            true,
         );
+        if (multiUpstreamExplores) {
+            await this.multiConnectionCompiler.save(
+                projectUuid,
+                multiUpstreamExplores,
+            );
+        } else {
+            const explores = Object.values(
+                await this.projectModel.getAllExploresFromCache(
+                    trainingProjectUuid,
+                ),
+            );
+            await this.projectModel.saveExploresToCache(
+                projectUuid,
+                explores,
+                true,
+            );
+        }
         // The metrics catalog is built from that cache before the copy is
         // handed over, so its first page already knows it has metrics (the
         // Metrics link in the bar depends on it). The copied YAML tags are
@@ -12859,9 +12990,14 @@ export class ProjectService extends BaseService {
         previewProjectUuid: string,
         user: SessionUser,
     ): Promise<void> {
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
+        const warehouseConnectionMap =
+            (await this.projectModel.getConnectionRoute(projectUuid)) ===
+            'multi'
+                ? await this.warehouseConnectionIdentityModel.getPreviewConnectionMap(
+                      projectUuid,
+                      previewProjectUuid,
+                  )
+                : null;
         this.logger.info(
             `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
         );
@@ -12878,7 +13014,7 @@ export class ProjectService extends BaseService {
                         projectUuid,
                         previewProjectUuid,
                         spaces,
-                        null,
+                        warehouseConnectionMap,
                     );
 
                 // Duplicate the upstream project's data apps into the preview
@@ -14028,10 +14164,6 @@ export class ProjectService extends BaseService {
                 `dbt Cloud webhook for project ${projectUuid} processed without signature verification (no webhook_hmac_secret configured)`,
             );
         }
-
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
 
         // todo: fix this
         if (!project.createdByUserUuid) {

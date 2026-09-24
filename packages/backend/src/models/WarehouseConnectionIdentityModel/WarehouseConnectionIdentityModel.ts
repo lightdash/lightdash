@@ -6,6 +6,7 @@ import {
     type ExploreError,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { validate as isUuid } from 'uuid';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const EVENTS_TABLE = 'project_connection_mode_events';
@@ -94,10 +95,31 @@ export class WarehouseConnectionIdentityModel {
         }
     }
 
+    async getSaveWarehouseConnectionUuid(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<string | null> {
+        if (warehouseConnectionUuid === null) return null;
+        if (!isUuid(warehouseConnectionUuid)) {
+            throw new NotFoundError('Connection not found');
+        }
+        const connection = await this.database(WAREHOUSE_CONNECTIONS_TABLE)
+            .where('project_uuid', projectUuid)
+            .where('warehouse_connection_uuid', warehouseConnectionUuid)
+            .first<{ is_original: boolean } | undefined>('is_original');
+        if (!connection) {
+            throw new NotFoundError('Connection not found');
+        }
+        return connection.is_original ? null : warehouseConnectionUuid;
+    }
+
     async getSqlChartWarehouseConnectionUuid(
         projectUuid: string,
         savedSqlUuid: string,
     ): Promise<string | null> {
+        if (!isUuid(savedSqlUuid)) {
+            throw new NotFoundError('Saved sql not found');
+        }
         const latestVersion = await this.database('saved_sql_versions')
             .innerJoin(
                 'saved_sql',
@@ -131,6 +153,11 @@ export class WarehouseConnectionIdentityModel {
         projectUuid: string,
         queryUuid: string,
     ): Promise<string | null> {
+        if (!isUuid(queryUuid)) {
+            throw new NotFoundError(
+                `Query ${queryUuid} not found in project ${projectUuid}`,
+            );
+        }
         const query = await this.database('query_history')
             .where('query_uuid', queryUuid)
             .where('project_uuid', projectUuid)

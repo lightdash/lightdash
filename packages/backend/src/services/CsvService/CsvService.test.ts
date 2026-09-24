@@ -41,6 +41,7 @@ import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -83,6 +84,8 @@ describe('Csv service', () => {
                 {} as WarehouseConnectionCompileModel,
             warehouseConnectionTablesModel:
                 {} as WarehouseConnectionTablesModel,
+            warehouseConnectionIdentityModel:
+                {} as WarehouseConnectionIdentityModel,
             emailModel: {
                 getPrimaryEmailStatus: (userUuid: string) => ({
                     isVerified: true,

@@ -1,7 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
-    NotImplementedError,
     OrganizationMemberRole,
     PossibleAbilities,
     SchedulerFormat,
@@ -12,6 +11,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { SavedSqlService } from './SavedSqlService';
@@ -139,7 +139,7 @@ const schedulerClient = {
 };
 const projectModel = {
     getSummary: vi.fn(async () => ({ organizationUuid })),
-    requireSingleConnectionRoute: vi.fn(async () => 'single' as const),
+    getConnectionRoute: vi.fn(async () => 'single' as const),
 };
 const spacePermissionService = {
     can: vi.fn(async () => true),
@@ -184,12 +184,14 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
         analyticsModel: {} as unknown as AnalyticsModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        warehouseConnectionIdentityModel:
+            {} as unknown as WarehouseConnectionIdentityModel,
     });
 
     afterEach(() => {
         vi.clearAllMocks();
-        projectModel.requireSingleConnectionRoute.mockReset();
-        projectModel.requireSingleConnectionRoute.mockResolvedValue('single');
+        projectModel.getConnectionRoute.mockReset();
+        projectModel.getConnectionRoute.mockResolvedValue('single');
     });
 
     test('loads a saved SQL chart through its resource access target', async () => {
@@ -258,6 +260,15 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             ]),
         };
 
+        const creator = {
+            ...baseUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: ['create', 'update'] },
+                { subject: 'CustomSql', action: 'manage' },
+            ]),
+        };
+        const warehouseConnectionUuid = '5b0f6f59-3f9f-4d8e-9d0a-8f1f6a2e7c11';
+
         test('updates a saved SQL chart through its resource access target', async () => {
             await service.updateSqlChart(
                 editor,
@@ -277,55 +288,69 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             ]);
         });
 
-        test('refuses to update a SQL chart in a project that routes multi', async () => {
-            projectModel.requireSingleConnectionRoute.mockRejectedValueOnce(
-                new NotImplementedError(
-                    'Multiple connections are not available',
-                ),
-            );
+        test('updates a SQL chart in a project that routes single with no binding', async () => {
+            await service.updateSqlChart(editor, projectUuid, savedSqlUuid, {
+                versionedData: { sql: 'select 1', limit: 10, config: {} },
+            } as never);
 
-            await expect(
-                service.updateSqlChart(
-                    editor,
-                    projectUuid,
-                    savedSqlUuid,
-                    {} as never,
-                ),
-            ).rejects.toThrow('Multiple connections are not available');
-            expect(
-                projectModel.requireSingleConnectionRoute,
-            ).toHaveBeenCalledWith(projectUuid, { kind: 'original' });
-            expect(savedSqlModel.update).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).toHaveBeenCalledWith(
+                expect.objectContaining({ savedSqlUuid }),
+                undefined,
+            );
         });
 
-        test('refuses to create a SQL chart in a project that routes multi', async () => {
-            const creator = {
-                ...baseUser,
-                ability: new Ability<PossibleAbilities>([
-                    { subject: 'SavedChart', action: ['create', 'update'] },
-                    { subject: 'CustomSql', action: 'manage' },
-                ]),
-            };
-            projectModel.requireSingleConnectionRoute.mockRejectedValueOnce(
-                new NotImplementedError(
-                    'Multiple connections are not available',
-                ),
-            );
+        test('creates a SQL chart in a project that routes single with no binding', async () => {
+            await service.createSqlChart(creator, projectUuid, {
+                name: 'Orders',
+                sql: 'select 1',
+                limit: 10,
+                config: {},
+                spaceUuid,
+            } as never);
 
-            await expect(
-                service.createSqlChart(creator, projectUuid, {
-                    name: 'Orders',
-                    sql: 'select 1',
-                    limit: 10,
-                    config: {},
-                    spaceUuid,
-                } as never),
-            ).rejects.toThrow('Multiple connections are not available');
-            expect(
-                projectModel.requireSingleConnectionRoute,
-            ).toHaveBeenCalledWith(projectUuid, { kind: 'original' });
-            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(savedSqlModel.create).toHaveBeenCalledWith(
+                creator.userUuid,
+                projectUuid,
+                expect.objectContaining({ name: 'Orders' }),
+                undefined,
+            );
         });
+
+        test.each([
+            {
+                name: 'create',
+                save: () =>
+                    service.createSqlChart(creator, projectUuid, {
+                        name: 'Orders',
+                        sql: 'select 1',
+                        limit: 10,
+                        config: {},
+                        spaceUuid,
+                        warehouseConnectionUuid,
+                    } as never),
+            },
+            {
+                name: 'update',
+                save: () =>
+                    service.updateSqlChart(editor, projectUuid, savedSqlUuid, {
+                        versionedData: {
+                            sql: 'select 1',
+                            limit: 10,
+                            config: {},
+                            warehouseConnectionUuid,
+                        },
+                    } as never),
+            },
+        ])(
+            'refuses a connection on a SQL chart $name in a project that routes single',
+            async ({ save }) => {
+                await expect(save()).rejects.toThrow(
+                    'A SQL chart can name a connection only in a project with multiple connections',
+                );
+                expect(savedSqlModel.create).not.toHaveBeenCalled();
+                expect(savedSqlModel.update).not.toHaveBeenCalled();
+            },
+        );
 
         test('soft-deletes a saved SQL chart through its resource access target', async () => {
             await service.softDelete(editor, savedSqlUuid);
@@ -531,6 +556,8 @@ describe('SavedSqlService - hasAccess space-move gate', () => {
         analyticsModel: {} as unknown as AnalyticsModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
+        warehouseConnectionIdentityModel:
+            {} as unknown as WarehouseConnectionIdentityModel,
     });
     // The gate itself is the unit under test: it correlates the current and
     // target space contexts from one resolveAccessBatch call.

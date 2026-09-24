@@ -487,6 +487,7 @@ type ExecuteAsyncQueryArgs = Pick<
     routingTarget?: PreAggregationRoutingDecision['target'];
     preAggregationRoute?: PreAggregationRoute;
     warehouseCredentials: ResolvedWarehouseCredentials;
+    warehouseConnectionUuid: string | null;
     // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
     organizationUuid?: string;
 };
@@ -3515,10 +3516,7 @@ export class AsyncQueryService extends ProjectService {
                 const warehouseCredentials = await this.getWarehouseCredentials(
                     {
                         projectUuid,
-                        binding: {
-                            kind: 'connection',
-                            warehouseConnectionUuid: null,
-                        },
+                        binding: { kind: 'query', queryUuid },
                         userId: userUuid,
                         isRegisteredUser,
                         isServiceAccount,
@@ -4537,6 +4535,7 @@ export class AsyncQueryService extends ProjectService {
                     routingTarget,
                     preAggregationRoute,
                     warehouseCredentials,
+                    warehouseConnectionUuid,
                 } = args;
 
                 try {
@@ -4665,6 +4664,8 @@ export class AsyncQueryService extends ProjectService {
                                 'cacheKeySalt' in externalSourceReference
                                     ? externalSourceReference.cacheKeySalt
                                     : undefined,
+                            warehouseConnectionUuid:
+                                warehouseConnectionUuid ?? undefined,
                         },
                     );
 
@@ -4681,27 +4682,39 @@ export class AsyncQueryService extends ProjectService {
 
                     const historyCreateStart = Date.now();
                     const queryCreatedAt = new Date();
+                    const queryHistory: Parameters<
+                        QueryHistoryModel['create']
+                    >[1] = {
+                        projectUuid,
+                        organizationUuid,
+                        context,
+                        fields: fieldsMap,
+                        compiledSql: query,
+                        requestParameters,
+                        usedParameters: queryComposer.getUsedParameters(),
+                        // Persist the gated display timezone (matches
+                        // what the SQL was built with). Storing the
+                        // ungated resolvedTimezone leaks a +TZ shift
+                        // through formatTimestamp on flag-off orgs.
+                        metricQuery: {
+                            ...metricQuery,
+                            timezone: displayTimezone ?? undefined,
+                        },
+                        cacheKey,
+                        pivotConfiguration: pivotConfiguration ?? null,
+                        originalColumns: originalColumns ?? null,
+                    };
                     const { queryUuid: queryHistoryUuid } =
-                        await this.queryHistoryModel.create(account, {
-                            projectUuid,
-                            organizationUuid,
-                            context,
-                            fields: fieldsMap,
-                            compiledSql: query,
-                            requestParameters,
-                            usedParameters: queryComposer.getUsedParameters(),
-                            // Persist the gated display timezone (matches
-                            // what the SQL was built with). Storing the
-                            // ungated resolvedTimezone leaks a +TZ shift
-                            // through formatTimestamp on flag-off orgs.
-                            metricQuery: {
-                                ...metricQuery,
-                                timezone: displayTimezone ?? undefined,
-                            },
-                            cacheKey,
-                            pivotConfiguration: pivotConfiguration ?? null,
-                            originalColumns: originalColumns ?? null,
-                        });
+                        warehouseConnectionUuid
+                            ? await this.queryHistoryModel.create(
+                                  account,
+                                  queryHistory,
+                                  { warehouseConnectionUuid },
+                              )
+                            : await this.queryHistoryModel.create(
+                                  account,
+                                  queryHistory,
+                              );
                     const historyCreateMs = Date.now() - historyCreateStart;
                     this.prometheusMetrics?.trackQueryStateTransition(
                         'new',
@@ -5402,7 +5415,7 @@ export class AsyncQueryService extends ProjectService {
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { explore, userAccessControls: preloadedUserAccessControls },
-            warehouseCredentials,
+            { warehouseCredentials, warehouseConnectionUuid },
             projectParameters,
         ] = await Promise.all([
             this.getExploreForMetricQueryExecution({
@@ -5416,7 +5429,7 @@ export class AsyncQueryService extends ProjectService {
                         ? materializationRole
                         : undefined,
             }),
-            this.getWarehouseCredentials({
+            this.getWarehouseCredentialsWithConnection({
                 projectUuid,
                 binding: {
                     kind: 'explore',
@@ -5615,6 +5628,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                warehouseConnectionUuid,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -5684,6 +5698,10 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        await this.projectModel.resolveWarehouseCredentialRead(projectUuid, {
+            kind: 'query',
+            queryUuid,
+        });
 
         const { csvCellsLimit, maxLimit } =
             await resolveOrganizationExportLimits(
@@ -6097,13 +6115,14 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'explore', exploreName: explore.name },
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        const { warehouseCredentials, warehouseConnectionUuid } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
             explore,
@@ -6156,6 +6175,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                warehouseConnectionUuid,
                 routingTarget: 'warehouse',
             },
             requestParameters,
@@ -6425,13 +6445,14 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'explore', exploreName: explore.name },
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        const { warehouseCredentials, warehouseConnectionUuid } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
             explore,
@@ -6533,6 +6554,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                warehouseConnectionUuid,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -7186,11 +7208,11 @@ export class AsyncQueryService extends ProjectService {
 
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
-            warehouseCredentials,
+            { warehouseCredentials, warehouseConnectionUuid },
             rawDashboardParameters,
             projectParameters,
         ] = await Promise.all([
-            this.getWarehouseCredentials({
+            this.getWarehouseCredentialsWithConnection({
                 projectUuid,
                 binding: { kind: 'explore', exploreName: explore.name },
                 userId: account.user.id,
@@ -7330,6 +7352,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                warehouseConnectionUuid,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -7393,13 +7416,17 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'connection', warehouseConnectionUuid: null },
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        const { warehouseCredentials, warehouseConnectionUuid } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: {
+                    kind: 'query',
+                    queryUuid: underlyingDataSourceQueryUuid,
+                },
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            });
 
         const source = await this.queryHistoryModel.get(
             underlyingDataSourceQueryUuid,
@@ -7639,6 +7666,7 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
+                    warehouseConnectionUuid,
                 },
                 requestParameters,
             );
@@ -7712,6 +7740,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             warehouseConnection,
             warehouseCredentials,
+            warehouseConnectionUuid,
             queryTags,
             queryComposer,
             originalColumns,
@@ -7742,6 +7771,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                warehouseConnectionUuid,
             },
             {
                 sql,
@@ -9904,10 +9934,10 @@ export class AsyncQueryService extends ProjectService {
         // These are independent, so load them in parallel.
         const sectionStartWarehouse = performance.now();
         const [
-            warehouseCredentials,
+            { warehouseCredentials, warehouseConnectionUuid },
             { userAttributes: baseUserAttributes, intrinsicUserAttributes },
         ] = await Promise.all([
-            this.getWarehouseCredentials({
+            this.getWarehouseCredentialsWithConnection({
                 projectUuid,
                 binding: chartUuid
                     ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
@@ -10095,6 +10125,7 @@ export class AsyncQueryService extends ProjectService {
             queryTags,
             warehouseConnection,
             warehouseCredentials,
+            warehouseConnectionUuid,
             queryComposer: composer,
             parameterReferences: Array.from(compiled.parameterReferences),
             missingParameterReferences: Array.from(
@@ -10133,6 +10164,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             warehouseConnection,
             warehouseCredentials,
+            warehouseConnectionUuid,
             queryTags,
             metricQuery,
             queryComposer,
@@ -10165,6 +10197,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                warehouseConnectionUuid,
             },
             {
                 query: metricQuery,
@@ -10275,6 +10308,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             warehouseConnection,
             warehouseCredentials,
+            warehouseConnectionUuid,
             queryTags,
             metricQuery,
             queryComposer,
@@ -10320,6 +10354,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                warehouseConnectionUuid,
             },
             {
                 query: metricQuery,
@@ -10736,13 +10771,14 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     }> {
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: { kind: 'explore', exploreName: explore.name },
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        const { warehouseCredentials, warehouseConnectionUuid } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: { kind: 'explore', exploreName: explore.name },
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
             explore,
@@ -10796,6 +10832,7 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
+                    warehouseConnectionUuid,
                     routingTarget: routingDecision.target,
                     ...(routingDecision.target === 'pre_aggregate' && {
                         preAggregationRoute: routingDecision.route,

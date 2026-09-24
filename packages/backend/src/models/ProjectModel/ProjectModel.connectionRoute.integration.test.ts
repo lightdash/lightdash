@@ -155,10 +155,6 @@ describe('ProjectModel connection routing on the real schema', () => {
         });
 
         test.each([
-            {
-                kind: 'sqlChart' as const,
-                savedSqlUuid: 'b1c2d3e4-0000-4000-8000-000000000001',
-            },
             { kind: 'connection' as const, warehouseConnectionUuid: null },
             { kind: 'original' as const },
         ])(
