@@ -28701,11 +28701,69 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentJevDecision: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                latencyMs: { dataType: 'double', required: true },
+                editKind: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                fallbackReason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                applied: { dataType: 'boolean', required: true },
+                outcome: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['intent'] },
+                        { dataType: 'enum', enums: ['compound'] },
+                        { dataType: 'enum', enums: ['needs_values'] },
+                        { dataType: 'enum', enums: ['clarify'] },
+                        { dataType: 'enum', enums: ['not_an_edit'] },
+                        { dataType: 'enum', enums: ['unresolved'] },
+                        { dataType: 'enum', enums: ['unavailable'] },
+                        { dataType: 'enum', enums: ['routed'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentMessageAssistant: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                jevDecision: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentJevDecision' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 responseTiming: {
                     dataType: 'union',
                     subSchemas: [

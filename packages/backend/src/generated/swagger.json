@@ -29207,8 +29207,66 @@
                 "required": ["finishedAt", "firstTokenAt", "startedAt"],
                 "type": "object"
             },
+            "AiAgentJevDecision": {
+                "properties": {
+                    "latencyMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "editKind": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The resolved edit kind, e.g. filter_values or chart_type."
+                    },
+                    "fallbackReason": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Why a resolved edit still went to the agent."
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Why the edit could not be resolved, when JEV tried."
+                    },
+                    "applied": {
+                        "type": "boolean",
+                        "description": "True when the edit was applied without the agent."
+                    },
+                    "outcome": {
+                        "type": "string",
+                        "enum": [
+                            "intent",
+                            "compound",
+                            "needs_values",
+                            "clarify",
+                            "not_an_edit",
+                            "unresolved",
+                            "unavailable",
+                            "routed"
+                        ]
+                    }
+                },
+                "required": [
+                    "latencyMs",
+                    "editKind",
+                    "fallbackReason",
+                    "reason",
+                    "applied",
+                    "outcome"
+                ],
+                "type": "object"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "jevDecision": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentJevDecision"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "What the fast decision model did on this turn; null when it did not run."
+                    },
                     "responseTiming": {
                         "allOf": [
                             {
@@ -29309,6 +29367,7 @@
                     }
                 },
                 "required": [
+                    "jevDecision",
                     "responseTiming",
                     "tokenUsage",
                     "modelConfig",
@@ -64949,7 +65008,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.324.0",
+        "version": "2.325.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

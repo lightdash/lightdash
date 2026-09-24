@@ -1,3 +1,10 @@
+# [2.325.0](https://github.com/lightdash/lightdash/compare/2.324.0...2.325.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agents:** show JEV decisions, session totals and turn winners in battle mode ([#29917](https://github.com/lightdash/lightdash/issues/29917)) ([3fe6936](https://github.com/lightdash/lightdash/commit/3fe6936fa4edc80d8c95fa7a841128a8f49198de))
+
 # [2.324.0](https://github.com/lightdash/lightdash/compare/2.323.1...2.324.0) (2026-09-24)
 
 
