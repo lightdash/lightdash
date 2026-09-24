@@ -1,3 +1,12 @@
+## [2.327.2](https://github.com/lightdash/lightdash/compare/2.327.1...2.327.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep verification on main's chart state for filter removal ([#29924](https://github.com/lightdash/lightdash/issues/29924)) ([be47195](https://github.com/lightdash/lightdash/commit/be471955ebbe00db0991217cbe53eddaef9b28ae))
+* **project-lock:** release the projects table lock before dbt compile runs ([#29890](https://github.com/lightdash/lightdash/issues/29890)) ([3bdcdca](https://github.com/lightdash/lightdash/commit/3bdcdcab8a5b9e0e5dc0c7b638c0dde3ebbb5781))
+* **projects:** keep slow content deletes out of the apps lock ([#29887](https://github.com/lightdash/lightdash/issues/29887)) ([dd33ccd](https://github.com/lightdash/lightdash/commit/dd33ccd5145641e5445b61f1a3ef5c093827b978))
+
 ## [2.327.1](https://github.com/lightdash/lightdash/compare/2.327.0...2.327.1) (2026-09-24)
 
 
