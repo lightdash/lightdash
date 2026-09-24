@@ -11,6 +11,8 @@ contract in `references/lightdash-library-theme.md`): `--ll-*` tokens for axes,
 grids, legends, tooltips, and typography; transparent canvas; series colors from
 the instance palette, never the theme.
 
+Name fields with `getFieldLabel(context, id)` — labels, never raw query ids.
+
 The one difference from that skill here: the declaration is not emitted as structured output. It lives in this folder's `lightdash-app.yml` under `vizSchema`, and **must stay in lockstep with the component** — every key `src/App.jsx` reads from `fieldMapping` or `options` is declared there, and everything declared there is read. When you change what the component reads, update `vizSchema` in the same edit.
 
 Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.
@@ -24,7 +26,7 @@ Run these commands from this folder under `chart-types/<slug>/`. The upload path
 3. `lightdash upload --chart-types <slug> --path ../..` — the server rebuilds; the chart type then appears in the explorer's chart type picker for that project.
 4. Verify in Lightdash: open any explore, run a query, pick this chart type, and map its fields.
 
-Preview locally with the fixture: `useVizContext()` normally waits for the Lightdash host, but the SDK has a dev-only fallback. Run `lightdash apps preview` (or `npm run dev`) and open the dev URL with `?vizFixture=/viz-fixture.json` — the scaffold's `viz-fixture.json` seeds `useVizContext()` so the chart renders. Edit that file to match your `vizSchema` (fieldMapping, rows as `{ value: { raw, formatted } }` cells, options, colorPalette, pivotDetails). It's fake data for layout/option iteration and never fires in production; the explorer with real data is still the source of truth — upload and verify there before finishing.
+Preview locally with the fixture: `useVizContext()` normally waits for the Lightdash host, but the SDK has a dev-only fallback. Run `lightdash apps preview` (or `npm run dev`) and open the dev URL with `?vizFixture=/viz-fixture.json` — the scaffold's `viz-fixture.json` seeds `useVizContext()` so the chart renders. Edit that file to match your `vizSchema` (fieldMapping, fields labels, rows as `{ value: { raw, formatted } }` cells, options, colorPalette, pivotDetails). It's fake data for layout/option iteration and never fires in production; the explorer with real data is still the source of truth — upload and verify there before finishing.
 
 Build with the template's preinstalled dependency set (see `package.json` — React, Recharts, d3, and more). Do not add npm packages or vendor library source into `src/`; chart types published to the official registry must stay template-deps-only.
 

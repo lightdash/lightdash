@@ -38,7 +38,7 @@ The scaffold ships a `viz-fixture.json` at the folder root. To use it:
 
 1. `lightdash apps preview` (or `npm run dev`) to start the dev server.
 2. Open the dev URL with the param, e.g. `http://localhost:5173/?vizFixture=/viz-fixture.json`. The chart renders from the fixture.
-3. Edit `viz-fixture.json` to match your declared `vizSchema` — `fieldMapping` (input name → string id, or an ordered array of ids for multiple-field inputs), `rows` (each cell is `{ "value": { "raw": ..., "formatted": "..." } }`, keyed by those ids), `options` (declared option name → value), `colorPalette`, and `pivotDetails` (`null` unless you map a `series` field). Reload to see changes.
+3. Edit `viz-fixture.json` to match your declared `vizSchema` — `fieldMapping` (input name → string id, or an ordered array of ids for multiple-field inputs), `fields` (id → `{ "label": ..., "format": ... }`, so labels render as they will in Lightdash), `rows` (each cell is `{ "value": { "raw": ..., "formatted": "..." } }`, keyed by those ids), `options` (declared option name → value), `colorPalette`, and `pivotDetails` (`null` unless you map a `series` field). Reload to see changes.
 
 For multiple-field inputs, set `multiple: true` on the `vizSchema.fields` entry and iterate
 the array at `useVizContext().fieldMapping[name]` in its existing order, narrowing with

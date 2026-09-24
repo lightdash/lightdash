@@ -30,6 +30,7 @@ returns.
 const context = useVizContext();
 const {
   fieldMapping,
+  fields,
   rows,
   options,
   colorPalette,
@@ -45,6 +46,12 @@ const {
   to one query field id; inputs declared with `multiple: true` map to ordered arrays.
   Narrow with `Array.isArray(binding)` before iterating. Read each id with
   `getFormatted(row, fieldId)` (display text) and `getRaw(row, fieldId)` (raw value).
+- `fields` — `Record<string, { label, tableLabel?, format? }>`: display metadata for
+  each bound query field id. Name fields with `getFieldLabel(context, fieldId)` — the
+  field's label ("Total revenue"), or the raw id only when the host sent no metadata.
+  `format` is the semantic-layer format (`type` such as `currency`/`percent`/`number`,
+  plus `round`, `currency`, `compact`, `prefix`, `suffix`) for formatters that have no
+  cell to hand, such as axis ticks; per-value text still comes from `getFormatted`.
 - `rows` — the host-fetched result rows, keyed by query field id.
 - `options` — `Record<string, boolean | number | string>`: the current value of each config
   option you declared (the viewer's choice, else your declared `default`).
@@ -91,6 +98,10 @@ shadcn, charting, theming, floating surfaces, screenshots) still applies.
 - **Fundamentals.** Clear axes and labels, readable spacing, a tooltip on hover.
   Give every axis a `tickFormatter` (compact numbers, shortened labels) or `hide`
   it — raw ticks overflow and overlap on a chart the viewer can resize.
+- **Labels, never ids.** Wherever the chart names a field — axis titles, legend and
+  series names, table headers, tooltip rows, default labels — use
+  `getFieldLabel(context, fieldId)`. Never show the query id (`orders_total_revenue`)
+  or a name derived from it (humanized, or with the table prefix stripped).
 
 ## Series colours
 
