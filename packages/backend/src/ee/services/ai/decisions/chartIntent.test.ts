@@ -632,6 +632,19 @@ describe('interpretChartIntent', () => {
         ).toEqual({ type: 'unresolved', reason: 'remove-filter' });
     });
 
+    it('does not read removing a filter as a second filter edit', () => {
+        expect(
+            interpretFiltered('drop the region filter', {
+                intent: choice('remove_filter'),
+                removeFilterField: choice('orders_region'),
+                wantsFilter: noul(0.9),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'remove_filter', fieldId: 'orders_region' },
+        });
+    });
+
     it('asks which filter to remove when JEV splits between two', () => {
         expect(
             interpretFiltered('show everything again', {
