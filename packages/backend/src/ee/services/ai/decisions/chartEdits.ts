@@ -18,7 +18,7 @@ import {
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
 import { resolveSearchFieldValuesFilterExpression } from '../utils/filterExpressions';
-import type { ChartIntent, ChartTypeOption } from './chartIntent';
+import type { ChartIntent, ChartPeriod, ChartTypeOption } from './chartIntent';
 
 export type ChartEdit = {
     config: AiSemanticChartArtifactConfig;
@@ -92,22 +92,70 @@ const formatFilterField = (fieldId: string): string =>
         ? fieldId
         : `\`${fieldId.replaceAll('\\', '\\\\').replaceAll('`', '\\`')}\``;
 
+const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+
+/** First day of a named calendar year, quarter or month and first day after it (UTC). */
+export const calendarRange = (
+    period: Extract<ChartPeriod, { type: 'calendar' }>,
+): [string, string] => {
+    let firstMonth = 0;
+    let months = 12;
+    if (period.quarter !== null) {
+        firstMonth = (period.quarter - 1) * 3;
+        months = 3;
+    } else if (period.month !== null) {
+        firstMonth = period.month - 1;
+        months = 1;
+    }
+    const start = new Date(Date.UTC(period.year, firstMonth, 1));
+    const next = new Date(Date.UTC(period.year, firstMonth + months, 1));
+    return [isoDate(start), isoDate(next)];
+};
+
+const periodConditions = (period: ChartPeriod): string[] => {
+    switch (period.type) {
+        case 'last':
+            return [
+                `${FilterOperator.IN_THE_PAST}=${period.count}{unit:${period.unit},completed:false}`,
+            ];
+        case 'previous':
+            return [
+                `${FilterOperator.IN_THE_PAST}=1{unit:${period.unit},completed:true}`,
+            ];
+        case 'current':
+            return [`${FilterOperator.IN_THE_CURRENT}=${period.unit}`];
+        case 'calendar': {
+            // An exclusive end keeps the whole last day on timestamp fields.
+            const [start, next] = calendarRange(period);
+            return [
+                `${FilterOperator.GREATER_THAN_OR_EQUAL}=${start}`,
+                `${FilterOperator.LESS_THAN}=${next}`,
+            ];
+        }
+        default:
+            return assertUnreachable(period, 'Unknown chart period');
+    }
+};
+
 const periodRules = (
     intent: Extract<ChartIntent, { kind: 'filter_period' }>,
     explore: Explore,
 ): RuleInput[] | null => {
     const field = formatFilterField(intent.fieldId);
-    const expression =
-        intent.period.type === 'last'
-            ? `${field} ${FilterOperator.IN_THE_PAST}=${intent.period.count}{unit:${intent.period.unit},completed:false}`
-            : `${field} ${FilterOperator.IN_THE_CURRENT}=${intent.period.unit}`;
+    const conditions = periodConditions(intent.period);
     const resolved = resolveSearchFieldValuesFilterExpression({
-        expressionInput: expression,
+        expressionInput: conditions
+            .map((condition) => `${field} ${condition}`)
+            .join(' AND '),
         explore,
     });
     if (!resolved.success) return null;
     const group = resolved.data.dimensions;
-    if (!group || !isAndFilterGroup(group) || group.and.length !== 1)
+    if (
+        !group ||
+        !isAndFilterGroup(group) ||
+        group.and.length !== conditions.length
+    )
         return null;
     const exploreFields = fieldMap(explore);
     const rules = group.and.flatMap((rule) => {
@@ -125,7 +173,7 @@ const periodRules = (
             },
         ];
     });
-    return rules.length === 1 ? rules : null;
+    return rules.length === conditions.length ? rules : null;
 };
 
 const valueRules = (
@@ -167,12 +215,41 @@ const describeValueFilter = (
     return intent.exclude ? `Excluded ${values}.` : `Filtered to ${values}.`;
 };
 
-const describePeriod = (
-    intent: Extract<ChartIntent, { kind: 'filter_period' }>,
-) =>
-    intent.period.type === 'last'
-        ? `Filtered to the last ${intent.period.count} ${intent.period.unit}.`
-        : `Filtered to this ${intent.period.unit.replace(/s$/, '')}.`;
+const MONTH_NAMES = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+];
+
+const describePeriod = ({
+    period,
+}: Extract<ChartIntent, { kind: 'filter_period' }>): string => {
+    switch (period.type) {
+        case 'last':
+            return `Filtered to the last ${period.count} ${period.unit}.`;
+        case 'previous':
+            return `Filtered to last ${period.unit.replace(/s$/, '')}.`;
+        case 'current':
+            return `Filtered to this ${period.unit.replace(/s$/, '')}.`;
+        case 'calendar':
+            if (period.quarter !== null)
+                return `Filtered to Q${period.quarter} ${period.year}.`;
+            if (period.month !== null)
+                return `Filtered to ${MONTH_NAMES[period.month - 1]} ${period.year}.`;
+            return `Filtered to ${period.year}.`;
+        default:
+            return assertUnreachable(period, 'Unknown chart period');
+    }
+};
 
 const applyFilter = (
     intent: Extract<
@@ -420,12 +497,15 @@ const applyAddField = (
         chart.xAxisDimension && query.dimensions.includes(chart.xAxisDimension)
             ? chart.xAxisDimension
             : null;
-    // A table has no meaningful axis yet, so the new field becomes it and prior dimensions group the series.
+    // The new field becomes the axis when there is none yet, when charting a table, or
+    // when it is a date on a non-date axis ("per month"); prior dimensions then group the series.
     const promote =
         currentAxis === null ||
         (chart.defaultVizType === 'table' &&
             intent.chartType !== null &&
-            intent.chartType !== 'table');
+            intent.chartType !== 'table') ||
+        (isDateField(explore, intent.fieldId) &&
+            !isDateField(explore, currentAxis));
     const xAxisDimension = promote ? intent.fieldId : currentAxis;
     const groupBy = [...query.dimensions, intent.fieldId].filter(
         (id, index, ids) => id !== xAxisDimension && ids.indexOf(id) === index,

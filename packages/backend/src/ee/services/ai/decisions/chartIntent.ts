@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     FilterType,
     getFields,
     getFilterTypeFromItemType,
@@ -37,6 +38,17 @@ export const PERIOD_UNITS = [
 ] as const;
 export type PeriodUnit = (typeof PERIOD_UNITS)[number];
 
+export type ChartPeriod =
+    | { type: 'last'; count: number; unit: PeriodUnit }
+    | { type: 'current'; unit: PeriodUnit }
+    | { type: 'previous'; unit: PeriodUnit }
+    | {
+          type: 'calendar';
+          year: number;
+          quarter: number | null;
+          month: number | null;
+      };
+
 export type ChartIntent =
     | { kind: 'chart_type'; chartType: ChartTypeOption }
     | { kind: 'series'; op: 'stack' | 'unstack' | 'swap' | 'split' }
@@ -54,9 +66,7 @@ export type ChartIntent =
     | {
           kind: 'filter_period';
           fieldId: string;
-          period:
-              | { type: 'last'; count: number; unit: PeriodUnit }
-              | { type: 'current'; unit: PeriodUnit };
+          period: ChartPeriod;
       }
     | { kind: 'clear_filters' }
     | {
@@ -71,13 +81,25 @@ export type ChartIntent =
 /** A filter whose values still need warehouse candidates before it can be applied. */
 export type PendingValueFilter = { fieldId: string; exclude: boolean };
 
+export type CompoundStep =
+    | { type: 'intent'; intent: Exclude<ChartIntent, { kind: 'undo' }> }
+    | { type: 'needs_values'; filter: PendingValueFilter };
+
 export type ChartIntentResolution =
     | { type: 'intent'; intent: ChartIntent }
     | { type: 'needs_values'; filter: PendingValueFilter }
+    | { type: 'compound'; steps: CompoundStep[] }
+    | {
+          type: 'clarify';
+          question: string;
+          options: { label: string; prompt: string }[];
+      }
     | { type: 'not_an_edit' }
     | { type: 'unresolved'; reason: string };
 
+// Verify rejections ('not-covered', 'verify-unavailable') stay edit attempts: they only block the fast path.
 const NON_EDIT_REASONS = new Set([
+    'non-edit',
     'intent',
     'multiple',
     'decision-unavailable',
@@ -87,6 +109,8 @@ const NON_EDIT_REASONS = new Set([
 export const isChartEditAttempt = (resolution: ChartIntentResolution) =>
     resolution.type === 'intent' ||
     resolution.type === 'needs_values' ||
+    resolution.type === 'compound' ||
+    resolution.type === 'clarify' ||
     (resolution.type === 'unresolved' &&
         !NON_EDIT_REASONS.has(resolution.reason));
 
@@ -101,6 +125,14 @@ export type FieldCandidate = {
     table: string;
     description: string | null;
     isDate: boolean;
+    /** Verified charts using this field; a tie-breaker, never a relevance signal. */
+    verifiedUsage: number;
+    chartUsage: number;
+};
+
+export type FieldUsage = {
+    verified: Map<string, number>;
+    charts: Map<string, number>;
 };
 
 export type ChartIntentContext = {
@@ -110,14 +142,23 @@ export type ChartIntentContext = {
     filterableFields: FieldCandidate[];
 };
 
+const CHART_INTENT_TIMEOUT_MS = 1_500;
+
 // Thresholds are calibrated against the labelled prompt set; see chartIntent.eval.
 export const CHART_INTENT_THRESHOLDS = {
     intent: 0.45,
     multiple: 0.7,
+    wants: 0.7,
+    nonEdit: 0.5,
     field: 0.5,
     option: 0.5,
     value: 0.6,
     simpleDataAnswer: 0.7,
+    clarifyPair: 0.75,
+    clarifyRunnerUp: 0.2,
+    clarifyBelow: 0.8,
+    verifiedTieMargin: 0.15,
+    covers: 0.6,
 } as const;
 
 const INTENTS = {
@@ -174,6 +215,23 @@ const INTENTS = {
 } as const;
 type IntentKey = keyof typeof INTENTS;
 
+const MONTHS = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+];
+
+const isYear = (value: number) => value >= 1900 && value <= 2100;
+
 const WORD_NUMBERS: Record<string, number> = {
     one: 1,
     two: 2,
@@ -210,11 +268,15 @@ export const extractNumberCandidates = (prompt: string): number[] => {
 const toCandidate = (
     field: ReturnType<typeof getFields>[number],
     explore: Explore,
+    usage: FieldUsage,
 ): FieldCandidate => ({
     id: getItemId(field),
+    verifiedUsage:
+        usage.verified.get(`${getItemId(field)}::${field.fieldType}`) ?? 0,
+    chartUsage: usage.charts.get(getItemId(field)) ?? 0,
     label: getItemLabelWithoutTableName(field),
     table: explore.tables[field.table]?.label ?? field.table,
-    description: field.description?.slice(0, 160) ?? null,
+    description: field.description?.slice(0, 100) ?? null,
     isDate:
         isDimension(field) &&
         getFilterTypeFromItemType(field.type) === FilterType.DATE,
@@ -242,7 +304,13 @@ const prefilterFields = (
         ).length;
     return fields
         .map((field, index) => ({ field, index, score: score(field) }))
-        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .sort(
+            (a, b) =>
+                b.score - a.score ||
+                b.field.verifiedUsage - a.field.verifiedUsage ||
+                b.field.chartUsage - a.field.chartUsage ||
+                a.index - b.index,
+        )
         .slice(0, MAX_FIELD_OPTIONS)
         .map(({ field }) => field);
 };
@@ -251,11 +319,13 @@ export const buildChartIntentContext = ({
     prompt,
     artifact,
     explore,
+    usage,
     extraAddableFields = [],
 }: {
     prompt: string;
     artifact: AiSemanticChartArtifactConfig;
     explore: Explore;
+    usage: FieldUsage;
     extraAddableFields?: FieldCandidate[];
 }): ChartIntentContext => {
     const query = artifact.config.queryConfig;
@@ -264,13 +334,13 @@ export const buildChartIntentContext = ({
     const currentFields = [...query.dimensions, ...query.metrics].flatMap(
         (id) => {
             const field = exploreFields.find((item) => getItemId(item) === id);
-            return field ? [toCandidate(field, explore)] : [];
+            return field ? [toCandidate(field, explore, usage)] : [];
         },
     );
     const sameExplore = exploreFields
         .filter(isDimension)
         .filter((field) => !field.hidden && !selected.has(getItemId(field)))
-        .map((field) => toCandidate(field, explore));
+        .map((field) => toCandidate(field, explore, usage));
     const known = new Set(sameExplore.map(({ id }) => id));
     const addableFields = prefilterFields(prompt, [
         ...sameExplore,
@@ -318,11 +388,16 @@ const describeChart = (context: ChartIntentContext) => {
     };
 };
 
-const fieldCriteria = (fields: FieldCandidate[]) =>
+const fieldCriteria = (
+    fields: FieldCandidate[],
+    { withDescriptions }: { withDescriptions: boolean },
+) =>
     Object.fromEntries(
         fields.map((field) => [
             field.id,
-            `${field.label} (${field.table})${field.description ? `: ${field.description}` : ''}`,
+            withDescriptions && field.description
+                ? `${field.label} (${field.table}): ${field.description}`
+                : `${field.label} (${field.table})`,
         ]),
     );
 
@@ -350,6 +425,31 @@ export const buildChartIntentQuestions = ({
             ),
         },
         multiple: { type: 'noul', instructions: MULTIPLE_INSTRUCTIONS },
+        nonEdit: {
+            type: 'noul',
+            instructions:
+                'Does the request ask for anything besides changing the current chart, such as a different metric, an explanation, a new or separate chart, saving, sharing or scheduling?',
+        },
+        wantsChartType: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to change the chart type, such as to a line, bar, pie or table?',
+        },
+        wantsAddField: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to add a new breakdown, segment or grouping field to the chart?',
+        },
+        wantsFilter: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to restrict the chart to, or exclude, certain values or a time window?',
+        },
+        wantsSort: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to reorder the chart or keep only the top or bottom N rows?',
+        },
         sortFieldNamed: {
             type: 'noul',
             instructions:
@@ -392,6 +492,10 @@ export const buildChartIntentQuestions = ({
                     'A trailing time window such as the last 30 days or past 6 months',
                 current_period:
                     'The current calendar period such as this week, this month or this year',
+                previous_period:
+                    'The previous complete calendar period such as last year, last quarter or last month',
+                calendar_period:
+                    'A specific named calendar year, quarter or month such as 2023, Q1 2024 or March 2024',
                 other: 'Any other kind of filter',
             },
         },
@@ -408,14 +512,45 @@ export const buildChartIntentQuestions = ({
             },
         },
     };
+    const years = [...new Set(numbers.filter(isYear))];
+    if (years.length > 0) {
+        questions.calendarYear = {
+            type: 'choice',
+            instructions:
+                'Which single calendar year does `prompt` restrict the chart to? Choose none when the number is not a year (such as a count or amount), or when several years or a range are named.',
+            criteria: {
+                ...Object.fromEntries(
+                    years.map((year) => [String(year), `The year ${year}`]),
+                ),
+                none: 'No single calendar year is the filter period',
+            },
+        };
+        questions.calendarPeriod = {
+            type: 'choice',
+            instructions:
+                'Which calendar period does `prompt` itself name? Pick the most specific one: a named month over its quarter, a named quarter over its year. Periods mentioned only in `conversation` do not count.',
+            criteria: {
+                year: 'The whole year, with no quarter or month named',
+                q1: 'First quarter (Q1)',
+                q2: 'Second quarter (Q2)',
+                q3: 'Third quarter (Q3)',
+                q4: 'Fourth quarter (Q4)',
+                ...Object.fromEntries(
+                    MONTHS.map((name, index) => [`m${index + 1}`, name]),
+                ),
+            },
+        };
+    }
     if (context.addableFields.length > 0) {
         questions.addField = {
             type: 'choice',
             instructions:
-                'If the user wants to add a new breakdown field to the chart, which field do they mean? Choose none when the wanted field is not listed or the reference is ambiguous.',
+                'If the user wants to add a new breakdown field to the chart, which field do they mean? When several listed fields fit the wording, spread the probability across them.',
             criteria: {
-                ...fieldCriteria(context.addableFields),
-                none: 'The wanted field is not listed, or it is ambiguous',
+                ...fieldCriteria(context.addableFields, {
+                    withDescriptions: true,
+                }),
+                none: 'No listed field fits what the user named',
             },
         };
     }
@@ -425,7 +560,9 @@ export const buildChartIntentQuestions = ({
             instructions:
                 'If the user wants the chart sorted or limited, which field does the order use?',
             criteria: {
-                ...fieldCriteria(context.currentFields),
+                ...fieldCriteria(context.currentFields, {
+                    withDescriptions: false,
+                }),
                 none: 'The named field is not in this list',
             },
         };
@@ -436,7 +573,9 @@ export const buildChartIntentQuestions = ({
             instructions:
                 'If the user wants to filter the chart, which field do the filtered values or time window belong to? For values like a status, region or name, pick the field those values come from. Prefer fields already in `chart.dimensions` when they fit.',
             criteria: {
-                ...fieldCriteria(context.filterableFields),
+                ...fieldCriteria(context.filterableFields, {
+                    withDescriptions: false,
+                }),
                 none: 'The filter is on a field not in this list',
             },
         };
@@ -476,22 +615,108 @@ export type ChartIntentThresholds = {
     [Key in keyof typeof CHART_INTENT_THRESHOLDS]: number;
 };
 
+type FieldChoice =
+    | { type: 'pick'; fieldId: string }
+    | { type: 'clarify'; labels: [string, string] }
+    | { type: 'none' };
+
+const byUsage = (left: FieldCandidate, right: FieldCandidate) =>
+    right.verifiedUsage - left.verifiedUsage ||
+    right.chartUsage - left.chartUsage;
+
+/** Resolves a JEV split between two fields: a verified near-tie wins, otherwise ask. */
+const resolveFieldSplit = (
+    answer: DecisionAnswers[string] | undefined,
+    fields: FieldCandidate[],
+    thresholds: ChartIntentThresholds,
+): FieldChoice => {
+    if (answer?.type !== 'choice') return { type: 'none' };
+    const [first, second] = Object.entries(answer.probabilities)
+        .filter(([key]) => key !== 'none')
+        .sort(([, left], [, right]) => right - left);
+    if (
+        !first ||
+        !second ||
+        first[1] >= thresholds.clarifyBelow ||
+        first[1] + second[1] < thresholds.clarifyPair ||
+        second[1] < thresholds.clarifyRunnerUp
+    )
+        return { type: 'none' };
+    const candidates = [first[0], second[0]].map((id) =>
+        fields.find((field) => field.id === id),
+    );
+    const [a, b] = candidates;
+    if (!a || !b) return { type: 'none' };
+    const verifiedOnly = [a, b].filter((field) => field.verifiedUsage > 0);
+    if (
+        first[1] - second[1] <= thresholds.verifiedTieMargin &&
+        verifiedOnly.length === 1
+    )
+        return { type: 'pick', fieldId: verifiedOnly[0].id };
+    const [top, next] = [a, b].sort(byUsage);
+    return {
+        type: 'clarify',
+        labels:
+            top.label === next.label
+                ? [
+                      `${top.label} (${top.table})`,
+                      `${next.label} (${next.table})`,
+                  ]
+                : [top.label, next.label],
+    };
+};
+
+const CHART_TYPE_NAMES: Record<ChartTypeOption, string> = {
+    line: 'a line chart',
+    area: 'an area chart',
+    bar: 'a bar chart',
+    horizontal: 'a horizontal bar chart',
+    scatter: 'a scatter chart',
+    pie: 'a pie chart',
+    table: 'a table',
+};
+
 const resolveSort = (
     answers: DecisionAnswers,
+    context: ChartIntentContext,
     numbers: number[],
     thresholds: ChartIntentThresholds,
 ): ChartIntentResolution => {
     const { option, field } = thresholds;
     const direction = confident(answers.sortDirection, option);
     const named = (decisionProbability(answers.sortFieldNamed) ?? 0) >= 0.5;
-    const sortField = named ? confident(answers.sortField, field) : null;
-    if (!direction || (named && (!sortField || sortField === 'none')))
-        return { type: 'unresolved', reason: 'sort' };
+    const split = named
+        ? resolveFieldSplit(
+              answers.sortField,
+              context.currentFields,
+              thresholds,
+          )
+        : ({ type: 'none' } as const);
+    let sortField: string | null = null;
+    if (split.type === 'pick') sortField = split.fieldId;
+    else if (named) sortField = confident(answers.sortField, field);
     const stated = confident(answers.number, option);
     const limit =
         stated && stated !== 'none' && numbers.includes(Number(stated))
             ? Number(stated)
             : null;
+    if (direction && split.type === 'clarify') {
+        const order =
+            direction === 'descending' ? 'highest first' : 'lowest first';
+        const rows = limit
+            ? `, ${direction === 'descending' ? 'top' : 'bottom'} ${limit}`
+            : '';
+        return {
+            type: 'clarify',
+            question: 'Which field should I sort by?',
+            options: split.labels.map((label) => ({
+                label,
+                prompt: `Sort by ${label}, ${order}${rows}`,
+            })),
+        };
+    }
+    if (!direction || (named && (!sortField || sortField === 'none')))
+        return { type: 'unresolved', reason: 'sort' };
     return {
         type: 'intent',
         intent: {
@@ -500,6 +725,25 @@ const resolveSort = (
             descending: direction === 'descending',
             limit,
         },
+    };
+};
+
+/** A named calendar year, quarter or month; JEV picks both the year and the most specific period. */
+const resolveCalendarPeriod = (
+    answers: DecisionAnswers,
+    numbers: number[],
+    threshold: number,
+): Extract<ChartPeriod, { type: 'calendar' }> | null => {
+    const year = Number(confident(answers.calendarYear, threshold));
+    if (!numbers.includes(year) || !isYear(year)) return null;
+    const period = confident(answers.calendarPeriod, threshold);
+    if (!period) return null;
+    const number = Number(period.slice(1));
+    return {
+        type: 'calendar',
+        year,
+        quarter: period.startsWith('q') ? number : null,
+        month: period.startsWith('m') ? number : null,
     };
 };
 
@@ -517,7 +761,12 @@ const resolveFilter = (
     const chosenField = context.filterableFields.find(
         ({ id }) => id === chosen,
     );
-    if (kind === 'last_period' || kind === 'current_period') {
+    if (
+        kind === 'last_period' ||
+        kind === 'current_period' ||
+        kind === 'previous_period' ||
+        kind === 'calendar_period'
+    ) {
         const queryDates = context.currentFields.filter(
             ({ id, isDate }) =>
                 isDate &&
@@ -527,9 +776,32 @@ const resolveFilter = (
             queryDates.length === 1
                 ? queryDates[0]
                 : [chosenField].find((candidate) => candidate?.isDate);
+        if (!dateField) return { type: 'unresolved', reason: 'filter-period' };
+        if (kind === 'calendar_period') {
+            const period = resolveCalendarPeriod(answers, numbers, option);
+            return period
+                ? {
+                      type: 'intent',
+                      intent: {
+                          kind: 'filter_period',
+                          fieldId: dateField.id,
+                          period,
+                      },
+                  }
+                : { type: 'unresolved', reason: 'filter-calendar' };
+        }
         const unit = confident(answers.periodUnit, option);
-        if (!dateField || !isPeriodUnit(unit))
+        if (!isPeriodUnit(unit))
             return { type: 'unresolved', reason: 'filter-period' };
+        if (kind === 'previous_period')
+            return {
+                type: 'intent',
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: dateField.id,
+                    period: { type: 'previous', unit },
+                },
+            };
         if (kind === 'current_period')
             return {
                 type: 'intent',
@@ -562,6 +834,127 @@ const resolveFilter = (
     };
 };
 
+const resolveAddField = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+    chartType: ChartTypeOption | null,
+): ChartIntentResolution => {
+    const split = resolveFieldSplit(
+        answers.addField,
+        context.addableFields,
+        thresholds,
+    );
+    if (split.type === 'clarify') {
+        const presentation = chartType
+            ? ` as ${CHART_TYPE_NAMES[chartType]}`
+            : '';
+        return {
+            type: 'clarify',
+            question: 'Which field should I add?',
+            options: split.labels.map((label) => ({
+                label,
+                prompt: `Add ${label} to the chart${presentation}`,
+            })),
+        };
+    }
+    const fieldId =
+        split.type === 'pick'
+            ? split.fieldId
+            : confident(answers.addField, thresholds.field);
+    if (!fieldId || fieldId === 'none')
+        return { type: 'unresolved', reason: 'add-field' };
+    return {
+        type: 'intent',
+        intent: { kind: 'add_field', fieldId, chartType },
+    };
+};
+
+const toStep = (resolution: ChartIntentResolution): CompoundStep | null => {
+    if (resolution.type === 'needs_values') return resolution;
+    if (resolution.type === 'intent' && resolution.intent.kind !== 'undo')
+        return { type: 'intent', intent: resolution.intent };
+    return null;
+};
+
+const COMPOSABLE = {
+    chart_type: 'wantsChartType',
+    add_field: 'wantsAddField',
+    filter: 'wantsFilter',
+    sort: 'wantsSort',
+} as const;
+type ComposableIntent = keyof typeof COMPOSABLE;
+
+const isComposable = (intent: IntentKey): intent is ComposableIntent =>
+    intent in COMPOSABLE;
+
+/** Edit kinds requested beyond the primary intent; any extra makes the turn compound. */
+const extraEdits = (
+    answers: DecisionAnswers,
+    primary: IntentKey,
+    thresholds: ChartIntentThresholds,
+): ComposableIntent[] =>
+    (Object.keys(COMPOSABLE) as ComposableIntent[]).filter(
+        (kind) =>
+            kind !== primary &&
+            (decisionProbability(answers[COMPOSABLE[kind]]) ?? 0) >=
+                thresholds.wants,
+    );
+
+/** Several chart edits in one request, applied in order only when every one resolves. */
+const resolveCompound = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    numbers: number[],
+    thresholds: ChartIntentThresholds,
+    kinds: Set<ComposableIntent>,
+    requireSeveral: boolean,
+): ChartIntentResolution => {
+    const chartTypeAnswer = confident(answers.chartType, thresholds.option);
+    const chartType = isChartType(chartTypeAnswer) ? chartTypeAnswer : null;
+    const addField = kinds.has('add_field');
+    const resolutions: ChartIntentResolution[] = [
+        ...(addField
+            ? [
+                  resolveAddField(
+                      answers,
+                      context,
+                      thresholds,
+                      kinds.has('chart_type') ? chartType : null,
+                  ),
+              ]
+            : []),
+        ...(kinds.has('filter')
+            ? [resolveFilter(answers, context, numbers, thresholds)]
+            : []),
+        ...(kinds.has('sort')
+            ? [resolveSort(answers, context, numbers, thresholds)]
+            : []),
+        ...(!addField && kinds.has('chart_type')
+            ? [
+                  chartType
+                      ? ({
+                            type: 'intent',
+                            intent: { kind: 'chart_type', chartType },
+                        } as const)
+                      : ({ type: 'unresolved', reason: 'chart-type' } as const),
+              ]
+            : []),
+    ];
+    const steps = resolutions.map(toStep);
+    if (
+        resolutions.length === 0 ||
+        (requireSeveral && resolutions.length < 2) ||
+        steps.some((step) => step === null)
+    )
+        return { type: 'unresolved', reason: 'multiple' };
+    if (resolutions.length === 1) return resolutions[0];
+    return {
+        type: 'compound',
+        steps: steps.filter((step): step is CompoundStep => step !== null),
+    };
+};
+
 export const interpretChartIntent = ({
     answers,
     prompt,
@@ -580,10 +973,25 @@ export const interpretChartIntent = ({
     if (intent === 'new_question') return { type: 'not_an_edit' };
     if (!intent || intent === 'unclear')
         return { type: 'unresolved', reason: 'intent' };
-    if ((decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple)
-        return { type: 'unresolved', reason: 'multiple' };
-
+    if ((decisionProbability(answers.nonEdit) ?? 1) >= thresholds.nonEdit)
+        return { type: 'unresolved', reason: 'non-edit' };
     const numbers = extractNumberCandidates(prompt);
+    const extras = extraEdits(answers, intent, thresholds);
+    const multiple =
+        (decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple;
+    if (extras.length > 0 || multiple) {
+        if (!isComposable(intent))
+            return { type: 'unresolved', reason: 'multiple' };
+        return resolveCompound(
+            answers,
+            context,
+            numbers,
+            thresholds,
+            new Set([intent, ...extras]),
+            multiple,
+        );
+    }
+
     const chartType = confident(answers.chartType, thresholds.option);
     switch (intent) {
         case 'chart_type':
@@ -609,25 +1017,19 @@ export const interpretChartIntent = ({
                 : { type: 'intent', intent: { kind: 'series', op: 'swap' } };
         case 'split_series':
             return { type: 'intent', intent: { kind: 'series', op: 'split' } };
-        case 'add_field': {
-            const fieldId = confident(answers.addField, thresholds.field);
-            if (!fieldId || fieldId === 'none')
-                return { type: 'unresolved', reason: 'add-field' };
-            return {
-                type: 'intent',
-                intent: {
-                    kind: 'add_field',
-                    fieldId,
-                    chartType: isChartType(chartType) ? chartType : null,
-                },
-            };
-        }
+        case 'add_field':
+            return resolveAddField(
+                answers,
+                context,
+                thresholds,
+                isChartType(chartType) ? chartType : null,
+            );
         case 'filter':
             return resolveFilter(answers, context, numbers, thresholds);
         case 'clear_filters':
             return { type: 'intent', intent: { kind: 'clear_filters' } };
         case 'sort':
-            return resolveSort(answers, numbers, thresholds);
+            return resolveSort(answers, context, numbers, thresholds);
         case 'clear_sort':
             return { type: 'intent', intent: { kind: 'clear_sort' } };
         case 'undo':
@@ -635,6 +1037,128 @@ export const interpretChartIntent = ({
         default:
             return { type: 'unresolved', reason: 'intent' };
     }
+};
+
+const labelFor = (context: ChartIntentContext, fieldId: string) =>
+    [
+        ...context.currentFields,
+        ...context.addableFields,
+        ...context.filterableFields,
+    ].find(({ id }) => id === fieldId)?.label ?? fieldId;
+
+const describePeriod = (period: ChartPeriod): string => {
+    switch (period.type) {
+        case 'last':
+            return `the last ${period.count} ${period.unit}`;
+        case 'previous':
+            return `the previous complete ${period.unit.replace(/s$/, '')}`;
+        case 'current':
+            return `the current ${period.unit.replace(/s$/, '')}`;
+        case 'calendar':
+            if (period.quarter !== null)
+                return `Q${period.quarter} ${period.year}`;
+            if (period.month !== null)
+                return `${MONTHS[period.month - 1]} ${period.year}`;
+            return `the year ${period.year}`;
+        default:
+            return assertUnreachable(period, 'Unknown chart period');
+    }
+};
+
+const describeStep = (
+    step: CompoundStep,
+    context: ChartIntentContext,
+): string => {
+    if (step.type === 'needs_values')
+        return `${step.filter.exclude ? 'Exclude' : 'Keep only'} the ${labelFor(context, step.filter.fieldId)} values the user names`;
+    const { intent } = step;
+    switch (intent.kind) {
+        case 'chart_type':
+            return `Show the same data as ${CHART_TYPE_NAMES[intent.chartType]}`;
+        case 'series':
+            return {
+                stack: 'Stack the existing bar series',
+                unstack: 'Unstack the existing bar series',
+                swap: 'Swap the bar chart between vertical and horizontal',
+                split: 'Show one series per dimension already in the chart',
+            }[intent.op];
+        case 'add_field':
+            return `Break the chart down by ${labelFor(context, intent.fieldId)}, with one series per ${labelFor(context, intent.fieldId)} value${intent.chartType ? `, shown as ${CHART_TYPE_NAMES[intent.chartType]}` : ''}`;
+        case 'filter_values':
+            return `${intent.exclude ? 'Exclude' : 'Keep only'} ${labelFor(context, intent.fieldId)} values ${intent.values.join(', ')}`;
+        case 'filter_period':
+            return `Filter ${labelFor(context, intent.fieldId)} to ${describePeriod(intent.period)}`;
+        case 'clear_filters':
+            return 'Remove all chart filters';
+        case 'sort':
+            return `Sort by ${intent.fieldId ? labelFor(context, intent.fieldId) : 'the chart metric'}, ${intent.descending ? 'highest' : 'lowest'} first${intent.limit ? `, keeping ${intent.limit} rows` : ''}`;
+        case 'clear_sort':
+            return 'Remove the chart sort';
+        default:
+            return assertUnreachable(intent, 'Unknown chart intent');
+    }
+};
+
+/** The applicable steps of a resolution; undo and non-edits have none. */
+export const plannedSteps = (
+    resolution: ChartIntentResolution,
+): CompoundStep[] => {
+    if (resolution.type === 'compound') return resolution.steps;
+    if (resolution.type === 'needs_values') return [resolution];
+    if (resolution.type === 'intent' && resolution.intent.kind !== 'undo')
+        return [{ type: 'intent', intent: resolution.intent }];
+    return [];
+};
+
+const SELF_CONTAINED = new Set(['clear_filters', 'clear_sort', 'undo']);
+
+/** Second request, only when about to act: does the planned change cover the whole request? */
+export const verifyChartPlan = async ({
+    decisions,
+    prompt,
+    context,
+    resolution,
+    thresholds = CHART_INTENT_THRESHOLDS,
+}: {
+    decisions: Pick<AiDecisionClient, 'evaluate'>;
+    prompt: string;
+    context: ChartIntentContext;
+    resolution: ChartIntentResolution;
+    thresholds?: ChartIntentThresholds;
+}): Promise<ChartIntentResolution> => {
+    if (
+        resolution.type === 'intent' &&
+        SELF_CONTAINED.has(resolution.intent.kind)
+    )
+        return resolution;
+    const steps = plannedSteps(resolution);
+    // Nothing to apply yet, or only value filters, which the warehouse value lookup checks.
+    if (
+        steps.length === 0 ||
+        steps.every((step) => step.type === 'needs_values')
+    )
+        return resolution;
+    const answers = await decisions.evaluate({
+        operation: 'chart-intent-verify',
+        state: {
+            request: prompt,
+            chart: describeChart(context),
+            plannedChange: steps
+                .map((step) => describeStep(step, context))
+                .join('; then '),
+        },
+        questions: {
+            covers: {
+                type: 'noul',
+                instructions:
+                    'Would applying `plannedChange` to the current chart do everything the user asks in `request`, with nothing requested left out? Requested details the plan omits make this false: stacking, percentages, combined chart types, cohort layouts, axis settings, new calculations, a different metric, or any named customer, account, person or value to restrict to (that is a filter the plan must include). Statements, feedback, links and questions that do not ask for this change are false.',
+            },
+        },
+    });
+    if (!answers) return { type: 'unresolved', reason: 'verify-unavailable' };
+    return (decisionProbability(answers.covers) ?? 0) >= thresholds.covers
+        ? resolution
+        : { type: 'unresolved', reason: 'not-covered' };
 };
 
 /** One batched request per turn: model routing plus, on chart threads, the chart intent. */
@@ -653,6 +1177,8 @@ export const decideTurn = async ({
 }): Promise<{ decision: TurnDecision; answers: DecisionAnswers | null }> => {
     const answers = await decisions.evaluate({
         operation: context ? 'chart-intent' : 'model-routing',
+        // A timeout here costs a full agent run, so the batched request gets more room.
+        timeoutMs: context ? CHART_INTENT_TIMEOUT_MS : undefined,
         state: context
             ? {
                   prompt,
@@ -675,14 +1201,22 @@ export const decideTurn = async ({
             },
             answers: null,
         };
-    const chart = context
+    const interpreted = context
         ? interpretChartIntent({ answers, prompt, context })
         : null;
+    const chart =
+        context && interpreted && isChartEditAttempt(interpreted)
+            ? await verifyChartPlan({
+                  decisions,
+                  prompt,
+                  context,
+                  resolution: interpreted,
+              })
+            : interpreted;
     return {
         decision: {
             simpleDataAnswer:
-                chart?.type !== 'intent' &&
-                chart?.type !== 'needs_values' &&
+                (!chart || !isChartEditAttempt(chart)) &&
                 (decisionProbability(answers.simple) ?? 0) >=
                     CHART_INTENT_THRESHOLDS.simpleDataAnswer,
             chart,

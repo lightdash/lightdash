@@ -48,6 +48,7 @@ describe('AiDecisionClient', () => {
             Authorization: 'Bearer test-key',
             'Content-Type': 'application/json',
         });
+        expect(options).toHaveProperty('dispatcher');
         expect(options?.body).toBe(
             JSON.stringify({
                 model: config.model,
@@ -58,7 +59,7 @@ describe('AiDecisionClient', () => {
     });
 
     it('tracks provider usage without mixing it into the decision answers', async () => {
-        const usage = { inputTokens: 0, outputTokens: 0 };
+        const usage = { inputTokens: 0, outputTokens: 0, serviceMs: null };
         const client = new AiDecisionClient(config, async () =>
             Response.json({
                 ...result,
@@ -67,7 +68,24 @@ describe('AiDecisionClient', () => {
         ).withUsage(usage);
 
         expect(await client.evaluate(request)).toEqual(result.answers);
-        expect(usage).toEqual({ inputTokens: 123, outputTokens: 4 });
+        expect(usage).toEqual({
+            inputTokens: 123,
+            outputTokens: 4,
+            serviceMs: null,
+        });
+    });
+
+    it('sums the service time JEV reports across calls', async () => {
+        const usage = { inputTokens: 0, outputTokens: 0, serviceMs: null };
+        const client = new AiDecisionClient(config, async () =>
+            Response.json(result, {
+                headers: { 'x-envoy-upstream-service-time': '82' },
+            }),
+        ).withUsage(usage);
+
+        await client.evaluate(request);
+        await client.evaluate(request);
+        expect(usage.serviceMs).toBe(164);
     });
 
     it.each([

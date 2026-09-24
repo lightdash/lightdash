@@ -1,3 +1,4 @@
+import { Agent, type Dispatcher } from 'undici';
 import { z } from 'zod';
 import type { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
@@ -36,6 +37,7 @@ const responseSchema = z.object({
     usage: usageSchema.optional(),
 });
 const MAX_DECISION_PAYLOAD_BYTES = 100_000;
+const MAX_DECISION_TIMEOUT_MS = 2_000;
 const LOGGED_OPERATIONS = new Set([
     'agent-readiness',
     'agent-routing',
@@ -103,7 +105,17 @@ export type DecisionAnswers = z.infer<typeof responseSchema>['answers'];
 export type AiDecisionUsage = {
     inputTokens: number;
     outputTokens: number;
+    /** JEV's own processing time, summed across calls; null until the provider reports one. */
+    serviceMs: number | null;
 };
+
+// JEV's gateway reports how long its model service spent on the request.
+const SERVICE_TIME_HEADER = 'x-envoy-upstream-service-time';
+// Turns arrive seconds apart, past fetch's default keep-alive, so every turn paid a new TLS handshake.
+const JEV_DISPATCHER = new Agent({
+    keepAliveTimeout: 300_000,
+    keepAliveMaxTimeout: 300_000,
+});
 type DecisionConfig = LightdashConfig['ai']['decisions'];
 type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
@@ -136,11 +148,14 @@ export class AiDecisionClient {
         state,
         questions,
         signal,
+        timeoutMs,
     }: {
         operation: string;
         state: unknown;
         questions: Record<string, DecisionQuestion>;
         signal?: AbortSignal;
+        /** Per-call budget for larger batched requests; capped at the client maximum. */
+        timeoutMs?: number;
     }): Promise<DecisionAnswers | null> {
         if (
             !this.config.apiKey ||
@@ -172,7 +187,12 @@ export class AiDecisionClient {
                 outcome = 'state-too-large';
                 return null;
             }
-            const deadline = AbortSignal.timeout(this.config.timeoutMs);
+            const deadline = AbortSignal.timeout(
+                Math.min(
+                    Math.max(timeoutMs ?? 0, this.config.timeoutMs),
+                    MAX_DECISION_TIMEOUT_MS,
+                ),
+            );
             const response = await this.request(
                 'https://api.typesafe.ai/v1/systemone',
                 {
@@ -185,6 +205,9 @@ export class AiDecisionClient {
                     signal: signal
                         ? AbortSignal.any([signal, deadline])
                         : deadline,
+                    ...({ dispatcher: JEV_DISPATCHER } as {
+                        dispatcher: Dispatcher;
+                    }),
                 },
             );
             if (!response.ok) {
@@ -194,6 +217,11 @@ export class AiDecisionClient {
                 await response.body?.cancel();
                 throw new Error('Decision provider unavailable');
             }
+            const serviceMs = Number(
+                response.headers.get(SERVICE_TIME_HEADER) ?? Number.NaN,
+            );
+            if (Number.isFinite(serviceMs) && this.usage)
+                this.usage.serviceMs = (this.usage.serviceMs ?? 0) + serviceMs;
             outcome = 'invalid-response';
             retryableFailure = false;
             const rawResponse = await readBoundedJson(response);

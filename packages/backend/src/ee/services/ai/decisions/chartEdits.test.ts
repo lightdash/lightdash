@@ -10,7 +10,11 @@ import {
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { applyChartIntent, getFilterFieldIds } from './chartEdits';
+import {
+    applyChartIntent,
+    calendarRange,
+    getFilterFieldIds,
+} from './chartEdits';
 
 const artifact: AiSemanticChartArtifactConfig = {
     source: 'semantic',
@@ -61,6 +65,11 @@ const explore = {
             label: 'Orders',
             dimensions: {
                 date: dimension('date', DimensionType.DATE, 'Date'),
+                created_at: dimension(
+                    'created_at',
+                    DimensionType.TIMESTAMP,
+                    'Created at',
+                ),
                 region: dimension('region', DimensionType.STRING, 'Region'),
                 status: dimension('status', DimensionType.STRING, 'Status'),
             },
@@ -320,6 +329,30 @@ describe('applyChartIntent', () => {
             expect(edit?.response).toBe('Added **Method** from **Payments**.');
         });
 
+        it('puts an added date on the axis of a categorical chart', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'add_field',
+                    fieldId: 'orders_date',
+                    chartType: null,
+                },
+                artifact: withQuery(
+                    { dimensions: ['orders_region'] },
+                    {
+                        xAxisDimension: 'orders_region',
+                        groupBy: null,
+                        xAxisType: 'category',
+                    },
+                ),
+                explore,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_date',
+                groupBy: ['orders_region'],
+                xAxisType: 'time',
+            });
+        });
+
         it('rejects fields that are not dimensions of the explore', () => {
             expect(
                 applyChartIntent({
@@ -422,6 +455,110 @@ describe('applyChartIntent', () => {
                 { operator: FilterOperator.IN_THE_CURRENT },
             ]);
             expect(edit?.response).toBe('Filtered to this month.');
+        });
+
+        it('filters to a previous complete calendar period', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_date',
+                    period: { type: 'previous', unit: 'years' },
+                },
+                artifact,
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                {
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [1],
+                    settings: { unitOfTime: UnitOfTime.years, completed: true },
+                },
+            ]);
+            expect(edit?.response).toBe('Filtered to last year.');
+        });
+
+        it.each([
+            [
+                { quarter: null, month: null },
+                ['2023-01-01', '2024-01-01'],
+                'Filtered to 2023.',
+            ],
+            [
+                { quarter: 1, month: null },
+                ['2023-01-01', '2023-04-01'],
+                'Filtered to Q1 2023.',
+            ],
+            [
+                { quarter: null, month: 3 },
+                ['2023-03-01', '2023-04-01'],
+                'Filtered to March 2023.',
+            ],
+        ] as const)(
+            'filters to a named calendar period %j',
+            (narrowing, range, response) => {
+                const period = {
+                    type: 'calendar' as const,
+                    year: 2023,
+                    ...narrowing,
+                };
+                expect(calendarRange(period)).toEqual(range);
+                const edit = applyChartIntent({
+                    intent: {
+                        kind: 'filter_period',
+                        fieldId: 'orders_date',
+                        period,
+                    },
+                    artifact,
+                    explore,
+                });
+                expect(rulesOf(edit)).toMatchObject([
+                    {
+                        operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                        values: [range[0]],
+                    },
+                    { operator: FilterOperator.LESS_THAN, values: [range[1]] },
+                ]);
+                expect(edit?.response).toBe(response);
+            },
+        );
+
+        it('rolls December into the next year', () => {
+            expect(
+                calendarRange({
+                    type: 'calendar',
+                    year: 2024,
+                    quarter: null,
+                    month: 12,
+                }),
+            ).toEqual(['2024-12-01', '2025-01-01']);
+        });
+
+        it('keeps the whole last day of a period on a timestamp field', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_created_at',
+                    period: {
+                        type: 'calendar',
+                        year: 2024,
+                        quarter: null,
+                        month: null,
+                    },
+                },
+                artifact,
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                {
+                    fieldId: 'orders_created_at',
+                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                },
+                {
+                    fieldId: 'orders_created_at',
+                    operator: FilterOperator.LESS_THAN,
+                },
+            ]);
+            expect(edit?.response).toBe('Filtered to 2024.');
         });
 
         it('preserves other-field filters and rejects OR groups', () => {

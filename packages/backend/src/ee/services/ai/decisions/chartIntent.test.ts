@@ -14,6 +14,7 @@ import {
     interpretChartIntent,
     isChartEditAttempt,
     selectFilterValues,
+    type ChartIntentResolution,
 } from './chartIntent';
 
 const dimension = (name: string, type: DimensionType, label: string) => ({
@@ -35,6 +36,7 @@ const explore = {
                 date: dimension('date', DimensionType.DATE, 'Date'),
                 status: dimension('status', DimensionType.STRING, 'Status'),
                 region: dimension('region', DimensionType.STRING, 'Region'),
+                city: dimension('city', DimensionType.STRING, 'City'),
             },
             metrics: {
                 count: {
@@ -88,12 +90,22 @@ const choice = (value: string, probability = 0.95) => ({
     probabilities: { [value]: probability, other: 1 - probability },
 });
 const noul = (value: number) => ({ type: 'noul' as const, noul: value });
+const noUsage = { verified: new Map<string, number>(), charts: new Map() };
 
 const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
     interpretChartIntent({
-        answers: { multiple: noul(0.05), ...answers } as DecisionAnswers,
+        answers: {
+            multiple: noul(0.05),
+            nonEdit: noul(0.05),
+            ...answers,
+        } as DecisionAnswers,
         prompt,
-        context: buildChartIntentContext({ prompt, artifact, explore }),
+        context: buildChartIntentContext({
+            prompt,
+            artifact,
+            explore,
+            usage: noUsage,
+        }),
     });
 
 describe('interpretChartIntent', () => {
@@ -103,16 +115,6 @@ describe('interpretChartIntent', () => {
                 intent: choice('new_question'),
             }),
         ).toEqual({ type: 'not_an_edit' });
-    });
-
-    it('refuses to partially apply a request that asks for several things', () => {
-        expect(
-            interpret('make it a line and filter to last year', {
-                intent: choice('chart_type'),
-                multiple: noul(0.9),
-                chartType: choice('line'),
-            }),
-        ).toEqual({ type: 'unresolved', reason: 'multiple' });
     });
 
     it('resolves a chart type and prefers it over a swap', () => {
@@ -194,6 +196,97 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('reads a named calendar year and month from the prompt', () => {
+        expect(
+            interpret('only March 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarYear: choice('2024'),
+                calendarPeriod: choice('m3'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_period',
+                fieldId: 'orders_date',
+                period: {
+                    type: 'calendar',
+                    year: 2024,
+                    quarter: null,
+                    month: 3,
+                },
+            },
+        });
+    });
+
+    it('reads a named quarter as one calendar period', () => {
+        expect(
+            interpret('only Q3 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarYear: choice('2024'),
+                calendarPeriod: choice('q3'),
+            }),
+        ).toMatchObject({
+            intent: {
+                period: {
+                    type: 'calendar',
+                    year: 2024,
+                    quarter: 3,
+                    month: null,
+                },
+            },
+        });
+    });
+
+    it('does not widen an unsure period to the whole year', () => {
+        expect(
+            interpret('only Q3 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarYear: choice('2024'),
+                calendarPeriod: choice('q3', 0.45),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
+    });
+
+    it('does not read a count as a calendar year', () => {
+        expect(
+            interpret('top 2000 customers in March', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarYear: choice('none'),
+                calendarPeriod: choice('m3'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
+    });
+
+    it('needs exactly one stated year for a calendar period', () => {
+        expect(
+            interpret('from 2022 to 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
+    });
+
+    it('resolves the previous complete period', () => {
+        expect(
+            interpret('last year only', {
+                intent: choice('filter'),
+                filterKind: choice('previous_period'),
+                periodUnit: choice('years'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_period',
+                fieldId: 'orders_date',
+                period: { type: 'previous', unit: 'years' },
+            },
+        });
+    });
+
     it('only accepts numbers stated in the prompt', () => {
         expect(
             interpret('top few', {
@@ -232,6 +325,219 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('leaves requests that also ask for something else to the agent', () => {
+        const resolution = interpret('make it a line and save it', {
+            intent: choice('chart_type'),
+            nonEdit: noul(0.93),
+            chartType: choice('line'),
+        });
+        expect(resolution).toEqual({ type: 'unresolved', reason: 'non-edit' });
+        expect(isChartEditAttempt(resolution)).toBe(false);
+    });
+
+    it('applies every edit a request names, never just the primary one', () => {
+        expect(
+            interpret('top 3 as horizontal bars', {
+                intent: choice('chart_type'),
+                chartType: choice('horizontal'),
+                wantsSort: noul(0.95),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.2),
+                number: choice('3'),
+            }),
+        ).toEqual({
+            type: 'compound',
+            steps: [
+                {
+                    type: 'intent',
+                    intent: {
+                        kind: 'sort',
+                        fieldId: null,
+                        descending: true,
+                        limit: 3,
+                    },
+                },
+                {
+                    type: 'intent',
+                    intent: { kind: 'chart_type', chartType: 'horizontal' },
+                },
+            ],
+        });
+    });
+
+    it('falls back when any part of a compound request is unresolved', () => {
+        expect(
+            interpret('segment by region and sort it', {
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                wantsSort: noul(0.9),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
+    });
+
+    it('does not combine edits with a non-composable intent', () => {
+        expect(
+            interpret('stack it and only last 6 months', {
+                intent: choice('stack'),
+                wantsFilter: noul(0.9),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
+    });
+
+    it('never applies a single edit when JEV says several were asked for', () => {
+        expect(
+            interpret('make it a line and do the other thing', {
+                intent: choice('chart_type'),
+                multiple: noul(0.9),
+                chartType: choice('line'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
+    });
+
+    it('treats adding a field in a named chart type as one edit', () => {
+        expect(
+            interpret('split by region as a line chart', {
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                chartType: choice('line'),
+                wantsChartType: noul(0.95),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'add_field',
+                fieldId: 'orders_region',
+                chartType: 'line',
+            },
+        });
+    });
+
+    it('asks which field when JEV splits between two candidates', () => {
+        expect(
+            interpret('segment by place', {
+                intent: choice('add_field'),
+                addField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.4,
+                    probabilities: {
+                        orders_region: 0.55,
+                        orders_city: 0.35,
+                        none: 0.1,
+                    },
+                },
+                chartType: choice('line'),
+            }),
+        ).toEqual({
+            type: 'clarify',
+            question: 'Which field should I add?',
+            options: [
+                {
+                    label: 'Region',
+                    prompt: 'Add Region to the chart as a line chart',
+                },
+                {
+                    label: 'City',
+                    prompt: 'Add City to the chart as a line chart',
+                },
+            ],
+        });
+    });
+
+    it('prefers the verified field when JEV scores two fields nearly the same', () => {
+        const splitAnswer = {
+            type: 'choice' as const,
+            choice: 'orders_region',
+            confidence: 0.4,
+            probabilities: {
+                orders_region: 0.48,
+                orders_city: 0.42,
+                none: 0.1,
+            },
+        };
+        const context = buildChartIntentContext({
+            prompt: 'segment by place',
+            artifact,
+            explore,
+            usage: {
+                verified: new Map([['orders_city::dimension', 3]]),
+                charts: new Map(),
+            },
+        });
+        expect(
+            interpretChartIntent({
+                answers: {
+                    intent: choice('add_field'),
+                    multiple: noul(0.05),
+                    nonEdit: noul(0.05),
+                    addField: splitAnswer,
+                } as DecisionAnswers,
+                prompt: 'segment by place',
+                context,
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'add_field',
+                fieldId: 'orders_city',
+                chartType: null,
+            },
+        });
+    });
+
+    it('orders clarification chips by verified then chart usage', () => {
+        const context = buildChartIntentContext({
+            prompt: 'segment by place',
+            artifact,
+            explore,
+            usage: {
+                verified: new Map(),
+                charts: new Map([['orders_city', 40]]),
+            },
+        });
+        expect(
+            interpretChartIntent({
+                answers: {
+                    intent: choice('add_field'),
+                    multiple: noul(0.05),
+                    nonEdit: noul(0.05),
+                    addField: {
+                        type: 'choice',
+                        choice: 'orders_region',
+                        confidence: 0.4,
+                        probabilities: {
+                            orders_region: 0.55,
+                            orders_city: 0.35,
+                            none: 0.1,
+                        },
+                    },
+                } as DecisionAnswers,
+                prompt: 'segment by place',
+                context,
+            }),
+        ).toMatchObject({
+            type: 'clarify',
+            options: [{ label: 'City' }, { label: 'Region' }],
+        });
+    });
+
+    it('applies a confident field even when others share some probability', () => {
+        expect(
+            interpret('segment by region', {
+                intent: choice('add_field'),
+                addField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.85,
+                    probabilities: { orders_region: 0.85, orders_city: 0.15 },
+                },
+            }),
+        ).toMatchObject({
+            type: 'intent',
+            intent: { kind: 'add_field', fieldId: 'orders_region' },
+        });
+    });
+
     it('treats low-confidence intents as unresolved', () => {
         expect(interpret('hmm', { intent: choice('chart_type', 0.3) })).toEqual(
             { type: 'unresolved', reason: 'intent' },
@@ -240,7 +546,7 @@ describe('interpretChartIntent', () => {
 });
 
 describe('isChartEditAttempt', () => {
-    it.each([
+    it.each<[ChartIntentResolution, boolean]>([
         [{ type: 'intent', intent: { kind: 'undo' } }, true],
         [
             { type: 'needs_values', filter: { fieldId: 'a', exclude: false } },
@@ -249,9 +555,14 @@ describe('isChartEditAttempt', () => {
         [{ type: 'unresolved', reason: 'add-field' }, true],
         [{ type: 'unresolved', reason: 'intent' }, false],
         [{ type: 'unresolved', reason: 'multiple' }, false],
+        [{ type: 'unresolved', reason: 'non-edit' }, false],
+        [{ type: 'compound', steps: [] }, true],
+        [{ type: 'clarify', question: 'Which?', options: [] }, true],
         [{ type: 'unresolved', reason: 'decision-unavailable' }, false],
+        [{ type: 'unresolved', reason: 'not-covered' }, true],
+        [{ type: 'unresolved', reason: 'verify-unavailable' }, true],
         [{ type: 'not_an_edit' }, false],
-    ] as const)('%j -> %s', (resolution, expected) => {
+    ])('%j -> %s', (resolution, expected) => {
         expect(isChartEditAttempt(resolution)).toBe(expected);
     });
 });
@@ -262,9 +573,11 @@ describe('buildChartIntentContext', () => {
             prompt: 'segment by region',
             artifact,
             explore,
+            usage: noUsage,
         });
         expect(context.addableFields.map(({ id }) => id)).toEqual([
             'orders_region',
+            'orders_city',
         ]);
         expect(context.currentFields.map(({ id }) => id)).toEqual([
             'orders_date',
@@ -280,11 +593,14 @@ describe('buildChartIntentContext', () => {
             table: 'Other',
             description: null,
             isDate: false,
+            verifiedUsage: 0,
+            chartUsage: 0,
         }));
         const context = buildChartIntentContext({
             prompt: 'segment by warehouse zone',
             artifact,
             explore,
+            usage: noUsage,
             extraAddableFields: [
                 ...extra,
                 {
@@ -293,6 +609,8 @@ describe('buildChartIntentContext', () => {
                     table: 'Other',
                     description: null,
                     isDate: false,
+                    verifiedUsage: 0,
+                    chartUsage: 0,
                 },
             ],
         });
@@ -332,8 +650,10 @@ describe('decideTurn', () => {
         const evaluate = vi.fn().mockResolvedValue({
             intent: choice('chart_type'),
             multiple: noul(0.05),
+            nonEdit: noul(0.05),
             chartType: choice('line'),
             simple: noul(0.95),
+            covers: noul(0.95),
         });
         const { decision } = await decideTurn({
             decisions: { evaluate },
@@ -344,9 +664,14 @@ describe('decideTurn', () => {
                 prompt: 'as a line',
                 artifact,
                 explore,
+                usage: noUsage,
             }),
         });
-        expect(evaluate).toHaveBeenCalledTimes(1);
+        // One batched decision, then one coverage check before acting.
+        expect(evaluate).toHaveBeenCalledTimes(2);
+        expect(evaluate.mock.calls[1][0].state.plannedChange).toBe(
+            'Show the same data as a line chart',
+        );
         expect(Object.keys(evaluate.mock.calls[0][0].questions)).toEqual(
             expect.arrayContaining([
                 'intent',
@@ -366,6 +691,67 @@ describe('decideTurn', () => {
         });
     });
 
+    it('hands a partial plan to the agent', async () => {
+        const evaluate = vi
+            .fn()
+            .mockResolvedValueOnce({
+                intent: choice('chart_type'),
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                chartType: choice('bar'),
+                simple: noul(0.1),
+            })
+            .mockResolvedValueOnce({ covers: noul(0.2) });
+        const { decision } = await decideTurn({
+            decisions: { evaluate },
+            prompt: 'stacked 100% bars',
+            instructions: null,
+            conversation: [],
+            context: buildChartIntentContext({
+                prompt: 'stacked 100% bars',
+                artifact,
+                explore,
+                usage: noUsage,
+            }),
+        });
+        expect(decision.chart).toEqual({
+            type: 'unresolved',
+            reason: 'not-covered',
+        });
+        expect(isChartEditAttempt(decision.chart!)).toBe(true);
+        expect(decision.simpleDataAnswer).toBe(false);
+    });
+
+    it('keeps a chart edit for the agent when verification is unavailable', async () => {
+        const evaluate = vi
+            .fn()
+            .mockResolvedValueOnce({
+                intent: choice('chart_type'),
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                chartType: choice('bar'),
+                simple: noul(0.9),
+            })
+            .mockResolvedValueOnce(null);
+        const { decision } = await decideTurn({
+            decisions: { evaluate },
+            prompt: 'as bars',
+            instructions: null,
+            conversation: [],
+            context: buildChartIntentContext({
+                prompt: 'as bars',
+                artifact,
+                explore,
+                usage: noUsage,
+            }),
+        });
+        expect(decision).toEqual({
+            simpleDataAnswer: false,
+            chart: { type: 'unresolved', reason: 'verify-unavailable' },
+        });
+        expect(isChartEditAttempt(decision.chart!)).toBe(true);
+    });
+
     it('falls back to the agent when JEV is unavailable', async () => {
         const { decision } = await decideTurn({
             decisions: { evaluate: vi.fn().mockResolvedValue(null) },
@@ -376,6 +762,7 @@ describe('decideTurn', () => {
                 prompt: 'as a line',
                 artifact,
                 explore,
+                usage: noUsage,
             }),
         });
         expect(decision).toEqual({
