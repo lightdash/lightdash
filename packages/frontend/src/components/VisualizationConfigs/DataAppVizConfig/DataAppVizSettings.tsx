@@ -1,14 +1,20 @@
 import {
     getItemId,
+    getItemLabelWithoutTableName,
     getDataAppVizFieldIds,
     getEffectiveDataAppVizFieldOptionValues,
+    getEffectiveDataAppVizFieldColorValues,
     isCustomDimension,
     isDimension,
     isMetric,
+    isNumericItem,
     isTableCalculation,
     type DataAppVizField,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
+    type DataAppVizFieldColorValues,
+    type DataAppVizColorGradient,
+    type DataAppVizColorRule,
     type DataAppVizOptionValue,
     type Item,
     type ItemsMap,
@@ -24,6 +30,8 @@ import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from './DataAppVizFieldGuidance';
 import DataAppVizFieldOptionControls from './DataAppVizFieldOptionControls';
+import DataAppVizGradientControl from './DataAppVizGradientControl';
+import DataAppVizRulesControl from './DataAppVizRulesControl';
 import OrderedDataAppVizFieldSelect from './OrderedDataAppVizFieldSelect';
 
 type Props = {
@@ -37,12 +45,25 @@ type Props = {
         fieldId: string | string[] | null,
     ) => void;
     fieldOptionValues: DataAppVizFieldOptionValues;
+    fieldColorValues: DataAppVizFieldColorValues;
     colorPalette: string[];
     onFieldOptionChange: (
         fieldName: string,
         fieldId: string,
         optionName: string,
         value: DataAppVizOptionValue,
+    ) => void;
+    onFieldGradientChange: (
+        fieldName: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorGradient,
+        patch: Partial<DataAppVizColorGradient>,
+    ) => void;
+    onFieldRulesChange: (
+        fieldName: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorRule[],
+        update: (rules: DataAppVizColorRule[]) => DataAppVizColorRule[],
     ) => void;
 };
 
@@ -58,8 +79,11 @@ const DataAppVizSettings: FC<Props> = ({
     fieldMapping,
     onFieldChange,
     fieldOptionValues,
+    fieldColorValues,
     colorPalette,
     onFieldOptionChange,
+    onFieldGradientChange,
+    onFieldRulesChange,
 }) => {
     const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
@@ -92,6 +116,11 @@ const DataAppVizSettings: FC<Props> = ({
         fieldMapping,
         fieldOptionValues,
     );
+    const effectiveFieldColors = getEffectiveDataAppVizFieldColorValues(
+        fields,
+        fieldMapping,
+        fieldColorValues,
+    );
 
     return (
         <Stack>
@@ -102,6 +131,9 @@ const DataAppVizSettings: FC<Props> = ({
             )}
 
             {fields.map((field) => {
+                const configOptions = field.configOptions ?? [];
+                const declaredGradient = field.colorOptions?.gradient;
+                const declaredRules = field.colorOptions?.rules;
                 const guidanceId = field.description?.trim()
                     ? `${guidanceIdPrefix}-${field.name}`
                     : undefined;
@@ -114,6 +146,7 @@ const DataAppVizSettings: FC<Props> = ({
                         ? (items.find((i) => getItemId(i) === selectedValue) ??
                           addItems.find((i) => getItemId(i) === selectedValue))
                         : undefined;
+                const boundItems = [...items, ...addItems];
                 return (
                     <Config key={field.name}>
                         <Config.Section>
@@ -211,9 +244,9 @@ const DataAppVizSettings: FC<Props> = ({
                                 </>
                             )}
                             <DataAppVizFieldOptionControls
-                                options={field.configOptions ?? []}
+                                options={configOptions}
                                 fieldIds={selectedIds}
-                                items={[...items, ...addItems]}
+                                items={boundItems}
                                 values={effectiveFieldOptions[field.name] ?? {}}
                                 colorPalette={colorPalette}
                                 onChange={(fieldId, optionName, value) =>
@@ -225,6 +258,65 @@ const DataAppVizSettings: FC<Props> = ({
                                     )
                                 }
                             />
+                            {(declaredGradient ||
+                                declaredRules !== undefined) &&
+                                selectedIds.map((fieldId) => {
+                                    const boundItem = boundItems.find(
+                                        (item) => getItemId(item) === fieldId,
+                                    );
+                                    if (!boundItem || !isNumericItem(boundItem))
+                                        return null;
+                                    return (
+                                        <Stack key={fieldId} gap="xs" mt="sm">
+                                            {configOptions.length === 0 && (
+                                                <Text size="xs" fw={600}>
+                                                    {getItemLabelWithoutTableName(
+                                                        boundItem,
+                                                    )}
+                                                </Text>
+                                            )}
+                                            {declaredGradient && (
+                                                <DataAppVizGradientControl
+                                                    value={
+                                                        effectiveFieldColors[
+                                                            field.name
+                                                        ]?.[fieldId]
+                                                            ?.gradient ??
+                                                        declaredGradient
+                                                    }
+                                                    colorPalette={colorPalette}
+                                                    onChange={(patch) =>
+                                                        onFieldGradientChange(
+                                                            field.name,
+                                                            fieldId,
+                                                            declaredGradient,
+                                                            patch,
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                            {declaredRules !== undefined && (
+                                                <DataAppVizRulesControl
+                                                    value={
+                                                        effectiveFieldColors[
+                                                            field.name
+                                                        ]?.[fieldId]?.rules ??
+                                                        declaredRules
+                                                    }
+                                                    colorPalette={colorPalette}
+                                                    onChange={(update) =>
+                                                        onFieldRulesChange(
+                                                            field.name,
+                                                            fieldId,
+                                                            declaredRules,
+                                                            update,
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                        </Stack>
+                                    );
+                                })}
                         </Config.Section>
                     </Config>
                 );

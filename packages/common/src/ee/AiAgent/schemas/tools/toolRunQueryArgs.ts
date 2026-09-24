@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MergeJoinType } from '../../../../types/mergeQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { dataAppVizFieldColorValuesSchema } from '../../../apps/dataAppVizFieldColorsSchema';
 import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
@@ -271,6 +272,11 @@ const chartConfigCustomChartTypeSchema = z.object({
         .default(null)
         .describe(
             'Per-field settings keyed by input name, bound field ID, then option name. Use only configOptions declared on that input. Omit to use defaults.',
+        ),
+    fieldColorValues: dataAppVizFieldColorValuesSchema
+        .nullish()
+        .describe(
+            'Numeric colour settings keyed by input name and bound field ID. Use only colour capabilities declared in that input’s colorOptions. Omit to use declared defaults.',
         ),
 });
 

@@ -1276,6 +1276,110 @@
             "required": ["type"],
             "type": "object"
         },
+        "DataAppVizColorGradient": {
+            "description": "Numeric color scale declared for each field bound to a slot.",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "end": {
+                    "type": "string"
+                },
+                "max": {
+                    "anyOf": [
+                        {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        {
+                            "enum": ["auto"],
+                            "type": "string"
+                        }
+                    ]
+                },
+                "min": {
+                    "anyOf": [
+                        {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        {
+                            "enum": ["auto"],
+                            "type": "string"
+                        }
+                    ]
+                },
+                "start": {
+                    "type": "string"
+                }
+            },
+            "required": ["max", "min", "end", "start", "enabled"],
+            "type": "object"
+        },
+        "DataAppVizColorRule": {
+            "allOf": [
+                {
+                    "properties": {
+                        "color": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        }
+                    },
+                    "required": ["color", "enabled"],
+                    "type": "object"
+                },
+                {
+                    "anyOf": [
+                        {
+                            "properties": {
+                                "operator": {
+                                    "enum": [
+                                        "eq",
+                                        "neq",
+                                        "lt",
+                                        "lte",
+                                        "gt",
+                                        "gte"
+                                    ],
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "format": "double",
+                                    "type": "number"
+                                }
+                            },
+                            "required": ["value", "operator"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "max": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "min": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "operator": {
+                                    "enum": ["between", "notBetween"],
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["max", "min", "operator"],
+                            "type": "object"
+                        }
+                    ]
+                }
+            ],
+            "description": "Ordered numeric condition. Later matching enabled rules take precedence."
+        },
+        "DataAppVizFieldColorValues": {
+            "$ref": "#/$defs/Record_string.Record_string._gradient_63_-DataAppVizColorGradient--rules_63_-DataAppVizColorRule-Array___",
+            "description": "Explicit numeric color overrides, grouped by declared slot and bound field ID."
+        },
         "DataAppVizFieldMapping": {
             "$ref": "#/$defs/Record_string.string-or-string-Array_",
             "description": "Maps a viz field name to one query field id or an ordered collection."
@@ -2745,6 +2849,10 @@
         "Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid-or-dataAppVizVersion__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
+                "fieldColorValues": {
+                    "$ref": "#/$defs/DataAppVizFieldColorValues",
+                    "description": "Explicit per-field numeric color overrides; declarations provide defaults."
+                },
                 "fieldMapping": {
                     "$ref": "#/$defs/DataAppVizFieldMapping"
                 },
@@ -3065,6 +3173,25 @@
             "required": ["value", "field"],
             "type": "object"
         },
+        "Record_string._gradient_63_-DataAppVizColorGradient-or-undefined--rules_63_-DataAppVizColorRule-Array-or-undefined__": {
+            "additionalProperties": {
+                "properties": {
+                    "gradient": {
+                        "$ref": "#/$defs/DataAppVizColorGradient"
+                    },
+                    "rules": {
+                        "items": {
+                            "$ref": "#/$defs/DataAppVizColorRule"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.boolean_": {
             "additionalProperties": {
                 "type": "boolean"
@@ -3124,6 +3251,14 @@
         "Record_string.Partial_PieChartValueOptions__": {
             "additionalProperties": {
                 "$ref": "#/$defs/Partial_PieChartValueOptions_"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
+        "Record_string.Record_string._gradient_63_-DataAppVizColorGradient--rules_63_-DataAppVizColorRule-Array___": {
+            "additionalProperties": {
+                "$ref": "#/$defs/Record_string._gradient_63_-DataAppVizColorGradient-or-undefined--rules_63_-DataAppVizColorRule-Array-or-undefined__"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},

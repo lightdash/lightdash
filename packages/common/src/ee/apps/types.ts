@@ -18,6 +18,7 @@ import { type DashboardParameters } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
 import {
     type ChartConfig,
+    type DataAppVizFieldColors,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
     type SavedChart,
@@ -26,10 +27,16 @@ import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
+    type DataAppVizColorGradient,
+    type DataAppVizColorRule,
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
     type DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
+import {
+    dataAppVizColorGradientSchema,
+    dataAppVizColorRuleSchema,
+} from './dataAppVizFieldColorsSchema';
 import { matchesDeclaredType } from './matchesDeclaredType';
 import { type DataAppVizPreview } from './preview';
 
@@ -38,6 +45,8 @@ export { matchesDeclaredType } from './matchesDeclaredType';
 export type {
     DataAppVizConfigOption,
     DataAppVizConfigOptionType,
+    DataAppVizColorGradient,
+    DataAppVizColorRule,
     DataAppVizOptionValue,
     DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
@@ -880,6 +889,11 @@ export type DataAppVizField = {
     multiple?: boolean;
     /** Settings available independently for each field bound to this slot. */
     configOptions?: DataAppVizConfigOption[];
+    /** Numeric colors available independently for each bound field. */
+    colorOptions?: {
+        gradient?: DataAppVizColorGradient;
+        rules?: DataAppVizColorRule[];
+    };
     /** Explain what belongs in this slot for a reusable visualization. */
     description?: string;
     /** Scalar display examples for this slot, independent of any one query. */
@@ -1045,6 +1059,17 @@ const vizField = (strict: boolean) =>
             )
             .describe(
                 'Optional settings for each bound field, keyed by its query field id. Use boolean, select, number, text and color controls for independent labels, styles, colors and axis placement when the chart supports them.',
+            ),
+        colorOptions: z
+            .object({
+                gradient: dataAppVizColorGradientSchema.optional(),
+                rules: z.array(dataAppVizColorRuleSchema).optional(),
+            })
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Optional per-bound-field numeric colors: an ordered array of fixed-hex rules and/or a two-endpoint gradient. Last matching enabled rule wins, then gradient, then the component fallback. The component reads resolved colors from fieldColors.',
             ),
         description: optionalInputHelp(
             strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,
@@ -1443,6 +1468,7 @@ export type DataAppVizContext = {
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
     fieldOptions: DataAppVizFieldOptionValues;
+    fieldColors?: DataAppVizFieldColors;
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;

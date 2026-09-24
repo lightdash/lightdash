@@ -1,4 +1,9 @@
-import { DimensionType, FieldType, MetricType } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    type DataAppVizField,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import { act, render, screen } from '@testing-library/react';
@@ -17,13 +22,7 @@ const mocks = vi.hoisted(() => ({
                   version: number;
                   latestBuildInProgress: boolean;
                   schema: {
-                      fields: Array<{
-                          name: string;
-                          label: string;
-                          type: 'dimension' | 'metric';
-                          required: boolean;
-                          multiple?: boolean;
-                      }>;
+                      fields: DataAppVizField[];
                       configOptions: Array<{
                           type: 'text';
                           name: string;
@@ -648,6 +647,79 @@ describe('DataAppVizRenderer', () => {
                     seriesColors: {},
                     valueColors: {
                         orders_category: { Hardware: '#00ff00' },
+                    },
+                }),
+            }),
+            undefined,
+        );
+    });
+
+    it('delivers resolved colors from a saved field gradient', () => {
+        const gradient = {
+            enabled: true,
+            start: '#000000',
+            end: '#ffffff',
+            min: 'auto',
+            max: 'auto',
+        } as const;
+        const metadata = readyMetadata();
+        mocks.metadata.current = {
+            ...metadata,
+            schema: {
+                ...metadata.schema,
+                fields: [
+                    ...metadata.schema.fields,
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric',
+                        required: true,
+                        colorOptions: { gradient },
+                    },
+                ],
+            },
+        };
+        mocks.fieldMapping.current = {
+            category: 'orders_category',
+            value: 'orders_count',
+        };
+        mocks.vizContextOverrides.current = {
+            visualizationConfig: {
+                chartConfig: {
+                    validConfig: {
+                        dataAppVizUuid: 'viz-uuid',
+                        dataAppVizVersion: 7,
+                        fieldMapping: mocks.fieldMapping.current,
+                        optionValues: {},
+                        fieldColorValues: {
+                            value: {
+                                orders_count: {
+                                    gradient: { ...gradient, end: '#ff0000' },
+                                },
+                            },
+                        },
+                    },
+                    setDataAppVizVersion: mocks.setDataAppVizVersion,
+                },
+            },
+            resultsData: {
+                rows: [
+                    { orders_count: { value: { raw: 0, formatted: '0' } } },
+                    { orders_count: { value: { raw: 10, formatted: '10' } } },
+                ],
+                setFetchAll: mocks.setFetchAll,
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                dataAppVizContext: expect.objectContaining({
+                    fieldColors: {
+                        value: {
+                            orders_count: { '0': '#000', '10': '#f00' },
+                        },
                     },
                 }),
             }),

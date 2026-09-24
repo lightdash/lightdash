@@ -530,6 +530,25 @@ export const renameChartConfigType = (
                               ),
                           }
                         : {}),
+                    ...(dataAppVizConfig.config.fieldColorValues
+                        ? {
+                              fieldColorValues: Object.fromEntries(
+                                  Object.entries(
+                                      dataAppVizConfig.config.fieldColorValues,
+                                  ).map(([slot, values]) => [
+                                      slot,
+                                      Object.fromEntries(
+                                          Object.entries(values).map(
+                                              ([fieldId, config]) => [
+                                                  replaceId(fieldId),
+                                                  config,
+                                              ],
+                                          ),
+                                      ),
+                                  ]),
+                              ),
+                          }
+                        : {}),
                     fieldMapping: Object.fromEntries(
                         Object.entries(
                             dataAppVizConfig.config.fieldMapping,

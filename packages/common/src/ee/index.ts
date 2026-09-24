@@ -19,6 +19,8 @@ export * from './apps/sdkFeatures';
 export * from './apps/dataAppVizSchemaChanges';
 export * from './apps/dataAppVizFieldMapping';
 export * from './apps/dataAppVizFieldOptions';
+export * from './apps/dataAppVizFieldColorsSchema';
+export * from './apps/dataAppVizFieldColors';
 export * from './apps/types';
 export * from './apps/chartTypeIcons';
 export * from './apps/code';

@@ -1,6 +1,8 @@
 import {
     getDataAppVizFieldIds,
     getItemId,
+    getItemLabelWithoutTableName,
+    isNumericItem,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
@@ -10,7 +12,9 @@ import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
 import DataAppVizFieldOptionControls from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldOptionControls';
+import DataAppVizGradientControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizGradientControl';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
+import DataAppVizRulesControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizRulesControl';
 import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
@@ -34,7 +38,10 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
         dimensions,
         metrics,
         effectiveFieldOptions,
+        effectiveFieldColors,
         setFieldOption,
+        setFieldGradient,
+        setFieldRules,
         colorPalette,
     } = state;
 
@@ -52,6 +59,9 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
 
             <Stack gap="xs">
                 {schema.fields.map((field) => {
+                    const configOptions = field.configOptions ?? [];
+                    const declaredGradient = field.colorOptions?.gradient;
+                    const declaredRules = field.colorOptions?.rules;
                     const guidanceId = field.description?.trim()
                         ? `${guidanceIdPrefix}-${field.name}`
                         : undefined;
@@ -157,23 +167,110 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                     </>
                                 ))}
                             {exploreName && (
-                                <DataAppVizFieldOptionControls
-                                    options={field.configOptions ?? []}
-                                    fieldIds={selectedIds}
-                                    items={items}
-                                    values={
-                                        effectiveFieldOptions[field.name] ?? {}
-                                    }
-                                    colorPalette={colorPalette}
-                                    onChange={(fieldId, optionName, value) =>
-                                        setFieldOption(
-                                            field.name,
+                                <>
+                                    <DataAppVizFieldOptionControls
+                                        options={configOptions}
+                                        fieldIds={selectedIds}
+                                        items={items}
+                                        values={
+                                            effectiveFieldOptions[field.name] ??
+                                            {}
+                                        }
+                                        colorPalette={colorPalette}
+                                        onChange={(
                                             fieldId,
                                             optionName,
                                             value,
-                                        )
-                                    }
-                                />
+                                        ) =>
+                                            setFieldOption(
+                                                field.name,
+                                                fieldId,
+                                                optionName,
+                                                value,
+                                            )
+                                        }
+                                    />
+                                    {(declaredGradient ||
+                                        declaredRules !== undefined) &&
+                                        selectedIds.map((fieldId) => {
+                                            const boundItem = items.find(
+                                                (candidate) =>
+                                                    getItemId(candidate) ===
+                                                    fieldId,
+                                            );
+                                            if (
+                                                !boundItem ||
+                                                !isNumericItem(boundItem)
+                                            )
+                                                return null;
+                                            return (
+                                                <Stack
+                                                    key={fieldId}
+                                                    gap="xs"
+                                                    mt="xs"
+                                                >
+                                                    {configOptions.length ===
+                                                        0 && (
+                                                        <Text
+                                                            size="xs"
+                                                            fw={600}
+                                                        >
+                                                            {getItemLabelWithoutTableName(
+                                                                boundItem,
+                                                            )}
+                                                        </Text>
+                                                    )}
+                                                    {declaredGradient && (
+                                                        <DataAppVizGradientControl
+                                                            value={
+                                                                effectiveFieldColors[
+                                                                    field.name
+                                                                ]?.[fieldId]
+                                                                    ?.gradient ??
+                                                                declaredGradient
+                                                            }
+                                                            colorPalette={
+                                                                colorPalette
+                                                            }
+                                                            onChange={(patch) =>
+                                                                setFieldGradient(
+                                                                    field.name,
+                                                                    fieldId,
+                                                                    declaredGradient,
+                                                                    patch,
+                                                                )
+                                                            }
+                                                        />
+                                                    )}
+                                                    {declaredRules !==
+                                                        undefined && (
+                                                        <DataAppVizRulesControl
+                                                            value={
+                                                                effectiveFieldColors[
+                                                                    field.name
+                                                                ]?.[fieldId]
+                                                                    ?.rules ??
+                                                                declaredRules
+                                                            }
+                                                            colorPalette={
+                                                                colorPalette
+                                                            }
+                                                            onChange={(
+                                                                update,
+                                                            ) =>
+                                                                setFieldRules(
+                                                                    field.name,
+                                                                    fieldId,
+                                                                    declaredRules,
+                                                                    update,
+                                                                )
+                                                            }
+                                                        />
+                                                    )}
+                                                </Stack>
+                                            );
+                                        })}
+                                </>
                             )}
                         </Stack>
                     );

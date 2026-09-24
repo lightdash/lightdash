@@ -495,9 +495,81 @@ const series = valueIds.map((fieldId) => ({
 ```
 
 The color picker saves a fixed hex value for that bound field. For palette-driven
-series, use `resolveSeriesColor` or `resolveValueColor` instead. Gradient fills
-and conditional color rules are a separate later capability; this option is one
-color per field.
+series, use `resolveSeriesColor` or `resolveValueColor`.
+
+### Numeric field gradients
+
+Declare `colorOptions.gradient` on an input to expose a two-endpoint gradient
+for each bound numeric field. The declaration is its default configuration:
+
+```json
+"colorOptions": {
+  "gradient": {
+    "enabled": true,
+    "start": "#ffffff",
+    "end": "#2166ac",
+    "min": "auto",
+    "max": "auto"
+  }
+}
+```
+
+Read the shared runtime's resolved colour with the SDK helper. Pass the field's
+fixed colour option or its resolved palette colour as the fallback:
+
+```tsx
+const context = useVizContext();
+const colour = resolveFieldColor(
+  context, 'values', fieldId, getRaw(row, fieldId),
+  context.fieldOptions.values?.[fieldId]?.color as string | undefined,
+);
+```
+
+Import `resolveFieldColor` from `@lightdash/query-sdk`. The host resolves all
+numeric values supplied to the chart, including pivot columns referencing the
+original bound field; when drawing a pivot column, pass its original field ID
+and the raw value from that generated column. Automatic bounds use finite
+numbers and nonempty strings that parse completely as finite numbers. Missing,
+boolean, non-numeric and non-finite values fall back. Reversed bounds and values
+outside custom bounds also fall back; equal bounds use the end colour. Colours
+interpolate in sRGB using the same calculation as built-in table gradients.
+
+The SDK's `fieldColors` is a resolved map, not configuration to edit. Saved-chart
+overrides live in `fieldColorValues[inputName][fieldId].gradient`; endpoints are
+fixed hex values and palette changes do not change them. The helper returns its
+fallback on older hosts and when no rule or gradient supplies a colour. Keep any fixed field
+colour option independent of the gradient so it remains a useful fallback.
+
+### Conditional field colours
+
+Declare `colorOptions.rules` on an input to let users colour each bound numeric
+field using fixed comparisons. An empty array exposes the controls without
+applying any rules by default:
+
+```json
+"colorOptions": {
+  "rules": [
+    { "enabled": true, "operator": "lt", "value": 0, "color": "#c92a2a" },
+    { "enabled": true, "operator": "gt", "value": 100, "color": "#2b8a3e" }
+  ]
+}
+```
+
+Use `eq`, `neq`, `lt`, `lte`, `gt` or `gte` with a finite `value`, or `between`
+and `notBetween` with finite `min` and `max`. Between includes both endpoints;
+notBetween matches values strictly outside the range. Reversed ranges and
+missing/non-numeric values never match. Disabled rules are ignored.
+
+The **last matching rule** takes precedence, then an enabled gradient, then the
+fixed or palette fallback passed to `resolveFieldColor`. The same helper applies
+both capabilities; components do not implement rule evaluation. Rules and
+gradients can be declared independently or together.
+
+Saved overrides use `fieldColorValues[inputName][fieldId].rules`. An explicit
+empty array disables default rules. Colours stay fixed hex values through
+palette changes. Rule order and field-ID attachment survive compatible upgrades;
+removing a binding removes its overrides. Cross-field comparisons and whole-row
+or text styling are outside this contract.
 
 ### `inputGuidance`
 

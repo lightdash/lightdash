@@ -5,6 +5,7 @@ import {
     FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
+    pruneDataAppVizFieldColorValues,
     pruneDataAppVizFieldOptionValues,
     getItemId,
     isOfficialChartType,
@@ -178,6 +179,8 @@ export const ConfigTabs: FC = memo(() => {
         setField,
         setOption,
         setFieldOption,
+        setFieldGradient,
+        setFieldRules,
         upgradeDataAppVizVersion,
     } = visualizationConfig.chartConfig;
 
@@ -237,6 +240,11 @@ export const ConfigTabs: FC = memo(() => {
                     nextBindings,
                     selectedViz.fieldOptionValues,
                 ),
+                pruneDataAppVizFieldColorValues(
+                    upgradeTarget.schema.fields,
+                    nextBindings,
+                    selectedViz.fieldColorValues,
+                ),
             );
             setPivotDimensions(
                 deriveDataAppVizPivotConfig(
@@ -262,6 +270,7 @@ export const ConfigTabs: FC = memo(() => {
                     fields={fields}
                     fieldMapping={effectiveBindings}
                     fieldOptionValues={selectedViz.fieldOptionValues}
+                    fieldColorValues={selectedViz.fieldColorValues}
                     colorPalette={resolvedColorPalette}
                     onFieldChange={handleFieldChange}
                     onFieldOptionChange={(
@@ -286,6 +295,46 @@ export const ConfigTabs: FC = memo(() => {
                             fieldId,
                             optionName,
                             value,
+                        );
+                    }}
+                    onFieldGradientChange={(
+                        fieldName,
+                        fieldId,
+                        declaredDefault,
+                        patch,
+                    ) => {
+                        if (
+                            currentFieldContractKeyRef.current !==
+                            fieldContractKey
+                        )
+                            return;
+                        setFieldGradient(
+                            selectedViz.dataAppVizUuid,
+                            selectedViz.dataAppVizVersion,
+                            fieldName,
+                            fieldId,
+                            declaredDefault,
+                            patch,
+                        );
+                    }}
+                    onFieldRulesChange={(
+                        fieldName,
+                        fieldId,
+                        declaredDefault,
+                        update,
+                    ) => {
+                        if (
+                            currentFieldContractKeyRef.current !==
+                            fieldContractKey
+                        )
+                            return;
+                        setFieldRules(
+                            selectedViz.dataAppVizUuid,
+                            selectedViz.dataAppVizVersion,
+                            fieldName,
+                            fieldId,
+                            declaredDefault,
+                            update,
                         );
                     }}
                 />

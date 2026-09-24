@@ -545,6 +545,27 @@ describe('getDataAppVizChartFromArtifact', () => {
                         fieldOptions: {
                             values: { orders_revenue: { color: '#123456' } },
                         },
+                        fieldColorValues: {
+                            values: {
+                                orders_revenue: {
+                                    rules: [
+                                        {
+                                            enabled: true,
+                                            operator: 'lt' as const,
+                                            value: 0,
+                                            color: '#ff0000',
+                                        },
+                                    ],
+                                    gradient: {
+                                        enabled: true,
+                                        start: '#000000',
+                                        end: '#ffffff',
+                                        min: 0,
+                                        max: 100,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             }),
@@ -557,6 +578,27 @@ describe('getDataAppVizChartFromArtifact', () => {
             optionValues: { showLegend: true },
             fieldOptionValues: {
                 values: { orders_revenue: { color: '#123456' } },
+            },
+            fieldColorValues: {
+                values: {
+                    orders_revenue: {
+                        rules: [
+                            {
+                                enabled: true,
+                                operator: 'lt' as const,
+                                value: 0,
+                                color: '#ff0000',
+                            },
+                        ],
+                        gradient: {
+                            enabled: true,
+                            start: '#000000',
+                            end: '#ffffff',
+                            min: 0,
+                            max: 100,
+                        },
+                    },
+                },
             },
         });
     });

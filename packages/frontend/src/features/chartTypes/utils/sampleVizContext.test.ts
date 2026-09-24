@@ -511,6 +511,47 @@ describe('authored preview data', () => {
         });
     });
 
+    it('resolves declared and preview gradient colors for sample values', () => {
+        const gradient = {
+            enabled: true,
+            start: '#000000',
+            end: '#ffffff',
+            min: 'auto',
+            max: 'auto',
+        } as const;
+        const schema: DataAppVizSchema = {
+            ...baseSchema,
+            fields: [
+                {
+                    name: 'value',
+                    label: 'Value',
+                    type: 'metric',
+                    required: true,
+                    colorOptions: { gradient },
+                },
+            ],
+        };
+        const context = buildSampleVizContext(
+            schema,
+            undefined,
+            {},
+            {
+                rows: [{ value: 0 }, { value: 10 }],
+                fieldColorValues: {
+                    value: {
+                        sample_value: {
+                            gradient: { ...gradient, end: '#ff0000' },
+                        },
+                    },
+                },
+            },
+        );
+
+        expect(context.fieldColors).toEqual({
+            value: { sample_value: { '0': '#000', '10': '#f00' } },
+        });
+    });
+
     it('pivots authored series, preserving sparse groups and column metadata', () => {
         const context = buildSampleVizContext(
             baseSchema,

@@ -257,5 +257,8 @@ export const getDataAppVizChartFromArtifact = (
         ...(chartConfig.fieldOptions
             ? { fieldOptionValues: chartConfig.fieldOptions }
             : {}),
+        ...(chartConfig.fieldColorValues
+            ? { fieldColorValues: chartConfig.fieldColorValues }
+            : {}),
     };
 };

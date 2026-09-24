@@ -172,6 +172,104 @@ describe('per-field config options', () => {
     });
 });
 
+describe('per-field numeric gradients', () => {
+    const declaration = {
+        fields: [
+            {
+                name: 'value',
+                label: 'Value',
+                type: 'metric',
+                required: true,
+                colorOptions: {
+                    gradient: {
+                        enabled: true,
+                        start: '#000000',
+                        end: '#ffffff',
+                        min: 'auto',
+                        max: 100,
+                    },
+                },
+            },
+        ],
+        configOptions: [],
+        colorPalette: null,
+    };
+
+    it('accepts finite bounds and fixed hex endpoints in both schemas', () => {
+        expect(dataAppVizSchema.safeParse(declaration).success).toBe(true);
+        expect(dataAppVizGenerationSchema.safeParse(declaration).success).toBe(
+            true,
+        );
+    });
+
+    it('rejects named colors, invalid bounds and non-finite numbers', () => {
+        const { gradient } = declaration.fields[0].colorOptions;
+        for (const invalid of [
+            { ...gradient, start: 'red' },
+            { ...gradient, max: Infinity },
+            { ...gradient, min: 'minimum' },
+        ]) {
+            expect(
+                dataAppVizSchema.safeParse({
+                    ...declaration,
+                    fields: [
+                        {
+                            ...declaration.fields[0],
+                            colorOptions: { gradient: invalid },
+                        },
+                    ],
+                }).success,
+            ).toBe(false);
+        }
+    });
+});
+
+describe('per-field numeric color rules', () => {
+    const baseRule = { enabled: true, color: '#ff0000' };
+    const declaration = (rules: unknown[]) => ({
+        fields: [
+            {
+                name: 'value',
+                label: 'Value',
+                type: 'metric',
+                required: true,
+                colorOptions: { rules },
+            },
+        ],
+        configOptions: [],
+        colorPalette: null,
+    });
+
+    it('accepts each numeric condition and explicit empty defaults', () => {
+        const rules = [
+            ...(['eq', 'neq', 'lt', 'lte', 'gt', 'gte'] as const).map(
+                (operator) => ({ ...baseRule, operator, value: 5 }),
+            ),
+            { ...baseRule, operator: 'between', min: 1, max: 5 },
+            { ...baseRule, operator: 'notBetween', min: 1, max: 5 },
+        ];
+        expect(dataAppVizSchema.safeParse(declaration(rules)).success).toBe(
+            true,
+        );
+        expect(
+            dataAppVizGenerationSchema.safeParse(declaration([])).success,
+        ).toBe(true);
+    });
+
+    it('rejects invalid operators, non-finite values and non-hex colors', () => {
+        for (const rule of [
+            { ...baseRule, operator: 'startsWith', value: 5 },
+            { ...baseRule, operator: 'eq', value: Infinity },
+            { ...baseRule, operator: 'between', min: 0, max: NaN },
+            { ...baseRule, color: 'red', operator: 'eq', value: 5 },
+        ]) {
+            expect(
+                dataAppVizSchema.safeParse(declaration([rule])).success,
+            ).toBe(false);
+        }
+    });
+});
+
 describe('dataAppVizSchema', () => {
     it('keeps omitted multiple scalar and accepts explicit multi fields', () => {
         expect(

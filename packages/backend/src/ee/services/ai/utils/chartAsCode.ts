@@ -121,6 +121,8 @@ export const prepareChartAsCode = ({
                           optionValues: customConfig.options ?? undefined,
                           fieldOptionValues:
                               customConfig.fieldOptions ?? undefined,
+                          fieldColorValues:
+                              customConfig.fieldColorValues ?? undefined,
                       },
                   }
                 : getRunQueryChartConfig({

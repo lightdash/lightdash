@@ -5,7 +5,10 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
     getEffectiveDataAppVizFieldOptionValues,
+    getEffectiveDataAppVizFieldColorValues,
     pruneDataAppVizFieldOptionValues,
+    pruneDataAppVizFieldColorValues,
+    resolveDataAppVizFieldColors,
     setDataAppVizFieldOptionValue,
     getItemMap,
     isSummaryExploreError,
@@ -13,6 +16,9 @@ import {
     type DataAppVizContext,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
+    type DataAppVizFieldColorValues,
+    type DataAppVizColorGradient,
+    type DataAppVizColorRule,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
@@ -58,11 +64,24 @@ export type DataAppVizTestContextState = {
     metrics: ReturnType<typeof getDataAppVizFieldItems>['metrics'];
     effectiveOptions: DataAppVizOptionValues;
     effectiveFieldOptions: DataAppVizFieldOptionValues;
+    effectiveFieldColors: DataAppVizFieldColorValues;
     setFieldOption: (
         slot: string,
         fieldId: string,
         name: string,
         value: DataAppVizOptionValue,
+    ) => void;
+    setFieldGradient: (
+        slot: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorGradient,
+        patch: Partial<DataAppVizColorGradient>,
+    ) => void;
+    setFieldRules: (
+        slot: string,
+        fieldId: string,
+        declaredDefault: DataAppVizColorRule[],
+        update: (rules: DataAppVizColorRule[]) => DataAppVizColorRule[],
     ) => void;
     setOption: (name: string, value: DataAppVizOptionValue) => void;
     colorPaletteUuid: string | null;
@@ -97,6 +116,8 @@ export const useDataAppVizTestContext = ({
     );
     const [fieldOptionValues, setFieldOptionValues] =
         useState<DataAppVizFieldOptionValues>({});
+    const [fieldColorValues, setFieldColorValues] =
+        useState<DataAppVizFieldColorValues>({});
     // Preview-only; a chart using the viz owns the palette the normal way.
     const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
         null,
@@ -137,6 +158,15 @@ export const useDataAppVizTestContext = ({
                 fieldOptionValues,
             ),
         [schema.fields, fieldMapping, fieldOptionValues],
+    );
+    const effectiveFieldColors = useMemo(
+        () =>
+            getEffectiveDataAppVizFieldColorValues(
+                schema.fields,
+                fieldMapping,
+                fieldColorValues,
+            ),
+        [schema.fields, fieldMapping, fieldColorValues],
     );
 
     const colorScheme = useComputedColorScheme();
@@ -187,6 +217,13 @@ export const useDataAppVizTestContext = ({
                     run.fieldMapping,
                     fieldOptionValues,
                 ),
+                fieldColors: resolveDataAppVizFieldColors({
+                    fields: schema.fields,
+                    fieldMapping: run.fieldMapping,
+                    fieldColorValues,
+                    rows,
+                    pivotDetails: queryResults.pivotDetails ?? null,
+                }),
                 colorPalette,
                 ...resolvedColors,
                 pivotDetails: queryResults.pivotDetails ?? null,
@@ -204,6 +241,7 @@ export const useDataAppVizTestContext = ({
         queryResults.pivotDetails,
         effectiveOptions,
         fieldOptionValues,
+        fieldColorValues,
         schema.fields,
         colorPalette,
         resolvedColors,
@@ -222,6 +260,7 @@ export const useDataAppVizTestContext = ({
             setExploreName(value);
             setFieldMapping({});
             setFieldOptionValues({});
+            setFieldColorValues({});
             clearRun();
         },
         [clearRun],
@@ -235,6 +274,13 @@ export const useDataAppVizTestContext = ({
                 else delete next[name];
                 setFieldOptionValues((values) =>
                     pruneDataAppVizFieldOptionValues(
+                        schema.fields,
+                        next,
+                        values,
+                    ),
+                );
+                setFieldColorValues((values) =>
+                    pruneDataAppVizFieldColorValues(
                         schema.fields,
                         next,
                         values,
@@ -264,6 +310,67 @@ export const useDataAppVizTestContext = ({
                     value,
                 ),
             );
+        },
+        [fieldMapping],
+    );
+
+    const setFieldGradient = useCallback(
+        (
+            slot: string,
+            fieldId: string,
+            declaredDefault: DataAppVizColorGradient,
+            patch: Partial<DataAppVizColorGradient>,
+        ) => {
+            const binding = fieldMapping[slot];
+            if (
+                binding !== fieldId &&
+                (!Array.isArray(binding) || !binding.includes(fieldId))
+            )
+                return;
+            setFieldColorValues((prev) => ({
+                ...prev,
+                [slot]: {
+                    ...prev[slot],
+                    [fieldId]: {
+                        ...prev[slot]?.[fieldId],
+                        gradient: {
+                            ...(prev[slot]?.[fieldId]?.gradient ??
+                                declaredDefault),
+                            ...patch,
+                        },
+                    },
+                },
+            }));
+        },
+        [fieldMapping],
+    );
+
+    const setFieldRules = useCallback(
+        (
+            slot: string,
+            fieldId: string,
+            declaredDefault: DataAppVizColorRule[],
+            update: (rules: DataAppVizColorRule[]) => DataAppVizColorRule[],
+        ) => {
+            const binding = fieldMapping[slot];
+            if (
+                binding !== fieldId &&
+                (!Array.isArray(binding) || !binding.includes(fieldId))
+            )
+                return;
+            setFieldColorValues((prev) => {
+                const current = prev[slot]?.[fieldId];
+                const rules = current?.rules ?? declaredDefault;
+                const nextRules = update(rules);
+                if (nextRules === rules) return prev;
+                return {
+                    ...prev,
+                    [slot]: {
+                        ...prev[slot],
+                        [fieldId]: { ...current, rules: nextRules },
+                    },
+                };
+            });
         },
         [fieldMapping],
     );
@@ -329,7 +436,10 @@ export const useDataAppVizTestContext = ({
         metrics,
         effectiveOptions,
         effectiveFieldOptions,
+        effectiveFieldColors,
         setFieldOption,
+        setFieldGradient,
+        setFieldRules,
         setOption,
         colorPaletteUuid,
         setColorPaletteUuid,

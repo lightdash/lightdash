@@ -70,6 +70,19 @@ export const serializeCustomChartTypeForPrompt = (
             `<fieldConfigOptions>${escapeXml(fieldOptionLabels.join('; '))}</fieldConfigOptions>`,
         );
     }
+    const colorLabels = type.schema.fields.flatMap((field) => [
+        ...(field.colorOptions?.gradient
+            ? [`${field.label}: numeric gradient`]
+            : []),
+        ...(field.colorOptions?.rules
+            ? [`${field.label}: numeric color rules`]
+            : []),
+    ]);
+    if (colorLabels.length > 0) {
+        lines.push(
+            `<fieldColors>${escapeXml(colorLabels.join('; '))}</fieldColors>`,
+        );
+    }
     lines.push('</customChartType>');
     return lines.join('\n');
 };
@@ -152,6 +165,27 @@ export const serializeCustomChartTypeSchema = (
             field.configOptions.forEach((option) =>
                 lines.push(serializeOptionDetail(option)),
             );
+        }
+        const gradient = field.colorOptions?.gradient;
+        if (gradient) {
+            lines.push(
+                `fieldColorGradient for ${field.name} (per bound field id): enabled: ${gradient.enabled}, start: ${JSON.stringify(gradient.start)}, end: ${JSON.stringify(gradient.end)}, min: ${gradient.min}, max: ${gradient.max}`,
+            );
+        }
+        const rules = field.colorOptions?.rules;
+        if (rules) {
+            lines.push(
+                `fieldColorRules for ${field.name} (per bound field id; last matching enabled rule wins):`,
+            );
+            rules.forEach((rule) => {
+                const condition =
+                    'value' in rule
+                        ? `value: ${rule.value}`
+                        : `min: ${rule.min}, max: ${rule.max}`;
+                lines.push(
+                    `- enabled: ${rule.enabled}, color: ${JSON.stringify(rule.color)}, operator: ${rule.operator}, ${condition}`,
+                );
+            });
         }
     }
     if (type.schema.configOptions.length === 0) {

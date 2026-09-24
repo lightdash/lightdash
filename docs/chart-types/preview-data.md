@@ -53,7 +53,19 @@ preview:
 These overrides apply only to the declared input's options. Unknown field IDs
 are rejected so accepted settings cannot silently disappear from the preview.
 
-`rows`, `optionValues`, and `fieldOptionValues` can be supplied independently. Without rows,
+Numeric colour overrides use the same sample IDs in
+`fieldColorValues[inputName][sampleFieldId].gradient`. The gradient contains
+`enabled`, fixed hex `start`/`end` colours, and `min`/`max` values (numbers or
+`auto`), and requires a matching `colorOptions.gradient` declaration. Automatic
+bounds are calculated from the preview's supplied values.
+
+Conditional overrides use `fieldColorValues[inputName][sampleFieldId].rules`
+and require a matching `colorOptions.rules` declaration. Rules are ordered; the
+last enabled match wins over a gradient, with fixed/palette colour as fallback.
+An explicit empty array disables the declared default rules.
+
+`rows`, `optionValues`, `fieldOptionValues`, and `fieldColorValues` can be supplied
+independently. Without rows,
 Lightdash generates twelve monthly points with three series where applicable.
 Omitting the preview block or using null preserves this fallback for existing
 chart versions. Stale demo data that no longer matches a regenerated schema also

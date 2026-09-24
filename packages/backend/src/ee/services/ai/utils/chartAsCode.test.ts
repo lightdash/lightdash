@@ -81,6 +81,27 @@ describe('deterministic chart-as-code', () => {
                     },
                     options: { showLegend: false },
                     fieldOptions: { y: { a_met1: { color: '#123456' } } },
+                    fieldColorValues: {
+                        y: {
+                            a_met1: {
+                                rules: [
+                                    {
+                                        enabled: true,
+                                        operator: 'lt' as const,
+                                        value: 0,
+                                        color: '#ff0000',
+                                    },
+                                ],
+                                gradient: {
+                                    enabled: true,
+                                    start: '#000000',
+                                    end: '#ffffff',
+                                    min: 'auto' as const,
+                                    max: 'auto' as const,
+                                },
+                            },
+                        },
+                    },
                 },
             },
             customChartType: {
@@ -111,6 +132,8 @@ describe('deterministic chart-as-code', () => {
                     fieldMapping: custom.queryTool.chartConfig.fieldMapping,
                     optionValues: { showLegend: false },
                     fieldOptionValues: { y: { a_met1: { color: '#123456' } } },
+                    fieldColorValues:
+                        custom.queryTool.chartConfig.fieldColorValues,
                 },
             },
             pivotConfig: { columns: ['a_dim2'] },
