@@ -8,6 +8,11 @@ const OrganizationsTableName = 'organizations';
 const ProjectsTableName = 'projects';
 const UsersTableName = 'users';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates three new empty skill tables. Raw SQL only sets a lock timeout and generates UUID defaults for new rows; existing tables and data are unchanged.',
+};
+
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET lock_timeout = '10s'`);
     try {
