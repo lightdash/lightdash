@@ -121,8 +121,8 @@
 
 .nodeHeadButton {
     width: 100%;
+    gap: var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-sm);
-    cursor: pointer;
 }
 
 .nodeHeadButton:hover .nodeTitle,

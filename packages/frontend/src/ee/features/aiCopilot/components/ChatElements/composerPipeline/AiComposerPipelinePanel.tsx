@@ -50,6 +50,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../../../../../components/common/PolymorphicGroupButton';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
@@ -213,14 +214,16 @@ const PipelineNodeRow: FC<{ node: PipelineNode } & NodeDisplay> = ({
             data-displayed={displayed}
         >
             {displayable ? (
-                <UnstyledButton
+                <PolymorphicGroupButton
+                    component="button"
+                    type="button"
                     className={clsx(styles.nodeHead, styles.nodeHeadButton)}
                     onClick={() => onDisplayNode(node.nodeId)}
                     aria-pressed={displayed}
                     aria-label={`Display ${node.title}`}
                 >
                     {head}
-                </UnstyledButton>
+                </PolymorphicGroupButton>
             ) : (
                 <Box className={styles.nodeHead}>{head}</Box>
             )}
@@ -466,11 +469,8 @@ type Props = NodeDisplay & {
     defaultMode?: PipelineMode;
 };
 
-/**
- * Pipeline panel: the displayed node result on top, the pipeline underneath.
- * Collapsed it is a single bar; expanded it becomes a vertical splitter the
- * user can drag. Clicking a node with a stored result displays it.
- */
+// The displayed node result on top, the pipeline underneath: a bar when
+// collapsed, a draggable splitter when expanded. Clicking a node displays it.
 export const AiComposerPipelinePanel: FC<Props> = ({
     queries,
     terminalNodeId,

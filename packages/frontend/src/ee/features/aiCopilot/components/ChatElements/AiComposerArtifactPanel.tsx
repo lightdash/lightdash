@@ -3,7 +3,7 @@ import {
     type AiComposerChartArtifactConfig,
     type ComposerVizKind,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Stack } from '@mantine/core';
+import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
 import { IconArrowLeft, IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
@@ -85,13 +85,17 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const head = (
         <Box className={clsx(styles.head, styles.flushHead)}>
             {!isTerminalDisplayed && (
-                <ActionIcon
-                    size="sm"
-                    onClick={() => setDisplayedNodeId(config.terminalNodeId)}
-                    aria-label="Back to result"
-                >
-                    <MantineIcon icon={IconArrowLeft} />
-                </ActionIcon>
+                <Tooltip label="Back to result" position="bottom">
+                    <ActionIcon
+                        size="sm"
+                        onClick={() =>
+                            setDisplayedNodeId(config.terminalNodeId)
+                        }
+                        aria-label="Back to result"
+                    >
+                        <MantineIcon icon={IconArrowLeft} />
+                    </ActionIcon>
+                </Tooltip>
             )}
             <Stack gap={0} flex={1} miw={0}>
                 <TruncatedText fz="sm" fw={600} maxWidth="100%">
