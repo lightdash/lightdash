@@ -3,6 +3,8 @@ import { Limit } from './types';
 
 export const LARGE_EXPORT_CELLS_WARNING_THRESHOLD = 5_000_000;
 
+export const DEFAULT_EXPORT_TIMEOUT_MS = 10 * 60 * 1000;
+
 type ExportCellEstimateArgs = {
     limit: Limit;
     customLimit: number;
@@ -53,7 +55,12 @@ export const isLargeExport = (
 
 export const getExportTimeoutMinutes = (
     exportTimeoutMs: number | undefined,
-): number | null => {
-    if (!exportTimeoutMs || exportTimeoutMs <= 0) return null;
-    return Math.max(1, Math.round(exportTimeoutMs / 60_000));
+): number => {
+    const timeoutMs =
+        exportTimeoutMs !== undefined &&
+        Number.isFinite(exportTimeoutMs) &&
+        exportTimeoutMs > 0
+            ? exportTimeoutMs
+            : DEFAULT_EXPORT_TIMEOUT_MS;
+    return Math.max(1, Math.round(timeoutMs / 60_000));
 };

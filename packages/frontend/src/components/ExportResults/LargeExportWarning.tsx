@@ -40,10 +40,7 @@ const LargeExportWarning: FC<LargeExportWarningProps> = ({
     const cellMillions = (cellEstimate / 1_000_000).toLocaleString(undefined, {
         maximumFractionDigits: 1,
     });
-    const sizeAndDuration =
-        exportTimeoutMinutes === null
-            ? `This export is about ${cellMillions} million cells and may take a long time to finish.`
-            : `This export is about ${cellMillions} million cells. Exports must finish within ${exportTimeoutMinutes} ${exportTimeoutMinutes === 1 ? 'minute' : 'minutes'}, and one this large may take longer.`;
+    const minuteUnit = exportTimeoutMinutes === 1 ? 'minute' : 'minutes';
 
     return (
         <Callout
@@ -51,8 +48,10 @@ const LargeExportWarning: FC<LargeExportWarningProps> = ({
             title="Large export"
             data-testid="large-export-warning"
         >
-            {sizeAndDuration} Filter the results or use a scheduled delivery to
-            Google Sheets.
+            This export is about {cellMillions} million cells. Exports must
+            finish within {exportTimeoutMinutes} {minuteUnit}, and one this
+            large may take longer. Filter the results or use a scheduled
+            delivery to Google Sheets.
         </Callout>
     );
 };

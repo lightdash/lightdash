@@ -14,6 +14,7 @@ import ExportResults from '.';
 import { renderWithProviders } from '../../testing/testUtils';
 import {
     getExportCellEstimate,
+    DEFAULT_EXPORT_TIMEOUT_MS,
     getExportTimeoutMinutes,
     isLargeExport,
     LARGE_EXPORT_CELLS_WARNING_THRESHOLD,
@@ -262,8 +263,17 @@ describe('getExportCellEstimate', () => {
         expect(getExportTimeoutMinutes(600_000)).toBe(10);
         expect(getExportTimeoutMinutes(90_000)).toBe(2);
         expect(getExportTimeoutMinutes(10_000)).toBe(1);
-        expect(getExportTimeoutMinutes(0)).toBeNull();
-        expect(getExportTimeoutMinutes(undefined)).toBeNull();
+    });
+
+    it.each([undefined, 0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+        'falls back to the default export timeout for %s',
+        (exportTimeoutMs) => {
+            expect(getExportTimeoutMinutes(exportTimeoutMs)).toBe(10);
+        },
+    );
+
+    it('matches the default scheduler job timeout', () => {
+        expect(DEFAULT_EXPORT_TIMEOUT_MS).toBe(600_000);
     });
 });
 
@@ -308,14 +318,12 @@ describe('ExportResults large export warning', () => {
         );
     });
 
-    it('omits the timeout when it is unknown', () => {
+    it('shows the default time limit when the timeout is unknown', () => {
         renderLargeExport({}, 0);
 
-        const warning = screen.getByTestId('large-export-warning');
-        expect(warning).toHaveTextContent(
-            'This export is about 5 million cells and may take a long time to finish. Filter the results or use a scheduled delivery to Google Sheets.',
+        expect(screen.getByTestId('large-export-warning')).toHaveTextContent(
+            'This export is about 5 million cells. Exports must finish within 10 minutes, and one this large may take longer. Filter the results or use a scheduled delivery to Google Sheets.',
         );
-        expect(warning).not.toHaveTextContent('Exports must finish');
     });
 
     it('does not warn below the threshold', () => {
