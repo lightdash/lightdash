@@ -35,6 +35,7 @@ import {
     type RegisteredAccount,
     type SavedChart,
     type SessionUser,
+    type UnusedContentItem,
     type UpdateManagedAgentSettings,
     type ValidationResponse,
 } from '@lightdash/common';
@@ -106,6 +107,7 @@ import { buildPreAggCandidateSuggestion } from './preAggCandidates';
 import { loadAutopilotSkill } from './skills';
 import {
     buildManagedAgentToolListResult,
+    describeManagedAgentStaleFlag,
     formatManagedAgentBrokenContentPage,
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
@@ -176,6 +178,7 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     get_chart_schema: 'Loading chart schema',
     flag_content: 'Flagging content',
     bulk_flag_broken_content: 'Flagging broken content',
+    bulk_flag_stale_content: 'Flagging stale content',
     soft_delete_content: 'Cleaning up stale content',
     log_insight: 'Logging an insight',
     log_project_insight: 'Logging a project insight',
@@ -2365,6 +2368,15 @@ export class ManagedAgentService extends BaseService {
                     call.input,
                     abortSignal,
                 );
+            case 'bulk_flag_stale_content':
+                return this.handleBulkFlagStaleContent(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    call.input,
+                    abortSignal,
+                );
             case 'soft_delete_content':
                 return this.handleSoftDelete(
                     actor,
@@ -2516,6 +2528,30 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         type: 'charts' | 'dashboards',
     ): Promise<string> {
+        const visibleItems = await this.getVisibleStaleContent(
+            actor,
+            projectUuid,
+            type,
+        );
+        return formatManagedAgentToolListResult(
+            visibleItems.map((item) => ({
+                uuid: item.contentUuid,
+                name: item.contentName,
+                type: item.contentType,
+                last_viewed_at: item.lastViewedAt?.toISOString() ?? null,
+                views_count: item.viewsCount,
+                reason: item.reason,
+                created_by: item.createdByUserName,
+                created_at: item.createdAt.toISOString(),
+            })),
+        );
+    }
+
+    private async getVisibleStaleContent(
+        actor: SessionUser,
+        projectUuid: string,
+        type: 'charts' | 'dashboards',
+    ): Promise<UnusedContentItem[]> {
         const policy = await this.getPolicy(projectUuid);
         const [unused, excludedSpaces] = await Promise.all([
             this.analyticsModel.getUnusedContent(projectUuid, {
@@ -2529,7 +2565,7 @@ export class ManagedAgentService extends BaseService {
         const items = (
             type === 'charts' ? unused.charts : unused.dashboards
         ).filter((item) => !excludedSpaces.has(item.spaceUuid));
-        const visibleItems = (
+        return (
             await Promise.all(
                 items.map(async (item) => {
                     if (item.contentType === 'chart') {
@@ -2553,18 +2589,6 @@ export class ManagedAgentService extends BaseService {
                 }),
             )
         ).filter((item) => item !== null);
-        return formatManagedAgentToolListResult(
-            visibleItems.map((item) => ({
-                uuid: item.contentUuid,
-                name: item.contentName,
-                type: item.contentType,
-                last_viewed_at: item.lastViewedAt?.toISOString() ?? null,
-                views_count: item.viewsCount,
-                reason: item.reason,
-                created_by: item.createdByUserName,
-                created_at: item.createdAt.toISOString(),
-            })),
-        );
     }
 
     private async mapVisibleBrokenContentRows(
@@ -3471,6 +3495,100 @@ chartConfig:
             candidate_count: candidates.length,
             flagged_count: flaggedCount,
             already_flagged_count: alreadyFlaggedCount,
+            skipped_count: skippedCount,
+            blocked_count: blocked.length,
+            blocked: buildManagedAgentToolListResult(blocked),
+        });
+    }
+
+    private async handleBulkFlagStaleContent(
+        actor: SessionUser,
+        projectUuid: string,
+        sessionId: string,
+        runUuid: string,
+        input: AutopilotToolInput<'bulk_flag_stale_content'>,
+        abortSignal?: AbortSignal,
+    ): Promise<string> {
+        const policy = await this.getPolicy(projectUuid);
+        if (policy.aggression === 'observe') {
+            return JSON.stringify({
+                blocked: true,
+                error: 'Flagging is disabled by project policy (observe mode). Use log_insight instead.',
+            });
+        }
+        const isChart = input.target_type === ManagedAgentTargetType.CHART;
+        const stalenessDays = isChart
+            ? policy.stalenessChartDays
+            : policy.stalenessDashboardDays;
+        const candidates = await this.getVisibleStaleContent(
+            actor,
+            projectUuid,
+            isChart ? 'charts' : 'dashboards',
+        );
+        const escalationMs = policy.escalationHours * 60 * 60 * 1000;
+        let flaggedCount = 0;
+        let skippedCount = 0;
+        const alreadyFlagged: {
+            uuid: string;
+            name: string;
+            flagged_at: string;
+            escalation_eligible: boolean;
+        }[] = [];
+        const blocked: { uuid: string; reason: string }[] = [];
+        // Sequential, bounded by the run abort signal. Retrying preserves flags
+        // already written before an interruption and their escalation clocks.
+        for (const candidate of candidates) {
+            abortSignal?.throwIfAborted();
+            const result = JSON.parse(
+                // eslint-disable-next-line no-await-in-loop
+                await this.handleFlagContent(
+                    actor,
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    {
+                        target_type: input.target_type,
+                        target_uuid: candidate.contentUuid,
+                        target_name: candidate.contentName,
+                        flag_type: ManagedAgentActionType.FLAGGED_STALE,
+                        description: describeManagedAgentStaleFlag(
+                            candidate,
+                            stalenessDays,
+                        ),
+                        metadata: {
+                            bulk: true,
+                            reason: candidate.reason,
+                            last_viewed_at:
+                                candidate.lastViewedAt?.toISOString() ?? null,
+                            views_count: candidate.viewsCount,
+                            created_at: candidate.createdAt.toISOString(),
+                        },
+                    },
+                    abortSignal,
+                ),
+            );
+            if (result.action_uuid) flaggedCount += 1;
+            else if (result.already_flagged)
+                alreadyFlagged.push({
+                    uuid: candidate.contentUuid,
+                    name: candidate.contentName,
+                    flagged_at: result.flagged_at,
+                    escalation_eligible:
+                        Date.now() - new Date(result.flagged_at).getTime() >=
+                        escalationMs,
+                });
+            else if (result.skipped) skippedCount += 1;
+            else
+                blocked.push({
+                    uuid: candidate.contentUuid,
+                    reason: result.error ?? 'Flagging was refused',
+                });
+        }
+        return JSON.stringify({
+            candidate_count: candidates.length,
+            flagged_count: flaggedCount,
+            already_flagged_count: alreadyFlagged.length,
+            already_flagged: buildManagedAgentToolListResult(alreadyFlagged),
             skipped_count: skippedCount,
             blocked_count: blocked.length,
             blocked: buildManagedAgentToolListResult(blocked),

@@ -268,3 +268,42 @@ describe('broken-content action contracts', () => {
         );
     });
 });
+
+describe('stale-content flagging contract', () => {
+    it('offers bulk stale flagging whenever flagging is allowed', () => {
+        for (const aggression of ['observe', 'flag', 'cleanup'] as const) {
+            const config = renderAutopilotAgent({
+                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+            });
+            expect(
+                config.tools
+                    .map((tool) => tool.name)
+                    .includes('bulk_flag_stale_content'),
+            ).toBe(aggression !== 'observe');
+        }
+    });
+
+    it('accepts only a content type, never per-item model text', () => {
+        const tool = autopilotToolDefinitions.find(
+            (item) => item.name === 'bulk_flag_stale_content',
+        );
+        if (!tool) throw new Error('bulk_flag_stale_content is not defined');
+        const inputSchema = toAutopilotToolJsonSchema(tool);
+        expect(Object.keys(inputSchema.properties ?? {})).toEqual([
+            'target_type',
+        ]);
+    });
+
+    it.each(['flag', 'cleanup'] as const)(
+        'routes stale flagging through the bulk tool in %s mode',
+        (aggression) => {
+            const { system } = renderAutopilotAgent({
+                policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
+            });
+            expect(system).toContain('bulk_flag_stale_content');
+            expect(system).toContain(
+                'NEVER flag stale items one by one with flag_content',
+            );
+        },
+    );
+});

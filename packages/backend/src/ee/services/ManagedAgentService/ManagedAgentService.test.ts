@@ -1252,3 +1252,129 @@ describe('Autopilot chart payload validation', () => {
         ).not.toThrow();
     });
 });
+
+describe('ManagedAgentService bulk stale flagging', () => {
+    const staleItem = (index: number) => ({
+        lastViewedAt: index % 2 === 0 ? null : new Date('2026-03-04T00:00:00Z'),
+        lastViewedByUserUuid: null,
+        lastViewedByUserName: null,
+        createdByUserUuid: USER_UUID,
+        createdByUserName: 'User',
+        createdAt: new Date('2026-01-02T00:00:00Z'),
+        contentUuid: `chart-${index}`,
+        contentName: `Chart ${index}`,
+        contentType: 'chart' as const,
+        spaceUuid: 'space-uuid',
+        viewsCount: index,
+        reason:
+            index % 2 === 0
+                ? ('never_viewed' as const)
+                : ('not_viewed_recently' as const),
+    });
+
+    const setup = (aggression: 'observe' | 'flag' | 'cleanup') => {
+        const built = buildService();
+        built.managedAgentModel.getSettings.mockResolvedValue({
+            ...settings,
+            policy: {
+                ...DEFAULT_MANAGED_AGENT_POLICY,
+                aggression,
+                escalationHours: 48,
+            },
+        });
+        const items = Array.from({ length: 70 }, (_, index) =>
+            staleItem(index),
+        );
+        vi.spyOn(
+            built.service as AnyType,
+            'getVisibleStaleContent',
+        ).mockResolvedValue(items);
+        const recentFlag = new Date(Date.now() - 60 * 60 * 1000);
+        const oldFlag = new Date(Date.now() - 72 * 60 * 60 * 1000);
+        const flagContent = vi
+            .spyOn(built.service as AnyType, 'handleFlagContent')
+            .mockImplementation(async (...args: AnyType[]) => {
+                const { target_uuid: uuid } = args[4];
+                if (uuid === 'chart-1')
+                    return JSON.stringify({
+                        already_flagged: true,
+                        flagged_at: recentFlag.toISOString(),
+                    });
+                if (uuid === 'chart-2')
+                    return JSON.stringify({
+                        already_flagged: true,
+                        flagged_at: oldFlag.toISOString(),
+                    });
+                if (uuid === 'chart-3')
+                    return JSON.stringify({ blocked: true, error: 'Verified' });
+                if (uuid === 'chart-4')
+                    return JSON.stringify({ skipped: true, note: 'Deleted' });
+                return JSON.stringify({ action_uuid: `action-${uuid}` });
+            });
+        return { ...built, flagContent };
+    };
+
+    it('flags every stale item in one call with server-written descriptions', async () => {
+        const { service, flagContent } = setup('flag');
+        const result = JSON.parse(
+            await service['handleBulkFlagStaleContent'](
+                user,
+                PROJECT_UUID,
+                'session',
+                'run',
+                { target_type: ManagedAgentTargetType.CHART },
+            ),
+        );
+        expect(flagContent).toHaveBeenCalledTimes(70);
+        expect(flagContent.mock.calls[0][4]).toEqual({
+            target_type: ManagedAgentTargetType.CHART,
+            target_uuid: 'chart-0',
+            target_name: 'Chart 0',
+            flag_type: ManagedAgentActionType.FLAGGED_STALE,
+            description:
+                'Never viewed since it was created on 2026-01-02 (90+ day staleness policy).',
+            metadata: {
+                bulk: true,
+                reason: 'never_viewed',
+                last_viewed_at: null,
+                views_count: 0,
+                created_at: '2026-01-02T00:00:00.000Z',
+            },
+        });
+        expect(result).toMatchObject({
+            candidate_count: 70,
+            flagged_count: 66,
+            already_flagged_count: 2,
+            skipped_count: 1,
+            blocked_count: 1,
+        });
+        expect(result.already_flagged.items).toEqual([
+            expect.objectContaining({
+                uuid: 'chart-1',
+                escalation_eligible: false,
+            }),
+            expect.objectContaining({
+                uuid: 'chart-2',
+                escalation_eligible: true,
+            }),
+        ]);
+        expect(result.blocked.items).toEqual([
+            { uuid: 'chart-3', reason: 'Verified' },
+        ]);
+    });
+
+    it('refuses to flag in observe mode', async () => {
+        const { service, flagContent } = setup('observe');
+        const result = JSON.parse(
+            await service['handleBulkFlagStaleContent'](
+                user,
+                PROJECT_UUID,
+                'session',
+                'run',
+                { target_type: ManagedAgentTargetType.CHART },
+            ),
+        );
+        expect(result).toMatchObject({ blocked: true });
+        expect(flagContent).not.toHaveBeenCalled();
+    });
+});
