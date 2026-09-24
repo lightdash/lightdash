@@ -1,4 +1,9 @@
-import { getErrorMessage, Project, WarehouseTypes } from '@lightdash/common';
+import {
+    getErrorMessage,
+    Project,
+    WarehouseTypes,
+    type ConnectionRoute,
+} from '@lightdash/common';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -10,15 +15,13 @@ export const getDisableTimestampConversionFromProject = (
         ? warehouseConnection.disableTimestampConversion
         : undefined;
 
-/**
- * Reads `disableTimestampConversion` from an existing project's settings.
- * The CLI flag is ignored for commands targeting an existing project — the
- * project settings are the source of truth.
- */
-export const getProjectDisableTimestampConversion = async (
+export const getProjectDeploySettings = async (
     cliValue: boolean | undefined,
     projectUuid: string,
-): Promise<boolean | undefined> => {
+): Promise<{
+    disableTimestampConversion: boolean | undefined;
+    connectionRoute: ConnectionRoute | undefined;
+}> => {
     if (cliValue !== undefined) {
         console.error(
             styles.warning(
@@ -41,13 +44,26 @@ export const getProjectDisableTimestampConversion = async (
                 disableTimestampConversion ?? false,
             )} from project settings`,
         );
-        return disableTimestampConversion;
+        return {
+            disableTimestampConversion,
+            connectionRoute: project.connectionRoute,
+        };
     } catch (e) {
         GlobalState.debug(
             `> Could not fetch project settings for timestamp conversion: ${getErrorMessage(
                 e,
             )}`,
         );
-        return undefined;
+        return {
+            disableTimestampConversion: undefined,
+            connectionRoute: undefined,
+        };
     }
 };
+
+export const getProjectDisableTimestampConversion = async (
+    cliValue: boolean | undefined,
+    projectUuid: string,
+): Promise<boolean | undefined> =>
+    (await getProjectDeploySettings(cliValue, projectUuid))
+        .disableTimestampConversion;

@@ -92,4 +92,23 @@ describe('resolveProjectSourceUuid', () => {
             resolveProjectSourceUuid('other-project-uuid', undefined),
         ).resolves.toBeUndefined();
     });
+
+    test('resolves the source configured for the upstream against the sources of its preview', async () => {
+        vi.mocked(getConfig).mockResolvedValue({
+            context: { project: 'upstream-uuid', source: 'finance' },
+        } as never);
+
+        await expect(
+            resolveProjectSourceUuid(
+                'preview-uuid',
+                undefined,
+                'upstream-uuid',
+            ),
+        ).resolves.toBe('finance-uuid');
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'GET',
+            url: '/api/v1/projects/preview-uuid/dbt-sources',
+            body: undefined,
+        });
+    });
 });

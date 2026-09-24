@@ -30,7 +30,7 @@ import { deploy, getDeployTarget } from './deploy';
 import { resolveProjectSourceUuid } from './sourceSelection';
 import {
     getDisableTimestampConversionFromProject,
-    getProjectDisableTimestampConversion,
+    getProjectDeploySettings,
 } from './timestampConversion';
 import {
     getWarehouseCredentialsSource,
@@ -65,12 +65,21 @@ type PreviewHandlerOptions = DbtCompileOptions & {
 };
 
 const previewDeployDestination = async (
-    projectUuid: string,
+    project: Pick<Project, 'projectUuid' | 'connectionRoute'>,
     options: PreviewHandlerOptions,
     projectType: CliProjectType,
+    upstreamProjectUuid: string | undefined,
 ) => ({
-    sourceUuid: await resolveProjectSourceUuid(projectUuid, options.source),
-    deployTarget: await getDeployTarget(options, projectType),
+    sourceUuid: await resolveProjectSourceUuid(
+        project.projectUuid,
+        options.source,
+        upstreamProjectUuid,
+    ),
+    deployTarget: await getDeployTarget(
+        options,
+        projectType,
+        project.connectionRoute,
+    ),
 });
 
 type StopPreviewHandlerOptions = {
@@ -362,9 +371,10 @@ export const previewHandler = async (
             ...options,
             projectUuid: project.projectUuid,
             ...(await previewDeployDestination(
-                project.projectUuid,
+                project,
                 options,
                 projectTypeConfig.type,
+                config.context?.project,
             )),
             complete: isProjectComplete,
         });
@@ -441,9 +451,10 @@ export const previewHandler = async (
                             ...options,
                             projectUuid: project.projectUuid,
                             ...(await previewDeployDestination(
-                                project.projectUuid,
+                                project,
                                 options,
                                 projectTypeConfig.type,
+                                config.context?.project,
                             )),
                             complete: compileResult.isProjectComplete,
                         });
@@ -609,19 +620,24 @@ export const startPreviewHandler = async (
         });
 
         // Update
+        const previewSettings = await getProjectDeploySettings(
+            options.disableTimestampConversion,
+            previewProject.projectUuid,
+        );
         options.disableTimestampConversion =
-            await getProjectDisableTimestampConversion(
-                options.disableTimestampConversion,
-                previewProject.projectUuid,
-            );
+            previewSettings.disableTimestampConversion;
         const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
             ...(await previewDeployDestination(
-                previewProject.projectUuid,
+                {
+                    projectUuid: previewProject.projectUuid,
+                    connectionRoute: previewSettings.connectionRoute,
+                },
                 options,
                 projectTypeConfig.type,
+                config.context?.project,
             )),
             complete: isProjectComplete,
         });
@@ -717,9 +733,10 @@ export const startPreviewHandler = async (
             ...options,
             projectUuid: project.projectUuid,
             ...(await previewDeployDestination(
-                project.projectUuid,
+                project,
                 options,
                 projectTypeConfig.type,
+                config.context?.project,
             )),
             complete: isProjectComplete,
         });

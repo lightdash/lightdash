@@ -12,6 +12,7 @@ import {
     Project,
     ProjectType,
     WarehouseTypes,
+    type ConnectionRoute,
     type DeployTarget,
     type LightdashProjectConfig,
     type Tag,
@@ -53,7 +54,7 @@ import {
     type ProjectSelection,
 } from './selectProject';
 import { resolveProjectSourceUuid } from './sourceSelection';
-import { getProjectDisableTimestampConversion } from './timestampConversion';
+import { getProjectDeploySettings } from './timestampConversion';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -108,8 +109,11 @@ export const getDeployTarget = async (
         'projectDir' | 'targetPath' | 'profilesDir' | 'profile' | 'target'
     >,
     projectType: CliProjectType,
+    connectionRoute: ConnectionRoute | undefined,
 ): Promise<DeployTarget | undefined> => {
-    if (projectType !== CliProjectType.Dbt) return undefined;
+    if (projectType !== CliProjectType.Dbt || connectionRoute !== 'multi') {
+        return undefined;
+    }
     try {
         const context = await getDbtContext({
             projectDir: path.resolve(options.projectDir),
@@ -789,6 +793,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
 
     let existingProjectSelection: ProjectSelection | undefined;
     let sourceUuid: string | undefined;
+    let connectionRoute: ConnectionRoute | undefined;
     if (options.create === undefined) {
         if (!config.context?.serverUrl) {
             throw new AuthorizationError(
@@ -810,11 +815,13 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
             options.source,
         );
 
+        const projectSettings = await getProjectDeploySettings(
+            options.disableTimestampConversion,
+            existingProjectSelection.projectUuid,
+        );
         options.disableTimestampConversion =
-            await getProjectDisableTimestampConversion(
-                options.disableTimestampConversion,
-                existingProjectSelection.projectUuid,
-            );
+            projectSettings.disableTimestampConversion;
+        connectionRoute = projectSettings.connectionRoute;
     }
 
     const { explores, isProjectComplete, dbtModelNames } =
@@ -858,7 +865,11 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         complete: isProjectComplete,
         dbtModelNames,
         sourceUuid,
-        deployTarget: await getDeployTarget(options, projectTypeConfig.type),
+        deployTarget: await getDeployTarget(
+            options,
+            projectTypeConfig.type,
+            connectionRoute,
+        ),
     });
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');

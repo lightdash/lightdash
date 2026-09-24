@@ -3,6 +3,7 @@ import type { MockedFunction, MockInstance } from 'vitest';
 import { lightdashApi } from './dbt/apiClient';
 import {
     getDisableTimestampConversionFromProject,
+    getProjectDeploySettings,
     getProjectDisableTimestampConversion,
 } from './timestampConversion';
 
@@ -153,5 +154,41 @@ describe('getProjectDisableTimestampConversion', () => {
         );
 
         expect(result).toBeUndefined();
+    });
+});
+
+describe('getProjectDeploySettings', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it.each(['single', 'multi'] as const)(
+        'reads the %s connection route from the same project request',
+        async (connectionRoute) => {
+            mockLightdashApi.mockResolvedValueOnce({
+                projectUuid: PROJECT_UUID,
+                warehouseConnection: snowflakeConnection(true),
+                connectionRoute,
+            } as never);
+
+            await expect(
+                getProjectDeploySettings(undefined, PROJECT_UUID),
+            ).resolves.toEqual({
+                disableTimestampConversion: true,
+                connectionRoute,
+            });
+            expect(mockLightdashApi).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it('has no connection route when the project fetch fails', async () => {
+        mockLightdashApi.mockRejectedValueOnce(new Error('network error'));
+
+        await expect(
+            getProjectDeploySettings(undefined, PROJECT_UUID),
+        ).resolves.toEqual({
+            disableTimestampConversion: undefined,
+            connectionRoute: undefined,
+        });
     });
 });

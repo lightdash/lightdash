@@ -35,11 +35,12 @@ const getProjectSources = async (
 export const resolveProjectSourceUuid = async (
     projectUuid: string,
     sourceOverride: string | undefined,
+    configuredProjectUuid: string = projectUuid,
 ): Promise<string | undefined> => {
     const config = await getConfig();
     const name =
         sourceOverride ??
-        (config.context?.project === projectUuid
+        (config.context?.project === configuredProjectUuid
             ? config.context.source
             : undefined);
     if (name === undefined) return undefined;
