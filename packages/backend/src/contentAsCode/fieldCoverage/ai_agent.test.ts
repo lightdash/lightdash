@@ -21,6 +21,7 @@ describeContentAsCodeSchemaContract({
         'contentType',
         'downloadedAt',
         'evaluations',
+        'skills',
         'slug',
     ],
 });
