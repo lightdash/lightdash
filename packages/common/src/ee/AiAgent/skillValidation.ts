@@ -114,7 +114,8 @@ export const splitAiAgentSkillFrontmatter = (
 export const buildAiAgentSkillMarkdown = (
     data: Record<string, unknown>,
     body: string,
-): string => matter.stringify(body.endsWith('\n') ? body : `${body}\n`, data);
+): string =>
+    `---\n${yaml.dump(data, { lineWidth: -1 })}---\n${body.endsWith('\n') ? body : `${body}\n`}`;
 
 const asString = (value: unknown): string | null =>
     typeof value === 'string' ? value : null;
