@@ -6,8 +6,9 @@ describe('SQL Runner (new)', () => {
     beforeEach(() => {
         cy.login();
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.wait(3000);
-        cy.contains('New').click();
+        cy.contains('button', /^New$/, { timeout: 30_000 })
+            .should('be.enabled')
+            .click();
         cy.contains('SQL runner')
             .click()
             .then(() => {

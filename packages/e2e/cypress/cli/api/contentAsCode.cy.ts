@@ -83,10 +83,12 @@ describe('Content as Code CLI', () => {
             cy.wrap(result.exitCode).should('eq', 0);
         });
 
-        cy.exec('lightdash upload --verbose').then((result) => {
-            cy.wrap(result.stdout).should('contain', 'charts updated: 1');
-            cy.wrap(result.exitCode).should('eq', 0);
-        });
+        cy.exec('lightdash upload --verbose', { timeout: 180_000 }).then(
+            (result) => {
+                cy.wrap(result.stdout).should('contain', 'charts updated: 1');
+                cy.wrap(result.exitCode).should('eq', 0);
+            },
+        );
     });
 
     it('should create new dashboard if we change the slug using CLI', () => {
@@ -105,10 +107,15 @@ describe('Content as Code CLI', () => {
             },
         );
 
-        cy.exec('lightdash upload --verbose').then((result) => {
-            cy.wrap(result.stdout).should('contain', 'dashboards created: 1');
-            cy.wrap(result.exitCode).should('eq', 0);
-        });
+        cy.exec('lightdash upload --verbose', { timeout: 180_000 }).then(
+            (result) => {
+                cy.wrap(result.stdout).should(
+                    'contain',
+                    'dashboards created: 1',
+                );
+                cy.wrap(result.exitCode).should('eq', 0);
+            },
+        );
     });
 
     it('should create a new SQL chart using CLI upload', () => {
@@ -144,10 +151,12 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
             cy.wrap(result.exitCode).should('eq', 0);
         });
 
-        cy.exec('lightdash upload --verbose').then((result) => {
-            cy.wrap(result.stdout).should('contain', 'charts created: 1');
-            cy.wrap(result.exitCode).should('eq', 0);
-        });
+        cy.exec('lightdash upload --verbose', { timeout: 180_000 }).then(
+            (result) => {
+                cy.wrap(result.stdout).should('contain', 'charts created: 1');
+                cy.wrap(result.exitCode).should('eq', 0);
+            },
+        );
     });
 
     it('should download SQL chart by slug using CLI', () => {
@@ -185,9 +194,11 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
         });
 
         // Upload to create it on the server
-        cy.exec('lightdash upload --verbose').then((result) => {
-            cy.wrap(result.exitCode).should('eq', 0);
-        });
+        cy.exec('lightdash upload --verbose', { timeout: 180_000 }).then(
+            (result) => {
+                cy.wrap(result.exitCode).should('eq', 0);
+            },
+        );
 
         // Clean up and download only that SQL chart by slug
         cy.exec(`rm -rf ${lightdashDir}`);
@@ -238,10 +249,12 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
         });
 
         // Upload to create it on the server
-        cy.exec('lightdash upload --verbose').then((result) => {
-            cy.wrap(result.stdout).should('contain', 'charts created: 1');
-            cy.wrap(result.exitCode).should('eq', 0);
-        });
+        cy.exec('lightdash upload --verbose', { timeout: 180_000 }).then(
+            (result) => {
+                cy.wrap(result.stdout).should('contain', 'charts created: 1');
+                cy.wrap(result.exitCode).should('eq', 0);
+            },
+        );
 
         // Now update the description
         const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
@@ -254,9 +267,11 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
         });
 
         // Upload the update
-        cy.exec('lightdash upload --verbose').then((result) => {
-            cy.wrap(result.stdout).should('contain', 'charts updated: 1');
-            cy.wrap(result.exitCode).should('eq', 0);
-        });
+        cy.exec('lightdash upload --verbose', { timeout: 180_000 }).then(
+            (result) => {
+                cy.wrap(result.stdout).should('contain', 'charts updated: 1');
+                cy.wrap(result.exitCode).should('eq', 0);
+            },
+        );
     });
 });

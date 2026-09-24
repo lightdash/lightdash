@@ -189,7 +189,9 @@ const waitForCompileJob = (attempt = 0): void => {
 const testCompile = (): Cypress.Chainable<string> => {
     // Compile
     cy.intercept('GET', '**/api/v1/jobs/*').as('jobStatus');
-    cy.findByText('Test & deploy project').click();
+    cy.contains('button', 'Test & deploy project', { timeout: 30_000 })
+        .should('be.enabled')
+        .click();
     waitForCompileJob();
 
     cy.url({ timeout: 30000 }).should('include', '/createProjectSettings');

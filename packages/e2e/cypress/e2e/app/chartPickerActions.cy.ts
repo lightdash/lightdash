@@ -20,7 +20,9 @@ describe('Chart picker actions', () => {
             exact: true,
         }).click();
 
-        cy.findByRole('button', { name: 'Pie chart', exact: true }).click();
+        cy.contains('button', /^Pie chart$/, { timeout: 30_000 })
+            .should('be.enabled')
+            .click();
         cy.findByRole('button', { name: 'Pie chart', pressed: true }).should(
             'exist',
         );
@@ -57,9 +59,12 @@ describe('Chart picker actions', () => {
             name: 'Change chart type',
             exact: true,
         }).click();
-        cy.findByRole('button', { name: 'Line chart', pressed: false }).click(
-            'top',
+        cy.findByRole('button', { name: 'Line chart', pressed: false }).should(
+            'exist',
         );
+        cy.contains('button', /^Line chart$/, { timeout: 30_000 })
+            .should('be.enabled')
+            .click('top');
         cy.findByRole('button', { name: 'Line chart', pressed: true }).click(
             'top',
         );

@@ -598,6 +598,8 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      - name: Warm preview
+        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -660,6 +662,8 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      - name: Warm preview
+        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -710,6 +714,8 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Warm preview
+        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -774,6 +780,8 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Warm preview
+        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -851,6 +859,8 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Warm preview
+        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
