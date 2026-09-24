@@ -1087,7 +1087,10 @@ const describeStep = (
     }
 };
 
-const plannedSteps = (resolution: ChartIntentResolution): CompoundStep[] => {
+/** The applicable steps of a resolution; undo and non-edits have none. */
+export const plannedSteps = (
+    resolution: ChartIntentResolution,
+): CompoundStep[] => {
     if (resolution.type === 'compound') return resolution.steps;
     if (resolution.type === 'needs_values') return [resolution];
     if (resolution.type === 'intent' && resolution.intent.kind !== 'undo')

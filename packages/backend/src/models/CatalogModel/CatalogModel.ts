@@ -1421,7 +1421,6 @@ export class CatalogModel {
         }));
     }
 
-    /** Chart usage per table, summed across the table's fields. */
     /** Chart usage keyed by field id (`table_field`) for the given tables. */
     async getFieldChartUsage(
         projectUuid: string,
@@ -1451,6 +1450,7 @@ export class CatalogModel {
         );
     }
 
+    /** Chart usage per table, summed across the table's fields. */
     async getChartUsageByTable(
         projectUuid: string,
     ): Promise<Map<string, number>> {

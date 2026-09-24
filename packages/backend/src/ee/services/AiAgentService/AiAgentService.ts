@@ -346,6 +346,7 @@ import {
     CHART_INTENT_THRESHOLDS,
     decideTurn,
     isChartEditAttempt,
+    plannedSteps,
     selectFilterValues,
     verifyChartPlan,
     type ChartIntentContext,
@@ -12135,11 +12136,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 undoneTo: undoConfig ? previous : null,
             };
         }
-        let steps: CompoundStep[] = [];
-        if (resolution.type === 'compound') steps = resolution.steps;
-        else if (resolution.type === 'needs_values') steps = [resolution];
-        else if (single) steps = [{ type: 'intent', intent: single }];
-        else return { type: 'fallback', reason: resolution.type };
+        const steps = plannedSteps(resolution);
+        if (steps.length === 0)
+            return { type: 'fallback', reason: resolution.type };
 
         let artifact = chart.chartConfig;
         let { explore } = chart;
