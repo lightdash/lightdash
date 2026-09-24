@@ -302,7 +302,7 @@ describe('context preloading', () => {
                 body.questions.turnIntent.criteria.chart_from_previous,
             ).toContain('filters');
             expect(body.questions.turnIntent.instructions).toContain(
-                'only shipped',
+                'add or remove a filter',
             );
             return Response.json({
                 model: 'test',
@@ -332,7 +332,7 @@ describe('context preloading', () => {
         request.mockImplementation(async (_url, init) => {
             const body = JSON.parse(String(init?.body));
             expect(body.questions.turnIntent.instructions).toContain(
-                'yes, completed then',
+                'a short reply naming that value means replace the attempted filter value',
             );
             expect(
                 body.questions.turnIntent.criteria.chart_from_previous,
