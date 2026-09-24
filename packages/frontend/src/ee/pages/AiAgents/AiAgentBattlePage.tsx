@@ -1,17 +1,10 @@
-import {
-    Box,
-    Center,
-    Divider,
-    Flex,
-    Loader,
-    Stack,
-    Switch,
-} from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, type FC } from 'react';
+import { Box, Center, Divider, Flex, Loader, Stack } from '@mantine/core';
+import { useCallback, useMemo, type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { BattleMessageContext } from '../../features/aiCopilot/components/Battle/BattleMessageContext';
 import { BattleThreadPane } from '../../features/aiCopilot/components/Battle/BattleThreadPane';
+import { getTurnWinners } from '../../features/aiCopilot/components/Battle/battleTurns';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { useBattleFollowUpQueue } from '../../features/aiCopilot/hooks/useBattleFollowUpQueue';
@@ -64,10 +57,6 @@ const AiAgentBattlePage: FC = () => {
 
     const threadA = threadAQuery.data;
     const threadB = threadBQuery.data;
-    const [showTokens, setShowTokens] = useLocalStorage<boolean>({
-        key: 'ld.aiAgentBattle.showTokens.v1',
-        defaultValue: true,
-    });
     const busyA =
         messageA.isLoading || pendingA.isStreaming || pendingA.isThreadPending;
     const busyB =
@@ -116,6 +105,16 @@ const AiAgentBattlePage: FC = () => {
         [enqueueA, enqueueB, threadA, threadB],
     );
 
+    const battleMessageContext = useMemo(
+        () => ({
+            winnerMessageUuids:
+                threadA && threadB
+                    ? getTurnWinners(threadA, threadB)
+                    : new Set<string>(),
+        }),
+        [threadA, threadB],
+    );
+
     const queuedCount = Math.max(queueA.queuedCount, queueB.queuedCount);
 
     if (!projectUuid || !agentUuid || !threadA || !threadB) {
@@ -128,47 +127,39 @@ const AiAgentBattlePage: FC = () => {
 
     return (
         <Stack h="100%" gap={0}>
-            <Flex justify="flex-end" px="sm" py={6}>
-                <Switch
-                    size="xs"
-                    label="Show tokens"
-                    checked={showTokens}
-                    onChange={(event) =>
-                        setShowTokens(event.currentTarget.checked)
-                    }
-                />
-            </Flex>
-            <Flex flex={1} mih={0} wrap="nowrap" align="stretch">
-                <Box flex={1} miw={0} h="100%">
-                    <BattleThreadPane
-                        label={
-                            threadA.battleProfile === 'fast' ? 'JEV on' : 'A'
-                        }
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                        agentName={agent.name}
-                        thread={threadA}
-                        queuedCount={queueA.queuedCount}
-                        showTokens={showTokens}
-                    />
-                </Box>
-                <Divider orientation="vertical" />
-                <Box flex={1} miw={0} h="100%">
-                    <BattleThreadPane
-                        label={
-                            threadB.battleProfile === 'baseline'
-                                ? 'Baseline'
-                                : 'B'
-                        }
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                        agentName={agent.name}
-                        thread={threadB}
-                        queuedCount={queueB.queuedCount}
-                        showTokens={showTokens}
-                    />
-                </Box>
-            </Flex>
+            <BattleMessageContext.Provider value={battleMessageContext}>
+                <Flex flex={1} mih={0} wrap="nowrap" align="stretch">
+                    <Box flex={1} miw={0} h="100%">
+                        <BattleThreadPane
+                            label={
+                                threadA.battleProfile === 'fast'
+                                    ? 'JEV on'
+                                    : 'A'
+                            }
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                            agentName={agent.name}
+                            thread={threadA}
+                            queuedCount={queueA.queuedCount}
+                        />
+                    </Box>
+                    <Divider orientation="vertical" />
+                    <Box flex={1} miw={0} h="100%">
+                        <BattleThreadPane
+                            label={
+                                threadB.battleProfile === 'baseline'
+                                    ? 'Baseline'
+                                    : 'B'
+                            }
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                            agentName={agent.name}
+                            thread={threadB}
+                            queuedCount={queueB.queuedCount}
+                        />
+                    </Box>
+                </Flex>
+            </BattleMessageContext.Provider>
             <Box {...ChatElementsUtils.centeredElementProps} h="unset" py="sm">
                 <AgentChatInput
                     onSubmit={handleSubmit}

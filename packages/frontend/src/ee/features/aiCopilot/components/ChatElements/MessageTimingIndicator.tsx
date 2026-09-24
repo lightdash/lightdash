@@ -6,11 +6,19 @@ import {
     getResponseTimingMetrics,
 } from '../../utils/responseTiming';
 
+export type MessageTokenCounts = { agent: number; jev: number };
+
 interface Props {
     responseTiming: AiPromptResponseTiming | null;
+    isWinner: boolean;
+    tokens: MessageTokenCounts | null;
 }
 
-export const MessageTimingIndicator: FC<Props> = ({ responseTiming }) => {
+export const MessageTimingIndicator: FC<Props> = ({
+    responseTiming,
+    isWinner,
+    tokens,
+}) => {
     if (!responseTiming) return null;
 
     const metrics = getResponseTimingMetrics(responseTiming);
@@ -59,7 +67,15 @@ export const MessageTimingIndicator: FC<Props> = ({ responseTiming }) => {
             multiline
         >
             <Badge variant="transparent" size="sm" fz="xs" c="dimmed">
+                {isWinner ? '🥇 ' : ''}
                 {ttft} · {formatDurationMs(metrics.totalMs)}
+                {tokens
+                    ? ` · ${tokens.agent.toLocaleString()} agent${
+                          tokens.jev > 0
+                              ? ` · ${tokens.jev.toLocaleString()} JEV`
+                              : ''
+                      }`
+                    : ''}
             </Badge>
         </Tooltip>
     );
