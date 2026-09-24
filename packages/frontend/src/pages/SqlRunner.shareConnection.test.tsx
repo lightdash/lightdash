@@ -399,6 +399,94 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         expect(screen.getByTestId('active')).toHaveTextContent('Finance');
     });
 
+    it('runs a Finance share when the viewer picked Finance before it resolved', async () => {
+        const shareGate = gate();
+        serve({ shareGate });
+        const user = renderPage();
+        await screen.findByTestId('provider');
+        await user.click(screen.getByRole('button', { name: 'Finance' }));
+        expect(screen.getByTestId('active')).toHaveTextContent('Finance');
+        await act(async () => {
+            shareGate.resolve({ params: shareParams('finance-uuid') });
+        });
+        await waitFor(() =>
+            expect(executeSqlQuery).toHaveBeenCalledWith(
+                projectUuid,
+                'select 1',
+                10,
+                {},
+                true,
+                'finance-uuid',
+            ),
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('Finance');
+        expect(store.getState().sqlRunner.connectionRoute).toMatchObject({
+            route: 'multi',
+            connection: { warehouseConnectionUuid: 'finance-uuid' },
+        });
+        expect(vi.mocked(executeSqlQuery).mock.calls).toHaveLength(1);
+        expect(
+            screen.queryByText(/was removed from this project/),
+        ).not.toBeInTheDocument();
+    });
+
+    it('runs an original share when the viewer picked the original before it resolved', async () => {
+        const shareGate = gate();
+        serve({ shareGate });
+        const user = renderPage();
+        await screen.findByTestId('provider');
+        await user.click(screen.getByRole('button', { name: 'Warehouse' }));
+        expect(screen.getByTestId('active')).toHaveTextContent('Warehouse');
+        await act(async () => {
+            shareGate.resolve({ params: shareParams(null) });
+        });
+        await waitFor(() =>
+            expect(executeSqlQuery).toHaveBeenCalledWith(
+                projectUuid,
+                'select 1',
+                10,
+                {},
+                true,
+                null,
+            ),
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('Warehouse');
+        expect(store.getState().sqlRunner.connectionRoute).toMatchObject({
+            route: 'multi',
+            connection: { warehouseConnectionUuid: null },
+        });
+        expect(vi.mocked(executeSqlQuery).mock.calls).toHaveLength(1);
+    });
+
+    it('does not rerun shared SQL after picking another connection', async () => {
+        const shareGate = gate();
+        serve({ shareGate });
+        const user = renderPage();
+        await screen.findByTestId('provider');
+        await user.click(screen.getByRole('button', { name: 'Finance' }));
+        await act(async () => {
+            shareGate.resolve({ params: shareParams('finance-uuid') });
+        });
+        await waitFor(() =>
+            expect(executeSqlQuery).toHaveBeenCalledWith(
+                projectUuid,
+                'select 1',
+                10,
+                {},
+                true,
+                'finance-uuid',
+            ),
+        );
+        await user.click(screen.getByRole('button', { name: 'Warehouse' }));
+        await waitFor(() =>
+            expect(screen.getByTestId('active')).toHaveTextContent('Warehouse'),
+        );
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        });
+        expect(vi.mocked(executeSqlQuery).mock.calls).toHaveLength(1);
+    });
+
     it('uses the share hint when navigation state names another connection', async () => {
         const shareGate = gate();
         serve({ shareGate });

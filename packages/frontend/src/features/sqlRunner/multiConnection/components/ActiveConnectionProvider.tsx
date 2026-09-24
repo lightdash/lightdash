@@ -70,11 +70,11 @@ export const ActiveConnectionProvider: FC<
         });
     });
     const userHasPickedConnection = useRef(false);
-    const appliedSharedHint = useRef(sharedConnectionUuid);
+    const [appliedSharedHint, setAppliedSharedHint] =
+        useState(sharedConnectionUuid);
     useEffect(() => {
-        if (!isSharedLink || appliedSharedHint.current === sharedConnectionUuid)
-            return;
-        appliedSharedHint.current = sharedConnectionUuid;
+        if (!isSharedLink || appliedSharedHint === sharedConnectionUuid) return;
+        setAppliedSharedHint(sharedConnectionUuid);
         setSelectedConnectionUuid(
             connections.find((connection) =>
                 sharedConnectionUuid === null
@@ -83,7 +83,7 @@ export const ActiveConnectionProvider: FC<
                       sharedConnectionUuid,
             )?.warehouseConnectionUuid,
         );
-    }, [connections, isSharedLink, sharedConnectionUuid]);
+    }, [appliedSharedHint, connections, isSharedLink, sharedConnectionUuid]);
     const [selectedTable, setActiveTable] = useState<TableIdentity | undefined>(
         undefined,
     );
@@ -115,7 +115,7 @@ export const ActiveConnectionProvider: FC<
 
     const activeConnection = useMemo(
         () =>
-            isSharedLink && appliedSharedHint.current !== sharedConnectionUuid
+            isSharedLink && appliedSharedHint !== sharedConnectionUuid
                 ? undefined
                 : connections.find(
                       (connection) =>
@@ -124,6 +124,7 @@ export const ActiveConnectionProvider: FC<
                   ),
         [
             connections,
+            appliedSharedHint,
             isSharedLink,
             selectedConnectionUuid,
             sharedConnectionUuid,
@@ -149,7 +150,11 @@ export const ActiveConnectionProvider: FC<
     }, [activeConnection]);
 
     const isSelectionRemoved =
-        selectedConnectionUuid !== undefined && activeConnection === undefined;
+        selectedConnectionUuid !== undefined &&
+        !connections.some(
+            (connection) =>
+                connection.warehouseConnectionUuid === selectedConnectionUuid,
+        );
     useEffect(() => {
         if (!isSelectionRemoved || !selectedConnectionUuid) return;
         const removedName = activeNameRef.current;
