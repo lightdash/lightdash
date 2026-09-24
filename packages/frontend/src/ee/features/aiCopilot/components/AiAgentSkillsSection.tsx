@@ -4,6 +4,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Center,
     Code,
     Combobox,
     Divider,
@@ -26,6 +27,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
+import { EmptyState } from '../../../../components/common/EmptyState';
 import InlineErrorState from '../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useApp from '../../../../providers/App/useApp';
@@ -78,12 +80,14 @@ const SkillRow = ({
 );
 
 const AddSkillMenu = ({
+    trigger,
     bindable,
     canBind,
     canCreate,
     onBind,
     onCreate,
 }: {
+    trigger: 'library' | 'add';
     bindable: AiAgentSkillSummary[];
     canBind: boolean;
     canCreate: boolean;
@@ -110,7 +114,7 @@ const AddSkillMenu = ({
             store={combobox}
             withinPortal
             width={320}
-            position="bottom-end"
+            position={trigger === 'library' ? 'bottom-end' : 'bottom'}
             onOptionSubmit={(value) => {
                 combobox.closeDropdown();
                 if (value === CREATE_OPTION) {
@@ -123,12 +127,16 @@ const AddSkillMenu = ({
             <Combobox.Target>
                 <Button
                     size="xs"
-                    variant="default"
-                    leftSection={<MantineIcon icon={IconBooks} />}
+                    variant={trigger === 'library' ? 'default' : 'filled'}
+                    leftSection={
+                        <MantineIcon
+                            icon={trigger === 'library' ? IconBooks : IconPlus}
+                        />
+                    }
                     rightSection={<MantineIcon icon={IconChevronDown} />}
                     onClick={() => combobox.toggleDropdown()}
                 >
-                    Library
+                    {trigger === 'library' ? 'Library' : 'Add skill'}
                 </Button>
             </Combobox.Target>
             <Combobox.Dropdown>
@@ -272,6 +280,18 @@ export const AiAgentSkillsSection = ({
     const unbind = (skillUuid: string) =>
         setSkills.mutate(boundUuids.filter((uuid) => uuid !== skillUuid));
 
+    const canAdd = canManage || canCreate;
+    const addSkillMenu = (trigger: 'library' | 'add') => (
+        <AddSkillMenu
+            trigger={trigger}
+            bindable={bindable}
+            canBind={canManage}
+            canCreate={canCreate}
+            onBind={bind}
+            onCreate={() => setModal({ mode: 'create' })}
+        />
+    );
+
     const body = (() => {
         if (agentUuid === null) {
             return (
@@ -299,63 +319,75 @@ export const AiAgentSkillsSection = ({
                 </Text>
             );
         }
-        const rows: ReactNode[] = [
-            ...bound.map((skill) => (
-                <SkillRow
-                    key={skill.uuid}
-                    name={skill.name}
-                    description={skill.description}
-                    icon={IconLicense}
-                    tag={
-                        <Text size="xs" c="dimmed">
-                            v{skill.currentVersion.versionNumber}
-                        </Text>
-                    }
-                    menu={
-                        canManage ? (
-                            <Menu position="bottom-end" withinPortal>
-                                <Menu.Target>
-                                    <ActionIcon
-                                        aria-label={`Actions for /${skill.name}`}
-                                        loading={setSkills.isLoading}
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconPencil} />
-                                        }
-                                        onClick={() =>
-                                            setModal({ mode: 'edit', skill })
-                                        }
-                                    >
-                                        Edit skill
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        color="red"
-                                        leftSection={
-                                            <MantineIcon icon={IconX} />
-                                        }
-                                        onClick={() => unbind(skill.uuid)}
-                                    >
-                                        Remove from this agent
-                                    </Menu.Item>
-                                </Menu.Dropdown>
-                            </Menu>
-                        ) : null
-                    }
-                />
-            )),
-            ...(bound.length === 0
-                ? [
-                      <Text key="empty" size="xs" c="dimmed" p="sm">
-                          No skills added to this agent yet.
-                      </Text>,
-                  ]
-                : []),
-        ];
+        if (bound.length === 0) {
+            return (
+                <Paper p={0} variant="dotted">
+                    <Center>
+                        <EmptyState
+                            icon={
+                                <MantineIcon
+                                    icon={IconLicense}
+                                    color="dimmed"
+                                />
+                            }
+                            gap="xs"
+                            titleProps={{ order: 6 }}
+                            title="No skills yet"
+                            description="Add one from the library or create a new one."
+                            descriptionProps={{ size: 'xs' }}
+                        >
+                            {canAdd ? addSkillMenu('add') : null}
+                        </EmptyState>
+                    </Center>
+                </Paper>
+            );
+        }
+        const rows = bound.map((skill) => (
+            <SkillRow
+                key={skill.uuid}
+                name={skill.name}
+                description={skill.description}
+                icon={IconLicense}
+                tag={
+                    <Text size="xs" c="dimmed">
+                        v{skill.currentVersion.versionNumber}
+                    </Text>
+                }
+                menu={
+                    canManage ? (
+                        <Menu position="bottom-end" withinPortal>
+                            <Menu.Target>
+                                <ActionIcon
+                                    aria-label={`Actions for /${skill.name}`}
+                                    loading={setSkills.isLoading}
+                                >
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconPencil} />
+                                    }
+                                    onClick={() =>
+                                        setModal({ mode: 'edit', skill })
+                                    }
+                                >
+                                    Edit skill
+                                </Menu.Item>
+                                <Menu.Item
+                                    color="red"
+                                    leftSection={<MantineIcon icon={IconX} />}
+                                    onClick={() => unbind(skill.uuid)}
+                                >
+                                    Remove from this agent
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+                    ) : null
+                }
+            />
+        ));
         return (
             <Paper p={0}>
                 <Stack gap={0}>
@@ -371,23 +403,17 @@ export const AiAgentSkillsSection = ({
     })();
 
     const showAction =
-        agentUuid !== null && !listing.isError && (canManage || canCreate);
+        agentUuid !== null &&
+        !listing.isError &&
+        !listing.isLoading &&
+        bound.length > 0 &&
+        canAdd;
 
     return (
         <AgentSettingsSubsection
             title="Skills"
-            description="Step-by-step instructions for recurring tasks. The agent picks one up when a request matches, or users run one by typing / in the chat."
-            action={
-                showAction ? (
-                    <AddSkillMenu
-                        bindable={bindable}
-                        canBind={canManage}
-                        canCreate={canCreate}
-                        onBind={bind}
-                        onCreate={() => setModal({ mode: 'create' })}
-                    />
-                ) : null
-            }
+            description="Step-by-step instructions for recurring tasks. The agent picks one up when a request matches."
+            action={showAction ? addSkillMenu('library') : null}
         >
             {body}
             {modal ? (
