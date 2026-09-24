@@ -671,35 +671,17 @@ export const AiAgentFormSetup = ({
                             )}
                         </AgentSettingsSubsection>
 
-                        {customSkillsFlagQuery.data?.enabled ? (
+                        {customSkillsFlagQuery.data?.enabled &&
+                        user.data?.organizationUuid ? (
                             <>
                                 <Divider />
-                                <AgentSettingsSubsection
-                                    title="Skills"
-                                    description="Reusable workflows the agent loads when a request matches, or that users run by typing / in the chat."
-                                >
-                                    {agentUuid &&
-                                    user.data?.organizationUuid ? (
-                                        <AiAgentSkillsSection
-                                            agentUuid={agentUuid}
-                                            projectUuid={projectUuid}
-                                            organizationUuid={
-                                                user.data.organizationUuid
-                                            }
-                                        />
-                                    ) : (
-                                        <Paper variant="dotted" p="sm">
-                                            <Text
-                                                size="xs"
-                                                c="dimmed"
-                                                ta="center"
-                                            >
-                                                You can add skills once this
-                                                agent is created.
-                                            </Text>
-                                        </Paper>
-                                    )}
-                                </AgentSettingsSubsection>
+                                <AiAgentSkillsSection
+                                    agentUuid={agentUuid ?? null}
+                                    projectUuid={projectUuid}
+                                    organizationUuid={
+                                        user.data.organizationUuid
+                                    }
+                                />
                             </>
                         ) : null}
 

@@ -3,16 +3,28 @@ import { type AiAgentSkillSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
+    Box,
     Button,
+    Combobox,
+    Divider,
     Group,
+    Menu,
     Paper,
-    Select,
     Stack,
-    Table,
     Text,
-    Tooltip,
+    ThemeIcon,
+    useCombobox,
 } from '@mantine/core';
-import { IconBolt, IconPencil, IconPlus, IconX } from '@tabler/icons-react';
+import {
+    IconBooks,
+    IconChevronDown,
+    IconCode,
+    IconDots,
+    IconFileText,
+    IconPencil,
+    IconPlus,
+    IconX,
+} from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
 import InlineErrorState from '../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -22,10 +34,15 @@ import {
     useAiAgentSkills,
     useSetAgentSkills,
 } from '../hooks/useAiAgentSkills';
+import { AgentSettingsSubsection } from './AgentSettingsSubsection';
 import { AiAgentSkillModal } from './AiAgentSkillModal';
+import styles from './AiAgentSkillsSection.module.css';
+
+const CREATE_OPTION = '__create__';
 
 type Props = {
-    agentUuid: string;
+    /** Null until the agent is saved: skills bind to an existing agent. */
+    agentUuid: string | null;
     projectUuid: string;
     organizationUuid: string;
 };
@@ -33,41 +50,177 @@ type Props = {
 const SkillRow = ({
     name,
     description,
-    iconColor,
+    icon,
     tag,
-    actions,
+    menu,
 }: {
     name: string;
     description: string;
-    iconColor: string;
+    icon: typeof IconFileText;
     tag: ReactNode;
-    actions: ReactNode;
+    menu: ReactNode;
 }) => (
-    <Table.Tr>
-        <Table.Td>
-            <Group gap="xs" wrap="nowrap">
-                <MantineIcon icon={IconBolt} color={iconColor} />
-                <Stack gap={0} miw={0}>
-                    <Group gap={6}>
-                        <Text size="sm" fw={500} ff="monospace">
-                            /{name}
-                        </Text>
-                        {tag}
-                    </Group>
-                    <Text size="xs" c="dimmed" lineClamp={1}>
-                        {description}
-                    </Text>
-                </Stack>
+    <Group p="sm" gap="sm" wrap="nowrap" align="flex-start">
+        <ThemeIcon variant="default" size={36} radius="md">
+            <MantineIcon icon={icon} size="md" color="ldGray.7" />
+        </ThemeIcon>
+        <Stack gap={2} flex={1} miw={0}>
+            <Group gap="xs" align="center">
+                <Text size="sm" fw={500} ff="monospace">
+                    /{name}
+                </Text>
+                {tag}
             </Group>
-        </Table.Td>
-        <Table.Td w={80} ta="right">
-            {actions}
-        </Table.Td>
-    </Table.Tr>
+            <Text size="sm" c="dimmed" lineClamp={2}>
+                {description}
+            </Text>
+        </Stack>
+        {menu}
+    </Group>
 );
 
+const AddSkillMenu = ({
+    bindable,
+    canBind,
+    canCreate,
+    onBind,
+    onCreate,
+}: {
+    bindable: AiAgentSkillSummary[];
+    canBind: boolean;
+    canCreate: boolean;
+    onBind: (skillUuid: string) => void;
+    onCreate: () => void;
+}) => {
+    const combobox = useCombobox({
+        onDropdownClose: () => {
+            combobox.resetSelectedOption();
+            setSearch('');
+        },
+    });
+    const [search, setSearch] = useState('');
+    const needle = search.trim().toLowerCase();
+    const matches = bindable.filter(
+        (skill) =>
+            needle.length === 0 ||
+            skill.name.includes(needle) ||
+            skill.description.toLowerCase().includes(needle),
+    );
+
+    return (
+        <Combobox
+            store={combobox}
+            withinPortal
+            width={360}
+            position="bottom-end"
+            onOptionSubmit={(value) => {
+                combobox.closeDropdown();
+                if (value === CREATE_OPTION) {
+                    onCreate();
+                } else {
+                    onBind(value);
+                }
+            }}
+        >
+            <Combobox.Target>
+                <Button
+                    size="xs"
+                    variant="default"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    rightSection={<MantineIcon icon={IconChevronDown} />}
+                    onClick={() => combobox.toggleDropdown()}
+                >
+                    Add skill
+                </Button>
+            </Combobox.Target>
+            <Combobox.Dropdown>
+                {canBind && bindable.length > 0 ? (
+                    <>
+                        <Combobox.Search
+                            value={search}
+                            onChange={(event) =>
+                                setSearch(event.currentTarget.value)
+                            }
+                            placeholder="Search library"
+                        />
+                        <Combobox.Options
+                            mah={280}
+                            className={styles.scrollableOptions}
+                        >
+                            {matches.map((skill) => (
+                                <Combobox.Option
+                                    key={skill.uuid}
+                                    value={skill.uuid}
+                                >
+                                    <Stack gap={0}>
+                                        <Group gap="xs">
+                                            <Text
+                                                size="sm"
+                                                fw={500}
+                                                ff="monospace"
+                                            >
+                                                /{skill.name}
+                                            </Text>
+                                            <Text size="xs" c="dimmed">
+                                                v
+                                                {
+                                                    skill.currentVersion
+                                                        .versionNumber
+                                                }
+                                            </Text>
+                                        </Group>
+                                        <Text
+                                            size="xs"
+                                            c="dimmed"
+                                            lineClamp={1}
+                                        >
+                                            {skill.description}
+                                        </Text>
+                                    </Stack>
+                                </Combobox.Option>
+                            ))}
+                            {matches.length === 0 ? (
+                                <Combobox.Empty>
+                                    No skill matches "{search.trim()}"
+                                </Combobox.Empty>
+                            ) : null}
+                        </Combobox.Options>
+                    </>
+                ) : (
+                    <Stack align="center" gap={4} py="lg" px="md">
+                        <MantineIcon
+                            icon={IconBooks}
+                            size="lg"
+                            color="ldGray.5"
+                        />
+                        <Text size="sm" fw={500}>
+                            No skills to add
+                        </Text>
+                        <Text size="xs" c="dimmed" ta="center">
+                            Skills you create are saved to the library so any
+                            agent can use them.
+                        </Text>
+                    </Stack>
+                )}
+                {canCreate ? (
+                    <Combobox.Footer>
+                        <Combobox.Option value={CREATE_OPTION}>
+                            <Group gap="xs">
+                                <MantineIcon icon={IconPlus} />
+                                <Text size="sm" fw={500}>
+                                    Create new skill
+                                </Text>
+                            </Group>
+                        </Combobox.Option>
+                    </Combobox.Footer>
+                ) : null}
+            </Combobox.Dropdown>
+        </Combobox>
+    );
+};
+
 /**
- * The skills this agent serves. Bound custom skills can be removed and edited,
+ * The skills this agent serves. Bound custom skills can be edited and removed,
  * built-ins are always on, and a new skill created here is bound on save.
  */
 export const AiAgentSkillsSection = ({
@@ -88,9 +241,13 @@ export const AiAgentSkillsSection = ({
         ability?.can('manage', subject('AiAgentSkill', { organizationUuid })) ??
         false;
 
-    const listing = useAgentSkills(projectUuid, agentUuid, true);
+    const listing = useAgentSkills(
+        projectUuid,
+        agentUuid ?? undefined,
+        agentUuid !== null,
+    );
     const catalogue = useAiAgentSkills(projectUuid, canView);
-    const setSkills = useSetAgentSkills(projectUuid, agentUuid);
+    const setSkills = useSetAgentSkills(projectUuid, agentUuid ?? '');
     const [modal, setModal] = useState<
         { mode: 'create' } | { mode: 'edit'; skill: AiAgentSkillSummary } | null
     >(null);
@@ -108,6 +265,15 @@ export const AiAgentSkillsSection = ({
         setSkills.mutate(boundUuids.filter((uuid) => uuid !== skillUuid));
 
     const body = (() => {
+        if (agentUuid === null) {
+            return (
+                <Paper variant="dotted" p="sm">
+                    <Text size="xs" c="dimmed" ta="center">
+                        You can add skills once this agent is created.
+                    </Text>
+                </Paper>
+            );
+        }
         if (listing.isError) {
             return (
                 <InlineErrorState
@@ -125,130 +291,107 @@ export const AiAgentSkillsSection = ({
                 </Text>
             );
         }
-        return (
-            <Table highlightOnHover>
-                <Table.Tbody>
-                    {bound.map((skill) => (
-                        <SkillRow
-                            key={skill.uuid}
-                            name={skill.name}
-                            description={skill.description}
-                            iconColor="indigo.6"
-                            tag={
-                                <Text size="xs" c="dimmed">
-                                    v{skill.currentVersion.versionNumber}
-                                </Text>
-                            }
-                            actions={
-                                canManage ? (
-                                    <Group
-                                        gap={4}
-                                        wrap="nowrap"
-                                        justify="flex-end"
+        const rows: ReactNode[] = [
+            ...bound.map((skill) => (
+                <SkillRow
+                    key={skill.uuid}
+                    name={skill.name}
+                    description={skill.description}
+                    icon={IconFileText}
+                    tag={
+                        <Text size="xs" c="dimmed">
+                            v{skill.currentVersion.versionNumber}
+                        </Text>
+                    }
+                    menu={
+                        canManage ? (
+                            <Menu position="bottom-end" withinPortal>
+                                <Menu.Target>
+                                    <ActionIcon
+                                        aria-label={`Actions for /${skill.name}`}
+                                        loading={setSkills.isLoading}
                                     >
-                                        <Tooltip label="Edit skill">
-                                            <ActionIcon
-                                                aria-label={`Edit /${skill.name}`}
-                                                onClick={() =>
-                                                    setModal({
-                                                        mode: 'edit',
-                                                        skill,
-                                                    })
-                                                }
-                                            >
-                                                <MantineIcon
-                                                    icon={IconPencil}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                        <Tooltip label="Remove from this agent">
-                                            <ActionIcon
-                                                aria-label={`Remove /${skill.name} from this agent`}
-                                                loading={setSkills.isLoading}
-                                                onClick={() =>
-                                                    unbind(skill.uuid)
-                                                }
-                                            >
-                                                <MantineIcon icon={IconX} />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    </Group>
-                                ) : null
-                            }
-                        />
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconPencil} />
+                                        }
+                                        onClick={() =>
+                                            setModal({ mode: 'edit', skill })
+                                        }
+                                    >
+                                        Edit skill
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        color="red"
+                                        leftSection={
+                                            <MantineIcon icon={IconX} />
+                                        }
+                                        onClick={() => unbind(skill.uuid)}
+                                    >
+                                        Remove from this agent
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        ) : null
+                    }
+                />
+            )),
+            ...(bound.length === 0
+                ? [
+                      <Text key="empty" size="xs" c="dimmed" p="sm">
+                          No custom skills bound yet.
+                      </Text>,
+                  ]
+                : []),
+            ...builtIns.map((skill) => (
+                <SkillRow
+                    key={skill.name}
+                    name={skill.name}
+                    description={skill.description}
+                    icon={IconCode}
+                    tag={<Badge size="xs">Built-in</Badge>}
+                    menu={null}
+                />
+            )),
+        ];
+        return (
+            <Paper p={0}>
+                <Stack gap={0}>
+                    {rows.map((row, index) => (
+                        <Box key={index}>
+                            {index > 0 ? <Divider /> : null}
+                            {row}
+                        </Box>
                     ))}
-                    {bound.length === 0 ? (
-                        <Table.Tr>
-                            <Table.Td colSpan={2}>
-                                <Text size="xs" c="dimmed">
-                                    No custom skills bound yet.
-                                </Text>
-                            </Table.Td>
-                        </Table.Tr>
-                    ) : null}
-                    {builtIns.map((skill) => (
-                        <SkillRow
-                            key={skill.name}
-                            name={skill.name}
-                            description={skill.description}
-                            iconColor="yellow.7"
-                            tag={
-                                <Badge size="xs" color="yellow">
-                                    built-in
-                                </Badge>
-                            }
-                            actions={
-                                <Text size="xs" c="dimmed">
-                                    Always on
-                                </Text>
-                            }
-                        />
-                    ))}
-                </Table.Tbody>
-            </Table>
+                </Stack>
+            </Paper>
         );
     })();
 
+    const showAction =
+        agentUuid !== null && !listing.isError && (canManage || canCreate);
+
     return (
-        <Stack gap="sm">
-            <Paper p={0}>{body}</Paper>
-            {(canManage || canCreate) && !listing.isError ? (
-                <Group gap="xs">
-                    {canManage ? (
-                        <Select
-                            size="xs"
-                            flex={1}
-                            maw={360}
-                            aria-label="Add an existing skill"
-                            placeholder={
-                                bindable.length
-                                    ? 'Add an existing skill'
-                                    : 'No other skills in the library'
-                            }
-                            data={bindable.map((skill) => ({
-                                value: skill.uuid,
-                                label: `/${skill.name}${
-                                    skill.title ? ` — ${skill.title}` : ''
-                                }`,
-                            }))}
-                            searchable
-                            value={null}
-                            disabled={bindable.length === 0}
-                            onChange={(value) => value && bind(value)}
-                        />
-                    ) : null}
-                    {canCreate ? (
-                        <Button
-                            size="xs"
-                            variant="default"
-                            leftSection={<MantineIcon icon={IconPlus} />}
-                            onClick={() => setModal({ mode: 'create' })}
-                        >
-                            New skill
-                        </Button>
-                    ) : null}
-                </Group>
-            ) : null}
+        <AgentSettingsSubsection
+            title="Skills"
+            description="Step-by-step instructions for recurring tasks. The agent picks one up when a request matches, or users run one by typing / in the chat."
+            action={
+                showAction ? (
+                    <AddSkillMenu
+                        bindable={bindable}
+                        canBind={canManage}
+                        canCreate={canCreate}
+                        onBind={bind}
+                        onCreate={() => setModal({ mode: 'create' })}
+                    />
+                ) : null
+            }
+        >
+            {body}
             {modal ? (
                 <AiAgentSkillModal
                     skill={modal.mode === 'edit' ? modal.skill : null}
@@ -256,6 +399,6 @@ export const AiAgentSkillsSection = ({
                     onClose={() => setModal(null)}
                 />
             ) : null}
-        </Stack>
+        </AgentSettingsSubsection>
     );
 };
