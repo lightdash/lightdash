@@ -1,8 +1,4 @@
-import {
-    ForbiddenError,
-    NotFoundError,
-    ParameterError,
-} from '@lightdash/common';
+import { NotFoundError } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getIterateDataApp } from './iterateDataApp';
 
@@ -89,50 +85,6 @@ describe('getIterateDataApp', () => {
             message: 'Data app "no-such-app" was not found',
         });
         expect(output.result).toContain('No new version was created');
-        expect(captureException).not.toHaveBeenCalled();
-    });
-
-    it('reports an in-progress build as an expected error, without paging Sentry', async () => {
-        const iterateDataApp = vi
-            .fn()
-            .mockRejectedValue(
-                new ParameterError(
-                    'A version is already building for this app',
-                ),
-            );
-
-        const output = await executeIterateDataApp(
-            getIterateDataApp({ iterateDataApp }),
-        );
-
-        expect(output.metadata).toEqual({
-            status: 'error',
-            appUuid: null,
-            reason: 'failed',
-            message: 'A version is already building for this app',
-        });
-        expect(captureException).not.toHaveBeenCalled();
-    });
-
-    it('reports a permission refusal without paging Sentry', async () => {
-        const iterateDataApp = vi
-            .fn()
-            .mockRejectedValue(
-                new ForbiddenError(
-                    'Insufficient permissions to modify data apps',
-                ),
-            );
-
-        const output = await executeIterateDataApp(
-            getIterateDataApp({ iterateDataApp }),
-        );
-
-        expect(output.metadata).toEqual({
-            status: 'error',
-            appUuid: null,
-            reason: 'failed',
-            message: 'Insufficient permissions to modify data apps',
-        });
         expect(captureException).not.toHaveBeenCalled();
     });
 

@@ -1,19 +1,52 @@
 import { buildReviewNeedsReviewBlocks } from './SlackReviewMessageBlocks';
 
-test('needs-review blocks contain only allow-listed fields and a button', () => {
+const args = {
+    count: 3,
+    topTitle: 'Fiscal calendar conventions',
+    rootCause: 'semantic_layer',
+    projectName: 'Jaffle',
+    reviewUrl: 'https://app.lightdash.com/ai-agents/admin/reviews',
+    actionId: 'ai_review_open',
+    notificationLogUuid: 'log-1',
+};
+
+test('needs-review blocks render the summary and an open-review button', () => {
+    expect(buildReviewNeedsReviewBlocks(args)).toEqual([
+        {
+            type: 'header',
+            text: { type: 'plain_text', text: '3 context fixes need review' },
+        },
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: 'Top finding: Fiscal calendar conventions\n*Root cause:* semantic_layer\n*Project:* Jaffle',
+            },
+        },
+        {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    text: {
+                        type: 'plain_text',
+                        text: 'Open review',
+                        emoji: true,
+                    },
+                    action_id: 'ai_review_open',
+                    value: 'log-1',
+                    url: 'https://app.lightdash.com/ai-agents/admin/reviews',
+                },
+            ],
+        },
+    ]);
+});
+
+test('drops the button when the review url is not http or https', () => {
     const blocks = buildReviewNeedsReviewBlocks({
-        count: 3,
-        topTitle: 'Fiscal calendar conventions',
-        rootCause: 'semantic_layer',
-        projectName: 'Jaffle',
-        reviewUrl: 'https://app.lightdash.com/ai-agents/admin/reviews',
-        actionId: 'ai_review_open',
-        notificationLogUuid: 'log-1',
+        ...args,
+        reviewUrl: 'ftp://app.lightdash.com/ai-agents/admin/reviews',
     });
 
-    const json = JSON.stringify(blocks);
-    expect(json).toContain('3 context fixes need review');
-    expect(json).toContain('action_id');
-    expect(json).toContain('log-1');
-    expect(json).not.toMatch(/select|from\s|where\s/i);
+    expect(blocks.map((block) => block.type)).toEqual(['header', 'section']);
 });
