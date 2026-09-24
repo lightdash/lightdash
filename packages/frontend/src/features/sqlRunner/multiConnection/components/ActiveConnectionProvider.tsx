@@ -28,12 +28,29 @@ export const ActiveConnectionProvider: FC<
         projectUuid: string;
         connections: SqlRunnerWarehouseConnection[];
         connectionHint?: string | null;
+        sharedConnectionUuid?: string | null;
+        isSharedLink?: boolean;
     }>
-> = ({ projectUuid, connections, connectionHint, children }) => {
+> = ({
+    projectUuid,
+    connections,
+    connectionHint,
+    sharedConnectionUuid,
+    isSharedLink = false,
+    children,
+}) => {
     const { showToastInfo } = useToaster();
     const [selectedConnectionUuid, setSelectedConnectionUuid] = useState<
         string | undefined
     >(() => {
+        if (isSharedLink) {
+            return connections.find((connection) =>
+                sharedConnectionUuid === null
+                    ? connection.isOriginal
+                    : connection.warehouseConnectionUuid ===
+                      sharedConnectionUuid,
+            )?.warehouseConnectionUuid;
+        }
         if (connectionHint !== undefined) {
             const hintedUuid =
                 connectionHint === null
@@ -53,12 +70,30 @@ export const ActiveConnectionProvider: FC<
         });
     });
     const userHasPickedConnection = useRef(false);
+    const appliedSharedHint = useRef(sharedConnectionUuid);
+    useEffect(() => {
+        if (!isSharedLink || appliedSharedHint.current === sharedConnectionUuid)
+            return;
+        appliedSharedHint.current = sharedConnectionUuid;
+        setSelectedConnectionUuid(
+            connections.find((connection) =>
+                sharedConnectionUuid === null
+                    ? connection.isOriginal
+                    : connection.warehouseConnectionUuid ===
+                      sharedConnectionUuid,
+            )?.warehouseConnectionUuid,
+        );
+    }, [connections, isSharedLink, sharedConnectionUuid]);
     const [selectedTable, setActiveTable] = useState<TableIdentity | undefined>(
         undefined,
     );
 
     useEffect(() => {
-        if (connectionHint === undefined || userHasPickedConnection.current) {
+        if (
+            isSharedLink ||
+            connectionHint === undefined ||
+            userHasPickedConnection.current
+        ) {
             return;
         }
         const hintedUuid =
@@ -76,16 +111,23 @@ export const ActiveConnectionProvider: FC<
         ) {
             setSelectedConnectionUuid(hintedUuid);
         }
-    }, [connectionHint, connections, selectedConnectionUuid]);
+    }, [connectionHint, connections, isSharedLink, selectedConnectionUuid]);
 
     const activeConnection = useMemo(
         () =>
-            connections.find(
-                (connection) =>
-                    connection.warehouseConnectionUuid ===
-                    selectedConnectionUuid,
-            ),
-        [connections, selectedConnectionUuid],
+            isSharedLink && appliedSharedHint.current !== sharedConnectionUuid
+                ? undefined
+                : connections.find(
+                      (connection) =>
+                          connection.warehouseConnectionUuid ===
+                          selectedConnectionUuid,
+                  ),
+        [
+            connections,
+            isSharedLink,
+            selectedConnectionUuid,
+            sharedConnectionUuid,
+        ],
     );
     const activeConnectionUuid = activeConnection?.warehouseConnectionUuid;
     const activeTable = useMemo(
@@ -154,7 +196,9 @@ export const ActiveConnectionProvider: FC<
             hasSeveralConnections: connections.length > 1,
             isConnectionSettled:
                 activeConnectionUuid !== undefined ||
-                (connectionHint === undefined && connections.length === 1),
+                (connectionHint === undefined &&
+                    !isSharedLink &&
+                    connections.length === 1),
             activeConnectionUuid,
             activeConnection,
             connectionNameFor,
@@ -168,6 +212,7 @@ export const ActiveConnectionProvider: FC<
             activeConnectionUuid,
             activeConnection,
             connectionHint,
+            isSharedLink,
             connectionNameFor,
             switchConnection,
             activeTable,

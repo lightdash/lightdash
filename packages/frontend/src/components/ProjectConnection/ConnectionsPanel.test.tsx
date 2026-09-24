@@ -220,6 +220,29 @@ describe('ConnectionsPanel', () => {
         ).toBeDisabled();
     });
 
+    it('shows that a project extra inherits the primary credential setting', async () => {
+        mockApi.mockResolvedValue({
+            connections: [original],
+            capabilities: { canAddConnection: true, reason: null },
+        });
+        const user = renderPanel();
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        expect(
+            await screen.findByText(
+                "Follows the primary connection's setting.",
+            ),
+        ).toBeInTheDocument();
+        const advanced = screen.getByRole('button', { name: /advanced/i });
+        await user.click(advanced);
+        expect(
+            screen.queryByText(
+                'Require users to provide their own credentials',
+            ),
+        ).not.toBeInTheDocument();
+    });
+
     it('shows why a bound connection cannot be removed', async () => {
         const refusal =
             "Connection 'Finance' cannot be removed while content uses it. explores: orders.";

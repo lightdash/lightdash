@@ -170,6 +170,9 @@ const SqlRunner = ({
         <SqlRunnerConnectionScope
             isEditingSavedChart={!!params.slug}
             connectionHint={connectionHint}
+            isSharedLink={!!share}
+            shareStateLoaded={!!shareState.sqlRunnerState}
+            sharedConnectionUuid={shareState.warehouseConnectionUuid}
         >
             <Page
                 title="SQL Runner"

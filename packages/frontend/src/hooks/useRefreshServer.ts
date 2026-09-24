@@ -60,7 +60,19 @@ export const jobStatusLabel = (status: JobStatusType, jobType?: JobType) => {
 
 export const getJobCompletionToast = (
     job: Job,
-): { variant: 'success' | 'warning'; title: string } => {
+): { variant: 'success' | 'warning'; title: string; message?: string } => {
+    if (
+        job.jobType === JobType.COMPILE_PROJECT &&
+        job.jobResults?.connectionWarnings?.length
+    ) {
+        return {
+            variant: 'warning',
+            title: 'Connections failed to compile',
+            message: job.jobResults.connectionWarnings
+                .map((warning) => `- ${warning}`)
+                .join('\n'),
+        };
+    }
     if (
         job.jobType === JobType.COMPILE_PROJECT &&
         job.jobResults?.errorCount !== undefined &&

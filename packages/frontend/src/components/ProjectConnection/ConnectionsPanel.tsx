@@ -178,6 +178,7 @@ const AddConnectionModal: FC<{
                 projectUuid={projectUuid}
                 warehouseType={warehouseType}
                 showName
+                isProjectExtraConnection
                 intro="Add another connection of the project's warehouse type. It is tested before it is saved."
             />
         </MantineModal>
@@ -233,6 +234,9 @@ const EditConnectionForm: FC<{
                 warehouseType={connection.warehouseType}
                 savedProject={savedProject}
                 showName={false}
+                isProjectExtraConnection={
+                    connection.organizationWarehouseCredentialsUuid === null
+                }
                 intro="Leave a secret blank to keep the saved one. The connection is tested before it is saved."
             />
         </MantineModal>

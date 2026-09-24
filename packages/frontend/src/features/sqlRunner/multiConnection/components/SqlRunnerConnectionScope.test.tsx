@@ -18,6 +18,7 @@ import {
 } from 'vitest';
 import { lightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
+import { executeSqlQuery } from '../../../queryRunner/executeQuery';
 import { SqlEditor, SqlEditorView } from '../../components/SqlEditor';
 import { SqlRunnerEditor } from '../../components/SqlRunnerEditor';
 import { useRunQueryOnLoad } from '../../hooks/useRunQueryOnLoad';
@@ -29,12 +30,23 @@ import {
     setProjectUuid,
     setSavedChartData,
     setSql,
+    setState,
 } from '../../store/sqlRunnerSlice';
+import { runSqlQuery } from '../../store/thunks';
 import { SqlRunnerConnectionScope } from './SqlRunnerConnectionScope';
 import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
 vi.mock('../../../../api', () => ({
     lightdashApi: vi.fn(),
+}));
+
+vi.mock('../../../queryRunner/executeQuery', () => ({
+    executeSqlQuery: vi.fn(async () => ({
+        queryUuid: 'query-uuid',
+        fileUrl: '/results',
+        results: [],
+        columns: [],
+    })),
 }));
 
 vi.mock('../../components/Sidebar', () => ({
@@ -138,6 +150,20 @@ const renderScope = (
 };
 
 const connectionRoute = () => store.getState().sqlRunner.connectionRoute;
+const runSharedQuery = async (sql: string) => {
+    await store.dispatch(
+        runSqlQuery({
+            sql,
+            limit: 10,
+            projectUuid,
+            parameterValues: {},
+        }),
+    );
+};
+const SharedQueryRunner = () => {
+    useRunQueryOnLoad({ runQuery: runSharedQuery, hasQueryResults: false });
+    return null;
+};
 const requestedUrls = (): string[] =>
     mockApi.mock.calls.map((call) => (call[0] as { url: string }).url);
 
@@ -219,6 +245,112 @@ describe('SqlRunnerConnectionScope', () => {
                 connection: { warehouseConnectionUuid: null },
             }),
         );
+    });
+
+    it('uses a valid shared connection hint and ignores the last-used connection', async () => {
+        serveApi('multi');
+        store.dispatch(
+            setState({
+                ...store.getState().sqlRunner,
+                sql: 'select 1',
+                fetchResultsOnLoad: true,
+            }),
+        );
+        window.localStorage.setItem(
+            `lightdash.sqlRunner.lastConnection.${projectUuid}`,
+            'original-uuid',
+        );
+        renderWithProviders(
+            <Provider store={store}>
+                <SqlRunnerConnectionScope
+                    isEditingSavedChart={false}
+                    isSharedLink
+                    shareStateLoaded
+                    sharedConnectionUuid="finance-uuid"
+                >
+                    <SqlRunnerSidebar />
+                    <SharedQueryRunner />
+                </SqlRunnerConnectionScope>
+            </Provider>,
+        );
+        await waitFor(() =>
+            expect(connectionRoute()).toMatchObject({
+                route: 'multi',
+                connection: { warehouseConnectionUuid: 'finance-uuid' },
+            }),
+        );
+        await waitFor(() =>
+            expect(executeSqlQuery).toHaveBeenCalledWith(
+                projectUuid,
+                'select 1',
+                10,
+                {},
+                true,
+                'finance-uuid',
+            ),
+        );
+    });
+
+    it('leaves an unknown shared connection unselected', async () => {
+        serveApi('multi');
+        store.dispatch(
+            setState({
+                ...store.getState().sqlRunner,
+                sql: 'select 1',
+                fetchResultsOnLoad: true,
+            }),
+        );
+        window.localStorage.setItem(
+            `lightdash.sqlRunner.lastConnection.${projectUuid}`,
+            'original-uuid',
+        );
+        renderWithProviders(
+            <Provider store={store}>
+                <SqlRunnerConnectionScope
+                    isEditingSavedChart={false}
+                    isSharedLink
+                    shareStateLoaded
+                    sharedConnectionUuid="missing-uuid"
+                >
+                    <SqlRunnerSidebar />
+                    <SharedQueryRunner />
+                </SqlRunnerConnectionScope>
+            </Provider>,
+        );
+        await screen.findByText('Choose a connection to browse its tables');
+        expect(connectionRoute()).toEqual({ route: 'multi', connection: null });
+        expect(executeSqlQuery).not.toHaveBeenCalled();
+        expect(store.getState().sqlRunner.fetchResultsOnLoad).toBe(false);
+        await pickFinance(userEvent.setup());
+        expect(executeSqlQuery).not.toHaveBeenCalled();
+    });
+
+    it('names the connection and the navigation switcher when credentials are missing', async () => {
+        serveApi('multi');
+        mockApi.mockImplementation(async ({ url }: { url: string }) => {
+            if (url === `/projects/${projectUuid}`)
+                return { projectUuid, connectionRoute: 'multi' };
+            if (url === connectionsUrl) return connections;
+            if (url.endsWith('/databases'))
+                throw {
+                    status: 'error',
+                    error: {
+                        name: 'MissingCredentialsError',
+                        message:
+                            "You don't have warehouse credentials set up for this project.",
+                        statusCode: 403,
+                        data: {},
+                    },
+                };
+            throw new Error(`Unexpected request ${url}`);
+        });
+        const user = renderScope(<SqlRunnerSidebar />);
+        await pickFinance(user);
+        expect(
+            await screen.findByText(
+                /Finance.*credentials switcher in the navigation bar/i,
+            ),
+        ).toBeInTheDocument();
     });
 
     it('opens an explore hint on Finance before running, despite a last-used original', async () => {

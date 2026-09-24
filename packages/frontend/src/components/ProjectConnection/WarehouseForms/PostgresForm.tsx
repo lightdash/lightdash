@@ -45,7 +45,7 @@ const PostgresForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
-    const { savedProject } = useProjectFormContext();
+    const { savedProject, isProjectExtraConnection } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
     const form = useFormContext();
@@ -127,20 +127,22 @@ const PostgresForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        <BooleanSwitch
-                            name="warehouse.requireUserCredentials"
-                            {...form.getInputProps(
-                                'warehouse.requireUserCredentials',
-                                {
-                                    type: 'checkbox',
-                                },
-                            )}
-                            label="Require users to provide their own credentials"
-                            disabled={disabled}
-                            defaultChecked={
-                                PostgresDefaultValues.requireUserCredentials
-                            }
-                        />
+                        {!isProjectExtraConnection && (
+                            <BooleanSwitch
+                                name="warehouse.requireUserCredentials"
+                                {...form.getInputProps(
+                                    'warehouse.requireUserCredentials',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
+                                label="Require users to provide their own credentials"
+                                disabled={disabled}
+                                defaultChecked={
+                                    PostgresDefaultValues.requireUserCredentials
+                                }
+                            />
+                        )}
                         <NumberInput
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}

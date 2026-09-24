@@ -1,5 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { lightdashApi } from '../../api';
@@ -7,6 +7,11 @@ import { renderWithProviders } from '../../testing/testUtils';
 import DbtSourcesPanel from './DbtSourcesPanel';
 
 const compile = vi.hoisted(() => vi.fn());
+const jobObserver = vi.hoisted(() => ({
+    onSuccess: undefined as
+        | ((job: { jobUuid: string; jobStatus: 'DONE' | 'RUNNING' }) => void)
+        | undefined,
+}));
 
 vi.mock('../../api', () => ({
     lightdashApi: vi.fn(),
@@ -18,6 +23,12 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
 
 vi.mock('../../hooks/useRefreshServer', () => ({
     useRefreshServer: () => ({ mutate: compile, isLoading: false }),
+    useJob: (
+        _jobId: string | undefined,
+        onSuccess: typeof jobObserver.onSuccess,
+    ) => {
+        jobObserver.onSuccess = onSuccess;
+    },
 }));
 
 const mockApi = lightdashApi as unknown as Mock;
@@ -122,6 +133,7 @@ const pick = async (
 describe('DbtSourcesPanel connections', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        jobObserver.onSuccess = undefined;
         routeApi();
     });
 
@@ -184,6 +196,10 @@ describe('DbtSourcesPanel connections', () => {
             { syncContent: false },
             expect.anything(),
         );
+        await act(async () => {
+            compile.mock.lastCall?.[1]?.onSuccess({ jobUuid: 'job-uuid' });
+        });
+        expect(screen.getByText(/on the next compile/)).toBeInTheDocument();
     });
 
     it('binds a source back to the original with a null binding', async () => {
@@ -199,6 +215,22 @@ describe('DbtSourcesPanel connections', () => {
         expect(
             JSON.parse(callsTo(bindUrl('finance-source-uuid'), 'PUT')[0].body!),
         ).toEqual({ warehouseConnectionUuid: null });
+    });
+
+    it('dismisses the rebinding note when the accepted compile completes', async () => {
+        const user = renderPanel('multi');
+        await pick(user, 'marketing', 'Finance warehouse');
+        await screen.findByText(/on the next compile/);
+        await user.click(screen.getByRole('button', { name: 'Compile now' }));
+        compile.mock.lastCall?.[1]?.onSuccess({ jobUuid: 'job-uuid' });
+        act(() => {
+            jobObserver.onSuccess?.({ jobUuid: 'job-uuid', jobStatus: 'DONE' });
+        });
+        await waitFor(() =>
+            expect(
+                screen.queryByText(/on the next compile/),
+            ).not.toBeInTheDocument(),
+        );
     });
 
     it('shows the server error and no compile note when the binding is refused', async () => {

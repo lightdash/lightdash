@@ -1483,6 +1483,83 @@ describe('WarehouseConnectionService on the real schema', () => {
     });
 
     describe('connections for the credentials switcher', () => {
+        test('project extras store the primary credential requirement on create and update', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                credentials: {
+                    ...postgresCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            const service = buildService();
+            const created = await service.create(
+                fixture.admin,
+                fixture.projectUuid,
+                {
+                    name: 'Finance',
+                    warehouseConnection: {
+                        ...postgresCredentials,
+                        requireUserCredentials: false,
+                    },
+                },
+            );
+            expect(
+                (
+                    await model.getCredentials(
+                        await model.getProject(fixture.projectUuid),
+                        created.warehouseConnectionUuid,
+                    )
+                ).requireUserCredentials,
+            ).toBe(true);
+            await service.update(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                {
+                    warehouseConnection: {
+                        ...postgresCredentials,
+                        requireUserCredentials: false,
+                    },
+                },
+            );
+            expect(
+                (
+                    await model.getCredentials(
+                        await model.getProject(fixture.projectUuid),
+                        created.warehouseConnectionUuid,
+                    )
+                ).requireUserCredentials,
+            ).toBe(true);
+        });
+
+        test('organisation credential extras keep their own credential requirement', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const organizationCredential = await createOrganizationCredential(
+                fixture.organizationUuid,
+                { ...postgresCredentials, requireUserCredentials: true },
+            );
+            const shared = await buildService().create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                {
+                    name: 'Shared',
+                    organizationWarehouseCredentialsUuid:
+                        organizationCredential,
+                },
+            );
+            expect(
+                await buildService().listForUserCredentials(
+                    fixture.viewer,
+                    fixture.projectUuid,
+                ),
+            ).toContainEqual(
+                expect.objectContaining({
+                    warehouseConnectionUuid: shared.warehouseConnectionUuid,
+                    requireUserCredentials: true,
+                }),
+            );
+        });
+
         test('a project viewer lists every connection with its type and requirement, and no secret', async () => {
             const fixture = await createProject({
                 mode: 'multi',

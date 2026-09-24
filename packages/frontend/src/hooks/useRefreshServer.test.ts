@@ -31,4 +31,21 @@ describe('getJobCompletionToast', () => {
             title: 'Successfully synced project!',
         });
     });
+
+    test('warns with every failed connection and its reason', () => {
+        const job = compileJob(0, 10);
+        job.jobResults = {
+            ...job.jobResults!,
+            connectionWarnings: [
+                'Connection "Finance" failed: invalid password',
+                'Connection "Reporting" failed: timed out',
+            ],
+        };
+        expect(getJobCompletionToast(job)).toEqual({
+            variant: 'warning',
+            title: 'Connections failed to compile',
+            message:
+                '- Connection "Finance" failed: invalid password\n- Connection "Reporting" failed: timed out',
+        });
+    });
 });

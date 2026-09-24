@@ -10,6 +10,7 @@ import {
     SingleConnectionProjectError,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
+    WarehouseTypes,
     type Account,
     type ApiCreateWarehouseConnectionRequest,
     type ApiUpdateWarehouseConnectionRequest,
@@ -23,7 +24,6 @@ import {
     type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
     type WarehouseCredentials,
-    type WarehouseTypes,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -269,6 +269,30 @@ export class WarehouseConnectionService extends BaseService {
                   project.organizationUuid,
                   source.organizationWarehouseCredentialsUuid,
               );
+    }
+
+    private async inheritPrimaryCredentialRequirement(
+        projectUuid: string,
+        source: WarehouseConnectionCredentialSource,
+    ): Promise<WarehouseConnectionCredentialSource> {
+        if (
+            source.kind === 'organization' ||
+            (source.credentials.type !== WarehouseTypes.POSTGRES &&
+                source.credentials.type !== WarehouseTypes.ATHENA)
+        )
+            return source;
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        return {
+            kind: 'project',
+            credentials: {
+                ...source.credentials,
+                requireUserCredentials:
+                    originalCredentials.requireUserCredentials,
+            },
+        };
     }
 
     private assertCanWrite(
@@ -532,7 +556,10 @@ export class WarehouseConnectionService extends BaseService {
             account,
             projectUuid,
         );
-        const source = WarehouseConnectionService.toCreateSource(request);
+        const source = await this.inheritPrimaryCredentialRequirement(
+            projectUuid,
+            WarehouseConnectionService.toCreateSource(request),
+        );
         this.assertCanWrite(
             account,
             summary,
@@ -671,11 +698,17 @@ export class WarehouseConnectionService extends BaseService {
                 'Edit the original connection in the project settings.',
             );
         }
-        const source = await this.resolveUpdateSource(
+        const requestedSource = await this.resolveUpdateSource(
             project,
             existing,
             request,
         );
+        const source = requestedSource
+            ? await this.inheritPrimaryCredentialRequirement(
+                  projectUuid,
+                  requestedSource,
+              )
+            : null;
         const effectiveSource: WarehouseConnectionCredentialSource | null =
             source ??
             (existing.organizationWarehouseCredentialsUuid !== null

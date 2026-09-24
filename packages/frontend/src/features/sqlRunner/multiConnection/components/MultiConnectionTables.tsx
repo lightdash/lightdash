@@ -281,6 +281,15 @@ const LoadingItem: FC<{ depth: number }> = ({ depth }) => (
 );
 
 const CANNOT_BROWSE_MESSAGE = 'You cannot browse this connection';
+const isMissingCredentialError = (error: string | undefined) =>
+    /warehouse credentials/i.test(error ?? '');
+const missingCredentialMessage = (
+    connectionName: string | undefined,
+    error: string | undefined,
+) =>
+    error && isMissingCredentialError(error)
+        ? `${connectionName ?? 'This connection'} needs your warehouse credentials. Select them from the credentials switcher in the navigation bar.`
+        : error;
 
 const ErrorItem: FC<{
     depth: number;
@@ -890,8 +899,15 @@ export const MultiConnectionTables: FC = () => {
                     hasSeveralConnections && !isConnectionSettled
                 }
                 isLoading={isLoading && isConnectionSettled}
-                errorMessage={listingError?.error.message}
-                isForbidden={listingForbidden && isConnectionSettled}
+                errorMessage={missingCredentialMessage(
+                    activeConnection?.name,
+                    listingError?.error.message,
+                )}
+                isForbidden={
+                    listingForbidden &&
+                    isConnectionSettled &&
+                    !isMissingCredentialError(listingError?.error.message)
+                }
                 isEmpty={isSuccess && isConnectionSettled && rows.length === 0}
             />
         </>
