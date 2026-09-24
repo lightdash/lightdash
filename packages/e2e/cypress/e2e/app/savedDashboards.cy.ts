@@ -1,62 +1,41 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-// todo: combine into 1 test
 describe('Dashboard List', () => {
     beforeEach(() => {
         cy.login();
     });
 
-    // Skip: Flaky in preview environments - menu navigation timing issues
-    it.skip('Should display dashboards', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.findByRole('button', { name: 'Browse' }).click();
-        cy.findByRole('menuitem', { name: 'All dashboards' }).click();
-        cy.findByText('Jaffle dashboard').should('exist');
-    });
+    it('creates, renames, and deletes a dashboard', () => {
+        const dashboardName = `e2e dashboard ${Date.now()}`;
+        const renamedDashboardName = `${dashboardName} renamed`;
 
-    it('Should create a new dashboard', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.findByRole('button', { name: 'Browse' }).click();
-        cy.findByRole('menuitem', { name: 'All dashboards' }).click();
+        cy.intercept('POST', '**/api/v1/projects/*/dashboards').as(
+            'createDashboard',
+        );
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         cy.findByRole('button', { name: 'Create dashboard' }).click();
-
-        cy.findByLabelText('Name your dashboard *').type('Untitled dashboard');
+        cy.findByLabelText('Name your dashboard *').type(dashboardName);
         cy.findByLabelText('Dashboard description').type('Description');
-        cy.findByText('Next').click();
-        cy.findByText('Create').click();
-
+        cy.findByRole('button', { name: 'Next' }).click();
+        cy.findByRole('button', { name: 'Create' })
+            .should('be.enabled')
+            .click();
+        cy.wait('@createDashboard')
+            .its('response.statusCode')
+            .should('eq', 201);
         cy.url().should('match', /\/projects\/[^/]+\/dashboards\/[^/]+\/edit$/);
-        cy.findByText('Untitled dashboard').should('exist');
-    });
+        cy.findByText(dashboardName).should('exist');
 
-    it('Should update dashboards', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.findByRole('button', { name: 'Browse' }).click();
-        cy.findByRole('menuitem', { name: 'All dashboards' }).click();
-        // open actions menu
-        cy.contains('tr', 'Untitled dashboard').find('button').click();
-        // click on rename
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
+        cy.contains('tr', dashboardName).find('button').click();
         cy.findByRole('menuitem', { name: 'Rename' }).click();
-        cy.findByLabelText('Name *').clear().type('e2e dashboard');
-        // click on save
+        cy.findByLabelText('Name *').clear().type(renamedDashboardName);
         cy.findByRole('button', { name: 'Save' }).click();
+        cy.contains('tr', renamedDashboardName).should('exist');
 
-        // verify dashboard name has been updated in the list
-        cy.findByText('e2e dashboard').should('exist');
-    });
-
-    it('Should delete dashboards', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.findByRole('button', { name: 'Browse' }).click();
-        cy.findByRole('menuitem', { name: 'All dashboards' }).click();
-        // open actions menu
-        cy.contains('tr', 'e2e dashboard').find('button').click();
-        // click on delete
+        cy.contains('tr', renamedDashboardName).find('button').click();
         cy.findByRole('menuitem', { name: 'Delete dashboard' }).click();
-        // click on delete in the popup
         cy.findByRole('button', { name: 'Delete' }).click();
-        // We technically should look for one, but we don't reset the DB before tests
-        // It looks like we have multiple Jaffle Dashboards in CI
-        cy.findAllByText('Jaffle dashboard'); // still exists
+        cy.contains('tr', renamedDashboardName).should('not.exist');
     });
 });
