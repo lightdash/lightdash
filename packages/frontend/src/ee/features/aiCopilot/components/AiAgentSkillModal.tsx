@@ -210,13 +210,6 @@ const SkillForm = ({
                 <TextInput
                     label="Description"
                     placeholder="Summarise the week for a region, with movers and risks"
-                    description="The agent reads this to decide when to use the skill."
-                    inputWrapperOrder={[
-                        'label',
-                        'input',
-                        'description',
-                        'error',
-                    ]}
                     {...form.getInputProps('description')}
                     onBlur={runValidation}
                 />
