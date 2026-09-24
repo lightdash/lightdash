@@ -24,6 +24,7 @@ import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeForkModal from './ChartTypeForkModal';
+import ChartTypeReleaseStageBadge from './ChartTypeReleaseStageBadge';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
 import ChartTypeUpgradeModal from './ChartTypeUpgradeModal';
 import DataAppVizFieldsList from './DataAppVizFieldsList';
@@ -69,6 +70,13 @@ const ChartTypeDetailModal: FC<Props> = ({
     const { track } = useTracking();
     const registryUpdate =
         registryEntry?.state === 'update_available' ? registryEntry : null;
+    // The registry's release stage describes its current version only.
+    const installedReleaseStage =
+        isOfficial &&
+        registryEntry &&
+        registryEntry.installedRegistryVersion === registryEntry.version
+            ? registryEntry.releaseStage
+            : null;
 
     const hasTrackedView = useRef(false);
     const hasUpdate = registryUpdate !== null;
@@ -249,17 +257,24 @@ const ChartTypeDetailModal: FC<Props> = ({
                             <Text fz="xs" fw={600} c="dimmed">
                                 Version
                             </Text>
-                            <Text fz="sm" fw={500} c="ldGray.8">
-                                {/* Officials show the registry semver, matching
-                                    the library; the internal app version only
-                                    describes locally built types. */}
-                                {isOfficial &&
-                                registryEntry?.installedRegistryVersion
-                                    ? `v${registryEntry.installedRegistryVersion}`
-                                    : latestReadyVersion !== null
-                                      ? `v${latestReadyVersion}`
-                                      : '—'}
-                            </Text>
+                            <Group gap="xs" wrap="nowrap">
+                                <Text fz="sm" fw={500} c="ldGray.8">
+                                    {/* Officials show the registry semver, matching
+                                        the library; the internal app version only
+                                        describes locally built types. */}
+                                    {isOfficial &&
+                                    registryEntry?.installedRegistryVersion
+                                        ? `v${registryEntry.installedRegistryVersion}`
+                                        : latestReadyVersion !== null
+                                          ? `v${latestReadyVersion}`
+                                          : '—'}
+                                </Text>
+                                {installedReleaseStage && (
+                                    <ChartTypeReleaseStageBadge
+                                        stage={installedReleaseStage}
+                                    />
+                                )}
+                            </Group>
                         </Box>
                     </SimpleGrid>
                     {dataAppViz.schema === null && (
