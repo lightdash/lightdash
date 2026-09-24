@@ -1,3 +1,10 @@
+## [2.318.1](https://github.com/lightdash/lightdash/compare/2.318.0...2.318.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **charts:** restore stacked series opacity after hover ([#29846](https://github.com/lightdash/lightdash/issues/29846)) ([d07fe21](https://github.com/lightdash/lightdash/commit/d07fe21bc2e64a719f13af133a660c9ea03a0e98))
+
 # [2.318.0](https://github.com/lightdash/lightdash/compare/2.317.0...2.318.0) (2026-09-24)
 
 
