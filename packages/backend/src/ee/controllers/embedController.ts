@@ -777,8 +777,8 @@ export class EmbedController extends BaseController {
     async listEmbedProjectDataAppVisualizations(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Query() page?: number,
-        @Query() pageSize?: number,
+        @Query() page: number = 1,
+        @Query() pageSize: number = 25,
         @Query() search?: string,
         @Query() sortBy?: DataAppVizListSortBy,
         @Query() sortDirection?: DataAppVizListSortDirection,
@@ -790,7 +790,7 @@ export class EmbedController extends BaseController {
                 await this.getEmbedService().listEmbedProjectDataAppVisualizations(
                     req.account,
                     projectUuid,
-                    page && pageSize ? { page, pageSize } : undefined,
+                    { page, pageSize },
                     search,
                     {
                         sortBy: sortBy ?? DEFAULT_DATA_APP_VIZ_LIST_SORT.sortBy,
