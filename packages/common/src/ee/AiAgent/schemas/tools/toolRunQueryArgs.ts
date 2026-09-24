@@ -259,6 +259,18 @@ const chartConfigCustomChartTypeSchema = z.object({
         .describe(
             "Values for the type's config options, keyed by option name from the type's schema. null to use the type's defaults.",
         ),
+    fieldOptions: z
+        .record(
+            z.string(),
+            z.record(
+                z.string(),
+                z.record(z.string(), customChartTypeOptionValueSchema),
+            ),
+        )
+        .nullish()
+        .describe(
+            'Per-field settings keyed by input name, bound field ID, then option name. Use only configOptions declared on that input. Omit to use defaults.',
+        ),
 });
 
 // The only chartConfig union — advertised to the model and used to parse

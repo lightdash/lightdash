@@ -1796,6 +1796,42 @@ export function validateCustomChartTypeChartConfig(
         });
     });
 
+    Object.entries(chartConfig.fieldOptions ?? {}).forEach(([slot, fields]) => {
+        const declaration = vizSchema.fields.find(
+            (field) => field.name === slot,
+        );
+        if (!declaration) {
+            errors.push(`Unknown field options input "${slot}".`);
+            return;
+        }
+        const binding = chartConfig.fieldMapping[slot];
+        const boundIds = Array.isArray(binding) ? binding : [binding];
+        Object.entries(fields).forEach(([fieldId, options]) => {
+            if (!boundIds.includes(fieldId)) {
+                errors.push(
+                    `Field options for "${slot}" reference unbound field "${fieldId}".`,
+                );
+                return;
+            }
+            Object.entries(options).forEach(([name, value]) => {
+                const option = declaration.configOptions?.find(
+                    (item) => item.name === name,
+                );
+                if (!option) {
+                    errors.push(
+                        `Unknown field option "${name}" for input "${slot}".`,
+                    );
+                    return;
+                }
+                const error = getOptionValidationError(option, value);
+                if (error)
+                    errors.push(
+                        `Field "${fieldId}" in input "${slot}": ${error}`,
+                    );
+            });
+        });
+    });
+
     if (chartConfig.options) {
         const declaredOptions = vizSchema.configOptions;
         const declaredOptionNames = declaredOptions.map(

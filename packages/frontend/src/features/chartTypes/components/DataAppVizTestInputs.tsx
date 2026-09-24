@@ -1,6 +1,7 @@
 import {
     getDataAppVizFieldIds,
     getItemId,
+    getItemLabelWithoutTableName,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
@@ -10,6 +11,7 @@ import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
+import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
@@ -32,6 +34,9 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
         setField,
         dimensions,
         metrics,
+        effectiveFieldOptions,
+        setFieldOption,
+        colorPalette,
     } = state;
 
     return (
@@ -48,6 +53,7 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
 
             <Stack gap="xs">
                 {schema.fields.map((field) => {
+                    const configOptions = field.configOptions ?? [];
                     const guidanceId = field.description?.trim()
                         ? `${guidanceIdPrefix}-${field.name}`
                         : undefined;
@@ -151,6 +157,46 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                             hasGrouping
                                         />
                                     </>
+                                ))}
+                            {exploreName &&
+                                configOptions.length > 0 &&
+                                selectedIds.map((fieldId) => (
+                                    <Stack key={fieldId} gap="xs" mt="xs">
+                                        <Text size="xs" fw={600}>
+                                            {(() => {
+                                                const item = items.find(
+                                                    (candidate) =>
+                                                        getItemId(candidate) ===
+                                                        fieldId,
+                                                );
+                                                return item
+                                                    ? getItemLabelWithoutTableName(
+                                                          item,
+                                                      )
+                                                    : fieldId;
+                                            })()}
+                                        </Text>
+                                        {configOptions.map((option) => (
+                                            <DataAppVizOptionControl
+                                                key={option.name}
+                                                option={option}
+                                                value={
+                                                    effectiveFieldOptions[
+                                                        field.name
+                                                    ]?.[fieldId]?.[option.name]
+                                                }
+                                                colorPalette={colorPalette}
+                                                onChange={(value) =>
+                                                    setFieldOption(
+                                                        field.name,
+                                                        fieldId,
+                                                        option.name,
+                                                        value,
+                                                    )
+                                                }
+                                            />
+                                        ))}
+                                    </Stack>
                                 ))}
                         </Stack>
                     );

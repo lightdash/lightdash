@@ -1,6 +1,7 @@
 import {
     type DataAppVizChart,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
 } from '@lightdash/common';
@@ -15,7 +16,8 @@ export type SelectedDataAppViz = Pick<
     DataAppVizChart,
     'dataAppVizUuid' | 'dataAppVizVersion' | 'fieldMapping'
 > &
-    Required<Pick<DataAppVizChart, 'optionValues'>>;
+    Required<Pick<DataAppVizChart, 'optionValues'>> &
+    Pick<DataAppVizChart, 'fieldOptionValues'>;
 
 export interface DataAppVizVisualizationConfigAndData {
     validConfig: SelectedDataAppViz | null;
@@ -39,6 +41,7 @@ export interface DataAppVizVisualizationConfigAndData {
         dataAppVizVersion: number,
         fieldMapping: DataAppVizFieldMapping,
         optionValues: DataAppVizOptionValues,
+        fieldOptionValues?: DataAppVizFieldOptionValues,
     ) => void;
     /** Back to pointing at no viz; bindings and options go with it. */
     clearDataAppViz: () => void;
@@ -46,6 +49,14 @@ export interface DataAppVizVisualizationConfigAndData {
     /** `dataAppVizUuid` is the viz the edited control belonged to. */
     setOption: (
         dataAppVizUuid: string,
+        optionName: string,
+        value: DataAppVizOptionValue,
+    ) => void;
+    setFieldOption: (
+        dataAppVizUuid: string,
+        dataAppVizVersion: number | undefined,
+        fieldName: string,
+        fieldId: string,
         optionName: string,
         value: DataAppVizOptionValue,
     ) => void;
@@ -70,6 +81,9 @@ const toSelected = (
               dataAppVizVersion: chartConfig.dataAppVizVersion,
               fieldMapping: chartConfig.fieldMapping,
               optionValues: chartConfig.optionValues ?? {},
+              ...(chartConfig.fieldOptionValues
+                  ? { fieldOptionValues: chartConfig.fieldOptionValues }
+                  : {}),
           }
         : null;
 };
@@ -162,14 +176,20 @@ const useDataAppVizVisualizationConfig = (
             dataAppVizVersion: number,
             fieldMapping: DataAppVizFieldMapping,
             optionValues: DataAppVizOptionValues,
+            fieldOptionValues: DataAppVizFieldOptionValues = {},
         ) => {
             const selected = configRef.current;
             if (selected === null) return;
+            const { fieldOptionValues: _previousFieldOptions, ...rest } =
+                selected;
             commit({
-                ...selected,
+                ...rest,
                 dataAppVizVersion,
                 fieldMapping,
                 optionValues,
+                ...(Object.keys(fieldOptionValues).length
+                    ? { fieldOptionValues }
+                    : {}),
             });
         },
         [commit],
@@ -187,7 +207,30 @@ const useDataAppVizVisualizationConfig = (
             } else {
                 fieldMapping[fieldName] = fieldId;
             }
-            commit({ ...selected, fieldMapping });
+            const fieldOptionValues = { ...selected.fieldOptionValues };
+            if (fieldOptionValues[fieldName]) {
+                const boundIds = new Set(
+                    typeof fieldMapping[fieldName] === 'string'
+                        ? [fieldMapping[fieldName]]
+                        : (fieldMapping[fieldName] ?? []),
+                );
+                const values = Object.fromEntries(
+                    Object.entries(fieldOptionValues[fieldName]).filter(
+                        ([id]) => boundIds.has(id),
+                    ),
+                );
+                if (Object.keys(values).length)
+                    fieldOptionValues[fieldName] = values;
+                else delete fieldOptionValues[fieldName];
+            }
+            const { fieldOptionValues: _old, ...rest } = selected;
+            commit({
+                ...rest,
+                fieldMapping,
+                ...(Object.keys(fieldOptionValues).length
+                    ? { fieldOptionValues }
+                    : {}),
+            });
         },
         [commit],
     );
@@ -213,6 +256,48 @@ const useDataAppVizVisualizationConfig = (
         [commit],
     );
 
+    const setFieldOption = useCallback(
+        (
+            dataAppVizUuid: string,
+            dataAppVizVersion: number | undefined,
+            fieldName: string,
+            fieldId: string,
+            optionName: string,
+            value: DataAppVizOptionValue,
+        ) => {
+            if (!isOwningChartConfigRef.current) return;
+            const selected = configRef.current;
+            if (
+                selected === null ||
+                selected.dataAppVizUuid !== dataAppVizUuid ||
+                selected.dataAppVizVersion !== dataAppVizVersion
+            )
+                return;
+            const binding = selected.fieldMapping[fieldName];
+            if (
+                binding !== fieldId &&
+                (!Array.isArray(binding) || !binding.includes(fieldId))
+            )
+                return;
+            commit({
+                ...selected,
+                fieldOptionValues: {
+                    ...selected.fieldOptionValues,
+                    [fieldName]: {
+                        ...selected.fieldOptionValues?.[fieldName],
+                        [fieldId]: {
+                            ...selected.fieldOptionValues?.[fieldName]?.[
+                                fieldId
+                            ],
+                            [optionName]: value,
+                        },
+                    },
+                },
+            });
+        },
+        [commit],
+    );
+
     return {
         validConfig: config,
         dataAppVizUuid: config?.dataAppVizUuid ?? null,
@@ -222,6 +307,7 @@ const useDataAppVizVisualizationConfig = (
         clearDataAppViz,
         setField,
         setOption,
+        setFieldOption,
     };
 };
 

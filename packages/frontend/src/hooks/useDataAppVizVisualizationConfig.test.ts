@@ -529,4 +529,161 @@ describe('useDataAppVizVisualizationConfig', () => {
 
         expect(reloaded.result.current.validConfig).toEqual(emitted);
     });
+
+    it('keeps per-field edits independent and saves them with the chart', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                {
+                    ...initialConfig,
+                    fieldMapping: { values: ['orders_total', 'orders_count'] },
+                },
+                onConfigChange,
+            ),
+        );
+        act(() => {
+            result.current.setFieldOption(
+                'viz-1',
+                undefined,
+                'values',
+                'orders_total',
+                'color',
+                '#ff0000',
+            );
+            result.current.setFieldOption(
+                'viz-1',
+                undefined,
+                'values',
+                'orders_count',
+                'color',
+                '#00ff00',
+            );
+        });
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({
+            values: {
+                orders_total: { color: '#ff0000' },
+                orders_count: { color: '#00ff00' },
+            },
+        });
+        const emitted = onConfigChange.mock.lastCall?.[0] as DataAppVizChart;
+        expect(
+            renderHook(() => useDataAppVizVisualizationConfig(emitted)).result
+                .current.validConfig?.fieldOptionValues,
+        ).toEqual(emitted.fieldOptionValues);
+    });
+
+    it('retains values on reorder and prunes removed or replaced bindings', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig({
+                ...initialConfig,
+                fieldMapping: { values: ['a', 'b'] },
+                fieldOptionValues: {
+                    values: { a: { color: 'red' }, b: { color: 'blue' } },
+                },
+            }),
+        );
+        act(() => result.current.setField('values', ['b', 'a']));
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({
+            values: { a: { color: 'red' }, b: { color: 'blue' } },
+        });
+        act(() => result.current.setField('values', ['b']));
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({
+            values: { b: { color: 'blue' } },
+        });
+        act(() => result.current.setField('values', ['c']));
+        expect(result.current.validConfig?.fieldOptionValues).toBeUndefined();
+    });
+
+    it('uses defaults after a field is removed and added again', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig({
+                ...initialConfig,
+                fieldMapping: { values: ['a', 'b'] },
+                fieldOptionValues: {
+                    values: { a: { color: 'red' }, b: { color: 'blue' } },
+                },
+            }),
+        );
+
+        act(() => result.current.setField('values', ['b']));
+        act(() => result.current.setField('values', ['b', 'a']));
+
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({
+            values: { b: { color: 'blue' } },
+        });
+    });
+
+    it('clears removed field settings on a schema upgrade', () => {
+        const config = {
+            ...initialConfig,
+            dataAppVizVersion: 1,
+            fieldMapping: { values: ['a'] },
+            fieldOptionValues: { values: { a: { color: 'red' } } },
+        };
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(config),
+        );
+
+        act(() =>
+            result.current.upgradeDataAppVizVersion(
+                2,
+                { values: ['a'] },
+                {},
+                {},
+            ),
+        );
+
+        expect(result.current.validConfig?.fieldOptionValues).toBeUndefined();
+    });
+
+    it('rejects a debounced field edit after its binding was replaced', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig),
+        );
+        const staleEdit = result.current.setFieldOption;
+        act(() => result.current.setField('category', 'orders_region'));
+        act(() =>
+            staleEdit(
+                'viz-1',
+                undefined,
+                'category',
+                'orders_status',
+                'color',
+                'red',
+            ),
+        );
+        expect(result.current.validConfig?.fieldOptionValues).toBeUndefined();
+    });
+
+    it('rejects a pending field edit from the previous pinned version', () => {
+        const config = {
+            ...initialConfig,
+            dataAppVizVersion: 1,
+            fieldMapping: { values: ['a'] },
+        };
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(config),
+        );
+
+        act(() =>
+            result.current.upgradeDataAppVizVersion(
+                2,
+                { values: ['a'] },
+                {},
+                {},
+            ),
+        );
+        act(() =>
+            result.current.setFieldOption(
+                'viz-1',
+                1,
+                'values',
+                'a',
+                'color',
+                'red',
+            ),
+        );
+
+        expect(result.current.validConfig?.fieldOptionValues).toBeUndefined();
+    });
 });

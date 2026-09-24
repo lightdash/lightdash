@@ -28,6 +28,29 @@ const baseSchema: DataAppVizSchema = {
 };
 
 describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
+    it('resolves per-field defaults for the fabricated binding', () => {
+        const context = buildSampleVizContext({
+            ...baseSchema,
+            fields: baseSchema.fields.map((field) =>
+                field.name === 'value'
+                    ? {
+                          ...field,
+                          configOptions: [
+                              {
+                                  type: 'color',
+                                  name: 'color',
+                                  label: 'Color',
+                                  default: '#ff0000',
+                              },
+                          ],
+                      }
+                    : field,
+            ),
+        });
+        expect(context.fieldOptions).toEqual({
+            value: { sample_value: { color: '#ff0000' } },
+        });
+    });
     const schema: DataAppVizSchema = {
         ...baseSchema,
         fields: baseSchema.fields.map((field) =>
@@ -450,6 +473,42 @@ describe('authored preview data', () => {
         expect(
             buildSampleVizContext(baseSchema, undefined, {}, preview).rows,
         ).toEqual(buildSampleVizContext(baseSchema).rows);
+    });
+
+    it('applies validated per-field preview overrides to the sample binding', () => {
+        const schema: DataAppVizSchema = {
+            ...baseSchema,
+            fields: baseSchema.fields.map((field) =>
+                field.name === 'value'
+                    ? {
+                          ...field,
+                          configOptions: [
+                              {
+                                  type: 'color',
+                                  name: 'color',
+                                  label: 'Color',
+                                  default: '#ff0000',
+                              },
+                          ],
+                      }
+                    : field,
+            ),
+        };
+
+        const context = buildSampleVizContext(
+            schema,
+            undefined,
+            {},
+            {
+                fieldOptionValues: {
+                    value: { sample_value: { color: '#00ff00' } },
+                },
+            },
+        );
+
+        expect(context.fieldOptions).toEqual({
+            value: { sample_value: { color: '#00ff00' } },
+        });
     });
 
     it('pivots authored series, preserving sparse groups and column metadata', () => {

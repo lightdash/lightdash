@@ -832,6 +832,7 @@ describe('DataAppVizConfigTabs', () => {
             5,
             { source: 'orders_visible', value: 'orders_visible_metric' },
             {},
+            {},
         );
         expect(setPivotDimensions).toHaveBeenCalled();
     });

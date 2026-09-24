@@ -541,6 +541,9 @@ describe('getDataAppVizChartFromArtifact', () => {
                             ...customChartTypeSlugChartConfig.fieldMapping,
                             values: ['orders_count', 'orders_revenue'],
                         },
+                        fieldOptions: {
+                            values: { orders_revenue: { color: '#123456' } },
+                        },
                     },
                 },
             }),
@@ -551,6 +554,9 @@ describe('getDataAppVizChartFromArtifact', () => {
                 values: ['orders_count', 'orders_revenue'],
             },
             optionValues: { showLegend: true },
+            fieldOptionValues: {
+                values: { orders_revenue: { color: '#123456' } },
+            },
         });
     });
 

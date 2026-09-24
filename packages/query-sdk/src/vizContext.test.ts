@@ -2,6 +2,7 @@ import {
     type APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     type DataAppVizContext,
     type DataAppVizOptionValue,
+    type DataAppVizFieldOptionValues,
 } from '@lightdash/common';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { Transport } from './types';
@@ -47,6 +48,9 @@ const messageTypeMatchesHost: Assert<
 const optionValueTypesMatchHost: Assert<
     Equal<VizContextOptionValue, DataAppVizOptionValue>
 > = true;
+const fieldOptionValuesMatchHost: Assert<
+    Equal<VizContext['fieldOptions'], DataAppVizFieldOptionValues>
+> = true;
 const hostPayloadIsAcceptedBySdk: Assert<
     IsAssignable<
         DataAppVizContext,
@@ -70,6 +74,9 @@ expectTypeOf<Parameters<typeof resolveValueColor>[1]>().toEqualTypeOf<
 >();
 const inboundOptionsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'options'>
+> = true;
+const inboundFieldOptionsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'fieldOptions'>
 > = true;
 const inboundPaletteRemainsOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'colorPalette'>
@@ -220,6 +227,63 @@ describe('toVizContextState', () => {
         expect(toVizContextState(message({})).options).toEqual({});
     });
 
+    it('preserves field options by slot and bound field id', () => {
+        const state = toVizContextState(
+            message({
+                fieldMapping: {
+                    values: ['orders_total', 'orders_count'],
+                    compare: 'orders_total',
+                },
+                fieldOptions: {
+                    values: {
+                        orders_total: { color: '#FF0000', showLabel: true },
+                        orders_count: { color: '#00FF00', weight: 2 },
+                    },
+                    compare: { orders_total: { color: '#0000FF' } },
+                },
+            }),
+        );
+        expect(state.fieldOptions).toEqual({
+            values: {
+                orders_total: { color: '#FF0000', showLabel: true },
+                orders_count: { color: '#00FF00', weight: 2 },
+            },
+            compare: { orders_total: { color: '#0000FF' } },
+        });
+    });
+
+    it('defaults field options for older hosts and filters malformed nested values', () => {
+        expect(toVizContextState(message({})).fieldOptions).toEqual({});
+        expect(
+            toVizContextState(message({ fieldOptions: [] as never }))
+                .fieldOptions,
+        ).toEqual({});
+        expect(
+            toVizContextState(
+                message({
+                    fieldOptions: {
+                        values: {
+                            orders_total: {
+                                color: '#FF0000',
+                                showLabel: true,
+                                weight: 2,
+                                missing: null as never,
+                                object: {} as never,
+                                infinite: Infinity,
+                            },
+                            invalid: [] as never,
+                        },
+                        invalidSlot: 'bad' as never,
+                    },
+                }),
+            ).fieldOptions,
+        ).toEqual({
+            values: {
+                orders_total: { color: '#FF0000', showLabel: true, weight: 2 },
+            },
+        });
+    });
+
     it('falls back to an empty object for a non-object options payload', () => {
         expect(
             toVizContextState(message({ options: ['not-an-object'] as never }))
@@ -324,6 +388,7 @@ describe('toVizContextState', () => {
             fields: {},
             rows: [],
             options: {},
+            fieldOptions: {},
             colorPalette: [],
             seriesColors: {},
             valueColors: {},

@@ -28,12 +28,6 @@ export type DataAppVizSchemaChanges = {
     colorPalette: DataAppVizPaletteChange;
 };
 
-const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
-    a.label === b.label &&
-    a.type === b.type &&
-    a.required === b.required &&
-    (a.multiple === true) === (b.multiple === true);
-
 const isSameOption = (
     a: DataAppVizConfigOption,
     b: DataAppVizConfigOption,
@@ -75,6 +69,25 @@ const diffByName = <T extends { name: string }>(
         }),
     };
 };
+
+const isSameOptions = (
+    before: DataAppVizConfigOption[],
+    after: DataAppVizConfigOption[],
+): boolean => {
+    const changes = diffByName(before, after, isSameOption);
+    return (
+        changes.added.length === 0 &&
+        changes.removed.length === 0 &&
+        changes.changed.length === 0
+    );
+};
+
+const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
+    a.label === b.label &&
+    a.type === b.type &&
+    a.required === b.required &&
+    (a.multiple === true) === (b.multiple === true) &&
+    isSameOptions(a.configOptions ?? [], b.configOptions ?? []);
 
 export const diffDataAppVizSchema = (
     before: DataAppVizSchema,

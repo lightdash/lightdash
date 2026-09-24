@@ -12,12 +12,16 @@ import {
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartColorMappingContext } from '../../../hooks/useChartColorConfig/context';
 import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    useDataAppVizTestContext,
+    type DataAppVizTestContextState,
+} from '../hooks/useDataAppVizTestContext';
 import DataAppVizTestPanel from './DataAppVizTestPanel';
 import { buildTestMetricQuery, isMappingComplete } from './dataAppVizTestQuery';
 
@@ -177,6 +181,14 @@ const configurableSchema: DataAppVizSchema = {
             label: 'Source',
             type: 'dimension',
             required: true,
+            configOptions: [
+                {
+                    type: 'color',
+                    name: 'color',
+                    label: 'Color',
+                    default: '#ff0000',
+                },
+            ],
         },
     ],
     configOptions: [
@@ -385,6 +397,41 @@ describe('DataAppVizTestPanel', () => {
         return user;
     };
 
+    it('rejects a pending field edit after its binding is removed', () => {
+        const current: { value?: DataAppVizTestContextState } = {};
+        const state = () => {
+            if (!current.value)
+                throw new Error('Test context has not rendered');
+            return current.value;
+        };
+        const Probe = () => {
+            current.value = useDataAppVizTestContext({
+                projectUuid: 'p1',
+                schema: configurableSchema,
+                onContextChange: vi.fn(),
+            });
+            return null;
+        };
+        renderWithProviders(
+            <ChartColorMappingContext.Provider
+                value={{ colorMappings: new Map() }}
+            >
+                <Probe />
+            </ChartColorMappingContext.Provider>,
+        );
+
+        act(() => state().handleExploreChange('orders'));
+        act(() => state().setField('source', 'orders_visible'));
+        const pendingEdit = state().setFieldOption;
+        act(() => state().setField('source', null));
+        act(() => pendingEdit('source', 'orders_visible', 'color', '#00ff00'));
+        act(() => state().setField('source', 'orders_visible'));
+
+        expect(state().effectiveFieldOptions).toEqual({
+            source: { orders_visible: { color: '#ff0000' } },
+        });
+    });
+
     it('lists the declared fields and the explore picker up-front', () => {
         renderWithProviders(
             <TestDataAppVizPanel
@@ -524,6 +571,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldOptions: {
+                    source: { orders_visible: { color: '#ff0000' } },
+                },
                 fields: {
                     orders_visible: { label: 'visible', tableLabel: 'Orders' },
                 },
@@ -547,6 +597,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldOptions: {
+                    source: { orders_visible: { color: '#ff0000' } },
+                },
                 fields: {
                     orders_visible: { label: 'visible', tableLabel: 'Orders' },
                 },
@@ -565,6 +618,31 @@ describe('DataAppVizTestPanel', () => {
         );
     });
 
+    it('delivers a selected field color to the running test preview', async () => {
+        const onContextChange = vi.fn();
+        renderWithProviders(
+            <TestDataAppVizPanel
+                projectUuid="p1"
+                schema={configurableSchema}
+                onContextChange={onContextChange}
+            />,
+        );
+
+        const user = await runSuccessfulPreviewQuery();
+        await user.click(screen.getByRole('button', { name: 'Color' }));
+        await user.click(screen.getByRole('button', { name: '#111111' }));
+
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    fieldOptions: {
+                        source: { orders_visible: { color: '#111111' } },
+                    },
+                }),
+            ),
+        );
+    });
+
     it('republishes palette edits after a successful query', async () => {
         const onContextChange = vi.fn();
         renderWithProviders(
@@ -579,6 +657,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldOptions: {
+                    source: { orders_visible: { color: '#ff0000' } },
+                },
                 fields: {
                     orders_visible: { label: 'visible', tableLabel: 'Orders' },
                 },
@@ -602,6 +683,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fieldOptions: {
+                    source: { orders_visible: { color: '#ff0000' } },
+                },
                 fields: {
                     orders_visible: { label: 'visible', tableLabel: 'Orders' },
                 },

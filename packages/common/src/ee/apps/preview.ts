@@ -1,10 +1,14 @@
 import { z } from 'zod';
-import { type DataAppVizOptionValues } from '../../types/savedCharts';
+import {
+    type DataAppVizFieldOptionValues,
+    type DataAppVizOptionValues,
+} from '../../types/savedCharts';
 import { type DataAppVizSchema } from './types';
 
 export type DataAppVizPreview = {
     rows?: Record<string, string | number | boolean | null>[];
     optionValues?: DataAppVizOptionValues;
+    fieldOptionValues?: DataAppVizFieldOptionValues;
 };
 
 const previewValueSchema = z.union([z.string(), z.number(), z.boolean()]);
@@ -16,7 +20,19 @@ export const dataAppVizPreviewSchema = z.object({
         .max(1000)
         .optional(),
     optionValues: z.record(z.string(), previewValueSchema).optional(),
+    fieldOptionValues: z
+        .record(
+            z.string(),
+            z.record(
+                z.string().min(1),
+                z.record(z.string(), previewValueSchema),
+            ),
+        )
+        .optional(),
 });
+
+export const getDataAppVizPreviewFieldId = (fieldName: string): string =>
+    `sample_${fieldName}`;
 
 export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
     dataAppVizPreviewSchema.superRefine((preview, ctx) => {
@@ -61,4 +77,56 @@ export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
                 });
             }
         });
+        Object.entries(preview.fieldOptionValues ?? {}).forEach(
+            ([fieldName, byId]) => {
+                const field = schema.fields.find(
+                    (item) => item.name === fieldName,
+                );
+                Object.entries(byId).forEach(([fieldId, options]) => {
+                    if (fieldId !== getDataAppVizPreviewFieldId(fieldName)) {
+                        ctx.addIssue({
+                            code: 'custom',
+                            path: ['fieldOptionValues', fieldName, fieldId],
+                            message: `Expected preview field ID "${getDataAppVizPreviewFieldId(fieldName)}"`,
+                        });
+                    }
+                    Object.entries(options).forEach(([name, value]) => {
+                        const option = field?.configOptions?.find(
+                            (item) => item.name === name,
+                        );
+                        const valid =
+                            option &&
+                            (option.type === 'select'
+                                ? option.choices.some(
+                                      (choice) => choice.value === value,
+                                  )
+                                : typeof value ===
+                                  (option.type === 'color' ||
+                                  option.type === 'text'
+                                      ? 'string'
+                                      : option.type));
+                        if (!valid) {
+                            ctx.addIssue({
+                                code: 'custom',
+                                path: [
+                                    'fieldOptionValues',
+                                    fieldName,
+                                    fieldId,
+                                    name,
+                                ],
+                                message:
+                                    'Unknown preview field option or invalid value',
+                            });
+                        }
+                    });
+                });
+                if (!field) {
+                    ctx.addIssue({
+                        code: 'custom',
+                        path: ['fieldOptionValues', fieldName],
+                        message: 'Unknown preview field',
+                    });
+                }
+            },
+        );
     });

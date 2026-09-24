@@ -5,13 +5,14 @@ import {
     FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
+    pruneDataAppVizFieldOptionValues,
     getItemId,
     isOfficialChartType,
     pruneDataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useMemo, useRef, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
@@ -135,9 +136,16 @@ export const ConfigTabs: FC = memo(() => {
         [dataAppViz],
     );
     const colorPalette = dataAppViz?.schema?.colorPalette ?? null;
+    const fields = useMemo(
+        () => dataAppViz?.schema?.fields ?? [],
+        [dataAppViz],
+    );
+    const fieldContractKey = useMemo(() => JSON.stringify(fields), [fields]);
+    const currentFieldContractKeyRef = useRef(fieldContractKey);
+    currentFieldContractKeyRef.current = fieldContractKey;
     const optionContractKey = useMemo(
-        () => JSON.stringify({ configOptions, colorPalette }),
-        [configOptions, colorPalette],
+        () => JSON.stringify({ configOptions, colorPalette, fields }),
+        [configOptions, colorPalette, fields],
     );
 
     const canCreateApp = useCanCreateDataApp(projectUuid);
@@ -169,9 +177,9 @@ export const ConfigTabs: FC = memo(() => {
         clearDataAppViz,
         setField,
         setOption,
+        setFieldOption,
         upgradeDataAppVizVersion,
     } = visualizationConfig.chartConfig;
-    const fields = dataAppViz?.schema?.fields ?? [];
 
     const selectedOption: CustomChartTypeOption | null =
         selected !== null
@@ -224,6 +232,11 @@ export const ConfigTabs: FC = memo(() => {
                     upgradeTarget.schema.configOptions,
                     selectedViz.optionValues,
                 ),
+                pruneDataAppVizFieldOptionValues(
+                    upgradeTarget.schema.fields,
+                    nextBindings,
+                    selectedViz.fieldOptionValues,
+                ),
             );
             setPivotDimensions(
                 deriveDataAppVizPivotConfig(
@@ -248,7 +261,29 @@ export const ConfigTabs: FC = memo(() => {
                     itemsMap={effectiveItemsMap}
                     fields={fields}
                     fieldMapping={effectiveBindings}
+                    fieldOptionValues={selectedViz.fieldOptionValues}
+                    colorPalette={resolvedColorPalette}
                     onFieldChange={handleFieldChange}
+                    onFieldOptionChange={(
+                        fieldName,
+                        fieldId,
+                        optionName,
+                        value,
+                    ) => {
+                        if (
+                            currentFieldContractKeyRef.current !==
+                            fieldContractKey
+                        )
+                            return;
+                        setFieldOption(
+                            selectedViz.dataAppVizUuid,
+                            selectedViz.dataAppVizVersion,
+                            fieldName,
+                            fieldId,
+                            optionName,
+                            value,
+                        );
+                    }}
                 />
                 <DataAppVizInputGuidance
                     guidance={dataAppViz?.schema?.inputGuidance}
@@ -302,7 +337,7 @@ export const ConfigTabs: FC = memo(() => {
                 <DataAppVizOptionTabs
                     // Remount on a viz switch so no control keeps the previous
                     // viz's draft edit.
-                    key={`${selectedViz.dataAppVizUuid}:${optionContractKey}`}
+                    key={`${selectedViz.dataAppVizUuid}:${selectedViz.dataAppVizVersion ?? 'latest'}:${optionContractKey}`}
                     generalContent={settings}
                     configOptions={configOptions}
                     values={effectiveValues}

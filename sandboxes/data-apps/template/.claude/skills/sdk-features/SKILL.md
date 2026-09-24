@@ -28,6 +28,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
 | reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
+| per-field settings in a reusable visualization | `viz-field-options` | declare field `configOptions` and read `fieldOptions` |
 | "Data point actions" — native context menu on a data-point click (copy, view underlying data, drill, cross-filter; viz only) | `point-action-menu` | app code opt-in |
 | "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
 | Lightdash-owned "View underlying data" dialog (viz only) | `viz-host-underlying-data` | app code opt-in |

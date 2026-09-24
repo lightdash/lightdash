@@ -81,6 +81,48 @@ describe('diffDataAppVizSchema', () => {
         expect(hasDataAppVizSchemaChanges(changes)).toBe(true);
     });
 
+    it('reports changes to a field-specific option', () => {
+        const before = {
+            ...base,
+            fields: base.fields.map((field) =>
+                field.name === 'value'
+                    ? {
+                          ...field,
+                          configOptions: [
+                              {
+                                  type: 'color' as const,
+                                  name: 'color',
+                                  label: 'Color',
+                                  default: '#000000',
+                              },
+                          ],
+                      }
+                    : field,
+            ),
+        };
+        const after = {
+            ...before,
+            fields: before.fields.map((field) =>
+                field.name === 'value'
+                    ? {
+                          ...field,
+                          configOptions: [
+                              {
+                                  type: 'color' as const,
+                                  name: 'color',
+                                  label: 'Color',
+                                  default: '#ffffff',
+                              },
+                          ],
+                      }
+                    : field,
+            ),
+        };
+        expect(diffDataAppVizSchema(before, after).fields.changed).toHaveLength(
+            1,
+        );
+    });
+
     it('tracks added, removed and retyped fields by name', () => {
         const changes = diffDataAppVizSchema(base, {
             ...base,

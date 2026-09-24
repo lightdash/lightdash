@@ -1,12 +1,16 @@
 import {
     getItemId,
+    getItemLabelWithoutTableName,
     getDataAppVizFieldIds,
+    getEffectiveDataAppVizFieldOptionValues,
     isCustomDimension,
     isDimension,
     isMetric,
     isTableCalculation,
     type DataAppVizField,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
+    type DataAppVizOptionValue,
     type Item,
     type ItemsMap,
 } from '@lightdash/common';
@@ -20,6 +24,7 @@ import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from './DataAppVizFieldGuidance';
+import DataAppVizOptionControl from './DataAppVizOptionControl';
 import OrderedDataAppVizFieldSelect from './OrderedDataAppVizFieldSelect';
 
 type Props = {
@@ -31,6 +36,14 @@ type Props = {
     onFieldChange: (
         fieldName: string,
         fieldId: string | string[] | null,
+    ) => void;
+    fieldOptionValues?: DataAppVizFieldOptionValues;
+    colorPalette?: string[];
+    onFieldOptionChange: (
+        fieldName: string,
+        fieldId: string,
+        optionName: string,
+        value: DataAppVizOptionValue,
     ) => void;
 };
 
@@ -45,6 +58,9 @@ const DataAppVizSettings: FC<Props> = ({
     fields,
     fieldMapping,
     onFieldChange,
+    fieldOptionValues = {},
+    colorPalette = [],
+    onFieldOptionChange,
 }) => {
     const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
@@ -72,6 +88,11 @@ const DataAppVizSettings: FC<Props> = ({
     };
     const fieldItems = (field: DataAppVizField): Item[] =>
         itemPools[poolKeyForSlot(field)];
+    const effectiveFieldOptions = getEffectiveDataAppVizFieldOptionValues(
+        fields,
+        fieldMapping,
+        fieldOptionValues,
+    );
 
     return (
         <Stack>
@@ -82,6 +103,7 @@ const DataAppVizSettings: FC<Props> = ({
             )}
 
             {fields.map((field) => {
+                const configOptions = field.configOptions ?? [];
                 const guidanceId = field.description?.trim()
                     ? `${guidanceIdPrefix}-${field.name}`
                     : undefined;
@@ -190,6 +212,48 @@ const DataAppVizSettings: FC<Props> = ({
                                     />
                                 </>
                             )}
+                            {configOptions.length > 0 &&
+                                selectedIds.map((fieldId) => {
+                                    const boundItem = [
+                                        ...items,
+                                        ...addItems,
+                                    ].find(
+                                        (item) => getItemId(item) === fieldId,
+                                    );
+                                    return (
+                                        <Stack key={fieldId} gap="xs" mt="sm">
+                                            <Text size="xs" fw={600}>
+                                                {boundItem
+                                                    ? getItemLabelWithoutTableName(
+                                                          boundItem,
+                                                      )
+                                                    : fieldId}
+                                            </Text>
+                                            {configOptions.map((option) => (
+                                                <DataAppVizOptionControl
+                                                    key={option.name}
+                                                    option={option}
+                                                    value={
+                                                        effectiveFieldOptions[
+                                                            field.name
+                                                        ]?.[fieldId]?.[
+                                                            option.name
+                                                        ]
+                                                    }
+                                                    colorPalette={colorPalette}
+                                                    onChange={(value) =>
+                                                        onFieldOptionChange(
+                                                            field.name,
+                                                            fieldId,
+                                                            option.name,
+                                                            value,
+                                                        )
+                                                    }
+                                                />
+                                            ))}
+                                        </Stack>
+                                    );
+                                })}
                         </Config.Section>
                     </Config>
                 );

@@ -2,6 +2,8 @@ import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
+    getEffectiveDataAppVizFieldOptionValues,
+    getDataAppVizPreviewFieldId,
     getDataAppVizPreviewSchema,
     getPivotValueColumnName,
     VizAggregationOptions,
@@ -35,7 +37,7 @@ const SAMPLE_CATEGORIES = [
 const SAMPLE_SERIES = ['Series A', 'Series B', 'Series C'];
 
 const sampleColumnId = (field: DataAppVizField): string =>
-    `sample_${field.name}`;
+    getDataAppVizPreviewFieldId(field.name);
 
 /** Deterministic pseudo-random metric value. */
 const sampleMetricValue = (rowIndex: number, metricIndex: number): number =>
@@ -330,17 +332,21 @@ export const buildSampleVizContext = (
     // A series field with no metric has nothing to spread — as on the backend,
     // that keeps the flat sample.
     const shouldPivot = fields.series.length > 0 && fields.metrics.length > 0;
+    const sampleFieldMapping = Object.fromEntries(
+        schema.fields.map((field) => [
+            field.name,
+            field.multiple ? [sampleColumnId(field)] : sampleColumnId(field),
+        ]),
+    );
 
     return {
         // One representative column per input keeps the preview readable while
         // collection inputs retain the same array binding contract as real data.
-        fieldMapping: Object.fromEntries(
-            schema.fields.map((field) => [
-                field.name,
-                field.multiple
-                    ? [sampleColumnId(field)]
-                    : sampleColumnId(field),
-            ]),
+        fieldMapping: sampleFieldMapping,
+        fieldOptions: getEffectiveDataAppVizFieldOptionValues(
+            schema.fields,
+            sampleFieldMapping,
+            demo?.fieldOptionValues,
         ),
         // Fabricated columns have no semantic-layer item; the declared slot
         // label stands in so previews still show human names.

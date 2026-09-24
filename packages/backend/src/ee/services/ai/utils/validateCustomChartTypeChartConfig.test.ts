@@ -596,3 +596,52 @@ describe('validateCustomChartTypeChartConfig', () => {
         });
     });
 });
+
+describe('per-field settings validation', () => {
+    const schema: DataAppVizSchema = {
+        ...multiVizSchema,
+        fields: multiVizSchema.fields.map((field) =>
+            field.name === 'y'
+                ? { ...field, configOptions: vizSchema.configOptions }
+                : field,
+        ),
+    };
+    const config = {
+        ...buildChartConfig({
+            ...validMapping,
+            y: ['orders_revenue', 'revenue_running_total'],
+        }),
+        fieldOptions: {
+            y: {
+                orders_revenue: { highlightColor: '#ff0000', maxBars: 3 },
+                revenue_running_total: { highlightColor: '#00ff00' },
+            },
+        },
+    };
+    it('accepts independent options for two bound fields', () => {
+        expect(() =>
+            validateCustomChartTypeChartConfig(config, schema, selectedFields),
+        ).not.toThrow();
+    });
+    it.each([
+        [
+            { unknown: { orders_revenue: { maxBars: 3 } } },
+            'Unknown field options input',
+        ],
+        [{ y: { orders_missing: { maxBars: 3 } } }, 'unbound field'],
+        [{ y: { orders_revenue: { unknown: 3 } } }, 'Unknown field option'],
+        [{ y: { orders_revenue: { maxBars: 99 } } }, 'maxBars'],
+        [{ y: { orders_revenue: { showLegend: 'yes' } } }, 'showLegend'],
+    ])(
+        'rejects invalid per-field configuration %#',
+        (fieldOptions, message) => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    { ...config, fieldOptions },
+                    schema,
+                    selectedFields,
+                ),
+            ).toThrow(message);
+        },
+    );
+});
