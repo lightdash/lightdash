@@ -100,6 +100,20 @@ const createDashboardWithFilters = (
                 });
         });
 
+const visitDashboard = (dashboardUuid: string) => {
+    cy.intercept('GET', '**/api/v2/projects/*/dashboards/*').as(
+        'dashboardLoad',
+    );
+    cy.intercept('POST', '**/api/v1/dashboards/availableFilters').as(
+        'availableFilters',
+    );
+    cy.visit(
+        `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}/view`,
+    );
+    cy.wait('@dashboardLoad').its('response.statusCode').should('eq', 200);
+    cy.wait('@availableFilters').its('response.statusCode').should('eq', 200);
+};
+
 describe('Dashboard filter required groups', () => {
     beforeEach(() => {
         cy.login();
@@ -123,9 +137,7 @@ describe('Dashboard filter required groups', () => {
             paymentMethodFilter({ requiredGroupId: 'g1' }),
             orderStatusFilter({ requiredGroupId: 'g1' }),
         ]).then((dashboardUuid) => {
-            cy.visit(
-                `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}/view`,
-            );
+            visitDashboard(dashboardUuid);
         });
 
         // Locked: an any-of rule qualifies for the guided setup card
@@ -165,8 +177,6 @@ describe('Dashboard filter required groups', () => {
         cy.intercept('POST', '**/api/v2/projects/*/query/dashboard-chart').as(
             'chartQuery',
         );
-        // The card's focused autocomplete is disabled while its initial
-        // field-values search is in flight; wait for it before typing
         cy.intercept('POST', '**/field/payments_payment_method/search').as(
             'paymentValuesSearch',
         );
@@ -182,24 +192,25 @@ describe('Dashboard filter required groups', () => {
                 requiredFiltersNote: GUIDED_SETUP_NOTE,
             },
         ).then((dashboardUuid) => {
-            cy.visit(
-                `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}/view`,
-            );
+            visitDashboard(dashboardUuid);
         });
 
         // Two rules qualify for the card; the editor note renders as the
         // modal description and the progress as its footer, both outside the
         // rules list testid. The focused autocomplete can overlay the footer.
-        cy.wait('@paymentValuesSearch');
         cy.findByText(GUIDED_SETUP_NOTE).should('be.visible');
         cy.findByText('0 of 2 set').should('exist');
         cy.findByTestId('guided-filter-setup').within(() => {
-            // Set the first rule (Payment method) from the card
             cy.findAllByPlaceholderText('any value')
                 .first()
                 .should('be.enabled')
-                .type('credit_card');
+                .click();
         });
+        cy.wait('@paymentValuesSearch');
+        cy.findByTestId('guided-filter-setup')
+            .findAllByPlaceholderText('any value')
+            .first()
+            .type('credit_card');
         // Autocomplete options render in a portal outside the card
         cy.findByRole('option', { name: 'credit_card' }).click();
 
@@ -238,9 +249,7 @@ describe('Dashboard filter required groups', () => {
         createDashboardWithFilters(SINGLE_DASHBOARD_NAME, [
             paymentMethodFilter({ required: true }),
         ]).then((dashboardUuid) => {
-            cy.visit(
-                `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}/view`,
-            );
+            visitDashboard(dashboardUuid);
         });
 
         // A required filter is a one-member rule, so it also qualifies for
