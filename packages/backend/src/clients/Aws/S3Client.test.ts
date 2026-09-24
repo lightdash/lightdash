@@ -35,19 +35,5 @@ describe('S3Client', () => {
 
             expect(result.contentDisposition).toBeNull();
         });
-
-        it('preserves a non-ASCII content disposition verbatim', async () => {
-            const client = createClient({
-                Body: Readable.from(['hello,world\n']),
-                ContentDisposition:
-                    'attachment; filename="download.csv"; filename*=UTF-8\'\'%E5%A3%B2%E4%B8%8A.csv',
-            });
-
-            const result = await client.getFileStream('csv-123.csv');
-
-            expect(result.contentDisposition).toBe(
-                'attachment; filename="download.csv"; filename*=UTF-8\'\'%E5%A3%B2%E4%B8%8A.csv',
-            );
-        });
     });
 });

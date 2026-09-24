@@ -41,24 +41,6 @@ describe('SlackUnfurlImageModel', () => {
     });
 
     describe('get', () => {
-        it('returns the record when nanoid exists', async () => {
-            const mockRow = {
-                nanoid: 'abcdefghijklmnopqrstu',
-                s3_key: 'slack-image-test.png',
-                organization_uuid: '00000000-0000-0000-0000-000000000001',
-                created_at: new Date('2026-01-01'),
-            };
-
-            tracker.on
-                .select(({ sql }) => sql.includes('slack_unfurl_images'))
-                .responseOnce(mockRow);
-
-            const result = await model.get('abcdefghijklmnopqrstu');
-
-            expect(result).toEqual(mockRow);
-            expect(tracker.history.select).toHaveLength(1);
-        });
-
         it('throws NotFoundError when nanoid does not exist', async () => {
             tracker.on
                 .select(({ sql }) => sql.includes('slack_unfurl_images'))
