@@ -1,3 +1,23 @@
+# [2.322.0](https://github.com/lightdash/lightdash/compare/2.321.0...2.322.0) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** compact threads on final-step context, not summed usage ([#29883](https://github.com/lightdash/lightdash/issues/29883)) ([5a29d45](https://github.com/lightdash/lightdash/commit/5a29d4506251e7bebde0c37df72c4a054e350e63))
+* **ai-agents:** keep JEV chart edits accurate across follow-ups ([#29884](https://github.com/lightdash/lightdash/issues/29884)) ([859caec](https://github.com/lightdash/lightdash/commit/859caececaa5669f6df73e343b4009a4d3d4a8ec))
+* **ai-agents:** repair query tool calls that use stored filter shapes ([#29893](https://github.com/lightdash/lightdash/issues/29893)) ([34c1e8a](https://github.com/lightdash/lightdash/commit/34c1e8a996254cf7832d6a8b1991be6b7570ce6a))
+
+
+### Features
+
+* **ai-agent:** composer artifact copies reused nodes into its pipeline ([#29875](https://github.com/lightdash/lightdash/issues/29875)) ([9f97acb](https://github.com/lightdash/lightdash/commit/9f97acbbb8b5032af7e00c372b6797ebdf33ff11))
+* **composer:** pipeline panel placeholder for an unresolvable earlier result ([#29876](https://github.com/lightdash/lightdash/issues/29876)) ([c182a0f](https://github.com/lightdash/lightdash/commit/c182a0f0b36b0df92f3841c2e85d523371450783))
+
+
+### Performance Improvements
+
+* **ai-agents:** scope agent prompts and tools to JEV turn types ([#29885](https://github.com/lightdash/lightdash/issues/29885)) ([ad990b7](https://github.com/lightdash/lightdash/commit/ad990b7bb5110968b8eb4984c4f8e29c5b644d48))
+
 # [2.321.0](https://github.com/lightdash/lightdash/compare/2.320.3...2.321.0) (2026-09-24)
 
 
