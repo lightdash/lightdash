@@ -1742,12 +1742,7 @@ describe('ChartTypeBuilder', () => {
                     fieldName: 'group',
                     fieldIds: ['orders_region'],
                     reason: 'Region is how the prompt splits revenue.',
-                    alternatives: [
-                        {
-                            fieldId: 'orders_shipped_date',
-                            reason: 'Splits it over time instead.',
-                        },
-                    ],
+                    alternatives: ['orders_shipped_date'],
                 },
                 {
                     fieldName: 'value',

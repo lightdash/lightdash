@@ -26,6 +26,7 @@ import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { useAmbientAiEnabled } from '../ee/features/ambientAi/hooks/useAmbientAiEnabled';
+import { useSuggestedChartTypeExplore } from '../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -278,6 +279,21 @@ const ChartTypeBuilder: FC = () => {
             ),
         [history.versions, workspace.previewVersion],
     );
+    // Without a built version there is no prompt to suggest a table for.
+    const suggestTable = useMemo(
+        () =>
+            isAmbientAiEnabled &&
+            history.latestReadyVersion !== null &&
+            schema !== null &&
+            schema.fields.length > 0
+                ? { ...promptContext, fields: schema.fields }
+                : null,
+        [isAmbientAiEnabled, history.latestReadyVersion, schema, promptContext],
+    );
+    const suggestedExplore = useSuggestedChartTypeExplore(
+        projectUuid,
+        suggestTable,
+    );
     const fieldSuggestions = useAmbientFieldSuggestions({
         projectUuid,
         enabled: isAmbientAiEnabled && canPreviewSavedChart,
@@ -286,6 +302,7 @@ const ChartTypeBuilder: FC = () => {
         explore: loadedExplore,
         fields: schema?.fields ?? null,
         context: promptContext,
+        suggestedExploreName: suggestedExplore?.exploreName ?? null,
     });
     const { pendingFieldNames, seed: suggestedMapping } = fieldSuggestions;
     const isPickingFields = pendingFieldNames.size > 0;
@@ -669,18 +686,6 @@ const ChartTypeBuilder: FC = () => {
         sourceRevision,
     ]);
 
-    // Without a built version there is no prompt to suggest a table for.
-    const suggestTable = useMemo(
-        () =>
-            isAmbientAiEnabled &&
-            history.latestReadyVersion !== null &&
-            schema !== null &&
-            schema.fields.length > 0
-                ? { ...promptContext, fields: schema.fields }
-                : null,
-        [isAmbientAiEnabled, history.latestReadyVersion, schema, promptContext],
-    );
-
     const exploreSource = useMemo<ExploreSourceControls>(() => {
         const { run } = explorePreview;
         const attached: AttachedExplore | null =
@@ -780,9 +785,7 @@ const ChartTypeBuilder: FC = () => {
                 ) {
                     return [];
                 }
-                const alternativeIds = pick.alternatives.map(
-                    (alternative) => alternative.fieldId,
-                );
+                const alternativeIds = pick.alternatives;
                 return [
                     [
                         field.name,

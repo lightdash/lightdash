@@ -155,10 +155,7 @@ const pick = (
     fieldName,
     fieldIds,
     reason: `Reason for ${fieldName}`,
-    alternatives: alternatives.map((fieldId) => ({
-        fieldId,
-        reason: `Alt ${fieldId}`,
-    })),
+    alternatives,
 });
 
 describe('getChartTypeFieldCandidates', () => {
@@ -229,7 +226,7 @@ describe('sanitizeChartTypeFieldSuggestions', () => {
             [],
             ['orders_order_count'],
         ]);
-        expect(result[0].reason).toBe('Alt orders_revenue');
+        expect(result[0].reason).toBe('Revenue fits VALUE.');
     });
 
     it('keeps an id on the first input that picks it', () => {
@@ -319,7 +316,7 @@ describe('sanitizeChartTypeFieldSuggestions', () => {
             },
             contextFor([input('x', 'column')]),
         );
-        expect(result.alternatives.map((a) => a.fieldId)).toEqual([
+        expect(result.alternatives).toEqual([
             'orders_status',
             'customers_region',
         ]);
@@ -417,7 +414,7 @@ describe('model calls', () => {
         expect(vi.mocked(generateText).mock.calls[0][0]).toEqual(
             expect.objectContaining({
                 maxRetries: 0,
-                maxOutputTokens: 500,
+                maxOutputTokens: 300,
             }),
         );
     });

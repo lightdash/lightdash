@@ -135,16 +135,11 @@ const fieldSuggestionSchema = z.object({
             reason: z
                 .string()
                 .describe(
-                    'One sentence for the chart author, under 100 characters',
+                    'One sentence for the chart author, under 80 characters',
                 ),
             alternatives: z
-                .array(
-                    z.object({
-                        fieldId: z.string(),
-                        reason: z.string(),
-                    }),
-                )
-                .describe('Up to two runners-up'),
+                .array(z.string())
+                .describe('Up to two runner-up field ids'),
         }),
     ),
 });
@@ -205,8 +200,8 @@ Return one entry per declared input, using its exact name. Pick field ids only f
 An input with multiple=true may take several ids in the order they should appear; any other input takes exactly one id. When nothing of the right kind exists, return an empty list and say so.
 Use the author's request, input descriptions, field labels and value types together. Prefer date fields for temporal inputs, numeric metrics for measures and categorical dimensions for grouping.
 For a time axis, when the table offers the same date at several granularities, prefer month, then week, then day, unless the prompt names a granularity; the coarser grain keeps the chart readable. A date field without a granularity suffix is the day grain.
-For each input also give up to two runners-up that could plausibly fulfill the input's meaning, each with a reason under 60 characters. Return no runners-up when none fit; sharing the right field kind alone is not enough.
-Be brief: the answer must be fast. The main reason is one sentence under 100 characters, written to the author, naming fields by their label, never by id. When the prompt drove the pick, quote the relevant words and explain how the chosen field fits.`,
+For each input also list up to two runner-up field ids that could plausibly fulfill the input's meaning. List none when none fit; sharing the right field kind alone is not enough.
+Be brief: the answer must be fast. The reason is one sentence under 80 characters, written to the author, naming fields by their label, never by id, saying how the field fits the request.`,
     prompt: [
         `Prompt:\n${context.prompt}`,
         context.clarifications.length > 0
@@ -271,21 +266,18 @@ export const sanitizeChartTypeFieldSuggestions = (
 
         const entry = raw.suggestions.find((s) => s.fieldName === input.name);
         const picked = [...new Set(entry?.fieldIds ?? [])].filter(isValid);
-        const alternatives = (entry?.alternatives ?? []).filter(
-            (alternative, index, all) =>
-                isValid(alternative.fieldId) &&
-                !picked.includes(alternative.fieldId) &&
-                all.findIndex((a) => a.fieldId === alternative.fieldId) ===
-                    index,
+        const alternatives = [...new Set(entry?.alternatives ?? [])].filter(
+            (id) => isValid(id) && !picked.includes(id),
         );
 
-        // An invalid or already used pick promotes the best runner-up.
+        // An invalid or already used pick promotes the best runner-up; the
+        // model's reason described the dropped pick, so it goes too.
         const promoted = picked.length === 0 ? alternatives.shift() : undefined;
         const fieldIds = promoted
-            ? [promoted.fieldId]
+            ? [promoted]
             : picked.slice(0, input.multiple ? picked.length : 1);
         fieldIds.forEach((id) => taken.add(id));
-        const modelReason = (promoted?.reason ?? entry?.reason ?? '').trim();
+        const modelReason = promoted ? '' : (entry?.reason ?? '').trim();
         const reason =
             fieldIds.length === 0
                 ? emptyReason
@@ -297,17 +289,8 @@ export const sanitizeChartTypeFieldSuggestions = (
             fieldIds,
             reason: truncate(reason, REASON_MAX_LENGTH),
             alternatives: alternatives
-                .filter(
-                    (alternative) => !fieldIds.includes(alternative.fieldId),
-                )
-                .slice(0, MAX_ALTERNATIVES)
-                .map((alternative) => ({
-                    fieldId: alternative.fieldId,
-                    reason: truncate(
-                        alternative.reason.trim(),
-                        REASON_MAX_LENGTH,
-                    ),
-                })),
+                .filter((id) => !fieldIds.includes(id))
+                .slice(0, MAX_ALTERNATIVES),
         };
     });
 };
@@ -382,7 +365,7 @@ export async function suggestChartTypeFields(
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             maxRetries: 0,
-            maxOutputTokens: 300 + context.inputs.length * 200,
+            maxOutputTokens: 200 + context.inputs.length * 100,
             abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
             ...telemetry,
             output: Output.object({ schema: fieldSuggestionSchema }),

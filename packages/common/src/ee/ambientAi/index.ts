@@ -144,11 +144,6 @@ export type SuggestChartTypeFieldsRequest = {
     fields: DataAppVizField[];
 };
 
-export type SuggestedChartTypeFieldAlternative = {
-    fieldId: string;
-    reason: string;
-};
-
 export type SuggestedChartTypeField = {
     /** The declared input's name. */
     fieldName: string;
@@ -156,8 +151,8 @@ export type SuggestedChartTypeField = {
     fieldIds: string[];
     /** One line, shown on hover. */
     reason: string;
-    /** Up to two runners-up, shown in the select's Suggested group. */
-    alternatives: SuggestedChartTypeFieldAlternative[];
+    /** Item ids of up to two runners-up, shown in the select's Suggested group. */
+    alternatives: string[];
 };
 
 export type SuggestedChartTypeFields = {
