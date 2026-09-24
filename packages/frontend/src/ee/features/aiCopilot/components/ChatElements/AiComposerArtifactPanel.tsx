@@ -63,17 +63,18 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         () => getComposerVizPlan({ columns, rows, node: displayedNode }),
         [columns, rows, displayedNode],
     );
-    const [selectedKind, setSelectedKind] = useState<ComposerVizKind | null>(
-        null,
-    );
-    // Only the terminal result charts for now; other nodes show their table.
-    const kind = !isTerminalDisplayed
-        ? 'table'
-        : selectedKind && plan.availableKinds.includes(selectedKind)
-          ? selectedKind
-          : plan.defaultKind;
-    const showPill =
-        isTerminalDisplayed && !results.error && plan.availableKinds.length > 1;
+    // Chosen kind per node, remembered while this version is open.
+    const [chosenKinds, setChosenKinds] = useState<
+        Record<string, ComposerVizKind>
+    >({});
+    const chosenKind = chosenKinds[displayedNodeId];
+    const kind =
+        chosenKind && plan.availableKinds.includes(chosenKind)
+            ? chosenKind
+            : plan.defaultKind;
+    const chooseKind = (next: ComposerVizKind) =>
+        setChosenKinds((current) => ({ ...current, [displayedNodeId]: next }));
+    const showPill = !results.error && plan.availableKinds.length > 1;
 
     const displayedTitle = isTerminalDisplayed
         ? title
@@ -148,7 +149,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                 <AgentVisualizationChartTypeSwitcher
                                     availableChartTypes={plan.availableKinds}
                                     selectedChartType={kind}
-                                    onChartTypeChange={setSelectedKind}
+                                    onChartTypeChange={chooseKind}
                                     variant="pill"
                                 />
                             </Box>
