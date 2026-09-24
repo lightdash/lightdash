@@ -1,7 +1,12 @@
 import {
+    type ApiError,
+    type SuggestChartTypeExploreRequest,
     type SuggestChartTypeFieldsRequest,
+    type SuggestedChartTypeExplore,
+    type SuggestedChartTypeExploreResult,
     type SuggestedChartTypeFields,
 } from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 
 /** Anything slower than this is dropped in favour of the non-AI behaviour. */
@@ -40,3 +45,46 @@ export const suggestChartTypeFields = (
             }),
         signal,
     );
+
+const suggestChartTypeExplore = (
+    projectUuid: string,
+    payload: SuggestChartTypeExploreRequest,
+) =>
+    withTimeout(
+        (timeoutSignal) =>
+            lightdashApi<SuggestedChartTypeExploreResult>({
+                url: `/ai/${projectUuid}/chart-type/suggest-explore`,
+                method: 'POST',
+                body: JSON.stringify(payload),
+                signal: timeoutSignal,
+            }),
+        undefined,
+    );
+
+/**
+ * The table that best fits a built chart type. Cached per request for the
+ * session, so reopening the picker never asks again. Null
+ * while loading, on failure, or when nothing fits.
+ */
+export const useSuggestedChartTypeExplore = (
+    projectUuid: string | undefined,
+    request: SuggestChartTypeExploreRequest | null,
+): SuggestedChartTypeExplore | null => {
+    const { data } = useQuery<SuggestedChartTypeExploreResult, ApiError>({
+        queryKey: ['chart-type-suggest-explore', projectUuid, request],
+        // Closing the picker mid-request keeps it running, so the answer is
+        // cached for the next open.
+        queryFn: () =>
+            request
+                ? suggestChartTypeExplore(projectUuid ?? '', request)
+                : Promise.resolve({ suggestion: null }),
+        enabled: Boolean(projectUuid) && request !== null,
+        retry: false,
+        staleTime: Infinity,
+        cacheTime: Infinity,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+    return data?.suggestion ?? null;
+};

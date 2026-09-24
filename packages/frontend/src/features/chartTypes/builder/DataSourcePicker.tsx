@@ -10,6 +10,7 @@ import {
     Group,
     Loader,
     ScrollArea,
+    Stack,
     Text,
     useCombobox,
     type ComboboxStore,
@@ -19,6 +20,7 @@ import {
     IconCheck,
     IconFlask,
     IconSearch,
+    IconSparkles,
     IconTable,
 } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
@@ -37,6 +39,7 @@ import {
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon } from '../../../components/common/ResourceIcon';
+import { useSuggestedChartTypeExplore } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -76,6 +79,7 @@ const LOAD_MORE_THRESHOLD = 80;
 const TABLE_ROW_CAP = 100;
 const TABLE_PREFIX = 'table:';
 const CHART_PREFIX = 'chart:';
+const SUGGESTED_TABLE_PREFIX = 'suggested-table:';
 const SAMPLE_VALUE = 'sample';
 
 const noop = () => {};
@@ -120,6 +124,11 @@ const PickerBody: FC<BodyProps> = ({
     const exploresQuery = useExplores(projectUuid, true, false, {
         enabled: exploreSource !== null && Boolean(projectUuid),
     });
+    // Asked only once the picker opens: the body mounts with the dropdown.
+    const tableSuggestion = useSuggestedChartTypeExplore(
+        projectUuid,
+        exploreSource?.suggestTable ?? null,
+    );
     const chartsQuery = useChartSummariesV2(
         { projectUuid, page: 1, pageSize: PAGE_SIZE, search: debouncedSearch },
         { keepPreviousData: true, enabled: savedChartSource !== null },
@@ -166,6 +175,19 @@ const PickerBody: FC<BodyProps> = ({
             )
             .sort((a, b) => a.label.localeCompare(b.label));
     }, [exploreSource, exploresQuery.data, needle]);
+
+    const suggestedExplore = useMemo(() => {
+        if (
+            !tableSuggestion ||
+            tableSuggestion.exploreName === attachedExploreName
+        ) {
+            return null;
+        }
+        const explore = matchingExplores.find(
+            (candidate) => candidate.name === tableSuggestion.exploreName,
+        );
+        return explore ? { explore, reason: tableSuggestion.reason } : null;
+    }, [tableSuggestion, attachedExploreName, matchingExplores]);
 
     // Rendering is capped; the attached table always renders so it stays checked.
     const { tableGroups, hiddenTableCount } = useMemo(() => {
@@ -263,6 +285,9 @@ const PickerBody: FC<BodyProps> = ({
                 if (value === SAMPLE_VALUE) {
                     attachedSource?.detach();
                     onClose();
+                } else if (value.startsWith(SUGGESTED_TABLE_PREFIX)) {
+                    if (suggestedExplore) pickExplore(suggestedExplore.explore);
+                    else onClose();
                 } else if (value.startsWith(TABLE_PREFIX)) {
                     const name = value.slice(TABLE_PREFIX.length);
                     const explore = matchingExplores.find(
@@ -284,6 +309,7 @@ const PickerBody: FC<BodyProps> = ({
         }),
         [
             attachedSource,
+            suggestedExplore,
             matchingExplores,
             charts,
             pickExplore,
@@ -338,11 +364,13 @@ const PickerBody: FC<BodyProps> = ({
     const hasSearch = needle !== '';
     const firstExplore = tableGroups[0]?.explores[0];
     const firstChart = chartGroups[0]?.[1][0];
-    const firstOptionValue = firstExplore
-        ? `${TABLE_PREFIX}${firstExplore.name}`
-        : firstChart
-          ? `${CHART_PREFIX}${firstChart.uuid}`
-          : null;
+    const firstOptionValue = suggestedExplore
+        ? `${SUGGESTED_TABLE_PREFIX}${suggestedExplore.explore.name}`
+        : firstExplore
+          ? `${TABLE_PREFIX}${firstExplore.name}`
+          : firstChart
+            ? `${CHART_PREFIX}${firstChart.uuid}`
+            : null;
 
     // Typing then Enter takes the first match.
     const { selectFirstOption, resetSelectedOption } = combobox;
@@ -385,6 +413,47 @@ const PickerBody: FC<BodyProps> = ({
                         p="sm"
                         mb={4}
                     />
+                )}
+                {suggestedExplore && (
+                    <Combobox.Group
+                        label={
+                            <>
+                                <MantineIcon
+                                    icon={IconSparkles}
+                                    size={12}
+                                    color="indigo.4"
+                                />
+                                Suggested for this chart
+                            </>
+                        }
+                        classNames={{ groupLabel: classes.sectionHeader }}
+                        mb={4}
+                    >
+                        <Combobox.Option
+                            value={`${SUGGESTED_TABLE_PREFIX}${suggestedExplore.explore.name}`}
+                            className={classes.row}
+                        >
+                            <MantineIcon
+                                icon={IconTable}
+                                size={14}
+                                color="dimmed"
+                                className={classes.suggestionIcon}
+                            />
+                            <Stack gap={0} flex={1} miw={0}>
+                                <Text fz="xs" fw={500} truncate>
+                                    {suggestedExplore.explore.label}
+                                </Text>
+                                <Text
+                                    c="dimmed"
+                                    className={classes.suggestionReason}
+                                    lineClamp={2}
+                                    title={suggestedExplore.reason}
+                                >
+                                    {suggestedExplore.reason}
+                                </Text>
+                            </Stack>
+                        </Combobox.Option>
+                    </Combobox.Group>
                 )}
                 {showTables && (
                     <Combobox.Group
@@ -507,7 +576,9 @@ const PickerBody: FC<BodyProps> = ({
                 <ScrollArea.Autosize
                     mah={350}
                     scrollbars="y"
-                    classNames={{ content: scrollAreaClasses.verticalContent }}
+                    classNames={{
+                        content: `${scrollAreaClasses.verticalContent} ${classes.listContent}`,
+                    }}
                     viewportRef={viewportRef}
                     onScrollPositionChange={loadMoreIfNearBottom}
                 >

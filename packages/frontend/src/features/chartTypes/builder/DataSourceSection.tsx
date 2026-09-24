@@ -10,6 +10,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
+import { useSuggestedChartTypeExplore } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import DataSourcePicker from './DataSourcePicker';
 import classes from './DataSourceSection.module.css';
 import {
@@ -96,6 +98,12 @@ const SAMPLE_TILE: TileState = {
  *  from, which opens the data source picker. */
 const DataSourceSection: FC<Props> = ({ savedChartSource, exploreSource }) => {
     const [pickerOpened, setPickerOpened] = useState(false);
+    const projectUuid = useProjectUuid();
+    // Warms the cache so the suggested row is there when the picker opens.
+    useSuggestedChartTypeExplore(
+        projectUuid,
+        exploreSource?.suggestTable ?? null,
+    );
     const tile: TileState = savedChartSource?.attached
         ? savedChartTile(savedChartSource.attached, savedChartSource.retry)
         : exploreSource?.attached

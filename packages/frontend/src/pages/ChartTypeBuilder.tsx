@@ -669,6 +669,18 @@ const ChartTypeBuilder: FC = () => {
         sourceRevision,
     ]);
 
+    // Without a built version there is no prompt to suggest a table for.
+    const suggestTable = useMemo(
+        () =>
+            isAmbientAiEnabled &&
+            history.latestReadyVersion !== null &&
+            schema !== null &&
+            schema.fields.length > 0
+                ? { ...promptContext, fields: schema.fields }
+                : null,
+        [isAmbientAiEnabled, history.latestReadyVersion, schema, promptContext],
+    );
+
     const exploreSource = useMemo<ExploreSourceControls>(() => {
         const { run } = explorePreview;
         const attached: AttachedExplore | null =
@@ -702,6 +714,7 @@ const ChartTypeBuilder: FC = () => {
                     : `${projectUuid}:explore:${exploreName}:${sourceRevision}`,
             attached,
             previewSource: exploreName !== null ? 'explore' : 'sample',
+            suggestTable,
             includeRows: workspace.includeSampleData,
             setIncludeRows: setIncludeSampleData,
             attach: (explore: PickedExplore) =>
@@ -728,6 +741,7 @@ const ChartTypeBuilder: FC = () => {
         setIncludeSampleData,
         setSourceParams,
         sourceRevision,
+        suggestTable,
         workspace.includeSampleData,
     ]);
 

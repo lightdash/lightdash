@@ -89,6 +89,19 @@ vi.mock('../../../hooks/useChartSummariesV2', () => ({
     },
 }));
 
+const { tableSuggestionState } = vi.hoisted(() => ({
+    tableSuggestionState: {
+        value: null as { exploreName: string; reason: string } | null,
+    },
+}));
+
+vi.mock('../../../ee/features/ambientAi/hooks/useChartTypeSuggestions', () => ({
+    useSuggestedChartTypeExplore: (
+        _projectUuid: string | undefined,
+        request: unknown,
+    ) => (request === null ? null : tableSuggestionState.value),
+}));
+
 vi.mock('../../apps/hooks/useAttachResourceLink', () => ({
     useAttachResourceLink: () => ({
         attachFromLink: vi.fn(async () => 'not-a-link'),
@@ -116,6 +129,7 @@ const exploreSource = (
     sourceIdentity: attached ? 'explore' : null,
     attached,
     previewSource: attached ? 'explore' : 'sample',
+    suggestTable: null,
     includeRows: false,
     setIncludeRows: vi.fn(),
     attach: vi.fn(),
@@ -189,6 +203,7 @@ describe('DataSourcePicker', () => {
         vi.clearAllMocks();
         exploresState.isError = false;
         exploresState.data = null;
+        tableSuggestionState.value = null;
     });
 
     it('lists tables before saved charts, grouped by group label and space', () => {
@@ -440,5 +455,114 @@ describe('DataSourcePicker', () => {
         expect(
             screen.getByRole('option', { name: 'Table 140' }),
         ).toHaveAttribute('aria-selected', 'true');
+    });
+
+    describe('suggested table', () => {
+        const suggestTable = {
+            prompt: 'revenue by region',
+            clarifications: [],
+            fields: [
+                {
+                    name: 'value',
+                    label: 'Value',
+                    type: 'metric' as const,
+                    required: true,
+                },
+            ],
+        };
+        const withSuggestion = (
+            attached: AttachedExplore | null = null,
+        ): ExploreSourceControls => ({
+            ...exploreSource(attached),
+            suggestTable,
+        });
+        const reason = 'Invoices has the amount and the region it asks for.';
+
+        beforeEach(() => {
+            tableSuggestionState.value = { exploreName: 'invoices', reason };
+        });
+
+        it('leads with the suggested table and its reason', () => {
+            renderPicker({ explores: withSuggestion() });
+
+            const header = screen.getByText('Suggested for this chart');
+            const suggested = screen.getByRole('option', {
+                name: new RegExp(`Invoices.*${reason}`),
+            });
+            expect(isBefore(header, suggested)).toBe(true);
+            expect(isBefore(suggested, screen.getByText('Tables'))).toBe(true);
+            expect(
+                screen.getByRole('option', { name: 'Invoices' }),
+            ).toBeInTheDocument();
+        });
+
+        it('attaches the suggested table like its Tables row', async () => {
+            const user = userEvent.setup();
+            const explores = withSuggestion();
+            const onOpenedChange = vi.fn();
+            renderPicker({ explores, onOpenedChange });
+
+            await user.click(
+                screen.getByRole('option', { name: new RegExp(reason) }),
+            );
+
+            expect(explores.attach).toHaveBeenCalledWith({
+                name: 'invoices',
+                label: 'Invoices',
+            });
+            expect(onOpenedChange).toHaveBeenCalledWith(false);
+        });
+
+        it.each([
+            {
+                name: 'there is no suggestion yet or it failed',
+                prepare: () => {
+                    tableSuggestionState.value = null;
+                },
+                explores: () => withSuggestion(),
+            },
+            {
+                name: 'ambient AI is off or nothing is built',
+                prepare: () => undefined,
+                explores: () => exploreSource(),
+            },
+            {
+                name: 'the suggested table is already attached',
+                prepare: () => undefined,
+                explores: () =>
+                    withSuggestion({
+                        ...attachedExplore,
+                        name: 'invoices',
+                        label: 'Invoices',
+                    }),
+            },
+        ])('hides the group when $name', ({ prepare, explores }) => {
+            prepare();
+            renderPicker({ explores: explores() });
+
+            expect(
+                screen.queryByText('Suggested for this chart'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByText('Tables')).toBeInTheDocument();
+        });
+
+        it('filters the suggestion with the search', async () => {
+            const user = userEvent.setup();
+            renderPicker({ explores: withSuggestion() });
+
+            await user.type(
+                screen.getByRole('textbox', {
+                    name: 'Search tables and saved charts',
+                }),
+                'pay',
+            );
+
+            expect(
+                screen.queryByText('Suggested for this chart'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('option', { name: 'Payments' }),
+            ).toBeInTheDocument();
+        });
     });
 });

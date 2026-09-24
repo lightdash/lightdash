@@ -256,6 +256,7 @@ describe('ConfigurePanel', () => {
                 message: null,
             },
             previewSource: 'explore',
+            suggestTable: null,
             includeRows: false,
             setIncludeRows: vi.fn(),
             attach: vi.fn(),
