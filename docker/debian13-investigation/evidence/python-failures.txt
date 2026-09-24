@@ -1,0 +1,629 @@
+Selected exact failures. Imports/CLI/parse/compile after a failed installation only report missing dbt; see exit codes in python-environments.json.
+
+=== bookworm-1.4: import-dbt.adapters.bigquery, exit=1 ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/__init__.py", line 1, in <module>
+    from dbt.adapters.bigquery.connections import BigQueryConnectionManager  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/connections.py", line 23, in <module>
+    from dbt.adapters.bigquery import gcloud
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/gcloud.py", line 1, in <module>
+    from dbt.events import AdapterLogger
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/__init__.py", line 1, in <module>
+    from .adapter_endpoint import AdapterLogger  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/adapter_endpoint.py", line 3, in <module>
+    from dbt.events.functions import fire_event
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/functions.py", line 4, in <module>
+    from dbt.events.eventmgr import EventManager, LoggerConfig, LineFormat, NoFilter
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/eventmgr.py", line 13, in <module>
+    import dbt.utils
+  File "/probe-venv/lib/python3.11/site-packages/dbt/utils.py", line 42, in <module>
+    import dbt.exceptions
+  File "/probe-venv/lib/python3.11/site-packages/dbt/exceptions.py", line 7, in <module>
+    from dbt.internal_deprecations import deprecated
+  File "/probe-venv/lib/python3.11/site-packages/dbt/internal_deprecations.py", line 4, in <module>
+    from dbt.events.functions import warn_or_error
+ImportError: cannot import name 'warn_or_error' from partially initialized module 'dbt.events.functions' (most likely due to a circular import) (/probe-venv/lib/python3.11/site-packages/dbt/events/functions.py)
+
+=== bookworm-1.4: compile, exit=2 ===
+usage: dbt [-h] [--version] [-r RECORD_TIMING_INFO] [-d]
+           [--log-format {text,json,default}] [--no-write-json]
+           [--use-colors | --no-use-colors] [--printer-width PRINTER_WIDTH]
+           [--warn-error | --warn-error-options WARN_ERROR_OPTIONS]
+           [--no-version-check] [--partial-parse | --no-partial-parse]
+           [--use-experimental-parser] [--no-static-parser]
+           [--profiles-dir PROFILES_DIR] [--no-anonymous-usage-stats] [-x]
+           [-q] [--no-print]
+           [--cache-selected-only | --no-cache-selected-only]
+           {docs,source,init,clean,debug,deps,list,ls,build,snapshot,run,compile,parse,test,seed,run-operation}
+           ...
+dbt: error: unrecognized arguments: --no-populate-cache --no-introspect
+
+=== bookworm-1.6: import-dbt.adapters.bigquery, exit=1 ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/__init__.py", line 1, in <module>
+    from dbt.adapters.bigquery.connections import BigQueryConnectionManager  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/connections.py", line 72, in <module>
+    bigquery._helpers._CELLDATA_FROM_JSON["JSON"] = _json_from_json
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.bigquery._helpers' has no attribute '_CELLDATA_FROM_JSON'
+
+=== bookworm-1.6: version, exit=1 ===
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/probe-venv/lib/python3.11/site-packages/dbt/cli/main.py", line 872, in <module>
+    cli()
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1631, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1551, in main
+    with self.make_context(prog_name, args, **extra) as ctx:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1362, in make_context
+    self.parse_args(ctx, args)
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1988, in parse_args
+    rest = super().parse_args(ctx, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1373, in parse_args
+    _, args = param.handle_parse_result(ctx, opts, args)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 2778, in handle_parse_result
+    value = self.process_value(ctx, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 3660, in process_value
+    return super().process_value(ctx, value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 2640, in process_value
+    value = self.callback(ctx, self, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/cli/params.py", line 573, in _version_callback
+    click.echo(get_version_information())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 24, in get_version_information
+    plugin_version_msg = _get_plugins_msg(installed)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 104, in _get_plugins_msg
+    for name, version_s in _get_dbt_plugins_info():
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 211, in _get_dbt_plugins_info
+    mod = importlib.import_module(f"dbt.adapters.{plugin_name}.__version__")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1128, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/__init__.py", line 1, in <module>
+    from dbt.adapters.bigquery.connections import BigQueryConnectionManager  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/connections.py", line 72, in <module>
+    bigquery._helpers._CELLDATA_FROM_JSON["JSON"] = _json_from_json
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.bigquery._helpers' has no attribute '_CELLDATA_FROM_JSON'
+
+=== bookworm-1.6: cli-version, exit=1 ===
+Traceback (most recent call last):
+  File "/probe-venv/bin/dbt", line 8, in <module>
+    sys.exit(cli())
+             ^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1631, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1551, in main
+    with self.make_context(prog_name, args, **extra) as ctx:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1362, in make_context
+    self.parse_args(ctx, args)
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1988, in parse_args
+    rest = super().parse_args(ctx, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1373, in parse_args
+    _, args = param.handle_parse_result(ctx, opts, args)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 2778, in handle_parse_result
+    value = self.process_value(ctx, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 3660, in process_value
+    return super().process_value(ctx, value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 2640, in process_value
+    value = self.callback(ctx, self, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/cli/params.py", line 573, in _version_callback
+    click.echo(get_version_information())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 24, in get_version_information
+    plugin_version_msg = _get_plugins_msg(installed)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 104, in _get_plugins_msg
+    for name, version_s in _get_dbt_plugins_info():
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 211, in _get_dbt_plugins_info
+    mod = importlib.import_module(f"dbt.adapters.{plugin_name}.__version__")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1128, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/__init__.py", line 1, in <module>
+    from dbt.adapters.bigquery.connections import BigQueryConnectionManager  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/connections.py", line 72, in <module>
+    bigquery._helpers._CELLDATA_FROM_JSON["JSON"] = _json_from_json
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.bigquery._helpers' has no attribute '_CELLDATA_FROM_JSON'
+
+=== trixie-1.4: install, exit=1 ===
+Collecting dbt-postgres~=1.4.0
+  Downloading dbt_postgres-1.4.10-py3-none-any.whl.metadata (3.0 kB)
+Collecting dbt-redshift~=1.4.0
+  Downloading dbt_redshift-1.4.1-py3-none-any.whl.metadata (3.0 kB)
+Collecting dbt-snowflake~=1.4.0
+  Downloading dbt_snowflake-1.4.5-py3-none-any.whl.metadata (3.0 kB)
+Collecting dbt-bigquery~=1.4.0
+  Downloading dbt_bigquery-1.4.5-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-databricks~=1.4.0
+  Downloading dbt_databricks-1.4.3-py3-none-any.whl.metadata (5.5 kB)
+Collecting dbt-trino~=1.4.0
+  Downloading dbt_trino-1.4.2-py3-none-any.whl.metadata (6.0 kB)
+Collecting dbt-clickhouse~=1.4.0
+  Downloading dbt_clickhouse-1.4.9-py2.py3-none-any.whl.metadata (20 kB)
+Collecting psycopg2-binary==2.9.6
+  Downloading psycopg2-binary-2.9.6.tar.gz (384 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Getting requirements to build wheel did not run successfully.
+  │ exit code: 1
+  ╰─> [34 lines of output]
+      /tmp/pip-build-env-9qn0ha9m/overlay/lib/python3.13/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+      !!
+      
+              ********************************************************************************
+              Please consider removing the following classifiers in favor of a SPDX license expression:
+      
+              License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)
+      
+              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+              ********************************************************************************
+      
+      !!
+        self._finalize_license_expression()
+      running egg_info
+      writing psycopg2_binary.egg-info/PKG-INFO
+      writing dependency_links to psycopg2_binary.egg-info/dependency_links.txt
+      writing top-level names to psycopg2_binary.egg-info/top_level.txt
+      
+      Error: pg_config executable not found.
+      
+      pg_config is required to build psycopg2 from source.  Please add the directory
+      containing pg_config to the $PATH or specify the full executable path with the
+      option:
+      
+          python setup.py build_ext --pg-config /path/to/pg_config build ...
+      
+      or with the pg_config option in 'setup.cfg'.
+      
+      If you prefer to avoid building psycopg2 from source, please install the PyPI
+      'psycopg2-binary' package instead.
+      
+      For further information please check the 'doc/src/install.rst' file (also at
+      <https://www.psycopg.org/docs/install.html>).
+      
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: subprocess-exited-with-error
+
+× Getting requirements to build wheel did not run successfully.
+│ exit code: 1
+╰─> See above for output.
+
+note: This error originates from a subprocess, and is likely not a problem with pip.
+
+=== trixie-1.5: install, exit=1 ===
+Collecting dbt-postgres~=1.5.0
+  Downloading dbt_postgres-1.5.12-py3-none-any.whl.metadata (3.0 kB)
+Collecting dbt-redshift~=1.5.0
+  Downloading dbt_redshift-1.5.12-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-snowflake~=1.5.0
+  Downloading dbt_snowflake-1.5.7-py3-none-any.whl.metadata (3.0 kB)
+Collecting dbt-bigquery~=1.5.0
+  Downloading dbt_bigquery-1.5.9-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-databricks~=1.5.0
+  Downloading dbt_databricks-1.5.7-py3-none-any.whl.metadata (5.6 kB)
+Collecting dbt-trino==1.5.0
+  Downloading dbt_trino-1.5.0-py3-none-any.whl.metadata (6.0 kB)
+Collecting dbt-clickhouse~=1.5.0
+  Downloading dbt_clickhouse-1.5.2-py2.py3-none-any.whl.metadata (22 kB)
+Collecting psycopg2-binary==2.9.6
+  Downloading psycopg2-binary-2.9.6.tar.gz (384 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Getting requirements to build wheel did not run successfully.
+  │ exit code: 1
+  ╰─> [34 lines of output]
+      /tmp/pip-build-env-efaoouec/overlay/lib/python3.13/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+      !!
+      
+              ********************************************************************************
+              Please consider removing the following classifiers in favor of a SPDX license expression:
+      
+              License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)
+      
+              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+              ********************************************************************************
+      
+      !!
+        self._finalize_license_expression()
+      running egg_info
+      writing psycopg2_binary.egg-info/PKG-INFO
+      writing dependency_links to psycopg2_binary.egg-info/dependency_links.txt
+      writing top-level names to psycopg2_binary.egg-info/top_level.txt
+      
+      Error: pg_config executable not found.
+      
+      pg_config is required to build psycopg2 from source.  Please add the directory
+      containing pg_config to the $PATH or specify the full executable path with the
+      option:
+      
+          python setup.py build_ext --pg-config /path/to/pg_config build ...
+      
+      or with the pg_config option in 'setup.cfg'.
+      
+      If you prefer to avoid building psycopg2 from source, please install the PyPI
+      'psycopg2-binary' package instead.
+      
+      For further information please check the 'doc/src/install.rst' file (also at
+      <https://www.psycopg.org/docs/install.html>).
+      
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: subprocess-exited-with-error
+
+× Getting requirements to build wheel did not run successfully.
+│ exit code: 1
+╰─> See above for output.
+
+note: This error originates from a subprocess, and is likely not a problem with pip.
+
+=== trixie-1.6: install, exit=1 ===
+Collecting dbt-postgres~=1.6.0
+  Downloading dbt_postgres-1.6.19-py3-none-any.whl.metadata (3.0 kB)
+Collecting dbt-redshift~=1.6.0
+  Downloading dbt_redshift-1.6.7-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-snowflake~=1.6.0
+  Downloading dbt_snowflake-1.6.8-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-bigquery~=1.6.0
+  Downloading dbt_bigquery-1.6.13-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-databricks~=1.6.0
+  Downloading dbt_databricks-1.6.9-py3-none-any.whl.metadata (5.6 kB)
+Collecting dbt-trino==1.6.0
+  Downloading dbt_trino-1.6.0-py3-none-any.whl.metadata (6.5 kB)
+Collecting dbt-clickhouse~=1.6.0
+  Downloading dbt_clickhouse-1.6.2-py2.py3-none-any.whl.metadata (23 kB)
+Collecting psycopg2-binary==2.9.6
+  Downloading psycopg2-binary-2.9.6.tar.gz (384 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Getting requirements to build wheel did not run successfully.
+  │ exit code: 1
+  ╰─> [34 lines of output]
+      /tmp/pip-build-env-hq4krn9v/overlay/lib/python3.13/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+      !!
+      
+              ********************************************************************************
+              Please consider removing the following classifiers in favor of a SPDX license expression:
+      
+              License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)
+      
+              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+              ********************************************************************************
+      
+      !!
+        self._finalize_license_expression()
+      running egg_info
+      writing psycopg2_binary.egg-info/PKG-INFO
+      writing dependency_links to psycopg2_binary.egg-info/dependency_links.txt
+      writing top-level names to psycopg2_binary.egg-info/top_level.txt
+      
+      Error: pg_config executable not found.
+      
+      pg_config is required to build psycopg2 from source.  Please add the directory
+      containing pg_config to the $PATH or specify the full executable path with the
+      option:
+      
+          python setup.py build_ext --pg-config /path/to/pg_config build ...
+      
+      or with the pg_config option in 'setup.cfg'.
+      
+      If you prefer to avoid building psycopg2 from source, please install the PyPI
+      'psycopg2-binary' package instead.
+      
+      For further information please check the 'doc/src/install.rst' file (also at
+      <https://www.psycopg.org/docs/install.html>).
+      
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: subprocess-exited-with-error
+
+× Getting requirements to build wheel did not run successfully.
+│ exit code: 1
+╰─> See above for output.
+
+note: This error originates from a subprocess, and is likely not a problem with pip.
+
+=== trixie-1.7: install, exit=1 ===
+Collecting dbt-postgres~=1.7.0
+  Downloading dbt_postgres-1.7.20-py3-none-any.whl.metadata (3.0 kB)
+Collecting dbt-redshift~=1.7.0
+  Downloading dbt_redshift-1.7.7-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-snowflake~=1.7.0
+  Downloading dbt_snowflake-1.7.5-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-bigquery~=1.7.0
+  Downloading dbt_bigquery-1.7.9-py3-none-any.whl.metadata (3.1 kB)
+Collecting dbt-databricks~=1.7.0
+  Downloading dbt_databricks-1.7.17-py3-none-any.whl.metadata (5.6 kB)
+Collecting dbt-trino==1.7.0
+  Downloading dbt_trino-1.7.0-py3-none-any.whl.metadata (7.1 kB)
+Collecting dbt-clickhouse~=1.7.0
+  Downloading dbt_clickhouse-1.7.7-py2.py3-none-any.whl.metadata (23 kB)
+Collecting psycopg2-binary==2.9.6
+  Downloading psycopg2-binary-2.9.6.tar.gz (384 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'error'
+  error: subprocess-exited-with-error
+  
+  × Getting requirements to build wheel did not run successfully.
+  │ exit code: 1
+  ╰─> [34 lines of output]
+      /tmp/pip-build-env-3n6ph3d4/overlay/lib/python3.13/site-packages/setuptools/dist.py:765: SetuptoolsDeprecationWarning: License classifiers are deprecated.
+      !!
+      
+              ********************************************************************************
+              Please consider removing the following classifiers in favor of a SPDX license expression:
+      
+              License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)
+      
+              See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+              ********************************************************************************
+      
+      !!
+        self._finalize_license_expression()
+      running egg_info
+      writing psycopg2_binary.egg-info/PKG-INFO
+      writing dependency_links to psycopg2_binary.egg-info/dependency_links.txt
+      writing top-level names to psycopg2_binary.egg-info/top_level.txt
+      
+      Error: pg_config executable not found.
+      
+      pg_config is required to build psycopg2 from source.  Please add the directory
+      containing pg_config to the $PATH or specify the full executable path with the
+      option:
+      
+          python setup.py build_ext --pg-config /path/to/pg_config build ...
+      
+      or with the pg_config option in 'setup.cfg'.
+      
+      If you prefer to avoid building psycopg2 from source, please install the PyPI
+      'psycopg2-binary' package instead.
+      
+      For further information please check the 'doc/src/install.rst' file (also at
+      <https://www.psycopg.org/docs/install.html>).
+      
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: subprocess-exited-with-error
+
+× Getting requirements to build wheel did not run successfully.
+│ exit code: 1
+╰─> See above for output.
+
+note: This error originates from a subprocess, and is likely not a problem with pip.
+
+=== trixie-1.8: install, exit=1 ===
+Collecting dbt-core~=1.8.0
+  Downloading dbt_core-1.8.10-py3-none-any.whl.metadata (4.1 kB)
+Collecting dbt-postgres~=1.8.0
+  Downloading dbt_postgres-1.8.2-py3-none-any.whl.metadata (4.0 kB)
+Collecting dbt-redshift~=1.8.0
+  Downloading dbt_redshift-1.8.1-py3-none-any.whl.metadata (3.2 kB)
+Collecting dbt-snowflake~=1.8.0
+  Downloading dbt_snowflake-1.8.4-py3-none-any.whl.metadata (3.2 kB)
+Collecting dbt-bigquery~=1.8.0
+  Downloading dbt_bigquery-1.8.3-py3-none-any.whl.metadata (3.2 kB)
+[... selected tail; full output is reproduced by probe.py ...]
+          buildtype   : release
+          vsenv       : True
+          b_ndebug    : if-release
+          b_vscrt     : md
+      
+      Found ninja-1.13.2.git.kitware.jobserver-pipe-1 at /tmp/pip-build-env-peqf7jyk/normal/bin/ninja
+      
+      Visual Studio environment is needed to run Ninja. It is recommended to use Meson wrapper:
+      /tmp/pip-build-env-peqf7jyk/overlay/bin/meson compile -C .
+      + /tmp/pip-build-env-peqf7jyk/normal/bin/ninja
+      [1/151] Generating pandas/_libs/algos_common_helper_pxi with a custom command
+      [2/151] Generating pandas/_libs/khash_primitive_helper_pxi with a custom command
+      [3/151] Generating pandas/_libs/algos_take_helper_pxi with a custom command
+      [4/151] Generating pandas/_libs/intervaltree_helper_pxi with a custom command
+      [5/151] Generating pandas/_libs/sparse_op_helper_pxi with a custom command
+      [6/151] Generating pandas/_libs/hashtable_class_helper_pxi with a custom command
+      [7/151] Generating pandas/_libs/index_class_helper_pxi with a custom command
+      [8/151] Generating pandas/_libs/hashtable_func_helper_pxi with a custom command
+      [9/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/dtypes.pyx
+      [10/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/base.pyx
+      [11/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/ccalendar.pyx
+      [12/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/nattype.pyx
+      [13/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/np_datetime.pyx
+      [14/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/conversion.pyx
+      [15/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/fields.pyx
+      [16/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/parsing.pyx
+      [17/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/offsets.pyx
+      [18/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/strptime.pyx
+      [19/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/timedeltas.pyx
+      [20/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/timezones.pyx
+      [21/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/period.pyx
+      [22/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/vectorized.pyx
+      [23/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/tzconversion.pyx
+      [24/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslibs/timestamps.pyx
+      [25/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/arrays.pyx
+      [26/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/indexing.pyx
+      [27/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/hashing.pyx
+      [28/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/internals.pyx
+      [29/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/hashtable.pyx
+      [30/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/index.pyx
+      [31/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/missing.pyx
+      [32/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/interval.pyx
+      [33/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/algos.pyx
+      [34/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/lib.pyx
+      [35/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/ops_dispatch.pyx
+      [36/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/properties.pyx
+      [37/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/ops.pyx
+      [38/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/parsers.pyx
+      [39/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/groupby.pyx
+      [40/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/byteswap.pyx
+      [41/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/testing.pyx
+      [42/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/tslib.pyx
+      [43/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/sas.pyx
+      [44/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/reshape.pyx
+      [45/151] Compiling C object pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/meson-generated_pandas__libs_tslibs_base.pyx.c.o
+      FAILED: [code=1] pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/meson-generated_pandas__libs_tslibs_base.pyx.c.o
+      cc -Ipandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p -Ipandas/_libs/tslibs -I../../pandas/_libs/tslibs -I../../../../pip-build-env-peqf7jyk/overlay/lib/python3.13/site-packages/numpy/core/include -I../../pandas/_libs/include -I/usr/include/python3.13 -fvisibility=hidden -fdiagnostics-color=always -DNDEBUG -D_FILE_OFFSET_BITS=64 -w -std=c99 -O3 -DNPY_NO_DEPRECATED_API=0 -DNPY_TARGET_VERSION=NPY_1_21_API_VERSION -fPIC -MD -MQ pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/meson-generated_pandas__libs_tslibs_base.pyx.c.o -MF pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/meson-generated_pandas__libs_tslibs_base.pyx.c.o.d -o pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/meson-generated_pandas__libs_tslibs_base.pyx.c.o -c pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/pandas/_libs/tslibs/base.pyx.c
+      pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/pandas/_libs/tslibs/base.pyx.c: In function ‘__Pyx_PyInt_As_long’:
+      pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/pandas/_libs/tslibs/base.pyx.c:5397:27: error: too few arguments to function ‘_PyLong_AsByteArray’
+       5397 |                 int ret = _PyLong_AsByteArray((PyLongObject *)v,
+            |                           ^~~~~~~~~~~~~~~~~~~
+      In file included from /usr/include/python3.13/longobject.h:107,
+                       from /usr/include/python3.13/Python.h:81,
+                       from pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/pandas/_libs/tslibs/base.pyx.c:6:
+      /usr/include/python3.13/cpython/longobject.h:111:17: note: declared here
+        111 | PyAPI_FUNC(int) _PyLong_AsByteArray(PyLongObject* v,
+            |                 ^~~~~~~~~~~~~~~~~~~
+      pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/pandas/_libs/tslibs/base.pyx.c: In function ‘__Pyx_PyInt_As_int’:
+      pandas/_libs/tslibs/base.cpython-313-x86_64-linux-gnu.so.p/pandas/_libs/tslibs/base.pyx.c:5631:27: error: too few arguments to function ‘_PyLong_AsByteArray’
+       5631 |                 int ret = _PyLong_AsByteArray((PyLongObject *)v,
+            |                           ^~~~~~~~~~~~~~~~~~~
+      /usr/include/python3.13/cpython/longobject.h:111:17: note: declared here
+        111 | PyAPI_FUNC(int) _PyLong_AsByteArray(PyLongObject* v,
+            |                 ^~~~~~~~~~~~~~~~~~~
+      [46/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/writers.pyx
+      [47/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/join.pyx
+      [48/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/window/indexers.pyx
+      [49/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/window/aggregations.pyx
+      [50/151] Compiling Cython source /tmp/pip-install-amgeu7vh/pandas_92522504d651454b9648f4d625b40bf1/pandas/_libs/sparse.pyx
+      ninja: build stopped: subcommand failed.
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+error: metadata-generation-failed
+
+× Encountered error while generating package metadata.
+╰─> See above for output.
+
+note: This is an issue with the package mentioned above, not pip.
+hint: See above for details.
+
+=== trixie-python311-1.4: import-dbt.adapters.bigquery, exit=1 ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/__init__.py", line 1, in <module>
+    from dbt.adapters.bigquery.connections import BigQueryConnectionManager  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/connections.py", line 23, in <module>
+    from dbt.adapters.bigquery import gcloud
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/gcloud.py", line 1, in <module>
+    from dbt.events import AdapterLogger
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/__init__.py", line 1, in <module>
+    from .adapter_endpoint import AdapterLogger  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/adapter_endpoint.py", line 3, in <module>
+    from dbt.events.functions import fire_event
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/functions.py", line 4, in <module>
+    from dbt.events.eventmgr import EventManager, LoggerConfig, LineFormat, NoFilter
+  File "/probe-venv/lib/python3.11/site-packages/dbt/events/eventmgr.py", line 13, in <module>
+    import dbt.utils
+  File "/probe-venv/lib/python3.11/site-packages/dbt/utils.py", line 42, in <module>
+    import dbt.exceptions
+  File "/probe-venv/lib/python3.11/site-packages/dbt/exceptions.py", line 7, in <module>
+    from dbt.internal_deprecations import deprecated
+  File "/probe-venv/lib/python3.11/site-packages/dbt/internal_deprecations.py", line 4, in <module>
+    from dbt.events.functions import warn_or_error
+ImportError: cannot import name 'warn_or_error' from partially initialized module 'dbt.events.functions' (most likely due to a circular import) (/probe-venv/lib/python3.11/site-packages/dbt/events/functions.py)
+
+=== trixie-python311-1.4: compile, exit=2 ===
+usage: dbt [-h] [--version] [-r RECORD_TIMING_INFO] [-d]
+           [--log-format {text,json,default}] [--no-write-json]
+           [--use-colors | --no-use-colors] [--printer-width PRINTER_WIDTH]
+           [--warn-error | --warn-error-options WARN_ERROR_OPTIONS]
+           [--no-version-check] [--partial-parse | --no-partial-parse]
+           [--use-experimental-parser] [--no-static-parser]
+           [--profiles-dir PROFILES_DIR] [--no-anonymous-usage-stats] [-x]
+           [-q] [--no-print]
+           [--cache-selected-only | --no-cache-selected-only]
+           {docs,source,init,clean,debug,deps,list,ls,build,snapshot,run,compile,parse,test,seed,run-operation}
+           ...
+dbt: error: unrecognized arguments: --no-populate-cache --no-introspect

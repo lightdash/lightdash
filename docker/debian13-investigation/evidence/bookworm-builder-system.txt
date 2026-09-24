@@ -1,0 +1,54 @@
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+v24.21.0
+Python 3.11.2
+
+This is perl 5, version 36, subversion 0 (v5.36.0) built for x86_64-linux-gnu-thread-multi
+(with 60 registered patches, see perl -V for more detail)
+
+Copyright 1987-2022, Larry Wall
+
+Perl may be copied only under the terms of either the Artistic License or the
+GNU General Public License, which may be found in the Perl 5 source kit.
+
+Complete documentation for Perl, including FAQ lists, should be found on
+this system using "man perl" or "perldoc perl".  If you have access to the
+Internet, point your browser at https://www.perl.org/, the Perl Home Page.
+
+OpenSSL 3.0.20 7 Apr 2026 (Library: OpenSSL 3.0.20 7 Apr 2026)
+ldd (Debian GLIBC 2.36-9+deb12u14) 2.36
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+Written by Roland McGrath and Ulrich Drepper.
+perl:
+  Installed: 5.36.0-7+deb12u3
+  Candidate: 5.36.0-7+deb12u3
+  Version table:
+ *** 5.36.0-7+deb12u3 500
+        500 http://deb.debian.org/debian bookworm/main amd64 Packages
+        100 /var/lib/dpkg/status
+     5.36.0-7+deb12u2 500
+        500 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages
+perl-base:
+  Installed: 5.36.0-7+deb12u3
+  Candidate: 5.36.0-7+deb12u3
+  Version table:
+ *** 5.36.0-7+deb12u3 500
+        500 http://deb.debian.org/debian bookworm/main amd64 Packages
+        100 /var/lib/dpkg/status
+     5.36.0-7+deb12u2 500
+        500 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages
+libio-compress-perl:
+  Installed: (none)
+  Candidate: 2.204-1
+  Version table:
+     2.204-1 500
+        500 http://deb.debian.org/debian bookworm/main amd64 Packages

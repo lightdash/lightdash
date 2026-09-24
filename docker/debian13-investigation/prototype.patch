@@ -1,0 +1,126 @@
+diff --git a/.github/workflows/docker-build-test.yml b/.github/workflows/docker-build-test.yml
+index 61b120f880..7fda13b11b 100644
+--- a/.github/workflows/docker-build-test.yml
++++ b/.github/workflows/docker-build-test.yml
+@@ -59,6 +59,7 @@ on:
+   pull_request:
+     paths:
+       - dockerfile
++      - dockerfile-prs
+       - docker/**
+       - scripts/ci/**
+       - .github/workflows/docker-build-test.yml
+@@ -73,7 +74,11 @@ permissions:
+ 
+ jobs:
+   build-and-describe:
+-    name: Build image (no push) and describe it
++    name: Build ${{ matrix.dockerfile }} (no push) and describe it
++    strategy:
++      fail-fast: false
++      matrix:
++        dockerfile: [dockerfile, dockerfile-prs]
+     # Fork PRs cannot see DEPOT_PROJECT_TOKEN. Skip rather than fail red.
+     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+     runs-on: depot-ubuntu-24.04-8
+@@ -103,7 +108,7 @@ jobs:
+           depot build . \
+             --project bgbbt3d0kc \
+             --platform linux/amd64 \
+-            --file dockerfile \
++            --file ${{ matrix.dockerfile }} \
+             --progress plain \
+             --load \
+             --iidfile image-id.txt \
+@@ -163,6 +168,22 @@ jobs:
+             | python3 scripts/ci/image-artifacts.py config --output image-artifacts/image-config.json
+           cat image-artifacts/image-config.json
+ 
++      - name: Check official Debian Perl and collect package inventory
++        env:
++          IMAGE_REF: ${{ steps.image.outputs.ref }}
++        run: |
++          set -euo pipefail
++          docker run --rm --network none --read-only --tmpfs /tmp \
++            --mount "type=bind,src=$PWD/docker/debian13-investigation/check-perl.sh,dst=/check-perl.sh,readonly" \
++            --entrypoint sh "$IMAGE_REF" /check-perl.sh \
++            | tee image-artifacts/perl-check.txt
++          docker run --rm --network none --read-only \
++            --entrypoint dpkg-query "$IMAGE_REF" \
++            -W '-f=${binary:Package}\t${Version}\t${Architecture}\n' \
++            > image-artifacts/dpkg.tsv
++          docker image inspect --format '{{.Size}}' "$IMAGE_REF" \
++            > image-artifacts/image-size-bytes.txt
++
+       - name: Collect filesystem manifest
+         env:
+           IMAGE_REF: ${{ steps.image.outputs.ref }}
+@@ -209,7 +230,7 @@ jobs:
+           {
+             echo "## Docker build test"
+             echo
+-            echo "Built \`dockerfile\` with \`push: false\` and empty SENTRY_* build-args. Nothing was tagged or pushed."
++            echo "Built \`${{ matrix.dockerfile }}\` with \`push: false\` and empty SENTRY_* build-args. Nothing was tagged or pushed."
+             echo
+             jq -r '
+               "| metric | value |",
+@@ -232,8 +253,16 @@ jobs:
+               image-artifacts/fs-summary.json
+           } >> "$GITHUB_STEP_SUMMARY"
+ 
++      - name: Preserve logs on failure
++        if: always()
++        run: |
++          mkdir -p image-artifacts
++          if [ -f build.log ]; then gzip -c build.log > image-artifacts/build.log.gz; fi
++          if [ -f build-metadata.json ]; then cp build-metadata.json image-artifacts/; fi
++
+       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
++        if: always()
+         with:
+-          name: docker-image-artifacts-${{ github.run_id }}
++          name: docker-image-artifacts-${{ matrix.dockerfile }}-${{ github.run_id }}
+           path: image-artifacts/
+           retention-days: 30
+diff --git a/dockerfile b/dockerfile
+index d97a4860fd..4b8fab19eb 100644
+--- a/dockerfile
++++ b/dockerfile
+@@ -10,7 +10,7 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
+ # -----------------------------
+ # Stage 0: pnpm setup base
+ # -----------------------------
+-FROM node:24-bookworm-slim AS pnpm-base
++FROM node:24-trixie-slim AS pnpm-base
+ 
+ ENV PNPM_HOME="/pnpm"
+ ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
+@@ -36,7 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
+     python3-psycopg2 \
+     python3-venv \
+     python3-dev \
+-    software-properties-common \
+     unzip \
+     git \
+     # Required by node-canvas prebuilt binaries for font rendering in chart images
+diff --git a/dockerfile-prs b/dockerfile-prs
+index 96c320d64d..25a67f526a 100644
+--- a/dockerfile-prs
++++ b/dockerfile-prs
+@@ -16,7 +16,7 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
+ # ------------------------------
+ # Stage 0: install dependencies
+ # ------------------------------
+-FROM node:24-bookworm-slim AS pnpm-base
++FROM node:24-trixie-slim AS pnpm-base
+ 
+ ENV PNPM_HOME="/pnpm"
+ ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
+@@ -39,7 +39,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
+     python3-psycopg2 \
+     python3-venv \
+     python3-dev \
+-    software-properties-common \
+     unzip \
+     git \
+     # Required by node-canvas prebuilt binaries for font rendering in chart images

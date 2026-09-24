@@ -1,0 +1,7 @@
+perl	5.40.1-6+deb13u1
+perl-base	5.40.1-6+deb13u1
+perl-modules-5.40	5.40.1-6+deb13u1
+libperl5.40	5.40.1-6+deb13u1
+libio-compress-perl: not installed
+usr/share/perl/5.40.1/File/GlobMapper.pm: FAILED
+md5sum: WARNING: 1 computed checksum did NOT match

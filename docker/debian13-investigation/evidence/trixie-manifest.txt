@@ -1,0 +1,88 @@
+Name:      docker.io/library/node:24-trixie-slim
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:8ec5d7557396cfe32d21c3f9c13072355ceab22b584578ca4bb28af31120cffe
+           
+Manifests: 
+  Name:        docker.io/library/node:24-trixie-slim@sha256:b64fccfbcd1ae10d11b969a868b50e1c2530a7054813d5cdea04ac3bce551697
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    linux/amd64
+  Annotations: 
+    org.opencontainers.image.url:             https://hub.docker.com/_/node
+    org.opencontainers.image.version:         24-trixie-slim
+    com.docker.official-images.bashbrew.arch: amd64
+    org.opencontainers.image.base.digest:     sha256:7792b1f7702a86946cd518db72b6a407302c3e9bc1635634368b878189e8221c
+    org.opencontainers.image.base.name:       debian:trixie-slim
+    org.opencontainers.image.created:         2026-09-19T00:48:18Z
+    org.opencontainers.image.revision:        93a7bafc324a85ac1ee461604cff87cffacb6d7a
+    org.opencontainers.image.source:          https://github.com/nodejs/docker-node.git#93a7bafc324a85ac1ee461604cff87cffacb6d7a:24/trixie-slim
+               
+  Name:        docker.io/library/node:24-trixie-slim@sha256:d4ff4a66c363d3955f4134e56a03901cd7ec068238956d14a544d11659e9342e
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    unknown/unknown
+  Annotations: 
+    com.docker.official-images.bashbrew.arch: amd64
+    vnd.docker.reference.digest:              sha256:b64fccfbcd1ae10d11b969a868b50e1c2530a7054813d5cdea04ac3bce551697
+    vnd.docker.reference.type:                attestation-manifest
+               
+  Name:        docker.io/library/node:24-trixie-slim@sha256:7da5980a342ed134ad56bb16c918f94548cd15cf3b961aa231c286598accb536
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    linux/arm64/v8
+  Annotations: 
+    org.opencontainers.image.base.digest:     sha256:da496358bd6934d2bd6a563a33176a2e50eff5490c54b4ac6fb051b69fef4071
+    org.opencontainers.image.base.name:       debian:trixie-slim
+    org.opencontainers.image.created:         2026-09-19T00:51:07Z
+    org.opencontainers.image.revision:        93a7bafc324a85ac1ee461604cff87cffacb6d7a
+    org.opencontainers.image.source:          https://github.com/nodejs/docker-node.git#93a7bafc324a85ac1ee461604cff87cffacb6d7a:24/trixie-slim
+    org.opencontainers.image.url:             https://hub.docker.com/_/node
+    org.opencontainers.image.version:         24-trixie-slim
+    com.docker.official-images.bashbrew.arch: arm64v8
+               
+  Name:        docker.io/library/node:24-trixie-slim@sha256:bdf53f4395e408687af2376786d21efcc2341683870dc3d764173fcfe09ad422
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    unknown/unknown
+  Annotations: 
+    com.docker.official-images.bashbrew.arch: arm64v8
+    vnd.docker.reference.digest:              sha256:7da5980a342ed134ad56bb16c918f94548cd15cf3b961aa231c286598accb536
+    vnd.docker.reference.type:                attestation-manifest
+               
+  Name:        docker.io/library/node:24-trixie-slim@sha256:7f6acb80f307c8e03d0634cb0be05c38b0224f0e1b666275d745f13bfdf045f4
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    linux/ppc64le
+  Annotations: 
+    com.docker.official-images.bashbrew.arch: ppc64le
+    org.opencontainers.image.base.digest:     sha256:d7dc605ae51866ab640be68806bb01896966ef6089ddf1861a1b758774903c7c
+    org.opencontainers.image.base.name:       debian:trixie-slim
+    org.opencontainers.image.created:         2026-09-19T03:24:59Z
+    org.opencontainers.image.revision:        93a7bafc324a85ac1ee461604cff87cffacb6d7a
+    org.opencontainers.image.source:          https://github.com/nodejs/docker-node.git#93a7bafc324a85ac1ee461604cff87cffacb6d7a:24/trixie-slim
+    org.opencontainers.image.url:             https://hub.docker.com/_/node
+    org.opencontainers.image.version:         24-trixie-slim
+               
+  Name:        docker.io/library/node:24-trixie-slim@sha256:8cdd436ba86d3ada896c5c333cf5c317bd8bc7ca45af99d9776e82a8d30c006c
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    unknown/unknown
+  Annotations: 
+    vnd.docker.reference.digest:              sha256:7f6acb80f307c8e03d0634cb0be05c38b0224f0e1b666275d745f13bfdf045f4
+    vnd.docker.reference.type:                attestation-manifest
+    com.docker.official-images.bashbrew.arch: ppc64le
+               
+  Name:        docker.io/library/node:24-trixie-slim@sha256:56bcbd3440cc39cb9fb302d9ccf1fd43984aabf60b239d7205678a0e19eff94c
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    linux/s390x
+  Annotations: 
+    org.opencontainers.image.url:             https://hub.docker.com/_/node
+    org.opencontainers.image.version:         24-trixie-slim
+    com.docker.official-images.bashbrew.arch: s390x
+    org.opencontainers.image.base.digest:     sha256:c0519c2c1a61f37ec112cd0a4ee700071b1067b59c3b4409726975aeb5b9ebc9
+    org.opencontainers.image.base.name:       debian:trixie-slim
+    org.opencontainers.image.created:         2026-09-19T01:01:50Z
+    org.opencontainers.image.revision:        93a7bafc324a85ac1ee461604cff87cffacb6d7a
+    org.opencontainers.image.source:          https://github.com/nodejs/docker-node.git#93a7bafc324a85ac1ee461604cff87cffacb6d7a:24/trixie-slim
+               
+  Name:        docker.io/library/node:24-trixie-slim@sha256:8d01944b2f6e0143e45b6cf6fbe5bc85ddb1aaeb6b63cdfb066f720d45285c16
+  MediaType:   application/vnd.oci.image.manifest.v1+json
+  Platform:    unknown/unknown
+  Annotations: 
+    vnd.docker.reference.digest:              sha256:56bcbd3440cc39cb9fb302d9ccf1fd43984aabf60b239d7205678a0e19eff94c
+    vnd.docker.reference.type:                attestation-manifest
+    com.docker.official-images.bashbrew.arch: s390x

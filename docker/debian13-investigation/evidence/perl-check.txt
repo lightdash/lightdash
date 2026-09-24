@@ -1,0 +1,9 @@
+perl	5.40.1-6+deb13u1
+perl-base	5.40.1-6+deb13u1
+perl-modules-5.40	5.40.1-6+deb13u1
+libperl5.40	5.40.1-6+deb13u1
+libio-compress-perl: not installed
+usr/share/perl/5.40.1/File/GlobMapper.pm: OK
+dacbc6f394e736744c9f7b94cb082508cf4b9e839ca9a631fa291b463fa55705  /usr/share/perl/5.40.1/File/GlobMapper.pm
+GlobMapper literal output, capture mapping and escaping: PASS (/usr/share/perl/5.40.1/File/GlobMapper.pm)
+Active verified module: /usr/share/perl/5.40.1/File/GlobMapper.pm
