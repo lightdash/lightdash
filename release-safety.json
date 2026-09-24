@@ -1,40 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.319.0",
-  "previousVersion": "2.318.1",
-  "releaseDate": "2026-09-24T10:39:38.080Z",
+  "version": "2.319.1",
+  "previousVersion": "2.319.0",
+  "releaseDate": "2026-09-24T11:04:26.413Z",
   "migrations": {
-    "present": true,
-    "count": 2,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 2,
-    "files": [
-      {
-        "name": "20260922210000_create_ai_prompt_decision.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_prompt",
-          "ai_prompt_decision"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20260924090000_add_jev_service_ms_to_ai_prompt_decision.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_prompt_decision"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

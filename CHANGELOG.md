@@ -1,3 +1,10 @@
+## [2.319.1](https://github.com/lightdash/lightdash/compare/2.319.0...2.319.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **connections:** tag multi compiles and name the primary source refusal ([#29855](https://github.com/lightdash/lightdash/issues/29855)) ([3ce35a7](https://github.com/lightdash/lightdash/commit/3ce35a721c5dfc009a8ee8ba3b573b6858a13460))
+
 # [2.319.0](https://github.com/lightdash/lightdash/compare/2.318.1...2.319.0) (2026-09-24)
 
 
