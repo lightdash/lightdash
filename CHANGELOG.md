@@ -1,3 +1,10 @@
+## [2.319.5](https://github.com/lightdash/lightdash/compare/2.319.4...2.319.5) (2026-09-24)
+
+
+### Bug Fixes
+
+* **chart-studio:** keep the preview data card below the examples ([#29867](https://github.com/lightdash/lightdash/issues/29867)) ([617b819](https://github.com/lightdash/lightdash/commit/617b8190d7a7ae88f32273e341787ac14ece9aad))
+
 ## [2.319.4](https://github.com/lightdash/lightdash/compare/2.319.3...2.319.4) (2026-09-24)
 
 
