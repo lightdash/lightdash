@@ -1,3 +1,10 @@
+## [2.336.1](https://github.com/lightdash/lightdash/compare/2.336.0...2.336.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **connections:** open explore SQL in the SQL runner on its connection ([#29935](https://github.com/lightdash/lightdash/issues/29935)) ([9986161](https://github.com/lightdash/lightdash/commit/99861619c12555dd28dcfd403595d9f86054f7ee))
+
 # [2.336.0](https://github.com/lightdash/lightdash/compare/2.335.0...2.336.0) (2026-09-24)
 
 
