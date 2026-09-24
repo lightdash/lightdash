@@ -1,6 +1,7 @@
 import { type ComposerVizKind } from '@lightdash/common';
 import { SegmentedControl } from '@mantine/core';
 import {
+    Icon123,
     IconChartBar,
     IconChartLine,
     IconChartPie,
@@ -27,6 +28,7 @@ const CHART_TYPE_ICONS: Record<ComposerVizKind, typeof IconTable> = {
     scatter: IconChartScatter,
     pie: IconChartPie,
     funnel: IconFilter,
+    big_number: Icon123,
 };
 
 export const AgentVisualizationChartTypeSwitcher = <T extends ComposerVizKind>({

@@ -46,14 +46,14 @@ export const AiComposerArtifactVisualization: FC<ContentProps> = ({
         );
     }
 
-    if (kind !== 'table' && plan.x && plan.y) {
+    const axes = kind === 'table' ? undefined : plan.axes[kind];
+    if (kind !== 'table' && axes) {
         return (
             <AiComposerChartVisualization
                 projectUuid={projectUuid}
                 results={results}
                 kind={kind}
-                x={plan.x}
-                y={plan.y}
+                axes={axes}
                 headerContent={headerContent}
                 loadingMessage={LOADING_MESSAGE}
             />
