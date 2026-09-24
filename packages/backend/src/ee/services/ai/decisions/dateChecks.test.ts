@@ -105,8 +105,16 @@ describe('date source selection and query review', () => {
             expect.stringContaining('do not cover exactly "February 2024"'),
         ]);
         expect(evaluate).toHaveBeenCalledTimes(1);
+        // The year is also offered to the ranking check, which JEV declines in the same call.
+        expect(Object.keys(evaluate.mock.calls[0][0].questions)).toEqual(
+            expect.arrayContaining([
+                'rankingRequest',
+                'rankingDirection',
+                'rankingMeasure',
+            ]),
+        );
         expect(Object.keys(evaluate.mock.calls[0][0].questions)).toHaveLength(
-            8,
+            11,
         );
         expect(query).toEqual(before);
     });

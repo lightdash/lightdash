@@ -2300,6 +2300,12 @@ describe('query intent advice', () => {
                               confidence: 0.99,
                               probabilities: { '0': 0.99 },
                           },
+                          rankingDirection: {
+                              type: 'choice',
+                              choice: 'descending',
+                              confidence: 0.99,
+                              probabilities: { descending: 0.99 },
+                          },
                           rankingMeasure: {
                               type: 'choice',
                               choice: 'a_met1',
