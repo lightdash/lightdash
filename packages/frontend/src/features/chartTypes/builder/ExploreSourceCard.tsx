@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { EXPLORE_PREVIEW_ROW_LIMIT } from '../utils/explorePreviewQuery';
 import DataSourcePicker from './DataSourcePicker';
 import { exploreSummary, type ExploreSourceControls } from './exploreSource';
 import classes from './SavedChartSourceCard.module.css';
@@ -97,7 +98,8 @@ const ExploreSourceCard: FC<Props> = ({ source }) => {
                 ) : (
                     <Text fz="xs" c="dimmed" lh={1.5}>
                         The first version picks its fields from {attached.label}{' '}
-                        and runs the query.
+                        and runs the query, up to {EXPLORE_PREVIEW_ROW_LIMIT}{' '}
+                        rows.
                     </Text>
                 )}
             </Stack>

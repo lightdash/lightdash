@@ -116,6 +116,31 @@ const BuilderCanvas: FC<Props> = ({
     const hasPreview = appUuid !== null && previewVersion !== null;
     const isFirstBuild = isBuilding && !hasPreview;
 
+    // The attached source, or the offers to attach one. Either way it sits
+    // under the examples, so attaching never moves the row above it.
+    const attachedCard =
+        attachedChart && savedChartSource ? (
+            <SavedChartSourceCard source={savedChartSource} />
+        ) : attachedExplore && exploreSource ? (
+            <ExploreSourceCard source={exploreSource} />
+        ) : null;
+    const sourceSlot =
+        attachedCard ??
+        (savedChartSource ? (
+            exploreSource ? (
+                <SimpleGrid
+                    cols={{ base: 1, sm: 2 }}
+                    spacing="sm"
+                    className={classes.sourceOffers}
+                >
+                    <SavedChartSourceCard source={savedChartSource} />
+                    <ExploreSourceCard source={exploreSource} />
+                </SimpleGrid>
+            ) : (
+                <SavedChartSourceCard source={savedChartSource} />
+            )
+        ) : null);
+
     return (
         <Box className={classes.canvas}>
             {hasPreview ? (
@@ -192,45 +217,28 @@ const BuilderCanvas: FC<Props> = ({
                             from an example.
                         </Text>
                     </Stack>
-                    {attachedChart && savedChartSource && (
-                        <SavedChartSourceCard source={savedChartSource} />
-                    )}
-                    {attachedExplore && exploreSource && (
-                        <ExploreSourceCard source={exploreSource} />
-                    )}
                     {onPickExample && (
                         <BuilderPromptExamples
                             projectUuid={projectUuid}
                             onPick={onPickExample}
                         />
                     )}
-                    {savedChartSource && !attachedChart && !attachedExplore && (
+                    {sourceSlot && (
                         <Stack
-                            gap="md"
+                            gap="xl"
                             align="center"
                             className={classes.sourceGroup}
                         >
                             <Divider
                                 className={classes.sourceDivider}
-                                label="preview with your data, optional"
+                                label={
+                                    attachedCard
+                                        ? 'Preview data'
+                                        : 'Preview data (optional)'
+                                }
                                 labelPosition="center"
                             />
-                            {exploreSource ? (
-                                <SimpleGrid
-                                    cols={{ base: 1, sm: 2 }}
-                                    spacing="sm"
-                                    className={classes.sourceOffers}
-                                >
-                                    <SavedChartSourceCard
-                                        source={savedChartSource}
-                                    />
-                                    <ExploreSourceCard source={exploreSource} />
-                                </SimpleGrid>
-                            ) : (
-                                <SavedChartSourceCard
-                                    source={savedChartSource}
-                                />
-                            )}
+                            {sourceSlot}
                         </Stack>
                     )}
                 </Stack>

@@ -3,6 +3,14 @@ import { type ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import BuilderCanvas from './BuilderCanvas';
+import {
+    type AttachedExplore,
+    type ExploreSourceControls,
+} from './exploreSource';
+import {
+    type AttachedSavedChart,
+    type SavedChartSourceControls,
+} from './savedChartSource';
 
 vi.mock('../../apps/components/AppPreview', () => ({
     default: () => <div>Preview iframe</div>,
@@ -36,6 +44,120 @@ const renderCanvas = (
             {...props}
         />,
     );
+
+const savedChartControls = (
+    attached: AttachedSavedChart | null,
+): SavedChartSourceControls => ({
+    sourceIdentity: attached ? 'chart-a:0' : null,
+    attached,
+    previewSource: attached ? 'chart' : 'sample',
+    includeRows: false,
+    setIncludeRows: vi.fn(),
+    attach: vi.fn(),
+    detach: vi.fn(),
+    viewRows: vi.fn(),
+    retry: vi.fn(),
+});
+
+const exploreControls = (
+    attached: AttachedExplore | null,
+): ExploreSourceControls => ({
+    sourceIdentity: attached ? 'orders:0' : null,
+    attached,
+    previewSource: attached ? 'explore' : 'sample',
+    includeRows: false,
+    setIncludeRows: vi.fn(),
+    attach: vi.fn(),
+    detach: vi.fn(),
+    viewRows: vi.fn(),
+    retry: vi.fn(),
+});
+
+const ORDERS: AttachedExplore = {
+    name: 'orders',
+    label: 'Orders',
+    joinedTableLabels: [],
+    fieldCount: 9,
+    queriedFieldCount: 0,
+    status: 'idle',
+    isRunning: false,
+    rowCount: null,
+    ranAt: null,
+    message: null,
+};
+
+const REVENUE: AttachedSavedChart = {
+    uuid: 'chart-a',
+    status: 'ready',
+    chartName: 'Revenue by month',
+    spaceName: 'Growth',
+    rowCount: 24,
+    columns: [],
+    ranAt: new Date('2026-09-24T10:00:00Z'),
+    message: null,
+};
+
+const renderStartPage = (
+    props: Partial<ComponentProps<typeof BuilderCanvas>> = {},
+) =>
+    renderCanvas({
+        appUuid: null,
+        previewVersion: null,
+        configurePanel: null,
+        onPickExample: vi.fn(),
+        savedChartSource: savedChartControls(null),
+        exploreSource: exploreControls(null),
+        ...props,
+    });
+
+const EXAMPLE = 'A funnel of signup steps';
+
+const isBelow = (above: HTMLElement, below: HTMLElement) =>
+    above.compareDocumentPosition(below) === Node.DOCUMENT_POSITION_FOLLOWING;
+
+describe('BuilderCanvas start page', () => {
+    it('offers the data sources below the examples while nothing is attached', () => {
+        renderStartPage();
+
+        expect(
+            isBelow(
+                screen.getByText(EXAMPLE),
+                screen.getByRole('button', { name: 'Choose table' }),
+            ),
+        ).toBe(true);
+        expect(screen.getByText('Preview data (optional)')).toBeInTheDocument();
+    });
+
+    it('keeps an attached table below the examples, under a preview data label', () => {
+        renderStartPage({ exploreSource: exploreControls(ORDERS) });
+
+        expect(
+            isBelow(screen.getByText(EXAMPLE), screen.getByText('Orders')),
+        ).toBe(true);
+        expect(screen.getByText('Preview data')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Preview data (optional)'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Choose table' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps an attached saved chart below the examples', () => {
+        renderStartPage({ savedChartSource: savedChartControls(REVENUE) });
+
+        expect(
+            isBelow(
+                screen.getByText(EXAMPLE),
+                screen.getByText('Revenue by month'),
+            ),
+        ).toBe(true);
+        expect(screen.getByText('Preview data')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Choose saved chart' }),
+        ).not.toBeInTheDocument();
+    });
+});
 
 describe('BuilderCanvas', () => {
     it('renders the preview before the configure panel in the DOM', () => {

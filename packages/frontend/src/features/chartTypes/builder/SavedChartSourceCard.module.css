@@ -1,8 +1,11 @@
-/* Matches the example cards' row width, so the two read as one column. */
+/* Matches the example cards' row width, so the two read as one column. One
+   shared height for the offers and the attached card: the canvas centres the
+   whole start page, so a slot that changed height would move everything. */
 .emptyCard,
 .attachedCard {
     width: 836px;
     max-width: 100%;
+    min-height: 84px;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
         var(--mantine-spacing-sm) 14px;
 }
@@ -26,8 +29,17 @@
 }
 
 .attachedWrapper {
+    position: relative;
     width: 836px;
     max-width: 100%;
+}
+
+/* Hangs under the card without adding to the slot's height. */
+.rowsNote {
+    position: absolute;
+    top: calc(100% + var(--mantine-spacing-xs));
+    left: 0;
+    right: 0;
 }
 
 .iconTile,

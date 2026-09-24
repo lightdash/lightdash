@@ -353,7 +353,7 @@ const PickerBody: FC<BodyProps> = ({
     // What the list holds, as the copy names it.
     const kinds =
         exploreSource !== null && savedChartSource !== null
-            ? 'tables or charts'
+            ? 'tables or saved charts'
             : exploreSource !== null
               ? 'tables'
               : 'saved charts';

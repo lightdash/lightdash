@@ -261,7 +261,7 @@ describe('DataSourcePicker', () => {
         const user = userEvent.setup();
         renderPicker();
         const search = screen.getByRole('textbox', {
-            name: 'Search tables and charts',
+            name: 'Search tables and saved charts',
         });
 
         await user.type(search, 'cust');
@@ -292,7 +292,7 @@ describe('DataSourcePicker', () => {
         await user.clear(search);
         await user.type(search, 'zzz');
         expect(
-            await screen.findByText('No tables or charts match “zzz”'),
+            await screen.findByText('No tables or saved charts match “zzz”'),
         ).toBeInTheDocument();
     });
 
@@ -323,7 +323,7 @@ describe('DataSourcePicker', () => {
         const explores = exploreSource();
         renderPicker({ explores });
         const search = screen.getByRole('textbox', {
-            name: 'Search tables and charts',
+            name: 'Search tables and saved charts',
         });
 
         await user.click(search);
@@ -358,7 +358,9 @@ describe('DataSourcePicker', () => {
         renderPicker({ explores });
 
         await user.type(
-            screen.getByRole('textbox', { name: 'Search tables and charts' }),
+            screen.getByRole('textbox', {
+                name: 'Search tables and saved charts',
+            }),
             'pay',
         );
         expect(
@@ -380,7 +382,7 @@ describe('DataSourcePicker', () => {
             screen.getByText('Couldn’t load your tables.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText('No tables or charts'),
+            screen.queryByText('No tables or saved charts'),
         ).not.toBeInTheDocument();
         expect(screen.getByText(/^Saved charts/)).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Retry' }));
@@ -392,7 +394,7 @@ describe('DataSourcePicker', () => {
         const onOpenedChange = vi.fn();
         renderPicker({ explores, onOpenedChange });
         const search = screen.getByRole('textbox', {
-            name: 'Search tables and charts',
+            name: 'Search tables and saved charts',
         });
         await waitFor(() => expect(search).toHaveFocus());
 

@@ -91,7 +91,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             Use a saved chart
                         </Text>
                         <Text fz="xs" c="dimmed" lh={1.5}>
-                            Preview with its real data.
+                            Preview with its query results.
                         </Text>
                     </Stack>
                     <DataSourcePicker
@@ -119,7 +119,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
     }
 
     return (
-        <Stack gap={6} className={classes.attachedWrapper}>
+        <Box className={classes.attachedWrapper}>
             <Group className={classes.attachedCard} gap="sm" wrap="nowrap">
                 <Box className={classes.iconTileAccent}>
                     <MantineIcon icon={IconChartBar} size={18} />
@@ -129,8 +129,15 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                         <Text fz="sm" fw={500} truncate>
                             {attached.chartName}
                         </Text>
-                        <MetaLine attached={attached} />
+                        {attached.status !== 'running' && (
+                            <MetaLine attached={attached} />
+                        )}
                     </Group>
+                    {/* Nothing else fills the second row while the query runs,
+                        so the progress line takes it. */}
+                    {attached.status === 'running' && (
+                        <MetaLine attached={attached} />
+                    )}
                     {attached.status === 'error' && (
                         <Text fz="xs" c="red" lh={1.4}>
                             {attached.message ?? 'Couldn’t run this chart.'}
@@ -210,7 +217,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                     </Tooltip>
                 </Group>
             </Group>
-            <Text fz="xs" c="dimmed" ta="center">
+            <Text fz="xs" c="dimmed" ta="center" className={classes.rowsNote}>
                 {source.includeRows ? (
                     `Rows included · sends up to ${MAX_APP_VIZ_BUILD_SAMPLE_ROWS} rows with your prompt.`
                 ) : (
@@ -228,7 +235,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                     </>
                 )}
             </Text>
-        </Stack>
+        </Box>
     );
 };
 
