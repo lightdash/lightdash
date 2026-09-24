@@ -8,11 +8,13 @@ import knexConfig from '../../knexfile';
 import { VERSION } from '../../version';
 import {
     createMigrateCliContext,
+    parseMigrationTransientRetryConfig,
     parseMigrationWaitTimeoutMs,
     runMigrateCli,
 } from './cli';
 import { createMigrateKnexConfig } from './config';
 import { cleanupInvalidMigrationIndexes } from './invalidMigrationIndexes';
+import { findMigrationLockHolders } from './lockDiagnostics';
 import { getKnexMigrationState } from './migrationState';
 import {
     createKnexPreflightProbe,
@@ -30,10 +32,21 @@ const config = createMigrateKnexConfig(knexConfig[environment]);
 const defaultTimeoutMs = parseMigrationWaitTimeoutMs(
     process.env.MIGRATION_WAIT_TIMEOUT_MS,
 );
+const transientRetryConfig = parseMigrationTransientRetryConfig(process.env);
 
 const database = knex(config);
 const heartbeatDatabase = knex({
     ...config,
+    pool: {
+        ...config.pool,
+        min: 0,
+        max: 1,
+    },
+});
+
+const diagnosticsDatabase = knex({
+    ...config,
+    acquireConnectionTimeout: 2_000,
     pool: {
         ...config.pool,
         min: 0,
@@ -139,12 +152,14 @@ const main = async (): Promise<void> => {
                 connectionString: lightdashConfig.database.connectionUri,
             });
         },
+        findLockHolders: () => findMigrationLockHolders(diagnosticsDatabase),
         emitUpgradeEvent,
         onLeaseLost: (error) => {
             void flushAndExit(error);
         },
         allowMissingMigrations: lightdashConfig.database.allowMissingMigrations,
         defaultTimeoutMs,
+        ...transientRetryConfig,
     });
     await runMigrateCli(process.argv.slice(2), context);
 };
@@ -157,5 +172,9 @@ main()
     })
     .finally(async () => {
         await flushUpgradeEvents();
-        await Promise.all([database.destroy(), heartbeatDatabase.destroy()]);
+        await Promise.all([
+            database.destroy(),
+            heartbeatDatabase.destroy(),
+            diagnosticsDatabase.destroy(),
+        ]);
     });

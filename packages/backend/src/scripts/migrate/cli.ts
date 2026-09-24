@@ -4,6 +4,7 @@ import {
     type UpgradeTelemetryEvent,
 } from '../../analytics/upgradeTelemetryEvents';
 import {
+    type MigrationErrorClass,
     type MigrationLease,
     type MigrationLeaseClaimResult,
     type MigrationLeaseIdentity,
@@ -13,7 +14,12 @@ import {
     type MigrationRunHistoryReadResult,
     type MigrationRunStart,
 } from '../../database/migrationLease';
+import { classifyMigrationError, isLockTimeoutError } from './errorClass';
 import { MigrationHeartbeat, type MigrationHeartbeatClient } from './heartbeat';
+import {
+    formatMigrationLockHolder,
+    type MigrationLockHolder,
+} from './lockDiagnostics';
 import { type KnexMigrationState } from './migrationState';
 import { MigrationWaitTimeoutError } from './migrationWaitTimeoutError';
 import {
@@ -29,6 +35,11 @@ const DEFAULT_WAIT_TIMEOUT_MS = 30 * 60_000;
 const DEFAULT_FOLLOWER_POLL_INTERVAL_MS = 5_000;
 const DEFAULT_MIGRATION_MAX_ATTEMPTS = 3;
 const DEFAULT_MIGRATION_RETRY_DELAY_MS = 1_000;
+const DEFAULT_TRANSIENT_RETRY_BUDGET_MS = 15 * 60_000;
+const DEFAULT_TRANSIENT_RETRY_INITIAL_DELAY_MS = 2_000;
+const DEFAULT_TRANSIENT_RETRY_MAX_DELAY_MS = 60_000;
+const DEFAULT_TRANSIENT_PARK_COOLOFF_MS = 2 * 60_000;
+const PARKED_LOG_ERROR_LENGTH = 500;
 const GRAPHILE_MIGRATION_NAME = 'graphile-worker';
 const MIGRATION_NAME_PREVIEW_LIMIT = 5;
 const MIGRATE_CLI_HELP = `Usage:
@@ -69,6 +80,7 @@ type MigrateCliOptions = {
 export type MigrationLeaseCommandClient = MigrationHeartbeatClient & {
     claim: (
         identity: MigrationLeaseIdentity,
+        transientParkCooloffMs: number,
     ) => Promise<MigrationLeaseClaimResult>;
     setCurrentMigration: (
         token: string,
@@ -89,6 +101,7 @@ export type MigrationLeaseCommandClient = MigrationHeartbeatClient & {
         appVersion: string,
         failingMigration: string,
         failureDetail: string,
+        errorClass: MigrationErrorClass,
     ) => Promise<boolean>;
     readRunHistory: (limit?: number) => Promise<MigrationRunHistoryReadResult>;
     readLastSucceededRun: () => Promise<MigrationRun | null>;
@@ -110,6 +123,7 @@ export type MigrateCliContext = {
     isKnexLockHeld: () => Promise<boolean>;
     clearKnexLock: () => Promise<void>;
     runGraphileMigrations: () => Promise<void>;
+    findLockHolders: () => Promise<MigrationLockHolder[]>;
     log: (line: string) => void;
     logError: (line: string) => void;
     warn: (line: string) => void;
@@ -117,11 +131,16 @@ export type MigrateCliContext = {
     onLeaseLost: (error: Error) => void;
     sleep: (durationMs: number) => Promise<void>;
     now: () => number;
+    random: () => number;
     defaultTimeoutMs: number;
     followerPollIntervalMs: number;
     heartbeatIntervalMs: number;
     migrationMaxAttempts: number;
     migrationRetryDelayMs: number;
+    transientRetryBudgetMs: number;
+    transientRetryInitialDelayMs: number;
+    transientRetryMaxDelayMs: number;
+    transientParkCooloffMs: number;
     allowMissingMigrations: boolean;
 };
 
@@ -132,13 +151,19 @@ type PartialMigrateCliContext = Omit<
     | 'warn'
     | 'emitUpgradeEvent'
     | 'cleanupInvalidIndexes'
+    | 'findLockHolders'
     | 'sleep'
     | 'now'
+    | 'random'
     | 'defaultTimeoutMs'
     | 'followerPollIntervalMs'
     | 'heartbeatIntervalMs'
     | 'migrationMaxAttempts'
     | 'migrationRetryDelayMs'
+    | 'transientRetryBudgetMs'
+    | 'transientRetryInitialDelayMs'
+    | 'transientRetryMaxDelayMs'
+    | 'transientParkCooloffMs'
     | 'allowMissingMigrations'
 > &
     Partial<
@@ -149,13 +174,19 @@ type PartialMigrateCliContext = Omit<
             | 'warn'
             | 'emitUpgradeEvent'
             | 'cleanupInvalidIndexes'
+            | 'findLockHolders'
             | 'sleep'
             | 'now'
+            | 'random'
             | 'defaultTimeoutMs'
             | 'followerPollIntervalMs'
             | 'heartbeatIntervalMs'
             | 'migrationMaxAttempts'
             | 'migrationRetryDelayMs'
+            | 'transientRetryBudgetMs'
+            | 'transientRetryInitialDelayMs'
+            | 'transientRetryMaxDelayMs'
+            | 'transientParkCooloffMs'
             | 'allowMissingMigrations'
         >
     >;
@@ -176,8 +207,10 @@ export const createMigrateCliContext = (
     emitUpgradeEvent: context.emitUpgradeEvent ?? (() => {}),
     cleanupInvalidIndexes:
         context.cleanupInvalidIndexes ?? (() => Promise.resolve()),
+    findLockHolders: context.findLockHolders ?? (() => Promise.resolve([])),
     sleep: context.sleep ?? sleep,
     now: context.now ?? Date.now,
+    random: context.random ?? Math.random,
     defaultTimeoutMs: context.defaultTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
     followerPollIntervalMs:
         context.followerPollIntervalMs ?? DEFAULT_FOLLOWER_POLL_INTERVAL_MS,
@@ -186,6 +219,16 @@ export const createMigrateCliContext = (
         context.migrationMaxAttempts ?? DEFAULT_MIGRATION_MAX_ATTEMPTS,
     migrationRetryDelayMs:
         context.migrationRetryDelayMs ?? DEFAULT_MIGRATION_RETRY_DELAY_MS,
+    transientRetryBudgetMs:
+        context.transientRetryBudgetMs ?? DEFAULT_TRANSIENT_RETRY_BUDGET_MS,
+    transientRetryInitialDelayMs:
+        context.transientRetryInitialDelayMs ??
+        DEFAULT_TRANSIENT_RETRY_INITIAL_DELAY_MS,
+    transientRetryMaxDelayMs:
+        context.transientRetryMaxDelayMs ??
+        DEFAULT_TRANSIENT_RETRY_MAX_DELAY_MS,
+    transientParkCooloffMs:
+        context.transientParkCooloffMs ?? DEFAULT_TRANSIENT_PARK_COOLOFF_MS,
     allowMissingMigrations: context.allowMissingMigrations ?? false,
 });
 
@@ -215,6 +258,37 @@ export const parseMigrationWaitTimeoutMs = (
     value === undefined
         ? DEFAULT_WAIT_TIMEOUT_MS
         : parsePositiveInteger(value, 'MIGRATION_WAIT_TIMEOUT_MS');
+
+export type MigrationTransientRetryConfig = {
+    transientRetryBudgetMs: number;
+    transientRetryMaxDelayMs: number;
+    transientParkCooloffMs: number;
+};
+
+export const parseMigrationTransientRetryConfig = (
+    env: Record<string, string | undefined>,
+): MigrationTransientRetryConfig => {
+    const parse = (name: string, defaultValue: number): number => {
+        const value = env[name];
+        return value === undefined
+            ? defaultValue
+            : parsePositiveInteger(value, name);
+    };
+    return {
+        transientRetryBudgetMs: parse(
+            'MIGRATION_TRANSIENT_RETRY_BUDGET_MS',
+            DEFAULT_TRANSIENT_RETRY_BUDGET_MS,
+        ),
+        transientRetryMaxDelayMs: parse(
+            'MIGRATION_TRANSIENT_RETRY_MAX_DELAY_MS',
+            DEFAULT_TRANSIENT_RETRY_MAX_DELAY_MS,
+        ),
+        transientParkCooloffMs: parse(
+            'MIGRATION_TRANSIENT_PARK_COOLOFF_MS',
+            DEFAULT_TRANSIENT_PARK_COOLOFF_MS,
+        ),
+    };
+};
 
 const isMigrateCommand = (value: string): value is MigrateCommand =>
     value === 'up' ||
@@ -448,6 +522,7 @@ const createUpgradeRunTracker = (
         attempt: null,
         outcome: null,
         failure_class: null,
+        error_class: null,
         failing_migration: null,
         preceded_by_unlock: run.precededByUnlock,
         preceding_unlock_forced: run.precedingUnlockForced,
@@ -482,6 +557,8 @@ const createUpgradeRunTracker = (
                 attempt: activeRun.attempt,
                 outcome,
                 failure_class: failureClass,
+                error_class:
+                    error === null ? null : classifyMigrationError(error),
                 failing_migration:
                     failureClass === null ? null : activeRun.failingMigration,
             }),
@@ -517,6 +594,7 @@ const createUpgradeRunTracker = (
                     attempt: null,
                     outcome: null,
                     failure_class: 'preflight_blocked',
+                    error_class: null,
                     failing_migration: null,
                     preceded_by_unlock: null,
                     preceding_unlock_forced: null,
@@ -686,6 +764,118 @@ type SuccessfulMigrationAttempt = {
     startedAtMs: number;
 };
 
+type HolderRetryState = {
+    deterministicFailures: number;
+    transientFailures: number;
+    firstTransientFailureAtMs: number | null;
+};
+
+type RetryDecision =
+    | {
+          retry: true;
+          delayMs: number;
+          description: string;
+          state: HolderRetryState;
+      }
+    | {
+          retry: false;
+          description: string;
+      };
+
+const toSingleLine = (value: string, maxLength: number): string =>
+    value.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+
+const getTransientRetryDelayMs = (
+    context: MigrateCliContext,
+    transientFailures: number,
+): number => {
+    const exponentialDelayMs = Math.min(
+        context.transientRetryMaxDelayMs,
+        context.transientRetryInitialDelayMs * 2 ** (transientFailures - 1),
+    );
+    return Math.round(
+        exponentialDelayMs / 2 + (context.random() * exponentialDelayMs) / 2,
+    );
+};
+
+const decideRetry = (
+    context: MigrateCliContext,
+    errorClass: MigrationErrorClass,
+    state: HolderRetryState,
+): RetryDecision => {
+    switch (errorClass) {
+        case 'deterministic': {
+            const deterministicFailures = state.deterministicFailures + 1;
+            const description = `deterministic failure ${deterministicFailures}/${context.migrationMaxAttempts}`;
+            if (deterministicFailures >= context.migrationMaxAttempts) {
+                return { retry: false, description };
+            }
+            return {
+                retry: true,
+                delayMs:
+                    context.migrationRetryDelayMs *
+                    2 ** (deterministicFailures - 1),
+                description,
+                state: { ...state, deterministicFailures },
+            };
+        }
+        case 'transient': {
+            const nowMs = context.now();
+            const firstTransientFailureAtMs =
+                state.firstTransientFailureAtMs ?? nowMs;
+            const elapsedMs = nowMs - firstTransientFailureAtMs;
+            const remainingMs = context.transientRetryBudgetMs - elapsedMs;
+            const description = `transient failure, ${Math.round(elapsedMs / 1_000)}s of ${Math.round(context.transientRetryBudgetMs / 1_000)}s retry budget used`;
+            if (remainingMs <= 0) {
+                return { retry: false, description };
+            }
+            const transientFailures = state.transientFailures + 1;
+            return {
+                retry: true,
+                delayMs: Math.min(
+                    remainingMs,
+                    getTransientRetryDelayMs(context, transientFailures),
+                ),
+                description,
+                state: {
+                    ...state,
+                    transientFailures,
+                    firstTransientFailureAtMs,
+                },
+            };
+        }
+        default:
+            return assertUnreachable(
+                errorClass,
+                'Unknown migration error class',
+            );
+    }
+};
+
+const logLockHolders = async (
+    context: MigrateCliContext,
+    failingMigration: string,
+): Promise<void> => {
+    try {
+        const holders = await context.findLockHolders();
+        if (holders.length === 0) {
+            context.logError(
+                `MIGRATION_LOCK_HOLDER migration=${failingMigration} none_found`,
+            );
+            return;
+        }
+        holders.forEach((holder) => {
+            context.logError(
+                formatMigrationLockHolder(failingMigration, holder),
+            );
+        });
+    } catch (error) {
+        context.logError(
+            `Migration lock diagnostics failed: ${getErrorMessage(error)}`,
+        );
+    }
+};
+
 const runHolderAttempts = async (
     context: MigrateCliContext,
     claim: AcquiredMigrationLeaseClaim,
@@ -694,6 +884,7 @@ const runHolderAttempts = async (
     takeover: boolean,
     attempt: number,
     force: boolean,
+    retryState: HolderRetryState,
 ): Promise<SuccessfulMigrationAttempt> => {
     const result = await runHolderAttempt(
         context,
@@ -711,7 +902,12 @@ const runHolderAttempts = async (
             startedAtMs: result.startedAtMs,
         };
     }
-    if (attempt < context.migrationMaxAttempts) {
+    const errorClass = classifyMigrationError(result.failureError);
+    if (isLockTimeoutError(result.failureError)) {
+        await logLockHolders(context, result.failingMigration);
+    }
+    const decision = decideRetry(context, errorClass, retryState);
+    if (decision.retry) {
         requireTokenMutation(
             await context.leaseManager.recordRetry(
                 claim.token,
@@ -722,11 +918,10 @@ const runHolderAttempts = async (
             heartbeat,
         );
         tracker.emitRetry(result.failureError);
-        const retryDelay = context.migrationRetryDelayMs * 2 ** (attempt - 1);
         context.logError(
-            `Migration attempt ${attempt}/${context.migrationMaxAttempts} failed at ${result.failingMigration}: ${result.failureMessage}; retrying in ${retryDelay}ms`,
+            `Migration attempt ${attempt} failed at ${result.failingMigration} (${decision.description}): ${result.failureMessage}; retrying in ${decision.delayMs}ms`,
         );
-        await context.sleep(retryDelay);
+        await context.sleep(decision.delayMs);
         heartbeat.assertHeld();
         return runHolderAttempts(
             context,
@@ -736,6 +931,7 @@ const runHolderAttempts = async (
             takeover,
             attempt + 1,
             force,
+            decision.state,
         );
     }
     await heartbeat.stop();
@@ -747,14 +943,38 @@ const runHolderAttempts = async (
             context.identity.appVersion,
             result.failingMigration,
             result.failureDetail,
+            errorClass,
         ))
     ) {
         throw new Error('Migration lease was lost before parking');
     }
     tracker.emitParked(result.failureError);
-    throw new Error(
-        `Migration parked after ${context.migrationMaxAttempts} attempts at ${result.failingMigration}: ${result.failureMessage}`,
+    context.logError(
+        `MIGRATION_PARKED app_version=${context.identity.appVersion} migration=${result.failingMigration} error_class=${errorClass} run=${result.runUuid} attempts=${attempt} error=${toSingleLine(result.failureMessage, PARKED_LOG_ERROR_LENGTH)}`,
     );
+    if (errorClass === 'transient') {
+        throw new Error(
+            `Migration parked after ${attempt} attempts at ${result.failingMigration} (${decision.description}): ${result.failureMessage}; a pod of this version retries after a ${Math.round(context.transientParkCooloffMs / 1_000)}s cool-off`,
+        );
+    }
+    throw new Error(
+        `Migration parked after ${attempt} attempts at ${result.failingMigration}: ${result.failureMessage}`,
+    );
+};
+
+const getTransientParkForCurrentVersion = (
+    context: MigrateCliContext,
+    lease: MigrationLease | null,
+): (MigrationLease & { parkedAt: Date }) | null => {
+    if (
+        lease === null ||
+        lease.parkedAt === null ||
+        lease.parkedAppVersion !== context.identity.appVersion ||
+        lease.parkedErrorClass !== 'transient'
+    ) {
+        return null;
+    }
+    return { ...lease, parkedAt: lease.parkedAt };
 };
 
 const runAsHolder = async (
@@ -775,6 +995,15 @@ const runAsHolder = async (
         },
         onLeaseLost: context.onLeaseLost,
     });
+    const transientPark = getTransientParkForCurrentVersion(
+        context,
+        claim.lease,
+    );
+    if (transientPark !== null) {
+        context.logError(
+            `MIGRATION_PARK_RETRY app_version=${context.identity.appVersion} migration=${transientPark.parkedMigration ?? 'unknown'} parked_at=${transientPark.parkedAt.toISOString()} run=${transientPark.parkedRunUuid ?? 'unknown'}`,
+        );
+    }
     let succeeded = false;
     try {
         heartbeat.start();
@@ -786,6 +1015,11 @@ const runAsHolder = async (
             takeover,
             1,
             force,
+            {
+                deterministicFailures: 0,
+                transientFailures: 0,
+                firstTransientFailureAtMs: null,
+            },
         );
         await heartbeat.stop();
         heartbeat.assertHeld();
@@ -809,11 +1043,13 @@ const runAsHolder = async (
 };
 
 const pendingWorkExists = (
+    context: MigrateCliContext,
     state: KnexMigrationState,
     lease: MigrationLease | null,
 ): boolean =>
     state.pending.length > 0 ||
-    (lease !== null && lease.currentMigration !== null);
+    (lease !== null && lease.currentMigration !== null) ||
+    getTransientParkForCurrentVersion(context, lease) !== null;
 
 const assertNotParkedForCurrentVersion = (
     context: MigrateCliContext,
@@ -821,7 +1057,8 @@ const assertNotParkedForCurrentVersion = (
 ): void => {
     if (
         lease?.parkedAt === null ||
-        lease?.parkedAppVersion !== context.identity.appVersion
+        lease?.parkedAppVersion !== context.identity.appVersion ||
+        lease.parkedErrorClass === 'transient'
     ) {
         return;
     }
@@ -843,15 +1080,31 @@ const followMigrations = async (
     const { lease } = leaseRead;
     logFollowerState(context, state, lease);
     assertNotParkedForCurrentVersion(context, lease);
-    const hasPendingWork = pendingWorkExists(state, lease);
+    const hasPendingWork = pendingWorkExists(context, state, lease);
     const active = lease !== null && lease.claimToken !== null;
     if (!hasPendingWork && (!active || lease?.expired === true)) {
         context.log('Database migrations are complete');
         return;
     }
-    const claimable = !active || lease?.expired === true;
+    const transientPark = getTransientParkForCurrentVersion(context, lease);
+    const parkCooloffRemainingMs =
+        transientPark === null
+            ? 0
+            : transientPark.parkedAt.getTime() +
+              context.transientParkCooloffMs -
+              context.now();
+    if (parkCooloffRemainingMs > 0) {
+        context.log(
+            `Migration is parked for app version ${context.identity.appVersion} after transient failures at ${transientPark?.parkedMigration ?? 'unknown'}; retry allowed in ${Math.ceil(parkCooloffRemainingMs / 1_000)}s`,
+        );
+    }
+    const claimable =
+        (!active || lease?.expired === true) && parkCooloffRemainingMs <= 0;
     if (promote && hasPendingWork && claimable) {
-        const claim = await context.leaseManager.claim(context.identity);
+        const claim = await context.leaseManager.claim(
+            context.identity,
+            context.transientParkCooloffMs,
+        );
         if (claim.status === 'acquired') {
             context.log('Promoted follower to migration lease holder');
             const takeover =
@@ -901,7 +1154,10 @@ const runUp = async (
     const state = await context.getMigrationState();
     assertMigrationStateRunnable(state, preflightOptions.force);
     const leaseBeforeClaim = await context.leaseManager.read();
-    const claim = await context.leaseManager.claim(context.identity);
+    const claim = await context.leaseManager.claim(
+        context.identity,
+        context.transientParkCooloffMs,
+    );
     if (claim.status === 'acquired') {
         context.log('Acquired migration lease');
         const takeover =
@@ -963,7 +1219,7 @@ const formatParkedState = (lease: MigrationLease | null): string => {
     if (lease?.parkedAt === null || lease === null) {
         return 'none';
     }
-    return `version=${lease.parkedAppVersion ?? 'unknown'} migration=${lease.parkedMigration ?? 'unknown'} at=${lease.parkedAt.toISOString()} run=${lease.parkedRunUuid ?? 'unknown'} error=${lease.parkedError ?? 'unknown'}`;
+    return `version=${lease.parkedAppVersion ?? 'unknown'} migration=${lease.parkedMigration ?? 'unknown'} at=${lease.parkedAt.toISOString()} run=${lease.parkedRunUuid ?? 'unknown'} class=${lease.parkedErrorClass ?? 'unknown'} error=${lease.parkedError ?? 'unknown'}`;
 };
 
 const formatMigrationRun = (

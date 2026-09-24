@@ -35,6 +35,7 @@ const event: UpgradeTelemetryEvent = {
         attempt: 1,
         outcome: null,
         failure_class: null,
+        error_class: null,
         failing_migration: null,
         preceded_by_unlock: false,
         preceding_unlock_forced: null,
