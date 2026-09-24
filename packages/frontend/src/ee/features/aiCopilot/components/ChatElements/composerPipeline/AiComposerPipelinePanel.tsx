@@ -195,7 +195,6 @@ const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
             <Box className={styles.dot} />
             <Text component="span" className={styles.nodeTitle}>
                 {node.title}
-                {node.isTerminal ? ' · result' : ''}
             </Text>
             {node.kind === 'query' && <SourceType query={node.query} />}
         </Box>
