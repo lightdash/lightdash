@@ -3,13 +3,11 @@ import {
     allowsOptionalUserCredentials,
     assertRegisteredAccount,
     ConflictError,
-    FeatureFlags,
     fillOmittedSecrets,
     ForbiddenError,
     ParameterError,
     sensitiveCredentialsFieldNames,
     SingleConnectionProjectError,
-    supportsMultipleConnections,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     type Account,
@@ -40,6 +38,7 @@ import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
 import { getExtraConnectionRequireUserCredentials } from './extraConnectionUserCredentials';
+import { getMultipleConnectionsBlockReason } from './multipleConnectionsGate';
 
 export type WarehouseCredentialPolicy = {
     assertCanWriteWarehouseConnection: (
@@ -89,12 +88,11 @@ const isBindingConflict = (error: unknown): boolean =>
     error.constraint !== undefined &&
     BINDING_FOREIGN_KEYS.includes(error.constraint);
 
-export const WAREHOUSE_TYPE_REASON =
-    'Multiple connections are supported for Postgres and Athena projects only.';
-export const ENTITLEMENT_REASON =
-    'An extra connection needs the Enterprise multi-connection add-on.';
-export const ROLLOUT_REASON =
-    'Extra connections are not enabled for this organisation yet.';
+export {
+    ENTITLEMENT_REASON,
+    ROLLOUT_REASON,
+    WAREHOUSE_TYPE_REASON,
+} from './multipleConnectionsGate';
 
 const isNameConflict = (error: unknown): boolean =>
     error instanceof DatabaseError &&
@@ -217,24 +215,14 @@ export class WarehouseConnectionService extends BaseService {
         account: RegisteredAccount,
         project: WarehouseConnectionProject,
     ): Promise<string | null> {
-        if (!supportsMultipleConnections(project.originalWarehouseType)) {
-            return WAREHOUSE_TYPE_REASON;
-        }
-        if (
-            !this.licenseService.canHoldMultipleConnections(
-                project.organizationUuid,
-            )
-        ) {
-            return ENTITLEMENT_REASON;
-        }
-        const { enabled } = await this.featureFlagService.get({
-            user: {
-                userUuid: account.user.userUuid,
-                organizationUuid: project.organizationUuid,
+        return getMultipleConnectionsBlockReason(
+            {
+                licenseService: this.licenseService,
+                featureFlagService: this.featureFlagService,
             },
-            featureFlagId: FeatureFlags.MultiConnectionProjects,
-        });
-        return enabled ? null : ROLLOUT_REASON;
+            account,
+            project,
+        );
     }
 
     private static assertSameWarehouseType(

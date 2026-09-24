@@ -95,6 +95,7 @@ import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 import { WarehouseConnectionCompileModel } from './WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionIdentityModel } from './WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from './WarehouseConnectionModel/WarehouseConnectionModel';
+import { WarehouseConnectionSwitchModel } from './WarehouseConnectionSwitchModel/WarehouseConnectionSwitchModel';
 import { WarehouseConnectionTablesModel } from './WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 /**
  * Interface outlining all models. Add new models to
@@ -176,6 +177,7 @@ export type ModelManifest = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
     warehouseConnectionModel: WarehouseConnectionModel;
+    warehouseConnectionSwitchModel: WarehouseConnectionSwitchModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
     warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
@@ -728,6 +730,19 @@ export class ModelRepository
             () =>
                 new WarehouseConnectionIdentityModel({
                     database: this.database,
+                }),
+        );
+    }
+
+    public getWarehouseConnectionSwitchModel(): WarehouseConnectionSwitchModel {
+        return this.getModel(
+            'warehouseConnectionSwitchModel',
+            () =>
+                new WarehouseConnectionSwitchModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                    organizationWarehouseCredentialsModel:
+                        this.getOrganizationWarehouseCredentialsModel(),
                 }),
         );
     }

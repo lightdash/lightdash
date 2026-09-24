@@ -58,6 +58,10 @@ describe('connection bindings at warehouse credential call sites', () => {
                     file: 'services/WarehouseConnectionService/WarehouseConnectionService.ts',
                     calls: 2,
                 },
+                {
+                    file: 'services/WarehouseConnectionSwitchService/WarehouseConnectionSwitchService.ts',
+                    calls: 1,
+                },
             ]);
         },
         SOURCE_SCAN_TIMEOUT_MS,

@@ -457,6 +457,11 @@ import {
     type ApiWarehouseConnectionWithCredentialsResponse,
 } from './warehouseConnections';
 import { type ApiSqlRunnerWarehouseConnectionsResponse } from './warehouseConnectionSqlRunner';
+import {
+    type ApiWarehouseConnectionSwitchAvailabilityResponse,
+    type ApiWarehouseConnectionSwitchPlanResponse,
+    type ApiWarehouseConnectionSwitchResponse,
+} from './warehouseConnectionSwitch';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1304,6 +1309,9 @@ export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
     | ApiDbtSourceBindingsResponse['results']
+    | ApiWarehouseConnectionSwitchAvailabilityResponse['results']
+    | ApiWarehouseConnectionSwitchPlanResponse['results']
+    | ApiWarehouseConnectionSwitchResponse['results']
     | ApiWarehouseConnectionsResponse['results']
     | ApiWarehouseConnectionResponse['results']
     | ApiWarehouseConnectionWithCredentialsResponse['results']
