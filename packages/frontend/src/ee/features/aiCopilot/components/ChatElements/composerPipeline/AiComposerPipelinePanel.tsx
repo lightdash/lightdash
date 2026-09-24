@@ -336,7 +336,8 @@ const PipelineFlow: FC<{
     );
 };
 
-// Remount the flow when the pipeline shape changes so node state re-initialises.
+// Remount provider and flow when the pipeline shape changes, so the React Flow
+// store does not carry the previous pipeline's measured nodes into the new one.
 const pipelineKey = (layers: PipelineLayer[]) =>
     layers
         .flatMap((layer) => layer.nodes)
@@ -349,12 +350,8 @@ const PipelineGraph: FC<{
     onSelect: (nodeId: string) => void;
 }> = ({ layers, onSelect }) =>
     layers.length === 0 ? null : (
-        <ReactFlowProvider>
-            <PipelineFlow
-                key={pipelineKey(layers)}
-                layers={layers}
-                onSelect={onSelect}
-            />
+        <ReactFlowProvider key={pipelineKey(layers)}>
+            <PipelineFlow layers={layers} onSelect={onSelect} />
         </ReactFlowProvider>
     );
 
