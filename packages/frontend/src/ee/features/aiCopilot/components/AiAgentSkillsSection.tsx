@@ -410,7 +410,7 @@ export const AiAgentSkillsSection = ({
     return (
         <AgentSettingsSubsection
             title="Skills"
-            description="Step-by-step instructions for recurring tasks. The agent picks one up when a request matches."
+            description="Reusable instructions agents can use automatically, or users can run with /"
             action={showAction ? addSkillMenu('library') : null}
         >
             {body}
