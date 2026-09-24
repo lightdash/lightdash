@@ -1,3 +1,20 @@
+# [2.319.0](https://github.com/lightdash/lightdash/compare/2.318.1...2.319.0) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** let Jev interpret ranking phrasing ([#29825](https://github.com/lightdash/lightdash/issues/29825)) ([ab8be59](https://github.com/lightdash/lightdash/commit/ab8be59b35dd7d1dfd73c692a5ca24c600711281))
+
+
+### Features
+
+* **ai-agents:** log JEV decisions, apply compound edits and clarify ambiguous fields ([#29762](https://github.com/lightdash/lightdash/issues/29762)) ([f73b92a](https://github.com/lightdash/lightdash/commit/f73b92a52d991cd1a8a1b70d833596c20465f8c4))
+
+
+### Performance Improvements
+
+* **ai-agents:** stop fast decisions waiting on verified examples ([#29848](https://github.com/lightdash/lightdash/issues/29848)) ([a7afd6b](https://github.com/lightdash/lightdash/commit/a7afd6b94378c4d80d27cc06a6c066d3dcc83dec))
+
 ## [2.318.1](https://github.com/lightdash/lightdash/compare/2.318.0...2.318.1) (2026-09-24)
 
 
