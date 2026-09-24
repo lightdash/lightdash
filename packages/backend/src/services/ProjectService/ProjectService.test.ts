@@ -3216,7 +3216,15 @@ describe('ProjectService', () => {
 
     test('should run sql query', async () => {
         vi.spyOn(analyticsMock, 'track');
-        const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
+        const result = await service.runSqlQuery(
+            user,
+            projectUuid,
+            'fake sql',
+            {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            },
+        );
 
         expect(result).toEqual(resultsWith1Row);
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);

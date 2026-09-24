@@ -427,12 +427,11 @@ export class MetricsExplorerService extends BaseService {
             throw new Error('Time dimension not found');
         }
 
-        const credentials =
-            await this.projectModel.getWarehouseCredentialsForBinding(
+        const { type: adapterType } =
+            await this.projectService.getWarehouseSqlBuilderSettings(
                 projectUuid,
                 { kind: 'explore', exploreName },
             );
-        const adapterType = credentials.type;
 
         const { current, previous } = getRollingPeriodDates(rollingDays);
         // Reference the day-truncated dimension so the CASE bucket boundaries
