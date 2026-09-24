@@ -16,9 +16,9 @@ import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
 /** The organization catalogue and skill details. */
-export const SKILL_LIBRARY_KEY = 'aiAgentSkillLibrary';
+const SKILL_LIBRARY_KEY = 'aiAgentSkillLibrary';
 /** What one agent serves: bound custom skills plus built-ins. */
-export const AGENT_SKILLS_KEY = 'agentSkills';
+const AGENT_SKILLS_KEY = 'agentSkills';
 
 const skillsUrl = '/aiAgents/skills';
 const agentSkillsUrl = (projectUuid: string, agentUuid: string) =>

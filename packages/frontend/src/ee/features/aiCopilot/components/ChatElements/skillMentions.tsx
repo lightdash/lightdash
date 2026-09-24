@@ -27,7 +27,7 @@ import { deleteMentionBeforeCaret } from './mentionBackspace';
 import { SkillMentionNodeView } from './SkillMentionNodeView';
 import { SkillMenuName } from './SkillMenuName';
 
-export const SKILL_MENTION_NAME = 'skillMention';
+const SKILL_MENTION_NAME = 'skillMention';
 const skillMentionPluginKey = new PluginKey('skillMention');
 const skillHintPluginKey = new PluginKey('skillMentionHint');
 
