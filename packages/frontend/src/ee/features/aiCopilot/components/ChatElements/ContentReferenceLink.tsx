@@ -3,17 +3,17 @@ import { Anchor, Box, Text, type AnchorProps } from '@mantine/core';
 import {
     IconAppWindow,
     IconArrowRight,
-    IconBolt,
     IconBrandGithub,
     IconBrush,
     IconChartBar,
     IconClick,
     IconFile,
-    IconFileText,
     IconFileSpreadsheet,
+    IconFileText,
     IconFlask,
     IconGitPullRequest,
     IconLayoutDashboard,
+    IconLicense,
     IconMessages,
     IconPencil,
     IconSearch,
@@ -108,7 +108,7 @@ const getIconMeta = ({
             return {
                 color: 'indigo.7',
                 fill: 'indigo.4',
-                icon: IconBolt,
+                icon: IconLicense,
             };
         case 'artifact':
             return {

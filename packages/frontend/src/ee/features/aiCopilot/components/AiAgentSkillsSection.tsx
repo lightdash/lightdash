@@ -19,7 +19,7 @@ import {
     IconBooks,
     IconChevronDown,
     IconDots,
-    IconFileText,
+    IconLicense,
     IconPencil,
     IconPlus,
     IconSearch,
@@ -56,7 +56,7 @@ const SkillRow = ({
 }: {
     name: string;
     description: string;
-    icon: typeof IconFileText;
+    icon: typeof IconLicense;
     tag: ReactNode;
     menu: ReactNode;
 }) => (
@@ -305,7 +305,7 @@ export const AiAgentSkillsSection = ({
                     key={skill.uuid}
                     name={skill.name}
                     description={skill.description}
-                    icon={IconFileText}
+                    icon={IconLicense}
                     tag={
                         <Text size="xs" c="dimmed">
                             v{skill.currentVersion.versionNumber}

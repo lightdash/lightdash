@@ -1,6 +1,8 @@
 import { interpolateUiString } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { IconLicense } from '@tabler/icons-react';
 import { type NodeViewProps, NodeViewWrapper } from '@tiptap/react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import styles from './AgentChatInput.module.css';
 
@@ -24,6 +26,7 @@ export const SkillMentionNodeView = ({ node }: NodeViewProps) => {
                     : undefined
             }
         >
+            <MantineIcon icon={IconLicense} size={12} color="dimmed" />
             <Box component="span" className={styles.contentMentionLabel}>
                 /{name}
             </Box>
