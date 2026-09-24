@@ -42,6 +42,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         sql,
         sortBy,
         parameters,
+        warehouseConnectionUuid,
     }: {
         columns: VizColumn[];
         rows: RawResultRow[];
@@ -50,6 +51,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         sql: string;
         sortBy?: VizSortBy[];
         parameters: ParametersValuesMap;
+        warehouseConnectionUuid?: string | null;
     }) {
         const fields: SqlRunnerField[] = columns.map((column) => ({
             kind: FieldType.DIMENSION,
@@ -75,6 +77,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
                 sortBy,
                 context: QueryExecutionContext.SQL_RUNNER,
                 parameters,
+                warehouseConnectionUuid,
             }),
         });
     }

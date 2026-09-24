@@ -60,6 +60,8 @@ import {
     EditorTabs,
     selectActiveChartType,
     selectActiveEditorTab,
+    selectConnectionRoute,
+    selectConnectionUuid,
     selectFetchResultsOnLoad,
     selectLimit,
     selectParameterValues,
@@ -81,10 +83,10 @@ import { executeSqlDownloadQuery } from '../utils/executeSqlDownloadQuery';
 import styles from './ContentPanel.module.css';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
-import { SqlEditor } from './SqlEditor';
 import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
 import { SqlRunnerChart } from './SqlRunnerChart';
+import { SqlRunnerEditor } from './SqlRunnerEditor';
 
 export const ContentPanel: FC = () => {
     // State we need from redux
@@ -226,9 +228,20 @@ export const ContentPanel: FC = () => {
         ['mod + enter', () => handleRunQuery, { preventDefault: true }],
     ]);
 
+    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
+    const isConnectionReady = useAppSelector((state) => {
+        const connectionRoute = selectConnectionRoute(state);
+        return (
+            connectionRoute.route === 'single' ||
+            (connectionRoute.route === 'multi' &&
+                connectionRoute.connection !== null)
+        );
+    });
+
     useEffect(
         // When the user opens the sql runner and the query results are not yet loaded, run the query and then change to the visualization tab
         function handleEditModeOnLoad() {
+            if (!isConnectionReady) return;
             if (fetchResultsOnLoad && !hasQueryResults) {
                 void handleRunQuery(sql);
             } else if (
@@ -240,6 +253,7 @@ export const ContentPanel: FC = () => {
             }
         },
         [
+            isConnectionReady,
             fetchResultsOnLoad,
             handleRunQuery,
             hasQueryResults,
@@ -407,11 +421,19 @@ export const ContentPanel: FC = () => {
                     sql,
                     limit: downloadLimit,
                     parameterValues,
+                    warehouseConnectionUuid,
                 });
             }
             return queryUuid;
         },
-        [sql, projectUuid, limit, queryUuid, parameterValues],
+        [
+            sql,
+            projectUuid,
+            limit,
+            queryUuid,
+            parameterValues,
+            warehouseConnectionUuid,
+        ],
     );
 
     const getDownloadPivotQueryUuid = useCallback(async () => {
@@ -651,7 +673,7 @@ export const ContentPanel: FC = () => {
                                             activeEditorTab === EditorTabs.SQL
                                         }
                                     >
-                                        <SqlEditor
+                                        <SqlRunnerEditor
                                             resetHighlightError={() =>
                                                 dispatch(
                                                     setEditorHighlightError(

@@ -18,7 +18,11 @@ import { useParameters } from '../../../hooks/parameters/useParameters';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import { useSqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
-import { useTableFields } from '../hooks/useTableFields';
+import {
+    useTableFields,
+    type WarehouseTableField,
+    type WarehouseTableFieldWithContext,
+} from '../hooks/useTableFields';
 import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
@@ -53,24 +57,27 @@ const SQL_RUNNER_MONACO_OPTIONS: EditorProps['options'] = {
     fixedOverflowWidgets: true,
 };
 
-export const SqlEditor: FC<{
+export type SqlEditorProps = {
     onSubmit?: (sql: string) => void;
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
-}> = ({ onSubmit, highlightText, resetHighlightError }) => {
-    const { monaco: monacoTheme } = useEditorTheme();
+};
+
+export type EditorTables = { database: string; tablesBySchema: TablesBySchema };
+
+export type SqlEditorCatalog = {
+    transformedData: EditorTables | undefined;
+    isTablesDataLoading: boolean;
+    tableFieldsData: WarehouseTableField[] | undefined;
+    detectedTablesFieldData: WarehouseTableFieldWithContext[] | undefined;
+    currentTable: string | undefined;
+    currentSchema: string | undefined;
+};
+
+export const SqlEditor: FC<SqlEditorProps> = (props) => {
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const warehouseConnectionType = useAppSelector(
-        (state) => state.sqlRunner.warehouseConnectionType,
-    );
-
-    const [settings] = useSqlEditorPreferences(warehouseConnectionType);
-
-    // Fetch all available parameters for the project
-    const { data: availableParameters } = useParameters(projectUuid, undefined);
 
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
@@ -88,9 +95,7 @@ export const SqlEditor: FC<{
         search: undefined,
     });
 
-    const transformedData:
-        | { database: string; tablesBySchema: TablesBySchema }
-        | undefined = useMemo(() => {
+    const transformedData: EditorTables | undefined = useMemo(() => {
         if (!tablesData || isEmpty(tablesData)) return undefined;
         const [database] = Object.keys(tablesData);
         if (!database) return undefined;
@@ -115,6 +120,46 @@ export const SqlEditor: FC<{
         projectUuid,
         transformedData,
     });
+
+    return (
+        <SqlEditorView
+            {...props}
+            catalog={{
+                transformedData,
+                isTablesDataLoading,
+                tableFieldsData,
+                detectedTablesFieldData,
+                currentTable,
+                currentSchema,
+            }}
+        />
+    );
+};
+
+export const SqlEditorView: FC<
+    SqlEditorProps & { catalog: SqlEditorCatalog }
+> = ({ onSubmit, highlightText, resetHighlightError, catalog }) => {
+    const {
+        transformedData,
+        isTablesDataLoading,
+        tableFieldsData,
+        detectedTablesFieldData,
+        currentTable,
+        currentSchema,
+    } = catalog;
+    const { monaco: monacoTheme } = useEditorTheme();
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const dispatch = useAppDispatch();
+    const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const warehouseConnectionType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
+    );
+
+    const [settings] = useSqlEditorPreferences(warehouseConnectionType);
+
+    // Fetch all available parameters for the project
+    const { data: availableParameters } = useParameters(projectUuid, undefined);
 
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);

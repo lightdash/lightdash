@@ -19,6 +19,7 @@ type UseSqlQueryRunParams = {
     sql: SqlRunnerBody['sql'];
     limit: SqlRunnerBody['limit'];
     parameterValues?: ParametersValuesMap;
+    warehouseConnectionUuid?: string | null;
 };
 
 /**
@@ -38,8 +39,15 @@ export const useSqlQueryRun = (
         ApiError,
         UseSqlQueryRunParams
     >(
-        async ({ sql, limit, parameterValues }) =>
-            executeSqlQuery(projectUuid, sql, limit, parameterValues),
+        async ({ sql, limit, parameterValues, warehouseConnectionUuid }) =>
+            executeSqlQuery(
+                projectUuid,
+                sql,
+                limit,
+                parameterValues,
+                undefined,
+                warehouseConnectionUuid,
+            ),
         {
             mutationKey: ['sqlRunner', 'run'],
             ...useMutationOptions,

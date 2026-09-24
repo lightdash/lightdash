@@ -44,6 +44,7 @@ export const executeSqlQuery = async (
     limit?: number,
     parameterValues?: ParametersValuesMap,
     invalidateCache?: boolean,
+    warehouseConnectionUuid?: string | null,
 ): Promise<ResultsAndColumns> => {
     const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
         url: `/projects/${projectUuid}/query/sql`,
@@ -54,6 +55,9 @@ export const executeSqlQuery = async (
             limit,
             parameters: parameterValues,
             invalidateCache,
+            ...(warehouseConnectionUuid === undefined
+                ? {}
+                : { warehouseConnectionUuid }),
         }),
     });
 
