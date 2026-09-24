@@ -1,3 +1,10 @@
+# [2.329.0](https://github.com/lightdash/lightdash/compare/2.328.0...2.329.0) (2026-09-24)
+
+
+### Features
+
+* **connections:** choose the connection of a dbt source in project settings ([#29920](https://github.com/lightdash/lightdash/issues/29920)) ([fbebf05](https://github.com/lightdash/lightdash/commit/fbebf0554ae60e308eae21efe95935f7a5ef2f2b))
+
 # [2.328.0](https://github.com/lightdash/lightdash/compare/2.327.2...2.328.0) (2026-09-24)
 
 
