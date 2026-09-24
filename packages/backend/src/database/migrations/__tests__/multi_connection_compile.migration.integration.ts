@@ -971,6 +971,23 @@ describe('Multi-connection compile on the real schema', () => {
             );
         });
 
+        test('the binding service refuses a dbt source of another project', async () => {
+            const fixture = await createProject();
+            const other = await createProject();
+
+            await expect(
+                bindingService().bindDbtSource(
+                    await projectAdmin(fixture.projectUuid),
+                    fixture.projectUuid,
+                    other.sourceUuids.finance,
+                    null,
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(await financeBinding(other.projectUuid)).toBe(
+                other.extraConnectionUuid,
+            );
+        });
+
         test('the binding service refuses to bind a source in a single project', async () => {
             const fixture = await createProject();
             await database('projects')
