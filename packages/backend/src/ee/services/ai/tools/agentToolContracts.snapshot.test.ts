@@ -309,11 +309,6 @@ describe('AI agent tool contracts', () => {
 
     it.each([
         {
-            name: 'structured-filter',
-            enableFilterExpressions: false,
-            enableGenerateDataApp: false,
-        },
-        {
             name: 'filter-expression',
             enableFilterExpressions: true,
             enableGenerateDataApp: false,

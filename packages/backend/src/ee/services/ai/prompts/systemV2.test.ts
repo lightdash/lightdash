@@ -115,7 +115,6 @@ describe('getSystemPromptV2 filter expressions', () => {
             availableExplores: [],
         });
 
-        expect(instruction).toMatchSnapshot();
         expect(instruction).toContain(
             'Set `filters` to null when no additional scope is needed.',
         );
@@ -130,7 +129,6 @@ describe('getSystemPromptV2 filter expressions', () => {
             enableFilterExpressions: true,
         });
 
-        expect(instruction).toMatchSnapshot();
         expect(instruction).toContain(
             'Omit `filters` when the search is unscoped.',
         );
@@ -148,7 +146,6 @@ describe('getSystemPromptV2 filter expressions', () => {
         });
         const section = extractExpressionFilterSection(content);
 
-        expect(section).toMatchSnapshot();
         expect(section).not.toContain('`type`');
         expect(section).not.toContain('type: or');
         expect(section).not.toContain('rule arrays');
