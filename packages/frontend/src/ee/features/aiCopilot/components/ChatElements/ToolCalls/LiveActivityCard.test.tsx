@@ -37,9 +37,22 @@ const composerToolGroups: LiveActivityToolGroup[] = [
 ];
 
 describe('LiveActivityCard composer queries', () => {
-    it('shows composer SQL by default while the query is running', async () => {
+    const runningTargets = [
+        {
+            message: 'Running "targets"',
+            toolName: 'runComposerQueries',
+            progressId: 'composer-call:targets',
+            progressStatus: 'in_progress' as const,
+        },
+    ];
+
+    it('shows the running node SQL by default while the query is running', async () => {
         renderWithProviders(
-            <LiveActivityCard isLive toolGroups={composerToolGroups} />,
+            <LiveActivityCard
+                isLive
+                toolGroups={composerToolGroups}
+                stepProgressMessages={runningTargets}
+            />,
         );
 
         await waitFor(() =>
@@ -50,7 +63,11 @@ describe('LiveActivityCard composer queries', () => {
 
     it('collapses the steps once the run finishes', async () => {
         const { rerender } = renderWithProviders(
-            <LiveActivityCard isLive toolGroups={composerToolGroups} />,
+            <LiveActivityCard
+                isLive
+                toolGroups={composerToolGroups}
+                stepProgressMessages={runningTargets}
+            />,
         );
         await waitFor(() =>
             expect(screen.getByText('External data')).toBeVisible(),

@@ -1,11 +1,24 @@
-import { QuerySourceType } from '@lightdash/common';
+import { QuerySourceType, type ToolComposerQueryNode } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../../../testing/testUtils';
+import { store } from '../../../../store';
 import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 
+const sqlNode = (nodeId: string, title: string, sql: string) =>
+    ({
+        sourceType: QuerySourceType.SQL,
+        nodeId,
+        title,
+        description: null,
+        sql,
+        limit: 500,
+    }) satisfies ToolComposerQueryNode;
+
 describe('ComposerQueriesToolCallDescription', () => {
-    it('renders node titles, source context and formatted SQL for a composed pipeline', () => {
+    it('renders node titles and source context, with SQL behind a collapsed row', async () => {
         const { container } = renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
@@ -41,32 +54,23 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(
             screen.getByText('Reads actual, Revenue targets'),
         ).toBeInTheDocument();
-        expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(2);
+
+        const rows = screen.getAllByRole('button', { expanded: false });
+        expect(rows).toHaveLength(2);
+
+        await userEvent.click(rows[0]);
+        expect(rows[0]).toHaveAttribute('aria-expanded', 'true');
         expect(container.querySelector('code')).toHaveTextContent(
             'select payment_method, target_revenue from targets_csv',
         );
     });
 
-    it('renders a live status indicator per node when statuses are provided', () => {
+    it('opens only the running node and marks the rest with their status', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
-                    {
-                        sourceType: QuerySourceType.SQL,
-                        nodeId: 'orders',
-                        title: 'Orders',
-                        description: null,
-                        sql: 'select 1',
-                        limit: 500,
-                    },
-                    {
-                        sourceType: QuerySourceType.SQL,
-                        nodeId: 'revenue',
-                        title: 'Revenue',
-                        description: null,
-                        sql: 'select 2',
-                        limit: 500,
-                    },
+                    sqlNode('orders', 'Orders', 'select 1'),
+                    sqlNode('revenue', 'Revenue', 'select 2'),
                     {
                         sourceType: QuerySourceType.DUCKDB,
                         nodeId: 'combined',
@@ -76,24 +80,11 @@ describe('ComposerQueriesToolCallDescription', () => {
                         references: ['orders', 'revenue'],
                         limit: 500,
                     },
-                    {
-                        sourceType: QuerySourceType.DUCKDB,
-                        nodeId: 'failed',
-                        title: 'Broken step',
-                        description: null,
-                        sql: 'select broken',
-                        references: ['combined'],
-                        limit: 500,
-                    },
                 ]}
                 nodeStatuses={{
                     orders: { status: 'success' },
                     revenue: { status: 'running' },
                     combined: { status: 'pending' },
-                    failed: {
-                        status: 'error',
-                        errorMessage: 'column not found',
-                    },
                 }}
             />,
         );
@@ -101,24 +92,82 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(screen.getByLabelText('Completed')).toBeInTheDocument();
         expect(screen.getByLabelText('Running')).toBeInTheDocument();
         expect(screen.getByLabelText('Queued')).toBeInTheDocument();
+
+        expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(
+            1,
+        );
+        expect(
+            screen.getByRole('button', { expanded: true }),
+        ).toHaveTextContent('Revenue');
+    });
+
+    it('opens failed nodes so the error is inspectable', () => {
+        renderWithProviders(
+            <ComposerQueriesToolCallDescription
+                queries={[
+                    sqlNode('orders', 'Orders', 'select 1'),
+                    sqlNode('broken', 'Broken step', 'select broken'),
+                ]}
+                nodeStatuses={{
+                    orders: { status: 'success' },
+                    broken: {
+                        status: 'error',
+                        errorMessage: 'column not found',
+                    },
+                }}
+            />,
+        );
+
         expect(
             screen.getByLabelText('Failed: column not found'),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { expanded: true }),
+        ).toHaveTextContent('Broken step');
+    });
+
+    it('shows approval actions under SQL nodes awaiting approval', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <ComposerQueriesToolCallDescription
+                    queries={[
+                        sqlNode('orders', 'Orders', 'select 1'),
+                        {
+                            sourceType: QuerySourceType.DUCKDB,
+                            nodeId: 'combined',
+                            title: 'Combined',
+                            description: null,
+                            sql: 'select * from orders',
+                            references: ['orders'],
+                            limit: 500,
+                        },
+                    ]}
+                    nodeStatuses={{
+                        orders: { status: 'awaiting_approval' },
+                        combined: { status: 'pending' },
+                    }}
+                    approval={{
+                        projectUuid: 'project',
+                        agentUuid: 'agent',
+                        threadUuid: 'thread',
+                        toolCallId: 'call',
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByLabelText('Awaiting approval')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { expanded: true }),
+        ).toHaveTextContent('Orders');
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
     });
 
     it('renders no status indicators for the persisted view', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
-                queries={[
-                    {
-                        sourceType: QuerySourceType.SQL,
-                        nodeId: 'orders',
-                        title: 'Orders',
-                        description: null,
-                        sql: 'select 1',
-                        limit: 500,
-                    },
-                ]}
+                queries={[sqlNode('orders', 'Orders', 'select 1')]}
             />,
         );
 

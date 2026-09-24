@@ -24,7 +24,10 @@ import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { AgentStepGroups } from './AgentStepGroups';
-import { type ComposerQueryNodeStatus } from './descriptions/ComposerQueriesToolCallDescription';
+import {
+    type ComposerApprovalTarget,
+    type ComposerQueryNodeStatus,
+} from './descriptions/ComposerQueriesToolCallDescription';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
@@ -81,6 +84,13 @@ type Props = {
      * replacing row. Empty when no tool has fired a progress event yet.
      */
     stepProgressMessages?: StepProgressMessage[];
+    /**
+     * Composer runs whose warehouse SQL nodes await the user's decision. The
+     * pipeline renders approval actions inline under those nodes.
+     */
+    composerApproval?: ComposerApprovalTarget & {
+        pendingToolCallIds: string[];
+    };
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -561,14 +571,22 @@ const renderInlineLiveStepProgress = (params: {
 const getComposerNodeStatuses = (
     call: ToolCallSummary,
     stepProgressMessages: StepProgressMessage[],
+    awaitingApproval: boolean,
 ): Record<string, ComposerQueryNodeStatus> | undefined => {
     if (call.toolName !== 'runComposerQueries') return undefined;
     const args = call.toolArgs as
-        | { queries?: { nodeId?: unknown }[] }
+        | { queries?: { nodeId?: unknown; sourceType?: unknown }[] }
         | undefined;
-    const nodeIds = (args?.queries ?? [])
-        .map((query) => query?.nodeId)
-        .filter((nodeId): nodeId is string => typeof nodeId === 'string');
+    const queries = (args?.queries ?? []).filter(
+        (query): query is { nodeId: string; sourceType?: unknown } =>
+            typeof query?.nodeId === 'string',
+    );
+    const nodeIds = queries.map((query) => query.nodeId);
+    const sqlNodeIds = new Set(
+        queries
+            .filter((query) => query.sourceType === 'sql')
+            .map((query) => query.nodeId),
+    );
     if (nodeIds.length === 0) return undefined;
 
     const progressIdPrefix = `${call.toolCallId}:`;
@@ -605,6 +623,8 @@ const getComposerNodeStatuses = (
         nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
             const fromEvent = eventStatuses.get(nodeId);
             if (fromEvent) return [[nodeId, fromEvent]];
+            if (awaitingApproval && sqlNodeIds.has(nodeId))
+                return [[nodeId, { status: 'awaiting_approval' }]];
             if (outputStatus === 'success')
                 return [[nodeId, { status: 'success' }]];
             if (output === undefined) return [[nodeId, { status: 'pending' }]];
@@ -653,6 +673,7 @@ export const LiveActivityCard: FC<Props> = ({
     mcpServers,
     pendingContent,
     stepProgressMessages = [],
+    composerApproval,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
@@ -879,6 +900,10 @@ export const LiveActivityCard: FC<Props> = ({
                                 // nothing to show, otherwise expanding the
                                 // card animates an empty box open/closed.
                                 if (hasNoDescription && !trace) return null;
+                                const awaitingApproval =
+                                    composerApproval?.pendingToolCallIds.includes(
+                                        tc.toolCallId,
+                                    ) ?? false;
                                 return (
                                     <Box
                                         key={tc.toolCallId}
@@ -894,11 +919,27 @@ export const LiveActivityCard: FC<Props> = ({
                                                         tc.toolCallId,
                                                 )}
                                                 composerNodeStatuses={
-                                                    isLive
+                                                    isLive || awaitingApproval
                                                         ? getComposerNodeStatuses(
                                                               tc,
                                                               stepProgressMessages,
+                                                              awaitingApproval,
                                                           )
+                                                        : undefined
+                                                }
+                                                composerApproval={
+                                                    awaitingApproval &&
+                                                    composerApproval
+                                                        ? {
+                                                              projectUuid:
+                                                                  composerApproval.projectUuid,
+                                                              agentUuid:
+                                                                  composerApproval.agentUuid,
+                                                              threadUuid:
+                                                                  composerApproval.threadUuid,
+                                                              toolCallId:
+                                                                  tc.toolCallId,
+                                                          }
                                                         : undefined
                                                 }
                                             />
