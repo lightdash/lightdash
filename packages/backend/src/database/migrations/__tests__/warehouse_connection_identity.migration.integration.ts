@@ -657,6 +657,73 @@ describe('Multi runtime identity on the real schema', () => {
             expect(preview.connection_mode).toBe('multi');
         });
 
+        test('copies the organization credential link and the listing settings of each extra', async () => {
+            const upstream = await createMultiProject();
+            const [orgCredential] = await database(
+                'organization_warehouse_credentials',
+            )
+                .insert({
+                    organization_uuid: upstream.organizationUuid,
+                    name: `Shared ${randomUUID()}`,
+                    warehouse_type: 'postgres',
+                    warehouse_connection: Buffer.from('org-ciphertext'),
+                } as never)
+                .returning('organization_warehouse_credentials_uuid');
+            await database('warehouse_connections').insert({
+                project_uuid: upstream.projectUuid,
+                is_original: false,
+                name: 'Shared warehouse',
+                warehouse_type: 'postgres',
+                organization_warehouse_credentials_uuid:
+                    orgCredential.organization_warehouse_credentials_uuid,
+                list_all_databases: true,
+                additional_databases: ['finance', 'ledger'],
+            });
+            await database('warehouse_connections')
+                .where('warehouse_connection_uuid', upstream.extraUuid)
+                .update({
+                    list_all_databases: false,
+                    additional_databases: ['archive'],
+                });
+            const previewUuid = await createPreviewProject(upstream);
+
+            await identity.copyConnectionsToPreview(
+                upstream.projectUuid,
+                previewUuid,
+            );
+
+            const settings = (projectUuid: string) =>
+                database('warehouse_connections')
+                    .where('project_uuid', projectUuid)
+                    .where('is_original', false)
+                    .orderBy('name')
+                    .select(
+                        'name',
+                        'encrypted_credentials',
+                        'organization_warehouse_credentials_uuid',
+                        'list_all_databases',
+                        'additional_databases',
+                    );
+            const copied = await settings(previewUuid);
+            expect(copied).toEqual(await settings(upstream.projectUuid));
+            expect(copied).toEqual([
+                expect.objectContaining({
+                    name: 'Shared warehouse',
+                    encrypted_credentials: null,
+                    organization_warehouse_credentials_uuid:
+                        orgCredential.organization_warehouse_credentials_uuid,
+                    list_all_databases: true,
+                    additional_databases: ['finance', 'ledger'],
+                }),
+                expect.objectContaining({
+                    name: 'Warehouse B',
+                    organization_warehouse_credentials_uuid: null,
+                    list_all_databases: false,
+                    additional_databases: ['archive'],
+                }),
+            ]);
+        });
+
         test('refuses a second copy into the same preview', async () => {
             const upstream = await createMultiProject();
             const previewUuid = await createPreviewProject(upstream);

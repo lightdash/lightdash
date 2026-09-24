@@ -95,6 +95,16 @@ export class WarehouseConnectionIdentityModel {
         }
     }
 
+    async getExtraConnectionUuids(projectUuid: string): Promise<string[]> {
+        const rows = await this.database(WAREHOUSE_CONNECTIONS_TABLE)
+            .where('project_uuid', projectUuid)
+            .where('is_original', false)
+            .select<{ warehouse_connection_uuid: string }[]>(
+                'warehouse_connection_uuid',
+            );
+        return rows.map((row) => row.warehouse_connection_uuid);
+    }
+
     async getSaveWarehouseConnectionUuid(
         projectUuid: string,
         warehouseConnectionUuid: string | null,

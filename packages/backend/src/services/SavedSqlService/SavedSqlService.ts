@@ -109,8 +109,9 @@ export class SavedSqlService
         warehouseConnectionUuid: string | null | undefined,
     ): Promise<SqlChartConnectionBinding | undefined> {
         if (
-            (await this.projectModel.getConnectionRoute(projectUuid)) !==
-            'multi'
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'original',
+            })) !== 'multi'
         ) {
             if (
                 warehouseConnectionUuid !== undefined &&

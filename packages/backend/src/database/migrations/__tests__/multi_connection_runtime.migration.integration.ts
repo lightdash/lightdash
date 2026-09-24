@@ -886,12 +886,15 @@ describe('Multi runtime identity wiring on the real schema', () => {
         projectUuid: string,
         name: string,
         warehouseConnectionUuid: string | null,
+        type?: 'virtual',
     ) =>
         database('cached_explore').insert({
             project_uuid: projectUuid,
             name,
             table_names: [name],
-            explore: JSON.stringify(explore(name)),
+            explore: JSON.stringify(
+                type === undefined ? explore(name) : { ...explore(name), type },
+            ),
             warehouse_connection_uuid: warehouseConnectionUuid,
         } as never);
 
@@ -1072,9 +1075,11 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 expect(previewConnections.Finance).not.toBe(
                     upstream.extraConnectionUuid,
                 );
-                expect(await projectModel.getConnectionRoute(previewUuid)).toBe(
-                    'multi',
-                );
+                expect(
+                    await projectModel.getConnectionRoute(previewUuid, {
+                        kind: 'original',
+                    }),
+                ).toBe('multi');
                 expect(await sourceBindings(previewUuid)).toEqual({
                     marketing: null,
                     finance: previewConnections.Finance,
@@ -1098,9 +1103,11 @@ describe('Multi runtime identity wiring on the real schema', () => {
             const previewUuid = await createPreview(upstream, 'github');
 
             expect(await connectionsByName(previewUuid)).toEqual({});
-            expect(await projectModel.getConnectionRoute(previewUuid)).toBe(
-                'single',
-            );
+            expect(
+                await projectModel.getConnectionRoute(previewUuid, {
+                    kind: 'original',
+                }),
+            ).toBe('single');
             expect(await sourceBindings(previewUuid)).toEqual({
                 marketing: null,
             });
@@ -1299,9 +1306,11 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 await runCreateJob(upstream);
 
             const previewConnections = await connectionsByName(projectUuid);
-            expect(await projectModel.getConnectionRoute(projectUuid)).toBe(
-                'multi',
-            );
+            expect(
+                await projectModel.getConnectionRoute(projectUuid, {
+                    kind: 'original',
+                }),
+            ).toBe('multi');
             expect(await sourceBindings(projectUuid)).toEqual({
                 marketing: null,
                 finance: previewConnections.Finance,
@@ -1337,8 +1346,91 @@ describe('Multi runtime identity wiring on the real schema', () => {
     });
 
     describe('dbt Cloud webhook preview (G7)', () => {
-        test('a webhook preview of a multi upstream is created multi with every connection copied', async () => {
-            const upstream = await createProject({ mode: 'multi' });
+        const webhookService = (upstream: Fixture) => {
+            const service = new ProjectService({
+                ...serviceArgs(),
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...(
+                            lightdashConfigMock as {
+                                preAggregates?: object;
+                            }
+                        ).preAggregates,
+                        enabled: false,
+                    },
+                },
+                projectParametersModel: { find: async () => [] },
+                spaceModel: {
+                    find: async ({ projectUuid }: { projectUuid: string }) =>
+                        database('spaces')
+                            .innerJoin(
+                                'projects',
+                                'projects.project_id',
+                                'spaces.project_id',
+                            )
+                            .where('projects.project_uuid', projectUuid)
+                            .select('spaces.space_uuid as uuid'),
+                },
+                catalogModel: {
+                    getCatalogItemsWithTags: async () => [],
+                    getCatalogItemsWithIcons: async () => [],
+                    getAllMetricsTreeEdges: async () => [],
+                    getAllMetricsTreeNodes: async () => [],
+                },
+                projectCompileLogModel: { insert: async () => {} },
+                schedulerClient: {
+                    indexCatalog: async () => 'index-catalog-job',
+                    generateValidation: async () => {},
+                },
+                userModel: {
+                    findSessionUserByUUID: async () => sessionUser(upstream),
+                },
+            } as never);
+            const internals = service as unknown as PreviewInternals;
+            vi.spyOn(
+                internals,
+                'validateProjectCreationPermissions',
+            ).mockResolvedValue(undefined);
+            vi.spyOn(internals, 'getOnboardingFlow').mockResolvedValue(
+                undefined,
+            );
+            vi.spyOn(
+                internals,
+                'runPostProjectCreationProvisioning',
+            ).mockResolvedValue(undefined);
+            vi.spyOn(internals, 'copyUserAccessOnPreview').mockResolvedValue(
+                undefined,
+            );
+            vi.spyOn(internals, 'copyContentOnPreview').mockImplementation(
+                async (upstreamProjectUuid, previewProjectUuid) => {
+                    await projectModel.duplicateContent(
+                        upstreamProjectUuid,
+                        previewProjectUuid,
+                        [{ uuid: upstream.spaceUuid }],
+                        await identityModel.getPreviewConnectionMap(
+                            upstreamProjectUuid,
+                            previewProjectUuid,
+                        ),
+                    );
+                },
+            );
+            vi.mocked(fetch).mockResolvedValueOnce({
+                json: async () => ({
+                    metadata: {
+                        env: { DBT_CLOUD_PR_ID: '7', DBT_CLOUD_JOB_ID: '9' },
+                    },
+                    nodes: {},
+                }),
+            } as never);
+            return service;
+        };
+
+        const dbtCloudUpstream = async (mode: 'single' | 'multi') => {
+            const upstream = await createProject({
+                mode,
+                withExtra: mode === 'multi',
+            });
             await database('projects')
                 .where('project_uuid', upstream.projectUuid)
                 .update({
@@ -1350,51 +1442,134 @@ describe('Multi runtime identity wiring on the real schema', () => {
                     }),
                     created_by_user_uuid: upstream.userUuid,
                 } as never);
-            const { service, internals } = previewService();
-            (
-                service as unknown as {
-                    userModel: { findSessionUserByUUID: () => unknown };
-                    schedulerClient: { generateValidation: () => unknown };
-                }
-            ).userModel = {
-                findSessionUserByUUID: async () => sessionUser(upstream),
-            };
-            (
-                service as unknown as {
-                    schedulerClient: { generateValidation: () => unknown };
-                }
-            ).schedulerClient = { generateValidation: async () => {} };
-            vi.spyOn(internals, 'copyContentOnPreview').mockResolvedValue(
-                undefined,
-            );
-            const saveExplores = vi
-                .spyOn(service, 'saveExploresToCacheAndIndexCatalog')
-                .mockResolvedValue(undefined as never);
-            vi.mocked(fetch).mockResolvedValueOnce({
-                json: async () => ({
-                    metadata: {
-                        env: { DBT_CLOUD_PR_ID: '7', DBT_CLOUD_JOB_ID: '9' },
-                    },
-                    nodes: {},
-                }),
-            } as never);
+            return upstream;
+        };
 
-            const previewUuid = await service.createPreviewFromDbtCloudWebhook(
+        const runWebhook = (service: ProjectService, upstream: Fixture) =>
+            service.createPreviewFromDbtCloudWebhook(
                 upstream.projectUuid,
                 1,
                 1,
                 { rawBody: null, signature: null },
             );
 
+        test('main array save flattens a multi project, so no multi path may call it', async () => {
+            const project = await createProject({ mode: 'multi' });
+            await cacheExplore(project.projectUuid, 'orders', null);
+            await cacheExplore(
+                project.projectUuid,
+                'refunds',
+                project.extraConnectionUuid,
+            );
+            await cacheExplore(
+                project.projectUuid,
+                'finance_view',
+                project.extraConnectionUuid,
+                'virtual',
+            );
+
+            await projectModel.saveExploresToCache(
+                project.projectUuid,
+                [explore('orders')],
+                true,
+            );
+
+            expect(await exploreBindings(project.projectUuid)).toEqual({
+                orders: null,
+                finance_view: null,
+            });
+        });
+
+        test('a webhook preview of a multi upstream is created multi and keeps its copied virtual view on the preview extra', async () => {
+            const upstream = await dbtCloudUpstream('multi');
+            await cacheExplore(upstream.projectUuid, 'orders', null);
+            await cacheExplore(
+                upstream.projectUuid,
+                'finance_view',
+                upstream.extraConnectionUuid,
+                'virtual',
+            );
+
+            const previewUuid = await runWebhook(
+                webhookService(upstream),
+                upstream,
+            );
+
+            const previewConnections = await connectionsByName(previewUuid);
+            expect(Object.keys(previewConnections).sort()).toEqual([
+                'Finance',
+                'Original',
+            ]);
             expect(
-                Object.keys(await connectionsByName(previewUuid)).sort(),
-            ).toEqual(['Finance', 'Original']);
-            expect(await projectModel.getConnectionRoute(previewUuid)).toBe(
-                'multi',
+                await projectModel.getConnectionRoute(previewUuid, {
+                    kind: 'original',
+                }),
+            ).toBe('multi');
+            expect(await exploreBindings(previewUuid)).toEqual({
+                finance_view: previewConnections.Finance,
+            });
+        });
+
+        test('a webhook run into an existing multi preview keeps every extra-bound explore and replaces the original explores', async () => {
+            const upstream = await dbtCloudUpstream('multi');
+            const preview = await createProject({
+                mode: 'multi',
+                organization: upstream,
+                dbtConnectionType: DbtProjectType.NONE,
+                upstreamProjectUuid: upstream.projectUuid,
+            });
+            await database('projects')
+                .where('project_uuid', preview.projectUuid)
+                .update({ name: 'preview_9_7' });
+            await cacheExplore(preview.projectUuid, 'orders', null);
+            await cacheExplore(
+                preview.projectUuid,
+                'refunds',
+                preview.extraConnectionUuid,
             );
-            expect(saveExplores).toHaveBeenCalledWith(
-                expect.objectContaining({ projectUuid: previewUuid }),
+            await cacheExplore(
+                preview.projectUuid,
+                'finance_view',
+                preview.extraConnectionUuid,
+                'virtual',
             );
+
+            await expect(
+                runWebhook(webhookService(upstream), upstream),
+            ).resolves.toBe(preview.projectUuid);
+
+            expect(await exploreBindings(preview.projectUuid)).toEqual({
+                refunds: preview.extraConnectionUuid,
+                finance_view: preview.extraConnectionUuid,
+            });
+        });
+
+        test('a webhook preview of a single upstream saves through main', async () => {
+            const upstream = await dbtCloudUpstream('single');
+            await cacheExplore(
+                upstream.projectUuid,
+                'orders_view',
+                null,
+                'virtual',
+            );
+            const service = webhookService(upstream);
+            const mainSave = vi.spyOn(
+                service,
+                'saveExploresToCacheAndIndexCatalog',
+            );
+
+            const previewUuid = await runWebhook(service, upstream);
+
+            expect(mainSave).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: previewUuid,
+                    complete: true,
+                }),
+            );
+            expect(await connectionsByName(previewUuid)).toEqual({});
+            expect(await exploreBindings(previewUuid)).toEqual({
+                orders_view: null,
+            });
         });
     });
 

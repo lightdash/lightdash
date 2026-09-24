@@ -2930,6 +2930,40 @@ export class ProjectService extends BaseService {
         return result.indexCatalogJobUuid;
     }
 
+    private async saveExploresKeepingExtraConnections(
+        args: SaveCompiledExploresArgs & {
+            explores: (Explore | ExploreError)[];
+        },
+    ): Promise<void> {
+        const { explores, ...metadata } = args;
+        const warehouseConnectionUuids =
+            await this.warehouseConnectionIdentityModel.getExtraConnectionUuids(
+                args.projectUuid,
+            );
+        await this.saveExploresAndIndexCatalog({
+            ...metadata,
+            connectionWarnings: [],
+            saveExplores: async (summary) => {
+                const saved = await this.multiConnectionCompiler.save(
+                    args.projectUuid,
+                    {
+                        exploreStream: (async function* webhookExplores() {
+                            yield* explores;
+                        })(),
+                        bindingOf: () => null,
+                        carry: {
+                            kind: 'connections',
+                            warehouseConnectionUuids,
+                        },
+                        persistArtifacts: async () => {},
+                    },
+                );
+                explores.forEach((explore) => summary.add(explore));
+                return saved;
+            },
+        });
+    }
+
     private async saveExploreStreamToCacheAndIndexCatalog(
         args: Omit<SaveCompiledExploresArgs, 'complete'> & {
             exploreStream: AsyncIterable<Explore | ExploreError>;
@@ -3330,9 +3364,9 @@ export class ProjectService extends BaseService {
         previewProjectUuid: string,
     ): Promise<WarehouseConnectionMap | null> {
         if (
-            (await this.projectModel.getConnectionRoute(
-                upstreamProjectUuid,
-            )) !== 'multi'
+            (await this.projectModel.getConnectionRoute(upstreamProjectUuid, {
+                kind: 'original',
+            })) !== 'multi'
         ) {
             return null;
         }
@@ -3347,9 +3381,9 @@ export class ProjectService extends BaseService {
         previewProjectUuid: string,
     ): Promise<PreparedMultiConnectionSave | null> {
         if (
-            (await this.projectModel.getConnectionRoute(
-                upstreamProjectUuid,
-            )) !== 'multi'
+            (await this.projectModel.getConnectionRoute(upstreamProjectUuid, {
+                kind: 'original',
+            })) !== 'multi'
         ) {
             return null;
         }
@@ -3369,8 +3403,9 @@ export class ProjectService extends BaseService {
             ]),
         );
         if (
-            (await this.projectModel.getConnectionRoute(previewProjectUuid)) !==
-            'multi'
+            (await this.projectModel.getConnectionRoute(previewProjectUuid, {
+                kind: 'original',
+            })) !== 'multi'
         ) {
             return null;
         }
@@ -12991,8 +13026,9 @@ export class ProjectService extends BaseService {
         user: SessionUser,
     ): Promise<void> {
         const warehouseConnectionMap =
-            (await this.projectModel.getConnectionRoute(projectUuid)) ===
-            'multi'
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'original',
+            })) === 'multi'
                 ? await this.warehouseConnectionIdentityModel.getPreviewConnectionMap(
                       projectUuid,
                       previewProjectUuid,
@@ -14272,16 +14308,25 @@ export class ProjectService extends BaseService {
         }
 
         Logger.info(`Set explores for: ${projectToSetExplores}`);
-        await this.saveExploresToCacheAndIndexCatalog({
+        const webhookSave = {
             userUuid: user.userUuid,
             projectUuid: projectToSetExplores,
             explores: [...convertedExplores, ...exploreErrors],
-            compilationSource: 'refresh_dbt',
+            compilationSource: 'refresh_dbt' as const,
             jobUuid: null,
-            requestMethod: 'api',
+            requestMethod: 'api' as const,
             projectConfigDefaults: project.projectDefaults,
             complete: true,
-        });
+        };
+        if (
+            (await this.projectModel.getConnectionRoute(projectToSetExplores, {
+                kind: 'original',
+            })) === 'multi'
+        ) {
+            await this.saveExploresKeepingExtraConnections(webhookSave);
+        } else {
+            await this.saveExploresToCacheAndIndexCatalog(webhookSave);
+        }
 
         Logger.info(`Schedule validation:`, {
             userUuid: user.userUuid,

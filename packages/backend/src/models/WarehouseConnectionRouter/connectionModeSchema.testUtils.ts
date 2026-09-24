@@ -29,11 +29,14 @@ export const withProjectsCopy = async (
     projectUuid: string,
     alterStatements: string[],
     run: (database: Knex) => Promise<void>,
+    connection: Knex.StaticConnectionConfig = {
+        connectionString: connectionModeTestDatabaseUri(),
+    },
 ) => {
     const schema = `routing_projects_copy_${process.pid}_${Date.now()}`;
     const database = knex({
         client: 'pg',
-        connection: { connectionString: connectionModeTestDatabaseUri() },
+        connection,
         searchPath: [schema, 'public'],
         pool: { min: 0, max: 1 },
     });
@@ -66,11 +69,13 @@ export const withProjectsCopy = async (
 export const withProjectsWithoutConnectionMode = (
     projectUuid: string,
     run: (database: Knex) => Promise<void>,
+    connection?: Knex.StaticConnectionConfig,
 ) =>
     withProjectsCopy(
         projectUuid,
         ['ALTER TABLE :schema.projects DROP COLUMN connection_mode'],
         run,
+        connection,
     );
 
 export const insertRoutingTestProject = async (
