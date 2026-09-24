@@ -1244,6 +1244,7 @@ describe('decideTurn', () => {
             simpleDataAnswer: true,
             chart: null,
             instantReply: null,
+            correction: null,
         });
         expect(evaluate).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -1252,6 +1253,7 @@ describe('decideTurn', () => {
                     simple: expect.anything(),
                     instantReply: expect.anything(),
                     englishPrompt: expect.anything(),
+                    lastingCorrection: expect.anything(),
                 },
             }),
         );
@@ -1365,6 +1367,7 @@ describe('decideTurn', () => {
         expect(decision).toEqual({
             simpleDataAnswer: false,
             instantReply: null,
+            correction: null,
             chart: {
                 type: 'intent',
                 intent: { kind: 'chart_type', chartType: 'line' },
@@ -1431,6 +1434,7 @@ describe('decideTurn', () => {
         expect(decision).toEqual({
             simpleDataAnswer: false,
             instantReply: null,
+            correction: null,
             chart: { type: 'unresolved', reason: 'verify-unavailable' },
         });
         expect(isChartEditAttempt(decision.chart!)).toBe(true);
@@ -1453,6 +1457,7 @@ describe('decideTurn', () => {
         expect(decision).toEqual({
             simpleDataAnswer: false,
             instantReply: null,
+            correction: null,
             chart: { type: 'unresolved', reason: 'decision-unavailable' },
         });
     });
