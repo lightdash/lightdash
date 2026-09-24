@@ -126,11 +126,11 @@ const AddSkillMenu = ({
                 <Button
                     size="xs"
                     variant="default"
-                    leftSection={<MantineIcon icon={IconPlus} />}
+                    leftSection={<MantineIcon icon={IconBooks} />}
                     rightSection={<MantineIcon icon={IconChevronDown} />}
                     onClick={() => combobox.toggleDropdown()}
                 >
-                    Add skill
+                    Library
                 </Button>
             </Combobox.Target>
             <Combobox.Dropdown>
