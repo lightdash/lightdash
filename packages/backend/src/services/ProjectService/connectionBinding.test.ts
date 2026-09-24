@@ -56,7 +56,7 @@ describe('connection bindings at warehouse credential call sites', () => {
                 { file: 'services/ProjectService/ProjectService.ts', calls: 2 },
                 {
                     file: 'services/WarehouseConnectionService/WarehouseConnectionService.ts',
-                    calls: 2,
+                    calls: 4,
                 },
                 {
                     file: 'services/WarehouseConnectionSwitchService/WarehouseConnectionSwitchService.ts',
