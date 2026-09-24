@@ -1,3 +1,12 @@
+# [2.324.0](https://github.com/lightdash/lightdash/compare/2.323.1...2.324.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agent:** composer pipeline as step rows with inline approval ([#29881](https://github.com/lightdash/lightdash/issues/29881)) ([85669c4](https://github.com/lightdash/lightdash/commit/85669c4b520e447f14143f2b8553c02d97a74560))
+* **ai-agent:** keep the composer pipeline expandable after the run ([#29910](https://github.com/lightdash/lightdash/issues/29910)) ([342541d](https://github.com/lightdash/lightdash/commit/342541dc6316d7f3b7c527f6221e3578bf3eb7cf))
+* **cli:** name fields with getFieldLabel in the chart-type starter ([#29895](https://github.com/lightdash/lightdash/issues/29895)) ([4d9feaf](https://github.com/lightdash/lightdash/commit/4d9feaf395de7e6a1fdfb8b47b4f55874f592ecf))
+
 ## [2.323.1](https://github.com/lightdash/lightdash/compare/2.323.0...2.323.1) (2026-09-24)
 
 
