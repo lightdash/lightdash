@@ -1,7 +1,7 @@
 import {
     type APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     type DataAppVizContext,
-    type DataAppVizOptionValue,
+    type DataAppVizContextOptionValue,
 } from '@lightdash/common';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { Transport } from './types';
@@ -45,7 +45,7 @@ const messageTypeMatchesHost: Assert<
     >
 > = true;
 const optionValueTypesMatchHost: Assert<
-    Equal<VizContextOptionValue, DataAppVizOptionValue>
+    Equal<VizContextOptionValue, DataAppVizContextOptionValue>
 > = true;
 const hostPayloadIsAcceptedBySdk: Assert<
     IsAssignable<
@@ -234,6 +234,26 @@ describe('toVizContextState', () => {
                 orders_total: { color: '#7162FF', dashed: true },
                 orders_count: { color: '#00AA00' },
             },
+        });
+    });
+
+    it('carries gradient option values and drops malformed ones', () => {
+        const gradient = { colors: ['#000000', '#ffffff'], min: null, max: 9 };
+        expect(
+            toVizContextState(
+                message({
+                    options: {
+                        scale: gradient,
+                        broken: { colors: ['#000000'], min: 'auto', max: 1 },
+                    } as never,
+                    fieldOptions: {
+                        values: { orders_total: { scale: gradient } },
+                    },
+                }),
+            ),
+        ).toMatchObject({
+            options: { scale: gradient },
+            fieldOptions: { values: { orders_total: { scale: gradient } } },
         });
     });
 

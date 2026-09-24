@@ -5,6 +5,7 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfig,
+    getConditionalFormattingMinMaxMap,
     getConditionalFormattingTextStyle,
     getPivotRowContextKey,
     getRowConditionalFormattingColor,
@@ -548,5 +549,65 @@ describe('getConditionalFormattingTextStyle', () => {
             createConditionalFormattingConfigWithSingleColor('#ff0000');
         config.textStyle = { bold: false, italic: false, underline: false };
         expect(getConditionalFormattingTextStyle([config])).toBeUndefined();
+    });
+});
+
+describe('getConditionalFormattingMinMaxMap', () => {
+    const cell = (raw: unknown) => ({ value: { raw, formatted: String(raw) } });
+    const identity = (_fieldId: string, value: number) => value;
+
+    it('collects numeric values per field and skips empty or non-numeric cells', () => {
+        expect(
+            getConditionalFormattingMinMaxMap({
+                rows: [
+                    { revenue: cell(10), count: cell('abc'), name: cell('a') },
+                    { revenue: cell('-4'), count: cell(null), name: cell('b') },
+                    {
+                        revenue: cell(''),
+                        count: cell(undefined),
+                        name: cell('c'),
+                    },
+                ],
+                fieldIds: ['revenue', 'count', 'name'],
+                pivotDetails: null,
+                convertValue: identity,
+            }),
+        ).toEqual({ revenue: { min: -4, max: 10 } });
+    });
+
+    it('spans every pivot column of a pivoted field', () => {
+        expect(
+            getConditionalFormattingMinMaxMap({
+                rows: [
+                    { revenue_bank: cell(5), revenue_card: cell(50) },
+                    { revenue_bank: cell(-1), revenue_card: cell(20) },
+                ],
+                fieldIds: ['revenue', 'missing'],
+                pivotDetails: {
+                    valuesColumns: [
+                        {
+                            referenceField: 'revenue',
+                            pivotColumnName: 'revenue_bank',
+                        },
+                        {
+                            referenceField: 'revenue',
+                            pivotColumnName: 'revenue_card',
+                        },
+                    ],
+                },
+                convertValue: identity,
+            }),
+        ).toEqual({ revenue: { min: -1, max: 50 } });
+    });
+
+    it('applies the value conversion', () => {
+        expect(
+            getConditionalFormattingMinMaxMap({
+                rows: [{ rate: cell(0.2) }, { rate: cell(0.5) }],
+                fieldIds: ['rate'],
+                pivotDetails: null,
+                convertValue: (_fieldId, value) => value * 100,
+            }),
+        ).toEqual({ rate: { min: 20, max: 50 } });
     });
 });

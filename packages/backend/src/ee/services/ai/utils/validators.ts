@@ -8,6 +8,7 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBaseTransformed,
     DataAppVizConfigOption,
+    DataAppVizOptionValue,
     DataAppVizSchema,
     dateFilterSchema,
     DEFAULT_FILTER_CASE_SENSITIVE,
@@ -32,6 +33,7 @@ import {
     getItemLabelWithoutTableName,
     getParameterOptionValues,
     isAdditionalMetric,
+    isDataAppVizGradientValue,
     isDimension,
     isMetric,
     isPeriodComparisonCustomMetric,
@@ -1603,7 +1605,7 @@ export type CustomChartTypeSelectedFields = {
 
 const getOptionValidationError = (
     declaration: DataAppVizConfigOption,
-    value: string | number | boolean,
+    value: DataAppVizOptionValue,
 ): string | null => {
     const received = JSON.stringify(value);
     switch (declaration.type) {
@@ -1636,6 +1638,10 @@ const getOptionValidationError = (
         case 'color':
             return typeof value !== 'string'
                 ? `Option "${declaration.name}" (${declaration.type}) expects a string, received ${received}.`
+                : null;
+        case 'gradient':
+            return !isDataAppVizGradientValue(value)
+                ? `Option "${declaration.name}" (gradient) expects { colors, min, max } with 2 to 5 hex colours, each bound a number or "auto" and a fixed min not above a fixed max, received ${received}.`
                 : null;
         default:
             return assertUnreachable(declaration, `Unknown config option type`);

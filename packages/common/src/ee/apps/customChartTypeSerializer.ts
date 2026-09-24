@@ -88,6 +88,7 @@ const serializeOptionDetail = (option: DataAppVizConfigOption): string => {
             break;
         case 'text':
         case 'color':
+        case 'gradient':
             parts.push(`default: ${JSON.stringify(option.default)}`);
             break;
         default:

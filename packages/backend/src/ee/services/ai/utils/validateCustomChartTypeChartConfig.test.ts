@@ -640,6 +640,69 @@ describe('validateCustomChartTypeChartConfig', () => {
             );
         });
 
+        it('accepts a whole gradient and rejects a malformed one', () => {
+            const withGradient: DataAppVizSchema = {
+                ...vizSchema,
+                configOptions: [
+                    {
+                        name: 'scale',
+                        label: 'Scale',
+                        type: 'gradient',
+                        default: {
+                            colors: ['#000000', '#ffffff'],
+                            min: 'auto',
+                            max: 'auto',
+                        },
+                    },
+                ],
+            };
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig(validMapping, {
+                        scale: {
+                            colors: ['#000000', '#ff0000', '#ffffff'],
+                            min: 0,
+                            max: 'auto',
+                        },
+                    }),
+                    withGradient,
+                    selectedFields,
+                ),
+            ).not.toThrow();
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig(validMapping, {
+                        scale: {
+                            colors: ['#000000', '#ffffff'],
+                            min: 20,
+                            max: 10,
+                        },
+                    }),
+                    withGradient,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'a fixed min not above a fixed max',
+                    ),
+                }),
+            );
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig(validMapping, { scale: '#000000' }),
+                    withGradient,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Option "scale" (gradient) expects { colors, min, max }',
+                    ),
+                }),
+            );
+        });
+
         it('collects field-mapping and option errors into one message', () => {
             try {
                 validateCustomChartTypeChartConfig(

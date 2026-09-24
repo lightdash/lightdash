@@ -243,6 +243,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Let viewers style each field of a reusable visualization separately — for example a colour or line style per metric — from the chart config panel.',
         wiring: 'Declare configOptions on the field (input) whose fields each need their own setting, then read useVizContext().fieldOptions[fieldName][fieldId]?.[optionName] for each bound field id. A pivoted column uses the values of its field: look it up through pivotDetails.valuesColumns[].referenceField. Treat fieldOptions as possibly empty and fall back to the declared default.',
     },
+    {
+        key: 'viz-gradient-options',
+        appliesTo: ['chart_type'],
+        label: 'Gradient options',
+        description:
+            'Let viewers pick a colour gradient (two to five colours, automatic or fixed minimum and maximum) for a reusable visualization or for each of its fields, for heatmaps, colour-scaled bars or choropleth-style shading.',
+        wiring: "Declare a configOption with type 'gradient' and a default { colors, min, max } (min/max a number or 'auto'), chart-wide or on a field. Colour each value with getGradientColor(gradient, value, domain?): a per-field gradient arrives with automatic bounds already resolved from that field's values; a chart-wide one arrives with null bounds that the domain you pass fills. It returns null for missing or non-numeric values and clamps values outside the range to the end colours.",
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

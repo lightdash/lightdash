@@ -27,14 +27,23 @@ import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
     type DataAppVizConfigOption,
+    type DataAppVizContextOptionValue,
     type DataAppVizOptionValue,
     type DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
+import {
+    dataAppVizGradientValueSchema,
+    isDataAppVizGradientValue,
+    toDataAppVizGradient,
+} from './dataAppVizGradient';
 import { type DataAppVizPreview } from './preview';
 
 export type {
     DataAppVizConfigOption,
     DataAppVizConfigOptionType,
+    DataAppVizContextOptionValue,
+    DataAppVizGradient,
+    DataAppVizGradientValue,
     DataAppVizOptionValue,
     DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
@@ -1000,6 +1009,13 @@ const vizConfigOptions = z.array(
                 .string()
                 .describe('Hex colour used until the viewer changes it.'),
         }),
+        z.object({
+            ...optionBase,
+            type: z.literal('gradient'),
+            default: dataAppVizGradientValueSchema.describe(
+                "Gradient used until the viewer changes it. The component turns a value into a colour with `getGradientColor`; 'auto' bounds of a per-field gradient arrive resolved from that field's values, and chart-wide ones arrive as null for the component to fill.",
+            ),
+        }),
     ]),
 );
 
@@ -1198,6 +1214,8 @@ const matchesDeclaredType = (
         case 'text':
         case 'color':
             return typeof value === 'string';
+        case 'gradient':
+            return isDataAppVizGradientValue(value);
         default:
             return assertUnreachable(
                 option,
@@ -1247,6 +1265,30 @@ export const getEffectiveOptionValues = (
         configOptions.map((o) => [
             o.name,
             getEffectiveOptionValue(o, optionValues[o.name]),
+        ]),
+    );
+
+/** A config value as the chart receives it: gradient bounds resolved from `domain`. */
+export const toDataAppVizContextOptionValue = (
+    value: DataAppVizOptionValue,
+    domain: { min: number; max: number } | null,
+): DataAppVizContextOptionValue =>
+    typeof value === 'object' ? toDataAppVizGradient(value, domain) : value;
+
+/**
+ * Chart-wide values as delivered to the chart: effective values, with 'auto'
+ * gradient bounds left null because the chart decides which values they cover.
+ */
+export const getDataAppVizContextOptions = (
+    configOptions: DataAppVizConfigOption[],
+    optionValues: Record<string, DataAppVizOptionValue>,
+): Record<string, DataAppVizContextOptionValue> =>
+    Object.fromEntries(
+        Object.entries(
+            getEffectiveOptionValues(configOptions, optionValues),
+        ).map(([name, value]) => [
+            name,
+            toDataAppVizContextOptionValue(value, null),
         ]),
     );
 
@@ -1462,10 +1504,10 @@ export type DataAppVizContext = {
     fieldMapping: Record<string, string | string[]>;
     fields: Record<string, DataAppVizFieldMetadata>;
     rows: ResultRow[];
-    options: Record<string, DataAppVizOptionValue>;
+    options: Record<string, DataAppVizContextOptionValue>;
     fieldOptions: Record<
         string,
-        Record<string, Record<string, DataAppVizOptionValue>>
+        Record<string, Record<string, DataAppVizContextOptionValue>>
     >;
     colorPalette: string[];
     seriesColors: Record<string, string>;

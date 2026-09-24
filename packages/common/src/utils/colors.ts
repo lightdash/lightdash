@@ -81,6 +81,67 @@ export const getColorFromRange = (
     return interpolateColor(percentage).toString({ format: 'hex' });
 };
 
+// Piecewise oklab interpolation between evenly spaced stops; needs 2+ colours.
+const interpolateStops = (colors: string[], t: number): Color => {
+    const clampedT = Math.max(0, Math.min(1, t));
+    const segmentCount = colors.length - 1;
+    const segmentIndex = Math.min(
+        Math.floor(clampedT * segmentCount),
+        segmentCount - 1,
+    );
+    const segmentStart = segmentIndex / segmentCount;
+    const segmentEnd = (segmentIndex + 1) / segmentCount;
+    const localT = (clampedT - segmentStart) / (segmentEnd - segmentStart);
+    // Using oklab for perceptually uniform gradients (better for data visualization)
+    const range = Color.range(
+        new Color(colors[segmentIndex]),
+        new Color(colors[segmentIndex + 1]),
+        { space: 'oklab' },
+    );
+    return range(localT);
+};
+
+/**
+ * Interpolates a color from an array of colors based on a normalized value (0-1).
+ * Uses piecewise linear interpolation between adjacent color stops.
+ */
+export const interpolateMultiColor = (colors: string[], t: number): string => {
+    if (colors.length === 0) return '#888888';
+    if (colors.length === 1) return colors[0];
+    return interpolateStops(colors, t).toString({ format: 'hex' });
+};
+
+const toFiniteNumber = (value: unknown): number | null => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value !== 'string' || value.trim() === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+// Colour of a value on evenly spaced stops from min to max, clamped to the ends;
+// null for non-finite values or bounds and an inverted range.
+export const getGradientColor = (
+    gradient: { colors: string[]; min: number; max: number },
+    value: unknown,
+): string | null => {
+    const numeric = toFiniteNumber(value);
+    const { colors, min, max } = gradient;
+    if (
+        numeric === null ||
+        colors.length === 0 ||
+        !Number.isFinite(min) ||
+        !Number.isFinite(max) ||
+        min > max
+    )
+        return null;
+    if (colors.length === 1) return colors[0];
+    const t = min === max ? 1 : (numeric - min) / (max - min);
+    return interpolateStops(colors, t)
+        .to('srgb')
+        .toGamut({ method: 'clip' })
+        .toString({ format: 'hex', collapse: false });
+};
+
 /**
  * Adjusts a color to ensure it has sufficient contrast against a background color
  * Keeps the color as close to the original as possible while meeting WCAG AA standards

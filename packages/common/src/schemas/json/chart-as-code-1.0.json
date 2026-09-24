@@ -1284,6 +1284,43 @@
             "$ref": "#/$defs/Record_string.Record_string.DataAppVizOptionValues__",
             "description": "Viz field (input) name → bound query field id → that field's option values."
         },
+        "DataAppVizGradientValue": {
+            "description": "A stored gradient: two to five fixed hex colours from low to high, evenly\nspaced, and a lower and upper bound that are each a number or 'auto'.",
+            "properties": {
+                "colors": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "max": {
+                    "anyOf": [
+                        {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        {
+                            "enum": ["auto"],
+                            "type": "string"
+                        }
+                    ]
+                },
+                "min": {
+                    "anyOf": [
+                        {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        {
+                            "enum": ["auto"],
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "required": ["max", "min", "colors"],
+            "type": "object"
+        },
         "DataAppVizOptionValue": {
             "anyOf": [
                 {
@@ -1295,6 +1332,9 @@
                 },
                 {
                     "type": "string"
+                },
+                {
+                    "$ref": "#/$defs/DataAppVizGradientValue"
                 }
             ],
             "description": "A persisted config value; its shape is set by the option's declared `type`."

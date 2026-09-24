@@ -5,14 +5,13 @@ import {
     type ConditionalFormattingMinMax,
     type FilterableItem,
 } from '@lightdash/common';
-import { Group, Stack, Select } from '@mantine/core';
+import { Group, Stack } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { startTransition, useCallback, type FC } from 'react';
-import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
-import { Config } from '../common/Config';
+import RangeBoundInput from '../common/RangeBoundInput';
 
 type Props = {
     config: ConditionalFormattingConfigWithColorRange;
@@ -25,11 +24,6 @@ type Props = {
         newMinMax: Partial<ConditionalFormattingMinMax<number | 'auto'>>,
     ) => void;
 };
-
-enum RangeValue {
-    CUSTOM = 'custom',
-    AUTO = 'auto',
-}
 
 const groups = [
     ['start', 'min'],
@@ -58,58 +52,18 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
         <Stack gap="xs">
             {groups.map(([rangeName, minMaxName]) => (
                 <Group key={rangeName} gap="xs" wrap="nowrap" align="end">
-                    <Select
-                        allowDeselect={false}
-                        style={{ flexBasis: '100%' }}
-                        label={`${capitalize(minMaxName)} value type`}
-                        data={Object.values(RangeValue).map((value) => ({
-                            value,
-                            label:
-                                value === RangeValue.AUTO
-                                    ? `${capitalize(minMaxName)} value in table`
-                                    : `Custom`,
-                        }))}
-                        value={
-                            config.rule[minMaxName] === 'auto'
-                                ? RangeValue.AUTO
-                                : RangeValue.CUSTOM
-                        }
-                        onChange={(value) => {
-                            if (value === RangeValue.AUTO) {
-                                onChangeMinMax({ [minMaxName]: 'auto' });
-                            } else {
-                                onChangeMinMax({ [minMaxName]: 0 });
-                            }
-                        }}
-                    />
-
-                    {/* FIXME: replace with the shared NumberInput component */}
-                    <FilterNumberInput
-                        flex="0 1 auto"
-                        disabled={config.rule[minMaxName] === 'auto'}
-                        placeholder={
-                            config.rule[minMaxName] === 'auto'
-                                ? 'Auto'
-                                : undefined
-                        }
-                        label={
-                            <Config.Label>
-                                {capitalize(minMaxName)} value
-                            </Config.Label>
-                        }
+                    <RangeBoundInput
+                        bound={minMaxName}
+                        value={config.rule[minMaxName]}
+                        autoLabel={`${capitalize(minMaxName)} value in table`}
                         leftSection={
                             hasPercentageFormat(field) ? (
                                 <MantineIcon icon={IconPercentage} />
                             ) : null
                         }
-                        value={config.rule[minMaxName]}
-                        onChange={(newValue) => {
-                            if (newValue === null) return;
-
-                            onChangeMinMax({
-                                [minMaxName]: newValue,
-                            });
-                        }}
+                        onChange={(value) =>
+                            onChangeMinMax({ [minMaxName]: value })
+                        }
                     />
 
                     <ColorSelector

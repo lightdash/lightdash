@@ -1,3 +1,4 @@
+import isEqual from 'lodash/isEqual';
 import { type DataAppVizConfigOption } from './dataAppVizConfigOptions';
 import { type DataAppVizField, type DataAppVizSchema } from './types';
 
@@ -32,7 +33,11 @@ const isSameOption = (
     a: DataAppVizConfigOption,
     b: DataAppVizConfigOption,
 ): boolean => {
-    if (a.type !== b.type || a.label !== b.label || a.default !== b.default) {
+    if (
+        a.type !== b.type ||
+        a.label !== b.label ||
+        !isEqual(a.default, b.default)
+    ) {
         return false;
     }
     if (a.type === 'select' && b.type === 'select') {

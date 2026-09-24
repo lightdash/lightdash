@@ -31,6 +31,8 @@ import {
     type FilterableItem,
 } from '../types/field';
 import { FilterOperator, type FieldTarget } from '../types/filter';
+import { type ResultRow } from '../types/results';
+import { type PivotValuesColumn } from '../visualizations/types';
 import assertUnreachable from './assertUnreachable';
 import {
     getItemId,
@@ -133,6 +135,64 @@ export const getMinMaxFromMinMaxMap = (
     min: Math.min(...Object.values(minMaxMap).map((m) => m.min)),
     max: Math.max(...Object.values(minMaxMap).map((m) => m.max)),
 });
+
+/**
+ * Smallest and largest numeric value of each field in the rows. A pivoted
+ * field covers all of its pivot columns, so its series share one scale.
+ * Fields without numeric values are left out.
+ */
+export const getConditionalFormattingMinMaxMap = ({
+    rows,
+    fieldIds,
+    pivotDetails,
+    convertValue,
+}: {
+    rows: ResultRow[];
+    fieldIds: string[];
+    pivotDetails: {
+        valuesColumns: Pick<
+            PivotValuesColumn,
+            'referenceField' | 'pivotColumnName'
+        >[];
+    } | null;
+    convertValue: (fieldId: string, value: number) => number;
+}): ConditionalFormattingMinMaxMap => {
+    const fieldColumns = fieldIds.map((fieldId) => ({
+        fieldId,
+        columns: pivotDetails
+            ? pivotDetails.valuesColumns
+                  .filter((col) => col.referenceField === fieldId)
+                  .map((col) => col.pivotColumnName)
+            : [fieldId],
+    }));
+
+    const result: ConditionalFormattingMinMaxMap = {};
+    for (const row of rows) {
+        for (const { fieldId, columns } of fieldColumns) {
+            for (const column of columns) {
+                const rawValue = row[column]?.value?.raw;
+                if (
+                    rawValue !== undefined &&
+                    rawValue !== null &&
+                    rawValue !== ''
+                ) {
+                    const numValue = Number(rawValue);
+                    if (!Number.isNaN(numValue)) {
+                        const value = convertValue(fieldId, numValue);
+                        const current = result[fieldId];
+                        result[fieldId] = current
+                            ? {
+                                  min: Math.min(current.min, value),
+                                  max: Math.max(current.max, value),
+                              }
+                            : { min: value, max: value };
+                    }
+                }
+            }
+        }
+    }
+    return result;
+};
 
 export class ConditionalFormattingError extends LightdashError {
     constructor(message: string) {

@@ -1,6 +1,6 @@
+import { interpolateMultiColor } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import { interpolateMultiColor } from '../../utils/colorUtils';
 
 type GradientBarProps = {
     colors: string[];

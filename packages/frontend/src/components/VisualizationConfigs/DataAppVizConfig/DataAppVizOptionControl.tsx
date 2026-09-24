@@ -2,15 +2,20 @@ import {
     ECHARTS_DEFAULT_COLORS,
     assertUnreachable,
     getEffectiveOptionValue,
+    getGradientColor,
     type DataAppVizConfigOption,
+    type DataAppVizGradientValue,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { Select, Switch, TextInput } from '@mantine/core';
+import { Group, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
+import isEqual from 'lodash/isEqual';
 import { useState, type FC } from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
+import GradientColorStops from '../common/GradientColorStops';
+import RangeBoundInput from '../common/RangeBoundInput';
 
 // Free-text and colour edits fire continuously while typing / dragging, so
 // they're debounced before reaching chart state (and the iframe re-render).
@@ -44,6 +49,10 @@ const usePendingEdit = <T extends DataAppVizOptionValue>(
         edit: (next: T) => {
             setPending(next);
             flushChange(next);
+        },
+        discard: () => {
+            flushChange.cancel();
+            setPending(null);
         },
     };
 };
@@ -135,6 +144,88 @@ const ColorOptionControl: FC<{
     );
 };
 
+const GradientOptionControl: FC<{
+    option: OptionOfType<'gradient'>;
+    value: DataAppVizGradientValue;
+    colorPalette: string[];
+    onChange: (value: DataAppVizGradientValue) => void;
+}> = ({ option, value, colorPalette, onChange }) => {
+    const draft = usePendingEdit(value, onChange);
+    // An inverted range is invalid, so it stays local until the bounds are fixed.
+    const [invertedEdit, setInvertedEdit] = useState<{
+        base: DataAppVizGradientValue;
+        edit: DataAppVizGradientValue;
+    } | null>(null);
+    // An external change to the saved value supersedes the unsaved inverted edit.
+    const isInverted =
+        invertedEdit !== null && isEqual(invertedEdit.base, value);
+    const gradient = isInverted ? invertedEdit.edit : draft.current;
+    const edit = (next: DataAppVizGradientValue) => {
+        if (next.min !== 'auto' && next.max !== 'auto' && next.min > next.max) {
+            draft.discard();
+            setInvertedEdit({ base: value, edit: next });
+            return;
+        }
+        setInvertedEdit(null);
+        draft.edit(next);
+    };
+    const setColors = (colors: string[]) => edit({ ...gradient, colors });
+    return (
+        <Stack gap="xs" role="group" aria-label={option.label}>
+            <Config.Label>{option.label}</Config.Label>
+            <GradientColorStops
+                colors={gradient.colors}
+                swatches={
+                    colorPalette.length > 0
+                        ? colorPalette
+                        : ECHARTS_DEFAULT_COLORS
+                }
+                onColorChange={(index, color) =>
+                    setColors(
+                        gradient.colors.map((current, i) =>
+                            i === index ? color : current,
+                        ),
+                    )
+                }
+                onAdd={() => {
+                    const { colors } = gradient;
+                    // The new stop starts halfway between the last two.
+                    const middle =
+                        getGradientColor(
+                            { colors: colors.slice(-2), min: 0, max: 1 },
+                            0.5,
+                        ) ?? colors[colors.length - 1];
+                    setColors([
+                        ...colors.slice(0, -1),
+                        middle,
+                        ...colors.slice(-1),
+                    ]);
+                }}
+                onRemove={(index) =>
+                    setColors(gradient.colors.filter((_, i) => i !== index))
+                }
+            />
+            {(['min', 'max'] as const).map((bound) => (
+                <Group key={bound} gap="xs" wrap="nowrap" align="end">
+                    <RangeBoundInput
+                        bound={bound}
+                        value={gradient[bound]}
+                        autoLabel="Auto"
+                        onChange={(next) =>
+                            edit({ ...gradient, [bound]: next })
+                        }
+                    />
+                </Group>
+            ))}
+            {isInverted && (
+                <Text fz="xs" c="red" role="alert">
+                    Min value must not be above max value
+                </Text>
+            )}
+        </Stack>
+    );
+};
+
 type Props = {
     option: DataAppVizConfigOption;
     /** Effective value: the stored value, or the declared default. */
@@ -191,6 +282,15 @@ const DataAppVizOptionControl: FC<Props> = ({
         case 'color':
             return (
                 <ColorOptionControl
+                    option={option}
+                    value={getEffectiveOptionValue(option, value)}
+                    colorPalette={colorPalette}
+                    onChange={onChange}
+                />
+            );
+        case 'gradient':
+            return (
+                <GradientOptionControl
                     option={option}
                     value={getEffectiveOptionValue(option, value)}
                     colorPalette={colorPalette}
