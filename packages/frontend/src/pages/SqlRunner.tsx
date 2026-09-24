@@ -1,6 +1,6 @@
 import { getFieldQuoteChar } from '@lightdash/common';
 import { Stack } from '@mantine/core';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useMount, useUnmount } from 'react-use';
@@ -62,6 +62,10 @@ const SqlRunner = ({
 
     const location = useLocation();
     const navigate = useNavigate();
+    const [connectionHint] = useState<string | null | undefined>(() => {
+        const hint = location.state?.warehouseConnectionUuid;
+        return typeof hint === 'string' || hint === null ? hint : undefined;
+    });
 
     const { data: project } = useProject(projectUuid);
     const { showToastError } = useToaster();
@@ -163,7 +167,10 @@ const SqlRunner = ({
     }
 
     return (
-        <SqlRunnerConnectionScope isEditingSavedChart={!!params.slug}>
+        <SqlRunnerConnectionScope
+            isEditingSavedChart={!!params.slug}
+            connectionHint={connectionHint}
+        >
             <Page
                 title="SQL Runner"
                 noContentPadding

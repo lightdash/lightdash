@@ -1,3 +1,4 @@
+import { type ConnectionRoute } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
@@ -7,11 +8,19 @@ import MantineIcon from '../../common/MantineIcon';
 interface OpenInSqlRunnerButtonProps {
     projectUuid: string;
     sql: string | undefined;
+    warehouseConnectionUuid: string | null | undefined;
+    connectionRoute: ConnectionRoute | undefined;
     disabled?: boolean;
 }
 
 const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
-    ({ projectUuid, sql, disabled }) => {
+    ({
+        projectUuid,
+        sql,
+        warehouseConnectionUuid,
+        connectionRoute,
+        disabled,
+    }) => {
         return (
             <Button
                 variant="default"
@@ -20,11 +29,23 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                 to={{
                     pathname: `/projects/${projectUuid}/sql-runner`,
                 }}
-                state={{ sql }} // pass SQL as location state
+                state={{
+                    sql,
+                    ...(connectionRoute === 'multi' &&
+                    warehouseConnectionUuid !== undefined
+                        ? { warehouseConnectionUuid }
+                        : {}),
+                }}
                 leftSection={
                     <MantineIcon icon={IconTerminal2} color="ldGray.7" />
                 }
-                disabled={disabled || !sql}
+                disabled={
+                    disabled ||
+                    !sql ||
+                    connectionRoute === undefined ||
+                    (connectionRoute === 'multi' &&
+                        warehouseConnectionUuid === undefined)
+                }
             >
                 Open in SQL Runner
             </Button>

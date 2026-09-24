@@ -27,20 +27,56 @@ export const ActiveConnectionProvider: FC<
     PropsWithChildren<{
         projectUuid: string;
         connections: SqlRunnerWarehouseConnection[];
+        connectionHint?: string | null;
     }>
-> = ({ projectUuid, connections, children }) => {
+> = ({ projectUuid, connections, connectionHint, children }) => {
     const { showToastInfo } = useToaster();
     const [selectedConnectionUuid, setSelectedConnectionUuid] = useState<
         string | undefined
-    >(() =>
-        resolveActiveConnection({
+    >(() => {
+        if (connectionHint !== undefined) {
+            const hintedUuid =
+                connectionHint === null
+                    ? connections.find((connection) => connection.isOriginal)
+                          ?.warehouseConnectionUuid
+                    : connectionHint;
+            return connections.some(
+                (connection) =>
+                    connection.warehouseConnectionUuid === hintedUuid,
+            )
+                ? hintedUuid
+                : undefined;
+        }
+        return resolveActiveConnection({
             connections,
             lastUsedConnectionUuid: readLastUsedConnection(projectUuid),
-        }),
-    );
+        });
+    });
+    const userHasPickedConnection = useRef(false);
     const [selectedTable, setActiveTable] = useState<TableIdentity | undefined>(
         undefined,
     );
+
+    useEffect(() => {
+        if (connectionHint === undefined || userHasPickedConnection.current) {
+            return;
+        }
+        const hintedUuid =
+            connectionHint === null
+                ? connections.find((connection) => connection.isOriginal)
+                      ?.warehouseConnectionUuid
+                : connectionHint;
+        if (
+            hintedUuid !== undefined &&
+            hintedUuid !== selectedConnectionUuid &&
+            connections.some(
+                (connection) =>
+                    connection.warehouseConnectionUuid === hintedUuid,
+            )
+        ) {
+            setSelectedConnectionUuid(hintedUuid);
+        }
+    }, [connectionHint, connections, selectedConnectionUuid]);
 
     const activeConnection = useMemo(
         () =>
@@ -104,6 +140,7 @@ export const ActiveConnectionProvider: FC<
 
     const switchConnection = useCallback(
         (warehouseConnectionUuid: string) => {
+            userHasPickedConnection.current = true;
             setSelectedConnectionUuid(warehouseConnectionUuid);
             writeLastUsedConnection(projectUuid, warehouseConnectionUuid);
         },
@@ -116,7 +153,8 @@ export const ActiveConnectionProvider: FC<
             connections,
             hasSeveralConnections: connections.length > 1,
             isConnectionSettled:
-                activeConnectionUuid !== undefined || connections.length === 1,
+                activeConnectionUuid !== undefined ||
+                (connectionHint === undefined && connections.length === 1),
             activeConnectionUuid,
             activeConnection,
             connectionNameFor,
@@ -129,6 +167,7 @@ export const ActiveConnectionProvider: FC<
             connections,
             activeConnectionUuid,
             activeConnection,
+            connectionHint,
             connectionNameFor,
             switchConnection,
             activeTable,

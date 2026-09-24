@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createExplorerStore,
     explorerActions,
@@ -9,8 +9,12 @@ import {
 import { renderWithProviders } from '../../testing/testUtils';
 import Explorer from './index';
 
-const { cardProps } = vi.hoisted(() => ({
+const { cardProps, sqlCardProps, exploreBinding } = vi.hoisted(() => ({
     cardProps: [] as { renderVisualization: boolean }[],
+    sqlCardProps: [] as {
+        warehouseConnectionUuid: string | null | undefined;
+    }[],
+    exploreBinding: { value: undefined as string | null | undefined },
 }));
 
 vi.mock('./VisualizationCard/VisualizationCard', () => ({
@@ -25,7 +29,14 @@ vi.mock('./ExplorerHeader', () => ({
 vi.mock('./ResultsCard/ResultsCard', () => ({
     default: () => <div data-testid="results-card" />,
 }));
-vi.mock('./SqlCard/SqlCard', () => ({ default: () => null }));
+vi.mock('./SqlCard/SqlCard', () => ({
+    default: (props: {
+        warehouseConnectionUuid: string | null | undefined;
+    }) => {
+        sqlCardProps.push(props);
+        return null;
+    },
+}));
 vi.mock('./FiltersCard/FiltersCard', () => ({
     default: () => <div data-testid="filters-card" />,
 }));
@@ -61,7 +72,16 @@ vi.mock('../../features/mergeQuery/components/MergeRelationshipCard', () => ({
     MergeRelationshipCard: () => null,
 }));
 vi.mock('../../hooks/useExplore', () => ({
-    useExplore: () => ({ data: undefined }),
+    useExplore: () => ({
+        data:
+            exploreBinding.value === undefined
+                ? undefined
+                : {
+                      warehouseConnectionUuid: exploreBinding.value,
+                      tables: {},
+                      joinedTables: [],
+                  },
+    }),
 }));
 vi.mock('../../hooks/useCompiledSql', () => ({
     useCompiledSql: () => ({ data: undefined }),
@@ -73,7 +93,9 @@ vi.mock('../../hooks/parameters/useParameters', () => ({
     useParameters: () => ({ data: undefined }),
 }));
 vi.mock('../../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({ data: undefined }),
+    useOrganization: () => ({
+        data: { organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51' },
+    }),
 }));
 vi.mock('../../hooks/useExplorerQuery', () => ({
     useExplorerQuery: () => ({
@@ -87,6 +109,9 @@ vi.mock('../../hooks/useProjectUuid', () => ({
 vi.mock('../../providers/Fullscreen/useFullscreen', () => ({
     default: () => ({ isFullscreen: false }),
 }));
+vi.mock('../../providers/Ability', () => ({
+    Can: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
 const renderExplorer = ({ authoring = false } = {}) => {
     const store = createExplorerStore();
@@ -97,6 +122,7 @@ const renderExplorer = ({ authoring = false } = {}) => {
         );
     }
     cardProps.length = 0;
+    sqlCardProps.length = 0;
     renderWithProviders(
         <Provider store={store}>
             <MemoryRouter>
@@ -107,6 +133,18 @@ const renderExplorer = ({ authoring = false } = {}) => {
 };
 
 describe('Explorer while a chart type is authored', () => {
+    beforeEach(() => {
+        exploreBinding.value = undefined;
+    });
+
+    it('passes the bound explore connection to the SQL card', () => {
+        exploreBinding.value = 'finance-uuid';
+        renderExplorer();
+
+        expect(sqlCardProps.at(-1)?.warehouseConnectionUuid).toBe(
+            'finance-uuid',
+        );
+    });
     it('shows the chart and its cards when nothing is authored', () => {
         renderExplorer();
 

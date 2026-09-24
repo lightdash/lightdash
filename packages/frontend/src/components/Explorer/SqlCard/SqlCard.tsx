@@ -40,6 +40,7 @@ import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
 interface SqlCardProps {
     projectUuid: string;
+    warehouseConnectionUuid: string | null | undefined;
 }
 
 // Lazy load because it imports heavy module "@monaco-editor/react"
@@ -49,7 +50,8 @@ const LazyRenderedSql = lazy(() =>
     })),
 );
 
-const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
+const SqlCard: FC<SqlCardProps> = memo((props) => {
+    const { projectUuid, warehouseConnectionUuid } = props;
     const { hovered, ref: headingRef } = useHover();
     const [selectedView, setSelectedView] = useState<SqlViewType>('query');
 
@@ -177,6 +179,14 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                             <OpenInSqlRunnerButton
                                 projectUuid={projectUuid}
                                 sql={formattedSql}
+                                warehouseConnectionUuid={
+                                    warehouseConnectionUuid
+                                }
+                                connectionRoute={
+                                    project
+                                        ? (project.connectionRoute ?? 'single')
+                                        : undefined
+                                }
                                 disabled={isInitialLoading || !!error}
                             />
                         </Can>

@@ -85,8 +85,11 @@ const ActiveConnectionStoreSync: FC<{ isEditingSavedChart: boolean }> = ({
 };
 
 export const SqlRunnerConnectionScope: FC<
-    PropsWithChildren<{ isEditingSavedChart: boolean }>
-> = ({ isEditingSavedChart, children }) => {
+    PropsWithChildren<{
+        isEditingSavedChart: boolean;
+        connectionHint?: string | null;
+    }>
+> = ({ isEditingSavedChart, connectionHint, children }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
     const isMulti = project?.connectionRoute === 'multi';
@@ -111,6 +114,7 @@ export const SqlRunnerConnectionScope: FC<
         <ActiveConnectionProvider
             projectUuid={projectUuid}
             connections={connections}
+            connectionHint={connectionHint}
         >
             <ActiveConnectionStoreSync
                 isEditingSavedChart={isEditingSavedChart}
