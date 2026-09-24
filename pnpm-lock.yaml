@@ -1008,6 +1008,9 @@ importers:
       echarts:
         specifier: 5.6.0
         version: 5.6.0
+      gray-matter:
+        specifier: 4.0.3
+        version: 4.0.3
       handlebars:
         specifier: 4.7.9
         version: 4.7.9

@@ -1,4 +1,4 @@
-import * as yaml from 'js-yaml';
+import matter from 'gray-matter';
 import {
     AI_AGENT_SKILL_BODY_MAX_BYTES,
     AI_AGENT_SKILL_BODY_WARN_LINES,
@@ -46,10 +46,12 @@ const AVAILABILITY_VALUES: AiAgentSkillAvailability[] = ['agent', 'mcp'];
 const SHELL_INJECTION_PATTERN = /!`[^`\n]+`|^```!/m;
 const FILE_REFERENCE_PATTERN = /(^|\s)@[\w./-]+/m;
 const ENV_VARIABLE_PATTERN = /\$\{CLAUDE_[A-Z_]+\}/;
-const FRONTMATTER_PATTERN = /^---\n([\s\S]*?)\n?---[ \t]*(?:\n|$)/;
 const RESOURCE_PREFIX = `${AI_AGENT_SKILL_RESOURCES_DIR}/`;
 
-type Frontmatter = { data: Record<string, unknown>; body: string };
+export type AiAgentSkillFileParts = {
+    data: Record<string, unknown>;
+    body: string;
+};
 type Issues = { errors: AiAgentSkillIssue[]; warnings: AiAgentSkillIssue[] };
 type Parsed<T> = { value: T; issues: Issues };
 
@@ -80,30 +82,27 @@ const byteLength = (value: string): number =>
 const countLines = (text: string): number =>
     text.length === 0 ? 0 : text.replace(/\n$/, '').split('\n').length;
 
-/** Null when the frontmatter block is malformed; absent frontmatter is fine. */
-const splitFrontmatter = (raw: string): Frontmatter | null => {
+/**
+ * Splits a skill markdown file into frontmatter and body. Null when the block
+ * is malformed; a file without frontmatter is fine. Shared with the built-in
+ * skill loader so both read the format the same way.
+ */
+export const splitAiAgentSkillFrontmatter = (
+    raw: string,
+): AiAgentSkillFileParts | null => {
     const normalized = raw.replace(/\r\n/g, '\n');
-    if (!normalized.startsWith('---\n')) {
-        return { data: {}, body: normalized };
-    }
-    const match = FRONTMATTER_PATTERN.exec(normalized);
-    if (match === null) {
-        return null;
-    }
-    const body = normalized.slice(match[0].length);
-    let data: unknown;
+    let parsed: { data: unknown; content: string };
     try {
-        data = yaml.load(match[1]);
+        // The options object opts out of gray-matter's per-string cache.
+        parsed = matter(normalized, {});
     } catch (e) {
         return null;
     }
-    if (data === undefined || data === null) {
-        return { data: {}, body };
-    }
-    if (typeof data !== 'object' || Array.isArray(data)) {
+    const { data, content } = parsed;
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
         return null;
     }
-    return { data: data as Record<string, unknown>, body };
+    return { data: data as Record<string, unknown>, body: content };
 };
 
 const asString = (value: unknown): string | null =>
@@ -445,7 +444,7 @@ const parseResource = (
     path: string,
     raw: string,
 ): Parsed<AiAgentSkillParsedResource | null> => {
-    const parsed = splitFrontmatter(raw);
+    const parsed = splitAiAgentSkillFrontmatter(raw);
     if (parsed === null) {
         return {
             value: null,
@@ -552,7 +551,7 @@ export const validateAiAgentSkill = ({
         );
     }
     const pathIssues = checkFilePaths(files);
-    const skillFrontmatter = splitFrontmatter(skillRaw);
+    const skillFrontmatter = splitAiAgentSkillFrontmatter(skillRaw);
     if (skillFrontmatter === null) {
         return invalid(
             mergeIssues(
