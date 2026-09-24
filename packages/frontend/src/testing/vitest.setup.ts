@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { notifyManager } from '@tanstack/react-query';
 import nock from 'nock';
 import nodeFetch from 'node-fetch';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
@@ -30,6 +31,13 @@ beforeAll(() => {
 
 // Disable all network requests by default
 nock.disableNetConnect();
+
+// React Query notifies on a 0ms timeout. After the last file, jsdom teardown
+// removes `window` and React 19 then throws from `window.event`.
+notifyManager.setNotifyFunction((callback) => {
+    if (typeof window === 'undefined') return;
+    callback();
+});
 
 beforeEach(() => {
     if (!nock.isActive()) {

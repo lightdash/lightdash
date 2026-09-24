@@ -218,8 +218,10 @@ describe('stacked chart hover painting', () => {
             expect(opacityOf('#228be6')).toEqual(['1', '1', '1', '1']);
             expect(opacityOf('#10b981')).toEqual(['1', '1', '1', '1']);
         } finally {
+            chart.getZr().animation.stop();
             chart.dispose();
             container.remove();
+            await new Promise((resolve) => setTimeout(resolve, 0));
         }
     });
 });
