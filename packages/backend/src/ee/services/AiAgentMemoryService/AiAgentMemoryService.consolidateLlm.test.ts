@@ -35,7 +35,8 @@ vi.mocked(getModel).mockReturnValue({
 
 // The class Output.object actually throws for a schema failure. Asserting
 // against NoOutputGeneratedError here would pass while production retried
-// nothing: that class only fires on empty output.
+// nothing: that one fires only when the output was never parsed at all, which
+// is not what a schema failure is.
 const schemaFailure = () =>
     new NoObjectGeneratedError({
         message: 'response did not match schema',
