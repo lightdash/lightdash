@@ -469,6 +469,20 @@ describe('CoderService.upsertSqlChart - connections', () => {
         },
     );
 
+    it('moves an original-bound SQL chart to a named extra connection', async () => {
+        connectionState.route = 'multi';
+        const { savedSqlModel, error } = await uploadWith(
+            [existingRow(SPACE_UUID, null)],
+            'Finance',
+        );
+
+        expect(error).toBeNull();
+        expect(savedSqlModel.update).toHaveBeenCalledWith(
+            expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+            { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
+        );
+    });
+
     it.each([undefined, 'Warehouse', 'Reporting'])(
         'refuses a bound SQL chart when the uploaded connection is %s',
         async (connection) => {
