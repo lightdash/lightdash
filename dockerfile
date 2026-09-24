@@ -10,38 +10,21 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
-# Build Bookworm packages with the upstream CVE-2026-48962 fix.
+# Build versioned Perl packages in an isolated stage.
 FROM node:24-bookworm-slim AS perl-security-build
 ARG PERL_VERSION=5.36.0-7+deb12u3
 ARG PERL_BACKPORT_VERSION=5.36.0-7+deb12u3+lightdash1
-RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends build-essential dpkg-dev \
-    && apt-get build-dep -y --no-install-recommends perl=${PERL_VERSION}
-WORKDIR /src
-RUN apt-get source perl=${PERL_VERSION}
-COPY docker/security/CVE-2026-48962/globmapper.patch /tmp/globmapper.patch
-RUN cd perl-5.36.0 \
-    && sed -e 's|a/lib/|a/cpan/IO-Compress/lib/|' \
-           -e 's|b/lib/|b/cpan/IO-Compress/lib/|' \
-           /tmp/globmapper.patch > debian/patches/fixes/CVE-2026-48962.diff \
-    && echo 'fixes/CVE-2026-48962.diff' >> debian/patches/series \
-    && dpkg-source --before-build . \
-    && { printf 'perl (%s) bookworm; urgency=high\n\n  * Backport upstream fix for CVE-2026-48962.\n\n -- Lightdash <support@lightdash.com>  Thu, 24 Sep 2026 00:00:00 +0000\n\n' "${PERL_BACKPORT_VERSION}"; cat debian/changelog; } > /tmp/changelog \
-    && mv /tmp/changelog debian/changelog \
-    && dpkg-buildpackage --build=binary --no-sign -j4 \
-    && mkdir /packages \
-    && cp ../perl-base_*.deb ../perl-modules-5.36_*.deb ../libperl5.36_*.deb ../perl_*.deb /packages/
+COPY docker/security/perl-bookworm /tmp/perl-backport
+RUN bash /tmp/perl-backport/build.sh "${PERL_VERSION}" "${PERL_BACKPORT_VERSION}"
 
 FROM node:24-bookworm-slim AS pnpm-base
 
 # Install the versioned backport through APT in every build and runtime stage.
 RUN --mount=type=bind,from=perl-security-build,source=/packages,target=/tmp/perl-packages \
-    --mount=type=bind,source=docker/security/CVE-2026-48962/verify.pl,target=/tmp/verify-perl.pl \
     apt-get update \
     && apt-get install -y --no-install-recommends /tmp/perl-packages/*.deb \
     && dpkg-query -W perl-base perl perl-modules-5.36 libperl5.36 \
-    && perl /tmp/verify-perl.pl \
+    && echo '78ba0fce947e6b09da9009b4bb5bc86e23d482ec6a7518b64b89c27f76f03bb5  /usr/share/perl/5.36.0/File/GlobMapper.pm' | sha256sum --check \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PNPM_HOME="/pnpm"
