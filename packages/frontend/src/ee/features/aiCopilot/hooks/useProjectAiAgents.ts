@@ -10,6 +10,7 @@ import type {
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
+    ApiRememberCorrectionResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
@@ -1690,6 +1691,56 @@ export const useRestoreAiAgentThreadDataAppVersionMutation = (
 };
 
 // Feedback and query management functionality
+const rememberCorrection = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+    messageUuid: string,
+    remember: boolean,
+) =>
+    lightdashApi<ApiRememberCorrectionResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/remember`,
+        method: remember ? 'POST' : 'DELETE',
+        body: undefined,
+    });
+
+/** Saves or removes a detected correction as Team vocabulary, keeping the cached agent instructions in step. */
+export const useRememberCorrectionMutation = (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        ApiRememberCorrectionResponse['results'],
+        ApiError,
+        { messageUuid: string; remember: boolean }
+    >({
+        mutationFn: ({ messageUuid, remember }) =>
+            rememberCorrection(
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                messageUuid,
+                remember,
+            ),
+        onSuccess: ({ instruction }) => {
+            queryClient.setQueryData<ApiAiAgentResponse['results']>(
+                [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid],
+                (agent) => (agent ? { ...agent, instruction } : agent),
+            );
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update the team vocabulary',
+                apiError: error,
+            });
+        },
+    });
+};
+
 const updatePromptFeedback = async (
     projectUuid: string,
     agentUuid: string,

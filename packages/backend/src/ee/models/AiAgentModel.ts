@@ -99,6 +99,7 @@ import {
     type AgentAsCodeEvaluation,
     type AiAgent,
     type AiAgentIntegration,
+    type AiAgentJevCorrection,
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
@@ -108,6 +109,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { z } from 'zod';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import {
@@ -567,6 +569,12 @@ const getTerminalWritebackFallback = (
             return null;
     }
 };
+
+const storedCorrectionSchema = z.object({
+    kind: z.string(),
+    fieldId: z.string().nullable(),
+    coveredBy: z.string().nullable(),
+});
 
 export class AiAgentModel {
     // Cap stored raw args of invalid tool calls (they can be arbitrarily large)
@@ -5706,6 +5714,7 @@ export class AiAgentModel {
                     | 'fallback_reason'
                     | 'intent'
                     | 'latency_ms'
+                    | 'correction'
                 >[]
             >(
                 'ai_prompt_uuid',
@@ -5715,6 +5724,7 @@ export class AiAgentModel {
                 'fallback_reason',
                 'intent',
                 'latency_ms',
+                'correction',
             )
             .whereIn('ai_prompt_uuid', promptUuids)
             .orderBy('created_at', 'asc');
@@ -5728,9 +5738,18 @@ export class AiAgentModel {
                     fallbackReason: row.fallback_reason,
                     editKind: AiAgentModel.decisionEditKind(row),
                     latencyMs: row.latency_ms,
+                    correction: AiAgentModel.decisionCorrection(row.correction),
                 },
             ]),
         );
+    }
+
+    /** Reads the stored correction defensively; rows written before the column exist hold null. */
+    private static decisionCorrection(
+        value: object | null,
+    ): AiAgentJevCorrection | null {
+        const parsed = storedCorrectionSchema.safeParse(value);
+        return parsed.success ? parsed.data : null;
     }
 
     private static decisionEditKind(
@@ -9111,6 +9130,16 @@ export class AiAgentModel {
         await this.database(AiThreadTableName)
             .where('ai_thread_uuid', threadUuid)
             .update({ pinned_at: pinned ? new Date() : null });
+    }
+
+    async saveInstructionVersion(data: {
+        agentUuid: string;
+        instruction: string;
+    }): Promise<void> {
+        await this.database(AiAgentInstructionVersionsTableName).insert({
+            ai_agent_uuid: data.agentUuid,
+            instruction: data.instruction,
+        });
     }
 
     async appendInstruction(data: {

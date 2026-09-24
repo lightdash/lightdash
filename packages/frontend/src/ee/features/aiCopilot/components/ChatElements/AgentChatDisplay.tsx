@@ -26,6 +26,7 @@ import { DeepResearchThreadRuns } from '../DeepResearch/DeepResearchThreadRuns';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
+import { RememberCorrectionCard } from './RememberCorrectionCard';
 import ThreadScrollToBottom from './ScrollToBottom';
 import { ChatElementsUtils } from './utils';
 
@@ -260,6 +261,25 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                 }
                                             />
                                         )}
+                                        {projectUuid &&
+                                            agentUuid &&
+                                            message.jevDecision?.correction &&
+                                            xs[i - 1]?.role === 'user' &&
+                                            xs[i - 1].message && (
+                                                <RememberCorrectionCard
+                                                    projectUuid={projectUuid}
+                                                    agentUuid={agentUuid}
+                                                    threadUuid={thread.uuid}
+                                                    messageUuid={message.uuid}
+                                                    userPrompt={
+                                                        xs[i - 1].message ?? ''
+                                                    }
+                                                    correction={
+                                                        message.jevDecision
+                                                            .correction
+                                                    }
+                                                />
+                                            )}
                                     </ErrorBoundary>
                                 )}
 

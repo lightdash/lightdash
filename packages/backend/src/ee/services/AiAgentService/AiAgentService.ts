@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    addTeamVocabularyLine,
     AgentSuggestion,
     AgentSummaryContext,
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
@@ -139,6 +140,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     ReadinessScore,
+    removeTeamVocabularyLine,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
     SlackPrompt,
@@ -12909,6 +12911,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 applied,
                 fallback_reason: fallbackReason,
                 simple_data_answer: turn.decision.simpleDataAnswer,
+                correction: turn.decision.correction,
                 answers: turn.answers,
                 thresholds: CHART_INTENT_THRESHOLDS,
                 latency_ms: Math.round(latencyMs),
@@ -20251,6 +20254,59 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         return artifact;
+    }
+
+    /** Saves or removes the user's own sentence as Team vocabulary; only for messages where JEV detected a correction. */
+    async rememberCorrection(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            promptUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            promptUuid: string;
+        },
+        action: 'save' | 'forget',
+    ): Promise<{ instruction: string }> {
+        await this.assertCanManageAgent(user, agentUuid, projectUuid);
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAgentFastDecisions,
+        });
+        if (!enabled)
+            throw new ForbiddenError('Saving corrections is not enabled');
+        const prompt = await this.aiAgentModel.findWebAppPrompt(promptUuid);
+        if (
+            !prompt ||
+            prompt.threadUuid !== threadUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.projectUuid !== projectUuid
+        )
+            throw new NotFoundError('Message not found');
+        const decision = (
+            await this.aiAgentModel.findPromptDecisions([promptUuid])
+        ).get(promptUuid);
+        if (!decision?.correction)
+            throw new ParameterError(
+                'No lasting correction was detected in this message',
+            );
+        const current = await this.aiAgentModel.getAgentLastInstruction({
+            agentUuid,
+        });
+        const instruction =
+            action === 'save'
+                ? addTeamVocabularyLine(current, prompt.prompt)
+                : removeTeamVocabularyLine(current, prompt.prompt);
+        if (instruction !== (current ?? ''))
+            await this.aiAgentModel.saveInstructionVersion({
+                agentUuid,
+                instruction,
+            });
+        return { instruction };
     }
 
     async appendInstruction(

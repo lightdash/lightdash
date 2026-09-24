@@ -11,6 +11,7 @@ const decision = (
     fallbackReason: null,
     editKind: null,
     latencyMs: 300,
+    correction: null,
     ...overrides,
 });
 

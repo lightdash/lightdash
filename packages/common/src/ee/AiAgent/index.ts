@@ -297,6 +297,18 @@ export type AiAgentMessageAssistantArtifact = Pick<
     | 'artifactType'
 >;
 
+/** A lasting definition or default JEV detected in the user's message. */
+export type AiAgentJevCorrection = {
+    kind: string;
+    fieldId: string | null;
+    /** An existing instruction line that already states it. */
+    coveredBy: string | null;
+};
+
+export type ApiRememberCorrectionResponse = ApiSuccess<{
+    instruction: string;
+}>;
+
 export type AiAgentJevDecision = {
     outcome:
         | 'intent'
@@ -317,6 +329,8 @@ export type AiAgentJevDecision = {
     /** The resolved edit kind, e.g. filter_values or chart_type. */
     editKind: string | null;
     latencyMs: number;
+    /** A lasting correction JEV detected in the user's message, if any. */
+    correction: AiAgentJevCorrection | null;
 };
 
 export type AiAgentMessageAssistant = {
@@ -1393,3 +1407,4 @@ export type AiModelOption = {
 };
 
 export type ApiAiAgentModelOptionsResponse = ApiSuccess<AiModelOption[]>;
+export * from './teamVocabulary';

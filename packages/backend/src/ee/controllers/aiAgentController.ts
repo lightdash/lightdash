@@ -65,6 +65,7 @@ import {
     ApiCreateEvaluationResponse,
     ApiErrorPayload,
     ApiGetUserAgentPreferencesResponse,
+    ApiRememberCorrectionResponse,
     ApiStartAiMcpOAuthResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
@@ -1619,6 +1620,60 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/remember')
+    @OperationId('rememberCorrection')
+    async rememberCorrection(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+    ): Promise<ApiRememberCorrectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().rememberCorrection(
+                toSessionUser(req.account),
+                { projectUuid, agentUuid, threadUuid, promptUuid: messageUuid },
+                'save',
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/remember')
+    @OperationId('forgetCorrection')
+    async forgetCorrection(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+    ): Promise<ApiRememberCorrectionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().rememberCorrection(
+                toSessionUser(req.account),
+                { projectUuid, agentUuid, threadUuid, promptUuid: messageUuid },
+                'forget',
+            ),
         };
     }
 
