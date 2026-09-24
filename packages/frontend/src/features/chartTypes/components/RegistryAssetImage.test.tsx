@@ -16,6 +16,8 @@ describe('RegistryAssetImage', () => {
             'src',
             expect.stringContaining('/api/v1/ee/chart-registry/assets?path='),
         );
+        expect(img).toHaveAttribute('loading', 'lazy');
+        expect(img).toHaveAttribute('decoding', 'async');
         expect(screen.queryByText('fallback')).not.toBeInTheDocument();
 
         fireEvent.error(img);

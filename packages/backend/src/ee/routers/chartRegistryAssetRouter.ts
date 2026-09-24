@@ -34,7 +34,12 @@ chartRegistryAssetRouter.get(
                 return;
             }
             res.setHeader('Content-Type', asset.contentType);
-            res.setHeader('Cache-Control', 'private, max-age=3600');
+            // Asset paths are pinned to a published chart version, which the
+            // registry never rewrites, so the browser can keep them forever.
+            res.setHeader(
+                'Cache-Control',
+                'private, max-age=31536000, immutable',
+            );
             res.send(asset.buffer);
         } catch (e) {
             next(e);

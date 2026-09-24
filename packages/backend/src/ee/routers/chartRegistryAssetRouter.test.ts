@@ -154,7 +154,9 @@ describe('chartRegistryAssetRouter GET /assets', () => {
 
         expect(response.status).toBe(200);
         expect(response.headers['content-type']).toBe('image/png');
-        expect(response.headers['cache-control']).toBe('private, max-age=3600');
+        expect(response.headers['cache-control']).toBe(
+            'private, max-age=31536000, immutable',
+        );
         expect(response.body).toEqual(pngBuffer);
     });
 
