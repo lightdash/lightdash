@@ -1,3 +1,10 @@
+# [2.320.0](https://github.com/lightdash/lightdash/compare/2.319.6...2.320.0) (2026-09-24)
+
+
+### Features
+
+* **chart-types:** show release-stage badge in installed chart type details ([#29866](https://github.com/lightdash/lightdash/issues/29866)) ([a60cdb0](https://github.com/lightdash/lightdash/commit/a60cdb02c6b9ba295c67ab0b1e23c0de85c8cccf))
+
 ## [2.319.6](https://github.com/lightdash/lightdash/compare/2.319.5...2.319.6) (2026-09-24)
 
 
