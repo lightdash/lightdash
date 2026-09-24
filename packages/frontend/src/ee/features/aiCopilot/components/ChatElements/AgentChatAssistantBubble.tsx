@@ -63,6 +63,7 @@ import {
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { useBattleMessage } from '../Battle/BattleMessageContext';
+import { isJevTurn } from '../Battle/jevDecision';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
@@ -1388,7 +1389,11 @@ export const AssistantBubble: FC<Props> = memo(
                                 onToggle={toggleSources}
                             />
                         )}
-                        {!(battle.isBattle && message.jevDecision?.applied) && (
+                        {!(
+                            battle.isBattle &&
+                            message.jevDecision &&
+                            isJevTurn(message.jevDecision)
+                        ) && (
                             <MessageModelIndicator
                                 projectUuid={projectUuid}
                                 agentUuid={agentUuid}

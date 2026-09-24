@@ -31,6 +31,12 @@ describe('describeJevDecision', () => {
         ]);
     });
 
+    it('credits JEV for its own clarifying question', () => {
+        expect(
+            describeJevDecision(decision({ outcome: 'clarify' })),
+        ).toMatchObject({ applied: true, badge: 'JEV · clarifying question' });
+    });
+
     it('keeps the reason code for handoffs', () => {
         expect(
             describeJevDecision(

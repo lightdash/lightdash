@@ -645,6 +645,23 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('removes a clearly leading filter without asking', () => {
+        expect(
+            interpretFiltered('show me all regions again', {
+                intent: choice('remove_filter'),
+                removeFilterField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.74,
+                    probabilities: { orders_region: 0.74, orders_date: 0.25 },
+                },
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'remove_filter', fieldId: 'orders_region' },
+        });
+    });
+
     it('asks which filter to remove when JEV splits between two', () => {
         expect(
             interpretFiltered('show everything again', {
