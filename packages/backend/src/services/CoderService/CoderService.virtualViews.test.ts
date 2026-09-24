@@ -80,6 +80,7 @@ const asCode: VirtualViewAsCode = {
 type ConnectionSetup = {
     route: 'single' | 'multi';
     bindings: Record<string, string | null>;
+    listsConnections?: boolean;
 };
 
 const SINGLE: ConnectionSetup = { route: 'single', bindings: {} };
@@ -149,7 +150,9 @@ const buildService = (
         warehouseConnectionModel: {
             getProject: vi.fn(async () => ({ projectUuid })),
             list: vi.fn(async () =>
-                setup.route === 'multi' ? connections : [],
+                setup.route === 'multi' || setup.listsConnections
+                    ? connections
+                    : [],
             ),
         } as never,
     });
@@ -414,6 +417,43 @@ describe('CoderService virtual views as code', () => {
                 'The connection of virtual view "orders_by_customer" cannot change on upload.',
             );
             expect(projectService.updateVirtualView).not.toHaveBeenCalled();
+        });
+
+        test('an identical upload that names the original connection has no changes', async () => {
+            const { service, projectService } = buildService(
+                virtualView,
+                MULTI_ORIGINAL,
+            );
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Warehouse' },
+                ),
+            ).resolves.toEqual({ action: PromotionAction.NO_CHANGES });
+            expect(projectService.updateVirtualView).not.toHaveBeenCalled();
+        });
+
+        test('a single project refuses a connection name even when connections are listed (D4)', async () => {
+            const { service, projectService } = buildService(null, {
+                route: 'single',
+                bindings: {},
+                listsConnections: true,
+            });
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Warehouse' },
+                ),
+            ).rejects.toThrow(
+                'This project has no connection named "Warehouse".',
+            );
+            expect(projectService.createVirtualView).not.toHaveBeenCalled();
         });
     });
 });

@@ -1509,6 +1509,186 @@ describe('Multi-connection compile on the real schema', () => {
                 });
             });
 
+            const setOriginalCredentials = async (
+                projectUuid: string,
+                credentials: Record<string, unknown>,
+            ) => {
+                const [{ project_id: projectId }] = await database('projects')
+                    .select('project_id')
+                    .where('project_uuid', projectUuid);
+                await database('warehouse_credentials')
+                    .where('project_id', projectId)
+                    .update({
+                        warehouse_type: credentials.type,
+                        encrypted_credentials: encryptionUtil.encrypt(
+                            JSON.stringify(credentials),
+                        ),
+                    } as never);
+            };
+
+            test.each([
+                { region: 'eu-west-1', refused: false },
+                { region: 'us-east-1', refused: true },
+            ])(
+                'a deploy to an Athena original checks the region of the dbt target (region $region)',
+                async ({ region, refused }) => {
+                    const fixture = await createProject();
+                    await setOriginalCredentials(fixture.projectUuid, {
+                        type: 'athena',
+                        region: 'eu-west-1',
+                        database: 'AwsDataCatalog',
+                        schema: 'analytics',
+                        s3StagingDir: 's3://staging',
+                        authenticationType: 'access_key',
+                        accessKeyId: 'access-key',
+                        secretAccessKey: 'secret-key',
+                    });
+                    const user = await compilingUser(fixture.projectUuid);
+                    const deploy = compileService(
+                        fixture.projectUuid,
+                    ).service.setExplores(
+                        user,
+                        fixture.projectUuid,
+                        [explore('orders', ['orders'])],
+                        'cli-1',
+                        true,
+                        undefined,
+                        {
+                            sourceUuid: null,
+                            target: { database: 'AwsDataCatalog', region },
+                        },
+                    );
+
+                    if (refused) {
+                        await expect(deploy).rejects.toThrow(
+                            'The dbt target compiles against region us-east-1, but the deploy goes to the connection "Original", which points at eu-west-1.',
+                        );
+                    } else {
+                        await expect(deploy).resolves.toMatchObject({
+                            exploreCount: 1,
+                        });
+                    }
+                },
+            );
+
+            test('a server compile stamps the source on error explores, and a deploy of the primary keeps the error explore of another source on the original', async () => {
+                const fixture = await createProject();
+                sourceManifests.marketing = dbtManifest('marketing', [
+                    {
+                        name: 'campaigns',
+                        database: ORIGINAL_DB,
+                        table: 'campaigns',
+                    },
+                    {
+                        name: 'broken_campaigns',
+                        database: ORIGINAL_DB,
+                        table: 'campaigns',
+                    },
+                ]);
+                (
+                    sourceManifests.marketing.nodes[
+                        'model.marketing.broken_campaigns'
+                    ] as unknown as { columns: unknown }
+                ).columns = {};
+                await compile(fixture);
+
+                const broken = (await cachedExplores(fixture.projectUuid)).find(
+                    (row) => row.name === 'broken_campaigns',
+                );
+                expect(broken?.explore).toMatchObject({
+                    errors: expect.any(Array),
+                    dbtSourceUuid: fixture.sourceUuids.marketing,
+                });
+
+                const user = await compilingUser(fixture.projectUuid);
+                await compileService(fixture.projectUuid).service.setExplores(
+                    user,
+                    fixture.projectUuid,
+                    [explore('orders', ['orders'])],
+                    'cli-1',
+                    true,
+                    undefined,
+                    NO_SOURCE,
+                );
+
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    broken_campaigns: null,
+                    campaigns: null,
+                    orders: null,
+                    payments: fixture.extraConnectionUuid,
+                });
+            });
+
+            test('with two sources on one extra connection, a deploy of one keeps the error explores that the other deployed', async () => {
+                const fixture = await createProject();
+                await bind(fixture, 'marketing', fixture.extraConnectionUuid);
+                await compile(fixture);
+                const user = await compilingUser(fixture.projectUuid);
+                const { service } = compileService(fixture.projectUuid);
+                await service.setExplores(
+                    user,
+                    fixture.projectUuid,
+                    [
+                        explore('refunds', ['refunds']),
+                        brokenExplore('broken_finance'),
+                    ],
+                    'cli-1',
+                    true,
+                    undefined,
+                    { sourceUuid: fixture.sourceUuids.finance, target: null },
+                );
+
+                await service.setExplores(
+                    user,
+                    fixture.projectUuid,
+                    [explore('campaigns', ['campaigns'])],
+                    'cli-1',
+                    true,
+                    undefined,
+                    {
+                        sourceUuid: fixture.sourceUuids.marketing,
+                        target: null,
+                    },
+                );
+
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    broken_finance: fixture.extraConnectionUuid,
+                    campaigns: fixture.extraConnectionUuid,
+                    customers: null,
+                    orders: null,
+                    refunds: fixture.extraConnectionUuid,
+                });
+            });
+
+            test('a deploy replaces an error explore with no source stamp on its own connection', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                await database('cached_explore').insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'broken_orders',
+                    table_names: [],
+                    explore: JSON.stringify(brokenExplore('broken_orders')),
+                    warehouse_connection_uuid: null,
+                } as never);
+                const user = await compilingUser(fixture.projectUuid);
+
+                await compileService(fixture.projectUuid).service.setExplores(
+                    user,
+                    fixture.projectUuid,
+                    [explore('orders', ['orders'])],
+                    'cli-1',
+                    true,
+                    undefined,
+                    NO_SOURCE,
+                );
+
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    campaigns: null,
+                    orders: null,
+                    payments: fixture.extraConnectionUuid,
+                });
+            });
+
             test('a single project ignores the source and the target and writes the rows of the main deploy save', async () => {
                 const deployed = await createProject();
                 const baseline = await createProject();
@@ -1549,6 +1729,101 @@ describe('Multi-connection compile on the real schema', () => {
                 expect(await dump(deployed.projectUuid)).toEqual(
                     await dump(baseline.projectUuid),
                 );
+            });
+        });
+
+        describe('virtual views on an extra connection', () => {
+            const databricks = (serverHostName: string) => ({
+                type: 'databricks',
+                serverHostName,
+                httpPath: '/sql/1.0/warehouses/abc',
+                personalAccessToken: 'project-token',
+                catalog: 'main',
+                database: 'public',
+                requireUserCredentials: true,
+            });
+
+            const viewPayload = {
+                sql: 'SELECT 1 AS amount',
+                columns: [{ reference: 'amount', type: DimensionType.NUMBER }],
+            };
+
+            test('updating a view bound to an extra connection uses the credentials of that connection and keeps its binding', async () => {
+                const fixture = await createProject();
+                const [{ project_id: projectId }] = await database('projects')
+                    .select('project_id')
+                    .where('project_uuid', fixture.projectUuid);
+                await database('warehouse_credentials')
+                    .where('project_id', projectId)
+                    .update({
+                        warehouse_type: 'databricks',
+                        encrypted_credentials: encryptionUtil.encrypt(
+                            JSON.stringify(
+                                databricks('original.cloud.databricks.com'),
+                            ),
+                        ),
+                    } as never);
+                await database('warehouse_connections')
+                    .where(
+                        'warehouse_connection_uuid',
+                        fixture.extraConnectionUuid,
+                    )
+                    .update({
+                        warehouse_type: 'databricks',
+                        encrypted_credentials: encryptionUtil.encrypt(
+                            JSON.stringify(
+                                databricks('extra.cloud.databricks.com'),
+                            ),
+                        ),
+                    });
+                const user = await compilingUser(fixture.projectUuid);
+                await database('user_warehouse_credentials').insert({
+                    user_uuid: user.userUuid,
+                    name: 'Extra workspace',
+                    warehouse_type: 'databricks',
+                    encrypted_credentials: encryptionUtil.encrypt(
+                        JSON.stringify({
+                            type: 'databricks',
+                            serverHostName: 'extra.cloud.databricks.com',
+                            personalAccessToken: 'user-token',
+                        }),
+                    ),
+                } as never);
+                await projectModel.createVirtualView(
+                    fixture.projectUuid,
+                    { ...viewPayload, name: 'finance_view' },
+                    warehouseClientFromCredentials(postgresWarehouse(EXTRA_DB)),
+                    fixture.extraConnectionUuid,
+                );
+                const { service } = compileService(fixture.projectUuid);
+                Object.assign(service, {
+                    userAttributesModel: {
+                        getAttributeValuesForOrgMember: async () => ({}),
+                    },
+                    emailModel: {
+                        getPrimaryEmailStatus: async () => ({
+                            isVerified: false,
+                        }),
+                    },
+                    analytics: { track: vi.fn(), trackAccount: vi.fn() },
+                });
+
+                await service.updateVirtualView(
+                    fromSession(user, 'session-cookie'),
+                    fixture.projectUuid,
+                    'finance_view',
+                    { ...viewPayload, name: 'Finance view renamed' },
+                    false,
+                );
+
+                const [row] = await database('cached_explore')
+                    .select('explore', 'warehouse_connection_uuid')
+                    .where('project_uuid', fixture.projectUuid)
+                    .where('name', 'finance_view');
+                expect(row.warehouse_connection_uuid).toBe(
+                    fixture.extraConnectionUuid,
+                );
+                expect(row.explore.label).toBe('Finance view renamed');
             });
         });
 

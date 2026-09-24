@@ -13518,7 +13518,14 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid:
+                        await this.projectModel.getExploreWarehouseConnectionUuid(
+                            projectUuid,
+                            exploreName,
+                        ),
+                },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),

@@ -337,8 +337,11 @@ export class VirtualViewCoder extends BaseService {
                 `An explore named "${slug}" already exists and cannot be adopted`,
             );
         }
+        const { connection, ...withoutConnection } = virtualView;
         const normalized = {
-            ...virtualView,
+            ...(warehouseConnectionUuid === null
+                ? withoutConnection
+                : { ...withoutConnection, connection }),
             columns: [...virtualView.columns].sort((left, right) =>
                 left.reference.localeCompare(right.reference),
             ),
