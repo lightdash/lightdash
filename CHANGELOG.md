@@ -1,3 +1,10 @@
+## [2.329.2](https://github.com/lightdash/lightdash/compare/2.329.1...2.329.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **dashboards:** show pre-aggregation audit to editors on verified dashboards ([#29925](https://github.com/lightdash/lightdash/issues/29925)) ([6eb094a](https://github.com/lightdash/lightdash/commit/6eb094ae1fe827164352548145f26ab5c95fdc40))
+
 ## [2.329.1](https://github.com/lightdash/lightdash/compare/2.329.0...2.329.1) (2026-09-24)
 
 
