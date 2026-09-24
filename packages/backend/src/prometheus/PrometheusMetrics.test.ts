@@ -1,9 +1,128 @@
 import express from 'express';
+import http from 'node:http';
 import prometheus from 'prom-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import Logger from '../logging/logger';
 import PrometheusMetrics, { getHttpUriLabel } from './PrometheusMetrics';
 
 type PartialRequest = Partial<express.Request>;
+
+describe('daily job generation metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+        vi.spyOn(http.Server.prototype, 'listen').mockImplementation(
+            function mockListen(this: http.Server) {
+                return this;
+            },
+        );
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+        vi.restoreAllMocks();
+    });
+
+    it('exports a completion timestamp and counts errors separately by phase', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const heartbeat = prometheus.register.getSingleMetric(
+            'lightdash_scheduler_daily_job_generation_last_completed_timestamp_seconds',
+        );
+        const errors = prometheus.register.getSingleMetric(
+            'lightdash_scheduler_daily_job_generation_errors_total',
+        );
+        expect(heartbeat).toBeDefined();
+        expect(errors).toBeDefined();
+        expect((await heartbeat!.get()).values).toMatchObject([{ value: 0 }]);
+        expect((await errors!.get()).values).toEqual(
+            ['load_schedulers', 'scheduler', 'pre_aggregate'].map((phase) => ({
+                labels: { phase },
+                value: 0,
+            })),
+        );
+
+        const now = vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+        metrics.recordSchedulerDailyJobGenerationCompleted();
+        metrics.recordSchedulerDailyJobGenerationError('scheduler');
+        metrics.recordSchedulerDailyJobGenerationError('scheduler');
+        metrics.recordSchedulerDailyJobGenerationError('load_schedulers');
+        metrics.recordSchedulerDailyJobGenerationError('pre_aggregate');
+
+        // Scraping later must not advance the heartbeat.
+        now.mockReturnValue(1_800_090_000_000);
+        expect((await heartbeat!.get()).values).toMatchObject([
+            { value: 1_800_000_000 },
+        ]);
+        expect((await errors!.get()).values).toEqual([
+            { labels: { phase: 'load_schedulers' }, value: 1 },
+            { labels: { phase: 'scheduler' }, value: 2 },
+            { labels: { phase: 'pre_aggregate' }, value: 1 },
+        ]);
+        await metrics.stop();
+    });
+
+    it('contains completion metric failures and logs a warning', () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const error = new Error('gauge update failed');
+        vi.spyOn(
+            metrics.schedulerDailyJobGenerationLastCompletedTimestamp!,
+            'set',
+        ).mockImplementation(() => {
+            throw error;
+        });
+        const warn = vi.spyOn(Logger, 'warn').mockReturnValue(Logger);
+
+        expect(() =>
+            metrics.recordSchedulerDailyJobGenerationCompleted(),
+        ).not.toThrow();
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to record daily job generation completion',
+            error,
+        );
+    });
+
+    it.each(['load_schedulers', 'scheduler', 'pre_aggregate'] as const)(
+        'contains error metric failures for %s and logs a warning',
+        (phase) => {
+            const metrics = new PrometheusMetrics({
+                ...lightdashConfigMock.prometheus,
+                enabled: true,
+            });
+            metrics.start();
+            const error = new Error('counter update failed');
+            vi.spyOn(
+                metrics.schedulerDailyJobGenerationErrors!,
+                'inc',
+            ).mockImplementation(() => {
+                throw error;
+            });
+            const warn = vi.spyOn(Logger, 'warn').mockReturnValue(Logger);
+
+            expect(() =>
+                metrics.recordSchedulerDailyJobGenerationError(phase),
+            ).not.toThrow();
+            expect(warn).toHaveBeenCalledWith(
+                'Failed to record daily job generation error',
+                error,
+            );
+        },
+    );
+
+    it('does nothing when Prometheus is disabled', () => {
+        const metrics = new PrometheusMetrics(lightdashConfigMock.prometheus);
+        metrics.start();
+        metrics.recordSchedulerDailyJobGenerationCompleted();
+        metrics.recordSchedulerDailyJobGenerationError('scheduler');
+        expect(prometheus.register.getMetricsAsArray()).toEqual([]);
+    });
+});
 
 const buildRequest = (overrides: PartialRequest): express.Request =>
     overrides as express.Request;

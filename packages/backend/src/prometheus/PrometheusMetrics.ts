@@ -154,6 +154,12 @@ export default class PrometheusMetrics {
     public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
         null;
 
+    public schedulerDailyJobGenerationLastCompletedTimestamp: prometheus.Gauge | null =
+        null;
+
+    public schedulerDailyJobGenerationErrors: prometheus.Counter<'phase'> | null =
+        null;
+
     // AI agent memory consolidation pass (daily cron)
     public aiAgentMemoryConsolidateCounter: prometheus.Counter<'outcome'> | null =
         null;
@@ -637,6 +643,30 @@ export default class PrometheusMetrics {
                         labelNames: ['outcome'],
                         ...rest,
                     });
+
+                this.schedulerDailyJobGenerationLastCompletedTimestamp =
+                    new prometheus.Gauge({
+                        name: 'lightdash_scheduler_daily_job_generation_last_completed_timestamp_seconds',
+                        help: 'Unix timestamp of the last daily generation pass that reached the end, including passes with errors; zero until the first completion in this process',
+                        ...rest,
+                    });
+
+                this.schedulerDailyJobGenerationErrors = new prometheus.Counter(
+                    {
+                        name: 'lightdash_scheduler_daily_job_generation_errors_total',
+                        help: 'Daily job generation errors by phase; retries can count the same scheduler again',
+                        labelNames: ['phase'],
+                        ...rest,
+                    },
+                );
+                // Once scraped, this zero baseline lets increase() see the first error.
+                for (const phase of [
+                    'load_schedulers',
+                    'scheduler',
+                    'pre_aggregate',
+                ]) {
+                    this.schedulerDailyJobGenerationErrors.inc({ phase }, 0);
+                }
 
                 // AI agent memory consolidation pass
                 this.aiAgentMemoryConsolidateCounter = new prometheus.Counter({
@@ -1929,6 +1959,29 @@ export default class PrometheusMetrics {
 
     public incrementUsageEventsCompactionFailures() {
         this.usageEventsCompactionFailuresCounter?.inc();
+    }
+
+    public recordSchedulerDailyJobGenerationCompleted() {
+        try {
+            this.schedulerDailyJobGenerationLastCompletedTimestamp?.set(
+                Date.now() / 1000,
+            );
+        } catch (error) {
+            Logger.warn(
+                'Failed to record daily job generation completion',
+                error,
+            );
+        }
+    }
+
+    public recordSchedulerDailyJobGenerationError(
+        phase: 'load_schedulers' | 'scheduler' | 'pre_aggregate',
+    ) {
+        try {
+            this.schedulerDailyJobGenerationErrors?.inc({ phase });
+        } catch (error) {
+            Logger.warn('Failed to record daily job generation error', error);
+        }
     }
 
     public observeUsageEventsCompactionRunDuration(
