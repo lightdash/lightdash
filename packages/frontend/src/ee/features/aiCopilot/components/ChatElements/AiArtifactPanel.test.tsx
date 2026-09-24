@@ -43,6 +43,14 @@ vi.mock('../../hooks/useAiArtifactChart', async (original) => ({
     useAiArtifactCompiledSql: () => undefined,
 }));
 vi.mock('./AiChartQuickOptions', () => ({ AiChartQuickOptions: () => null }));
+vi.mock('../../../../../components/DataViz/visualizations/ChartView', () => ({
+    default: ({ config }: { config: { type: string } }) => (
+        <Box data-testid={`chart-view-${config.type}`} />
+    ),
+}));
+vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
+    useProjectColorPalette: () => ({ data: undefined }),
+}));
 vi.mock('./AiVisualizationRenderer', () => ({
     AiVisualizationRenderer: ({
         headerContent,
@@ -244,8 +252,44 @@ const composerConfig: AiComposerChartArtifactConfig = {
     ],
 };
 
+const resultsOf = (
+    columns: Record<string, { reference: string; type: string }>,
+    rows: Record<string, unknown>[],
+) => ({
+    rows: rows.map((row) =>
+        Object.fromEntries(
+            Object.entries(row).map(([key, raw]) => [key, { value: { raw } }]),
+        ),
+    ),
+    columns,
+    hasFetchedAllRows: true,
+    fetchAll: true,
+    setFetchAll: vi.fn(),
+    isInitialLoading: false,
+    isFetchingFirstPage: false,
+    isFetchingRows: false,
+    error: null,
+    refetchRows: mocks.retry,
+});
+
+const statusResults = resultsOf(
+    { status: { reference: 'status', type: 'string' } },
+    [{ status: 'completed' }],
+);
+
+const vizRadios = () =>
+    screen.getAllByRole('radio').map((radio) => radio.getAttribute('value'));
+const checkedViz = () =>
+    screen
+        .getAllByRole('radio')
+        .find((radio) => (radio as HTMLInputElement).checked)
+        ?.getAttribute('value');
+
 describe('composer artifact', () => {
-    const renderComposer = (chartConfig: AiComposerChartArtifactConfig) => {
+    const renderComposer = (
+        chartConfig: AiComposerChartArtifactConfig,
+        results: ReturnType<typeof resultsOf> = statusResults,
+    ) => {
         mocks.artifact.mockReturnValue({
             data: {
                 artifactType: 'chart',
@@ -256,18 +300,7 @@ describe('composer artifact', () => {
             error: null,
             refetch: mocks.retry,
         });
-        mocks.rows.mockReturnValue({
-            rows: [{ status: { value: { raw: 'completed' } } }],
-            columns: { status: { reference: 'status', type: 'string' } },
-            hasFetchedAllRows: true,
-            fetchAll: true,
-            setFetchAll: vi.fn(),
-            isInitialLoading: false,
-            isFetchingFirstPage: false,
-            isFetchingRows: false,
-            error: null,
-            refetchRows: mocks.retry,
-        });
+        mocks.rows.mockReturnValue(results);
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
 
@@ -302,5 +335,114 @@ describe('composer artifact', () => {
         fireEvent.click(screen.getByRole('button', { name: /queries/i }));
         expect(screen.getByText('joined · result')).toBeInTheDocument();
         expect(screen.getByText('Reads orders, amounts')).toBeInTheDocument();
+    });
+});
+
+describe('composer artifact viz switcher', () => {
+    const renderComposer = (results: ReturnType<typeof resultsOf>) => {
+        mocks.artifact.mockReturnValue({
+            data: {
+                artifactType: 'chart',
+                title: 'Orders vs amounts',
+                chartConfig: composerConfig,
+            },
+            isLoading: false,
+            error: null,
+            refetch: mocks.retry,
+        });
+        mocks.rows.mockReturnValue(results);
+        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+    };
+
+    it('opens a string + number result as a bar chart offering table, bar and line', () => {
+        renderComposer(
+            resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [
+                    { status: 'completed', n: 3 },
+                    { status: 'returned', n: 1 },
+                ],
+            ),
+        );
+        expect(vizRadios()).toEqual(['table', 'bar', 'line']);
+        expect(checkedViz()).toBe('bar');
+        expect(
+            screen.getByTestId('chart-view-vertical_bar'),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+    });
+
+    it('opens a date + number result as a line chart', () => {
+        renderComposer(
+            resultsOf(
+                {
+                    day: { reference: 'day', type: 'date' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [
+                    { day: '2024-01-01', n: 3 },
+                    { day: '2024-01-02', n: 1 },
+                ],
+            ),
+        );
+        expect(checkedViz()).toBe('line');
+        expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
+    });
+
+    it('switches to the table from the same fetched rows', () => {
+        renderComposer(
+            resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [{ status: 'completed', n: 3 }],
+            ),
+        );
+        fireEvent.click(
+            screen
+                .getAllByRole('radio')
+                .find((radio) => radio.getAttribute('value') === 'table')!,
+        );
+        expect(
+            screen.getByRole('columnheader', { name: 'status' }),
+        ).toBeInTheDocument();
+        // Only the stored query is ever read: kinds are built from its rows.
+        expect(mocks.rows.mock.calls.map(([, queryUuid]) => queryUuid)).toEqual(
+            expect.arrayContaining(['query']),
+        );
+        expect(new Set(mocks.rows.mock.calls.map(([, q]) => q))).toEqual(
+            new Set(['query']),
+        );
+        expect(mocks.query).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.objectContaining({ enabled: false }),
+        );
+    });
+
+    it('opens a duplicate-x result as a table but keeps bar and line selectable', () => {
+        renderComposer(
+            resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [
+                    { status: 'completed', n: 3 },
+                    { status: 'completed', n: 1 },
+                ],
+            ),
+        );
+        expect(checkedViz()).toBe('table');
+        expect(vizRadios()).toEqual(['table', 'bar', 'line']);
+    });
+
+    it('shows no switcher when only the table fits', () => {
+        renderComposer(statusResults);
+        expect(screen.queryAllByRole('radio')).toHaveLength(0);
+        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
     });
 });

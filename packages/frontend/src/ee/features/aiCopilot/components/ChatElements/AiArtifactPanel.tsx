@@ -43,17 +43,17 @@ import {
 import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
+import { getAgentVisualizationChartTypes } from './AgentVisualizationChartTypeSwitcher.utils';
 import styles from './AiArtifactPanel.module.css';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
-import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
+import { AiComposerArtifactPanel } from './AiComposerArtifactPanel';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import {
     AiSqlArtifactActions,
     AiSqlArtifactVisualization,
 } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
-import { AiComposerPipelinePanel } from './composerPipeline/AiComposerPipelinePanel';
 import { ChatElementsUtils } from './utils';
 
 type ArtifactRef = {
@@ -308,57 +308,18 @@ const AiArtifactPanelContent: FC<
             );
         }
 
-        // Composer artifact (v0): render the stored terminal result as a
-        // table. No viz-query handle — the results endpoint is creator-scoped
-        // and read directly by lastQueryUuid.
         if (composerConfig) {
-            const composerTitle =
-                artifactData.title ?? 'Composer query results';
-            const composerHead = (
-                <Box className={clsx(styles.head, styles.flushHead)}>
-                    <Stack gap={0} flex={1} miw={0}>
-                        <TruncatedText fz="sm" fw={600} maxWidth="100%">
-                            {composerTitle}
-                        </TruncatedText>
-                        {artifactData.description && (
-                            <TruncatedText fz="xs" c="dimmed" maxWidth="100%">
-                                {artifactData.description}
-                            </TruncatedText>
-                        )}
-                    </Stack>
-                    {showCloseButton && (
-                        <Group gap={2} className={styles.headRight}>
-                            <ActionIcon
-                                size="sm"
-                                onClick={() => dispatch(clearPreview())}
-                                aria-label="Close"
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Group>
-                    )}
-                </Box>
-            );
             return (
-                <Box className={styles.floatingPanel}>
-                    <Box
-                        className={clsx(
-                            styles.floatingContent,
-                            styles.flushContent,
-                        )}
-                    >
-                        <AiComposerPipelinePanel
-                            queries={composerConfig.queries}
-                            terminalNodeId={composerConfig.terminalNodeId}
-                        >
-                            <AiComposerArtifactVisualization
-                                results={queryResults}
-                                headerContent={composerHead}
-                                flush
-                            />
-                        </AiComposerPipelinePanel>
-                    </Box>
-                </Box>
+                <AiComposerArtifactPanel
+                    projectUuid={artifact.projectUuid}
+                    title={artifactData.title ?? 'Composer query results'}
+                    description={artifactData.description ?? null}
+                    config={composerConfig}
+                    results={queryResults}
+                    onClose={
+                        showCloseButton ? () => dispatch(clearPreview()) : null
+                    }
+                />
             );
         }
 
@@ -558,11 +519,11 @@ const AiArtifactPanelContent: FC<
                 {shouldShowPill && metricQuery && (
                     <Box className={styles.floatingPill}>
                         <AgentVisualizationChartTypeSwitcher
-                            metricQuery={metricQuery}
+                            availableChartTypes={getAgentVisualizationChartTypes(
+                                metricQuery,
+                                (groupByDimensions?.length ?? 0) > 0,
+                            )}
                             selectedChartType={effectiveChartType}
-                            hasGroupByDimensions={
-                                (groupByDimensions?.length ?? 0) > 0
-                            }
                             onChartTypeChange={setSelectedChartType}
                             variant="pill"
                         />

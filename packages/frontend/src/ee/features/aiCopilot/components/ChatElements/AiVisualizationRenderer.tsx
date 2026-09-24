@@ -45,6 +45,7 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
+import { getAgentVisualizationChartTypes } from './AgentVisualizationChartTypeSwitcher.utils';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import AgentVisualizationParameters from './AgentVisualizationParameters';
@@ -311,12 +312,12 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     {!isCustomChartTypeAnswer && onChartTypeChange && (
                         <Group justify="flex-end">
                             <AgentVisualizationChartTypeSwitcher
-                                metricQuery={metricQuery}
+                                availableChartTypes={getAgentVisualizationChartTypes(
+                                    metricQuery,
+                                    (groupByDimensions?.length ?? 0) > 0,
+                                )}
                                 selectedChartType={
                                     selectedChartType ?? defaultChartType
-                                }
-                                hasGroupByDimensions={
-                                    (groupByDimensions?.length ?? 0) > 0
                                 }
                                 onChartTypeChange={onChartTypeChange}
                                 variant={switcherVariant}
