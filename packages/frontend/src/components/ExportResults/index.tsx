@@ -33,6 +33,7 @@ import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
 import classes from './ExportResults.module.css';
+import LargeExportWarning from './LargeExportWarning';
 import { Limit } from './types';
 
 type ExportCsvRenderProps = {
@@ -515,6 +516,18 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 </Group>
                             )}
                     </Stack>
+                )}
+
+                {!isPivotTable && (
+                    <LargeExportWarning
+                        limit={limit}
+                        customLimit={customLimit}
+                        totalResults={totalResults}
+                        columnOrder={columnOrder}
+                        hiddenFields={hiddenFields}
+                        csvCellsLimit={csvCellsLimit}
+                        exportTimeoutMs={health.data?.query?.exportTimeoutMs}
+                    />
                 )}
 
                 {!renderDialogActions ? (

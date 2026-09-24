@@ -57,6 +57,7 @@ export default function mockHealthResponse(
             queryMaxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,
+            exportTimeoutMs: 600000,
             csvMaxLimit: 5000000,
             retryQueryOnTransientErrors: true,
         },
