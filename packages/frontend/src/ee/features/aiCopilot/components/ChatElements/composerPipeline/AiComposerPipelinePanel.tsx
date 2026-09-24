@@ -26,6 +26,7 @@ import {
     IconSitemap,
 } from '@tabler/icons-react';
 import {
+    Background,
     Handle,
     Position,
     ReactFlow,
@@ -340,7 +341,9 @@ const PipelineFlow: FC<{
                 zoomOnScroll={false}
                 zoomOnDoubleClick={false}
                 preventScrolling={false}
-            />
+            >
+                <Background />
+            </ReactFlow>
         </Box>
     );
 };
