@@ -47,6 +47,7 @@ export type ChartInputsAddToQuery = {
 
 /** An input ambient AI bound for the prompt, while the author keeps it. */
 export type ChartInputAiPick = {
+    /** Why the suggested field fits this chart input. */
     reason: string;
     /** Labels of the other fields that would fit. */
     alsoFits: string[];
