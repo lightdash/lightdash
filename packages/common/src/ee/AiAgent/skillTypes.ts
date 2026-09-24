@@ -93,7 +93,8 @@ export type AiAgentSkillValidationResult =
     | {
           valid: true;
           parsed: AiAgentSkillParsed;
-          errors: [];
+          /** Always empty when valid; typed as an array for the OpenAPI schema. */
+          errors: AiAgentSkillIssue[];
           warnings: AiAgentSkillIssue[];
       }
     | {
@@ -156,6 +157,26 @@ export type ApiUpdateAiAgentSkill = {
     files: AiAgentSkillFiles;
 };
 
+export type ApiValidateAiAgentSkill = {
+    files: AiAgentSkillFiles;
+};
+
+/** A built-in skill as shown beside custom skills in binding UI and the slash menu. */
+export type AiAgentBuiltInSkillSummary = {
+    name: string;
+    description: string;
+};
+
+export type AgentSkillsListing = {
+    skills: AiAgentSkillSummary[];
+    builtInSkills: AiAgentBuiltInSkillSummary[];
+};
+
+export type ApiAgentSkillsListingResponse = {
+    status: 'ok';
+    results: AgentSkillsListing;
+};
+
 /** Authoritative set of skills bound to one agent. */
 export type ApiSetAgentSkills = {
     skillUuids: string[];
@@ -169,6 +190,11 @@ export type ApiAiAgentSkillSummaryListResponse = {
 export type ApiAiAgentSkillResponse = {
     status: 'ok';
     results: AiAgentSkill;
+};
+
+export type ApiAiAgentSkillDeleteResponse = {
+    status: 'ok';
+    results: { unboundAgentUuids: string[] };
 };
 
 export type ApiAiAgentSkillVersionListResponse = {

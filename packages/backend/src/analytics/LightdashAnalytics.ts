@@ -3,6 +3,7 @@ import {
     Account,
     AdminNotificationType,
     AI_WRITEBACK_STAGES,
+    AiAgentSkillVersionSource,
     AnyType,
     CacheMetadata,
     CartesianSeriesType,
@@ -2994,6 +2995,75 @@ export type AiAgentDocumentDeletedEvent = BaseTrack & {
     };
 };
 
+type AiAgentSkillAuthoringSource = Extract<
+    AiAgentSkillVersionSource,
+    'ui' | 'as_code'
+>;
+
+export type AiAgentSkillCreatedEvent = BaseTrack & {
+    event: 'ai_agent_skill.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        source: AiAgentSkillAuthoringSource;
+        resourceCount: number;
+        agentCount: number;
+    };
+};
+
+export type AiAgentSkillUpdatedEvent = BaseTrack & {
+    event: 'ai_agent_skill.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        source: AiAgentSkillAuthoringSource;
+        versionNumber: number;
+        contentChanged: boolean;
+    };
+};
+
+export type AiAgentSkillRestoredEvent = BaseTrack & {
+    event: 'ai_agent_skill.restored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        restoredFromVersion: number;
+        versionNumber: number;
+        contentChanged: boolean;
+        revived: boolean;
+    };
+};
+
+export type AiAgentSkillDeletedEvent = BaseTrack & {
+    event: 'ai_agent_skill.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        unboundAgentCount: number;
+    };
+};
+
+export type AiAgentSkillBindingsUpdatedEvent = BaseTrack & {
+    event: 'ai_agent_skill.bindings_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        boundCount: number;
+        addedCount: number;
+        removedCount: number;
+    };
+};
+
 export type AiAgentPromptCreatedEvent = BaseTrack & {
     event: 'ai_agent_prompt.created';
     userId: string;
@@ -4202,6 +4272,11 @@ type TypedEvent =
     | AiAgentDocumentCreatedEvent
     | AiAgentDocumentUpdatedEvent
     | AiAgentDocumentDeletedEvent
+    | AiAgentSkillCreatedEvent
+    | AiAgentSkillUpdatedEvent
+    | AiAgentSkillRestoredEvent
+    | AiAgentSkillDeletedEvent
+    | AiAgentSkillBindingsUpdatedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent
