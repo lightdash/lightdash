@@ -1,3 +1,10 @@
+# [2.327.0](https://github.com/lightdash/lightdash/compare/2.326.0...2.327.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agents:** let JEV remove a single chart filter ([#29922](https://github.com/lightdash/lightdash/issues/29922)) ([b1626f5](https://github.com/lightdash/lightdash/commit/b1626f53b6d08f491d720427d1f4fa8c464cfba0))
+
 # [2.326.0](https://github.com/lightdash/lightdash/compare/2.325.0...2.326.0) (2026-09-24)
 
 
