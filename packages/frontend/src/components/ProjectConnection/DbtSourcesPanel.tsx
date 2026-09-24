@@ -6,6 +6,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
+    type Project,
     type ProjectDbtSourceSummary,
     type WarehouseLocation,
 } from '@lightdash/common';
@@ -32,7 +33,8 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
+import { useDbtSourceBindings } from '../../hooks/useDbtSourceBindings';
 import {
     useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
@@ -46,6 +48,12 @@ import MantineModal from '../common/MantineModal';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import DbtSettingsForm from './DbtSettingsForm';
+import {
+    DbtSourceConnectionSelect,
+    DbtSourceReboundNote,
+    PrimaryDbtSourceConnection,
+    type ReboundDbtSource,
+} from './DbtSourceConnection';
 import classes from './DbtSourcesPanel.module.css';
 import { FormProvider, useForm, type Form } from './formContext';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
@@ -104,7 +112,8 @@ const DbtSourceRow: FC<{
     source: ProjectDbtSourceSummary;
     onEdit: (source: ProjectDbtSourceSummary) => void;
     onRemove?: (source: ProjectDbtSourceSummary) => void;
-}> = ({ source, onEdit, onRemove }) => (
+    connection?: ReactNode;
+}> = ({ source, onEdit, onRemove, connection }) => (
     <div className={classes.row}>
         <img className={classes.mark} src={DbtLogo} alt="" />
         <div className={classes.info}>
@@ -129,6 +138,7 @@ const DbtSourceRow: FC<{
                 {sourceIdentity(source)}
             </Text>
         </div>
+        {connection}
         <Menu position="bottom-end">
             <Menu.Target>
                 <ActionIcon aria-label={`Actions for ${source.name}`}>
@@ -411,8 +421,16 @@ const RenamePrimaryDbtSourceModal: FC<{
     );
 };
 
-const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+const DbtSourcesPanel: FC<{
+    project: Pick<Project, 'projectUuid' | 'connectionRoute'>;
+}> = ({ project }) => {
+    const { projectUuid } = project;
     const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
+    const { data: bindings } = useDbtSourceBindings(
+        projectUuid,
+        flag?.enabled === true && project.connectionRoute === 'multi',
+    );
+    const [rebound, setRebound] = useState<ReboundDbtSource | null>(null);
     const {
         data: sources,
         isInitialLoading,
@@ -477,6 +495,13 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             <DbtSourceRow
                                 source={primarySource}
                                 onEdit={setPrimarySourceToRename}
+                                connection={
+                                    bindings && (
+                                        <PrimaryDbtSourceConnection
+                                            bindings={bindings}
+                                        />
+                                    )
+                                }
                             />
                         </div>
                     </Stack>
@@ -496,6 +521,16 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     source={source}
                                     onEdit={setSourceToEdit}
                                     onRemove={setSourceToRemove}
+                                    connection={
+                                        bindings && (
+                                            <DbtSourceConnectionSelect
+                                                projectUuid={projectUuid}
+                                                source={source}
+                                                bindings={bindings}
+                                                onRebound={setRebound}
+                                            />
+                                        )
+                                    }
                                 />
                             ))}
                         </div>
@@ -505,6 +540,13 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             from another dbt project.
                         </Text>
                     ))}
+
+                {rebound && (
+                    <DbtSourceReboundNote
+                        rebound={rebound}
+                        onDismiss={() => setRebound(null)}
+                    />
+                )}
 
                 <Group justify="flex-end">
                     <Button
