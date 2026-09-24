@@ -10899,8 +10899,10 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         if (
-            (await this.projectModel.getConnectionRoute(projectUuid)) !==
-            'multi'
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid,
+            })) !== 'multi'
         ) {
             throw new SingleConnectionProjectError();
         }
@@ -10971,8 +10973,10 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         if (
-            (await this.projectModel.getConnectionRoute(projectUuid)) !==
-            'multi'
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            })) !== 'multi'
         ) {
             throw new SingleConnectionProjectError();
         }

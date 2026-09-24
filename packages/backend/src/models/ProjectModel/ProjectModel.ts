@@ -4418,10 +4418,6 @@ export class ProjectModel {
         }));
     }
 
-    async getConnectionRoute(projectUuid: string): Promise<ConnectionRoute> {
-        return this.connectionRouter.getRoute(projectUuid);
-    }
-
     async requireSingleConnectionRoute(
         projectUuid: string,
         binding: ConnectionBinding,
