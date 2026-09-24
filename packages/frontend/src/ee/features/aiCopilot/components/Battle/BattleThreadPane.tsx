@@ -6,11 +6,13 @@ import { matchesModelConfig } from '../../../../../components/common/ModelSelect
 import { getAiAgentPageBase } from '../../hooks/aiAgentRouting';
 import { useModelOptions } from '../../hooks/useModelOptions';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
-import {
-    formatDurationMs,
-    getResponseTimingMetrics,
-} from '../../utils/responseTiming';
+import { formatDurationMs } from '../../utils/responseTiming';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
+import {
+    formatTokenCount,
+    getBattleTotals,
+    getBattleTurns,
+} from './battleTurns';
 
 interface Props {
     label: string;
@@ -19,7 +21,6 @@ interface Props {
     agentName: string;
     thread: AiAgentThread;
     queuedCount: number;
-    showTokens: boolean;
 }
 
 const useTicking = (active: boolean) => {
@@ -32,13 +33,6 @@ const useTicking = (active: boolean) => {
     return now;
 };
 
-type TimingSummary = {
-    source: 'live' | 'server';
-    ttftMs: number | null;
-    totalMs: number;
-    queryCacheHits: number | null;
-};
-
 export const BattleThreadPane: FC<Props> = ({
     label,
     projectUuid,
@@ -46,7 +40,6 @@ export const BattleThreadPane: FC<Props> = ({
     agentName,
     thread,
     queuedCount,
-    showTokens,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -80,46 +73,27 @@ export const BattleThreadPane: FC<Props> = ({
         return option?.displayName ?? modelConfig.modelName;
     }, [modelConfig, modelOptions]);
 
-    const timing = useMemo<TimingSummary | null>(() => {
-        const liveTiming = stream?.timing;
-        // Live stopwatch while streaming, and the client-observed figure
-        // right after until the persisted server timing lands.
-        if (isStreaming && liveTiming) {
-            return {
-                source: 'live',
-                ttftMs:
-                    liveTiming.firstTokenAt === null
-                        ? null
-                        : liveTiming.firstTokenAt - liveTiming.startedAt,
-                totalMs: now - liveTiming.startedAt,
-                queryCacheHits: null,
-            };
-        }
-        const persisted =
-            lastAssistantMessage?.responseTiming &&
-            lastAssistantMessage.status !== 'pending'
-                ? getResponseTimingMetrics(lastAssistantMessage.responseTiming)
-                : null;
-        if (persisted)
-            return {
-                source: 'server',
-                ttftMs: persisted.ttftMs,
-                totalMs: persisted.totalMs,
-                queryCacheHits: persisted.stages?.queryCacheHits ?? null,
-            };
-        if (liveTiming && liveTiming.finishedAt !== null) {
-            return {
-                source: 'live',
-                ttftMs:
-                    liveTiming.firstTokenAt === null
-                        ? null
-                        : liveTiming.firstTokenAt - liveTiming.startedAt,
-                totalMs: liveTiming.finishedAt - liveTiming.startedAt,
-                queryCacheHits: null,
-            };
-        }
-        return null;
-    }, [isStreaming, lastAssistantMessage, now, stream?.timing]);
+    const totals = useMemo(
+        () => getBattleTotals(getBattleTurns(thread)),
+        [thread],
+    );
+    const liveTiming = stream?.timing;
+    const lastTurnFinished =
+        lastAssistantMessage?.status !== 'pending' &&
+        !!lastAssistantMessage?.responseTiming;
+    // Adds the turn still in flight, or just finished but not yet persisted.
+    const liveMs =
+        liveTiming && !lastTurnFinished
+            ? (isStreaming ? now : (liveTiming.finishedAt ?? now)) -
+              liveTiming.startedAt
+            : 0;
+    const sessionMs = totals.totalMs + liveMs;
+    const liveTtftMs =
+        liveTiming && !lastTurnFinished
+            ? liveTiming.firstTokenAt === null
+                ? null
+                : liveTiming.firstTokenAt - liveTiming.startedAt
+            : undefined;
 
     const status = isStreaming
         ? 'Streaming'
@@ -127,7 +101,7 @@ export const BattleThreadPane: FC<Props> = ({
           ? 'Failed'
           : lastAssistantMessage?.status === 'pending'
             ? 'Waiting'
-            : 'Done';
+            : null;
 
     return (
         <Stack h="100%" gap={0} miw={0}>
@@ -144,6 +118,7 @@ export const BattleThreadPane: FC<Props> = ({
                 <Group gap="xs" wrap="nowrap" miw={0}>
                     <Badge
                         size="sm"
+                        flex="none"
                         variant="light"
                         color={
                             thread.battleProfile === 'fast' ? 'violet' : 'gray'
@@ -154,59 +129,37 @@ export const BattleThreadPane: FC<Props> = ({
                     <Text size="sm" fw={600} truncate>
                         {modelDisplayName ?? 'Default model'}
                     </Text>
-                    <Text size="xs" c="dimmed">
-                        {status}
-                        {queuedCount > 0 ? ` · ${queuedCount} queued` : ''}
-                    </Text>
+                    {(status || queuedCount > 0) && (
+                        <Text size="xs" c="dimmed">
+                            {[
+                                status,
+                                queuedCount > 0
+                                    ? `${queuedCount} queued`
+                                    : null,
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </Text>
+                    )}
                 </Group>
                 <Group gap="sm" wrap="nowrap">
-                    {timing && (
-                        <Group gap={4} wrap="nowrap">
-                            <Text size="xs" c="dimmed">
-                                first token
-                            </Text>
-                            <Text size="xs" fw={600} ff="monospace">
-                                {timing.ttftMs === null
-                                    ? '…'
-                                    : formatDurationMs(timing.ttftMs)}
-                            </Text>
-                            <Text size="xs" c="dimmed" ml={4}>
-                                total
-                            </Text>
-                            <Text size="xs" fw={600} ff="monospace">
-                                {formatDurationMs(timing.totalMs)}
-                            </Text>
-                            <Text size="xs" c="dimmed" ml={2}>
-                                {timing.source === 'live'
-                                    ? '(client)'
-                                    : '(server)'}
-                            </Text>
-                            {timing.queryCacheHits !== null &&
-                                timing.queryCacheHits > 0 && (
-                                    <Text size="xs" c="green" ml={2}>
-                                        cache hit
-                                    </Text>
-                                )}
-                        </Group>
+                    {liveTtftMs !== undefined && (
+                        <Text size="xs" c="dimmed">
+                            first token{' '}
+                            {liveTtftMs === null
+                                ? '…'
+                                : formatDurationMs(liveTtftMs)}
+                        </Text>
                     )}
-                    {showTokens && lastAssistantMessage?.tokenUsage && (
-                        <Text size="xs" c="dimmed" ff="monospace">
-                            {lastAssistantMessage.tokenUsage.totalTokens.toLocaleString()}{' '}
-                            agent
-                            {(lastAssistantMessage.tokenUsage
-                                .decisionInputTokens !== undefined ||
-                                lastAssistantMessage.tokenUsage
-                                    .decisionOutputTokens !== undefined) && (
-                                <>
-                                    {' · '}
-                                    {(
-                                        (lastAssistantMessage.tokenUsage
-                                            .decisionInputTokens ?? 0) +
-                                        (lastAssistantMessage.tokenUsage
-                                            .decisionOutputTokens ?? 0)
-                                    ).toLocaleString()}{' '}
-                                    JEV
-                                </>
+                    {sessionMs > 0 && (
+                        <Text size="xs" c="dimmed">
+                            <Text span fz="xs" fw={600} c="text">
+                                {formatDurationMs(sessionMs)}
+                            </Text>
+                            {' · '}
+                            {formatTokenCount(
+                                totals.agentTokens,
+                                totals.jevTokens,
                             )}
                         </Text>
                     )}

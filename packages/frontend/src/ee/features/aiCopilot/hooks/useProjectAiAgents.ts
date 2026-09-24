@@ -1051,6 +1051,7 @@ const createOptimisticMessages = (
             modelConfig,
             tokenUsage: null,
             responseTiming: null,
+            jevDecision: null,
         },
     ];
 };

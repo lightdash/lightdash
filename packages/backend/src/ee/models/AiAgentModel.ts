@@ -99,6 +99,7 @@ import {
     type AgentAsCodeEvaluation,
     type AiAgent,
     type AiAgentIntegration,
+    type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
     type ToolEditDbtProjectOutput,
@@ -4415,6 +4416,7 @@ export class AiAgentModel {
         );
         const contextMap = await this.getContextForPromptUuids(promptUuids);
         const steersMap = await this.findPromptSteers(promptUuids);
+        const decisionsMap = await this.findPromptDecisions(promptUuids);
         const latestPromptUuid = promptUuids.at(-1);
 
         const messagesPromises = promptRows.map(async (row) => {
@@ -4491,6 +4493,7 @@ export class AiAgentModel {
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
                 responseTiming: row.response_timing,
+                jevDecision: decisionsMap.get(row.ai_prompt_uuid) ?? null,
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -5285,6 +5288,10 @@ export class AiAgentModel {
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
                     responseTiming: row.response_timing,
+                    jevDecision:
+                        (
+                            await this.findPromptDecisions([row.ai_prompt_uuid])
+                        ).get(row.ai_prompt_uuid) ?? null,
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -5675,6 +5682,77 @@ export class AiAgentModel {
             );
 
         return rows.length > 0;
+    }
+
+    /** The latest fast-decision record per prompt, shaped for the thread UI. */
+    async findPromptDecisions(
+        promptUuids: string[],
+    ): Promise<Map<string, AiAgentJevDecision>> {
+        if (promptUuids.length === 0) return new Map();
+        const rows = await this.database(AiPromptDecisionTableName)
+            .select<
+                Pick<
+                    DbAiPromptDecision,
+                    | 'ai_prompt_uuid'
+                    | 'outcome'
+                    | 'applied'
+                    | 'reason'
+                    | 'fallback_reason'
+                    | 'intent'
+                    | 'latency_ms'
+                >[]
+            >(
+                'ai_prompt_uuid',
+                'outcome',
+                'applied',
+                'reason',
+                'fallback_reason',
+                'intent',
+                'latency_ms',
+            )
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .orderBy('created_at', 'asc');
+        return new Map(
+            rows.map((row) => [
+                row.ai_prompt_uuid,
+                {
+                    outcome: row.outcome,
+                    applied: row.applied,
+                    reason: row.reason,
+                    fallbackReason: row.fallback_reason,
+                    editKind: AiAgentModel.decisionEditKind(row),
+                    latencyMs: row.latency_ms,
+                },
+            ]),
+        );
+    }
+
+    private static decisionEditKind(
+        row: Pick<DbAiPromptDecision, 'outcome' | 'intent'>,
+    ): string | null {
+        switch (row.outcome) {
+            case 'needs_values':
+                return 'filter_values';
+            case 'compound':
+                return 'compound';
+            case 'intent':
+                return row.intent &&
+                    'kind' in row.intent &&
+                    typeof row.intent.kind === 'string'
+                    ? row.intent.kind
+                    : null;
+            case 'clarify':
+            case 'not_an_edit':
+            case 'unresolved':
+            case 'unavailable':
+            case 'routed':
+                return null;
+            default:
+                return assertUnreachable(
+                    row.outcome,
+                    'Unknown decision outcome',
+                );
+        }
     }
 
     async createPromptDecision(

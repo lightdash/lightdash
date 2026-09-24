@@ -62,6 +62,8 @@ import {
     useAiAgentThreadMessageStreaming,
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
+import { useBattleMessage } from '../Battle/BattleMessageContext';
+import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
@@ -1041,6 +1043,7 @@ export const AssistantBubble: FC<Props> = memo(
 
         const [isDrawerOpen, { open: openDrawer, close: closeDrawer }] =
             useDisclosure(debug);
+        const battle = useBattleMessage(message.uuid);
 
         const updateFeedbackMutation = useUpdatePromptFeedbackMutation(
             projectUuid,
@@ -1385,13 +1388,33 @@ export const AssistantBubble: FC<Props> = memo(
                                 onToggle={toggleSources}
                             />
                         )}
-                        <MessageModelIndicator
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                            modelConfig={message.modelConfig}
-                        />
+                        {!(battle.isBattle && message.jevDecision?.applied) && (
+                            <MessageModelIndicator
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                modelConfig={message.modelConfig}
+                            />
+                        )}
+                        {battle.isBattle && message.jevDecision && (
+                            <JevDecisionIndicator
+                                decision={message.jevDecision}
+                            />
+                        )}
                         <MessageTimingIndicator
                             responseTiming={message.responseTiming}
+                            isWinner={battle.isWinner}
+                            tokens={
+                                battle.isBattle && message.tokenUsage
+                                    ? {
+                                          agent: message.tokenUsage.totalTokens,
+                                          jev:
+                                              (message.tokenUsage
+                                                  .decisionInputTokens ?? 0) +
+                                              (message.tokenUsage
+                                                  .decisionOutputTokens ?? 0),
+                                      }
+                                    : null
+                            }
                         />
                     </Group>
                 )}

@@ -162,6 +162,7 @@ describe('AI context compaction helpers', () => {
                 modelConfig: null,
                 tokenUsage: null,
                 responseTiming: null,
+                jevDecision: null,
             },
         ]);
 
@@ -195,6 +196,7 @@ describe('AI context compaction helpers', () => {
                     modelConfig: null,
                     tokenUsage: null,
                     responseTiming: null,
+                    jevDecision: null,
                 },
             ];
         const serializeWithLegacyReportOption =

@@ -295,6 +295,27 @@ export type AiAgentMessageAssistantArtifact = Pick<
     | 'artifactType'
 >;
 
+export type AiAgentJevDecision = {
+    outcome:
+        | 'intent'
+        | 'compound'
+        | 'needs_values'
+        | 'clarify'
+        | 'not_an_edit'
+        | 'unresolved'
+        | 'unavailable'
+        | 'routed';
+    /** True when the edit was applied without the agent. */
+    applied: boolean;
+    /** Why the edit could not be resolved, when JEV tried. */
+    reason: string | null;
+    /** Why a resolved edit still went to the agent. */
+    fallbackReason: string | null;
+    /** The resolved edit kind, e.g. filter_values or chart_type. */
+    editKind: string | null;
+    latencyMs: number;
+};
+
 export type AiAgentMessageAssistant = {
     role: 'assistant';
     status: 'idle' | 'pending' | 'error';
@@ -323,6 +344,8 @@ export type AiAgentMessageAssistant = {
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
     responseTiming: AiPromptResponseTiming | null;
+    /** What the fast decision model did on this turn; null when it did not run. */
+    jevDecision: AiAgentJevDecision | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

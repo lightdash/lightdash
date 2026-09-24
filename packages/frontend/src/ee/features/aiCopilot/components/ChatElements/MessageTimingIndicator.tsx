@@ -5,12 +5,21 @@ import {
     formatDurationMs,
     getResponseTimingMetrics,
 } from '../../utils/responseTiming';
+import { formatTokenCount } from '../Battle/battleTurns';
+
+export type MessageTokenCounts = { agent: number; jev: number };
 
 interface Props {
     responseTiming: AiPromptResponseTiming | null;
+    isWinner: boolean;
+    tokens: MessageTokenCounts | null;
 }
 
-export const MessageTimingIndicator: FC<Props> = ({ responseTiming }) => {
+export const MessageTimingIndicator: FC<Props> = ({
+    responseTiming,
+    isWinner,
+    tokens,
+}) => {
     if (!responseTiming) return null;
 
     const metrics = getResponseTimingMetrics(responseTiming);
@@ -50,6 +59,12 @@ export const MessageTimingIndicator: FC<Props> = ({ responseTiming }) => {
                                 : ''}
                         </Text>
                     )}
+                    {tokens && (
+                        <Text size="xs">
+                            Tokens: JEV {tokens.jev.toLocaleString()} · agent{' '}
+                            {tokens.agent.toLocaleString()}
+                        </Text>
+                    )}
                     <Text size="xs" c="dimmed">
                         Server wall time. Concurrent stage spans can overlap.
                     </Text>
@@ -59,7 +74,10 @@ export const MessageTimingIndicator: FC<Props> = ({ responseTiming }) => {
             multiline
         >
             <Badge variant="transparent" size="sm" fz="xs" c="dimmed">
-                {ttft} · {formatDurationMs(metrics.totalMs)}
+                {isWinner ? '🥇 ' : ''}
+                {tokens
+                    ? `${formatDurationMs(metrics.totalMs)} · ${formatTokenCount(tokens.agent, tokens.jev)}`
+                    : `${ttft} · ${formatDurationMs(metrics.totalMs)}`}
             </Badge>
         </Tooltip>
     );
