@@ -108,14 +108,16 @@ export const groupPipeline = (
         }),
     );
 
-    const resolve = ({ alias, value }: Reference) => {
+    const resolveRead = ({ value }: Reference) => {
         const entry = byId.get(value);
         if (entry) return { nodeId: value, title: entry.query.title ?? value };
-        if (alias !== null)
-            return { nodeId: placeholderIdOf(value), title: alias };
+        const placeholder = placeholders.get(placeholderIdOf(value));
+        if (placeholder)
+            return { nodeId: placeholder.nodeId, title: placeholder.title };
         return { nodeId: null, title: value };
     };
-    const readsOf = (query: SourceQuery) => referencesOf(query).map(resolve);
+    const readsOf = (query: SourceQuery) =>
+        referencesOf(query).map(resolveRead);
     const readNodeIdsOf = (query: SourceQuery) =>
         readsOf(query).flatMap(({ nodeId }) =>
             nodeId === null ? [] : [nodeId],

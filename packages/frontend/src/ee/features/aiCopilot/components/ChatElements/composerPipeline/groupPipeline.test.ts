@@ -114,7 +114,7 @@ describe('groupPipeline', () => {
         expect(layers[0].nodes.map((node) => node.title)).toEqual(['prev']);
         expect(layers[1].nodes.map((node) => node.reads)).toEqual([
             ['prev'],
-            ['earlier'],
+            ['prev'],
         ]);
     });
 
