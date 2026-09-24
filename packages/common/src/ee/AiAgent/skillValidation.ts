@@ -1,4 +1,4 @@
-import matter from 'gray-matter';
+import * as yaml from 'js-yaml';
 import {
     AI_AGENT_SKILL_BODY_MAX_BYTES,
     AI_AGENT_SKILL_BODY_WARN_LINES,
@@ -90,19 +90,24 @@ const countLines = (text: string): number =>
 export const splitAiAgentSkillFrontmatter = (
     raw: string,
 ): AiAgentSkillFileParts | null => {
-    const normalized = raw.replace(/\r\n/g, '\n');
-    let parsed: { data: unknown; content: string };
+    const lines = raw.replace(/\r\n/g, '\n').split('\n');
+    if (lines[0]?.trim() !== '---') {
+        return { data: {}, body: lines.join('\n') };
+    }
+    const closing = lines.findIndex(
+        (line, index) => index > 0 && line.trim() === '---',
+    );
+    if (closing === -1) return null;
+    let data: unknown;
     try {
-        // The options object opts out of gray-matter's per-string cache.
-        parsed = matter(normalized, {});
+        data = yaml.load(lines.slice(1, closing).join('\n'));
     } catch (e) {
         return null;
     }
-    const { data, content } = parsed;
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-        return null;
-    }
-    return { data: data as Record<string, unknown>, body: content };
+    const body = lines.slice(closing + 1).join('\n');
+    if (data === undefined || data === null) return { data: {}, body };
+    if (typeof data !== 'object' || Array.isArray(data)) return null;
+    return { data: data as Record<string, unknown>, body };
 };
 
 const asString = (value: unknown): string | null =>
