@@ -250,6 +250,8 @@
         "filters.config.selectColumn": "აირჩიეთ სვეტი გასაფილტრად",
         "filters.config.searchColumnPlaceholder": "სვეტის ძებნა...",
         "filters.config.noMatchingFields": "შესაბამისი ველები ვერ მოიძებნა",
+        "filters.config.moreFields.singular": "კიდევ {count} ველი. აკრიფეთ საძიებლად",
+        "filters.config.moreFields.plural": "კიდევ {count} ველი. აკრიფეთ საძიებლად",
         "filters.config.fieldsInThisTab": "ველები ამ ჩანართში",
         "filters.config.otherAvailableFields": "სხვა ხელმისაწვდომი ველები",
         "filters.config.valueLabel": "მნიშვნელობა",

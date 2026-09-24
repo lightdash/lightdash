@@ -250,6 +250,8 @@
         "filters.config.selectColumn": "Selecciona una columna para filtrar",
         "filters.config.searchColumnPlaceholder": "Buscar columna...",
         "filters.config.noMatchingFields": "No hay campos coincidentes",
+        "filters.config.moreFields.singular": "{count} campo más. Escribe para buscar",
+        "filters.config.moreFields.plural": "{count} campos más. Escribe para buscar",
         "filters.config.fieldsInThisTab": "Campos en esta pestaña",
         "filters.config.otherAvailableFields": "Otros campos disponibles",
         "filters.config.valueLabel": "Valor",

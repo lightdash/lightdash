@@ -1,6 +1,10 @@
 import { type ComboboxParsedItem } from '@mantine/core';
 import { describe, expect, it } from 'vitest';
-import { ADD_TO_QUERY_GROUP_LABEL, optionsFilter } from './optionsFilter';
+import {
+    ADD_TO_QUERY_GROUP_LABEL,
+    MORE_OPTIONS_VALUE,
+    optionsFilter,
+} from './optionsFilter';
 
 const table = (name: string, fields: string[]) => ({
     group: name,
@@ -11,8 +15,15 @@ const fieldNames = (count: number) =>
     Array.from({ length: count }, (_, i) => `Field ${i}`);
 
 const values = (result: ComboboxParsedItem[]) =>
-    result.flatMap((item) =>
-        'group' in item ? item.items.map((o) => o.value) : [item.value],
+    result
+        .flatMap((item) =>
+            'group' in item ? item.items.map((o) => o.value) : [item.value],
+        )
+        .filter((value) => value !== MORE_OPTIONS_VALUE);
+
+const moreRow = (result: ComboboxParsedItem[]) =>
+    result.find(
+        (item) => !('group' in item) && item.value === MORE_OPTIONS_VALUE,
     );
 
 const groups = (result: ComboboxParsedItem[]) =>
@@ -68,9 +79,9 @@ describe('FieldSelect optionsFilter', () => {
             search: '',
             limit: 50,
         });
-        expect(result.map((g) => ('group' in g ? g.items.length : 1))).toEqual([
-            30, 19, 1,
-        ]);
+        expect(
+            result.flatMap((g) => ('group' in g ? [g.items.length] : [])),
+        ).toEqual([30, 19, 1]);
     });
 
     it('keeps the ungrouped limit unchanged', () => {
@@ -79,7 +90,31 @@ describe('FieldSelect optionsFilter', () => {
             search: '',
             limit: 50,
         });
-        expect(result).toHaveLength(50);
+        expect(values(result)).toHaveLength(50);
+    });
+
+    it('closes a cut list with a disabled row carrying the hidden count', () => {
+        const result = optionsFilter({
+            options: manyTables,
+            search: '',
+            limit: 50,
+        });
+        // 60 + 51 * 2 fields, 52 shown (one per table)
+        expect(moreRow(result)).toEqual({
+            value: MORE_OPTIONS_VALUE,
+            label: '110',
+            disabled: true,
+        });
+        expect(result[result.length - 1]).toBe(moreRow(result));
+    });
+
+    it('adds no count row when nothing is cut', () => {
+        const result = optionsFilter({
+            options: manyTables,
+            search: 'zulu',
+            limit: 50,
+        });
+        expect(moreRow(result)).toBeUndefined();
     });
 
     it('does not match synthetic group labels', () => {

@@ -2,6 +2,7 @@ import {
     getItemId,
     getItemLabel,
     getItemLabelWithoutTableName,
+    interpolateUiString,
     isCustomDimension,
     isDimension,
     isField,
@@ -23,10 +24,12 @@ import {
 } from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import FieldIcon from '../Filters/FieldIcon';
 import classes from './FieldSelect.module.css';
 import {
     ADD_TO_QUERY_GROUP_LABEL,
+    MORE_OPTIONS_VALUE,
     optionsFilter,
     SUGGESTED_GROUP_LABEL,
 } from './optionsFilter';
@@ -308,8 +311,25 @@ const FieldSelectComponent = <T extends Item = Item>({
         inactiveItemIds,
     ]);
 
+    const getUiString = useUiStrings();
+
     const renderOption = useCallback(
         ({ option, checked }: { option: ComboboxItem; checked?: boolean }) => {
+            if (option.value === MORE_OPTIONS_VALUE) {
+                const count = Number(option.label);
+                return (
+                    <Text span fz="xs" c="dimmed">
+                        {interpolateUiString(
+                            getUiString(
+                                count === 1
+                                    ? 'filters.config.moreFields.singular'
+                                    : 'filters.config.moreFields.plural',
+                            ),
+                            { count: count.toLocaleString() },
+                        )}
+                    </Text>
+                );
+            }
             const fieldOption = option as FieldSelectItem;
             const fieldItem = fieldOption.item;
             return (
@@ -352,7 +372,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                 </Tooltip>
             );
         },
-        [rest.size],
+        [rest.size, getUiString],
     );
 
     return (
@@ -369,6 +389,9 @@ const FieldSelectComponent = <T extends Item = Item>({
             renderOption={renderOption}
             leftSection={item ? <FieldIcon item={item} /> : undefined}
             placeholder={rest.placeholder ?? 'Search field...'}
+            nothingFoundMessage={getUiString(
+                'filters.config.noMatchingFields',
+            )}
             allowDeselect={false}
             rightSectionPointerEvents={
                 rest.clearable || rest.rightSection ? 'all' : 'none'
