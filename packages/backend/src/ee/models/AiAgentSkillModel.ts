@@ -423,6 +423,15 @@ export class AiAgentSkillModel {
         return rows.map(toVersionSummary);
     }
 
+    async findVersionByUuid(
+        versionUuid: string,
+    ): Promise<AiAgentSkillVersion | undefined> {
+        const row = await this.database(AiAgentSkillVersionTableName)
+            .where('ai_agent_skill_version_uuid', versionUuid)
+            .first();
+        return row ? mapVersionRow(row) : undefined;
+    }
+
     async findVersion(args: {
         skillUuid: string;
         versionNumber: number;

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AgentSuggestion,
     AgentSummaryContext,
+    AI_AGENT_SKILL_LISTING_MAX_CHARS,
     AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
     AiAgent,
@@ -13,6 +14,7 @@ import {
     AiAgentProjectThreadSummary,
     AiAgentReviewClassifierEventType,
     AiAgentReviewRemediationRunJobPayload,
+    AiAgentSkillVersionSummary,
     AiAgentSuggestionContext,
     AiAgentSummary,
     AiAgentThread,
@@ -74,6 +76,7 @@ import {
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     derivePivotConfigurationFromChart,
+    describeAiAgentSkillPlaceholders,
     designContextKey,
     DownloadFileType,
     elementReferenceToWireString,
@@ -87,6 +90,7 @@ import {
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
@@ -140,6 +144,7 @@ import {
     SlackPrompt,
     sleep,
     SpaceMemberRole,
+    substituteAiAgentSkillArguments,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchemaPersisted,
     UnexpectedServerError,
@@ -147,10 +152,12 @@ import {
     UpdateWebAppResponse,
     UserAttributeValueMap,
     validateAgentSuggestion,
+    validateAiAgentSkill,
     type AgentSuggestionTool,
     type AgentToolName,
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
+    type AiAgentSkill,
     type AiArtifact,
     type AiClonedThreadCreatedFrom,
     type AiDeepResearchBudget,
@@ -159,6 +166,7 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
+    type AiPromptContextItem,
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
@@ -299,6 +307,7 @@ import {
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
+import { AiAgentSkillModel } from '../../models/AiAgentSkillModel';
 import {
     AiDeepResearchRunModel,
     type AiDeepResearchRunContextRow,
@@ -399,6 +408,8 @@ import {
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
+import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
+import { formatSkillResult } from '../ai/tools/loadSkill';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import {
     AiAgentArgs,
@@ -704,6 +715,7 @@ type AiAgentServiceDependencies = {
     >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
+    aiAgentSkillModel: AiAgentSkillModel;
     mcpToolCallModel: Pick<McpToolCallModel, 'createToolCall'>;
     externalSourceModel: Pick<ExternalSourceModel, 'getSource'>;
     aiDeepResearchRunModel: Pick<
@@ -1016,6 +1028,8 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
+    private readonly aiAgentSkillModel: AiAgentSkillModel;
+
     private readonly mcpToolCallModel: Pick<McpToolCallModel, 'createToolCall'>;
 
     private readonly externalSourceModel: Pick<
@@ -1159,11 +1173,14 @@ export class AiAgentService extends BaseService {
         | 'pinnedContextCount'
         | 'pinnedChartCount'
         | 'pinnedDashboardCount'
+        | 'pinnedSkillCount'
     > {
         const pinnedChartCount =
             context?.filter((item) => item.type === 'chart').length ?? 0;
         const pinnedDashboardCount =
             context?.filter((item) => item.type === 'dashboard').length ?? 0;
+        const pinnedSkillCount =
+            context?.filter((item) => item.type === 'skill').length ?? 0;
         // Count every attached item (chart/dashboard/thread/file/repository) so
         // the total stays accurate as new context types are added.
         const pinnedContextCount = context?.length ?? 0;
@@ -1173,6 +1190,7 @@ export class AiAgentService extends BaseService {
             pinnedContextCount,
             pinnedChartCount,
             pinnedDashboardCount,
+            pinnedSkillCount,
         };
     }
 
@@ -1229,6 +1247,9 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'design':
                     key = designContextKey(item.designUuid);
+                    break;
+                case 'skill':
+                    key = `skill:${item.name}`;
                     break;
                 default:
                     return assertUnreachable(
@@ -1308,6 +1329,11 @@ export class AiAgentService extends BaseService {
                             'You do not have permission to view this project source code',
                         );
                     }
+                    return;
+                }
+
+                if (item.type === 'skill') {
+                    await this.assertSkillInvocable(user, agent, item.name);
                     return;
                 }
 
@@ -1496,6 +1522,7 @@ export class AiAgentService extends BaseService {
         this.appGenerateService = dependencies.appGenerateService;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
+        this.aiAgentSkillModel = dependencies.aiAgentSkillModel;
         this.mcpToolCallModel = dependencies.mcpToolCallModel;
         this.externalSourceModel = dependencies.externalSourceModel;
         this.aiDeepResearchRunModel = dependencies.aiDeepResearchRunModel;
@@ -4252,6 +4279,7 @@ export class AiAgentService extends BaseService {
                 context,
                 modelConfig,
             });
+            await this.persistSkillInvocation(promptUuid);
             this.enqueueMobilePushThreadReconciliation(threadUuid);
             if (createdFrom === 'web_app') {
                 await this.startMobilePushLiveActivitiesForPrompt({
@@ -4426,6 +4454,7 @@ export class AiAgentService extends BaseService {
             modelConfig: body.modelConfig,
             hidden: body.hidden,
         });
+        await this.persistSkillInvocation(messageUuid);
         this.enqueueMobilePushThreadReconciliation(threadUuid);
         await this.startMobilePushLiveActivitiesForPrompt({
             user,
@@ -9701,6 +9730,176 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         );
     }
 
+    private async areCustomSkillsEnabled(user: SessionUser): Promise<boolean> {
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiAgentCustomSkills,
+        });
+        return flag.enabled;
+    }
+
+    private async getCustomSkillsForAgent(
+        user: SessionUser,
+        agentUuid: string,
+    ): Promise<AiAgentSkill[]> {
+        if (!(await this.areCustomSkillsEnabled(user))) return [];
+        return this.aiAgentSkillModel.findBoundToAgent(agentUuid);
+    }
+
+    /** Skills the model may pick on its own; user-only and MCP-only skills are excluded. */
+    private static isModelServable(skill: AiAgentSkill): boolean {
+        return (
+            skill.parsed.frontmatter.availability.includes('agent') &&
+            !skill.parsed.frontmatter.disableModelInvocation
+        );
+    }
+
+    /** Argument substitution for any load; without arguments placeholders become prose, never a bare `$ARGUMENTS`. */
+    private static renderSkillBody(
+        body: string,
+        rawArguments: string | null,
+        argumentNames: string[],
+    ): string {
+        const trimmed = rawArguments?.trim() ?? '';
+        return trimmed.length > 0
+            ? substituteAiAgentSkillArguments(body, trimmed, argumentNames)
+            : describeAiAgentSkillPlaceholders(body, argumentNames);
+    }
+
+    private static toServedSkill(
+        skill: AiAgentSkill,
+        version: AiAgentSkillVersionSummary,
+        body: string,
+    ): ServedSkill {
+        return {
+            name: skill.name,
+            description: skill.description,
+            body,
+            resources: skill.parsed.resources.map((resource) => ({
+                name: resource.name,
+                description: resource.description,
+                content: resource.body,
+            })),
+            metadata: {
+                name: skill.name,
+                builtIn: false,
+                uuid: skill.uuid,
+                versionNumber: version.versionNumber,
+                contentHash: version.contentHash,
+            },
+        };
+    }
+
+    /** A slash command must name a skill this agent serves to users; anything else rejects the send. */
+    private async assertSkillInvocable(
+        user: SessionUser,
+        agent: AiAgent,
+        name: string,
+    ): Promise<void> {
+        if (!(await this.areCustomSkillsEnabled(user))) {
+            throw new ForbiddenError('Custom agent skills are not enabled');
+        }
+        // Built-ins are model-only: their names are reserved, so they never match here.
+        const bound = await this.aiAgentSkillModel.findBoundToAgentByName({
+            agentUuid: agent.uuid,
+            name,
+        });
+        if (!bound) {
+            throw new ParameterError(
+                `This agent has no skill called "${name}". Pick one from the / menu.`,
+            );
+        }
+        if (
+            !bound.parsed.frontmatter.userInvocable ||
+            !bound.parsed.frontmatter.availability.includes('agent')
+        ) {
+            throw new ParameterError(
+                `The skill "${name}" cannot be invoked with a slash command.`,
+            );
+        }
+    }
+
+    /** The served skill for a slash-command prompt: the pinned version, with arguments substituted. */
+    private async resolveInvokedSkill(
+        invocation: Extract<AiPromptContextItem, { type: 'skill' }>,
+    ): Promise<ServedSkill> {
+        if (invocation.skillUuid !== null && invocation.pinnedVersionUuid) {
+            const [skill, version] = await Promise.all([
+                this.aiAgentSkillModel.findIncludingDeleted(
+                    invocation.skillUuid,
+                ),
+                this.aiAgentSkillModel.findVersionByUuid(
+                    invocation.pinnedVersionUuid,
+                ),
+            ]);
+            if (!skill || !version) {
+                throw new NotFoundError(
+                    `Skill "${invocation.name}" is no longer available.`,
+                );
+            }
+            const parsed = validateAiAgentSkill({
+                files: version.content.files,
+            });
+            const body = parsed.valid ? parsed.parsed.body : skill.parsed.body;
+            return AiAgentService.toServedSkill(
+                skill,
+                version,
+                AiAgentService.renderSkillBody(
+                    body,
+                    invocation.arguments,
+                    skill.parsed.frontmatter.arguments,
+                ),
+            );
+        }
+        const builtIn = await this.aiAgentToolsService.loadAgentSkill(
+            invocation.name,
+        );
+        if (!builtIn) {
+            throw new NotFoundError(
+                `Skill "${invocation.name}" is no longer available.`,
+            );
+        }
+        return {
+            ...builtIn,
+            body: AiAgentService.renderSkillBody(
+                builtIn.body,
+                invocation.arguments,
+                [],
+            ),
+        };
+    }
+
+    /** Persists the synthetic loadSkill call and result so history replays the skill before the model's first step. */
+    private async persistSkillInvocation(promptUuid: string): Promise<void> {
+        const context =
+            (
+                await this.aiAgentModel.getContextForPromptUuids([promptUuid])
+            ).get(promptUuid) ?? [];
+        const invocation = context.find(
+            (item): item is Extract<AiPromptContextItem, { type: 'skill' }> =>
+                item.type === 'skill',
+        );
+        if (!invocation) return;
+        const skill = await this.resolveInvokedSkill(invocation);
+        const toolCallId = `skill_${promptUuid}`;
+        await this.aiAgentModel.createToolCall({
+            promptUuid,
+            toolCallId,
+            toolName: 'loadSkill',
+            toolArgs: { name: skill.name },
+            parentToolCallId: null,
+        });
+        await this.aiAgentModel.createToolResults([
+            {
+                promptUuid,
+                toolCallId,
+                toolName: 'loadSkill',
+                result: formatSkillResult(skill),
+                metadata: { status: 'success', skill: skill.metadata },
+            },
+        ]);
+    }
+
     static createPinnedContextMessage(
         context: AiPromptContext,
     ): UserModelMessage | null {
@@ -9840,6 +10039,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app restore: version ${item.restoredFromVersion} of "${name}" (appSlug: ${slugText}) was restored as version ${item.version} — the app now matches version ${item.restoredFromVersion}; iterate from version ${item.version}.`;
                 }
+                case 'skill':
+                    return `- Skill /${item.name} invoked by the user${item.arguments ? ` with arguments "${item.arguments}"` : ''}; its instructions are loaded in the next step. Follow them.`;
                 case 'design': {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.designSlug ?? '(slug unavailable)';
@@ -13470,9 +13671,27 @@ Use your existing tools to inspect them when relevant to the user's question (re
             invalidateQueryCache: battleProfile !== null,
         });
 
-        const availableSkills = canUseContentTools
+        const builtInSkills = canUseContentTools
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
+        const modelServableSkills = (
+            await this.getCustomSkillsForAgent(user, agentSettings.uuid)
+        ).filter(AiAgentService.isModelServable);
+        const availableSkills = [
+            ...builtInSkills,
+            ...modelServableSkills.map((skill) => ({
+                name: skill.name,
+                description: getAiAgentSkillListingText(
+                    skill.parsed.frontmatter,
+                    AI_AGENT_SKILL_LISTING_MAX_CHARS,
+                ),
+                resources: skill.parsed.resources.map((resource) => ({
+                    name: resource.name,
+                    description: resource.description,
+                })),
+                source: 'custom' as const,
+            })),
+        ];
         const copilotConfig =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 promptProject.organizationUuid,
@@ -14046,8 +14265,33 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
-            loadSkill: async (name) =>
-                this.aiAgentToolsService.loadAgentSkill(name),
+            loadSkill: async (name, loadOptions) => {
+                const builtIn =
+                    await this.aiAgentToolsService.loadAgentSkill(name);
+                if (builtIn) {
+                    return {
+                        ...builtIn,
+                        body: AiAgentService.renderSkillBody(
+                            builtIn.body,
+                            loadOptions.arguments,
+                            [],
+                        ),
+                    };
+                }
+                const custom = modelServableSkills.find(
+                    (skill) => skill.name === name.trim().toLowerCase(),
+                );
+                if (!custom) return undefined;
+                return AiAgentService.toServedSkill(
+                    custom,
+                    custom.currentVersion,
+                    AiAgentService.renderSkillBody(
+                        custom.parsed.body,
+                        loadOptions.arguments,
+                        custom.parsed.frontmatter.arguments,
+                    ),
+                );
+            },
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {

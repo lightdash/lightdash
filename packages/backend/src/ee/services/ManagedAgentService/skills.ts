@@ -11,7 +11,7 @@ export const loadAutopilotSkill = async (
     loadBuiltInSkill: LoadAgentSkillFn,
 ): Promise<AiAgentSkill | undefined> => {
     if (name !== AUTOPILOT_CHART_SKILL_NAME) return undefined;
-    const builtIn = await loadBuiltInSkill(name);
+    const builtIn = await loadBuiltInSkill(name, { arguments: null });
     if (!builtIn) return undefined;
     return {
         ...builtIn,

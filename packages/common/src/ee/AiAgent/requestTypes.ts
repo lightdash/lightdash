@@ -309,6 +309,13 @@ export type AiPromptContextItemInput =
           // build; the server snapshots its name at attach time.
           type: 'design';
           designUuid: string;
+      }
+    | {
+          // A slash-command invocation: the skill the user picked in the
+          // composer and the text typed after it. The server pins the version.
+          type: 'skill';
+          name: string;
+          arguments: string;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -431,6 +438,17 @@ export type AiPromptContextItem =
           designUuid: string;
           // Null when the theme was deleted after it was pinned.
           designSlug: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'skill';
+          name: string;
+          arguments: string;
+          // Null for a built-in skill, which has no row or version.
+          skillUuid: string | null;
+          pinnedVersionUuid: string | null;
+          versionNumber: number | null;
+          builtIn: boolean;
           displayName: string | null;
       };
 

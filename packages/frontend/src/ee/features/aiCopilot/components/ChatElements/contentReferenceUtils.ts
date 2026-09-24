@@ -68,6 +68,8 @@ export const getPromptContextItemKey = (
             return dataAppContextKey(item.appUuid);
         case 'design':
             return designContextKey(item.designUuid);
+        case 'skill':
+            return `skill:${item.name}`;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -124,6 +126,8 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.projectName ?? 'Preview environment';
         case 'data_app':
             return getDataAppContextItemName(item);
+        case 'skill':
+            return `/${item.name}`;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -167,6 +171,9 @@ export const getPromptContextItemHref = (
             return dataAppHref(projectUuid, item.appUuid);
         // A theme is an organization setting with no in-thread destination.
         case 'design':
+            return null;
+        // A skill invocation is shown as a chip, not a link.
+        case 'skill':
             return null;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');

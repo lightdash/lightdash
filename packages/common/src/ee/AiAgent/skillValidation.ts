@@ -647,6 +647,36 @@ const tokenizeArguments = (input: string): string[] =>
 const escapeRegExp = (value: string): string =>
     value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+type PlaceholderGroups = Partial<
+    Record<'indexed' | 'positional' | 'named', string>
+>;
+
+const buildPlaceholderPattern = (argumentNames: string[]): RegExp => {
+    const namedAlternative =
+        argumentNames.length > 0
+            ? `|\\$(?<named>${[...argumentNames]
+                  .sort((a, b) => b.length - a.length)
+                  .map(escapeRegExp)
+                  .join('|')})(?![A-Za-z0-9_-])`
+            : '';
+    return new RegExp(
+        `\\\\\\$|\\$ARGUMENTS\\[(?<indexed>\\d+)\\]|\\$ARGUMENTS|\\$(?<positional>\\d+)${namedAlternative}`,
+        'g',
+    );
+};
+
+const replacePlaceholders = (
+    body: string,
+    argumentNames: string[],
+    replace: (match: string, groups: PlaceholderGroups) => string,
+): string =>
+    body.replace(buildPlaceholderPattern(argumentNames), (...args: unknown[]) =>
+        replace(
+            args[0] as string,
+            (args[args.length - 1] ?? {}) as PlaceholderGroups,
+        ),
+    );
+
 /**
  * Claude Code substitution rules, applied in one pass so inserted text is never
  * re-expanded and unfilled placeholders stay literal.
@@ -659,40 +689,46 @@ export const substituteAiAgentSkillArguments = (
     const trimmed = rawArguments.trim();
     const hasArguments = trimmed.length > 0;
     const tokens = hasArguments ? tokenizeArguments(trimmed) : [];
-    const namedAlternative =
-        argumentNames.length > 0
-            ? `|\\$(?<named>${[...argumentNames]
-                  .sort((a, b) => b.length - a.length)
-                  .map(escapeRegExp)
-                  .join('|')})(?![A-Za-z0-9_-])`
-            : '';
-    const pattern = new RegExp(
-        `\\\\\\$|\\$ARGUMENTS\\[(?<indexed>\\d+)\\]|\\$ARGUMENTS|\\$(?<positional>\\d+)${namedAlternative}`,
-        'g',
-    );
     let received = false;
-    const replaced = body.replace(pattern, (...args: unknown[]) => {
-        const match = args[0] as string;
-        const groups = (args[args.length - 1] ?? {}) as Partial<
-            Record<'indexed' | 'positional' | 'named', string>
-        >;
-        if (match === '\\$') return '$';
-        if (!hasArguments) return match;
-        const index = groups.indexed ?? groups.positional;
-        if (index !== undefined) {
-            const token = tokens[Number(index)];
-            if (token === undefined) return match;
+    const replaced = replacePlaceholders(
+        body,
+        argumentNames,
+        (match, groups) => {
+            if (match === '\\$') return '$';
+            if (!hasArguments) return match;
+            const index = groups.indexed ?? groups.positional;
+            if (index !== undefined) {
+                const token = tokens[Number(index)];
+                if (token === undefined) return match;
+                received = true;
+                return token;
+            }
+            if (groups.named !== undefined) {
+                received = true;
+                return tokens[argumentNames.indexOf(groups.named)] ?? '';
+            }
             received = true;
-            return token;
-        }
-        if (groups.named !== undefined) {
-            received = true;
-            return tokens[argumentNames.indexOf(groups.named)] ?? '';
-        }
-        received = true;
-        return trimmed;
-    });
+            return trimmed;
+        },
+    );
     return hasArguments && !received
         ? `${replaced}\n\nARGUMENTS: ${trimmed}`
         : replaced;
 };
+
+/** For a load with no arguments: placeholders become prose so the model never sees a bare `$ARGUMENTS`. */
+export const describeAiAgentSkillPlaceholders = (
+    body: string,
+    argumentNames: string[],
+): string =>
+    replacePlaceholders(body, argumentNames, (match, groups) => {
+        if (match === '\\$') return '$';
+        const index = groups.indexed ?? groups.positional;
+        if (index !== undefined) {
+            return `argument ${index} of the user's request`;
+        }
+        if (groups.named !== undefined) {
+            return `the ${groups.named} argument of the user's request`;
+        }
+        return "the user's request as written above";
+    });

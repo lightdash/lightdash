@@ -32,6 +32,7 @@ const buildService = () => {
             createWebAppPrompt,
             getThread,
             findThreadMessage,
+            getContextForPromptUuids: vi.fn(async () => new Map()),
         },
         aiOrganizationSettingsService: {
             getDefaultModelConfig: vi.fn(async () => undefined),

@@ -3079,6 +3079,7 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         pinnedContextCount: number;
         pinnedChartCount: number;
         pinnedDashboardCount: number;
+        pinnedSkillCount: number;
     };
 };
 

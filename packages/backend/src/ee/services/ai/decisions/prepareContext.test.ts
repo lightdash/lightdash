@@ -802,6 +802,7 @@ describe('context preloading', () => {
                 name: `skill-${i}`,
                 description: 'revenue 分析 '.repeat(30),
                 resources: [],
+                source: 'builtIn' as const,
             }));
             const documentTemplate = setup().args.knowledgeDocuments[0];
             args.knowledgeDocuments = Array.from({ length: 300 }, (_, i) => ({
@@ -979,7 +980,9 @@ describe('context preloading', () => {
         );
         expect(context?.content).toContain('Use documented metrics.');
         expect(context?.content).toContain('Revenue excludes refunds.');
-        expect(loadSkill).toHaveBeenCalledExactlyOnceWith('metrics');
+        expect(loadSkill).toHaveBeenCalledExactlyOnceWith('metrics', {
+            arguments: null,
+        });
         expect(getKnowledgeDocumentContent).toHaveBeenCalledExactlyOnceWith({
             documentUuid: 'doc',
         });
