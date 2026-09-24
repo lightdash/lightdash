@@ -113,6 +113,65 @@ describe('dataAppVizGenerationSchema input guidance limits', () => {
     });
 });
 
+describe('per-field config options', () => {
+    const declaration = {
+        fields: [
+            {
+                name: 'values',
+                label: 'Values',
+                type: 'metric',
+                required: true,
+                multiple: true,
+                configOptions: [
+                    {
+                        name: 'color',
+                        label: 'Color',
+                        type: 'color',
+                        default: '#112233',
+                    },
+                    {
+                        name: 'enabled',
+                        label: 'Enabled',
+                        type: 'boolean',
+                        default: true,
+                    },
+                ],
+            },
+        ],
+        configOptions: [],
+        colorPalette: null,
+    };
+
+    it('accepts per-field controls in read and generation schemas', () => {
+        expect(dataAppVizSchema.safeParse(declaration).success).toBe(true);
+        expect(dataAppVizGenerationSchema.safeParse(declaration).success).toBe(
+            true,
+        );
+    });
+
+    it('rejects duplicate option names within one field', () => {
+        const invalid = {
+            ...declaration,
+            fields: [
+                {
+                    ...declaration.fields[0],
+                    configOptions: [
+                        declaration.fields[0].configOptions[0],
+                        {
+                            ...declaration.fields[0].configOptions[0],
+                            default: '#445566',
+                        },
+                    ],
+                },
+            ],
+        };
+        expect(dataAppVizSchema.safeParse(invalid).success).toBe(false);
+        expect(dataAppVizGenerationSchema.safeParse(invalid).success).toBe(
+            false,
+        );
+    });
+});
+
 describe('dataAppVizSchema', () => {
     it('keeps omitted multiple scalar and accepts explicit multi fields', () => {
         expect(

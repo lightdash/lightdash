@@ -36,7 +36,24 @@ time indexes in pivot metadata.
 precedence over these demo values. The project palette still applies, and demo
 rows never enable drill-down or underlying-data actions.
 
-Either `rows` or `optionValues` can be supplied independently. Without rows,
+Per-field preview settings use
+`fieldOptionValues[inputName][sampleFieldId][optionName]`. Each preview input
+binds one representative field with ID `sample_<inputName>`, including inputs
+that accept multiple fields. For an input named `value` declaring a `color`
+option, use:
+
+```yaml
+preview:
+  fieldOptionValues:
+    value:
+      sample_value:
+        color: '#abcdef'
+```
+
+These overrides apply only to the declared input's options. Unknown field IDs
+are rejected so accepted settings cannot silently disappear from the preview.
+
+`rows`, `optionValues`, and `fieldOptionValues` can be supplied independently. Without rows,
 Lightdash generates twelve monthly points with three series where applicable.
 Omitting the preview block or using null preserves this fallback for existing
 chart versions. Stale demo data that no longer matches a regenerated schema also

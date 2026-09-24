@@ -264,6 +264,7 @@ describe('AiVisualizationRenderer custom chart type answers', () => {
                 y: 'orders_total_revenue',
             },
             options: null,
+            fieldOptions: null,
         },
     };
 

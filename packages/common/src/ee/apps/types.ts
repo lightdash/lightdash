@@ -19,9 +19,9 @@ import { type ResultRow } from '../../types/results';
 import {
     type ChartConfig,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
     type SavedChart,
 } from '../../types/savedCharts';
-import assertUnreachable from '../../utils/assertUnreachable';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
@@ -30,7 +30,10 @@ import {
     type DataAppVizOptionValue,
     type DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
+import { matchesDeclaredType } from './matchesDeclaredType';
 import { type DataAppVizPreview } from './preview';
+
+export { matchesDeclaredType } from './matchesDeclaredType';
 
 export type {
     DataAppVizConfigOption,
@@ -875,6 +878,8 @@ export type DataAppVizField = {
     required: boolean;
     /** Whether this slot accepts an ordered collection of query fields. */
     multiple?: boolean;
+    /** Settings available independently for each field bound to this slot. */
+    configOptions?: DataAppVizConfigOption[];
     /** Explain what belongs in this slot for a reusable visualization. */
     description?: string;
     /** Scalar display examples for this slot, independent of any one query. */
@@ -937,61 +942,6 @@ const optionBase = {
             'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
         ),
 };
-
-const vizField = (strict: boolean) =>
-    z.object({
-        name: z
-            .string()
-            .min(1)
-            .describe(
-                'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
-            ),
-        label: z
-            .string()
-            .describe('Human label shown in the field-mapping UI.'),
-        type: z
-            .enum(['dimension', 'metric', 'series', 'column'])
-            .describe(
-                'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart, column = any result column (metric or dimension) — use when the chart handles non-numeric values.',
-            ),
-        required: z
-            .boolean()
-            .describe(
-                'false only when the chart still renders with this field unmapped.',
-            ),
-        multiple: z
-            .boolean()
-            .nullable()
-            .transform((value) => value ?? undefined)
-            .optional()
-            .describe(
-                'Whether this slot accepts an ordered collection of fields. Omit or set false for one field.',
-            ),
-        description: optionalInputHelp(
-            strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,
-        ).describe(
-            strict
-                ? 'Optional mapping help in one or two short, plain sentences (maximum 160 characters). Explain what this field represents and how to choose it, without naming a particular query.'
-                : 'Optional reusable mapping help explaining what this field represents.',
-        ),
-    });
-
-const vizFieldsDescription =
-    'Every data column the component reads. Declare exactly what you read — no more, no less.';
-
-const vizFieldsForRead = z
-    .array(
-        vizField(false).extend({
-            examples: nullableOptionalFieldExamples().describe(
-                'Optional legacy scalar display examples for this field. Each value stands alone.',
-            ),
-        }),
-    )
-    .describe(vizFieldsDescription);
-
-const vizFieldsForGeneration = z
-    .array(vizField(true))
-    .describe(vizFieldsDescription);
 
 const vizConfigOptions = z.array(
     z.discriminatedUnion('type', [
@@ -1056,6 +1006,72 @@ const vizConfigOptions = z.array(
     ]),
 );
 
+const vizField = (strict: boolean) =>
+    z.object({
+        name: z
+            .string()
+            .min(1)
+            .describe(
+                'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
+            ),
+        label: z
+            .string()
+            .describe('Human label shown in the field-mapping UI.'),
+        type: z
+            .enum(['dimension', 'metric', 'series', 'column'])
+            .describe(
+                'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart, column = any result column (metric or dimension) — use when the chart handles non-numeric values.',
+            ),
+        required: z
+            .boolean()
+            .describe(
+                'false only when the chart still renders with this field unmapped.',
+            ),
+        multiple: z
+            .boolean()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Whether this slot accepts an ordered collection of fields. Omit or set false for one field.',
+            ),
+        configOptions: vizConfigOptions
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .refine(
+                (options) => !options || uniqueNames(options),
+                'duplicate option name',
+            )
+            .describe(
+                'Optional settings for each bound field, keyed by its query field id. Use boolean, select, number, text and color controls for independent labels, styles, colors and axis placement when the chart supports them.',
+            ),
+        description: optionalInputHelp(
+            strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,
+        ).describe(
+            strict
+                ? 'Optional mapping help in one or two short, plain sentences (maximum 160 characters). Explain what this field represents and how to choose it, without naming a particular query.'
+                : 'Optional reusable mapping help explaining what this field represents.',
+        ),
+    });
+
+const vizFieldsDescription =
+    'Every data column the component reads. Declare exactly what you read — no more, no less.';
+
+const vizFieldsForRead = z
+    .array(
+        vizField(false).extend({
+            examples: nullableOptionalFieldExamples().describe(
+                'Optional legacy scalar display examples for this field. Each value stands alone.',
+            ),
+        }),
+    )
+    .describe(vizFieldsDescription);
+
+const vizFieldsForGeneration = z
+    .array(vizField(true))
+    .describe(vizFieldsDescription);
+
 const vizColorPalette = z
     .object({
         group: z
@@ -1092,7 +1108,7 @@ export const dataAppVizGenerationSchema = z.object({
     configOptions: vizConfigOptions
         .refine(uniqueNames, 'duplicate option name')
         .describe(
-            'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+            'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different. For a setting that varies by bound field, declare it in the `configOptions` of that field instead and read it from `fieldOptions`.',
         ),
     colorPalette: vizColorPalette,
     inputGuidance: vizInputGuidance(true),
@@ -1171,30 +1187,6 @@ const makeOpenAiStrict = (value: unknown): unknown => {
 export const dataAppVizJsonSchema = makeOpenAiStrict(
     toLlmJsonSchema(dataAppVizGenerationSchema),
 );
-
-/** Whether a stored value still has the shape the option declares. */
-const matchesDeclaredType = (
-    option: DataAppVizConfigOption,
-    value: DataAppVizOptionValue,
-): boolean => {
-    switch (option.type) {
-        case 'boolean':
-            return typeof value === 'boolean';
-        case 'number':
-            return typeof value === 'number';
-        case 'select':
-            // A choice dropped by a regeneration is as stale as a wrong type.
-            return option.choices.some((choice) => choice.value === value);
-        case 'text':
-        case 'color':
-            return typeof value === 'string';
-        default:
-            return assertUnreachable(
-                option,
-                'Unknown data app viz config option type',
-            );
-    }
-};
 
 /**
  * Effective value of one option: the stored value, or the declared default when
@@ -1450,6 +1442,7 @@ export type DataAppVizContext = {
     fields: Record<string, DataAppVizFieldMetadata>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
+    fieldOptions: DataAppVizFieldOptionValues;
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;

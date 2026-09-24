@@ -1,29 +1,35 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { VizContextProvider, useVizContext } from './vizContext';
+import {
+    VizContextProvider,
+    useVizContext,
+    type VizContext,
+} from './vizContext';
 
 const VIZ_CONTEXT_MESSAGE = 'lightdash:sdk:data-app-viz-context';
 const VIZ_RENDERED_MESSAGE = { type: 'lightdash:sdk:viz-rendered' };
 
-const contextMessage = (renderId?: string) => ({
+const contextMessage = (renderId?: string, fieldOptions?: unknown) => ({
     type: VIZ_CONTEXT_MESSAGE,
     fieldMapping: {},
     rows: [],
+    ...(fieldOptions === undefined ? {} : { fieldOptions }),
     ...(renderId === undefined ? {} : { renderId }),
 });
 
-const sendContext = (renderId?: string) => {
+const sendContext = (renderId?: string, fieldOptions?: unknown) => {
     window.dispatchEvent(
         new MessageEvent('message', {
-            data: contextMessage(renderId),
+            data: contextMessage(renderId, fieldOptions),
             source: window,
         }),
     );
 };
 
+let latestContext: VizContext | undefined;
 function ContextConsumer() {
-    useVizContext();
+    latestContext = useVizContext();
     return null;
 }
 
@@ -64,6 +70,24 @@ describe('viz context paint acknowledgement', () => {
         postMessage?.mockRestore();
         requestAnimationFrame?.mockRestore();
         cancelAnimationFrame?.mockRestore();
+        latestContext = undefined;
+    });
+
+    it('delivers per-field settings to the hook and defaults legacy host messages', async () => {
+        await mount(true);
+        expect(latestContext?.fieldOptions).toEqual({});
+
+        await act(async () =>
+            sendContext(undefined, {
+                values: { orders_total: { color: '#ff0000' } },
+            }),
+        );
+        expect(latestContext?.fieldOptions).toEqual({
+            values: { orders_total: { color: '#ff0000' } },
+        });
+
+        await act(async () => sendContext());
+        expect(latestContext?.fieldOptions).toEqual({});
     });
 
     it('acknowledges a provider context after two frames, without a duplicate consumer signal', async () => {

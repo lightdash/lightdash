@@ -1,12 +1,15 @@
 import {
     getItemId,
     getDataAppVizFieldIds,
+    getEffectiveDataAppVizFieldOptionValues,
     isCustomDimension,
     isDimension,
     isMetric,
     isTableCalculation,
     type DataAppVizField,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
+    type DataAppVizOptionValue,
     type Item,
     type ItemsMap,
 } from '@lightdash/common';
@@ -20,6 +23,7 @@ import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from './DataAppVizFieldGuidance';
+import DataAppVizFieldOptionControls from './DataAppVizFieldOptionControls';
 import OrderedDataAppVizFieldSelect from './OrderedDataAppVizFieldSelect';
 
 type Props = {
@@ -31,6 +35,14 @@ type Props = {
     onFieldChange: (
         fieldName: string,
         fieldId: string | string[] | null,
+    ) => void;
+    fieldOptionValues: DataAppVizFieldOptionValues;
+    colorPalette: string[];
+    onFieldOptionChange: (
+        fieldName: string,
+        fieldId: string,
+        optionName: string,
+        value: DataAppVizOptionValue,
     ) => void;
 };
 
@@ -45,6 +57,9 @@ const DataAppVizSettings: FC<Props> = ({
     fields,
     fieldMapping,
     onFieldChange,
+    fieldOptionValues,
+    colorPalette,
+    onFieldOptionChange,
 }) => {
     const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
@@ -72,6 +87,11 @@ const DataAppVizSettings: FC<Props> = ({
     };
     const fieldItems = (field: DataAppVizField): Item[] =>
         itemPools[poolKeyForSlot(field)];
+    const effectiveFieldOptions = getEffectiveDataAppVizFieldOptionValues(
+        fields,
+        fieldMapping,
+        fieldOptionValues,
+    );
 
     return (
         <Stack>
@@ -190,6 +210,21 @@ const DataAppVizSettings: FC<Props> = ({
                                     />
                                 </>
                             )}
+                            <DataAppVizFieldOptionControls
+                                options={field.configOptions ?? []}
+                                fieldIds={selectedIds}
+                                items={[...items, ...addItems]}
+                                values={effectiveFieldOptions[field.name] ?? {}}
+                                colorPalette={colorPalette}
+                                onChange={(fieldId, optionName, value) =>
+                                    onFieldOptionChange(
+                                        field.name,
+                                        fieldId,
+                                        optionName,
+                                        value,
+                                    )
+                                }
+                            />
                         </Config.Section>
                     </Config>
                 );

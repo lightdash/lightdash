@@ -100,6 +100,31 @@ const minimal: CustomChartType = {
 };
 
 describe('serializeCustomChartTypeForPrompt', () => {
+    it('mentions field settings when a chart declares them', () => {
+        const chart: CustomChartType = {
+            ...minimal,
+            schema: {
+                ...minimal.schema,
+                fields: [
+                    {
+                        ...minimal.schema.fields[0],
+                        configOptions: [
+                            {
+                                name: 'color',
+                                label: 'Color',
+                                type: 'color',
+                                default: '#000000',
+                            },
+                        ],
+                    },
+                ],
+            },
+        };
+        expect(serializeCustomChartTypeForPrompt(chart)).toContain(
+            'Status: Color',
+        );
+    });
+
     it('serializes name, description, field labels and grouped option labels', () => {
         expect(serializeCustomChartTypeForPrompt(cohortWaterfall)).toBe(
             [
@@ -135,6 +160,32 @@ describe('serializeCustomChartTypeForPrompt', () => {
 });
 
 describe('serializeCustomChartTypeSchema', () => {
+    it('lists each declared field option with its type and default', () => {
+        const chart: CustomChartType = {
+            ...minimal,
+            schema: {
+                ...minimal.schema,
+                fields: [
+                    {
+                        ...minimal.schema.fields[0],
+                        multiple: true,
+                        configOptions: [
+                            {
+                                name: 'color',
+                                label: 'Color',
+                                type: 'color',
+                                default: '#000000',
+                            },
+                        ],
+                    },
+                ],
+            },
+        };
+        expect(serializeCustomChartTypeSchema(chart)).toContain(
+            'fieldConfigOptions for status (per bound field id):\n- color "Color" [color] default: "#000000"',
+        );
+    });
+
     it('serializes the full schema with slot names, types, required and option details', () => {
         expect(serializeCustomChartTypeSchema(cohortWaterfall)).toBe(
             [

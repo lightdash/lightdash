@@ -1,8 +1,10 @@
 import {
     deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
+    getEffectiveDataAppVizFieldOptionValues,
     type DataAppVizContext,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
     type ItemsMap,
@@ -25,6 +27,7 @@ type Args = {
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     colorPalette: string[];
     optionValues: DataAppVizOptionValues;
+    fieldOptionValues: DataAppVizFieldOptionValues;
     resolvedColors: DataAppVizResolvedColors;
 };
 
@@ -54,6 +57,7 @@ export const buildExplorerVizContext = ({
     pivotDetails,
     colorPalette,
     optionValues,
+    fieldOptionValues,
     resolvedColors,
 }: Args): DataAppVizContext => {
     const fieldMapping = resolveExplorerVizFieldMapping({
@@ -66,6 +70,11 @@ export const buildExplorerVizContext = ({
         fields: deriveDataAppVizFieldMetadata(fieldMapping, itemsMap),
         rows,
         options: getEffectiveOptionValues(schema.configOptions, optionValues),
+        fieldOptions: getEffectiveDataAppVizFieldOptionValues(
+            schema.fields,
+            fieldMapping,
+            fieldOptionValues,
+        ),
         colorPalette,
         ...resolvedColors,
         pivotDetails,

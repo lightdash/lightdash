@@ -32,6 +32,7 @@ const {
   fieldMapping,
   rows,
   options,
+  fieldOptions,
   colorPalette,
   pivotDetails,
   ready,
@@ -48,6 +49,8 @@ const {
 - `rows` — the host-fetched result rows, keyed by query field id.
 - `options` — `Record<string, boolean | number | string>`: the current value of each config
   option you declared (the viewer's choice, else your declared `default`).
+- `fieldOptions` — declared slot name → actual bound field id → option name → effective
+  value. Empty on older hosts; see "Per-field settings" below.
 - `colorPalette` — `string[]`: the Lightdash palette resolved for this chart. Always pushed,
   whether or not you declared `colorPalette`. Empty only when the host resolved none.
 - `seriesColors` — `Record<string, string>`: final host-resolved colours keyed by backend
@@ -393,7 +396,7 @@ file**. It has four parts: `fields`, `configOptions`, `colorPalette` and optiona
 the field-mapping UI and the chart config panel from it, so the component is unusable
 without it.
 
-The correspondence is exact in both directions: **every key read from `fieldMapping` or `options` is declared, and everything declared is read.** A declared
+The correspondence is exact in both directions: **every key read from `fieldMapping`, `options`, or `fieldOptions` is declared, and everything declared is read.** A declared
 option nothing reads is a dead control the viewer can move with no effect.
 
 ### `fields`
@@ -414,6 +417,9 @@ One entry per input the component reads:
 - `description` — optional reusable mapping help, maximum 160 characters. Use one
   or two short, plain sentences explaining the field's role in the chart. Keep it agnostic
   to any business, explore, or query; do not imply fixed categories or values.
+- `configOptions` — optional settings for each field bound to this input. Use the
+  same boolean, select, number, text, and color declarations as chart-level
+  `configOptions` below. Each setting has its own required `default`.
 
 Do not generate field examples. Viewers supply their own values; describe the field's
 role and data shape without prescribing categories from a particular business.
@@ -450,6 +456,48 @@ legends and series. For pivoted metrics, iterate the selected ids first and then
 `column` inputs. Existing single inputs continue receiving strings in `fieldMapping`;
 leave their declarations unchanged when adding a separate multiple input. Keep field
 names stable across compatible upgrades so saved selections can be reconciled.
+The mapping UI lists fields in order of addition; it has no separate reorder control.
+Removing a field removes its saved per-field settings. A field id reused in another
+slot has independent settings in that slot.
+
+### Per-field settings
+
+Declare `configOptions` inside a `fields` entry when a viewer needs a separate
+value for each bound field. The host exposes effective values as
+`fieldOptions[slotName][fieldId][optionName]`; `slotName` is the declared field
+name, and `fieldId` is the actual query field id from `fieldMapping`, not its
+position or label. A multiple slot supplies an ordered array of ids; a single
+slot supplies one string. The map is empty on older hosts, so fall back to the
+declared default in the component.
+
+```json
+{
+  "fields": [{
+    "name": "values", "label": "Measures", "type": "metric",
+    "required": true, "multiple": true,
+    "configOptions": [
+      { "name": "color", "label": "Color", "type": "color", "default": "#7162FF" },
+      { "name": "showLabel", "label": "Show label", "type": "boolean", "default": true }
+    ]
+  }],
+  "configOptions": [], "colorPalette": null
+}
+```
+
+```tsx
+const { fieldMapping, fieldOptions } = useVizContext();
+const valueIds = Array.isArray(fieldMapping.values) ? fieldMapping.values : [];
+const series = valueIds.map((fieldId) => ({
+  fieldId,
+  color: (fieldOptions.values?.[fieldId]?.color as string | undefined) ?? '#7162FF',
+  showLabel: (fieldOptions.values?.[fieldId]?.showLabel as boolean | undefined) ?? true,
+}));
+```
+
+The color picker saves a fixed hex value for that bound field. For palette-driven
+series, use `resolveSeriesColor` or `resolveValueColor` instead. Gradient fills
+and conditional color rules are a separate later capability; this option is one
+color per field.
 
 ### `inputGuidance`
 
@@ -463,9 +511,10 @@ component infer semantics or transform host data.
 
 ### `configOptions`
 
-One entry per setting the viewer can change without regenerating the viz. Every option is a
-whole-viz value applying to the entire chart — there is no per-series option. Colour series
-and groups with the SDK's resolved-colour helpers.
+One entry per setting the viewer can change without regenerating the viz. Top-level
+`configOptions` apply to the entire chart. Put options on a `fields` entry for
+settings that differ per bound field. Colour palette-driven series and groups
+with the SDK's resolved-colour helpers.
 
 Every option has:
 

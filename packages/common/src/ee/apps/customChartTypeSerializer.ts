@@ -60,6 +60,16 @@ export const serializeCustomChartTypeForPrompt = (
             )}</configOptions>`,
         );
     }
+    const fieldOptionLabels = type.schema.fields.flatMap((field) =>
+        (field.configOptions ?? []).map(
+            (option) => `${field.label}: ${optionPromptLabel(option)}`,
+        ),
+    );
+    if (fieldOptionLabels.length > 0) {
+        lines.push(
+            `<fieldConfigOptions>${escapeXml(fieldOptionLabels.join('; '))}</fieldConfigOptions>`,
+        );
+    }
     lines.push('</customChartType>');
     return lines.join('\n');
 };
@@ -135,6 +145,14 @@ export const serializeCustomChartTypeSchema = (
                 details ? ` — ${details}` : ''
             }`,
         );
+        if (field.configOptions?.length) {
+            lines.push(
+                `fieldConfigOptions for ${field.name} (per bound field id):`,
+            );
+            field.configOptions.forEach((option) =>
+                lines.push(serializeOptionDetail(option)),
+            );
+        }
     }
     if (type.schema.configOptions.length === 0) {
         lines.push('configOptions: none');

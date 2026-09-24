@@ -32,6 +32,8 @@ import {
     type DataAppVizChartConfig,
     type SankeyChartConfig,
 } from '@lightdash/common';
+import mapKeys from 'lodash/mapKeys';
+import mapValues from 'lodash/mapValues';
 
 /* There are different methods to replace model names
  replaceId: Replace only the start of a string, with the new model prefix
@@ -517,6 +519,17 @@ export const renameChartConfigType = (
                 ...dataAppVizConfig,
                 config: {
                     ...dataAppVizConfig.config,
+                    ...(dataAppVizConfig.config.fieldOptionValues
+                        ? {
+                              fieldOptionValues: mapValues(
+                                  dataAppVizConfig.config.fieldOptionValues,
+                                  (values) =>
+                                      mapKeys(values, (_options, fieldId) =>
+                                          replaceId(fieldId),
+                                      ),
+                              ),
+                          }
+                        : {}),
                     fieldMapping: Object.fromEntries(
                         Object.entries(
                             dataAppVizConfig.config.fieldMapping,

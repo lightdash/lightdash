@@ -149,6 +149,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Declare configOptions (and colorPalette, if the viz colours series) in the viz schema, then read options[name] and colorPalette from useVizContext().',
     },
     {
+        key: 'viz-field-options',
+        appliesTo: ['chart_type'],
+        label: 'Per-field visualization settings',
+        description:
+            'Let viewers set each bound visualization field independently, such as a fixed series color or label. Offer it when one setting needs to differ between mapped fields.',
+        wiring: 'Declare configOptions on a viz schema field, then read useVizContext().fieldOptions[slotName]?.[fieldId]?.[optionName] using actual ids from fieldMapping[slotName]. The map is empty on older hosts.',
+    },
+    {
         key: 'viz-pivoted-results',
         appliesTo: ['chart_type'],
         label: 'Pivoted results',

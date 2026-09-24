@@ -197,6 +197,7 @@ const customToolArgs: ToolRunQueryArgs = {
             y: 'orders_total_revenue',
         },
         options: { showLegend: true },
+        fieldOptions: null,
     },
 };
 

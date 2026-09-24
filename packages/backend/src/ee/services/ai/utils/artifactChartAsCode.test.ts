@@ -232,6 +232,7 @@ describe('existing artifact chart export', () => {
                     customChartTypeSlug: 'cohort',
                     fieldMapping: { series: ['a_dim1'], value: 'a_met1' },
                     options: { compact: false },
+                    fieldOptions: null,
                 },
             },
         };

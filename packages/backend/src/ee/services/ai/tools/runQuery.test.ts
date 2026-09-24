@@ -1287,6 +1287,7 @@ describe('getRunQuery custom chart types', () => {
         customChartTypeSlug: 'cohort-waterfall',
         fieldMapping: { x: 'a_dim1', y: 'a_met1' },
         options: { showLegend: true },
+        fieldOptions: null,
     };
 
     it('registers a custom export from the resolved version and executed query', async () => {

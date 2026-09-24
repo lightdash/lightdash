@@ -51,3 +51,72 @@ describe('chart preview validation', () => {
         expect(validator.safeParse(preview).success).toBe(false);
     });
 });
+
+describe('per-field preview options', () => {
+    const validator = getDataAppVizPreviewSchema({
+        ...schema,
+        fields: [
+            {
+                ...schema.fields[0],
+                configOptions: [
+                    {
+                        name: 'color',
+                        label: 'Color',
+                        type: 'color',
+                        default: '#000000',
+                    },
+                ],
+            },
+        ],
+    });
+
+    it('accepts settings keyed by sample field id', () => {
+        const preview = {
+            fieldOptionValues: {
+                value: { sample_value: { color: '#abcdef' } },
+            },
+        };
+        expect(validator.parse(preview)).toEqual(preview);
+    });
+
+    it('rejects field IDs that the sample context cannot bind', () => {
+        expect(
+            validator.safeParse({
+                fieldOptionValues: {
+                    value: { orders_total: { color: '#abcdef' } },
+                },
+            }).success,
+        ).toBe(false);
+    });
+
+    it('rejects unknown fields and options', () => {
+        expect(
+            validator.safeParse({ fieldOptionValues: { missing: {} } }).success,
+        ).toBe(false);
+        expect(
+            validator.safeParse({
+                fieldOptionValues: { value: { sample_value: { typo: true } } },
+            }).success,
+        ).toBe(false);
+        expect(
+            validator.safeParse({
+                fieldOptionValues: { value: { '': { color: '#abcdef' } } },
+            }).success,
+        ).toBe(false);
+    });
+
+    it('reports only the input-level issue for an unknown input', () => {
+        const result = validator.safeParse({
+            fieldOptionValues: {
+                missing: { sample_missing: { color: '#abcdef', typo: 1 } },
+            },
+        });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toEqual([
+            expect.objectContaining({
+                path: ['fieldOptionValues', 'missing'],
+                message: 'Unknown preview field',
+            }),
+        ]);
+    });
+});

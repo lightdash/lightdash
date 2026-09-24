@@ -2,6 +2,14 @@
 
 A React SDK for building custom data apps against the Lightdash semantic layer.
 
+Reusable visualizations receive host-owned rows and settings through
+`useVizContext()`. Its `fieldMapping` maps declared slot names to actual query
+field ids (a string for a single slot, an ordered string array for a multiple
+slot). Field-level settings declared as `configOptions` on a slot are available
+at `fieldOptions[slotName]?.[fieldId]?.[optionName]`. The map is `{}` when an older
+host does not send it, so use the declared default as a fallback. The same
+field id can have independent settings in different slots.
+
 ## Quick start
 
 ```tsx

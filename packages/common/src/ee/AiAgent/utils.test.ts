@@ -36,6 +36,7 @@ const customChartTypeSlugChartConfig = {
     customChartTypeSlug: 'cohort-waterfall',
     fieldMapping: { x: 'orders_created_month', y: 'orders_revenue' },
     options: { showLegend: true },
+    fieldOptions: null,
 };
 
 const statusRule = {
@@ -541,6 +542,9 @@ describe('getDataAppVizChartFromArtifact', () => {
                             ...customChartTypeSlugChartConfig.fieldMapping,
                             values: ['orders_count', 'orders_revenue'],
                         },
+                        fieldOptions: {
+                            values: { orders_revenue: { color: '#123456' } },
+                        },
                     },
                 },
             }),
@@ -551,6 +555,9 @@ describe('getDataAppVizChartFromArtifact', () => {
                 values: ['orders_count', 'orders_revenue'],
             },
             optionValues: { showLegend: true },
+            fieldOptionValues: {
+                values: { orders_revenue: { color: '#123456' } },
+            },
         });
     });
 

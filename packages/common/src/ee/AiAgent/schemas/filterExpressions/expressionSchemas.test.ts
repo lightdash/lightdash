@@ -517,6 +517,7 @@ describe('expression run query schemas', () => {
                     y: 'orders_revenue',
                 },
                 options: null,
+                fieldOptions: null,
             },
         };
 

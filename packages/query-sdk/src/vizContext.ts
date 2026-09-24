@@ -49,6 +49,12 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
  */
 export type VizContextOptionValue = boolean | number | string;
 
+/** Declared slot → bound field id → option name → effective value. */
+export type VizContextFieldOptions = Record<
+    string,
+    Record<string, Record<string, VizContextOptionValue>>
+>;
+
 /**
  * The host's complete backend-pivot layout metadata. This is a structural
  * mirror because query-sdk is published without a dependency on
@@ -140,6 +146,8 @@ export type DataAppVizContextMessage = {
     rows: VizContextRow[];
     /** Absent when the installed host predates config-option delivery. */
     options?: Record<string, VizContextOptionValue>;
+    /** Absent when the installed host predates per-field settings. */
+    fieldOptions?: VizContextFieldOptions;
     /** Absent when the installed host predates palette delivery. */
     colorPalette?: string[];
     /** Absent when the installed host predates resolved-color delivery. */
@@ -284,6 +292,8 @@ export type VizContext = {
     rows: VizContextRow[];
     /** Config option name → current value (the user's choice, else the declared default). */
     options: Record<string, VizContextOptionValue>;
+    /** Settings keyed by declared slot and actual query field id; empty on older hosts. */
+    fieldOptions: VizContextFieldOptions;
     /**
      * Lightdash palette selected for this chart. The resolved-colour helpers
      * use it after fixed and shared assignments. Empty only when the host
@@ -311,6 +321,7 @@ type VizContextValue = {
     fields: Record<string, VizFieldMetadata>;
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
+    fieldOptions: VizContextFieldOptions;
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
@@ -331,6 +342,21 @@ const isVizContextOptionValue = (
     typeof value === 'boolean' ||
     (typeof value === 'number' && Number.isFinite(value));
 
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const normalizeRecordOf =
+    <T>(leaf: (value: unknown) => T) =>
+    (value: unknown): Record<string, T> => {
+        if (!isPlainRecord(value)) return {};
+
+        return Object.fromEntries(
+            Object.entries(value).flatMap(([key, entry]) =>
+                isPlainRecord(entry) ? [[key, leaf(entry)] as const] : [],
+            ),
+        );
+    };
+
 const normalizeOptions = (
     options: unknown,
 ): Record<string, VizContextOptionValue> => {
@@ -349,9 +375,6 @@ const normalizeOptions = (
     );
 };
 
-const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const normalizeStringRecord = (value: unknown): Record<string, string> => {
     if (!isPlainRecord(value)) return {};
 
@@ -361,6 +384,9 @@ const normalizeStringRecord = (value: unknown): Record<string, string> => {
         ),
     );
 };
+
+const normalizeFieldOptions: (value: unknown) => VizContextFieldOptions =
+    normalizeRecordOf(normalizeRecordOf(normalizeOptions));
 
 const normalizeFields = (value: unknown): Record<string, VizFieldMetadata> => {
     if (!isPlainRecord(value)) return {};
@@ -384,19 +410,7 @@ const normalizeFields = (value: unknown): Record<string, VizFieldMetadata> => {
     );
 };
 
-const normalizeValueColors = (
-    value: unknown,
-): Record<string, Record<string, string>> => {
-    if (!isPlainRecord(value)) return {};
-
-    return Object.fromEntries(
-        Object.entries(value).flatMap(([fieldId, colors]) =>
-            isPlainRecord(colors)
-                ? [[fieldId, normalizeStringRecord(colors)] as const]
-                : [],
-        ),
-    );
-};
+const normalizeValueColors = normalizeRecordOf(normalizeStringRecord);
 
 type VizColorContext = Pick<
     VizContext,
@@ -447,6 +461,7 @@ export function toVizContextState(
         fields: normalizeFields(message.fields),
         rows: Array.isArray(message.rows) ? message.rows : [],
         options: normalizeOptions(message.options),
+        fieldOptions: normalizeFieldOptions(message.fieldOptions),
         colorPalette: Array.isArray(message.colorPalette)
             ? message.colorPalette.filter(
                   (color): color is string => typeof color === 'string',
@@ -764,8 +779,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * mapping change, on query change). Resolve a single-field slot with
  * `fieldMapping[name]`, or iterate that value when the slot declares multiple
  * fields, then read cells with `getFormatted`/`getRaw` and label axes and
- * legends with `getFieldLabel`. Read a declared config option with
- * `options[name]`, and colour series with
+ * legends with `getFieldLabel`. Read a chart option with `options[name]`, a
+ * per-field option with `fieldOptions[slotName]?.[fieldId]?.[name]`, and colour series with
  * `resolveSeriesColor` / `resolveValueColor`.
  */
 export function useVizContext(): VizContext {
@@ -812,6 +827,7 @@ export function useVizContext(): VizContext {
         fields: context?.fields ?? {},
         rows: context?.rows ?? [],
         options: context?.options ?? {},
+        fieldOptions: context?.fieldOptions ?? {},
         colorPalette: context?.colorPalette ?? [],
         seriesColors: context?.seriesColors ?? {},
         valueColors: context?.valueColors ?? {},

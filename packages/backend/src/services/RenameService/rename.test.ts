@@ -769,6 +769,15 @@ describe('renameChartConfigType', () => {
 
                     metrics: ['payment_amount', 'orders_count', 'payment_tax'],
                 },
+                fieldOptionValues: {
+                    metrics: {
+                        payment_amount: {
+                            label: 'payment_amount',
+                            color: '#abcdef',
+                        },
+                        orders_count: { label: 'Orders' },
+                    },
+                },
             },
         } as DataAppVizChartConfig;
 
@@ -777,6 +786,74 @@ describe('renameChartConfigType', () => {
         expect((result as DataAppVizChartConfig).config?.fieldMapping).toEqual({
             category: 'invoice_category',
             metrics: ['invoice_amount', 'orders_count', 'invoice_tax'],
+        });
+        expect(
+            (result as DataAppVizChartConfig).config?.fieldOptionValues,
+        ).toEqual({
+            metrics: {
+                invoice_amount: { label: 'payment_amount', color: '#abcdef' },
+                orders_count: { label: 'Orders' },
+            },
+        });
+    });
+
+    test('renames field option keys for a single-string slot binding', () => {
+        const chartConfig = {
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'viz-uuid',
+                fieldMapping: { value: 'payment_amount' },
+                fieldOptionValues: {
+                    value: { payment_amount: { label: 'Amount' } },
+                },
+            },
+        } as DataAppVizChartConfig;
+
+        const result = renameChartConfigType(chartConfig, tableRename);
+
+        expect((result as DataAppVizChartConfig).config?.fieldMapping).toEqual({
+            value: 'invoice_amount',
+        });
+        expect(
+            (result as DataAppVizChartConfig).config?.fieldOptionValues,
+        ).toEqual({
+            value: { invoice_amount: { label: 'Amount' } },
+        });
+    });
+
+    test('renames the same field independently in every slot that binds it', () => {
+        const chartConfig = {
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'viz-uuid',
+                fieldMapping: {
+                    value: 'payment_amount',
+                    metrics: ['payment_amount', 'orders_count'],
+                },
+                fieldOptionValues: {
+                    value: { payment_amount: { label: 'Value' } },
+                    metrics: {
+                        payment_amount: { color: '#abcdef' },
+                        orders_count: { label: 'Orders' },
+                    },
+                },
+            },
+        } as DataAppVizChartConfig;
+
+        const result = renameChartConfigType(chartConfig, tableRename);
+
+        expect((result as DataAppVizChartConfig).config?.fieldMapping).toEqual({
+            value: 'invoice_amount',
+            metrics: ['invoice_amount', 'orders_count'],
+        });
+        expect(
+            (result as DataAppVizChartConfig).config?.fieldOptionValues,
+        ).toEqual({
+            value: { invoice_amount: { label: 'Value' } },
+            metrics: {
+                invoice_amount: { color: '#abcdef' },
+                orders_count: { label: 'Orders' },
+            },
         });
     });
 

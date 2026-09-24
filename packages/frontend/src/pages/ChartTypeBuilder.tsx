@@ -9,6 +9,7 @@ import {
     type CreateSavedChartVersion,
     type AppChartReference,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
@@ -90,6 +91,7 @@ import classes from './ChartTypeBuilder.module.css';
 const NO_ITEMS: ItemsMap = {};
 const NO_ROWS: ResultRow[] = [];
 const NO_MAPPING: DataAppVizFieldMapping = {};
+const NO_FIELD_OPTIONS: DataAppVizFieldOptionValues = {};
 const NO_SAMPLE_ROWS: Record<string, string>[] = [];
 
 /** The saved chart a create session starts from, kept in the URL so a refresh
@@ -402,6 +404,15 @@ const ChartTypeBuilder: FC = () => {
         workspace.history.versions.find(
             (version) => version.version === workspace.previewVersion,
         )?.resources?.vizPreview ?? null;
+    // A source chart already on this type previews with its saved settings.
+    const sourceVizConfig =
+        sourceChart?.chartConfig.type === ChartType.DATA_APP_VIZ
+            ? sourceChart.chartConfig.config
+            : undefined;
+    const sourceFieldOptionValues =
+        (sourceVizConfig?.dataAppVizUuid === activeVizUuid
+            ? sourceVizConfig?.fieldOptionValues
+            : undefined) ?? NO_FIELD_OPTIONS;
     // Real rows when the saved chart's query has run; the fabricated sample
     // otherwise (tuned by the version's vizPreview resource when present).
     // Rebuilt on any option or palette edit.
@@ -424,6 +435,7 @@ const ChartTypeBuilder: FC = () => {
             pivotDetails: liveRun.pivotDetails,
             colorPalette,
             optionValues: panel.optionValues,
+            fieldOptionValues: sourceFieldOptionValues,
             resolvedColors,
         });
     }, [
@@ -433,6 +445,7 @@ const ChartTypeBuilder: FC = () => {
         liveRun,
         colorPalette,
         panel.optionValues,
+        sourceFieldOptionValues,
         resolvedColors,
         renderedFieldMapping,
         vizPreviewData,

@@ -330,6 +330,7 @@ describe('DataAppVizConfigTabs', () => {
     const setField = vi.fn();
     const setPivotDimensions = vi.fn();
     const upgradeDataAppVizVersion = vi.fn();
+    const setFieldOption = vi.fn();
 
     const mockContext = (
         itemsMap: ItemsMap,
@@ -352,12 +353,14 @@ describe('DataAppVizConfigTabs', () => {
                                   dataAppVizVersion,
                                   fieldMapping,
                                   optionValues,
+                                  fieldOptionValues: {},
                               },
                     dataAppVizUuid,
                     setDataAppVizUuid,
                     clearDataAppViz,
                     setField,
                     setOption,
+                    setFieldOption,
                     upgradeDataAppVizVersion,
                 },
             },
@@ -376,6 +379,7 @@ describe('DataAppVizConfigTabs', () => {
         setField.mockClear();
         setPivotDimensions.mockClear();
         upgradeDataAppVizVersion.mockClear();
+        setFieldOption.mockClear();
         defaultAbility.update([]);
         vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
             data: undefined,
@@ -832,6 +836,7 @@ describe('DataAppVizConfigTabs', () => {
             5,
             { source: 'orders_visible', value: 'orders_visible_metric' },
             {},
+            {},
         );
         expect(setPivotDimensions).toHaveBeenCalled();
     });
@@ -1079,6 +1084,56 @@ describe('DataAppVizConfigTabs', () => {
         } finally {
             authoringState.current = null;
         }
+    });
+
+    it('saves a per-field edit against the binding the panel shows', async () => {
+        const user = userEvent.setup();
+        const fields: DataAppVizField[] = [
+            {
+                ...declaredFields[0],
+                configOptions: [
+                    {
+                        type: 'boolean',
+                        name: 'showLabel',
+                        label: 'Show label',
+                        default: true,
+                    },
+                ],
+            },
+            declaredFields[1],
+        ];
+        mockSchema([], null, {
+            schema: { fields, configOptions: [], colorPalette: null },
+        });
+        // The saved column left the query, so the slot is rebound on render.
+        mockContext(
+            queryColumns,
+            'data-app-viz-uuid',
+            {},
+            { source: 'orders_removed', value: 'orders_visible_metric' },
+        );
+        renderWithProviders(<ConfigTabs />);
+
+        await user.click(screen.getByLabelText('Show label'));
+
+        expect(setFieldOption).toHaveBeenCalledWith(
+            'data-app-viz-uuid',
+            undefined,
+            {
+                saved: {
+                    source: 'orders_removed',
+                    value: 'orders_visible_metric',
+                },
+                effective: {
+                    source: 'orders_visible',
+                    value: 'orders_visible_metric',
+                },
+            },
+            'source',
+            'orders_visible',
+            'showLabel',
+            false,
+        );
     });
 
     it('fires setOption when a control changes', async () => {

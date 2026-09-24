@@ -33,6 +33,7 @@ const rawCustomArgs = {
         customChartTypeSlug: 'cohort-waterfall',
         fieldMapping: { x: 'orders_order_date_month', y: 'orders_revenue' },
         options: null,
+        fieldOptions: null,
     },
 };
 

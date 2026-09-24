@@ -9,6 +9,7 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
+import DataAppVizFieldOptionControls from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldOptionControls';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
@@ -32,6 +33,9 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
         setField,
         dimensions,
         metrics,
+        effectiveFieldOptions,
+        setFieldOption,
+        colorPalette,
     } = state;
 
     return (
@@ -152,6 +156,25 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                         />
                                     </>
                                 ))}
+                            {exploreName && (
+                                <DataAppVizFieldOptionControls
+                                    options={field.configOptions ?? []}
+                                    fieldIds={selectedIds}
+                                    items={items}
+                                    values={
+                                        effectiveFieldOptions[field.name] ?? {}
+                                    }
+                                    colorPalette={colorPalette}
+                                    onChange={(fieldId, optionName, value) =>
+                                        setFieldOption(
+                                            field.name,
+                                            fieldId,
+                                            optionName,
+                                            value,
+                                        )
+                                    }
+                                />
+                            )}
                         </Stack>
                     );
                 })}

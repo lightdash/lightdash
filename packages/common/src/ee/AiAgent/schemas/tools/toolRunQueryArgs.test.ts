@@ -264,6 +264,7 @@ const customChartTypeChartConfig = {
         y: 'orders_revenue',
     },
     options: { showLegend: true },
+    fieldOptions: null,
 };
 
 // The retired uuid-enriched shape the server used to write into semantic

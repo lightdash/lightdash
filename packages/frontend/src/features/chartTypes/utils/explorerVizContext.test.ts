@@ -75,6 +75,7 @@ const build = (
         pivotDetails: null,
         colorPalette: ['#111', '#222'],
         optionValues: {},
+        fieldOptionValues: {},
         resolvedColors: {
             seriesColors: { count_new: '#00ff00' },
             valueColors: {
@@ -85,6 +86,46 @@ const build = (
     });
 
 describe('buildExplorerVizContext', () => {
+    it('resolves per-field defaults and keeps values with field IDs', () => {
+        const fieldSchema: DataAppVizSchema = {
+            ...schema,
+            fields: schema.fields.map((field) =>
+                field.name === 'category'
+                    ? {
+                          ...field,
+                          multiple: true,
+                          configOptions: [
+                              {
+                                  type: 'color',
+                                  name: 'color',
+                                  label: 'Color',
+                                  default: '#000000',
+                              },
+                          ],
+                      }
+                    : field,
+            ),
+        };
+        const context = build({
+            schema: fieldSchema,
+            persistedFieldMapping: {
+                category: ['orders_region', 'orders_status'],
+            },
+            fieldOptionValues: {
+                category: {
+                    orders_region: { color: '#ff0000' },
+                    orders_status: { color: '#00ff00' },
+                    stale: { color: '#cccccc' },
+                },
+            },
+        });
+        expect(context.fieldOptions).toEqual({
+            category: {
+                orders_region: { color: '#ff0000' },
+                orders_status: { color: '#00ff00' },
+            },
+        });
+    });
     it('binds the schema to the result columns when the chart has no mapping', () => {
         expect(build().fieldMapping).toEqual({
             category: 'orders_status',

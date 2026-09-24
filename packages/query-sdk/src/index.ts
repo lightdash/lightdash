@@ -118,6 +118,7 @@ export type {
     VizContext,
     VizContextCell,
     VizContextOptionValue,
+    VizContextFieldOptions,
     VizContextPivotDetails,
     VizContextRow,
     VizFieldFormat,

@@ -4,11 +4,15 @@ import {
     deriveDataAppVizPivotConfiguration,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
+    getEffectiveDataAppVizFieldOptionValues,
+    pruneDataAppVizFieldOptionValues,
+    setDataAppVizFieldOptionValue,
     getItemMap,
     isSummaryExploreError,
     QueryExecutionContext,
     type DataAppVizContext,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
@@ -53,6 +57,13 @@ export type DataAppVizTestContextState = {
     dimensions: ReturnType<typeof getDataAppVizFieldItems>['dimensions'];
     metrics: ReturnType<typeof getDataAppVizFieldItems>['metrics'];
     effectiveOptions: DataAppVizOptionValues;
+    effectiveFieldOptions: DataAppVizFieldOptionValues;
+    setFieldOption: (
+        slot: string,
+        fieldId: string,
+        name: string,
+        value: DataAppVizOptionValue,
+    ) => void;
     setOption: (name: string, value: DataAppVizOptionValue) => void;
     colorPaletteUuid: string | null;
     setColorPaletteUuid: (uuid: string | null) => void;
@@ -84,6 +95,8 @@ export const useDataAppVizTestContext = ({
     const [optionValues, setOptionValues] = useState<DataAppVizOptionValues>(
         {},
     );
+    const [fieldOptionValues, setFieldOptionValues] =
+        useState<DataAppVizFieldOptionValues>({});
     // Preview-only; a chart using the viz owns the palette the normal way.
     const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
         null,
@@ -115,6 +128,15 @@ export const useDataAppVizTestContext = ({
     const effectiveOptions = useMemo(
         () => getEffectiveOptionValues(schema.configOptions, optionValues),
         [schema.configOptions, optionValues],
+    );
+    const effectiveFieldOptions = useMemo(
+        () =>
+            getEffectiveDataAppVizFieldOptionValues(
+                schema.fields,
+                fieldMapping,
+                fieldOptionValues,
+            ),
+        [schema.fields, fieldMapping, fieldOptionValues],
     );
 
     const colorScheme = useComputedColorScheme();
@@ -160,6 +182,11 @@ export const useDataAppVizTestContext = ({
                 ),
                 rows,
                 options: effectiveOptions,
+                fieldOptions: getEffectiveDataAppVizFieldOptionValues(
+                    schema.fields,
+                    run.fieldMapping,
+                    fieldOptionValues,
+                ),
                 colorPalette,
                 ...resolvedColors,
                 pivotDetails: queryResults.pivotDetails ?? null,
@@ -176,6 +203,8 @@ export const useDataAppVizTestContext = ({
         queryResults.queryUuid,
         queryResults.pivotDetails,
         effectiveOptions,
+        fieldOptionValues,
+        schema.fields,
         colorPalette,
         resolvedColors,
         onContextChange,
@@ -192,6 +221,7 @@ export const useDataAppVizTestContext = ({
         (value: string | null) => {
             setExploreName(value);
             setFieldMapping({});
+            setFieldOptionValues({});
             clearRun();
         },
         [clearRun],
@@ -203,11 +233,39 @@ export const useDataAppVizTestContext = ({
                 const next = { ...prev };
                 if (id !== null) next[name] = id;
                 else delete next[name];
+                setFieldOptionValues((values) =>
+                    pruneDataAppVizFieldOptionValues(
+                        schema.fields,
+                        next,
+                        values,
+                    ),
+                );
                 return next;
             });
             clearRun();
         },
-        [clearRun],
+        [clearRun, schema.fields],
+    );
+
+    const setFieldOption = useCallback(
+        (
+            slot: string,
+            fieldId: string,
+            name: string,
+            value: DataAppVizOptionValue,
+        ) => {
+            setFieldOptionValues((prev) =>
+                setDataAppVizFieldOptionValue(
+                    prev,
+                    fieldMapping,
+                    slot,
+                    fieldId,
+                    name,
+                    value,
+                ),
+            );
+        },
+        [fieldMapping],
     );
 
     const setOption = useCallback(
@@ -270,6 +328,8 @@ export const useDataAppVizTestContext = ({
         dimensions,
         metrics,
         effectiveOptions,
+        effectiveFieldOptions,
+        setFieldOption,
         setOption,
         colorPaletteUuid,
         setColorPaletteUuid,

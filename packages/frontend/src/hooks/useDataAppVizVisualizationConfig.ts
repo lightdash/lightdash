@@ -1,9 +1,13 @@
 import {
+    getDataAppVizFieldIds,
+    setDataAppVizFieldOptionValue,
     type DataAppVizChart,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
 } from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 /**
@@ -15,7 +19,16 @@ export type SelectedDataAppViz = Pick<
     DataAppVizChart,
     'dataAppVizUuid' | 'dataAppVizVersion' | 'fieldMapping'
 > &
-    Required<Pick<DataAppVizChart, 'optionValues'>>;
+    Required<Pick<DataAppVizChart, 'optionValues' | 'fieldOptionValues'>>;
+
+/**
+ * The binding a settings panel rendered from: the stored mapping it
+ * reconciled, and the mapping it showed after reconciling.
+ */
+export type RenderedDataAppVizFieldMapping = {
+    saved: DataAppVizFieldMapping;
+    effective: DataAppVizFieldMapping;
+};
 
 export interface DataAppVizVisualizationConfigAndData {
     validConfig: SelectedDataAppViz | null;
@@ -39,6 +52,7 @@ export interface DataAppVizVisualizationConfigAndData {
         dataAppVizVersion: number,
         fieldMapping: DataAppVizFieldMapping,
         optionValues: DataAppVizOptionValues,
+        fieldOptionValues: DataAppVizFieldOptionValues,
     ) => void;
     /** Back to pointing at no viz; bindings and options go with it. */
     clearDataAppViz: () => void;
@@ -46,6 +60,19 @@ export interface DataAppVizVisualizationConfigAndData {
     /** `dataAppVizUuid` is the viz the edited control belonged to. */
     setOption: (
         dataAppVizUuid: string,
+        optionName: string,
+        value: DataAppVizOptionValue,
+    ) => void;
+    /**
+     * Saves the effective mapping along with the edit, so a setting made
+     * against a reconciled binding survives.
+     */
+    setFieldOption: (
+        dataAppVizUuid: string,
+        dataAppVizVersion: number | undefined,
+        renderedFieldMapping: RenderedDataAppVizFieldMapping,
+        fieldName: string,
+        fieldId: string,
         optionName: string,
         value: DataAppVizOptionValue,
     ) => void;
@@ -70,6 +97,7 @@ const toSelected = (
               dataAppVizVersion: chartConfig.dataAppVizVersion,
               fieldMapping: chartConfig.fieldMapping,
               optionValues: chartConfig.optionValues ?? {},
+              fieldOptionValues: chartConfig.fieldOptionValues ?? {},
           }
         : null;
 };
@@ -136,6 +164,7 @@ const useDataAppVizVisualizationConfig = (
                 dataAppVizUuid: newDataAppVizUuid,
                 fieldMapping,
                 optionValues: {},
+                fieldOptionValues: {},
             });
         },
         [commit],
@@ -162,6 +191,7 @@ const useDataAppVizVisualizationConfig = (
             dataAppVizVersion: number,
             fieldMapping: DataAppVizFieldMapping,
             optionValues: DataAppVizOptionValues,
+            fieldOptionValues: DataAppVizFieldOptionValues,
         ) => {
             const selected = configRef.current;
             if (selected === null) return;
@@ -170,6 +200,7 @@ const useDataAppVizVisualizationConfig = (
                 dataAppVizVersion,
                 fieldMapping,
                 optionValues,
+                fieldOptionValues,
             });
         },
         [commit],
@@ -187,7 +218,19 @@ const useDataAppVizVisualizationConfig = (
             } else {
                 fieldMapping[fieldName] = fieldId;
             }
-            commit({ ...selected, fieldMapping });
+            const fieldOptionValues = { ...selected.fieldOptionValues };
+            if (fieldOptionValues[fieldName]) {
+                const boundIds = getDataAppVizFieldIds(fieldMapping[fieldName]);
+                const values = Object.fromEntries(
+                    Object.entries(fieldOptionValues[fieldName]).filter(
+                        ([id]) => boundIds.includes(id),
+                    ),
+                );
+                if (Object.keys(values).length)
+                    fieldOptionValues[fieldName] = values;
+                else delete fieldOptionValues[fieldName];
+            }
+            commit({ ...selected, fieldMapping, fieldOptionValues });
         },
         [commit],
     );
@@ -213,6 +256,47 @@ const useDataAppVizVisualizationConfig = (
         [commit],
     );
 
+    const setFieldOption = useCallback(
+        (
+            dataAppVizUuid: string,
+            dataAppVizVersion: number | undefined,
+            renderedFieldMapping: RenderedDataAppVizFieldMapping,
+            fieldName: string,
+            fieldId: string,
+            optionName: string,
+            value: DataAppVizOptionValue,
+        ) => {
+            if (!isOwningChartConfigRef.current) return;
+            const selected = configRef.current;
+            if (
+                selected === null ||
+                selected.dataAppVizUuid !== dataAppVizUuid ||
+                selected.dataAppVizVersion !== dataAppVizVersion
+            )
+                return;
+            // A binding changed since the panel rendered makes the edit stale;
+            // an earlier edit in the same commit may already have saved the
+            // effective mapping.
+            if (
+                !isEqual(selected.fieldMapping, renderedFieldMapping.saved) &&
+                !isEqual(selected.fieldMapping, renderedFieldMapping.effective)
+            )
+                return;
+            const { effective } = renderedFieldMapping;
+            const fieldOptionValues = setDataAppVizFieldOptionValue(
+                selected.fieldOptionValues,
+                effective,
+                fieldName,
+                fieldId,
+                optionName,
+                value,
+            );
+            if (fieldOptionValues === selected.fieldOptionValues) return;
+            commit({ ...selected, fieldMapping: effective, fieldOptionValues });
+        },
+        [commit],
+    );
+
     return {
         validConfig: config,
         dataAppVizUuid: config?.dataAppVizUuid ?? null,
@@ -222,6 +306,7 @@ const useDataAppVizVisualizationConfig = (
         clearDataAppViz,
         setField,
         setOption,
+        setFieldOption,
     };
 };
 

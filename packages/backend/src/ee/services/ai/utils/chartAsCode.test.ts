@@ -80,6 +80,7 @@ describe('deterministic chart-as-code', () => {
                         series: ['a_dim2'],
                     },
                     options: { showLegend: false },
+                    fieldOptions: { y: { a_met1: { color: '#123456' } } },
                 },
             },
             customChartType: {
@@ -109,6 +110,7 @@ describe('deterministic chart-as-code', () => {
                     dataAppVizVersion: 7,
                     fieldMapping: custom.queryTool.chartConfig.fieldMapping,
                     optionValues: { showLegend: false },
+                    fieldOptionValues: { y: { a_met1: { color: '#123456' } } },
                 },
             },
             pivotConfig: { columns: ['a_dim2'] },
