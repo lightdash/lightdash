@@ -46318,6 +46318,98 @@
             "CreateSchedulerAndTargetsWithoutIds": {
                 "$ref": "#/components/schemas/Omit_CreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy_"
             },
+            "SqlRunnerWarehouseConnection": {
+                "properties": {
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "isOriginal": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "warehouseConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "warehouseType",
+                    "isOriginal",
+                    "name",
+                    "warehouseConnectionUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSqlRunnerWarehouseConnectionsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SqlRunnerWarehouseConnection"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseListedDatabase": {
+                "properties": {
+                    "isDefault": {
+                        "type": "boolean"
+                    },
+                    "schema": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["isDefault", "schema", "database", "name"],
+                "type": "object"
+            },
+            "WarehouseDatabaseListing": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "databases": {
+                        "items": {
+                            "$ref": "#/components/schemas/WarehouseListedDatabase"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["limit", "truncated", "databases"],
+                "type": "object"
+            },
+            "ApiWarehouseDatabaseListing": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseDatabaseListing"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SpotlightTableColumns": {
                 "enum": [
                     "label",
@@ -64849,7 +64941,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.320.1",
+        "version": "2.320.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

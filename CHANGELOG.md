@@ -1,3 +1,10 @@
+## [2.320.2](https://github.com/lightdash/lightdash/compare/2.320.1...2.320.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **frontend:** share dark-mode pill styles across settings tabs ([#29878](https://github.com/lightdash/lightdash/issues/29878)) ([a2bba27](https://github.com/lightdash/lightdash/commit/a2bba277177d69173c7fe8e487a7cb458d953344))
+
 ## [2.320.1](https://github.com/lightdash/lightdash/compare/2.320.0...2.320.1) (2026-09-24)
 
 
