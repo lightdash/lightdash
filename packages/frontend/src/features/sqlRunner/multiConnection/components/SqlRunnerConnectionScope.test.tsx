@@ -20,9 +20,12 @@ import { lightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { SqlEditor, SqlEditorView } from '../../components/SqlEditor';
 import { SqlRunnerEditor } from '../../components/SqlRunnerEditor';
+import { useRunQueryOnLoad } from '../../hooks/useRunQueryOnLoad';
 import { store } from '../../store';
 import {
     resetState,
+    selectConnectionRequest,
+    setFetchResultsOnLoad,
     setProjectUuid,
     setSavedChartData,
     setSql,
@@ -119,10 +122,14 @@ const serveApi = (connectionRoute: 'single' | 'multi') =>
 const renderScope = (
     children: React.ReactNode,
     isEditingSavedChart = false,
+    connectionHint?: string | null,
 ) => {
     renderWithProviders(
         <Provider store={store}>
-            <SqlRunnerConnectionScope isEditingSavedChart={isEditingSavedChart}>
+            <SqlRunnerConnectionScope
+                isEditingSavedChart={isEditingSavedChart}
+                connectionHint={connectionHint}
+            >
                 {children}
             </SqlRunnerConnectionScope>
         </Provider>,
@@ -139,6 +146,15 @@ const pickFinance = async (user: ReturnType<typeof userEvent.setup>) => {
         await screen.findByRole('combobox', { name: 'Active connection' }),
     );
     await user.click(await screen.findByRole('option', { name: 'Finance' }));
+};
+
+const AutoRun = ({
+    runQuery,
+}: {
+    runQuery: (sql: string) => Promise<void>;
+}) => {
+    useRunQueryOnLoad({ runQuery, hasQueryResults: false });
+    return null;
 };
 
 describe('SqlRunnerConnectionScope', () => {
@@ -203,6 +219,94 @@ describe('SqlRunnerConnectionScope', () => {
                 connection: { warehouseConnectionUuid: null },
             }),
         );
+    });
+
+    it('opens an explore hint on Finance before running, despite a last-used original', async () => {
+        serveApi('multi');
+        window.localStorage.setItem(
+            `lightdash.sqlRunner.lastConnection.${projectUuid}`,
+            'original-uuid',
+        );
+        store.dispatch(setSql('select * from finance.public.ledger'));
+        store.dispatch(
+            setFetchResultsOnLoad({
+                shouldFetch: true,
+                shouldOpenChartOnLoad: false,
+            }),
+        );
+        const requests: ReturnType<typeof selectConnectionRequest>[] = [];
+        const runQuery = vi.fn(async () => {
+            requests.push(selectConnectionRequest(store.getState()));
+        });
+
+        renderScope(<AutoRun runQuery={runQuery} />, false, 'finance-uuid');
+
+        await waitFor(() => expect(runQuery).toHaveBeenCalledOnce());
+        expect(requests).toEqual([
+            {
+                ready: true,
+                field: { warehouseConnectionUuid: 'finance-uuid' },
+            },
+        ]);
+        expect(runQuery).toHaveBeenCalledWith(
+            'select * from finance.public.ledger',
+        );
+    });
+
+    it('opens an original-bound explore on the original despite last-used Finance', async () => {
+        serveApi('multi');
+        window.localStorage.setItem(
+            `lightdash.sqlRunner.lastConnection.${projectUuid}`,
+            'finance-uuid',
+        );
+
+        renderScope(<SqlRunnerSidebar />, false, null);
+
+        await waitFor(() =>
+            expect(selectConnectionRequest(store.getState())).toEqual({
+                ready: true,
+                field: { warehouseConnectionUuid: null },
+            }),
+        );
+    });
+
+    it('waits for a choice when an explore hint is not in the project', async () => {
+        serveApi('multi');
+        window.localStorage.setItem(
+            `lightdash.sqlRunner.lastConnection.${projectUuid}`,
+            'original-uuid',
+        );
+        store.dispatch(setSql('select * from finance.public.ledger'));
+        store.dispatch(
+            setFetchResultsOnLoad({
+                shouldFetch: true,
+                shouldOpenChartOnLoad: false,
+            }),
+        );
+        const runQuery = vi.fn(async () => {});
+
+        renderScope(
+            <>
+                <SqlRunnerSidebar />
+                <AutoRun runQuery={runQuery} />
+            </>,
+            false,
+            'unknown-uuid',
+        );
+
+        await screen.findByRole('combobox', { name: 'Active connection' });
+        expect(connectionRoute()).toEqual({ route: 'multi', connection: null });
+        expect(runQuery).not.toHaveBeenCalled();
+    });
+
+    it('keeps the single-project route when given a connection hint', async () => {
+        serveApi('single');
+        renderScope(<SqlRunnerSidebar />, false, 'finance-uuid');
+
+        await waitFor(() =>
+            expect(connectionRoute()).toEqual({ route: 'single' }),
+        );
+        expect(requestedUrls()).not.toContain(connectionsUrl);
     });
 
     it('opens a saved chart on its own connection, never on the last used one first', async () => {

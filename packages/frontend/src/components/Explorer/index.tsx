@@ -322,7 +322,12 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                                 })}
                             >
                                 {!!projectUuid && (
-                                    <SqlCard projectUuid={projectUuid} />
+                                    <SqlCard
+                                        projectUuid={projectUuid}
+                                        warehouseConnectionUuid={
+                                            explore?.warehouseConnectionUuid
+                                        }
+                                    />
                                 )}
                             </Can>
                         </>

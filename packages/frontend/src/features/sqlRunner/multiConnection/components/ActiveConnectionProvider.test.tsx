@@ -65,11 +65,15 @@ const Consumer: FC = () => {
     );
 };
 
-const renderProvider = (connections: SqlRunnerWarehouseConnection[]) => {
+const renderProvider = (
+    connections: SqlRunnerWarehouseConnection[],
+    connectionHint?: string | null,
+) => {
     const view = renderWithProviders(
         <ActiveConnectionProvider
             projectUuid={projectUuid}
             connections={connections}
+            connectionHint={connectionHint}
         >
             <Consumer />
         </ActiveConnectionProvider>,
@@ -104,6 +108,13 @@ describe('ActiveConnectionProvider', () => {
 
     it('waits for a pick when nothing was used before', () => {
         renderProvider([original, finance]);
+
+        expect(screen.getByTestId('active')).toHaveTextContent('none');
+        expect(screen.getByTestId('settled')).toHaveTextContent('false');
+    });
+
+    it('waits for a pick when a hint is unknown, even with one listed connection', () => {
+        renderProvider([original], 'unknown-uuid');
 
         expect(screen.getByTestId('active')).toHaveTextContent('none');
         expect(screen.getByTestId('settled')).toHaveTextContent('false');
