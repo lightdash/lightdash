@@ -155,8 +155,8 @@ const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
     node,
     selected,
 }) => {
-    const sourceLabel = sourceLabelOf(node.query);
-    const sourceIconOf = sourceIcon(node.query);
+    const label = sourceLabelOf(node.query);
+    const icon = sourceIcon(node.query);
     const sql = useMemo(() => formattedSqlOf(node.query), [node.query]);
     return (
         <Box
@@ -171,10 +171,10 @@ const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
                     {node.title}
                     {node.isTerminal ? ' · result' : ''}
                 </Text>
-                {sourceLabel && sourceIconOf && (
+                {label && icon && (
                     <Text component="span" className={styles.nodeType}>
-                        <MantineIcon icon={sourceIconOf} size={11} />
-                        {sourceLabel}
+                        <MantineIcon icon={icon} size={11} />
+                        {label}
                     </Text>
                 )}
             </Box>
@@ -303,11 +303,6 @@ const PipelineFlow: FC<{
     const { fitView } = useReactFlow();
     const { ref, width, height } = useElementSize();
 
-    useEffect(() => {
-        setNodes(flow.nodes);
-        setLaidOut(false);
-    }, [flow.nodes, setNodes]);
-
     // Positions need measured sizes, so lay out once React Flow has them.
     useEffect(() => {
         if (!initialized || laidOut) return;
@@ -329,7 +324,7 @@ const PipelineFlow: FC<{
                 nodes={nodes}
                 edges={flow.edges}
                 onNodesChange={onNodesChange}
-                onNodeClick={(_, node) => onSelect(node.data.nodeId)}
+                onNodeClick={(_, node) => onSelect(node.id)}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
                 fitView
@@ -350,6 +345,13 @@ const PipelineFlow: FC<{
     );
 };
 
+// Remount the flow when the pipeline shape changes so node state re-initialises.
+const pipelineKey = (layers: PipelineLayer[]) =>
+    layers
+        .flatMap((layer) => layer.nodes)
+        .map((node) => `${node.nodeId}<${node.readNodeIds.join(',')}`)
+        .join('|');
+
 /** Nodes as boxes, reads as edges, laid out left to right. */
 const PipelineGraph: FC<{
     layers: PipelineLayer[];
@@ -357,7 +359,11 @@ const PipelineGraph: FC<{
 }> = ({ layers, onSelect }) =>
     layers.length === 0 ? null : (
         <ReactFlowProvider>
-            <PipelineFlow layers={layers} onSelect={onSelect} />
+            <PipelineFlow
+                key={pipelineKey(layers)}
+                layers={layers}
+                onSelect={onSelect}
+            />
         </ReactFlowProvider>
     );
 

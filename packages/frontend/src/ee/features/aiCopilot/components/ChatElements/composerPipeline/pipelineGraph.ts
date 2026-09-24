@@ -3,7 +3,6 @@ import type { Edge, Node } from '@xyflow/react';
 import { sourceLabelOf, type PipelineLayer } from './groupPipeline';
 
 type PipelineFlowNodeData = {
-    nodeId: string;
     title: string;
     sourceLabel: string | null;
     isTerminal: boolean;
@@ -24,7 +23,6 @@ export const toPipelineFlow = (
         type: 'pipeline',
         position: { x: 0, y: 0 },
         data: {
-            nodeId: node.nodeId,
             title: node.title,
             sourceLabel: sourceLabelOf(node.query),
             isTerminal: node.isTerminal,
@@ -42,9 +40,8 @@ export const toPipelineFlow = (
 };
 
 /**
- * Left-to-right dagre layout over measured nodes. Every other sink is wired
- * into the terminal and edges out of it are dropped, so it lands in the last
- * rank even when another node reads it.
+ * Left-to-right dagre layout over measured nodes. Edges out of the terminal
+ * are reversed and every other sink is wired into it, so it is always last.
  */
 export const layoutPipelineFlow = (
     nodes: PipelineFlowNode[],
@@ -59,9 +56,11 @@ export const layoutPipelineFlow = (
             height: node.measured?.height ?? 0,
         }),
     );
-    edges
-        .filter((edge) => edge.source !== terminal?.id)
-        .forEach((edge) => graph.setEdge(edge.source, edge.target));
+    edges.forEach((edge) =>
+        edge.source === terminal?.id
+            ? graph.setEdge(edge.target, edge.source)
+            : graph.setEdge(edge.source, edge.target),
+    );
     if (terminal) {
         nodes
             .filter(

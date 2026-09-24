@@ -45,13 +45,11 @@ describe('toPipelineFlow', () => {
         );
         expect(nodes.map((node) => node.data)).toEqual([
             {
-                nodeId: 'orders',
                 title: 'Orders by status',
                 sourceLabel: 'Warehouse SQL',
                 isTerminal: false,
             },
             {
-                nodeId: 'joined',
                 title: 'Orders with amounts',
                 sourceLabel: null,
                 isTerminal: true,
@@ -121,5 +119,7 @@ describe('layoutPipelineFlow', () => {
         ['a', 'y', 'z'].forEach((id) =>
             expect(xOf(laidOut, id)).toBeLessThan(terminalX),
         );
+        // y reads the terminal, so it sits just before it rather than at rank 0
+        expect(xOf(laidOut, 'y')).toBeGreaterThan(xOf(laidOut, 'a'));
     });
 });
