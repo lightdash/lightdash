@@ -8,7 +8,7 @@ import {
 
 // Extra security measure, we remove the "secrets" from the project/org credentials
 // and let the user override that token/password later on
-function clearSecretsFromCredentials(
+export function clearSecretsFromCredentials(
     credentials: CreateWarehouseCredentials,
 ): CreateWarehouseCredentials {
     switch (credentials.type) {

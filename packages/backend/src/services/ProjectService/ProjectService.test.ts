@@ -138,6 +138,7 @@ import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
+import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -10068,13 +10069,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
         const callClearSecrets = (
             credentials: CreateWarehouseCredentials,
         ): CreateWarehouseCredentials =>
-            (
-                pinsService as unknown as {
-                    clearSecretsFromCredentials: (
-                        c: CreateWarehouseCredentials,
-                    ) => CreateWarehouseCredentials;
-                }
-            ).clearSecretsFromCredentials(credentials);
+            clearSecretsFromCredentials(credentials);
 
         test.each([
             SnowflakeAuthenticationType.PASSWORD,
