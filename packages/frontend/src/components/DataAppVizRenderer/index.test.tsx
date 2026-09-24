@@ -731,16 +731,63 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it('pins an unsaved custom chart type without requiring an SDK capability announcement', () => {
-        mocks.dataAppVizVersion.current = undefined;
+    it.each([false, true])(
+        'pins a newly selected custom chart type (embedded: %s)',
+        (isEmbedded) => {
+            mocks.embedToken.current = isEmbedded ? 'embed-token' : undefined;
+            mocks.dataAppVizVersion.current = undefined;
+            mocks.vizContextOverrides.current = {
+                savedChartUuid: undefined,
+                isEditMode: true,
+            };
+
+            renderRenderer();
+
+            expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+        },
+    );
+
+    it('preserves the incoming pin in embedded Explore without a saved chart reference', () => {
+        mocks.embedToken.current = 'embed-token';
+        mocks.dataAppVizVersion.current = 3;
+        mocks.metadata.current = { ...readyMetadata(), version: 3 };
         mocks.vizContextOverrides.current = {
             savedChartUuid: undefined,
+            savedChartReference: undefined,
             isEditMode: true,
         };
 
         renderRenderer();
 
-        expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            { isEmbedded: true, savedChartUuid: undefined },
+            3,
+        );
+        expect(mocks.previewTokenHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            3,
+            { isEmbedded: true, savedChartUuid: undefined },
+            3,
+        );
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
+    });
+
+    it('does not replace an embedded Explore pin with newer metadata', () => {
+        mocks.embedToken.current = 'embed-token';
+        mocks.dataAppVizVersion.current = 3;
+        mocks.metadata.current = { ...readyMetadata(), version: 5 };
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            savedChartReference: undefined,
+            isEditMode: true,
+        };
+
+        renderRenderer();
+
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
 
     it('renders an unsaved immutable artifact on its recorded version', () => {
@@ -860,7 +907,7 @@ describe('DataAppVizRenderer', () => {
                     isEmbedded,
                     savedChartUuid: undefined,
                 },
-                undefined,
+                isEmbedded ? 5 : undefined,
             );
             expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
         },

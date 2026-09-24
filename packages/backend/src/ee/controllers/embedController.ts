@@ -768,7 +768,8 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * @summary List chart types available while exploring in an embed
+     * List chart types available while exploring in an embed.
+     * @summary List chart types
      */
     @SuccessResponse('200', 'Success')
     @Get('/explore/visualizations')
@@ -802,7 +803,8 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * @summary Get a chart type available while exploring in an embed
+     * Get a chart type available while exploring in an embed.
+     * @summary Get chart type
      */
     @SuccessResponse('200', 'Success')
     @Get('/explore/visualizations/{dataAppVizUuid}')
@@ -827,7 +829,8 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * @summary Get embedded Explore chart type render metadata
+     * Get render metadata for an embedded Explore chart type.
+     * @summary Get render metadata
      */
     @SuccessResponse('200', 'Success')
     @Get('/explore/visualizations/{dataAppVizUuid}/render-metadata')
@@ -852,7 +855,8 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * @summary Get an embedded Explore chart type preview token
+     * Get a preview token for an embedded Explore chart type.
+     * @summary Get preview token
      */
     @SuccessResponse('200', 'Success')
     @Get(
