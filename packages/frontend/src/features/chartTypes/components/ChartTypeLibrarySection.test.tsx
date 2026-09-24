@@ -2,13 +2,14 @@ import {
     FeatureFlags,
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
+import { useUpgradeAllRegistryChartTypes } from '../hooks/useInstallRegistryChartType';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import ChartTypeLibrarySection from './ChartTypeLibrarySection';
 
@@ -18,6 +19,11 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
 
 vi.mock('../hooks/useRegistryChartTypes', () => ({
     useRegistryChartTypes: vi.fn(),
+}));
+
+vi.mock('../hooks/useInstallRegistryChartType', async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    useUpgradeAllRegistryChartTypes: vi.fn(),
 }));
 
 vi.mock('../../apps/hooks/useCanEditDataApp', () => ({
@@ -38,6 +44,8 @@ const mockedUseRegistryChartTypes = vi.mocked(useRegistryChartTypes);
 const mockedUseCanEditDataApp = vi.mocked(useCanEditDataApp);
 const mockedUseDeleteApp = vi.mocked(useDeleteApp);
 const mockedDeleteAppMutateAsync = vi.fn();
+const mockedUseUpgradeAll = vi.mocked(useUpgradeAllRegistryChartTypes);
+const mockedUpgradeAllMutate = vi.fn();
 
 const setFlag = (enabled: boolean, isLoading = false) => {
     mockedUseServerFeatureFlag.mockReturnValue({
@@ -160,10 +168,99 @@ describe('ChartTypeLibrarySection', () => {
             mutateAsync: mockedDeleteAppMutateAsync,
             isLoading: false,
         } as unknown as ReturnType<typeof useDeleteApp>);
+        mockedUseUpgradeAll.mockReturnValue({
+            mutate: mockedUpgradeAllMutate,
+            isLoading: false,
+        } as unknown as ReturnType<typeof useUpgradeAllRegistryChartTypes>);
     });
 
     afterEach(() => {
         defaultAbility.update([]);
+    });
+
+    it('offers Upgrade all to users who can install chart types', async () => {
+        const updates = [
+            makeItem({
+                state: 'update_available',
+                installedAppUuid: 'viz-1',
+                installedRegistryVersion: '1.0.0',
+                version: '1.2.0',
+            }),
+            makeItem({
+                slug: 'bar-race',
+                name: 'Bar race',
+                state: 'update_available',
+                installedAppUuid: 'viz-2',
+                installedRegistryVersion: '0.1.0',
+                version: '0.2.0',
+            }),
+        ];
+        setFlag(true);
+        setRegistryData(updates);
+        const { unmount } = renderWithProviders(
+            <ChartTypeLibrarySection
+                projectUuid={PROJECT_UUID}
+                onShowInstalled={vi.fn()}
+            />,
+        );
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Updates available for 2 already installed charts',
+            }),
+        );
+        await screen.findByRole('button', { name: /Bar race/ });
+        expect(
+            screen.queryByRole('button', { name: 'Upgrade all' }),
+        ).not.toBeInTheDocument();
+        unmount();
+
+        defaultAbility.update([
+            {
+                action: 'create',
+                subject: 'DataApp',
+                conditions: {
+                    organizationUuid: DEFAULT_ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                },
+            },
+        ]);
+        renderWithProviders(
+            <ChartTypeLibrarySection
+                projectUuid={PROJECT_UUID}
+                onShowInstalled={vi.fn()}
+            />,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Upgrade all' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Updates available for 2 already installed charts',
+            }),
+        );
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Upgrade all' }),
+        );
+
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Upgrade 2 chart types',
+        });
+        expect(dialog).toHaveTextContent('v1.0.0 → v1.2.0');
+        expect(dialog).toHaveTextContent('v0.1.0 → v0.2.0');
+        fireEvent.click(
+            within(dialog).getByRole('button', { name: 'Upgrade all' }),
+        );
+        expect(mockedUpgradeAllMutate).toHaveBeenCalledWith(
+            {
+                projectUuid: PROJECT_UUID,
+                charts: [
+                    { slug: 'radial-gauge', name: 'Radial gauge' },
+                    { slug: 'bar-race', name: 'Bar race' },
+                ],
+                upgradeConsumingCharts: false,
+            },
+            expect.anything(),
+        );
     });
 
     it('renders nothing when the feature flag is off', () => {

@@ -1,5 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
+    Box,
     Button,
     Collapse,
     Group,
@@ -24,11 +25,13 @@ import TruncatedText from '../../../components/common/TruncatedText';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeLibraryCard from './ChartTypeLibraryCard';
 import ChartTypeLibraryDetailModal from './ChartTypeLibraryDetailModal';
 import classes from './ChartTypeLibrarySection.module.css';
+import ChartTypeUpgradeAllModal from './ChartTypeUpgradeAllModal';
 
 type Props = {
     projectUuid: string;
@@ -55,6 +58,8 @@ const ChartTypeLibrarySection: FC<Props> = ({
     const registryQuery = useRegistryChartTypes(projectUuid, flagEnabled);
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
     const [updatesOpen, { toggle: toggleUpdates }] = useDisclosure(false);
+    const [isUpgradeAllOpen, setIsUpgradeAllOpen] = useState(false);
+    const canUpgrade = useCanCreateDataApp(projectUuid);
     const { track } = useTracking();
 
     const charts = useMemo(
@@ -125,30 +130,41 @@ const ChartTypeLibrarySection: FC<Props> = ({
 
             {onShowInstalled && availableUpdates.length > 0 && (
                 <Stack gap="xs">
-                    <Button
-                        variant="subtle"
-                        size="xs"
-                        className={classes.updatesToggle}
-                        aria-expanded={updatesOpen}
-                        leftSection={
-                            <MantineIcon icon={IconInfoCircle} size={14} />
-                        }
-                        rightSection={
-                            <MantineIcon
-                                icon={
-                                    updatesOpen
-                                        ? IconChevronUp
-                                        : IconChevronDown
-                                }
-                                size={14}
-                            />
-                        }
-                        onClick={toggleUpdates}
-                    >
-                        Updates available for {availableUpdates.length} already
-                        installed{' '}
-                        {availableUpdates.length === 1 ? 'chart' : 'charts'}
-                    </Button>
+                    <Group justify="space-between" gap="xs">
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            className={classes.updatesToggle}
+                            aria-expanded={updatesOpen}
+                            leftSection={
+                                <MantineIcon icon={IconInfoCircle} size={14} />
+                            }
+                            rightSection={
+                                <MantineIcon
+                                    icon={
+                                        updatesOpen
+                                            ? IconChevronUp
+                                            : IconChevronDown
+                                    }
+                                    size={14}
+                                />
+                            }
+                            onClick={toggleUpdates}
+                        >
+                            Updates available for {availableUpdates.length}{' '}
+                            already installed{' '}
+                            {availableUpdates.length === 1 ? 'chart' : 'charts'}
+                        </Button>
+                        {updatesOpen && canUpgrade && (
+                            <Button
+                                variant="filled"
+                                size="xs"
+                                onClick={() => setIsUpgradeAllOpen(true)}
+                            >
+                                Upgrade all
+                            </Button>
+                        )}
+                    </Group>
                     <Collapse expanded={updatesOpen}>
                         <SimpleGrid
                             cols={{ base: 2, sm: 3, md: 4, lg: 5 }}
@@ -165,12 +181,20 @@ const ChartTypeLibrarySection: FC<Props> = ({
                                         onShowInstalled(chart.installedAppUuid!)
                                     }
                                 >
-                                    <Group gap="xs" wrap="nowrap">
-                                        <MantineIcon
-                                            icon={getChartTypeIcon(chart.icon)}
-                                            size={14}
-                                            color="dimmed"
-                                        />
+                                    <Group
+                                        gap="xs"
+                                        wrap="nowrap"
+                                        align="flex-start"
+                                    >
+                                        <Box className={classes.updateTileIcon}>
+                                            <MantineIcon
+                                                icon={getChartTypeIcon(
+                                                    chart.icon,
+                                                )}
+                                                size={14}
+                                                color="dimmed"
+                                            />
+                                        </Box>
                                         <Stack gap={0} miw={0}>
                                             <TruncatedText
                                                 maxWidth="100%"
@@ -243,6 +267,13 @@ const ChartTypeLibrarySection: FC<Props> = ({
                     item={selected}
                     onClose={() => setSelectedSlug(null)}
                     onInstalled={onInstalled}
+                />
+            )}
+            {isUpgradeAllOpen && (
+                <ChartTypeUpgradeAllModal
+                    projectUuid={projectUuid}
+                    updates={availableUpdates}
+                    onClose={() => setIsUpgradeAllOpen(false)}
                 />
             )}
         </Stack>
