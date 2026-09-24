@@ -27,6 +27,9 @@ const CONNECTION_ERROR_CODES = new Set([
     'EAI_AGAIN',
 ]);
 const MAX_CONNECTION_ATTEMPTS = 6;
+const UPSTREAM_RESET_BODY =
+    'upstream connect error or disconnect/reset before headers';
+const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 function isConnectionError(error: unknown): boolean {
     if (!(error instanceof Error)) return false;
@@ -40,7 +43,7 @@ function isConnectionError(error: unknown): boolean {
     );
 }
 
-export async function fetchWithConnectionRetry(
+async function fetchAfterConnectionRetry(
     url: string,
     init?: RequestInit,
 ): Promise<Response> {
@@ -59,6 +62,27 @@ export async function fetchWithConnectionRetry(
             });
         }
     }
+}
+
+export async function fetchWithConnectionRetry(
+    url: string,
+    init?: RequestInit,
+): Promise<Response> {
+    let response = await fetchAfterConnectionRetry(url, init);
+    if (
+        response.status === 503 &&
+        RETRYABLE_METHODS.has((init?.method ?? 'GET').toUpperCase()) &&
+        (await response.clone().text()).includes(UPSTREAM_RESET_BODY)
+    ) {
+        process.stderr.write(
+            `Retrying ${init?.method ?? 'GET'} ${url} after preview gateway reset\n`,
+        );
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, 1000);
+        });
+        response = await fetchAfterConnectionRetry(url, init);
+    }
+    return response;
 }
 
 export class ApiClient {

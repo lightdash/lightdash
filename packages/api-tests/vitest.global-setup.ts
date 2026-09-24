@@ -1,6 +1,6 @@
 import type { TestProject } from 'vitest/node';
-import { fetchWithConnectionRetry, SITE_URL } from './helpers/api-client';
 import { login } from './helpers/auth';
+import waitForServerHealth from './helpers/health';
 import {
     createProject,
     deleteProjectsByName,
@@ -20,14 +20,7 @@ const warehouseEntries = getAvailableWarehouseConfigs({
 });
 
 export default async function setup(project: TestProject) {
-    const health = await fetchWithConnectionRetry(
-        `${SITE_URL}/api/v1/health`,
-    ).catch(() => null);
-    if (!health?.ok) {
-        throw new Error(
-            `Server health check failed. Is the dev server running at ${SITE_URL}?`,
-        );
-    }
+    await waitForServerHealth();
     const admin = await login();
     const names = warehouseEntries.map(({ name }) =>
         sharedWarehouseProjectName(name),
