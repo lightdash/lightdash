@@ -19,7 +19,7 @@ import { pollForResults } from '../../queryRunner/executeQuery';
 import { type SavedChartPreviewQueryResult } from './savedChartPreviewQuery';
 
 /** Same page of rows the saved-chart preview runs. */
-const EXPLORE_PREVIEW_ROW_LIMIT = 500;
+export const EXPLORE_PREVIEW_ROW_LIMIT = 500;
 
 /**
  * The ad-hoc query behind an explore source: the picked fields, sorted by the
