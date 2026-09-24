@@ -3,6 +3,7 @@ import {
     type ComboboxParsedItem,
     type OptionsFilter,
 } from '@mantine/core';
+import { type ReactNode } from 'react';
 
 export const ADD_TO_QUERY_GROUP_LABEL = 'Add to query';
 export const SUGGESTED_GROUP_LABEL = 'Suggested';
@@ -23,12 +24,13 @@ type SearchableOption = ComboboxItem & { tablePrefix?: string };
  */
 export const optionsFilter: OptionsFilter = ({ options, search, limit }) => {
     const words = search.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    const matches = (option: ComboboxItem, groupLabel: string | undefined) => {
+    const matches = (option: ComboboxItem, groupLabel: ReactNode) => {
         if (words.length === 0) return true;
         const { label, tablePrefix } = option as SearchableOption;
         const table =
             tablePrefix ??
-            (groupLabel && !SYNTHETIC_GROUP_LABELS.has(groupLabel)
+            (typeof groupLabel === 'string' &&
+            !SYNTHETIC_GROUP_LABELS.has(groupLabel)
                 ? groupLabel
                 : '');
         const haystack = `${table} ${label}`.toLowerCase();
