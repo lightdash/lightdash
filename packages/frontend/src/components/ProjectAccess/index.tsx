@@ -7,7 +7,6 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import ProjectAccess from './ProjectAccess';
-import classes from './ProjectAccess.module.css';
 
 interface ProjectUserAccessProps {
     projectUuid: string;
@@ -30,11 +29,6 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                 keepMounted={false}
                 defaultValue="users"
                 variant="pills"
-                classNames={{
-                    list: classes.tabsList,
-                    tab: classes.tab,
-                    panel: classes.panel,
-                }}
             >
                 {isGroupManagementEnabled && (
                     <Tabs.List>

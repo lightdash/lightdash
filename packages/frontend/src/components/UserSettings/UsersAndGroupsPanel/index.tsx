@@ -14,7 +14,6 @@ import ForbiddenPanel from '../../ForbiddenPanel';
 import CreateGroupModal from './CreateGroupModal';
 import GroupsView from './GroupsView';
 import InvitesModal from './InvitesModal';
-import classes from './UsersAndGroupsPanel.module.css';
 import UsersView from './UsersView';
 
 const UsersAndGroupsPanel: FC = () => {
@@ -90,11 +89,6 @@ const UsersAndGroupsPanel: FC = () => {
                     }
                 }}
                 variant="pills"
-                classNames={{
-                    list: classes.tabsList,
-                    tab: classes.tab,
-                    panel: classes.panel,
-                }}
             >
                 {isGroupManagementEnabled && (
                     <Tabs.List>
