@@ -3272,124 +3272,182 @@ export class AiAgentToolsService extends BaseService {
                 // query fails.
                 const maxWaitMs = 5 * 60 * 1000;
                 const startTime = Date.now();
-                let delayMs = 500;
 
-                // eslint-disable-next-line no-constant-condition
-                while (true) {
-                    if (Date.now() - startTime > maxWaitMs) {
-                        throw new TimeoutError(
-                            'Composer query timed out after 5 minutes',
+                // Results fetching throws for errored queries, so any throw
+                // below marks the unfinished nodes failed before propagating.
+                const emitUnfinishedAsError = (error: unknown) => {
+                    const message =
+                        error instanceof Error ? error.message : null;
+                    submissions.forEach((submission) => {
+                        const emitted = emittedNodeStatuses.get(
+                            submission.nodeId,
                         );
-                    }
-
-                    const queryResults =
-                        // eslint-disable-next-line no-await-in-loop
-                        await this.asyncQueryService.getAsyncQueryResults({
-                            account: context.account,
-                            projectUuid: context.projectUuid,
-                            queryUuid: terminalSubmission.queryUuid,
-                            page: 1,
-                            pageSize,
-                        });
-
-                    if (queryResults.status === QueryHistoryStatus.READY) {
-                        // Terminal ready implies every upstream node finished.
-                        submissions.forEach((submission) =>
-                            emitNodeStatus({
-                                nodeId: submission.nodeId,
-                                queryUuid: submission.queryUuid,
-                                status: 'success',
-                                errorMessage: null,
-                            }),
-                        );
-                        const wrappedRows = (queryResults.rows ?? []) as Record<
-                            string,
-                            AnyType
-                        >[];
-                        const rows = wrappedRows.map((row) =>
-                            Object.fromEntries(
-                                Object.entries(row).map(([k, v]) => [
-                                    k,
-                                    AiAgentToolsService.unwrapCell(v),
-                                ]),
-                            ),
-                        );
-                        return {
-                            submissions,
-                            terminal: {
-                                queryUuid: terminalSubmission.queryUuid,
-                                columns: queryResults.columns,
-                                rows,
-                                rowCount: rows.length,
-                            },
-                        };
-                    }
-
-                    if (queryResults.status === QueryHistoryStatus.ERROR) {
-                        // eslint-disable-next-line no-await-in-loop
-                        const failedNodes = await this.findFailedComposerNodes(
-                            context,
-                            submissions,
-                        );
-                        failedNodes.forEach(({ nodeId, error }) => {
-                            const submission = submissions.find(
-                                (candidate) => candidate.nodeId === nodeId,
-                            );
-                            if (!submission) return;
-                            emitNodeStatus({
-                                nodeId,
-                                queryUuid: submission.queryUuid,
-                                status: 'error',
-                                errorMessage: error,
-                            });
-                        });
+                        if (emitted === 'success' || emitted === 'error')
+                            return;
                         emitNodeStatus({
-                            nodeId: terminalSubmission.nodeId,
-                            queryUuid: terminalSubmission.queryUuid,
+                            nodeId: submission.nodeId,
+                            queryUuid: submission.queryUuid,
                             status: 'error',
-                            errorMessage: queryResults.error ?? null,
+                            errorMessage: message,
                         });
-                        throw new WarehouseQueryError(
-                            `Composer query failed${
-                                failedNodes.length > 0
-                                    ? ` on node(s): ${failedNodes
-                                          .map(
-                                              ({ nodeId, error }) =>
-                                                  `"${nodeId}" (${error ?? 'Unknown error'})`,
-                                          )
-                                          .join(', ')}`
-                                    : `: ${queryResults.error ?? 'Unknown error'}`
-                            }`,
-                        );
-                    }
-
-                    if (queryResults.status === QueryHistoryStatus.CANCELLED) {
-                        emitNodeStatus({
-                            nodeId: terminalSubmission.nodeId,
-                            queryUuid: terminalSubmission.queryUuid,
-                            status: 'error',
-                            errorMessage: 'Query was cancelled',
-                        });
-                        throw new WarehouseQueryError(
-                            'Composer query was cancelled',
-                        );
-                    }
-
-                    // Terminal still running: surface upstream nodes that have
-                    // already finished so the pipeline shows live per-node
-                    // progress.
-                    // eslint-disable-next-line no-await-in-loop
-                    await pollNodeStatuses();
-
-                    const localDelay = delayMs;
-                    // eslint-disable-next-line no-await-in-loop
-                    await new Promise<void>((resolve) => {
-                        setTimeout(resolve, localDelay);
                     });
-                    delayMs = Math.min(delayMs * 2, 2000);
+                };
+
+                try {
+                    return await this.pollComposerTerminal({
+                        context,
+                        submissions,
+                        terminalSubmission,
+                        pageSize,
+                        maxWaitMs,
+                        startTime,
+                        emitNodeStatus,
+                        pollNodeStatuses,
+                    });
+                } catch (error) {
+                    emitUnfinishedAsError(error);
+                    throw error;
                 }
             },
         );
+    }
+
+    private async pollComposerTerminal({
+        context,
+        submissions,
+        terminalSubmission,
+        pageSize,
+        maxWaitMs,
+        startTime,
+        emitNodeStatus,
+        pollNodeStatuses,
+    }: {
+        context: AiAgentToolsRuntimeContext;
+        submissions: Awaited<
+            ReturnType<QuerySourceService['executeSourceQueries']>
+        >['queries'];
+        terminalSubmission: Awaited<
+            ReturnType<QuerySourceService['executeSourceQueries']>
+        >['queries'][number];
+        pageSize: number;
+        maxWaitMs: number;
+        startTime: number;
+        emitNodeStatus: (update: ComposerNodeStatusUpdate) => void;
+        pollNodeStatuses: () => Promise<void>;
+    }): ReturnType<RunComposerQueriesFn> {
+        let delayMs = 500;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            if (Date.now() - startTime > maxWaitMs) {
+                throw new TimeoutError(
+                    'Composer query timed out after 5 minutes',
+                );
+            }
+
+            const queryResults =
+                // eslint-disable-next-line no-await-in-loop
+                await this.asyncQueryService.getAsyncQueryResults({
+                    account: context.account,
+                    projectUuid: context.projectUuid,
+                    queryUuid: terminalSubmission.queryUuid,
+                    page: 1,
+                    pageSize,
+                });
+
+            if (queryResults.status === QueryHistoryStatus.READY) {
+                // Terminal ready implies every upstream node finished.
+                submissions.forEach((submission) =>
+                    emitNodeStatus({
+                        nodeId: submission.nodeId,
+                        queryUuid: submission.queryUuid,
+                        status: 'success',
+                        errorMessage: null,
+                    }),
+                );
+                const wrappedRows = (queryResults.rows ?? []) as Record<
+                    string,
+                    AnyType
+                >[];
+                const rows = wrappedRows.map((row) =>
+                    Object.fromEntries(
+                        Object.entries(row).map(([k, v]) => [
+                            k,
+                            AiAgentToolsService.unwrapCell(v),
+                        ]),
+                    ),
+                );
+                return {
+                    submissions,
+                    terminal: {
+                        queryUuid: terminalSubmission.queryUuid,
+                        columns: queryResults.columns,
+                        rows,
+                        rowCount: rows.length,
+                    },
+                };
+            }
+
+            if (queryResults.status === QueryHistoryStatus.ERROR) {
+                // eslint-disable-next-line no-await-in-loop
+                const failedNodes = await this.findFailedComposerNodes(
+                    context,
+                    submissions,
+                );
+                failedNodes.forEach(({ nodeId, error }) => {
+                    const submission = submissions.find(
+                        (candidate) => candidate.nodeId === nodeId,
+                    );
+                    if (!submission) return;
+                    emitNodeStatus({
+                        nodeId,
+                        queryUuid: submission.queryUuid,
+                        status: 'error',
+                        errorMessage: error,
+                    });
+                });
+                emitNodeStatus({
+                    nodeId: terminalSubmission.nodeId,
+                    queryUuid: terminalSubmission.queryUuid,
+                    status: 'error',
+                    errorMessage: queryResults.error ?? null,
+                });
+                throw new WarehouseQueryError(
+                    `Composer query failed${
+                        failedNodes.length > 0
+                            ? ` on node(s): ${failedNodes
+                                  .map(
+                                      ({ nodeId, error }) =>
+                                          `"${nodeId}" (${error ?? 'Unknown error'})`,
+                                  )
+                                  .join(', ')}`
+                            : `: ${queryResults.error ?? 'Unknown error'}`
+                    }`,
+                );
+            }
+
+            if (queryResults.status === QueryHistoryStatus.CANCELLED) {
+                emitNodeStatus({
+                    nodeId: terminalSubmission.nodeId,
+                    queryUuid: terminalSubmission.queryUuid,
+                    status: 'error',
+                    errorMessage: 'Query was cancelled',
+                });
+                throw new WarehouseQueryError('Composer query was cancelled');
+            }
+
+            // Terminal still running: surface upstream nodes that have
+            // already finished so the pipeline shows live per-node
+            // progress.
+            // eslint-disable-next-line no-await-in-loop
+            await pollNodeStatuses();
+
+            const localDelay = delayMs;
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, localDelay);
+            });
+            delayMs = Math.min(delayMs * 2, 2000);
+        }
     }
 
     /**

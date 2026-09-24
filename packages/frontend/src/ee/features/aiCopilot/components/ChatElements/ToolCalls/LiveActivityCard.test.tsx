@@ -97,6 +97,46 @@ describe('LiveActivityCard composer queries', () => {
     });
 });
 
+describe('LiveActivityCard composer failure', () => {
+    it('marks a node failed when the call errors while it was running', () => {
+        const failedGroups: LiveActivityToolGroup[] = [
+            {
+                ...composerToolGroups[0],
+                calls: [
+                    {
+                        ...composerToolGroups[0].calls[0],
+                        isPreliminary: false,
+                        toolOutput: {
+                            result: 'Composer query failed: missing column',
+                            metadata: { status: 'error' },
+                        },
+                    },
+                ],
+            },
+        ];
+        renderWithProviders(
+            <LiveActivityCard
+                isLive
+                toolGroups={failedGroups}
+                stepProgressMessages={[
+                    {
+                        message: 'Running query "targets"...',
+                        toolName: 'runComposerQueries',
+                        progressId: 'composer-call:targets',
+                        progressStatus: 'in_progress',
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+        const openRows = screen
+            .getAllByRole('button', { expanded: true })
+            .filter((row) => row.textContent?.includes('Revenue targets'));
+        expect(openRows).toHaveLength(1);
+    });
+});
+
 describe('LiveActivityCard composer approval', () => {
     const sqlPipeline: LiveActivityToolGroup[] = [
         {

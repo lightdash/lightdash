@@ -2417,6 +2417,47 @@ describe('AiAgentToolsService runComposerQueries', () => {
         }
     });
 
+    it('marks unfinished nodes failed when fetching results throws', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi
+            .fn()
+            .mockRejectedValue(new Error('column "missing" does not exist'));
+        const service = makeService({
+            querySourceService: { executeSourceQueries },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const onNodeStatus = vi.fn();
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                onNodeStatus,
+            }),
+        ).rejects.toThrow('column "missing" does not exist');
+
+        expect(
+            onNodeStatus.mock.calls
+                .map(([update]) => update)
+                .filter((update) => update.status === 'error'),
+        ).toEqual([
+            {
+                nodeId: 'orders',
+                queryUuid: 'query-1',
+                status: 'error',
+                errorMessage: 'column "missing" does not exist',
+            },
+            {
+                nodeId: 'joined',
+                queryUuid: 'query-2',
+                status: 'error',
+                errorMessage: 'column "missing" does not exist',
+            },
+        ]);
+    });
+
     it('emits error statuses for failing nodes before throwing', async () => {
         const executeSourceQueries = vi
             .fn()

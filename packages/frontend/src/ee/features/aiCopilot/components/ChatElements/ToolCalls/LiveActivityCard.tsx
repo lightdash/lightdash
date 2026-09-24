@@ -615,6 +615,9 @@ const getComposerNodeStatuses = (
     return Object.fromEntries(
         nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
             const fromEvent = eventStatuses.get(nodeId);
+            // The call failed while this node was still running: it failed.
+            if (outputStatus === 'error' && fromEvent?.status === 'running')
+                return [[nodeId, { status: 'error', errorMessage: null }]];
             if (fromEvent) return [[nodeId, fromEvent]];
             if (awaitingApproval && sqlNodeIds.has(nodeId))
                 return [[nodeId, { status: 'awaiting_approval' }]];
