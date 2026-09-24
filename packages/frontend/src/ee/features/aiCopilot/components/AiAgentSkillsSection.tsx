@@ -133,7 +133,7 @@ const AddSkillMenu = ({
                     Add skill
                 </Button>
             </Combobox.Target>
-            <Combobox.Dropdown p={0}>
+            <Combobox.Dropdown>
                 {canBind && bindable.length > 0 ? (
                     <>
                         <Combobox.Search
@@ -147,12 +147,11 @@ const AddSkillMenu = ({
                                 <MantineIcon icon={IconSearch} color="dimmed" />
                             }
                             classNames={{
-                                wrapper: styles.search,
+                                wrapper: styles.searchWrapper,
                                 input: styles.searchInput,
                             }}
                         />
                         <Combobox.Options
-                            p={4}
                             mah={280}
                             className={styles.scrollableOptions}
                         >
@@ -160,7 +159,6 @@ const AddSkillMenu = ({
                                 <Combobox.Option
                                     key={skill.uuid}
                                     value={skill.uuid}
-                                    className={styles.option}
                                 >
                                     <Stack gap={2} miw={0}>
                                         <Group gap={6} wrap="nowrap">
@@ -217,10 +215,7 @@ const AddSkillMenu = ({
                 )}
                 {canCreate ? (
                     <Combobox.Footer p={4}>
-                        <Combobox.Option
-                            value={CREATE_OPTION}
-                            className={styles.option}
-                        >
+                        <Combobox.Option value={CREATE_OPTION}>
                             <Group gap={6} wrap="nowrap">
                                 <MantineIcon icon={IconPlus} size="sm" />
                                 <Text size="xs" fw={500}>

@@ -2,17 +2,18 @@
     overflow-y: auto;
 }
 
-.search {
-    margin: 0;
-    padding: 6px;
-    border-bottom: 1px solid var(--mantine-color-default-border);
-}
-
+/* Mantine's search is flush with a bottom rule; here it is a normal bordered field. */
 .searchInput {
+    margin: 0;
+    width: 100%;
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-sm);
 }
 
-.option {
-    padding: 6px 8px;
+.searchInput:focus {
+    border-color: var(--mantine-primary-color-filled);
+}
+
+.searchWrapper {
+    margin-bottom: 4px;
 }
