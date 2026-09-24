@@ -3,6 +3,7 @@ import {
     AthenaAuthenticationType,
     DimensionType,
     ForbiddenError,
+    MissingWarehouseCredentialsError,
     NotFoundError,
     SingleConnectionProjectError,
     WarehouseDatabaseListingNotSupportedError,
@@ -67,6 +68,7 @@ describe('SQL runner catalog by connection on the real schema', () => {
     let warehouseAdmin: Knex;
     let encryptionUtil: EncryptionUtil;
     let service: SqlRunnerApi;
+    let tablesModel: WarehouseConnectionTablesModel;
 
     const server = () => getPostgresServer();
 
@@ -195,15 +197,72 @@ describe('SQL runner catalog by connection on the real schema', () => {
             },
         });
         try {
-            // eslint-disable-next-line no-restricted-syntax
-            for (const statement of statements) {
-                // eslint-disable-next-line no-await-in-loop
-                await connection.raw(statement);
-            }
+            await statements.reduce<Promise<unknown>>(
+                (previous, statement) =>
+                    previous.then(() => connection.raw(statement)),
+                Promise.resolve(),
+            );
         } finally {
             await connection.destroy();
         }
     };
+
+    const createUser = async (): Promise<string> => {
+        const [user] = await database('users')
+            .insert({ first_name: 'Other', last_name: 'Developer' } as never)
+            .returning('user_uuid');
+        return user.user_uuid as string;
+    };
+
+    const developer = (userUuid: string, organizationUuid: string) =>
+        account(userUuid, organizationUuid, [
+            { subject: 'SqlRunner', action: 'manage' },
+        ]);
+
+    const createPersonalCredential = async (
+        userUuid: string,
+        projectUuid: string,
+        warehouseType: WarehouseTypes = WarehouseTypes.POSTGRES,
+    ): Promise<string> => {
+        const [row] = await database('user_warehouse_credentials')
+            .insert({
+                user_uuid: userUuid,
+                name: `Personal ${warehouseType}`,
+                warehouse_type: warehouseType,
+                encrypted_credentials: encrypt(
+                    warehouseType === WarehouseTypes.POSTGRES
+                        ? {
+                              type: WarehouseTypes.POSTGRES,
+                              user: server().user,
+                              password: server().password,
+                          }
+                        : {
+                              type: WarehouseTypes.SNOWFLAKE,
+                              user: 'snow',
+                              password: 'flake',
+                          },
+                ),
+                project_uuid: projectUuid,
+            } as never)
+            .returning('user_warehouse_credentials_uuid');
+        return row.user_warehouse_credentials_uuid as string;
+    };
+
+    const createPersonalCredentialsProject = () =>
+        createProject({
+            mode: 'multi',
+            withExtra: true,
+            originalCredentials: {
+                ...postgresCredentials(ORIGINAL_DATABASE),
+                requireUserCredentials: true,
+            },
+        });
+
+    const cacheRows = (extraUuid: string) =>
+        database('warehouse_connection_tables')
+            .where('warehouse_connection_uuid', extraUuid)
+            .select('user_warehouse_credentials_uuid', 'table')
+            .orderBy(['user_warehouse_credentials_uuid', 'table']);
 
     const runOnWarehouse = async (name: string, statement: string) => {
         const connection = knex({
@@ -263,6 +322,7 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 database,
                 encryptionUtil,
             });
+        tablesModel = new WarehouseConnectionTablesModel({ database });
         service = new ProjectService({
             lightdashConfig: lightdashConfigMock,
             projectModel: new ProjectModel({
@@ -280,9 +340,7 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 encryptionUtil,
                 organizationWarehouseCredentialsModel,
             }),
-            warehouseConnectionTablesModel: new WarehouseConnectionTablesModel({
-                database,
-            }),
+            warehouseConnectionTablesModel: tablesModel,
         } as never);
     }, 600000);
 
@@ -495,6 +553,48 @@ describe('SQL runner catalog by connection on the real schema', () => {
         expect(names).not.toContain(UNOPENABLE_DATABASE);
     });
 
+    test('leaves out names the connection string cannot carry before it applies the listing limit', async () => {
+        const unopenable = Array.from(
+            { length: 101 },
+            (_, index) =>
+                `0pr9_${RUN}_${String(index).padStart(3, '0')}?sslmode=require`,
+        );
+        await unopenable.reduce<Promise<unknown>>(
+            (previous, name) =>
+                previous.then(() =>
+                    warehouseAdmin.raw('CREATE DATABASE ??', [name]),
+                ),
+            Promise.resolve(),
+        );
+        try {
+            const fixture = await createProject({
+                mode: 'multi',
+                withExtra: true,
+                listAllDatabases: true,
+            });
+
+            const listing = await service.getConnectionDatabases(
+                fixture.developer,
+                fixture.projectUuid,
+                fixture.extraUuid!,
+            );
+            const names = listing.databases.map(({ name }) => name);
+
+            expect(names).toContain(SALES_DATABASE);
+            expect(names).toContain(ORIGINAL_DATABASE);
+            expect(names.filter((name) => name.includes('?'))).toEqual([]);
+        } finally {
+            await Promise.all(
+                unopenable.map((name) =>
+                    warehouseAdmin.raw(
+                        'DROP DATABASE IF EXISTS ?? WITH (FORCE)',
+                        [name],
+                    ),
+                ),
+            );
+        }
+    });
+
     test('reads tables from a listed database on the same server and caches them per connection', async () => {
         const fixture = await createProject({
             mode: 'multi',
@@ -605,6 +705,169 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 EXTRA_DATABASE,
             ),
         ).rejects.toThrow();
+    });
+
+    test('two users with their own personal credentials each get a cold read and their own cache rows', async () => {
+        const fixture = await createPersonalCredentialsProject();
+        const userB = await createUser();
+        const credentialA = await createPersonalCredential(
+            fixture.userUuid,
+            fixture.projectUuid,
+        );
+        const credentialB = await createPersonalCredential(
+            userB,
+            fixture.projectUuid,
+        );
+        const getClient = vi.spyOn(service, '_getWarehouseClient');
+        const read = (userUuid: string) =>
+            service.getConnectionTables(
+                developer(userUuid, fixture.organizationUuid),
+                fixture.projectUuid,
+                fixture.extraUuid!,
+                EXTRA_DATABASE,
+            );
+
+        await read(fixture.userUuid);
+        expect(getClient).toHaveBeenCalledTimes(1);
+        expect(await cacheRows(fixture.extraUuid!)).toEqual([
+            { user_warehouse_credentials_uuid: credentialA, table: 'ledger' },
+        ]);
+
+        await read(userB);
+        expect(getClient).toHaveBeenCalledTimes(2);
+        expect(await cacheRows(fixture.extraUuid!)).toEqual(
+            [
+                {
+                    user_warehouse_credentials_uuid: credentialA,
+                    table: 'ledger',
+                },
+                {
+                    user_warehouse_credentials_uuid: credentialB,
+                    table: 'ledger',
+                },
+            ].sort((a, b) =>
+                a.user_warehouse_credentials_uuid <
+                b.user_warehouse_credentials_uuid
+                    ? -1
+                    : 1,
+            ),
+        );
+
+        await read(fixture.userUuid);
+        expect(getClient).toHaveBeenCalledTimes(2);
+    });
+
+    test("one user's refresh clears only that user's rows", async () => {
+        const fixture = await createPersonalCredentialsProject();
+        const userB = await createUser();
+        const credentialA = await createPersonalCredential(
+            fixture.userUuid,
+            fixture.projectUuid,
+        );
+        const credentialB = await createPersonalCredential(
+            userB,
+            fixture.projectUuid,
+        );
+        await Promise.all(
+            [fixture.userUuid, userB].map((userUuid) =>
+                service.getConnectionTables(
+                    developer(userUuid, fixture.organizationUuid),
+                    fixture.projectUuid,
+                    fixture.extraUuid!,
+                    EXTRA_DATABASE,
+                ),
+            ),
+        );
+
+        await service.refreshConnectionTables(
+            developer(fixture.userUuid, fixture.organizationUuid),
+            fixture.projectUuid,
+            fixture.extraUuid!,
+        );
+
+        expect(credentialA).not.toBe(credentialB);
+        expect(await cacheRows(fixture.extraUuid!)).toEqual([
+            { user_warehouse_credentials_uuid: credentialB, table: 'ledger' },
+        ]);
+    });
+
+    test('a user without a personal credential is refused before any warehouse read and leaves no cache row', async () => {
+        const fixture = await createPersonalCredentialsProject();
+        const getClient = vi.spyOn(service, '_getWarehouseClient');
+
+        await expect(
+            service.getConnectionTables(
+                fixture.developer,
+                fixture.projectUuid,
+                fixture.extraUuid!,
+                EXTRA_DATABASE,
+            ),
+        ).rejects.toBeInstanceOf(MissingWarehouseCredentialsError);
+        await expect(
+            service.getConnectionDatabases(
+                fixture.developer,
+                fixture.projectUuid,
+                fixture.extraUuid!,
+            ),
+        ).rejects.toBeInstanceOf(MissingWarehouseCredentialsError);
+        expect(getClient).not.toHaveBeenCalled();
+        expect(await cacheRows(fixture.extraUuid!)).toEqual([]);
+    });
+
+    test('a saved choice of a credential of another warehouse type is not used', async () => {
+        const fixture = await createPersonalCredentialsProject();
+        const snowflakeCredential = await createPersonalCredential(
+            fixture.userUuid,
+            fixture.projectUuid,
+            WarehouseTypes.SNOWFLAKE,
+        );
+        await database(
+            'warehouse_connection_user_credentials_preference',
+        ).insert({
+            user_uuid: fixture.userUuid,
+            warehouse_connection_uuid: fixture.extraUuid,
+            user_warehouse_credentials_uuid: snowflakeCredential,
+        });
+        const getClient = vi.spyOn(service, '_getWarehouseClient');
+
+        await expect(
+            service.getConnectionTables(
+                fixture.developer,
+                fixture.projectUuid,
+                fixture.extraUuid!,
+                EXTRA_DATABASE,
+            ),
+        ).rejects.toBeInstanceOf(MissingWarehouseCredentialsError);
+        expect(getClient).not.toHaveBeenCalled();
+        expect(await cacheRows(fixture.extraUuid!)).toEqual([]);
+    });
+
+    test('the cache read itself is scoped by project, not only the connection lookup', async () => {
+        const owner = await createProject({ mode: 'multi', withExtra: true });
+        const other = await createProject({ mode: 'multi', withExtra: true });
+        const scope = (projectUuid: string) => ({
+            projectUuid,
+            warehouseConnectionUuid: owner.extraUuid!,
+            userWarehouseCredentialsUuid: null,
+        });
+        await service.getConnectionTables(
+            owner.developer,
+            owner.projectUuid,
+            owner.extraUuid!,
+            EXTRA_DATABASE,
+        );
+        expect(await cacheRows(owner.extraUuid!)).toHaveLength(1);
+
+        await expect(
+            tablesModel.getTables(scope(other.projectUuid), EXTRA_DATABASE),
+        ).resolves.toBeNull();
+        await expect(
+            tablesModel.getTables(scope(owner.projectUuid), EXTRA_DATABASE),
+        ).resolves.not.toBeNull();
+        await expect(
+            tablesModel.clearTables(scope(other.projectUuid)),
+        ).rejects.toThrow('Connection not found');
+        expect(await cacheRows(owner.extraUuid!)).toHaveLength(1);
     });
 
     test('serves the cache until a refresh, then reads the warehouse again', async () => {

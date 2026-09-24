@@ -132,7 +132,11 @@ export class SqlRunnerConnectionsController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{warehouseConnectionUuid}/refresh-catalog')
     @OperationId('refreshSqlRunnerConnectionCatalog')
