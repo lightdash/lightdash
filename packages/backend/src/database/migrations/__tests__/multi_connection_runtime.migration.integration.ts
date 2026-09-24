@@ -36,6 +36,7 @@ import { type ConnectionBinding } from '../../../models/WarehouseConnectionRoute
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
+import { getAdminDatabase } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     createMigratedTestDatabase,
@@ -147,7 +148,7 @@ describe('Multi runtime identity wiring on the real schema', () => {
             client: 'pg',
             connection: {
                 ...postgresWarehouse('postgres'),
-                database: process.env.PGDATABASE ?? 'postgres',
+                database: getAdminDatabase(),
             },
         });
         await createWarehouseDatabase(ORIGINAL_DB, 'orders');

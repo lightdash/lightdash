@@ -26,6 +26,10 @@ export type MigratedDatabase = {
     destroy: () => Promise<void>;
 };
 
+export const getAdminDatabase = (
+    environment: NodeJS.ProcessEnv = process.env,
+): string => environment.PGADMINDATABASE ?? 'postgres';
+
 export const getPostgresServer = (
     environment: NodeJS.ProcessEnv = process.env,
 ): PostgresServer => {
@@ -39,7 +43,7 @@ export const getPostgresServer = (
         port: Number(environment.PGPORT ?? 5432),
         user: environment.PGUSER ?? 'postgres',
         password: environment.PGPASSWORD ?? '',
-        adminDatabase: environment.PGDATABASE ?? 'postgres',
+        adminDatabase: getAdminDatabase(environment),
     };
 };
 

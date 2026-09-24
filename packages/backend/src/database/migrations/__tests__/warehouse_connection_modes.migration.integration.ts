@@ -1,6 +1,7 @@
 import knex, { type Knex } from 'knex';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { getAdminDatabase } from '../../../testing/migratedDatabase';
 
 type Migration = {
     up: (database: Knex) => Promise<void>;
@@ -320,7 +321,7 @@ describe('warehouse connection mode schema on every migration', () => {
         );
 
     beforeAll(async () => {
-        const adminDatabase = process.env.PGDATABASE ?? 'postgres';
+        const adminDatabase = getAdminDatabase();
         databaseName = `connection_modes_${randomUUID().replaceAll('-', '')}`;
         admin = knex({
             client: 'pg',
@@ -1166,7 +1167,7 @@ describe('M3 concurrent index builds under contention and crash recovery (SPK-23
     let databaseName: string;
 
     beforeAll(async () => {
-        const adminDatabase = process.env.PGDATABASE ?? 'postgres';
+        const adminDatabase = getAdminDatabase();
         databaseName = `connection_modes_contention_${randomUUID().replaceAll(
             '-',
             '',
