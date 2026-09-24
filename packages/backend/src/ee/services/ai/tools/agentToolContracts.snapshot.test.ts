@@ -20,8 +20,6 @@ import { getExploreRepo } from './exploreRepo';
 import { getExportChartAsCode } from './exportChartAsCode';
 import { getFindContent } from './findContent';
 import { getFindCustomChartTypes } from './findCustomChartTypes';
-import { getFindExplores } from './findExplores';
-import { getFindFields } from './findFields';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
 import { getGenerateDataApp } from './generateDataApp';
 import { getGenerateHashes } from './generateHashes';
@@ -107,19 +105,6 @@ const makeAgentTools = (
         findCustomChartTypes: getFindCustomChartTypes({
             findCustomChartTypes: noop,
             updateProgress: noopAsync,
-        }),
-        findExplores: getFindExplores({
-            fieldSearchSize: 25,
-            findExplores: noop,
-            updateProgress: noopAsync,
-            toolDescriptionMaxChars: 600,
-        }),
-        findFields: getFindFields({
-            findFields: noop,
-            getExplore: noop,
-            pageSize: 25,
-            updateProgress: noopAsync,
-            toolDescriptionMaxChars: 600,
         }),
         generateDashboard: getGenerateDashboardV2({
             agentContext: new AgentContext([]),

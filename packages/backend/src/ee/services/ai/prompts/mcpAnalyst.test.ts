@@ -1,6 +1,6 @@
 import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from '@lightdash/common';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from './filterGuidance';
-import { getMcpAnalystPrompt, MCP_ANALYST_PROMPT } from './mcpAnalyst';
+import { getMcpAnalystPrompt } from './mcpAnalyst';
 
 const semanticQueryOptions = {
     runSqlEnabled: true,
@@ -66,7 +66,6 @@ describe('getMcpAnalystPrompt', () => {
     it('keeps the stable prompt on structured filters', () => {
         const prompt = getMcpAnalystPrompt(semanticQueryOptions);
 
-        expect(prompt).toBe(MCP_ANALYST_PROMPT);
         expect(prompt).not.toContain(MCP_FILTER_EXPRESSION_GUIDANCE_SECTION);
     });
 

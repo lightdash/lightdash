@@ -83,9 +83,3 @@ export const getMcpAnalystPrompt = ({
     }
     return buildMcpAnalystPrompt(runSqlEnabled, filterExpressionsEnabled);
 };
-
-export const MCP_ANALYST_PROMPT = getMcpAnalystPrompt({
-    runSqlEnabled: true,
-    runMetricQueryEnabled: true,
-    filterExpressionsEnabled: false,
-});

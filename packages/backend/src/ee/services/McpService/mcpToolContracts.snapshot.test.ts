@@ -12,10 +12,7 @@ import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from '../ai/prompts/filterGuidance';
-import {
-    getMcpAnalystPrompt,
-    MCP_ANALYST_PROMPT,
-} from '../ai/prompts/mcpAnalyst';
+import { getMcpAnalystPrompt } from '../ai/prompts/mcpAnalyst';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
     isProjectScopedMcpTool,
@@ -756,7 +753,14 @@ describe('MCP tool contracts', () => {
             title: config.title,
             description: config.description,
             argsSchema: schemaToJson(config.argsSchema, 'input'),
-            prompt: name === 'lightdash-analyst' ? MCP_ANALYST_PROMPT : null,
+            prompt:
+                name === 'lightdash-analyst'
+                    ? getMcpAnalystPrompt({
+                          runSqlEnabled: true,
+                          runMetricQueryEnabled: true,
+                          filterExpressionsEnabled: false,
+                      })
+                    : null,
         }));
         const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
             name,
