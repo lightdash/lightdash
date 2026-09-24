@@ -68,6 +68,7 @@ export type ChartIntent =
           fieldId: string;
           period: ChartPeriod;
       }
+    | { kind: 'remove_filter'; fieldId: string }
     | { kind: 'clear_filters' }
     | {
           kind: 'sort';
@@ -145,7 +146,25 @@ export type ChartIntentContext = {
     currentFields: FieldCandidate[];
     addableFields: FieldCandidate[];
     filterableFields: FieldCandidate[];
+    /** Fields the chart is currently filtered on. */
+    filteredFields: FieldCandidate[];
+    filters: ChartFilterEvidence[];
 };
+
+/** One persisted filter rule, as evidence of what the chart currently keeps. */
+export type ChartFilterRule = {
+    fieldId: string;
+    operator: string;
+    values?: unknown[];
+};
+
+type ChartFilterEvidence = {
+    field: string;
+    operator: string;
+    values: string[];
+};
+
+const MAX_FILTER_VALUES = 5;
 
 const CHART_INTENT_TIMEOUT_MS = 1_500;
 
@@ -209,7 +228,9 @@ const INTENTS = {
             'this month',
         ],
     },
-    clear_filters: 'Remove the filters from the current chart',
+    remove_filter:
+        'Stop restricting one field listed in `chart.filters` so all of its values show again, keeping the other filters',
+    clear_filters: 'Remove all the filters from the current chart',
     sort: {
         what: 'Reorder the current chart or keep only the top or bottom N rows',
         examples: ['sort by revenue', 'top 5', 'lowest first'],
@@ -327,12 +348,14 @@ export const buildChartIntentContext = ({
     explore,
     usage,
     extraAddableFields = [],
+    filterRules,
 }: {
     prompt: string;
     artifact: AiSemanticChartArtifactConfig;
     explore: Explore;
     usage: FieldUsage;
     extraAddableFields?: FieldCandidate[];
+    filterRules: ChartFilterRule[];
 }): ChartIntentContext => {
     const query = artifact.config.queryConfig;
     const selected = new Set([...query.dimensions, ...query.metrics]);
@@ -364,7 +387,34 @@ export const buildChartIntentContext = ({
             sameExplore.slice(0, MAX_FIELD_OPTIONS * 4),
         ).slice(0, MAX_FIELD_OPTIONS - queryDimensions.length),
     ];
-    return { artifact, currentFields, addableFields, filterableFields };
+    const filteredFields = [
+        ...new Set(filterRules.map(({ fieldId }) => fieldId)),
+    ].flatMap((id) => {
+        const field = exploreFields.find((item) => getItemId(item) === id);
+        return field ? [toCandidate(field, explore, usage)] : [];
+    });
+    const filters = filterRules.flatMap(({ fieldId, operator, values }) => {
+        const field = filteredFields.find(({ id }) => id === fieldId);
+        return field
+            ? [
+                  {
+                      field: field.label,
+                      operator,
+                      values: (values ?? [])
+                          .slice(0, MAX_FILTER_VALUES)
+                          .map(String),
+                  },
+              ]
+            : [];
+    });
+    return {
+        artifact,
+        currentFields,
+        addableFields,
+        filterableFields,
+        filteredFields,
+        filters,
+    };
 };
 
 const describeChart = (context: ChartIntentContext) => {
@@ -385,7 +435,7 @@ const describeChart = (context: ChartIntentContext) => {
         stacked: builtin?.stackBars ?? false,
         dimensions: config.queryConfig.dimensions.map(labelOf),
         metrics: config.queryConfig.metrics.map(labelOf),
-        hasFilters: config.queryConfig.filters !== null,
+        filters: context.filters,
         sortedBy: config.queryConfig.sorts.map(
             ({ fieldId, descending }) =>
                 `${labelOf(fieldId)} ${descending ? 'descending' : 'ascending'}`,
@@ -449,7 +499,7 @@ export const buildChartIntentQuestions = ({
         wantsFilter: {
             type: 'noul',
             instructions:
-                'Does the request ask to restrict the chart to, or exclude, certain values or a time window?',
+                'Does the request ask to restrict the chart to, or exclude, certain values or a time window? Removing or clearing a filter the chart already has does not count.',
         },
         wantsSort: {
             type: 'noul',
@@ -598,6 +648,19 @@ export const buildChartIntentQuestions = ({
             criteria: {
                 ...fieldCriteria(valueFields, { withDescriptions: false }),
                 none: 'The values belong to a field not in this list',
+            },
+        };
+    }
+    if (context.filteredFields.length > 0) {
+        questions.removeFilterField = {
+            type: 'choice',
+            instructions:
+                'If the user wants one field in `chart.filters` to stop being restricted, which field is it?',
+            criteria: {
+                ...fieldCriteria(context.filteredFields, {
+                    withDescriptions: false,
+                }),
+                none: 'The user does not mean removing one of these filters',
             },
         };
     }
@@ -915,6 +978,21 @@ const resolveAddField = (
     };
 };
 
+const resolveRemoveFilter = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): ChartIntentResolution => {
+    const chosen = confident(answers.removeFilterField, thresholds.field);
+    const field = context.filteredFields.find(({ id }) => id === chosen);
+    return field
+        ? {
+              type: 'intent',
+              intent: { kind: 'remove_filter', fieldId: field.id },
+          }
+        : { type: 'unresolved', reason: 'remove-filter' };
+};
+
 const toStep = (resolution: ChartIntentResolution): CompoundStep | null => {
     if (resolution.type === 'needs_values') return resolution;
     if (resolution.type === 'intent' && resolution.intent.kind !== 'undo')
@@ -1071,6 +1149,8 @@ export const interpretChartIntent = ({
             );
         case 'filter':
             return resolveFilter(answers, context, numbers, thresholds);
+        case 'remove_filter':
+            return resolveRemoveFilter(answers, context, thresholds);
         case 'clear_filters':
             return { type: 'intent', intent: { kind: 'clear_filters' } };
         case 'sort':
@@ -1089,6 +1169,7 @@ const labelFor = (context: ChartIntentContext, fieldId: string) =>
         ...context.currentFields,
         ...context.addableFields,
         ...context.filterableFields,
+        ...context.filteredFields,
     ].find(({ id }) => id === fieldId)?.label ?? fieldId;
 
 const describePeriod = (period: ChartPeriod): string => {
@@ -1133,6 +1214,8 @@ const describeStep = (
             return `${intent.exclude ? 'Exclude' : 'Keep only'} ${labelFor(context, intent.fieldId)} values ${intent.values.join(', ')}`;
         case 'filter_period':
             return `Filter ${labelFor(context, intent.fieldId)} to ${describePeriod(intent.period)}`;
+        case 'remove_filter':
+            return `Remove the ${labelFor(context, intent.fieldId)} filter and keep the other filters`;
         case 'clear_filters':
             return 'Remove all chart filters';
         case 'sort':

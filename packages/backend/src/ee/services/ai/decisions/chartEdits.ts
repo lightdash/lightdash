@@ -323,6 +323,59 @@ const applyFilter = (
     };
 };
 
+const applyRemoveFilter = (
+    intent: Extract<ChartIntent, { kind: 'remove_filter' }>,
+    artifact: AiSemanticChartArtifactConfig,
+    explore: Explore,
+): ChartEdit | null => {
+    const current = normalizePersistedFilters(
+        artifact.config.queryConfig.filters,
+    );
+    if (!current) return null;
+    const groups = [current.dimensions, current.metrics];
+    const holding = groups.filter((group) =>
+        group?.rules.some(({ fieldId }) => fieldId === intent.fieldId),
+    );
+    // Dropping one branch of an OR group changes its meaning, so the agent handles it.
+    if (
+        holding.length === 0 ||
+        holding.some((group) => group?.connector !== 'and')
+    )
+        return null;
+    const without = (group: (typeof groups)[number]) => {
+        const rules =
+            group?.rules.filter(({ fieldId }) => fieldId !== intent.fieldId) ??
+            [];
+        return group && rules.length > 0 ? { ...group, rules } : null;
+    };
+    const remaining = {
+        ...current,
+        dimensions: without(current.dimensions),
+        metrics: without(current.metrics),
+    };
+    let next: FilterExpressionResolvedFiltersV2 | null = null;
+    if (
+        remaining.dimensions ||
+        remaining.metrics ||
+        remaining.tableCalculations
+    ) {
+        const parsed =
+            filterExpressionResolvedFiltersSchema.safeParse(remaining);
+        if (!parsed.success || 'type' in parsed.data) return null;
+        next = parsed.data;
+    }
+    const config = reparse(artifact, {
+        ...artifact.config,
+        queryConfig: { ...artifact.config.queryConfig, filters: next },
+    });
+    if (!config) return null;
+    return {
+        config,
+        response: `Removed the **${labelOf(explore, intent.fieldId)}** filter.`,
+        changed: true,
+    };
+};
+
 const applySort = (
     intent: Extract<ChartIntent, { kind: 'sort' } | { kind: 'clear_sort' }>,
     artifact: AiSemanticChartArtifactConfig,
@@ -594,6 +647,8 @@ export const applyChartIntent = ({
         case 'filter_period':
         case 'clear_filters':
             return applyFilter(intent, artifact, explore);
+        case 'remove_filter':
+            return applyRemoveFilter(intent, artifact, explore);
         case 'sort':
         case 'clear_sort':
             return applySort(intent, artifact, explore);

@@ -709,6 +709,80 @@ describe('applyChartIntent', () => {
             expect(edit?.config.config.queryConfig.filters).toBeNull();
             expect(getFilterFieldIds(filtered)).toEqual(['orders_region']);
         });
+
+        const dateAndRegion = (type: 'and' | 'or') =>
+            withQuery({
+                filters: {
+                    type,
+                    dimensions: [
+                        {
+                            fieldId: 'orders_date',
+                            fieldType: DimensionType.DATE,
+                            fieldFilterType: FilterType.DATE,
+                            operator: FilterOperator.IN_BETWEEN,
+                            values: ['2024-01-01', '2024-12-31'],
+                        },
+                        {
+                            fieldId: 'orders_region',
+                            fieldType: DimensionType.STRING,
+                            fieldFilterType: FilterType.STRING,
+                            operator: FilterOperator.EQUALS,
+                            values: ['North'],
+                        },
+                    ],
+                    metrics: null,
+                    tableCalculations: null,
+                },
+            });
+
+        it('removes one filter and keeps the others', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'remove_filter', fieldId: 'orders_region' },
+                artifact: dateAndRegion('and'),
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([{ fieldId: 'orders_date' }]);
+            expect(edit?.response).toBe('Removed the **Region** filter.');
+        });
+
+        it('clears the filters when the last one is removed', () => {
+            const filtered = applyChartIntent({
+                intent: {
+                    kind: 'filter_values',
+                    fieldId: 'orders_region',
+                    exclude: false,
+                    values: ['North'],
+                },
+                artifact,
+                explore,
+            })!.config;
+            const edit = applyChartIntent({
+                intent: { kind: 'remove_filter', fieldId: 'orders_region' },
+                artifact: filtered,
+                explore,
+            });
+            expect(edit?.config.config.queryConfig.filters).toBeNull();
+        });
+
+        it('leaves removing from an OR filter group to the agent', () => {
+            expect(
+                applyChartIntent({
+                    intent: { kind: 'remove_filter', fieldId: 'orders_region' },
+                    artifact: dateAndRegion('or'),
+                    explore,
+                }),
+            ).toBeNull();
+        });
+
+        it('leaves a field the chart is not filtered on to the agent', () => {
+            expect(
+                applyChartIntent({
+                    intent: { kind: 'remove_filter', fieldId: 'orders_status' },
+                    artifact: dateAndRegion('and'),
+                    explore,
+                }),
+            ).toBeNull();
+        });
     });
 
     describe('sort', () => {
