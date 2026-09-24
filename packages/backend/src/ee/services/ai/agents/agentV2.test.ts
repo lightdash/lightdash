@@ -172,6 +172,7 @@ describe('flags-off agent turns', () => {
                         return {
                             text: 'Answer',
                             steps: [{ usage: { totalTokens: 1 } }],
+                            finalStep: { usage: { totalTokens: 1 } },
                             usage: { totalTokens: 1 },
                             finishReason: 'stop',
                         };
@@ -286,6 +287,7 @@ describe('MCP context preparation at the agent boundary', () => {
                     return {
                         text: 'Answer',
                         steps: [{ usage: { totalTokens: 1 } }],
+                        finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
                     };
@@ -394,6 +396,7 @@ describe('MCP context preparation at the agent boundary', () => {
                     return {
                         text: 'Answer',
                         steps: [{ usage: { totalTokens: 1 } }],
+                        finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
                     };
@@ -575,6 +578,7 @@ describe('empty finishes and interrupts', () => {
     const emptyGenerateResult = {
         text: '',
         steps: [{ usage: { totalTokens: 10 } }],
+        finalStep: { usage: { totalTokens: 10 } },
         usage: { totalTokens: 10 },
         finishReason: 'tool-calls',
     };
@@ -654,7 +658,7 @@ describe('empty finishes and interrupts', () => {
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '', usage: { totalTokens: 10 } }],
-            finalStep: { reasoning: [] },
+            finalStep: { reasoning: [], usage: { totalTokens: 10 } },
             finishReason: 'tool-calls',
         });
         expect(updatePrompt).toHaveBeenCalledWith(
@@ -783,6 +787,7 @@ describe('generateAgentResponse token usage persistence', () => {
                 steps: stepTotals.map((totalTokens) => ({
                     usage: { totalTokens },
                 })),
+                finalStep: { usage: { totalTokens: stepTotals.at(-1) ?? 0 } },
                 // AI SDK 7: `usage` aggregates every step.
                 usage: {
                     totalTokens: stepTotals.reduce(
@@ -2919,6 +2924,7 @@ describe('external MCP tool call activity', () => {
                     return {
                         text: 'Answer',
                         steps: [{ usage: { totalTokens: 1 } }],
+                        finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
                     };
