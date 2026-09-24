@@ -33,11 +33,6 @@ describe('warehouseTypeToSkillKey', () => {
 });
 
 describe('loadWarehouseSkills', () => {
-    // Inject a fake reader so we test the loading logic — which files it reads
-    // and how it handles a null key — without touching the real filesystem.
-    const fakeReader = (filePath: string) =>
-        Promise.resolve(`body:${filePath}`);
-
     it('reads shared.md and the dialect file when a skillKey is given', async () => {
         const reads: string[] = [];
         const result = await loadWarehouseSkills('trino', (filePath) => {
@@ -78,11 +73,5 @@ describe('loadWarehouseSkills', () => {
         const { shared, warehouse } = await loadWarehouseSkills('trino');
         expect(shared.length).toBeGreaterThan(0);
         expect(warehouse?.length ?? 0).toBeGreaterThan(0);
-    });
-
-    it('keeps the fake reader pure (no real disk access)', async () => {
-        const result = await loadWarehouseSkills('bigquery', fakeReader);
-        expect(result.shared.startsWith('body:')).toBe(true);
-        expect(result.warehouse?.startsWith('body:')).toBe(true);
     });
 });

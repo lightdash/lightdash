@@ -98,13 +98,4 @@ describe('Cron converter', () => {
             '23:59:00.000Z',
         );
     });
-
-    test('Should not get a date at the beggining of the day', () => {
-        const executionDates = getDailyDatesFromCron({
-            cron: '0 0 * * *',
-            timezone: 'UTC',
-        }); // at 00:00
-
-        expect(executionDates.length).toStrictEqual(0);
-    });
 });

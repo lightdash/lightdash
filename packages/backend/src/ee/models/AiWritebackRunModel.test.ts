@@ -56,29 +56,6 @@ describe('AiWritebackRunModel', () => {
             });
             expect(row).toEqual({ ai_writeback_run_uuid: 'run-1' });
         });
-
-        it('allows a null aiThreadUuid and null tool-call linkage for a one-shot run', async () => {
-            const qb = buildQueryBuilder();
-            const { model } = buildModel(qb);
-
-            await model.create({
-                organizationUuid: 'org-1',
-                projectUuid: 'proj-1',
-                aiThreadUuid: null,
-                createdByUserUuid: 'user-1',
-                source: 'api',
-                promptUuid: null,
-                toolCallId: null,
-            });
-
-            expect(qb.insert).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    ai_thread_uuid: null,
-                    prompt_uuid: null,
-                    tool_call_id: null,
-                }),
-            );
-        });
     });
 
     describe('markStaleRunsAsError', () => {

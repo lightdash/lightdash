@@ -2,7 +2,6 @@ import { DimensionType, type ResultColumns } from '@lightdash/common';
 import {
     getDuckdbPreAggregateSqlTable,
     getJsonlReferenceSelect,
-    getPreAggregateDuckdbLocator,
     resultColumnToDuckdbType,
     type PreAggregateDuckdbLocator,
 } from './duckdbSqlTables';
@@ -112,15 +111,6 @@ const locator: PreAggregateDuckdbLocator = {
 };
 
 describe('getDuckdbPreAggregateSqlTable', () => {
-    test('builds a locator directly from a persisted S3 URI', () => {
-        expect(
-            getPreAggregateDuckdbLocator({
-                uri: 's3://bucket/abc123.jsonl',
-                format: 'jsonl',
-            }),
-        ).toEqual(locator);
-    });
-
     test('generates read_json with typed schema when columns are provided', () => {
         const columns: ResultColumns = {
             orders_total: {

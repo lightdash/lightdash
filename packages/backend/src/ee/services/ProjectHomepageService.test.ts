@@ -692,11 +692,7 @@ describe('ProjectHomepageService', () => {
             expect(upsertAsCode).not.toHaveBeenCalled();
         });
     });
-    it('accepts fileStorageClient and persistentDownloadFileService in its constructor', () => {
-        expect(() => makeService()).not.toThrow();
-    });
-
-    it('getPublishedHomepage throws ForbiddenError when flag is disabled', async () => {
+    it('getResolvedHomepage throws ForbiddenError when flag is disabled', async () => {
         const service = makeService({ flagEnabled: false });
 
         await expect(
