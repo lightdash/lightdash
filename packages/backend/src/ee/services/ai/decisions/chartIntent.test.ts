@@ -677,6 +677,163 @@ describe('interpretChartIntent', () => {
     });
 });
 
+describe('metric, breakdown and grain edits', () => {
+    const rich = structuredClone(explore);
+    Object.assign(rich.tables.orders.metrics, {
+        revenue: {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+        },
+    });
+    Object.assign(rich.tables.orders.dimensions, {
+        date: {
+            ...dimension('date', DimensionType.DATE, 'Date'),
+            timeInterval: 'DAY',
+            timeIntervalBaseDimensionName: 'date',
+        },
+        date_week: {
+            ...dimension('date_week', DimensionType.DATE, 'Date week'),
+            timeInterval: 'WEEK',
+            timeIntervalBaseDimensionName: 'date',
+        },
+    });
+    const run = (answers: Partial<DecisionAnswers>) =>
+        interpretChartIntent({
+            answers: {
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                ...answers,
+            } as DecisionAnswers,
+            prompt: 'edit',
+            context: buildChartIntentContext({
+                filterRules: [],
+                prompt: 'edit',
+                artifact,
+                explore: rich,
+                usage: noUsage,
+            }),
+        });
+
+    it('adds the metric JEV picks', () => {
+        expect(
+            run({
+                intent: choice('add_metric'),
+                metricToAdd: choice('orders_revenue'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'add_metric', fieldId: 'orders_revenue' },
+        });
+    });
+
+    it('swaps the only metric without asking which one', () => {
+        expect(
+            run({
+                intent: choice('swap_metric'),
+                metricToAdd: choice('orders_revenue'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'swap_metric',
+                fromFieldId: 'orders_count',
+                toFieldId: 'orders_revenue',
+            },
+        });
+    });
+
+    it('never removes the only metric', () => {
+        expect(run({ intent: choice('remove_metric') })).toEqual({
+            type: 'unresolved',
+            reason: 'remove-metric',
+        });
+    });
+
+    it('removes the breakdown JEV picks among the chart dimensions', () => {
+        expect(
+            run({
+                intent: choice('remove_field'),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'remove_field', fieldId: 'orders_status' },
+        });
+    });
+
+    it('changes the grain of the one date dimension', () => {
+        expect(
+            run({
+                intent: choice('change_grain'),
+                grain: choice('orders_date_week'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'change_grain',
+                fromFieldId: 'orders_date',
+                toFieldId: 'orders_date_week',
+            },
+        });
+    });
+
+    it('swaps a breakdown when JEV says the new field replaces one', () => {
+        expect(
+            run({
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.9),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'swap_field',
+                fromFieldId: 'orders_status',
+                toFieldId: 'orders_region',
+            },
+        });
+    });
+
+    it('reads a split by a field not in the chart as adding it', () => {
+        expect(
+            run({
+                intent: choice('split_series'),
+                wantsAddField: noul(0.8),
+                addField: choice('orders_region'),
+                replacesField: noul(0.1),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'add_field',
+                fieldId: 'orders_region',
+                chartType: null,
+            },
+        });
+    });
+
+    it('adds the breakdown alongside when it does not replace one', () => {
+        expect(
+            run({
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.2),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'add_field',
+                fieldId: 'orders_region',
+                chartType: null,
+            },
+        });
+    });
+});
+
 describe('isChartEditAttempt', () => {
     it.each<[ChartIntentResolution, boolean]>([
         [{ type: 'intent', intent: { kind: 'undo' } }, true],

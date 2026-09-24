@@ -627,6 +627,205 @@ const applyAddField = (
         : null;
 };
 
+const replaceId = (ids: string[], from: string, to: string) =>
+    ids.map((id) => (id === from ? to : id));
+
+/** Removes `outgoing`, adds `incoming`, or swaps one for the other in place. */
+const editIds = (
+    ids: string[],
+    outgoing: string | null,
+    incoming: string | null,
+): string[] => {
+    if (outgoing === null) return incoming ? [...ids, incoming] : ids;
+    if (incoming === null) return ids.filter((id) => id !== outgoing);
+    return replaceId(ids, outgoing, incoming);
+};
+
+type FieldChange = { outgoing: string | null; incoming: string | null };
+
+const metricChange = (
+    intent: Extract<
+        ChartIntent,
+        | { kind: 'add_metric' }
+        | { kind: 'remove_metric' }
+        | { kind: 'swap_metric' }
+    >,
+): FieldChange => {
+    switch (intent.kind) {
+        case 'add_metric':
+            return { outgoing: null, incoming: intent.fieldId };
+        case 'remove_metric':
+            return { outgoing: intent.fieldId, incoming: null };
+        case 'swap_metric':
+            return { outgoing: intent.fromFieldId, incoming: intent.toFieldId };
+        default:
+            return assertUnreachable(intent, 'Unknown metric edit');
+    }
+};
+
+const describeChange = (
+    explore: Explore,
+    { outgoing, incoming }: FieldChange,
+    noun: string,
+): string => {
+    if (outgoing && incoming)
+        return `Showing **${labelOf(explore, incoming)}** instead of **${labelOf(explore, outgoing)}**.`;
+    if (outgoing)
+        return `Removed the **${labelOf(explore, outgoing)}** ${noun}.`;
+    return `Added **${labelOf(explore, incoming ?? '')}**.`;
+};
+
+/** Metric filters name metrics directly, so dropping or swapping a filtered metric is left to the agent. */
+const filtersMetric = (
+    artifact: AiSemanticChartArtifactConfig,
+    fieldId: string,
+): boolean => {
+    const filters = normalizePersistedFilters(
+        artifact.config.queryConfig.filters,
+    );
+    return (
+        filters === null ||
+        (filters.metrics?.rules ?? []).some((rule) => rule.fieldId === fieldId)
+    );
+};
+
+const applyMetricEdit = (
+    intent: Parameters<typeof metricChange>[0],
+    artifact: AiSemanticChartArtifactConfig,
+    explore: Explore,
+): ChartEdit | null => {
+    const query = artifact.config.queryConfig;
+    const currentChart = artifact.config.chartConfig;
+    if (isCustomChartTypeSlugChartConfig(currentChart)) return null;
+    const change = metricChange(intent);
+    const { incoming, outgoing } = change;
+    if (incoming !== null) {
+        const field = fieldMap(explore).get(incoming);
+        if (!field || isDimension(field) || query.metrics.includes(incoming))
+            return null;
+    }
+    if (
+        outgoing !== null &&
+        (!query.metrics.includes(outgoing) ||
+            filtersMetric(artifact, outgoing) ||
+            (incoming === null && query.metrics.length < 2))
+    )
+        return null;
+    const metrics = editIds(query.metrics, outgoing, incoming);
+    const sorts = query.sorts.flatMap((sort) => {
+        if (sort.fieldId !== outgoing) return [sort];
+        return incoming ? [{ ...sort, fieldId: incoming }] : [];
+    });
+    let chartConfig = currentChart;
+    if (currentChart) {
+        const yAxisMetrics = editIds(
+            currentChart.yAxisMetrics ?? [],
+            outgoing,
+            incoming,
+        );
+        const secondaryGone =
+            outgoing !== null && currentChart.secondaryYAxisMetric === outgoing;
+        chartConfig = {
+            ...currentChart,
+            yAxisMetrics: yAxisMetrics.length ? yAxisMetrics : metrics,
+            secondaryYAxisMetric: secondaryGone
+                ? incoming
+                : currentChart.secondaryYAxisMetric,
+            secondaryYAxisLabel:
+                secondaryGone && incoming === null
+                    ? null
+                    : currentChart.secondaryYAxisLabel,
+            yAxisLabel: outgoing === null ? '' : currentChart.yAxisLabel,
+        };
+    }
+    const config = reparse(artifact, {
+        ...artifact.config,
+        queryConfig: { ...query, metrics, sorts },
+        chartConfig,
+    });
+    if (!config) return null;
+    return {
+        config,
+        response: describeChange(explore, change, 'metric'),
+        changed: true,
+    };
+};
+
+const axisTypeOf = (explore: Explore, fieldId: string) =>
+    isDateField(explore, fieldId) ? 'time' : 'category';
+
+const applyDimensionEdit = (
+    intent: Extract<
+        ChartIntent,
+        | { kind: 'remove_field' }
+        | { kind: 'swap_field' }
+        | { kind: 'change_grain' }
+    >,
+    artifact: AiSemanticChartArtifactConfig,
+    explore: Explore,
+): ChartEdit | null => {
+    const query = artifact.config.queryConfig;
+    const currentChart = artifact.config.chartConfig;
+    if (isCustomChartTypeSlugChartConfig(currentChart)) return null;
+    const change: FieldChange =
+        intent.kind === 'remove_field'
+            ? { outgoing: intent.fieldId, incoming: null }
+            : { outgoing: intent.fromFieldId, incoming: intent.toFieldId };
+    const { incoming } = change;
+    const from =
+        intent.kind === 'remove_field' ? intent.fieldId : intent.fromFieldId;
+    if (!query.dimensions.includes(from)) return null;
+    if (incoming !== null) {
+        const field = fieldMap(explore).get(incoming);
+        if (
+            !field ||
+            !isDimension(field) ||
+            query.dimensions.includes(incoming)
+        )
+            return null;
+    }
+    const dimensions = editIds(query.dimensions, from, incoming);
+    if (dimensions.length === 0) return null;
+    const sorts = query.sorts.flatMap((sort) => {
+        if (sort.fieldId !== from) return [sort];
+        return incoming ? [{ ...sort, fieldId: incoming }] : [];
+    });
+    let chartConfig = currentChart;
+    if (currentChart) {
+        const axis = currentChart.xAxisDimension;
+        let groupBy = editIds(currentChart.groupBy ?? [], from, incoming);
+        let xAxisDimension = axis;
+        if (axis === from && incoming) xAxisDimension = incoming;
+        if (axis === from && !incoming) {
+            [xAxisDimension = null] = groupBy.length ? groupBy : dimensions;
+            groupBy = groupBy.filter((id) => id !== xAxisDimension);
+        }
+        const newAxis = xAxisDimension !== axis ? xAxisDimension : null;
+        chartConfig = {
+            ...currentChart,
+            xAxisDimension,
+            groupBy: groupBy.length ? groupBy : null,
+            xAxisType: newAxis
+                ? axisTypeOf(explore, newAxis)
+                : currentChart.xAxisType,
+            xAxisLabel: newAxis
+                ? labelOf(explore, newAxis)
+                : currentChart.xAxisLabel,
+        };
+    }
+    const config = reparse(artifact, {
+        ...artifact.config,
+        queryConfig: { ...query, dimensions, sorts },
+        chartConfig,
+    });
+    if (!config) return null;
+    return {
+        config,
+        response: describeChange(explore, change, 'breakdown'),
+        changed: true,
+    };
+};
+
 /** Pure reducer: applies one typed intent to the chart, or returns null so the full agent can take over. */
 export const applyChartIntent = ({
     intent,
@@ -649,6 +848,14 @@ export const applyChartIntent = ({
             return applyFilter(intent, artifact, explore);
         case 'remove_filter':
             return applyRemoveFilter(intent, artifact, explore);
+        case 'add_metric':
+        case 'remove_metric':
+        case 'swap_metric':
+            return applyMetricEdit(intent, artifact, explore);
+        case 'remove_field':
+        case 'swap_field':
+        case 'change_grain':
+            return applyDimensionEdit(intent, artifact, explore);
         case 'sort':
         case 'clear_sort':
             return applySort(intent, artifact, explore);

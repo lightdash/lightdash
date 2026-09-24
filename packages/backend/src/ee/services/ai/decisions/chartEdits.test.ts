@@ -785,6 +785,228 @@ describe('applyChartIntent', () => {
         });
     });
 
+    describe('metric and breakdown edits', () => {
+        const metric = (name: string, label: string) => ({
+            name,
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label,
+        });
+        const rich = structuredClone(explore);
+        Object.assign(rich.tables.orders.metrics, {
+            profit: metric('profit', 'Profit'),
+            units: metric('units', 'Units'),
+        });
+        Object.assign(rich.tables.orders.dimensions, {
+            date_week: {
+                ...dimension('date_week', DimensionType.DATE, 'Date week'),
+                timeInterval: 'WEEK',
+                timeIntervalBaseDimensionName: 'date',
+            },
+        });
+        const twoMetrics = withQuery(
+            {
+                metrics: ['orders_revenue', 'orders_profit'],
+                sorts: [
+                    {
+                        fieldId: 'orders_profit',
+                        descending: true,
+                        nullsFirst: null,
+                    },
+                ],
+            },
+            { yAxisMetrics: ['orders_revenue', 'orders_profit'] },
+        );
+        const queryOf = (edit: ReturnType<typeof applyChartIntent>) =>
+            edit?.config.config.queryConfig;
+
+        it('adds a metric to the query and the plotted series', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'add_metric', fieldId: 'orders_units' },
+                artifact,
+                explore: rich,
+            });
+            expect(queryOf(edit)?.metrics).toEqual([
+                'orders_revenue',
+                'orders_units',
+            ]);
+            expect(chartOf(edit)).toMatchObject({
+                yAxisMetrics: ['orders_revenue', 'orders_units'],
+            });
+            expect(edit?.response).toBe('Added **Units**.');
+        });
+
+        it('only adds metrics the chart does not show yet', () => {
+            for (const fieldId of ['orders_revenue', 'orders_status'])
+                expect(
+                    applyChartIntent({
+                        intent: { kind: 'add_metric', fieldId },
+                        artifact,
+                        explore: rich,
+                    }),
+                ).toBeNull();
+        });
+
+        it('removes a metric with its sort but never the last one', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'remove_metric', fieldId: 'orders_profit' },
+                artifact: twoMetrics,
+                explore: rich,
+            });
+            expect(queryOf(edit)).toMatchObject({
+                metrics: ['orders_revenue'],
+                sorts: [],
+            });
+            expect(chartOf(edit)).toMatchObject({
+                yAxisMetrics: ['orders_revenue'],
+            });
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'remove_metric',
+                        fieldId: 'orders_revenue',
+                    },
+                    artifact,
+                    explore: rich,
+                }),
+            ).toBeNull();
+        });
+
+        it('swaps a metric everywhere it is used', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'swap_metric',
+                    fromFieldId: 'orders_profit',
+                    toFieldId: 'orders_units',
+                },
+                artifact: twoMetrics,
+                explore: rich,
+            });
+            expect(queryOf(edit)).toMatchObject({
+                metrics: ['orders_revenue', 'orders_units'],
+                sorts: [{ fieldId: 'orders_units', descending: true }],
+            });
+            expect(chartOf(edit)).toMatchObject({
+                yAxisMetrics: ['orders_revenue', 'orders_units'],
+            });
+            expect(edit?.response).toBe(
+                'Showing **Units** instead of **Profit**.',
+            );
+        });
+
+        it('leaves a metric with a metric filter to the agent', () => {
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'swap_metric',
+                        fromFieldId: 'orders_revenue',
+                        toFieldId: 'orders_units',
+                    },
+                    artifact: withQuery({
+                        filters: {
+                            type: 'and',
+                            dimensions: null,
+                            metrics: [
+                                {
+                                    fieldId: 'orders_revenue',
+                                    fieldType: MetricType.SUM,
+                                    fieldFilterType: FilterType.NUMBER,
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [100],
+                                },
+                            ],
+                            tableCalculations: null,
+                        },
+                    }),
+                    explore: rich,
+                }),
+            ).toBeNull();
+        });
+
+        it('removes a series breakdown and keeps the axis', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'remove_field', fieldId: 'orders_region' },
+                artifact,
+                explore: rich,
+            });
+            expect(queryOf(edit)?.dimensions).toEqual(['orders_date']);
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_date',
+                groupBy: null,
+            });
+            expect(edit?.response).toBe('Removed the **Region** breakdown.');
+        });
+
+        it('promotes the series field when the axis is removed', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'remove_field', fieldId: 'orders_date' },
+                artifact,
+                explore: rich,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_region',
+                groupBy: null,
+                xAxisType: 'category',
+                xAxisLabel: 'Region',
+            });
+        });
+
+        it('never removes the only breakdown', () => {
+            expect(
+                applyChartIntent({
+                    intent: { kind: 'remove_field', fieldId: 'orders_date' },
+                    artifact: withQuery(
+                        { dimensions: ['orders_date'] },
+                        { groupBy: null },
+                    ),
+                    explore: rich,
+                }),
+            ).toBeNull();
+        });
+
+        it('swaps a breakdown in place', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'swap_field',
+                    fromFieldId: 'orders_region',
+                    toFieldId: 'orders_status',
+                },
+                artifact,
+                explore: rich,
+            });
+            expect(queryOf(edit)?.dimensions).toEqual([
+                'orders_date',
+                'orders_status',
+            ]);
+            expect(chartOf(edit)).toMatchObject({ groupBy: ['orders_status'] });
+        });
+
+        it('changes the time grain of the axis', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'change_grain',
+                    fromFieldId: 'orders_date',
+                    toFieldId: 'orders_date_week',
+                },
+                artifact,
+                explore: rich,
+            });
+            expect(queryOf(edit)?.dimensions).toEqual([
+                'orders_date_week',
+                'orders_region',
+            ]);
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_date_week',
+                xAxisType: 'time',
+                xAxisLabel: 'Date week',
+            });
+            expect(edit?.response).toBe(
+                'Showing **Date week** instead of **Date**.',
+            );
+        });
+    });
+
     describe('sort', () => {
         it('sorts by the implied chart metric and applies a limit', () => {
             const edit = applyChartIntent({
