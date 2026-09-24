@@ -555,7 +555,15 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .runSqlQuery(toSessionUser(req.account), projectUuid, body.sql),
+                .runSqlQuery(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body.sql,
+                    {
+                        kind: 'connection',
+                        warehouseConnectionUuid: null,
+                    },
+                ),
         };
     }
 

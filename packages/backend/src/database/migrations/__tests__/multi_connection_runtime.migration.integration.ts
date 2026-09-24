@@ -2,17 +2,26 @@ import { Ability } from '@casl/ability';
 import {
     ChartKind,
     DbtProjectType,
+    DimensionType,
+    FieldType,
     JobStatusType,
     JobType,
+    MetricTotalComparisonType,
+    MetricType,
     NotFoundError,
     ParameterError,
     ProjectType,
     QueryExecutionContext,
     RequestMethod,
+    SupportedDbtAdapter,
+    TimeFrames,
+    WarehouseTypes,
+    WeekDay,
     type AllVizChartConfig,
     type CreateWarehouseCredentials,
     type ExecuteAsyncQueryRequestParams,
     type Explore,
+    type MetricQuery,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -34,6 +43,8 @@ import { WarehouseConnectionIdentityModel } from '../../../models/WarehouseConne
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type ConnectionBinding } from '../../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { FunnelService } from '../../../services/FunnelService/FunnelService';
+import { MetricsExplorerService } from '../../../services/MetricsExplorerService/MetricsExplorerService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getAdminDatabase } from '../../../testing/migratedDatabase';
@@ -77,6 +88,19 @@ type Fixture = {
 
 type CredentialsResult = CreateWarehouseCredentials & {
     userWarehouseCredentialsUuid: string | undefined;
+};
+
+type SqlBuildingInternals = {
+    refreshCredentials: (
+        args: CreateWarehouseCredentials,
+        userUuid: string,
+    ) => Promise<CreateWarehouseCredentials>;
+    getUserAttributes: () => Promise<unknown>;
+    getExplore: (
+        account: unknown,
+        projectUuid: string,
+        exploreName: string,
+    ) => Promise<unknown>;
 };
 
 type RuntimeInternals = {
@@ -1937,6 +1961,411 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 renamedMessage('Finance'),
             );
             expect(await previewChartBindings(previewUuid)).toEqual([]);
+        });
+    });
+
+    describe('SQL building on an extra-bound explore', () => {
+        const EXTRA_START_OF_WEEK = WeekDay.WEDNESDAY;
+        const EXTRA_TIMEZONE = 'Asia/Tokyo';
+        const extraWeekSql = `(DATE_TRUNC('WEEK', (CURRENT_DATE - interval '${EXTRA_START_OF_WEEK} days')) + interval '${EXTRA_START_OF_WEEK} days')`;
+        const originalWeekSql = `DATE_TRUNC('WEEK', CURRENT_DATE)`;
+
+        const refundsExplore = (name: string): Explore =>
+            ({
+                name,
+                label: name,
+                tags: [],
+                baseTable: 'refunds',
+                joinedTables: [],
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
+                tables: {
+                    refunds: {
+                        name: 'refunds',
+                        label: 'refunds',
+                        database: 'db',
+                        schema: 'public',
+                        sqlTable: '"public"."refunds"',
+                        primaryKey: ['id'],
+                        dimensions: {
+                            id: {
+                                type: DimensionType.STRING,
+                                name: 'id',
+                                label: 'id',
+                                table: 'refunds',
+                                tableLabel: 'refunds',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.id',
+                                compiledSql: 'CAST("refunds".id AS VARCHAR)',
+                                tablesReferences: ['refunds'],
+                                hidden: false,
+                            },
+                            created: {
+                                type: DimensionType.DATE,
+                                name: 'created',
+                                label: 'created',
+                                table: 'refunds',
+                                tableLabel: 'refunds',
+                                fieldType: FieldType.DIMENSION,
+                                sql: 'CURRENT_DATE',
+                                compiledSql: 'CURRENT_DATE',
+                                tablesReferences: ['refunds'],
+                                hidden: false,
+                            },
+                            happened_at: {
+                                type: DimensionType.TIMESTAMP,
+                                name: 'happened_at',
+                                label: 'happened_at',
+                                table: 'refunds',
+                                tableLabel: 'refunds',
+                                fieldType: FieldType.DIMENSION,
+                                sql: 'CURRENT_TIMESTAMP',
+                                compiledSql: 'CURRENT_TIMESTAMP',
+                                tablesReferences: ['refunds'],
+                                timestampDomain: 'naive',
+                                hidden: false,
+                            },
+                            happened_at_day: {
+                                type: DimensionType.TIMESTAMP,
+                                name: 'happened_at_day',
+                                label: 'happened_at_day',
+                                table: 'refunds',
+                                tableLabel: 'refunds',
+                                fieldType: FieldType.DIMENSION,
+                                sql: "DATE_TRUNC('DAY', CURRENT_TIMESTAMP)",
+                                compiledSql:
+                                    "DATE_TRUNC('DAY', CURRENT_TIMESTAMP)",
+                                tablesReferences: ['refunds'],
+                                timeInterval: TimeFrames.DAY,
+                                timeIntervalBaseDimensionName: 'happened_at',
+                                timestampDomain: 'naive',
+                                hidden: false,
+                            },
+                        },
+                        metrics: {
+                            amount_total: {
+                                type: MetricType.SUM,
+                                fieldType: FieldType.METRIC,
+                                table: 'refunds',
+                                tableLabel: 'refunds',
+                                name: 'amount_total',
+                                label: 'amount_total',
+                                sql: '${TABLE}.amount',
+                                compiledSql: 'SUM("refunds".amount)',
+                                tablesReferences: ['refunds'],
+                                hidden: false,
+                            },
+                        },
+                        lineageGraph: {},
+                    },
+                },
+            }) as unknown as Explore;
+
+        type SqlBuildingFixture = Fixture & {
+            user: SessionUser;
+            account: ReturnType<typeof fromSession>;
+        };
+
+        const createSqlBuildingProject = async (
+            mode: 'single' | 'multi',
+        ): Promise<SqlBuildingFixture> => {
+            const fixture = await createProject({
+                mode,
+                withExtra: mode === 'multi',
+            });
+            if (mode === 'multi') {
+                await database('warehouse_connections')
+                    .where(
+                        'warehouse_connection_uuid',
+                        fixture.extraConnectionUuid,
+                    )
+                    .update({
+                        encrypted_credentials: encrypt({
+                            ...postgresWarehouse(EXTRA_DB),
+                            startOfWeek: EXTRA_START_OF_WEEK,
+                            dataTimezone: EXTRA_TIMEZONE,
+                        }),
+                    });
+                await database('cached_explore').insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'extra_refunds',
+                    table_names: ['refunds'],
+                    explore: JSON.stringify(refundsExplore('extra_refunds')),
+                    warehouse_connection_uuid: fixture.extraConnectionUuid,
+                } as never);
+            }
+            await database('cached_explore').insert({
+                project_uuid: fixture.projectUuid,
+                name: 'original_refunds',
+                table_names: ['refunds'],
+                explore: JSON.stringify(refundsExplore('original_refunds')),
+                warehouse_connection_uuid: null,
+            } as never);
+            const user: SessionUser = {
+                ...sessionUser(fixture),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'all', action: 'manage' },
+                ] as never),
+            };
+            return { ...fixture, user, account: fromSession(user) };
+        };
+
+        const sqlBuildingProjectService = (timezoneSupport = false) => {
+            const service = new ProjectService({
+                ...serviceArgs(),
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: timezoneSupport }),
+                },
+                organizationSettingsModel: {
+                    get: async () => ({
+                        queryLimit: null,
+                        csvCellsLimit: null,
+                    }),
+                },
+                projectParametersModel: { find: async () => [] },
+            } as never);
+            const internals = service as unknown as SqlBuildingInternals;
+            vi.spyOn(internals, 'refreshCredentials').mockImplementation(
+                async (args) => args,
+            );
+            vi.spyOn(internals, 'getUserAttributes').mockResolvedValue({
+                userAttributes: {},
+                intrinsicUserAttributes: {},
+            });
+            vi.spyOn(internals, 'getExplore').mockImplementation(
+                async (_account, projectUuid, exploreName) =>
+                    projectModel.getExploreFromCache(projectUuid, exploreName),
+            );
+            return service;
+        };
+
+        const funnelService = (projectService: ProjectService) =>
+            new FunnelService({
+                analytics: { track: vi.fn() },
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    funnelBuilder: { enabled: true },
+                },
+                projectModel,
+                projectService,
+            } as never);
+
+        const metricsExplorerService = (projectService: ProjectService) =>
+            new MetricsExplorerService({
+                projectModel,
+                projectService,
+                catalogService: {
+                    getMetric: async () => ({
+                        ...refundsExplore('extra_refunds').tables.refunds
+                            .metrics.amount_total,
+                        timeDimension: {
+                            field: 'happened_at',
+                            table: 'refunds',
+                            interval: TimeFrames.DAY,
+                        },
+                    }),
+                },
+                asyncQueryService: {},
+            } as never);
+
+        const weekQuery = (exploreName: string): MetricQuery => ({
+            exploreName,
+            dimensions: ['refunds_created_week'],
+            metrics: ['refunds_amount_total'],
+            filters: {},
+            sorts: [],
+            limit: 10,
+            tableCalculations: [],
+        });
+
+        const compileWeekQuery = (
+            fixture: SqlBuildingFixture,
+            exploreName: string,
+        ) =>
+            sqlBuildingProjectService().compileQuery({
+                account: fixture.account,
+                projectUuid: fixture.projectUuid,
+                exploreName,
+                body: weekQuery(exploreName),
+            });
+
+        test('compileQuery for an explore bound to an extra connection returns the SQL built with the week start of that connection', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            const { query } = await compileWeekQuery(fixture, 'extra_refunds');
+
+            expect(query).toContain(extraWeekSql);
+        });
+
+        test('compileQuery for a NULL-bound explore of the same multi project keeps the week start of the original', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            const { query } = await compileWeekQuery(
+                fixture,
+                'original_refunds',
+            );
+
+            expect(query).toContain(originalWeekSql);
+            expect(query).not.toContain(extraWeekSql);
+        });
+
+        test('with timezone support on, a timestamp truncation on an explore bound to an extra connection uses the timezone of that connection', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+            const service = sqlBuildingProjectService(true);
+            const compileDay = (exploreName: string) =>
+                service.compileQuery({
+                    account: fixture.account,
+                    projectUuid: fixture.projectUuid,
+                    exploreName,
+                    body: {
+                        ...weekQuery(exploreName),
+                        dimensions: ['refunds_happened_at_day'],
+                    },
+                });
+
+            const extra = await compileDay('extra_refunds');
+            const original = await compileDay('original_refunds');
+
+            expect(extra.query).toContain(EXTRA_TIMEZONE);
+            expect(original.query).not.toContain(EXTRA_TIMEZONE);
+        });
+
+        test('validateFormula for an explore bound to an extra connection compiles the formula with the SQL builder of that connection', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            const result = await sqlBuildingProjectService().validateFormula({
+                account: fixture.account,
+                projectUuid: fixture.projectUuid,
+                exploreName: 'extra_refunds',
+                formula: '=refunds_amount_total * 2',
+                metricQuery: weekQuery('extra_refunds'),
+            });
+
+            expect(result).toEqual({
+                valid: true,
+                compiledSql: '("refunds_amount_total" * 2)',
+            });
+        });
+
+        test('the funnel event names of an explore bound to an extra connection come from the extra warehouse', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            const eventNames = await funnelService(
+                sqlBuildingProjectService(),
+            ).getEventNames(
+                fixture.user,
+                fixture.projectUuid,
+                'extra_refunds',
+                'refunds_id',
+                'refunds_happened_at',
+            );
+
+            expect(eventNames).toEqual(['1']);
+        });
+
+        test('a funnel query of an explore bound to an extra connection runs on the extra warehouse', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            const result = await funnelService(
+                sqlBuildingProjectService(),
+            ).runFunnelQuery(fixture.user, fixture.projectUuid, {
+                exploreName: 'extra_refunds',
+                timestampFieldId: 'refunds_happened_at',
+                userIdFieldId: 'refunds_id',
+                eventNameFieldId: 'refunds_id',
+                steps: [{ stepOrder: 1, eventName: '1' }],
+                dateRange: { type: 'preset', preset: 'last_30_days' },
+            });
+
+            expect(result.steps.map((step) => step.totalUsers)).toEqual([1]);
+        });
+
+        test('a funnel on a NULL-bound explore of a multi project runs on the original warehouse, where the extra table does not exist', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            await expect(
+                funnelService(sqlBuildingProjectService()).getEventNames(
+                    fixture.user,
+                    fixture.projectUuid,
+                    'original_refunds',
+                    'refunds_id',
+                    'refunds_happened_at',
+                ),
+            ).rejects.toThrow('relation "public.refunds" does not exist');
+        });
+
+        test('the rolling comparison of a metric on an explore bound to an extra connection compiles', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            const { query } = await metricsExplorerService(
+                sqlBuildingProjectService(),
+            ).compileMetricTotalQuery(
+                fixture.user,
+                fixture.projectUuid,
+                'extra_refunds',
+                'amount_total',
+                TimeFrames.DAY,
+                TimeFrames.DAY,
+                '2026-01-01',
+                '2026-01-31',
+                MetricTotalComparisonType.ROLLING_DAYS,
+                7,
+            );
+
+            expect(query).toContain('SUM("refunds".amount)');
+        });
+
+        test('the SQL builder settings of an extra connection carry only what SQL building needs, never a credential', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            const settings =
+                await sqlBuildingProjectService().getWarehouseSqlBuilderSettings(
+                    fixture.projectUuid,
+                    { kind: 'explore', exploreName: 'extra_refunds' },
+                );
+
+            expect(settings).toStrictEqual({
+                type: WarehouseTypes.POSTGRES,
+                startOfWeek: EXTRA_START_OF_WEEK,
+                columnTimezone: EXTRA_TIMEZONE,
+                dataTimezone: EXTRA_TIMEZONE,
+            });
+        });
+
+        test('a single project reads the SQL builder settings through the model loader with the explore binding, as main does, and never reads a connection', async () => {
+            const fixture = await createSqlBuildingProject('single');
+            const loader = vi.spyOn(
+                projectModel,
+                'getWarehouseCredentialsForBinding',
+            );
+            const connectionRead = vi.spyOn(
+                warehouseConnectionModel,
+                'getCredentials',
+            );
+
+            const { query } = await compileWeekQuery(
+                fixture,
+                'original_refunds',
+            );
+
+            expect(query).toContain(originalWeekSql);
+            expect(loader.mock.calls).toEqual([
+                [
+                    fixture.projectUuid,
+                    { kind: 'explore', exploreName: 'original_refunds' },
+                ],
+            ]);
+            expect(connectionRead).not.toHaveBeenCalled();
+        });
+
+        test('the model loader still refuses an extra connection', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+
+            await expect(
+                projectModel.getWarehouseCredentialsForBinding(
+                    fixture.projectUuid,
+                    { kind: 'explore', exploreName: 'extra_refunds' },
+                ),
+            ).rejects.toThrow('Extra connection credentials load per user');
         });
     });
 });

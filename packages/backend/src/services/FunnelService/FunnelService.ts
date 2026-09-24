@@ -24,6 +24,7 @@ import * as Sentry from '@sentry/node';
 import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { ConnectionBinding } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -374,15 +375,16 @@ ORDER BY ${
                 const baseTableSql = explore.tables[explore.baseTable].sqlTable;
                 const baseTableName = explore.baseTable;
 
-                // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
-                const credentials =
-                    await this.projectModel.getWarehouseCredentialsForBinding(
+                const exploreBinding: ConnectionBinding = {
+                    kind: 'explore',
+                    exploreName: explore.name,
+                };
+                const { type } =
+                    await this.projectService.getWarehouseSqlBuilderSettings(
                         projectUuid,
-                        { kind: 'explore', exploreName: explore.name },
+                        exploreBinding,
                     );
-                const sqlBuilder = warehouseSqlBuilderFromType(
-                    credentials.type,
-                );
+                const sqlBuilder = warehouseSqlBuilderFromType(type);
 
                 // Filter to last 30 days to limit scan cost
                 const thirtyDaysAgo = new Date();
@@ -408,6 +410,7 @@ ORDER BY ${
                         user,
                         projectUuid,
                         sql,
+                        exploreBinding,
                     );
 
                     return results.rows
@@ -463,15 +466,16 @@ ORDER BY ${
 
                 const explore = exploreResult;
 
-                // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
-                const credentials =
-                    await this.projectModel.getWarehouseCredentialsForBinding(
+                const exploreBinding: ConnectionBinding = {
+                    kind: 'explore',
+                    exploreName: explore.name,
+                };
+                const { type } =
+                    await this.projectService.getWarehouseSqlBuilderSettings(
                         projectUuid,
-                        { kind: 'explore', exploreName: explore.name },
+                        exploreBinding,
                     );
-                const sqlBuilder = warehouseSqlBuilderFromType(
-                    credentials.type,
-                );
+                const sqlBuilder = warehouseSqlBuilderFromType(type);
 
                 const sql = FunnelService.generateFunnelSql(
                     request,
@@ -486,6 +490,7 @@ ORDER BY ${
                         user,
                         projectUuid,
                         sql,
+                        exploreBinding,
                     );
 
                     // Map rows directly - conversion rates are computed in SQL

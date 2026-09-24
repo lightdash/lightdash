@@ -441,6 +441,10 @@ import {
     tunnelHopsAllOk,
     tunnelHopsFailedAt,
 } from './warehouseConnectionHops';
+import {
+    toWarehouseSqlBuilderSettings,
+    type WarehouseSqlBuilderSettings,
+} from './warehouseSqlBuilderSettings';
 
 const manifestWithCompilationSelection = (
     manifest: DbtManifest,
@@ -1814,6 +1818,30 @@ export class ProjectService extends BaseService {
             throw validationError;
         }
         return userWarehouseCredentials;
+    }
+
+    async getWarehouseSqlBuilderSettings(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<WarehouseSqlBuilderSettings> {
+        const target = await this.projectModel.resolveWarehouseCredentialRead(
+            projectUuid,
+            binding,
+        );
+        if (target.kind === 'original') {
+            return toWarehouseSqlBuilderSettings(
+                await this.projectModel.getWarehouseCredentialsForBinding(
+                    projectUuid,
+                    binding,
+                ),
+            );
+        }
+        return toWarehouseSqlBuilderSettings(
+            await this.warehouseConnectionModel.getCredentials(
+                await this.warehouseConnectionModel.getProject(projectUuid),
+                target.warehouseConnectionUuid,
+            ),
+        );
     }
 
     protected async getExtraConnectionWarehouseCredentials({
@@ -6789,16 +6817,14 @@ export class ProjectService extends BaseService {
             }
         }
 
-        // Get warehouse credentials to build the SQL builder (no full connection needed for compilation)
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForBinding(
-                projectUuid,
-                { kind: 'explore', exploreName: sourceExplore.name },
-            );
+        const sqlBuilderSettings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            { kind: 'explore', exploreName: sourceExplore.name },
+        );
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
+            sqlBuilderSettings.type,
+            sqlBuilderSettings.startOfWeek,
         );
 
         const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
@@ -6847,8 +6873,8 @@ export class ProjectService extends BaseService {
                 pivotItemsMap: undefined,
                 continueOnError: true, // Return SQL even with compilation errors for debugging
                 useTimezoneAwareDateTrunc,
-                columnTimezone: getColumnTimezone(warehouseCredentials),
-                dataTimezone: warehouseCredentials.dataTimezone,
+                columnTimezone: sqlBuilderSettings.columnTimezone,
+                dataTimezone: sqlBuilderSettings.dataTimezone ?? undefined,
                 applyDateZoomToFilters: undefined,
             },
         );
@@ -7890,15 +7916,14 @@ export class ProjectService extends BaseService {
             exploreName,
         );
 
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForBinding(
-                projectUuid,
-                { kind: 'explore', exploreName },
-            );
+        const sqlBuilderSettings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            { kind: 'explore', exploreName },
+        );
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
+            sqlBuilderSettings.type,
+            sqlBuilderSettings.startOfWeek,
         );
 
         const queryWithFormula: MetricQuery = {
@@ -9023,6 +9048,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sql: string,
+        binding: ConnectionBinding,
     ): Promise<ApiSqlQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -9052,7 +9078,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                binding,
                 userId: user.userUuid,
                 isRegisteredUser: true,
             }),
