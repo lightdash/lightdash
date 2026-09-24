@@ -212,7 +212,7 @@ export const AiAgentSkillsSection = ({
     return (
         <Stack gap="sm">
             <Paper p={0}>{body}</Paper>
-            {canManage || canCreate ? (
+            {(canManage || canCreate) && !listing.isError ? (
                 <Group gap="xs">
                     {canManage ? (
                         <Select
