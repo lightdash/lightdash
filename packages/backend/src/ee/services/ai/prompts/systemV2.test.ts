@@ -84,6 +84,7 @@ describe('getSystemPromptV2 filter expressions', () => {
                         name: 'developing-in-lightdash',
                         description: 'Guidance for charts and dashboards',
                         resources: [],
+                        source: 'builtIn',
                     },
                 ],
             }),

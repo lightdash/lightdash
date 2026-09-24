@@ -20,4 +20,5 @@ export type AiAgentSkillReference = Pick<
     'name' | 'description'
 > & {
     resources: Array<Pick<AiAgentSkillResource, 'name' | 'description'>>;
+    source: 'builtIn' | 'custom';
 };

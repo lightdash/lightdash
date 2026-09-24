@@ -300,6 +300,7 @@ export class BuiltInSkills {
                     name: resource.name,
                     description: resource.description,
                 })) ?? [],
+            source: 'builtIn',
         };
     }
 

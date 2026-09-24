@@ -13620,6 +13620,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     name: resource.name,
                     description: resource.description,
                 })),
+                source: 'custom' as const,
             })),
         ];
         const copilotConfig =

@@ -30,6 +30,7 @@ describe('loadAutopilotSkill', () => {
 
         expect(loadBuiltInSkill).toHaveBeenCalledWith(
             AUTOPILOT_CHART_SKILL_NAME,
+            { arguments: null },
         );
         expect(skill?.body).toContain('fix_broken_chart');
         expect(skill?.body).toContain('runMetricQuery');
