@@ -1,3 +1,10 @@
+## [2.319.4](https://github.com/lightdash/lightdash/compare/2.319.3...2.319.4) (2026-09-24)
+
+
+### Bug Fixes
+
+* **cli:** parse dbt v2 version banner as dbt Fusion ([#29858](https://github.com/lightdash/lightdash/issues/29858)) ([0d99300](https://github.com/lightdash/lightdash/commit/0d99300182e9faf4b73404720e4ed0c99f88ea73))
+
 ## [2.319.3](https://github.com/lightdash/lightdash/compare/2.319.2...2.319.3) (2026-09-24)
 
 
