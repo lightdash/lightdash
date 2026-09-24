@@ -71,7 +71,7 @@ const SkillRow = ({
                 </Text>
                 {tag}
             </Group>
-            <Text size="sm" c="dimmed" lineClamp={2}>
+            <Text size="xs" c="dimmed" truncate="end">
                 {description}
             </Text>
         </Stack>
