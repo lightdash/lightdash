@@ -150,7 +150,7 @@ import {
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
-import { repairQueryToolCall } from './queryToolCallRepair';
+import { createQueryToolCallRepair } from './queryToolCallRepair';
 import {
     createIntentToolGate,
     type IntentToolGate,
@@ -2578,6 +2578,12 @@ const prepareAgentTurn = async ({
         preparedContext,
         invalidToolCallIds,
         prepareStep,
+        repairToolCall: args.decisions
+            ? createQueryToolCallRepair({
+                  explores: availableExplores,
+                  question: getAgentQuestion(args),
+              })
+            : undefined,
         stopWhenPromptInterrupted: buildStopWhenPromptInterrupted(
             args,
             dependencies,
@@ -2626,6 +2632,7 @@ export const generateAgentResponse = async ({
             invalidToolCallIds,
             prepareStep,
             stopWhenPromptInterrupted,
+            repairToolCall,
         } = await prepareAgentTurn({
             args,
             dependencies,
@@ -2677,9 +2684,7 @@ export const generateAgentResponse = async ({
             ],
             abortSignal,
             providerOptions: args.providerOptions,
-            experimental_repairToolCall: args.decisions
-                ? repairQueryToolCall
-                : undefined,
+            experimental_repairToolCall: repairToolCall,
             model: args.model,
             tools,
             allowSystemInMessages: true,
@@ -3064,6 +3069,7 @@ export const streamAgentResponse = async ({
             invalidToolCallIds,
             prepareStep,
             stopWhenPromptInterrupted,
+            repairToolCall,
         } = await prepareAgentTurn({
             args,
             dependencies,
@@ -3108,9 +3114,7 @@ export const streamAgentResponse = async ({
                     ) !== null,
             ],
             providerOptions: args.providerOptions,
-            experimental_repairToolCall: args.decisions
-                ? repairQueryToolCall
-                : undefined,
+            experimental_repairToolCall: repairToolCall,
             model: args.model,
             tools,
             allowSystemInMessages: true,
