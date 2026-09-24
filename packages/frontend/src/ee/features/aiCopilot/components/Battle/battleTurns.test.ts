@@ -1,6 +1,11 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getBattleTotals, getBattleTurns, getTurnWinners } from './battleTurns';
+import {
+    formatTokenCount,
+    getBattleTotals,
+    getBattleTurns,
+    getTurnWinners,
+} from './battleTurns';
 
 const assistant = (
     uuid: string,
@@ -56,5 +61,13 @@ describe('battle turns', () => {
             assistant('a2', 700, { totalTokens: 0 }),
         ]);
         expect([...getTurnWinners(baseline, fast)]).toEqual(['b1', 'a2']);
+    });
+
+    it('splits token counts between the agent and JEV', () => {
+        expect(formatTokenCount(0, 12_651)).toBe('12.7K JEV tokens');
+        expect(formatTokenCount(313_183, 83_169)).toBe(
+            '313.2K agent + 83.2K JEV tokens',
+        );
+        expect(formatTokenCount(0, 0)).toBe('0 tokens');
     });
 });

@@ -65,3 +65,16 @@ export const getTurnWinners = (
         }),
     );
 };
+
+const compactFormat = new Intl.NumberFormat('en', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+});
+
+export const formatTokenCount = (agent: number, jev: number) => {
+    const parts = [
+        agent > 0 ? `${compactFormat.format(agent)} agent` : null,
+        jev > 0 ? `${compactFormat.format(jev)} JEV` : null,
+    ].filter(Boolean);
+    return `${parts.length > 0 ? parts.join(' + ') : '0'} tokens`;
+};

@@ -1,5 +1,4 @@
 import { assertUnreachable, type AiAgentJevDecision } from '@lightdash/common';
-import { formatDurationMs } from '../../utils/responseTiming';
 
 const EDIT_LABELS: Record<string, string> = {
     chart_type: 'chart type',
@@ -24,54 +23,74 @@ const editLabel = (decision: AiAgentJevDecision) =>
 
 type JevDecisionSummary = {
     applied: boolean;
-    label: string;
-    detail: string;
+    badge: string;
+    title: string;
+    description: string;
+    /** Machine reason from the decision, shown as-is for debugging. */
+    reasonCode: string | null;
 };
 
-const handoff = (label: string, detail: string): JevDecisionSummary => ({
+const handoff = (
+    badge: string,
+    title: string,
+    description: string,
+    reasonCode: string | null = null,
+): JevDecisionSummary => ({
     applied: false,
-    label: `Agent · ${label}`,
-    detail,
+    badge: `Agent · ${badge}`,
+    title,
+    description,
+    reasonCode,
 });
 
 export const describeJevDecision = (
     decision: AiAgentJevDecision,
 ): JevDecisionSummary => {
-    const took = `JEV decided in ${formatDurationMs(decision.latencyMs)}.`;
+    const edit = editLabel(decision);
     if (decision.applied)
         return {
             applied: true,
-            label: `Instant ${editLabel(decision)}`,
-            detail: `${took} It applied the ${editLabel(decision)} directly and skipped the agent model.`,
+            badge: `JEV · ${edit}`,
+            title: `JEV applied the ${edit}`,
+            description:
+                'JEV changed the chart directly, so the agent model never ran and spent no tokens.',
+            reasonCode: null,
         };
     switch (decision.outcome) {
         case 'routed':
         case 'not_an_edit':
             return handoff(
                 'new question',
-                `${took} It read this as a new question and handed it to the agent.`,
+                'New question for the agent',
+                'JEV read this as a new question rather than a change to the current chart, so the agent answered it.',
             );
         case 'clarify':
             return handoff(
                 'clarifying',
-                `${took} The request was ambiguous, so the agent asked a follow-up.`,
+                'Needs clarification',
+                'The request could mean more than one thing, so the agent asked a follow-up.',
             );
         case 'unresolved':
             return handoff(
                 'JEV unsure',
-                `${took} It could not resolve the edit${decision.reason ? ` (${decision.reason})` : ''}, so the agent took the turn.`,
+                'JEV was not confident',
+                'JEV looked for a direct chart edit but was not sure enough to apply one, so the agent took over.',
+                decision.reason,
             );
         case 'unavailable':
             return handoff(
                 'JEV unavailable',
-                'JEV did not answer in time, so the agent took the turn.',
+                'JEV did not answer',
+                'JEV did not respond in time, so the agent handled the turn as usual.',
             );
         case 'intent':
         case 'compound':
         case 'needs_values':
             return handoff(
-                `${editLabel(decision)} fallback`,
-                `${took} It resolved a ${editLabel(decision)} but handed it to the agent${decision.fallbackReason ? ` (${decision.fallbackReason})` : ''}.`,
+                edit,
+                `JEV passed the ${edit} to the agent`,
+                `JEV worked out the ${edit} but it needed more than a direct edit, so the agent finished it.`,
+                decision.fallbackReason,
             );
         default:
             return assertUnreachable(decision.outcome, 'Unknown JEV outcome');

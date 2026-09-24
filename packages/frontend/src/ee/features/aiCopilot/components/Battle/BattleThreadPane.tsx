@@ -8,7 +8,11 @@ import { useModelOptions } from '../../hooks/useModelOptions';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { formatDurationMs } from '../../utils/responseTiming';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
-import { getBattleTotals, getBattleTurns } from './battleTurns';
+import {
+    formatTokenCount,
+    getBattleTotals,
+    getBattleTurns,
+} from './battleTurns';
 
 interface Props {
     label: string;
@@ -140,24 +144,23 @@ export const BattleThreadPane: FC<Props> = ({
                 </Group>
                 <Group gap="sm" wrap="nowrap">
                     {liveTtftMs !== undefined && (
-                        <Text size="xs" c="dimmed" ff="monospace">
-                            first{' '}
+                        <Text size="xs" c="dimmed">
+                            first token{' '}
                             {liveTtftMs === null
                                 ? '…'
                                 : formatDurationMs(liveTtftMs)}
                         </Text>
                     )}
                     {sessionMs > 0 && (
-                        <Text size="xs" fw={600} ff="monospace">
-                            {formatDurationMs(sessionMs)}
-                        </Text>
-                    )}
-                    {totals.agentTokens + totals.jevTokens > 0 && (
-                        <Text size="xs" c="dimmed" ff="monospace">
-                            {totals.agentTokens.toLocaleString()} agent
-                            {totals.jevTokens > 0
-                                ? ` · ${totals.jevTokens.toLocaleString()} JEV`
-                                : ''}
+                        <Text size="xs" c="dimmed">
+                            <Text span fz="xs" fw={600} c="text">
+                                {formatDurationMs(sessionMs)}
+                            </Text>
+                            {' · '}
+                            {formatTokenCount(
+                                totals.agentTokens,
+                                totals.jevTokens,
+                            )}
                         </Text>
                     )}
                     <Anchor

@@ -15,29 +15,30 @@ const decision = (
 });
 
 describe('describeJevDecision', () => {
-    it('labels what JEV did on a turn', () => {
+    it('badges what JEV did on a turn', () => {
         expect(
             [
                 decision({ applied: true, editKind: 'filter_values' }),
                 decision({ outcome: 'routed' }),
                 decision({ outcome: 'unresolved', reason: 'filter-field' }),
                 decision({ editKind: 'add_field', fallbackReason: 'no-chart' }),
-            ].map((d) => describeJevDecision(d).label),
+            ].map((d) => describeJevDecision(d).badge),
         ).toEqual([
-            'Instant filter',
+            'JEV · filter',
             'Agent · new question',
             'Agent · JEV unsure',
-            'Agent · breakdown fallback',
+            'Agent · breakdown',
         ]);
     });
 
-    it('explains why the agent took the turn', () => {
+    it('keeps the reason code for handoffs', () => {
         expect(
             describeJevDecision(
                 decision({ outcome: 'unresolved', reason: 'filter-field' }),
-            ).detail,
-        ).toBe(
-            'JEV decided in 300ms. It could not resolve the edit (filter-field), so the agent took the turn.',
-        );
+            ),
+        ).toMatchObject({
+            title: 'JEV was not confident',
+            reasonCode: 'filter-field',
+        });
     });
 });

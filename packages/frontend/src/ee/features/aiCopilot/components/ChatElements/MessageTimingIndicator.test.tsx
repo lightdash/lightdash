@@ -32,9 +32,7 @@ describe('MessageTimingIndicator', () => {
             />,
         );
 
-        expect(
-            screen.getByText('🥇 500ms · 900ms · 0 agent · 9,402 JEV'),
-        ).toBeVisible();
+        expect(screen.getByText('🥇 900ms · 9.4K JEV tokens')).toBeVisible();
     });
 
     it('renders nothing without response timing', () => {

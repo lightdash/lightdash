@@ -1389,11 +1389,13 @@ export const AssistantBubble: FC<Props> = memo(
                                 onToggle={toggleSources}
                             />
                         )}
-                        <MessageModelIndicator
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                            modelConfig={message.modelConfig}
-                        />
+                        {!(battle.isBattle && message.jevDecision?.applied) && (
+                            <MessageModelIndicator
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                modelConfig={message.modelConfig}
+                            />
+                        )}
                         {battle.isBattle && message.jevDecision && (
                             <JevDecisionIndicator
                                 decision={message.jevDecision}

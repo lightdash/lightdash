@@ -5,6 +5,7 @@ import {
     formatDurationMs,
     getResponseTimingMetrics,
 } from '../../utils/responseTiming';
+import { formatTokenCount } from '../Battle/battleTurns';
 
 export type MessageTokenCounts = { agent: number; jev: number };
 
@@ -58,6 +59,12 @@ export const MessageTimingIndicator: FC<Props> = ({
                                 : ''}
                         </Text>
                     )}
+                    {tokens && (
+                        <Text size="xs">
+                            Tokens: JEV {tokens.jev.toLocaleString()} · agent{' '}
+                            {tokens.agent.toLocaleString()}
+                        </Text>
+                    )}
                     <Text size="xs" c="dimmed">
                         Server wall time. Concurrent stage spans can overlap.
                     </Text>
@@ -68,14 +75,9 @@ export const MessageTimingIndicator: FC<Props> = ({
         >
             <Badge variant="transparent" size="sm" fz="xs" c="dimmed">
                 {isWinner ? '🥇 ' : ''}
-                {ttft} · {formatDurationMs(metrics.totalMs)}
                 {tokens
-                    ? ` · ${tokens.agent.toLocaleString()} agent${
-                          tokens.jev > 0
-                              ? ` · ${tokens.jev.toLocaleString()} JEV`
-                              : ''
-                      }`
-                    : ''}
+                    ? `${formatDurationMs(metrics.totalMs)} · ${formatTokenCount(tokens.agent, tokens.jev)}`
+                    : `${ttft} · ${formatDurationMs(metrics.totalMs)}`}
             </Badge>
         </Tooltip>
     );
