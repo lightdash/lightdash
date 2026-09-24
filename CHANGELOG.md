@@ -1,3 +1,10 @@
+# [2.331.0](https://github.com/lightdash/lightdash/compare/2.330.0...2.331.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agents:** let JEV add, remove and swap metrics, remove and swap breakdowns, and change time grain ([#29928](https://github.com/lightdash/lightdash/issues/29928)) ([37533ca](https://github.com/lightdash/lightdash/commit/37533caf53a8c63142aa2ba994524c8258f9a8c8))
+
 # [2.330.0](https://github.com/lightdash/lightdash/compare/2.329.2...2.330.0) (2026-09-24)
 
 
