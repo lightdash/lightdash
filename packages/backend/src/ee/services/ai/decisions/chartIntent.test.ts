@@ -13,6 +13,7 @@ import {
     decideTurn,
     extractAmountCandidates,
     extractNumberCandidates,
+    extractTextCandidates,
     interpretChartIntent,
     isChartEditAttempt,
     selectFilterValues,
@@ -1001,6 +1002,113 @@ describe('date ranges and thresholds', () => {
                 amountHigh: choice('10'),
             }),
         ).toEqual({ type: 'unresolved', reason: 'filter-threshold' });
+    });
+});
+
+describe('yes/no, text and blank filters', () => {
+    const typed = structuredClone(explore);
+    Object.assign(typed.tables.orders.dimensions, {
+        is_paid: dimension('is_paid', DimensionType.BOOLEAN, 'Is paid'),
+    });
+    const ask = (prompt: string, answers: Partial<DecisionAnswers>) =>
+        interpretChartIntent({
+            answers: {
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                intent: choice('filter'),
+                ...answers,
+            } as DecisionAnswers,
+            prompt,
+            context: buildChartIntentContext({
+                filterRules: [],
+                prompt,
+                artifact,
+                explore: typed,
+                usage: noUsage,
+            }),
+        });
+
+    it('reads words and quoted phrases as text candidates', () => {
+        expect(
+            extractTextCandidates('remove "Acme Test" or DEMO, ending .edu'),
+        ).toEqual([
+            'Acme Test',
+            'remove',
+            'Acme',
+            'Test',
+            'or',
+            'DEMO',
+            'ending',
+            '.edu',
+        ]);
+    });
+
+    it('filters a yes/no field JEV picks', () => {
+        expect(
+            ask('only paid ones', {
+                filterKind: choice('yes_no'),
+                booleanField: choice('orders_is_paid'),
+                booleanValue: choice('true'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_boolean',
+                fieldId: 'orders_is_paid',
+                value: true,
+            },
+        });
+    });
+
+    it('excludes two texts JEV picks from the prompt', () => {
+        expect(
+            ask('remove cities with TEST or DEMO in the name', {
+                filterKind: choice('text_match'),
+                valueFilterField: choice('orders_city'),
+                matchMode: choice('contains'),
+                matchText: choice('TEST'),
+                matchTextAlso: choice('DEMO'),
+                excludeMatches: noul(0.9),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_text',
+                fieldId: 'orders_city',
+                mode: 'contains',
+                exclude: true,
+                values: ['TEST', 'DEMO'],
+            },
+        });
+    });
+
+    it('leaves excluded prefixes to the agent', () => {
+        expect(
+            ask('drop cities starting with new', {
+                filterKind: choice('text_match'),
+                valueFilterField: choice('orders_city'),
+                matchMode: choice('starts_with'),
+                matchText: choice('new'),
+                excludeMatches: noul(0.9),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-text' });
+    });
+
+    it('removes empty values of the field JEV picks', () => {
+        expect(
+            ask('remove rows without a region', {
+                filterKind: choice('blank'),
+                filterField: choice('orders_region'),
+                blankMode: choice('not_blank'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_blank',
+                fieldId: 'orders_region',
+                blank: false,
+            },
+        });
     });
 });
 
