@@ -264,12 +264,21 @@ metrics:
 
 ### Access Control
 
+Metrics do not accept `required_attributes` or `any_attributes`; the keys are ignored. Gate a metric through its column or table instead:
+
+- **Column-level metrics** (under a column's `meta.metrics`) inherit the parent dimension's `required_attributes` / `any_attributes`.
+- **Model-level metrics** (under the model's `meta.metrics`) inherit nothing from the columns their `sql` references. Gate them with table-level `required_attributes`, or define them under a gated column.
+
 ```yaml
-metrics:
-  confidential_revenue:
-    type: sum
-    required_attributes:
-      role: "finance"
+columns:
+  - name: revenue
+    meta:
+      dimension:
+        required_attributes:
+          role: "finance"
+      metrics:
+        confidential_revenue:   # hidden with the revenue dimension
+          type: sum
 ```
 
 ### AI Hints

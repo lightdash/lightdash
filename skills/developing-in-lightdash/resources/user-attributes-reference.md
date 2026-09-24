@@ -115,7 +115,7 @@ joins:
 
 ## Access Control with required_attributes and any_attributes
 
-Hide tables, dimensions, or metrics from users who lack the required attribute values. These do **not** use SQL variables — they use a declarative key-value matching syntax.
+Hide tables or dimensions (and the metrics that inherit from them) from users who lack the required attribute values. These do **not** use SQL variables — they use a declarative key-value matching syntax.
 
 ### required_attributes (AND logic)
 
@@ -141,16 +141,7 @@ columns:
           is_admin: "true"
 ```
 
-**On a metric:**
-```yaml
-# dbt v1.9
-meta:
-  metrics:
-    confidential_revenue:
-      type: sum
-      required_attributes:
-        role: "finance"
-```
+**On a metric:** not supported — metrics inherit from their column or table. See the notes below.
 
 Multiple values on a single key use OR within that key:
 
@@ -188,7 +179,8 @@ any_attributes:
 
 ### Access Control Notes
 
-- Hidden dimensions also hide any metrics derived from them
+- Hidden dimensions also hide the metrics defined under that column's `meta.metrics`
+- Model-level metrics (model `meta.metrics`) do **not** inherit column access control, even when their `sql` references a gated column — gate the table, or define the metric under the gated column
 - Querying a hidden dimension returns a Forbidden error
 - `required_attributes` and `any_attributes` do **not** support intrinsic attributes (`email`)
 - Values are always strings — use `"true"` not `true`
