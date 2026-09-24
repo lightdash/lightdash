@@ -333,8 +333,6 @@ export const AiAgentSkillsSection = ({
                             gap="xs"
                             titleProps={{ order: 6 }}
                             title="No skills yet"
-                            description="Add one from the library or create a new one."
-                            descriptionProps={{ size: 'xs' }}
                         >
                             {canAdd ? addSkillMenu('add') : null}
                         </EmptyState>
