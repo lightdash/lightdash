@@ -1,5 +1,6 @@
 import { QuerySourceType, type AiAgentToolResult } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { ToolCallRow, type ToolCallRowStatus } from './ToolCallRow';
@@ -58,13 +59,20 @@ describe('ToolCallRow for runComposerQueries', () => {
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
     });
 
-    it('drops the pipeline card once the run produced an artifact', () => {
+    it('keeps the pipeline expandable once the run produced an artifact', async () => {
         renderRow({ status: 'done', toolResults: [result('success')] });
-        expect(screen.queryByRole('button')).not.toBeInTheDocument();
-        expect(screen.getByText(/composer/i)).toBeInTheDocument();
+        const row = screen.getByRole('button', { name: /composer/i });
+        expect(row).toHaveAttribute('aria-expanded', 'false');
+        await userEvent.click(row);
+        expect(row).toHaveAttribute('aria-expanded', 'true');
+        await waitFor(() =>
+            expect(screen.getByText('Orders by status')).toBeVisible(),
+        );
+        expect(screen.queryByLabelText('Completed')).not.toBeInTheDocument();
+        expect(screen.queryByText('queued')).not.toBeInTheDocument();
     });
 
-    it('drops the pipeline card on a live final success output', () => {
+    it('keeps the pipeline expandable on a live final success output', () => {
         renderRow({
             status: 'done',
             call: {
@@ -73,6 +81,8 @@ describe('ToolCallRow for runComposerQueries', () => {
                 isPreliminary: false,
             },
         });
-        expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /composer/i }),
+        ).toHaveAttribute('aria-expanded', 'false');
     });
 });
