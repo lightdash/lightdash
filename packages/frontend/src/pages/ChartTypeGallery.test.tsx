@@ -453,7 +453,7 @@ describe('ChartTypeGallery', () => {
             name: 'Installed chart types (1)',
         });
         const libraryTab = screen.getByRole('tab', {
-            name: 'Chart type library Beta',
+            name: 'Chart Studio library Beta',
         });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
@@ -480,7 +480,7 @@ describe('ChartTypeGallery', () => {
         renderPage('/projects/project-1/chart-types?tab=chart-library');
 
         expect(
-            screen.getByRole('tab', { name: 'Chart type library Beta' }),
+            screen.getByRole('tab', { name: 'Chart Studio library Beta' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
@@ -517,7 +517,7 @@ describe('ChartTypeGallery', () => {
                 true,
             );
             expect(
-                screen.queryByRole('tab', { name: /Chart type library/ }),
+                screen.queryByRole('tab', { name: /Chart Studio library/ }),
             ).not.toBeInTheDocument();
             expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
             expect(screen.queryByRole('tab')).not.toBeInTheDocument();

@@ -316,7 +316,7 @@ const ChartTypeGallery = () => {
                                 value={GalleryTab.CHART_LIBRARY}
                                 rightSection={<BetaBadge />}
                             >
-                                Chart type library
+                                Chart Studio library
                             </Tabs.Tab>
                         </Tabs.List>
 
