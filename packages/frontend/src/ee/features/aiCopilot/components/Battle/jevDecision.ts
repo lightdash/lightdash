@@ -50,6 +50,10 @@ const handoff = (
     reasonCode,
 });
 
+/** JEV answered the turn itself, with an edit or its own question, so the agent model never ran. */
+export const isJevTurn = (decision: AiAgentJevDecision) =>
+    decision.applied || decision.outcome === 'clarify';
+
 export const describeJevDecision = (
     decision: AiAgentJevDecision,
 ): JevDecisionSummary => {
@@ -72,11 +76,14 @@ export const describeJevDecision = (
                 'JEV read this as a new question rather than a change to the current chart, so the agent answered it.',
             );
         case 'clarify':
-            return handoff(
-                'clarifying',
-                'Needs clarification',
-                'The request could mean more than one thing, so the agent asked a follow-up.',
-            );
+            return {
+                applied: true,
+                badge: 'JEV · clarifying question',
+                title: 'JEV asked which one you meant',
+                description:
+                    'The request fit more than one option about equally, so JEV offered the choices instead of guessing. The agent model did not run.',
+                reasonCode: null,
+            };
         case 'unresolved':
             return handoff(
                 'JEV unsure',

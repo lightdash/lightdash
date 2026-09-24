@@ -209,6 +209,7 @@ export const CHART_INTENT_THRESHOLDS = {
     clarifyRunnerUp: 0.2,
     clarifyBelow: 0.8,
     fieldEvidence: 0.15,
+    clearLead: 0.3,
     verifiedTieMargin: 0.15,
     covers: 0.6,
 } as const;
@@ -1177,11 +1178,35 @@ const resolveAddField = (
         : { type: 'unresolved', reason: 'swap-field' };
 };
 
+/** Among the chart's own few filters, a leading pick with a clear margin is an answer, not a split. */
+const clearLeader = (
+    answer: DecisionAnswers[string] | undefined,
+    thresholds: ChartIntentThresholds,
+): string | null => {
+    if (answer?.type !== 'choice') return null;
+    const [first, second] = Object.entries(answer.probabilities)
+        .filter(([key]) => key !== 'none')
+        .sort(([, left], [, right]) => right - left);
+    return first &&
+        first[1] >= thresholds.field &&
+        first[1] - (second?.[1] ?? 0) >= thresholds.clearLead
+        ? first[0]
+        : null;
+};
+
 const resolveRemoveFilter = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
     thresholds: ChartIntentThresholds,
 ): ChartIntentResolution => {
+    const leader = context.filteredFields.find(
+        ({ id }) => id === clearLeader(answers.removeFilterField, thresholds),
+    );
+    if (leader)
+        return {
+            type: 'intent',
+            intent: { kind: 'remove_filter', fieldId: leader.id },
+        };
     const split = resolveFieldSplit(
         answers.removeFilterField,
         context.filteredFields,
