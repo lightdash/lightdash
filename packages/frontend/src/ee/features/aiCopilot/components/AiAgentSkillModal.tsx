@@ -7,7 +7,7 @@ import {
     type AiAgentSkillIssue,
     type AiAgentSkillSummary,
 } from '@lightdash/common';
-import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconBolt } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -176,23 +176,13 @@ const SkillForm = ({
             size="xl"
             icon={IconBolt}
             title={isEditing ? `Edit /${skill.name}` : 'New skill'}
-            actions={
-                <Group justify="flex-end">
-                    <Button variant="default" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={() => void handleSave()}
-                        loading={saving || validate.isLoading}
-                        disabled={
-                            form.values.markdown.trim().length === 0 ||
-                            hasBlockingErrors ||
-                            (!isEditing && nameError(form.values.name) !== null)
-                        }
-                    >
-                        {saveLabel}
-                    </Button>
-                </Group>
+            onConfirm={() => void handleSave()}
+            confirmLabel={saveLabel}
+            confirmLoading={saving || validate.isLoading}
+            confirmDisabled={
+                form.values.markdown.trim().length === 0 ||
+                hasBlockingErrors ||
+                (!isEditing && nameError(form.values.name) !== null)
             }
         >
             <Stack gap="md">
