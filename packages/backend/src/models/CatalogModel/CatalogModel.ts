@@ -12,6 +12,7 @@ import {
     Explore,
     FieldType,
     friendlyName,
+    getItemId,
     isExploreError,
     NotFoundError,
     TableSelectionType,
@@ -1444,7 +1445,7 @@ export class CatalogModel {
             );
         return new Map(
             rows.map((row) => [
-                `${row.table_name}_${row.name.replaceAll('.', '__')}`,
+                getItemId({ table: row.table_name, name: row.name }),
                 row.chart_usage ?? 0,
             ]),
         );

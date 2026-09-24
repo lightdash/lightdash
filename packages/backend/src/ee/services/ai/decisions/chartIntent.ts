@@ -512,7 +512,19 @@ export const buildChartIntentQuestions = ({
             },
         },
     };
-    if (numbers.some(isYear)) {
+    const years = [...new Set(numbers.filter(isYear))];
+    if (years.length > 0) {
+        questions.calendarYear = {
+            type: 'choice',
+            instructions:
+                'Which single calendar year does `prompt` restrict the chart to? Choose none when the number is not a year (such as a count or amount), or when several years or a range are named.',
+            criteria: {
+                ...Object.fromEntries(
+                    years.map((year) => [String(year), `The year ${year}`]),
+                ),
+                none: 'No single calendar year is the filter period',
+            },
+        };
         questions.calendarPeriod = {
             type: 'choice',
             instructions:
@@ -716,20 +728,20 @@ const resolveSort = (
     };
 };
 
-/** A named calendar year, quarter or month; JEV picks the single most specific period the prompt names. */
+/** A named calendar year, quarter or month; JEV picks both the year and the most specific period. */
 const resolveCalendarPeriod = (
     answers: DecisionAnswers,
     numbers: number[],
     threshold: number,
 ): Extract<ChartPeriod, { type: 'calendar' }> | null => {
-    const years = numbers.filter(isYear);
-    if (years.length !== 1) return null;
+    const year = Number(confident(answers.calendarYear, threshold));
+    if (!numbers.includes(year) || !isYear(year)) return null;
     const period = confident(answers.calendarPeriod, threshold);
     if (!period) return null;
     const number = Number(period.slice(1));
     return {
         type: 'calendar',
-        year: years[0],
+        year,
         quarter: period.startsWith('q') ? number : null,
         month: period.startsWith('m') ? number : null,
     };

@@ -201,6 +201,7 @@ describe('interpretChartIntent', () => {
             interpret('only March 2024', {
                 intent: choice('filter'),
                 filterKind: choice('calendar_period'),
+                calendarYear: choice('2024'),
                 calendarPeriod: choice('m3'),
             }),
         ).toEqual({
@@ -223,6 +224,7 @@ describe('interpretChartIntent', () => {
             interpret('only Q3 2024', {
                 intent: choice('filter'),
                 filterKind: choice('calendar_period'),
+                calendarYear: choice('2024'),
                 calendarPeriod: choice('q3'),
             }),
         ).toMatchObject({
@@ -242,7 +244,19 @@ describe('interpretChartIntent', () => {
             interpret('only Q3 2024', {
                 intent: choice('filter'),
                 filterKind: choice('calendar_period'),
+                calendarYear: choice('2024'),
                 calendarPeriod: choice('q3', 0.45),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
+    });
+
+    it('does not read a count as a calendar year', () => {
+        expect(
+            interpret('top 2000 customers in March', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarYear: choice('none'),
+                calendarPeriod: choice('m3'),
             }),
         ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
     });
