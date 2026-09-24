@@ -72,6 +72,31 @@ describe('Get dbt version', () => {
                 DbtVersionOptionLatest.LATEST,
             );
         });
+        test.each([
+            ['dbt 2.0.6', cliMocks.dbt2_0_6],
+            ['dbt 2.0.0', cliMocks.dbt2_0_0],
+            ['dbt 2.0.0-preview.178', cliMocks.dbt2Preview],
+            ['dbt-fusion 2.0.0-preview.65', cliMocks.dbtFusionPreview],
+        ])(
+            'should return latest fusion version for %s',
+            async (expectedVerboseVersion, mock) => {
+                execaMock.mockImplementation(async () => mock);
+                const version = await getDbtVersion();
+                expect(version).toEqual({
+                    verboseVersion: expectedVerboseVersion,
+                    versionOption: DbtVersionOptionLatest.LATEST,
+                    isDbtFusion: true,
+                    isDbtCloudCLI: false,
+                });
+                expect(promptMock).not.toHaveBeenCalled();
+                expect(consoleError).not.toHaveBeenCalled();
+            },
+        );
+        test('should not treat dbt core output as fusion', async () => {
+            execaMock.mockImplementation(async () => cliMocks.dbt1_9);
+            const version = await getDbtVersion();
+            expect(version.isDbtFusion).toEqual(false);
+        });
         test('when CI=true, should warn user about unsupported version and return fallback', async () => {
             process.env.CI = 'true';
             // Test for 1.3
