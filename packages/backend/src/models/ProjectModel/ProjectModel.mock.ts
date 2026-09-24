@@ -123,6 +123,7 @@ export const expectedProject: Project = {
     expiresAt: null,
     provisioningSource: null,
     agentSqlScope: null,
+    connectionRoute: 'single',
 };
 
 const metricFilter: MetricFilterRule = {
@@ -435,4 +436,20 @@ export const CompletePostgresCredentials: CreatePostgresCredentials = {
     port: 5432,
     dbname: 'dbname',
     schema: 'schema',
+};
+
+export const singleRouteProjectModelMethods = {
+    async requireSingleConnectionRoute() {
+        return 'single' as const;
+    },
+    async getWarehouseCredentialsForBinding(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => unknown;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
 };

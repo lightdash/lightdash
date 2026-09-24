@@ -4319,6 +4319,10 @@ export class CoderService extends BaseService {
             });
         }
 
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
+
         const { space, created: spaceCreated } = await this.getOrCreateSpace(
             projectUuid,
             sqlChartAsCode.spaceSlug,

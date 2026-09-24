@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     DeploySessionStatus,
+    NotImplementedError,
     ProjectType,
     type MemberAbility,
     type RegisteredAccount,
@@ -64,6 +65,9 @@ describe('DeployService', () => {
                 createSession: vi.fn().mockResolvedValue('deploy-session-uuid'),
             },
             projectModel: {
+                requireSingleConnectionRoute: vi
+                    .fn()
+                    .mockResolvedValue('single'),
                 getWithSensitiveFields: vi.fn().mockResolvedValue({
                     projectUuid: 'preview-project-uuid',
                     organizationUuid: 'org-uuid',
@@ -121,6 +125,9 @@ describe('DeployService', () => {
             const service = new DeployService({
                 deploySessionModel,
                 projectModel: {
+                    requireSingleConnectionRoute: vi
+                        .fn()
+                        .mockResolvedValue('single'),
                     getWithSensitiveFields: vi.fn().mockResolvedValue({
                         organizationUuid: 'org-uuid',
                         warehouseConnection: null,
@@ -146,4 +153,86 @@ describe('DeployService', () => {
             );
         },
     );
+
+    it('refuses to start a deploy session for a project that routes multi', async () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        builder.can('manage', 'DeployProject');
+        const createSession = vi.fn().mockResolvedValue('deploy-session-uuid');
+        const requireSingleConnectionRoute = vi
+            .fn()
+            .mockRejectedValue(
+                new NotImplementedError(
+                    'Multiple connections are not available',
+                ),
+            );
+        const service = new DeployService({
+            deploySessionModel: { createSession },
+            projectModel: {
+                requireSingleConnectionRoute,
+                getWithSensitiveFields: vi.fn().mockResolvedValue({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'org-uuid',
+                    name: 'Project',
+                    type: ProjectType.DEFAULT,
+                }),
+            },
+            projectService: {},
+            schedulerClient: {},
+        } as never);
+
+        await expect(
+            service.startDeploySession(
+                buildAccount(builder.build()),
+                'project-uuid',
+            ),
+        ).rejects.toThrow('Multiple connections are not available');
+        expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+            'project-uuid',
+            { kind: 'original' },
+        );
+        expect(createSession).not.toHaveBeenCalled();
+    });
+
+    it('refuses to finalize a deploy for a project that routes multi', async () => {
+        const updateStatus = vi.fn().mockResolvedValue(undefined);
+        const saveExploresToCacheAndIndexCatalog = vi.fn();
+        const requireSingleConnectionRoute = vi
+            .fn()
+            .mockRejectedValue(
+                new NotImplementedError(
+                    'Multiple connections are not available',
+                ),
+            );
+        const user = toSessionUser(buildAccount(new Ability()));
+        const service = new DeployService({
+            deploySessionModel: {
+                getSession: vi.fn().mockResolvedValue({
+                    deploySessionUuid: 'deploy-session-uuid',
+                    projectUuid: 'project-uuid',
+                    userUuid: user.userUuid,
+                    status: DeploySessionStatus.UPLOADING,
+                    batchCount: 1,
+                    exploreCount: 0,
+                    createdAt: new Date(),
+                }),
+                updateStatus,
+            },
+            projectModel: {
+                requireSingleConnectionRoute,
+                getWithSensitiveFields: vi.fn(),
+            },
+            projectService: { saveExploresToCacheAndIndexCatalog },
+            schedulerClient: {},
+        } as never);
+
+        await expect(
+            service.finalizeDeploy(user, 'project-uuid', 'deploy-session-uuid'),
+        ).rejects.toThrow('Multiple connections are not available');
+        expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+            'project-uuid',
+            { kind: 'original' },
+        );
+        expect(updateStatus).not.toHaveBeenCalled();
+        expect(saveExploresToCacheAndIndexCatalog).not.toHaveBeenCalled();
+    });
 });

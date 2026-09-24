@@ -199,6 +199,10 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { clearProjectExtraRoles } from '../roleSetUtils';
+import {
+    WarehouseConnectionRouter,
+    type ConnectionBinding,
+} from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
@@ -428,10 +432,15 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
+    private connectionRouter: WarehouseConnectionRouter;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
+        this.connectionRouter = new WarehouseConnectionRouter({
+            database: args.database,
+        });
     }
 
     async upsertMergedManifest(
@@ -1546,7 +1555,7 @@ export class ProjectModel {
     async getWithSensitiveFields(
         projectUuid: string,
     ): Promise<Project & { warehouseConnection?: CreateWarehouseCredentials }> {
-        type QueryResult = (
+        type QueryResult = ((
             | {
                   name: string;
                   slug: string;
@@ -1599,99 +1608,115 @@ export class ProjectModel {
                   provisioning_source: string | null;
                   agent_sql_scope: AgentSqlScope | null;
               }
-        )[];
+        ) & { connection_mode?: string })[];
         return wrapSentryTransaction(
             'ProjectModel.getWithSensitiveFields',
             {},
             async () => {
-                const projects = await this.database('projects')
-                    .leftJoin(
-                        WarehouseCredentialTableName,
-                        'warehouse_credentials.project_id',
-                        'projects.project_id',
-                    )
-                    .leftJoin(
-                        OrganizationTableName,
-                        'organizations.organization_id',
-                        'projects.organization_id',
-                    )
-                    .leftJoin(
-                        PinnedListTableName,
-                        'pinned_list.project_uuid',
-                        'projects.project_uuid',
-                    )
-                    .column([
-                        this.database.ref('name').withSchema(ProjectTableName),
-                        this.database.ref('slug').withSchema(ProjectTableName),
-                        this.database
-                            .ref('project_type')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('dbt_connection')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('encrypted_credentials')
-                            .withSchema(WarehouseCredentialTableName),
-                        this.database
-                            .ref('warehouse_type')
-                            .withSchema(WarehouseCredentialTableName),
-                        this.database
-                            .ref('organization_uuid')
-                            .withSchema(OrganizationTableName),
-                        this.database
-                            .ref('pinned_list_uuid')
-                            .withSchema(PinnedListTableName),
-                        this.database
-                            .ref('dbt_version')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('copied_from_project_uuid')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('scheduler_timezone')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('query_timezone')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('use_project_timezone_in_filters')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('scheduler_failure_notify_recipients')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('scheduler_failure_include_contact')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('scheduler_failure_contact_override')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('created_by_user_uuid')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('organization_warehouse_credentials_uuid')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('has_default_user_spaces')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('project_defaults')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('color_palette_uuid')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('expires_at')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('provisioning_source')
-                            .withSchema(ProjectTableName),
-                        this.database
-                            .ref('agent_sql_scope')
-                            .withSchema(ProjectTableName),
-                    ])
-                    .select<QueryResult>()
-                    .where('projects.project_uuid', projectUuid);
+                const selectProjects = (includeConnectionMode: boolean) =>
+                    this.database('projects')
+                        .leftJoin(
+                            WarehouseCredentialTableName,
+                            'warehouse_credentials.project_id',
+                            'projects.project_id',
+                        )
+                        .leftJoin(
+                            OrganizationTableName,
+                            'organizations.organization_id',
+                            'projects.organization_id',
+                        )
+                        .leftJoin(
+                            PinnedListTableName,
+                            'pinned_list.project_uuid',
+                            'projects.project_uuid',
+                        )
+                        .column([
+                            this.database
+                                .ref('name')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('slug')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('project_type')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('dbt_connection')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('encrypted_credentials')
+                                .withSchema(WarehouseCredentialTableName),
+                            this.database
+                                .ref('warehouse_type')
+                                .withSchema(WarehouseCredentialTableName),
+                            this.database
+                                .ref('organization_uuid')
+                                .withSchema(OrganizationTableName),
+                            this.database
+                                .ref('pinned_list_uuid')
+                                .withSchema(PinnedListTableName),
+                            this.database
+                                .ref('dbt_version')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('copied_from_project_uuid')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('scheduler_timezone')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('query_timezone')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('use_project_timezone_in_filters')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('scheduler_failure_notify_recipients')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('scheduler_failure_include_contact')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('scheduler_failure_contact_override')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('created_by_user_uuid')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('organization_warehouse_credentials_uuid')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('has_default_user_spaces')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('project_defaults')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('color_palette_uuid')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('expires_at')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('provisioning_source')
+                                .withSchema(ProjectTableName),
+                            this.database
+                                .ref('agent_sql_scope')
+                                .withSchema(ProjectTableName),
+                            ...(includeConnectionMode
+                                ? [
+                                      this.database
+                                          .ref('connection_mode')
+                                          .withSchema(ProjectTableName),
+                                  ]
+                                : []),
+                        ])
+                        .select<QueryResult>()
+                        .where('projects.project_uuid', projectUuid);
+                const projects =
+                    await this.connectionRouter.withConnectionModeColumn(
+                        selectProjects,
+                    );
                 if (projects.length === 0) {
                     throw new NotFoundError(
                         `Cannot find project with id: ${projectUuid}`,
@@ -1744,6 +1769,10 @@ export class ProjectModel {
                     expiresAt: project.expires_at ?? null,
                     provisioningSource: project.provisioning_source ?? null,
                     agentSqlScope: project.agent_sql_scope ?? null,
+                    connectionRoute: await this.connectionRouter.routeFor(
+                        projectUuid,
+                        project.connection_mode,
+                    ),
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -2009,6 +2038,7 @@ export class ProjectModel {
             expiresAt: project.expiresAt,
             provisioningSource: project.provisioningSource ?? null,
             agentSqlScope: project.agentSqlScope ?? null,
+            connectionRoute: project.connectionRoute,
         };
     }
 
@@ -4103,6 +4133,21 @@ export class ProjectModel {
             ...access,
             role: role_uuid ?? access.role,
         }));
+    }
+
+    async requireSingleConnectionRoute(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ) {
+        return this.connectionRouter.requireSingleRoute(projectUuid, binding);
+    }
+
+    async getWarehouseCredentialsForBinding(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<CreateWarehouseCredentials> {
+        await this.requireSingleConnectionRoute(projectUuid, binding);
+        return this.getWarehouseCredentialsForProject(projectUuid);
     }
 
     async getWarehouseCredentialsForProject(

@@ -1028,6 +1028,7 @@ export class EmbedService extends BaseService {
             await this.projectService.getWarehouseCredentialsForEmbed({
                 projectUuid,
                 account,
+                binding: { kind: 'explore', exploreName: explore.name },
             });
 
         const { warehouseClient, sshTunnel } =

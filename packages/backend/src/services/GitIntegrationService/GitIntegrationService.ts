@@ -515,8 +515,9 @@ Affected charts:
 
     private async getWarehouseSqlBuilder(projectUuid: UUID) {
         return this.projectModel.getWarehouseClientFromCredentials(
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
+                { kind: 'original' },
             ),
         );
     }

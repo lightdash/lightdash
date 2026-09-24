@@ -3455,8 +3455,12 @@ export class AiAgentToolsService extends BaseService {
                 let resolvedDatabase = database?.trim() || null;
                 if (!resolvedSchema || resolvedDatabase === null) {
                     const creds =
-                        await this.projectModel.getWarehouseCredentialsForProject(
+                        await this.projectModel.getWarehouseCredentialsForBinding(
                             context.projectUuid,
+                            {
+                                kind: 'connection',
+                                warehouseConnectionUuid: null,
+                            },
                         );
                     const defaults = getConnectionDefaults(creds);
                     resolvedSchema = resolvedSchema ?? defaults.schema ?? null;

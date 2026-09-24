@@ -1326,6 +1326,8 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
     };
 };
 
+export type ConnectionRoute = 'single' | 'multi';
+
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
@@ -1351,6 +1353,7 @@ export type Project = {
     expiresAt: Date | null;
     provisioningSource?: string | null;
     agentSqlScope: AgentSqlScope | null;
+    connectionRoute?: ConnectionRoute;
 };
 
 export type ProjectSummary = Pick<

@@ -4,6 +4,7 @@ import {
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
     ForbiddenError,
+    NotImplementedError,
     ParameterError,
     PossibleAbilities,
     SessionUser,
@@ -73,6 +74,7 @@ const projectModel = {
         dbtSourceName: 'dbt_project',
     })),
     updateDbtSourceName: vi.fn(async () => undefined),
+    requireSingleConnectionRoute: vi.fn(async () => 'single' as const),
 };
 
 const projectDbtSourcesModel = {
@@ -94,6 +96,8 @@ const getService = () =>
 describe('ProjectDbtSourcesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        projectModel.requireSingleConnectionRoute.mockReset();
+        projectModel.requireSingleConnectionRoute.mockResolvedValue('single');
         projectModel.getSummary.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid,
@@ -199,6 +203,68 @@ describe('ProjectDbtSourcesService', () => {
                 repository: 'acme/jaffle',
             });
         });
+    });
+
+    describe('connection route guard', () => {
+        it.each([
+            {
+                write: 'createProjectDbtSource',
+                call: () =>
+                    getService().createProjectDbtSource(
+                        adminAccount,
+                        projectUuid,
+                        {
+                            name: 'finance',
+                            dbtConnection: githubConnection as never,
+                        },
+                    ),
+            },
+            {
+                write: 'updateProjectDbtSource',
+                call: () =>
+                    getService().updateProjectDbtSource(
+                        adminAccount,
+                        projectUuid,
+                        'finance-source-uuid',
+                        { name: 'finance' },
+                    ),
+            },
+            {
+                write: 'deleteProjectDbtSource',
+                call: () =>
+                    getService().deleteProjectDbtSource(
+                        adminAccount,
+                        projectUuid,
+                        'finance-source-uuid',
+                    ),
+            },
+        ])(
+            'refuses $write in a project that routes multi',
+            async ({ call }) => {
+                projectModel.requireSingleConnectionRoute.mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+
+                await expect(call()).rejects.toThrow(
+                    'Multiple connections are not available',
+                );
+                expect(
+                    projectModel.requireSingleConnectionRoute,
+                ).toHaveBeenCalledWith(projectUuid, { kind: 'original' });
+                expect(
+                    projectDbtSourcesModel.createSource,
+                ).not.toHaveBeenCalled();
+                expect(
+                    projectDbtSourcesModel.updateSource,
+                ).not.toHaveBeenCalled();
+                expect(
+                    projectDbtSourcesModel.deleteSource,
+                ).not.toHaveBeenCalled();
+                expect(projectModel.updateDbtSourceName).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('createProjectDbtSource', () => {

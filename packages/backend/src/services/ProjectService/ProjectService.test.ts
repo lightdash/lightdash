@@ -34,6 +34,7 @@ import {
     MetricType,
     MissingWarehouseCredentialsError,
     NotFoundError,
+    NotImplementedError,
     OrganizationMemberRole,
     ParameterError,
     PreAggregateMissReason,
@@ -49,6 +50,7 @@ import {
     type CopyPreviewContentPayload,
     type CreateBigqueryCredentials,
     type CreateProject,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
     type DbtManifest,
     type DownloadFile,
@@ -67,7 +69,10 @@ import {
     type UserWarehouseCredentialsWithSecrets,
     type WarehouseLocation,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import {
+    SshTunnel,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -95,6 +100,7 @@ import { OrganizationWarehouseCredentialsModel } from '../../models/Organization
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -270,6 +276,7 @@ const projectModel = {
         allExplores.map(exploreToSummaryWithAttributes),
     ),
     lockProcess: vi.fn((projectUuid, fun) => fun()),
+    ...singleRouteProjectModelMethods,
     getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
@@ -620,6 +627,146 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
+
+    describe('connection route guard at write entry points', () => {
+        const refuseMultiRoute = () =>
+            vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+        const upstreamUuid = 'multi-upstream-project-uuid';
+        const compileUser: SessionUser = {
+            ...user,
+            organizationUuid: 'organizationUuid',
+            organizationName: 'organizationName',
+            organizationCreatedAt: new Date('2026-08-16T00:00:00.000Z'),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['update', 'view'] },
+                { subject: 'Job', action: ['create', 'view'] },
+                { subject: 'CompileProject', action: ['manage'] },
+                { subject: 'DeployProject', action: ['manage'] },
+            ]),
+        };
+
+        test.each([
+            {
+                entryPoint: 'testAndCompileProject',
+                guardedProjectUuid: projectUuid,
+                call: () =>
+                    service.testAndCompileProject(
+                        compileUser,
+                        projectUuid,
+                        RequestMethod.WEB_APP,
+                        'guard-job-uuid',
+                    ),
+            },
+            {
+                entryPoint: 'compileProject',
+                guardedProjectUuid: projectUuid,
+                call: () =>
+                    service.compileProject(
+                        compileUser,
+                        projectUuid,
+                        RequestMethod.WEB_APP,
+                        'guard-job-uuid',
+                    ),
+            },
+            {
+                entryPoint: 'setExplores',
+                guardedProjectUuid: projectUuid,
+                call: () => service.setExplores(compileUser, projectUuid, []),
+            },
+            {
+                entryPoint: 'copyContentOnPreview',
+                guardedProjectUuid: upstreamUuid,
+                call: () =>
+                    service.copyContentOnPreview(
+                        upstreamUuid,
+                        'preview-project-uuid',
+                        compileUser,
+                    ),
+            },
+            {
+                entryPoint: '_create from an upstream',
+                guardedProjectUuid: upstreamUuid,
+                call: () =>
+                    service._create(
+                        compileUser,
+                        {
+                            name: 'Preview',
+                            type: ProjectType.PREVIEW,
+                            dbtConnection: { type: DbtProjectType.NONE },
+                            upstreamProjectUuid: upstreamUuid,
+                            dbtVersion: projectWithSensitiveFields.dbtVersion,
+                            warehouseConnection:
+                                warehouseClientMock.credentials,
+                        },
+                        'guard-job-uuid',
+                        RequestMethod.WEB_APP,
+                    ),
+            },
+        ])(
+            'refuses a project that routes multi at $entryPoint',
+            async ({ call, guardedProjectUuid }) => {
+                const guard = refuseMultiRoute();
+                const saveExplores = vi.spyOn(
+                    service,
+                    'saveExploresToCacheAndIndexCatalog',
+                );
+                try {
+                    await expect(call()).rejects.toThrow(
+                        'Multiple connections are not available',
+                    );
+                    expect(guard).toHaveBeenCalledWith(guardedProjectUuid, {
+                        kind: 'original',
+                    });
+                    expect(saveExplores).not.toHaveBeenCalled();
+                } finally {
+                    guard.mockRestore();
+                    saveExplores.mockRestore();
+                }
+            },
+        );
+
+        test('refuses the dbt Cloud webhook preview for a project that routes multi', async () => {
+            vi.mocked(
+                projectModel.getWithSensitiveFields,
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                dbtConnection: {
+                    type: DbtProjectType.DBT_CLOUD_IDE,
+                    api_key: 'dbt-cloud-key',
+                    environment_id: 'dbt-cloud-environment',
+                },
+                warehouseConnection: warehouseClientMock.credentials,
+            });
+            const guard = refuseMultiRoute();
+            const fetchSpy = vi.spyOn(global, 'fetch');
+            try {
+                await expect(
+                    service.createPreviewFromDbtCloudWebhook(
+                        projectUuid,
+                        1,
+                        1,
+                        {
+                            rawBody: null,
+                            signature: null,
+                        },
+                    ),
+                ).rejects.toThrow('Multiple connections are not available');
+                expect(guard).toHaveBeenCalledWith(projectUuid, {
+                    kind: 'original',
+                });
+                expect(fetchSpy).not.toHaveBeenCalled();
+            } finally {
+                guard.mockRestore();
+                fetchSpy.mockRestore();
+            }
+        });
+    });
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
@@ -2239,6 +2386,31 @@ describe('ProjectService', () => {
             );
         };
 
+        test('refuses a preview of an upstream that routes multi', async () => {
+            const guard = vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+            vi.mocked(projectModel.createWithOptionalCredentials).mockClear();
+            try {
+                await expect(createWithoutCompile()).rejects.toThrow(
+                    'Multiple connections are not available',
+                );
+                expect(guard).toHaveBeenCalledWith(upstreamProjectUuid, {
+                    kind: 'original',
+                });
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                guard.mockRestore();
+                vi.mocked(projectModel.get).mockReset();
+            }
+        });
+
         test('queues an opted-in org preview without copying in the request', async () => {
             const result = await createWithoutCompile({
                 mode: 'async',
@@ -3122,6 +3294,42 @@ describe('ProjectService', () => {
 
             buildAdapterSpy.mockRestore();
         });
+
+        test('refuses to copy explores from an upstream that routes multi', async () => {
+            const guard = vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+            (projectModel.get as import('vitest').Mock).mockResolvedValueOnce(
+                nonePreviewProject,
+            );
+            const consumed = vi.fn();
+
+            try {
+                await expect(
+                    (
+                        service as unknown as {
+                            refreshTablesAndProjectConfig: RefreshForTest;
+                        }
+                    ).refreshTablesAndProjectConfig(
+                        { userUuid: user.userUuid },
+                        previewProjectUuid,
+                        RequestMethod.WEB_APP,
+                        undefined,
+                        consumed,
+                    ),
+                ).rejects.toThrow('Multiple connections are not available');
+                expect(guard).toHaveBeenCalledWith(upstreamProjectUuid, {
+                    kind: 'original',
+                });
+                expect(consumed).not.toHaveBeenCalled();
+            } finally {
+                guard.mockRestore();
+            }
+        });
     });
 
     test('should run sql query', async () => {
@@ -3552,12 +3760,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<CreateWarehouseCredentials>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             expect(mergedCredentials).toEqual(
@@ -3616,6 +3826,7 @@ describe('ProjectService', () => {
                             userId: string;
                             isRegisteredUser: boolean;
                             preloadedOrgWarehouseCredentialsUuid?: string;
+                            binding: { kind: 'original' };
                         }) => Promise<CreateWarehouseCredentials>;
                     }
                 ).getWarehouseCredentials({
@@ -3623,6 +3834,7 @@ describe('ProjectService', () => {
                     userId: sessionAccount.user.id,
                     isRegisteredUser,
                     preloadedOrgWarehouseCredentialsUuid,
+                    binding: { kind: 'original' },
                 });
 
             beforeEach(() => {
@@ -3791,12 +4003,14 @@ describe('ProjectService', () => {
                             projectUuid: string;
                             userId: string;
                             isRegisteredUser: boolean;
+                            binding: { kind: 'original' };
                         }) => Promise<CreateWarehouseCredentials>;
                     }
                 ).getWarehouseCredentials({
                     projectUuid,
                     userId: sessionAccount.user.id,
                     isRegisteredUser: true,
+                    binding: { kind: 'original' },
                 });
 
             const mockUserCredentials = (
@@ -3911,12 +4125,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             expect(mergedCredentials).toEqual(
@@ -3974,12 +4190,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             // Absent, not 'sso': the client then falls back to password auth.
@@ -4045,12 +4263,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             expect(findForProjectWithSecretsMock).toHaveBeenCalledWith(
@@ -4125,12 +4345,14 @@ describe('ProjectService', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<Record<string, unknown>>;
                 }
             ).getWarehouseCredentials({
                 projectUuid,
                 userId: sessionAccount.user.id,
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
             // Absent, not 'iam': the client then falls back to password auth
@@ -4682,6 +4904,41 @@ describe('ProjectService', () => {
     });
 
     describe('getWarehouseCredentialsForEmbed', () => {
+        test('refuses a project that routes multi before loading credentials', async () => {
+            const binding = {
+                kind: 'explore' as const,
+                exploreName: 'orders',
+            };
+            const requireSingleConnectionRoute = vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+            const loadCredentials = vi.spyOn(
+                projectModel,
+                'getWarehouseCredentialsForProject',
+            );
+            loadCredentials.mockClear();
+
+            await expect(
+                service.getWarehouseCredentialsForEmbed({
+                    projectUuid,
+                    account: buildAccount({
+                        accountType: 'jwt',
+                        userType: 'anonymous',
+                    }) as never,
+                    binding,
+                }),
+            ).rejects.toThrow('Multiple connections are not available');
+            expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+                projectUuid,
+                binding,
+            );
+            expect(loadCredentials).not.toHaveBeenCalled();
+        });
+
         test('should refresh Databricks oauth_m2m credentials so the access token is populated', async () => {
             const { exchangeDatabricksOAuthCredentials } =
                 await import('@lightdash/warehouses');
@@ -4717,6 +4974,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 // The mock buildAccount returns Account; AnonymousAccount is structurally compatible.
                 account: embedAccount as never,
+                binding: { kind: 'explore', exploreName: 'orders' },
             });
 
             expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledWith(
@@ -4753,6 +5011,7 @@ describe('ProjectService', () => {
                 service.getWarehouseCredentialsForEmbed({
                     projectUuid,
                     account: embedAccount as never,
+                    binding: { kind: 'explore', exploreName: 'orders' },
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
         });
@@ -9776,6 +10035,391 @@ describe('dashboard available filters', () => {
             'tile-0': [0],
             'tile-1': [1],
             'tile-2': [0],
+        });
+    });
+});
+
+describe('Snowflake credential pins (SPK-2336)', () => {
+    const pinsService = getMockedProjectService(lightdashConfigMock);
+    const { projectUuid: pinsProjectUuid } = defaultProject;
+
+    const baseSnowflakeCredentials: CreateSnowflakeCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'acct',
+        user: 'project-user',
+        database: 'db',
+        warehouse: 'wh',
+        schema: 'schema',
+    };
+
+    describe('clearSecretsFromCredentials', () => {
+        const callClearSecrets = (
+            credentials: CreateWarehouseCredentials,
+        ): CreateWarehouseCredentials =>
+            (
+                pinsService as unknown as {
+                    clearSecretsFromCredentials: (
+                        c: CreateWarehouseCredentials,
+                    ) => CreateWarehouseCredentials;
+                }
+            ).clearSecretsFromCredentials(credentials);
+
+        test.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+            SnowflakeAuthenticationType.SSO,
+        ])(
+            'strips every secret field and authenticationType for %s',
+            (authenticationType) => {
+                const credentials: CreateSnowflakeCredentials = {
+                    ...baseSnowflakeCredentials,
+                    authenticationType,
+                    password: 'secret-password',
+                    privateKey: 'secret-key',
+                    privateKeyPass: 'secret-passphrase',
+                    token: 'secret-token',
+                    refreshToken: 'secret-refresh',
+                };
+
+                const result = callClearSecrets(credentials);
+
+                expect(result).toEqual(baseSnowflakeCredentials);
+                expect(result).not.toHaveProperty('password');
+                expect(result).not.toHaveProperty('privateKey');
+                expect(result).not.toHaveProperty('privateKeyPass');
+                expect(result).not.toHaveProperty('token');
+                expect(result).not.toHaveProperty('refreshToken');
+                expect(result).not.toHaveProperty('authenticationType');
+            },
+        );
+
+        test('strips the key-pair passphrase together with the key', () => {
+            const credentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                privateKey: 'secret-key',
+                privateKeyPass: 'secret-passphrase',
+            };
+
+            const result = callClearSecrets(credentials);
+
+            expect(result).not.toHaveProperty('privateKey');
+            expect(result).not.toHaveProperty('privateKeyPass');
+        });
+    });
+
+    describe('refreshCredentialsAndPersistRotation for Snowflake SSO', () => {
+        const callRefreshAndPersist = (
+            credentials: CreateSnowflakeCredentials,
+            source: { kind: 'project'; projectUuid: string },
+        ): Promise<CreateSnowflakeCredentials> =>
+            (
+                pinsService as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        args: CreateSnowflakeCredentials,
+                        userUuid: string,
+                        s: { kind: 'project'; projectUuid: string },
+                    ) => Promise<CreateSnowflakeCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation(
+                credentials,
+                'pin-user-uuid',
+                source,
+            );
+
+        test('returns a fresh access token and refresh token, and persists the rotation', async () => {
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'fresh-access-token',
+                    refreshToken: 'fresh-refresh-token',
+                });
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                projectModel as unknown as {
+                    rotateRefreshToken: import('vitest').Mock;
+                }
+            ).rotateRefreshToken = rotateRefreshTokenMock;
+
+            const credentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'stale-refresh-token',
+            };
+
+            const result = await callRefreshAndPersist(credentials, {
+                kind: 'project',
+                projectUuid: pinsProjectUuid,
+            });
+
+            expect(generateSpy).toHaveBeenCalledWith('stale-refresh-token');
+            expect(result).toEqual({
+                ...credentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                token: 'fresh-access-token',
+                refreshToken: 'fresh-refresh-token',
+            });
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                pinsProjectUuid,
+                'stale-refresh-token',
+                'fresh-refresh-token',
+            );
+
+            generateSpy.mockRestore();
+        });
+
+        test('does not persist a rotation when the refresh token is unchanged', async () => {
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'fresh-access-token',
+                    refreshToken: 'same-refresh-token',
+                });
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                projectModel as unknown as {
+                    rotateRefreshToken: import('vitest').Mock;
+                }
+            ).rotateRefreshToken = rotateRefreshTokenMock;
+
+            const credentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'same-refresh-token',
+            };
+
+            await callRefreshAndPersist(credentials, {
+                kind: 'project',
+                projectUuid: pinsProjectUuid,
+            });
+
+            expect(rotateRefreshTokenMock).not.toHaveBeenCalled();
+
+            generateSpy.mockRestore();
+        });
+    });
+
+    describe("buildAdapter's inline Snowflake SSO refresh", () => {
+        test('exchanges the refresh token and persists rotation before the sshTunnel step', async () => {
+            const projectSnowflakeCredentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'old-refresh-token',
+            };
+            const snowflakeProject = {
+                ...projectWithSensitiveFields,
+                projectUuid: pinsProjectUuid,
+                dbtConnection: { type: DbtProjectType.NONE },
+                warehouseConnection: projectSnowflakeCredentials,
+            };
+            (
+                projectModel.getWithSensitiveFields as import('vitest').Mock
+            ).mockResolvedValueOnce(snowflakeProject);
+            (
+                projectModel.getWarehouseFromCache as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
+
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'new-access-token',
+                    refreshToken: 'new-refresh-token',
+                });
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                projectModel as unknown as {
+                    rotateRefreshToken: import('vitest').Mock;
+                }
+            ).rotateRefreshToken = rotateRefreshTokenMock;
+            (
+                SshTunnel as unknown as import('vitest').Mock
+            ).mockImplementationOnce(
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockSshTunnelWithCredentials(
+                    credentials: CreateWarehouseCredentials,
+                ) {
+                    return {
+                        connect: vi.fn(async () => credentials),
+                        disconnect: vi.fn(),
+                        overrideCredentials: credentials,
+                    };
+                },
+            );
+
+            const result = await (
+                pinsService as unknown as {
+                    buildAdapter: (
+                        uuid: string,
+                        u: { userUuid: string; organizationUuid: string },
+                    ) => Promise<{
+                        warehouseCredentials: CreateWarehouseCredentials;
+                    }>;
+                }
+            ).buildAdapter(pinsProjectUuid, {
+                userUuid: 'pin-user-uuid',
+                organizationUuid: 'pin-org-uuid',
+            });
+
+            expect(generateSpy).toHaveBeenCalledWith('old-refresh-token');
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                pinsProjectUuid,
+                'old-refresh-token',
+                'new-refresh-token',
+            );
+            expect(result.warehouseCredentials).toMatchObject({
+                token: 'new-access-token',
+                refreshToken: 'new-refresh-token',
+            });
+
+            generateSpy.mockRestore();
+        });
+    });
+
+    describe('personal credential merge for Snowflake in getWarehouseCredentials', () => {
+        const callGetWarehouseCredentials = () =>
+            (
+                pinsService as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
+                    }) => Promise<CreateWarehouseCredentials>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid: pinsProjectUuid,
+                userId: 'pin-user-uuid',
+                isRegisteredUser: true,
+                binding: { kind: 'original' },
+            });
+
+        test.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+        ])(
+            'a personal %s credential overrides the project credential, with no project secret leaking through',
+            async (personalAuthType) => {
+                const projectCredentials: CreateSnowflakeCredentials = {
+                    ...baseSnowflakeCredentials,
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    password: 'project-secret-password',
+                    requireUserCredentials: true,
+                };
+                (
+                    projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+                ).mockResolvedValueOnce(projectCredentials);
+                (
+                    projectModel.getProjectWarehouseConfig as import('vitest').Mock
+                ).mockResolvedValueOnce({
+                    organizationWarehouseCredentialsUuid: null,
+                    queryTimezone: null,
+                });
+
+                const personalCredentials = {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: personalAuthType,
+                    user: 'personal-user',
+                    ...(personalAuthType ===
+                    SnowflakeAuthenticationType.PASSWORD
+                        ? { password: 'personal-secret-password' }
+                        : { privateKey: 'personal-secret-key' }),
+                };
+                (
+                    pinsService as unknown as {
+                        userWarehouseCredentialsModel: {
+                            findForProjectWithSecrets: import('vitest').Mock;
+                        };
+                    }
+                ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                    vi.fn(async () => ({
+                        uuid: 'personal-creds-uuid',
+                        credentials: personalCredentials,
+                    }));
+
+                const result = await callGetWarehouseCredentials();
+
+                expect(result).toMatchObject({
+                    authenticationType: personalAuthType,
+                    user: 'personal-user',
+                });
+                expect(JSON.stringify(result)).not.toContain(
+                    'project-secret-password',
+                );
+            },
+        );
+
+        test('a personal SSO credential overrides the project credential and is itself refreshed', async () => {
+            const projectCredentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                password: 'project-secret-password',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockResolvedValueOnce(projectCredentials);
+            (
+                projectModel.getProjectWarehouseConfig as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                organizationWarehouseCredentialsUuid: null,
+                queryTimezone: null,
+            });
+
+            const personalCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                user: 'personal-user',
+                refreshToken: 'personal-stale-refresh-token',
+            };
+            (
+                pinsService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+                async () => ({
+                    uuid: 'personal-creds-uuid',
+                    credentials: personalCredentials,
+                }),
+            );
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                pinsService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        rotateRefreshToken: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.rotateRefreshToken =
+                rotateRefreshTokenMock;
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'personal-fresh-access-token',
+                    refreshToken: 'personal-fresh-refresh-token',
+                });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(generateSpy).toHaveBeenCalledWith(
+                'personal-stale-refresh-token',
+            );
+            expect(result).toMatchObject({
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                user: 'personal-user',
+                token: 'personal-fresh-access-token',
+                refreshToken: 'personal-fresh-refresh-token',
+            });
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                'personal-creds-uuid',
+                'personal-stale-refresh-token',
+                'personal-fresh-refresh-token',
+            );
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-password',
+            );
+
+            generateSpy.mockRestore();
         });
     });
 });

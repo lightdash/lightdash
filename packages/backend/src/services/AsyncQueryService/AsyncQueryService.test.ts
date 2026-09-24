@@ -89,7 +89,10 @@ import type { OrganizationWarehouseCredentialsModel } from '../../models/Organiz
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
+import {
+    projectUuid,
+    singleRouteProjectModelMethods,
+} from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
@@ -261,6 +264,7 @@ const projectModel = {
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
     lockProcess: vi.fn((_projectUuid, fun) => fun()),
+    ...singleRouteProjectModelMethods,
     getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
@@ -5109,6 +5113,7 @@ describe('AsyncQueryService', () => {
                 // GIVEN: Credentials contain SSH tunnel configuration
                 const mockProjectModel = {
                     ...projectModel,
+                    ...singleRouteProjectModelMethods,
                     getWarehouseCredentialsForProject: vi.fn(() =>
                         Promise.resolve(originalCredentials),
                     ),
@@ -5214,6 +5219,7 @@ describe('AsyncQueryService', () => {
             // GIVEN: Valid warehouse credentials and query
             const mockProjectModel = {
                 ...projectModel,
+                ...singleRouteProjectModelMethods,
                 getWarehouseCredentialsForProject: vi.fn(() =>
                     Promise.resolve(warehouseClientMock.credentials),
                 ),

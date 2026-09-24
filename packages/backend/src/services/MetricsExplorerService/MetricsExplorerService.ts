@@ -428,8 +428,9 @@ export class MetricsExplorerService extends BaseService {
         }
 
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectModel.getWarehouseCredentialsForBinding(
                 projectUuid,
+                { kind: 'explore', exploreName },
             );
         const adapterType = credentials.type;
 

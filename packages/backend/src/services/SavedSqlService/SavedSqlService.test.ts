@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
+    NotImplementedError,
     OrganizationMemberRole,
     PossibleAbilities,
     SchedulerFormat,
@@ -114,6 +115,11 @@ const createdScheduler = {
 };
 
 const savedSqlModel = {
+    create: vi.fn(async () => ({
+        savedSqlUuid,
+        slug: 'sql-chart',
+        savedSqlVersionUuid: 'version-uuid',
+    })),
     getByUuid: vi.fn(async () => sqlChart),
     resolveColorPalette: vi.fn(async () => undefined),
     update: vi.fn(async () => ({
@@ -133,6 +139,7 @@ const schedulerClient = {
 };
 const projectModel = {
     getSummary: vi.fn(async () => ({ organizationUuid })),
+    requireSingleConnectionRoute: vi.fn(async () => 'single' as const),
 };
 const spacePermissionService = {
     can: vi.fn(async () => true),
@@ -179,7 +186,11 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             spacePermissionService as unknown as SpacePermissionService,
     });
 
-    afterEach(() => vi.clearAllMocks());
+    afterEach(() => {
+        vi.clearAllMocks();
+        projectModel.requireSingleConnectionRoute.mockReset();
+        projectModel.requireSingleConnectionRoute.mockResolvedValue('single');
+    });
 
     test('loads a saved SQL chart through its resource access target', async () => {
         const user = {
@@ -264,6 +275,56 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
                     spaceUuid,
                 },
             ]);
+        });
+
+        test('refuses to update a SQL chart in a project that routes multi', async () => {
+            projectModel.requireSingleConnectionRoute.mockRejectedValueOnce(
+                new NotImplementedError(
+                    'Multiple connections are not available',
+                ),
+            );
+
+            await expect(
+                service.updateSqlChart(
+                    editor,
+                    projectUuid,
+                    savedSqlUuid,
+                    {} as never,
+                ),
+            ).rejects.toThrow('Multiple connections are not available');
+            expect(
+                projectModel.requireSingleConnectionRoute,
+            ).toHaveBeenCalledWith(projectUuid, { kind: 'original' });
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+        });
+
+        test('refuses to create a SQL chart in a project that routes multi', async () => {
+            const creator = {
+                ...baseUser,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'SavedChart', action: ['create', 'update'] },
+                    { subject: 'CustomSql', action: 'manage' },
+                ]),
+            };
+            projectModel.requireSingleConnectionRoute.mockRejectedValueOnce(
+                new NotImplementedError(
+                    'Multiple connections are not available',
+                ),
+            );
+
+            await expect(
+                service.createSqlChart(creator, projectUuid, {
+                    name: 'Orders',
+                    sql: 'select 1',
+                    limit: 10,
+                    config: {},
+                    spaceUuid,
+                } as never),
+            ).rejects.toThrow('Multiple connections are not available');
+            expect(
+                projectModel.requireSingleConnectionRoute,
+            ).toHaveBeenCalledWith(projectUuid, { kind: 'original' });
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
         });
 
         test('soft-deletes a saved SQL chart through its resource access target', async () => {

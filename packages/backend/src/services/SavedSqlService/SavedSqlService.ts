@@ -427,6 +427,10 @@ export class SavedSqlService
             },
         );
 
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
+
         const createdChart = await this.savedSqlModel.create(
             user.userUuid,
             projectUuid,
@@ -498,6 +502,10 @@ export class SavedSqlService
                         : undefined,
             },
         );
+
+        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
+            kind: 'original',
+        });
 
         const updatedChart = await this.savedSqlModel.update({
             userUuid: user.userUuid,

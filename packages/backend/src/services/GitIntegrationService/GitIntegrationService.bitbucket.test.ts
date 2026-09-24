@@ -21,6 +21,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -108,6 +109,7 @@ const setup = () => {
             .fn()
             .mockResolvedValue({ ymlPath: 'models/schema.yml' }),
         findExploreContainingTable: vi.fn().mockResolvedValue(EXPLORE),
+        ...singleRouteProjectModelMethods,
         getWarehouseCredentialsForProject: vi.fn().mockResolvedValue({}),
         getWarehouseClientFromCredentials: vi
             .fn()

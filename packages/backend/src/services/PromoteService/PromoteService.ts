@@ -1540,6 +1540,11 @@ export class PromoteService extends BaseService {
                 upstreamSqlChart,
             );
 
+            await this.projectModel.requireSingleConnectionRoute(
+                upstreamProjectUuid,
+                { kind: 'original' },
+            );
+
             const { promotionChanges, sqlChartChange } =
                 await this.getSqlChartChanges(
                     promotedSqlChart,
@@ -2690,6 +2695,11 @@ export class PromoteService extends BaseService {
                         upstreamSqlChart,
                         promotedDashboard,
                     ),
+            );
+
+            await this.projectModel.requireSingleConnectionRoute(
+                upstreamProjectUuid,
+                { kind: 'original' },
             );
 
             // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.

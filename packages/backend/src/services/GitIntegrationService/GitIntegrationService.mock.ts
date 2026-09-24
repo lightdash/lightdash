@@ -11,6 +11,7 @@ import {
     SupportedDbtAdapter,
     SupportedDbtVersions,
 } from '@lightdash/common';
+import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 
 const dimension = (
@@ -72,6 +73,7 @@ export const PROJECT_MODEL = {
         },
     }),
     getExploreFromCache: vi.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
+    ...singleRouteProjectModelMethods,
     getWarehouseCredentialsForProject: vi.fn(() => ({})),
     getWarehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
     get: vi.fn(() =>
