@@ -23,7 +23,7 @@ Use the exact field and option names declared in `vizSchema`. Row values may be
 strings, numbers, booleans, or null. Include every required field in each row;
 omitted optional fields become null cells. When supplied, `rows` must contain
 1–1000 rows. Option values must match the option's type and, for selects, a
-declared choice. Invalid manifests fail upload; invalid registry entries are
+declared choice; a gradient takes the whole `{ colors, min, max }` value. Invalid manifests fail upload; invalid registry entries are
 handled by the registry's existing per-entry validation.
 
 Rows are flat, including any declared series fields. The preview host maps field

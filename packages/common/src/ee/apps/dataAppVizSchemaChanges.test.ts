@@ -81,6 +81,43 @@ describe('diffDataAppVizSchema', () => {
         expect(hasDataAppVizSchemaChanges(changes)).toBe(true);
     });
 
+    it('compares gradient defaults by value', () => {
+        const gradientOption = {
+            type: 'gradient' as const,
+            name: 'scale',
+            label: 'Scale',
+            default: {
+                colors: ['#000000', '#ffffff'],
+                min: 'auto' as const,
+                max: 'auto' as const,
+            },
+        };
+        const withGradient: DataAppVizSchema = {
+            ...base,
+            configOptions: [gradientOption],
+        };
+
+        expect(
+            hasDataAppVizSchemaChanges(
+                diffDataAppVizSchema(
+                    withGradient,
+                    structuredClone(withGradient),
+                ),
+            ),
+        ).toBe(false);
+        expect(
+            diffDataAppVizSchema(withGradient, {
+                ...withGradient,
+                configOptions: [
+                    {
+                        ...gradientOption,
+                        default: { ...gradientOption.default, max: 100 },
+                    },
+                ],
+            }).configOptions.changed,
+        ).toHaveLength(1);
+    });
+
     it('reports a changed per-field option list as a field change', () => {
         const colorOption = {
             type: 'color' as const,

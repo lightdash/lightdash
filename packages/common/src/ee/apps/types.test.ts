@@ -1,7 +1,9 @@
+import { isDataAppVizGradientValue } from './dataAppVizGradient';
 import {
     dataAppVizGenerationSchema,
     dataAppVizJsonSchema,
     dataAppVizSchema,
+    getDataAppVizContextOptions,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
     isOfficialChartType,
@@ -9,6 +11,7 @@ import {
     resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
+    type DataAppVizGradientValue,
     type DataAppVizOptionValue,
 } from './types';
 
@@ -61,9 +64,8 @@ describe.each([
             schema.safeParse(declaration([colorOption, colorOption])).success,
         ).toBe(false);
         expect(
-            schema.safeParse(
-                declaration([{ ...colorOption, type: 'gradient' }]),
-            ).success,
+            schema.safeParse(declaration([{ ...colorOption, type: 'date' }]))
+                .success,
         ).toBe(false);
     });
 });
@@ -512,6 +514,85 @@ describe('getEffectiveOptionValues', () => {
         expect(
             getEffectiveOptionValues(declared, { layout: 'horizontal' }),
         ).toEqual({ layout: 'vertical' });
+    });
+});
+
+describe('gradient options', () => {
+    const gradient: DataAppVizGradientValue = {
+        colors: ['#000000', '#ff0000', '#ffffff'],
+        min: 'auto',
+        max: 10,
+    };
+    const gradientOption: DataAppVizConfigOption = {
+        type: 'gradient',
+        name: 'scale',
+        label: 'Scale',
+        default: { colors: ['#000000', '#ffffff'], min: 'auto', max: 'auto' },
+    };
+    const declaration = (option: unknown) => ({
+        ...validFields,
+        configOptions: [option],
+        colorPalette: null,
+    });
+
+    describe.each([
+        ['persisted', dataAppVizSchema],
+        ['generated', dataAppVizGenerationSchema],
+    ])('%s schema', (_name, schema) => {
+        it('accepts two to five hex colours with auto or number bounds', () => {
+            expect(
+                schema.safeParse(
+                    declaration({ ...gradientOption, default: gradient }),
+                ).success,
+            ).toBe(true);
+        });
+
+        it.each([
+            ['one colour', { ...gradient, colors: ['#000000'] }],
+            ['six colours', { ...gradient, colors: Array(6).fill('#000000') }],
+            ['a non-hex colour', { ...gradient, colors: ['red', '#000000'] }],
+            ['a text bound', { ...gradient, min: 'lowest' }],
+            ['a missing bound', { colors: gradient.colors, min: 0 }],
+            ['a fixed min above the fixed max', { ...gradient, min: 20 }],
+        ])('rejects %s', (_case, value) => {
+            expect(
+                schema.safeParse(
+                    declaration({ ...gradientOption, default: value }),
+                ).success,
+            ).toBe(false);
+        });
+    });
+
+    it('accepts equal fixed bounds and a fixed bound beside auto', () => {
+        expect(isDataAppVizGradientValue({ ...gradient, min: 10 })).toBe(true);
+        expect(
+            isDataAppVizGradientValue({ ...gradient, min: 20, max: 'auto' }),
+        ).toBe(true);
+        expect(isDataAppVizGradientValue({ ...gradient, min: 11 })).toBe(false);
+    });
+
+    it('keeps a valid stored gradient and falls back on a malformed one', () => {
+        expect(
+            getEffectiveOptionValues([gradientOption], {
+                scale: gradient,
+            }),
+        ).toEqual({ scale: gradient });
+        expect(
+            pruneDataAppVizOptionValues([gradientOption], {
+                scale: { ...gradient, colors: ['#000000'] },
+            }),
+        ).toEqual({});
+        expect(
+            getEffectiveOptionValues([gradientOption], { scale: '#000000' }),
+        ).toEqual({ scale: gradientOption.default });
+    });
+
+    it('delivers chart-wide auto bounds as null', () => {
+        expect(
+            getDataAppVizContextOptions([gradientOption], {
+                scale: gradient,
+            }),
+        ).toEqual({ scale: { colors: gradient.colors, min: null, max: 10 } });
     });
 });
 

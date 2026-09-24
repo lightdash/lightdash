@@ -86,6 +86,60 @@ const build = (
     });
 
 describe('buildExplorerVizContext', () => {
+    it('delivers per-field gradients with bounds from the field and chart-wide ones with null bounds', () => {
+        const gradient = {
+            colors: ['#000000', '#ffffff'],
+            min: 'auto' as const,
+            max: 'auto' as const,
+        };
+        const context = build({
+            schema: {
+                ...schema,
+                fields: [
+                    schema.fields[0],
+                    {
+                        ...schema.fields[1],
+                        configOptions: [
+                            {
+                                type: 'gradient',
+                                name: 'scale',
+                                label: 'Scale',
+                                default: gradient,
+                            },
+                        ],
+                    },
+                ],
+                configOptions: [
+                    {
+                        type: 'gradient',
+                        name: 'background',
+                        label: 'Background',
+                        default: gradient,
+                    },
+                ],
+            },
+            persistedFieldMapping: {
+                category: 'orders_status',
+                value: 'orders_count',
+            },
+            rows: [
+                { orders_count: { value: { raw: 4, formatted: '4' } } },
+                { orders_count: { value: { raw: 12, formatted: '12' } } },
+            ],
+        });
+
+        expect(context.options).toEqual({
+            background: { colors: gradient.colors, min: null, max: null },
+        });
+        expect(context.fieldOptions).toEqual({
+            value: {
+                orders_count: {
+                    scale: { colors: gradient.colors, min: 4, max: 12 },
+                },
+            },
+        });
+    });
+
     it('binds the schema to the result columns when the chart has no mapping', () => {
         expect(build().fieldMapping).toEqual({
             category: 'orders_status',

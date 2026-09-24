@@ -2,7 +2,7 @@ import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     getDataAppVizFieldOptions,
-    getEffectiveOptionValues,
+    getDataAppVizContextOptions,
     getDataAppVizPreviewSchema,
     getPivotValueColumnName,
     VizAggregationOptions,
@@ -343,6 +343,12 @@ export const buildSampleVizContext = (
         ]),
     );
 
+    const sample = demo?.rows
+        ? buildDemoSample(schema, fields, demo.rows, shouldPivot)
+        : shouldPivot
+          ? buildPivotedSample(fields)
+          : buildFlatSample(fields);
+
     return {
         fieldMapping,
         // Fabricated columns have no semantic-layer item; the declared slot
@@ -353,7 +359,7 @@ export const buildSampleVizContext = (
                 { label: field.label },
             ]),
         ),
-        options: getEffectiveOptionValues(schema.configOptions, {
+        options: getDataAppVizContextOptions(schema.configOptions, {
             ...demo?.optionValues,
             ...optionValues,
         }),
@@ -361,6 +367,7 @@ export const buildSampleVizContext = (
             schema.fields,
             fieldMapping,
             fieldOptionValues,
+            sample,
         ),
         colorPalette,
         seriesColors: {},
@@ -369,10 +376,6 @@ export const buildSampleVizContext = (
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
         pointMenu: { enabled: false },
-        ...(demo?.rows
-            ? buildDemoSample(schema, fields, demo.rows, shouldPivot)
-            : shouldPivot
-              ? buildPivotedSample(fields)
-              : buildFlatSample(fields)),
+        ...sample,
     };
 };

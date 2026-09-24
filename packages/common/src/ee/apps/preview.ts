@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { type DataAppVizOptionValues } from '../../types/savedCharts';
+import assertUnreachable from '../../utils/assertUnreachable';
+import {
+    type DataAppVizConfigOption,
+    type DataAppVizOptionValue,
+} from './dataAppVizConfigOptions';
+import { dataAppVizGradientValueSchema } from './dataAppVizGradient';
 import { type DataAppVizSchema } from './types';
 
 export type DataAppVizPreview = {
@@ -15,8 +21,33 @@ export const dataAppVizPreviewSchema = z.object({
         .min(1)
         .max(1000)
         .optional(),
-    optionValues: z.record(z.string(), previewValueSchema).optional(),
+    optionValues: z
+        .record(
+            z.string(),
+            z.union([previewValueSchema, dataAppVizGradientValueSchema]),
+        )
+        .optional(),
 });
+
+const matchesPreviewOptionType = (
+    option: DataAppVizConfigOption,
+    value: DataAppVizOptionValue,
+): boolean => {
+    switch (option.type) {
+        case 'select':
+            return option.choices.some((choice) => choice.value === value);
+        case 'color':
+        case 'text':
+            return typeof value === 'string';
+        case 'boolean':
+        case 'number':
+            return typeof value === option.type;
+        case 'gradient':
+            return typeof value === 'object';
+        default:
+            return assertUnreachable(option, 'Unknown config option type');
+    }
+};
 
 export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
     dataAppVizPreviewSchema.superRefine((preview, ctx) => {
@@ -45,14 +76,7 @@ export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
             const option = schema.configOptions.find(
                 (item) => item.name === name,
             );
-            const valid =
-                option &&
-                (option.type === 'select'
-                    ? option.choices.some((choice) => choice.value === value)
-                    : typeof value ===
-                      (option.type === 'color' || option.type === 'text'
-                          ? 'string'
-                          : option.type));
+            const valid = option && matchesPreviewOptionType(option, value);
             if (!valid) {
                 ctx.addIssue({
                     code: 'custom',

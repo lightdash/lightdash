@@ -30,6 +30,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
 | "Data point actions" — native context menu on a data-point click (copy, view underlying data, drill, cross-filter; viz only) | `point-action-menu` | app code opt-in |
 | a setting per field, e.g. "a colour per metric" (viz only) | `viz-field-options` | declaration + app code — see the reusable-visualization skill |
+| colour scale, heatmap shading, "low to high colours" (viz only) | `viz-gradient-options` | declaration + app code — see the reusable-visualization skill |
 | "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
 | Lightdash-owned "View underlying data" dialog (viz only) | `viz-host-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
