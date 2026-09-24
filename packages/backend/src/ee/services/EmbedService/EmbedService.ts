@@ -30,7 +30,6 @@ import {
     Explore,
     ExploreError,
     ExportContentPayload,
-    FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -112,6 +111,7 @@ import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
+import { assertChartTypesEnabled } from '../AppGenerateService/chartTypeFeatureGate';
 import {
     assertDataAppVizPreviewVersionAllowed,
     getDataAppVizVersionPin,
@@ -1833,25 +1833,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        // Chart types render wherever data apps OR the chart type library is
-        // on — a customer without data apps can still use installed types.
-        const flagUser = {
+        await assertChartTypesEnabled(this.featureFlagModel, {
             userUuid: account.user.id,
             organizationUuid: dataAppViz.organization_uuid,
-        };
-        const [dataApps, chartTypeLibrary] = await Promise.all([
-            this.featureFlagModel.get({
-                user: flagUser,
-                featureFlagId: FeatureFlags.EnableDataApps,
-            }),
-            this.featureFlagModel.get({
-                user: flagUser,
-                featureFlagId: FeatureFlags.ChartTypeRegistry,
-            }),
-        ]);
-        if (!dataApps.enabled && !chartTypeLibrary.enabled) {
-            throw new ForbiddenError('Chart types are not enabled');
-        }
+        });
 
         const { chart } = await this.getAuthorizedSavedChartForEmbed(
             account,

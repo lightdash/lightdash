@@ -269,6 +269,7 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
+import { assertChartTypesEnabled } from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -1619,25 +1620,6 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Usage of chart types — listing, configuring, rendering — is available
-     * wherever data apps are on OR the chart type library is on, so a
-     * customer without data apps can still install and use library chart
-     * types. Authoring stays behind `assertDataAppsEnabled`.
-     */
-    private async assertChartTypesEnabled(user: SessionUser): Promise<void> {
-        if (await this.dataAppsEnabledFor(user)) {
-            return;
-        }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.ChartTypeRegistry,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('Chart types are not enabled');
-        }
-    }
-
-    /**
      * The library surface — browsing, installing, registry assets — follows
      * the `ChartTypeRegistry` flag alone, independent of data apps.
      */
@@ -2474,7 +2456,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<{ thumbnailUrl: string }> {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            await this.assertChartTypesEnabled(user);
+            await assertChartTypesEnabled(this.featureFlagModel, user);
             this.assertCanUseChartTypes(user, {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
@@ -9770,7 +9752,7 @@ export class AppGenerateService extends BaseService {
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await this.assertChartTypesEnabled(user);
+        await assertChartTypesEnabled(this.featureFlagModel, user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -10223,7 +10205,7 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        await this.assertChartTypesEnabled(user);
+        await assertChartTypesEnabled(this.featureFlagModel, user);
         const dataAppViz = await this.appModel.findVisualizationApp(
             dataAppVizUuid,
             projectUuid,
@@ -10267,7 +10249,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await this.assertChartTypesEnabled(user);
+        await assertChartTypesEnabled(this.featureFlagModel, user);
 
         this.assertCanUseChartTypes(user, {
             organizationUuid: dataAppViz.organization_uuid,
@@ -10295,7 +10277,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await this.assertChartTypesEnabled(user);
+        await assertChartTypesEnabled(this.featureFlagModel, user);
 
         await this.savedChartService.hasAccess(
             'view',
@@ -10789,7 +10771,7 @@ export class AppGenerateService extends BaseService {
             if (app.registry_slug !== null) {
                 // Uninstalling a library chart type must work wherever the
                 // library does, even with data apps off.
-                await this.assertChartTypesEnabled(user);
+                await assertChartTypesEnabled(this.featureFlagModel, user);
             } else {
                 await this.assertDataAppsEnabled(user);
             }
@@ -10856,7 +10838,7 @@ export class AppGenerateService extends BaseService {
             if (app.registry_slug !== null) {
                 // Restoring an uninstalled library chart type must work
                 // wherever uninstalling it does, even with data apps off.
-                await this.assertChartTypesEnabled(user);
+                await assertChartTypesEnabled(this.featureFlagModel, user);
             } else {
                 await this.assertDataAppsEnabled(user);
             }
