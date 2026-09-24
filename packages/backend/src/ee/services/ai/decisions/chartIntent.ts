@@ -171,9 +171,9 @@ const INTENTS = {
     new_question: {
         what: 'Anything other than modifying the current chart: a new question, a different metric, a new or separate chart, an explanation, a comparison, saving or sharing',
         examples: [
-            'make a new chart of revenue by country',
-            'why did revenue drop?',
-            'how many customers do we have?',
+            'make a new chart of bookings by hotel',
+            'why did signups drop?',
+            'how many listeners do we have?',
         ],
     },
     chart_type: {
@@ -194,17 +194,17 @@ const INTENTS = {
     add_field: {
         what: 'Add one new dimension to the current chart as a breakdown, segment or grouping, optionally also naming the chart type to use',
         examples: [
-            'segment by status',
-            'break it down by country',
-            'add status to the bar chart',
-            'could we see this per region?',
+            'segment by genre',
+            'break it down by campus',
+            'add plan tier to the bar chart',
+            'could we see this per season?',
         ],
     },
     filter: {
         what: 'Restrict the current chart to, or exclude, certain values of a field or a time window',
         examples: [
-            'only completed orders',
-            'drop the cancelled ones',
+            'only premium listeners',
+            'drop the trial accounts',
             'last 30 days',
             'this month',
         ],
@@ -212,7 +212,7 @@ const INTENTS = {
     clear_filters: 'Remove the filters from the current chart',
     sort: {
         what: 'Reorder the current chart or keep only the top or bottom N rows',
-        examples: ['sort by revenue', 'top 5', 'lowest first'],
+        examples: ['sort by bookings', 'top 5', 'lowest first'],
     },
     clear_sort: 'Remove the sort from the current chart',
     undo: 'Undo or revert the last change to the chart',
@@ -577,7 +577,7 @@ export const buildChartIntentQuestions = ({
         questions.filterField = {
             type: 'choice',
             instructions:
-                'If the user wants to filter the chart, which field do the filtered values or time window belong to? For values like a status, region or name, pick the field those values come from. Prefer fields already in `chart.dimensions` when they fit.',
+                'If the user wants to filter the chart, which field do the filtered values or time window belong to? For named values, pick the field those values come from. Prefer fields already in `chart.dimensions` when they fit.',
             criteria: {
                 ...fieldCriteria(context.filterableFields, {
                     withDescriptions: false,
