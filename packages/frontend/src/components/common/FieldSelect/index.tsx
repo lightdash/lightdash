@@ -23,8 +23,8 @@ import {
     type SelectProps,
 } from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
-import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import FieldIcon from '../Filters/FieldIcon';
 import classes from './FieldSelect.module.css';
 import {
@@ -389,9 +389,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             renderOption={renderOption}
             leftSection={item ? <FieldIcon item={item} /> : undefined}
             placeholder={rest.placeholder ?? 'Search field...'}
-            nothingFoundMessage={getUiString(
-                'filters.config.noMatchingFields',
-            )}
+            nothingFoundMessage={getUiString('filters.config.noMatchingFields')}
             allowDeselect={false}
             rightSectionPointerEvents={
                 rest.clearable || rest.rightSection ? 'all' : 'none'
