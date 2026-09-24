@@ -104,7 +104,12 @@ export type DecisionAnswers = z.infer<typeof responseSchema>['answers'];
 export type AiDecisionUsage = {
     inputTokens: number;
     outputTokens: number;
+    /** JEV's own processing time, summed across calls; null until the provider reports one. */
+    serviceMs: number | null;
 };
+
+// JEV's gateway reports how long its model service spent on the request.
+const SERVICE_TIME_HEADER = 'x-envoy-upstream-service-time';
 type DecisionConfig = LightdashConfig['ai']['decisions'];
 type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
@@ -203,6 +208,11 @@ export class AiDecisionClient {
                 await response.body?.cancel();
                 throw new Error('Decision provider unavailable');
             }
+            const serviceMs = Number(
+                response.headers.get(SERVICE_TIME_HEADER) ?? Number.NaN,
+            );
+            if (Number.isFinite(serviceMs) && this.usage)
+                this.usage.serviceMs = (this.usage.serviceMs ?? 0) + serviceMs;
             outcome = 'invalid-response';
             retryableFailure = false;
             const rawResponse = await readBoundedJson(response);

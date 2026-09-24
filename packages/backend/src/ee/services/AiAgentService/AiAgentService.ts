@@ -12311,6 +12311,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         decisions,
         turn,
         latencyMs,
+        serviceMs,
         applied,
         fallbackReason,
     }: {
@@ -12318,6 +12319,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         decisions: AiDecisionClient;
         turn: Awaited<ReturnType<typeof decideTurn>>;
         latencyMs: number;
+        serviceMs: number | null;
         applied: boolean;
         fallbackReason: string | null;
     }): Promise<void> {
@@ -12353,6 +12355,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 answers: turn.answers,
                 thresholds: CHART_INTENT_THRESHOLDS,
                 latency_ms: Math.round(latencyMs),
+                jev_service_ms:
+                    serviceMs === null ? null : Math.round(serviceMs),
                 jev_model: decisions.modelName,
             });
         } catch (error) {
@@ -12507,7 +12511,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             battleProfile,
         );
         const decisionUsage = decisionClient
-            ? { inputTokens: 0, outputTokens: 0 }
+            ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
             : undefined;
         const decisions = decisionUsage
             ? decisionClient?.withUsage(decisionUsage)
@@ -12548,6 +12552,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
               })
             : null;
         const decisionLatencyMs = performance.now() - decisionStartedAt;
+        const decisionServiceMs = decisionUsage?.serviceMs ?? null;
         const turnDecision = turn?.decision ?? null;
         const chartResolution = turnDecision?.chart ?? null;
         let chartEditFallbackReason: string | null = null;
@@ -12577,6 +12582,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         decisions,
                         turn,
                         latencyMs: decisionLatencyMs,
+                        serviceMs: decisionServiceMs,
                         applied: false,
                         fallbackReason: null,
                     });
@@ -12612,6 +12618,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             decisions,
                             turn,
                             latencyMs: decisionLatencyMs,
+                            serviceMs: decisionServiceMs,
                             applied: true,
                             fallbackReason: null,
                         });
@@ -12631,6 +12638,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 decisions,
                 turn,
                 latencyMs: decisionLatencyMs,
+                serviceMs: decisionServiceMs,
                 applied: false,
                 fallbackReason: chartEditFallbackReason,
             });

@@ -234,6 +234,7 @@ export type DbAiPromptDecision = {
     answers: object | null;
     thresholds: object;
     latency_ms: number;
+    jev_service_ms: number | null;
     jev_model: string;
 };
 
