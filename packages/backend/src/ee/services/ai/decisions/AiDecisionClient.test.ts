@@ -48,6 +48,7 @@ describe('AiDecisionClient', () => {
             Authorization: 'Bearer test-key',
             'Content-Type': 'application/json',
         });
+        expect(options).toHaveProperty('dispatcher');
         expect(options?.body).toBe(
             JSON.stringify({
                 model: config.model,

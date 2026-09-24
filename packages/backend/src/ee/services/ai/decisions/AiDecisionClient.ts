@@ -1,3 +1,4 @@
+import { Agent, type Dispatcher } from 'undici';
 import { z } from 'zod';
 import type { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
@@ -110,6 +111,11 @@ export type AiDecisionUsage = {
 
 // JEV's gateway reports how long its model service spent on the request.
 const SERVICE_TIME_HEADER = 'x-envoy-upstream-service-time';
+// Turns arrive seconds apart, past fetch's default keep-alive, so every turn paid a new TLS handshake.
+const JEV_DISPATCHER = new Agent({
+    keepAliveTimeout: 300_000,
+    keepAliveMaxTimeout: 300_000,
+});
 type DecisionConfig = LightdashConfig['ai']['decisions'];
 type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
@@ -199,6 +205,9 @@ export class AiDecisionClient {
                     signal: signal
                         ? AbortSignal.any([signal, deadline])
                         : deadline,
+                    ...({ dispatcher: JEV_DISPATCHER } as {
+                        dispatcher: Dispatcher;
+                    }),
                 },
             );
             if (!response.ok) {
