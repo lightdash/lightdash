@@ -3,7 +3,6 @@ import {
     type AiAgentToolName,
     type AiMcpServer,
     isToolName,
-    toolComposerQueriesOutputSchema,
     type ToolName,
 } from '@lightdash/common';
 import {
@@ -51,29 +50,6 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
 // Tools whose description renders something tall (e.g. a code block) and can't
 // be sensibly clipped to a single-line preview — collapse to verb + chevron.
 const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runComposerQueries', 'runSql']);
-
-const isSuccessOutput = (output: unknown) => {
-    const parsed = toolComposerQueriesOutputSchema.safeParse(output);
-    return parsed.success && parsed.data.metadata.status === 'success';
-};
-
-// Composer runs are web-chat only and the tool reports success only after its
-// artifact exists, so a success status means the artifact version exists and
-// the pipeline card yields to the artifact's pipeline panel.
-const hasComposerArtifact = (
-    toolCall: ToolCallSummary,
-    toolResults: AiAgentToolResult[] | undefined,
-) =>
-    toolCall.toolName === 'runComposerQueries' &&
-    ((toolCall.isPreliminary === false &&
-        isSuccessOutput(toolCall.toolOutput)) ||
-        Boolean(
-            toolResults?.some(
-                (result) =>
-                    result.toolCallId === toolCall.toolCallId &&
-                    isSuccessOutput(result),
-            ),
-        ));
 
 const INLINE_CHIP_PREVIEW_TOOLS = new Set<ToolName>([
     'readContent',
@@ -133,8 +109,7 @@ export const ToolCallRow: FC<Props> = ({
         : null;
     const hasCallDescription = (toolCall: ToolCallSummary) =>
         isToolName(toolCall.toolName) &&
-        !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName) &&
-        !hasComposerArtifact(toolCall, toolResults);
+        !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName);
     const hasDescription =
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
