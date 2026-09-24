@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     DbtProjectType,
     DefaultSupportedDbtVersion,
     omitEmptySecrets,
@@ -28,6 +29,7 @@ import {
 } from '@mantine/core';
 import { useForm as useMantineForm } from '@mantine/form';
 import {
+    IconDatabase,
     IconDots,
     IconPencil,
     IconPlugConnected,
@@ -52,6 +54,9 @@ import { dbtDefaults } from './DbtForms/defaultValues';
 import { FormProvider, useForm, type Form } from './formContext';
 import { getWarehouseLabel } from './ProjectConnectFlow/utils';
 import { ProjectFormProvider } from './ProjectFormProvider';
+import WarehouseDatabaseListingFields, {
+    type WarehouseDatabaseListingValues,
+} from './WarehouseDatabaseListingFields';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { warehouseValueValidators } from './WarehouseForms/validators';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
@@ -66,8 +71,9 @@ const ConnectionRow: FC<{
     connection: WarehouseConnection;
     onEdit: (connection: WarehouseConnection) => void;
     onRename: (connection: WarehouseConnection) => void;
+    onEditListing: (connection: WarehouseConnection) => void;
     onRemove: (connection: WarehouseConnection) => void;
-}> = ({ connection, onEdit, onRename, onRemove }) => (
+}> = ({ connection, onEdit, onRename, onEditListing, onRemove }) => (
     <Group className={classes.row} gap="sm" wrap="nowrap">
         <MantineIcon
             icon={IconPlugConnected}
@@ -105,6 +111,12 @@ const ConnectionRow: FC<{
                 )}
                 <Menu.Item onClick={() => onRename(connection)}>
                     Rename
+                </Menu.Item>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconDatabase} />}
+                    onClick={() => onEditListing(connection)}
+                >
+                    SQL runner databases
                 </Menu.Item>
                 {!connection.isOriginal && (
                     <Menu.Item
@@ -366,6 +378,50 @@ const RenameConnectionModal: FC<{
     );
 };
 
+const ListingSettingsModal: FC<{
+    projectUuid: string;
+    connection: WarehouseConnection;
+    onClose: () => void;
+}> = ({ projectUuid, connection, onClose }) => {
+    const form = useMantineForm<WarehouseDatabaseListingValues>({
+        initialValues: {
+            listAllDatabases: connection.listAllDatabases,
+            additionalDatabases: connection.additionalDatabases,
+        },
+    });
+    const updateMutation = useUpdateWarehouseConnection(projectUuid, {
+        onSuccess: onClose,
+    });
+
+    const handleSubmit = () => {
+        updateMutation.mutate({
+            warehouseConnectionUuid: connection.warehouseConnectionUuid,
+            data: {
+                listAllDatabases: form.values.listAllDatabases,
+                additionalDatabases: form.values.additionalDatabases,
+            },
+        });
+    };
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title={`SQL runner databases for ${connection.name}`}
+            confirmLabel="Save changes"
+            onConfirm={handleSubmit}
+            confirmLoading={updateMutation.isLoading}
+            cancelDisabled={updateMutation.isLoading}
+        >
+            <WarehouseDatabaseListingFields
+                form={form}
+                warehouseType={connection.warehouseType}
+                disabled={updateMutation.isLoading}
+            />
+        </MantineModal>
+    );
+};
+
 const RemoveConnectionModal: FC<{
     projectUuid: string;
     connection: WarehouseConnection;
@@ -407,8 +463,51 @@ const RemoveConnectionModal: FC<{
 };
 
 type ConnectionAction = {
-    kind: 'edit' | 'rename' | 'remove';
+    kind: 'edit' | 'rename' | 'listing' | 'remove';
     connection: WarehouseConnection;
+};
+
+const ConnectionActionModal: FC<{
+    projectUuid: string;
+    action: ConnectionAction;
+    onClose: () => void;
+}> = ({ projectUuid, action, onClose }) => {
+    switch (action.kind) {
+        case 'edit':
+            return (
+                <EditConnectionModal
+                    projectUuid={projectUuid}
+                    connection={action.connection}
+                    onClose={onClose}
+                />
+            );
+        case 'rename':
+            return (
+                <RenameConnectionModal
+                    projectUuid={projectUuid}
+                    connection={action.connection}
+                    onClose={onClose}
+                />
+            );
+        case 'listing':
+            return (
+                <ListingSettingsModal
+                    projectUuid={projectUuid}
+                    connection={action.connection}
+                    onClose={onClose}
+                />
+            );
+        case 'remove':
+            return (
+                <RemoveConnectionModal
+                    projectUuid={projectUuid}
+                    connection={action.connection}
+                    onClose={onClose}
+                />
+            );
+        default:
+            return assertUnreachable(action.kind, 'Unknown connection action');
+    }
 };
 
 const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
@@ -456,6 +555,9 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
                                 onRename={() =>
                                     setAction({ kind: 'rename', connection })
                                 }
+                                onEditListing={() =>
+                                    setAction({ kind: 'listing', connection })
+                                }
                                 onRemove={() =>
                                     setAction({ kind: 'remove', connection })
                                 }
@@ -494,24 +596,10 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
                     onClose={() => setIsAddOpen(false)}
                 />
             )}
-            {action?.kind === 'edit' && (
-                <EditConnectionModal
+            {action && (
+                <ConnectionActionModal
                     projectUuid={projectUuid}
-                    connection={action.connection}
-                    onClose={closeAction}
-                />
-            )}
-            {action?.kind === 'rename' && (
-                <RenameConnectionModal
-                    projectUuid={projectUuid}
-                    connection={action.connection}
-                    onClose={closeAction}
-                />
-            )}
-            {action?.kind === 'remove' && (
-                <RemoveConnectionModal
-                    projectUuid={projectUuid}
-                    connection={action.connection}
+                    action={action}
                     onClose={closeAction}
                 />
             )}
