@@ -82,21 +82,8 @@ the reason.
 Red means a product function does not work. A gap means the function works
 but cannot be observed; the test passes and prints a `[WARNING]` line.
 
-Known red:
-
-- **T7.1 fails on an OpenAI provider without the union fix.** The memory
-  distill schema used `z.discriminatedUnion`, at the top level and inside the
-  shared `aiProjectContextTypedObjectRefSchema`. That serialises to JSON
-  Schema `oneOf`, which OpenAI strict structured outputs reject ("'oneOf' is
-  not permitted"), so every distill recorded outcome `failed`, on `main` too.
-  Both are now `z.union` on this branch; a sweep of every `Output.object`
-  schema found one more `oneOf`, in `agentSuggestionsModelSchema`, which
-  fails only where the suggestion model resolves to OpenAI. The shared ref
-  also reached the review classifier's project-context call
-  (`authorProjectContextEntry.ts`), so that call failed on OpenAI too. The
-  backend unit test `structuredOutputSchemasPassOpenAiStrictMode.test.ts`
-  (stacked on the fix PR) now fails CI on any `oneOf`, `allOf` or `not` in a
-  structured-output schema.
+Known red: none. T7.1 was red on every OpenAI backend until #29826; see
+Findings.
 
 Known gaps:
 
@@ -112,6 +99,18 @@ Known gaps:
 Things the suite found that an operator or a developer building on these
 features needs to know.
 
+- **A `z.discriminatedUnion` anywhere under a structured output fails on
+  OpenAI.** Zod renders it as JSON Schema `oneOf`, which OpenAI strict
+  structured outputs reject ("'oneOf' is not permitted"), while Anthropic's
+  provider rewrites it to `anyOf` and hides the break. Four call sites failed
+  this way until #29826: memory distill and consolidation (so T7.1 was red on
+  every OpenAI backend), agent suggestions, and the review classifier's
+  project-context call. Two of them never declared a union; they reached it
+  through the shared `aiProjectContextTypedObjectRefSchema`. `z.intersection`
+  and `.and()` render `allOf`, `z.xor` renders `oneOf` and `z.never` renders
+  `not`, all equally rejected. Nothing in CI checks this: the guard is the
+  comment on each fixed schema, and T7.1 catches a regression in distill only
+  when the backend's model is OpenAI.
 - **Autopilot aggression "flag" still creates content and rewrites charts.**
   Aggression only removes the cleanup (delete) tools. Creating content and
   fixing broken charts are separate capabilities (`createContent`,
@@ -172,8 +171,7 @@ features needs to know.
   outputs are different: their `response_format` takes `strictJsonSchema`,
   which defaults to true. So the 38 `z.discriminatedUnion` uses in tool
   argument schemas are sent non-strict and pass today. They stop being safe
-  the day anyone opts a tool into `strict: true`, and the backend regression
-  test does not cover them: it checks structured outputs only.
+  the day anyone opts a tool into `strict: true`.
 - **The memories onboarding tour blocks the agent page until dismissed.** It
   shows once per user (stored in `user_onboarding`) whenever memories exist,
   and its overlay intercepts clicks, including on the Memories button it
