@@ -61506,6 +61506,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        warehouseConnectionUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
                         limit: { dataType: 'double' },
                         sql: { dataType: 'string', required: true },

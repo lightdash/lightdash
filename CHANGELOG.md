@@ -1,3 +1,10 @@
+# [2.330.0](https://github.com/lightdash/lightdash/compare/2.329.2...2.330.0) (2026-09-24)
+
+
+### Features
+
+* **connections:** run the SQL runner on the active connection ([#29908](https://github.com/lightdash/lightdash/issues/29908)) ([61c64f8](https://github.com/lightdash/lightdash/commit/61c64f8446ca39ffb4bb937831407375188165a5))
+
 ## [2.329.2](https://github.com/lightdash/lightdash/compare/2.329.1...2.329.2) (2026-09-24)
 
 
