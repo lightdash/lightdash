@@ -68,7 +68,9 @@ const callAuthoringLlm: MemoryProjectContextAuthoringLlmCall = async ({
         ...model.callOptions,
         providerOptions: model.providerOptions,
         ...telemetry,
-        output: strictOutput(memoryProjectContextAuthoringResultSchema),
+        output: strictOutput({
+            schema: memoryProjectContextAuthoringResultSchema,
+        }),
         allowSystemInMessages: true,
         messages,
     });

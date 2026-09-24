@@ -4670,7 +4670,7 @@ export class AppGenerateService extends BaseService {
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             ...telemetry,
-            output: strictOutput(metadataSchema),
+            output: strictOutput({ schema: metadataSchema }),
             abortSignal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
             allowSystemInMessages: true,
             messages: [
@@ -6911,7 +6911,7 @@ export class AppGenerateService extends BaseService {
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
                 ...telemetry,
-                output: strictOutput(clarifySchema),
+                output: strictOutput({ schema: clarifySchema }),
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
                 allowSystemInMessages: true,
                 messages: [

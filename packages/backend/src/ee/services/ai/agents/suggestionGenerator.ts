@@ -288,7 +288,7 @@ export async function generateAgentSuggestions(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: strictOutput(agentSuggestionsModelSchema),
+        output: strictOutput({ schema: agentSuggestionsModelSchema }),
         allowSystemInMessages: true,
         messages: [
             {

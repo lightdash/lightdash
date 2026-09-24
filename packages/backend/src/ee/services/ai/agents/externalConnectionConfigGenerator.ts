@@ -311,7 +311,7 @@ export async function generateExternalConnectionConfigProposal(
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             ...telemetry,
-            output: strictOutput(ProposalSchema),
+            output: strictOutput({ schema: ProposalSchema }),
             abortSignal: AbortSignal.timeout(PROPOSAL_TIMEOUT_MS),
             system: systemPrompt,
             messages: [

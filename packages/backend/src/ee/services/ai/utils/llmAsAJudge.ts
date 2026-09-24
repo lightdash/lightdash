@@ -214,7 +214,7 @@ export async function llmAsAJudge({
                 ...defaultAgentOptions,
                 ...callOptions,
                 ...telemetryConfig,
-                output: strictOutput(factualityResponseSchema),
+                output: strictOutput({ schema: factualityResponseSchema }),
                 /**
                  * Prompt taken from autoevals:
                  *
@@ -296,7 +296,9 @@ ${
                 ...defaultAgentOptions,
                 ...callOptions,
                 ...telemetryConfig,
-                output: strictOutput(contextRelevancyResponseSchema),
+                output: strictOutput({
+                    schema: contextRelevancyResponseSchema,
+                }),
                 prompt: `
 You are evaluating the relevancy of context used to answer a query.
 

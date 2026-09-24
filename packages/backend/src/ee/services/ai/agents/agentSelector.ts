@@ -229,7 +229,7 @@ export async function selectAgent({
     const result = await generateText({
         model,
         ...telemetryConfig,
-        output: strictOutput(AgentSelectionSchema),
+        output: strictOutput({ schema: AgentSelectionSchema }),
         allowSystemInMessages: true,
         messages: [
             { role: 'system', content: systemPrompt },

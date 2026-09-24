@@ -313,7 +313,7 @@ export const evaluateToolCallSequence = async (
         ...defaultAgentOptions,
         ...callOptions,
         ...telemetry,
-        output: strictOutput(toolEvaluationSchema),
+        output: strictOutput({ schema: toolEvaluationSchema }),
         prompt: `
 You are evaluating AI agent tool usage for business logic testing. Here is the data:
 [BEGIN DATA]

@@ -145,7 +145,7 @@ export async function detectDataAppAnomalies(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: strictOutput(DataAppDetectionSchema),
+        output: strictOutput({ schema: DataAppDetectionSchema }),
         ...telemetry,
         allowSystemInMessages: true,
         messages: [

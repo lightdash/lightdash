@@ -276,7 +276,7 @@ export async function generateTableCalculation(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: strictOutput(TableCalculationSchema),
+        output: strictOutput({ schema: TableCalculationSchema }),
         allowSystemInMessages: true,
         messages: [
             {

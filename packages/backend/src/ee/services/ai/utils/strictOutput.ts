@@ -113,9 +113,23 @@ export const assertStrictModeSafe = (schema: z.ZodType) => {
     );
 };
 
-export const strictOutput = <OBJECT>(schema: z.ZodType<OBJECT>) => {
+/**
+ * Takes the whole `Output.object` options object rather than just the schema:
+ * `name` and `description` are real provider guidance, and a guard you have to
+ * bypass to use a supported option is a guard that gets bypassed. `schema` is
+ * narrowed from `FlexibleSchema` to zod, because a hand-written JSON Schema is
+ * not something this can check.
+ */
+export const strictOutput = <OBJECT>({
+    schema,
+    ...options
+}: {
+    schema: z.ZodType<OBJECT>;
+    name?: string;
+    description?: string;
+}) => {
     if (process.env.NODE_ENV !== 'production') {
         assertStrictModeSafe(schema);
     }
-    return Output.object({ schema });
+    return Output.object({ schema, ...options });
 };

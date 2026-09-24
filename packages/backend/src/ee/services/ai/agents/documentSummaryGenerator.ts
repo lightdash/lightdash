@@ -96,7 +96,7 @@ export async function generateDocumentSummary(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: strictOutput(DocumentSummarySchema),
+        output: strictOutput({ schema: DocumentSummarySchema }),
         allowSystemInMessages: true,
         messages: [
             {

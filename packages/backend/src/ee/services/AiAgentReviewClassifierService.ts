@@ -1628,7 +1628,9 @@ export class AiAgentReviewClassifierService extends BaseService {
             // This schema is near the provider's strict-output grammar-size limit;
             // growing it breaks EVERY judge call silently ("compiled grammar is too
             // large"). Put new fields in a follow-up call like emitProjectContextEntry.
-            output: strictOutput(aiAgentReviewClassifierJudgeCallOutputSchema),
+            output: strictOutput({
+                schema: aiAgentReviewClassifierJudgeCallOutputSchema,
+            }),
             allowSystemInMessages: true,
             messages: [
                 {

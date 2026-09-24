@@ -355,7 +355,7 @@ export async function generateFormulaTableCalculation(
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             ...telemetry,
-            output: strictOutput(FormulaTableCalculationSchema),
+            output: strictOutput({ schema: FormulaTableCalculationSchema }),
             allowSystemInMessages: true,
             messages: [
                 { role: 'system', content: systemPrompt },

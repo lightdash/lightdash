@@ -89,7 +89,7 @@ export async function routeProjectForSlack(
     const result = await generateText({
         model,
         ...telemetryConfig,
-        output: strictOutput(ProjectRoutingSchema),
+        output: strictOutput({ schema: ProjectRoutingSchema }),
         allowSystemInMessages: true,
         messages: [
             {

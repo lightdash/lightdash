@@ -77,7 +77,7 @@ export async function generateChartMetadata(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: strictOutput(ChartMetadataSchema),
+        output: strictOutput({ schema: ChartMetadataSchema }),
         ...telemetry,
         allowSystemInMessages: true,
         messages: [

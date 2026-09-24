@@ -23,7 +23,8 @@ const BUILT_SCHEMAS = new Map([
 const SOURCE_FILE = /\.tsx?$/;
 const TEST_FILE = /\.test\.tsx?$/;
 const STRICT_OUTPUT = /\bstrictOutput\(/g;
-const SCHEMA_ARGUMENT = /^strictOutput\(\s*([A-Za-z_$][\w$]*)\s*,?\s*\)/;
+const SCHEMA_ARGUMENT =
+    /^strictOutput\(\{\s*schema:\s*([A-Za-z_$][\w$]*)\s*[,}]/;
 const NAMED_IMPORTS =
     /^import\s+(?:[\w$]+\s*,\s*)?\{([^}]*)\}\s*from\s*'([^']+)';/gm;
 
@@ -103,7 +104,7 @@ const resolveSchemas = async ({
 }: (typeof sites)[number]) => {
     if (schema === null) {
         throw new Error(
-            `${file}:${line}: cannot read the schema passed to strictOutput. Write it as strictOutput(<name>) with a module-level exported schema so this test can check it.`,
+            `${file}:${line}: cannot read the schema passed to strictOutput. Write it as strictOutput({ schema: <name> }) with a module-level exported schema so this test can check it.`,
         );
     }
     const built = BUILT_SCHEMAS.get(`${file} ${schema}`);

@@ -144,7 +144,9 @@ export const classifyPromptInputRequest = async ({
             ...model.model.callOptions,
             providerOptions: model.model.providerOptions,
             ...telemetry,
-            output: strictOutput(promptInputRequestClassifierOutputSchema),
+            output: strictOutput({
+                schema: promptInputRequestClassifierOutputSchema,
+            }),
             abortSignal: AbortSignal.timeout(
                 PROMPT_INPUT_REQUEST_CLASSIFIER_TIMEOUT_MS,
             ),

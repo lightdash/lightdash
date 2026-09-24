@@ -56,9 +56,9 @@ const callAuthoringLlm: ProjectContextEntryAuthoringLlmCall = async ({
         ...model.callOptions,
         providerOptions: model.providerOptions,
         ...telemetry,
-        output: strictOutput(
-            aiAgentReviewClassifierJudgeProjectContextCallSchema,
-        ),
+        output: strictOutput({
+            schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
+        }),
         allowSystemInMessages: true,
         messages,
     });

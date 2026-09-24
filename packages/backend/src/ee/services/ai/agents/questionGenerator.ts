@@ -43,7 +43,7 @@ export async function generateArtifactQuestion(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: strictOutput(QuestionSchema),
+        output: strictOutput({ schema: QuestionSchema }),
         allowSystemInMessages: true,
         messages: [
             {

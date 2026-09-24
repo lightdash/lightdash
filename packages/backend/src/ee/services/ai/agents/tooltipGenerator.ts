@@ -51,7 +51,7 @@ export async function generateTooltip(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: strictOutput(TooltipSchema),
+        output: strictOutput({ schema: TooltipSchema }),
         allowSystemInMessages: true,
         messages: [
             {

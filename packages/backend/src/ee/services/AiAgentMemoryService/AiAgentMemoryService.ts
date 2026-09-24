@@ -1718,7 +1718,7 @@ export class AiAgentMemoryService extends BaseService {
                 ...model.callOptions,
                 providerOptions: model.providerOptions,
                 maxRetries: 0,
-                output: strictOutput(consolidationOutputSchema),
+                output: strictOutput({ schema: consolidationOutputSchema }),
                 system,
                 abortSignal: args.abortSignal,
                 ...getAiCallTelemetry({
@@ -2033,7 +2033,7 @@ export class AiAgentMemoryService extends BaseService {
             ...model.callOptions,
             providerOptions: model.providerOptions,
             maxRetries: 0,
-            output: strictOutput(distillOutputSchema),
+            output: strictOutput({ schema: distillOutputSchema }),
             system,
             abortSignal: args.abortSignal,
             ...getAiCallTelemetry({
