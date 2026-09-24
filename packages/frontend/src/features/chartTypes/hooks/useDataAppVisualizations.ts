@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 
 type DataAppVizsPage = ApiListDataAppVizsResponse['results'];
 
@@ -15,6 +16,7 @@ const getDataAppVisualizations = async (
     pageSize: number,
     search: string,
     sort: DataAppVizListSort,
+    isEmbedded: boolean,
 ): Promise<DataAppVizsPage> => {
     const params = new URLSearchParams({
         page: String(page),
@@ -25,9 +27,12 @@ const getDataAppVisualizations = async (
     if (search) {
         params.set('search', search);
     }
+    const baseUrl = isEmbedded
+        ? `/embed/${projectUuid}/explore/visualizations`
+        : `/ee/projects/${projectUuid}/apps/visualizations`;
     return lightdashApi<DataAppVizsPage>({
         method: 'GET',
-        url: `/ee/projects/${projectUuid}/apps/visualizations?${params.toString()}`,
+        url: `${baseUrl}?${params.toString()}`,
         body: undefined,
     });
 };
@@ -41,8 +46,10 @@ export const useDataAppVisualizations = (
     search: string = '',
     sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     pageSize: number = FETCH_SIZE,
-) =>
-    useInfiniteQuery<DataAppVizsPage, ApiError>({
+) => {
+    const { embedToken } = useEmbed();
+    const isEmbedded = !!embedToken;
+    return useInfiniteQuery<DataAppVizsPage, ApiError>({
         queryKey: [
             'data-app-vizs',
             projectUuid,
@@ -50,6 +57,7 @@ export const useDataAppVisualizations = (
             search,
             sort.sortBy,
             sort.sortDirection,
+            isEmbedded ? 'embed' : 'registered',
         ],
         queryFn: ({ pageParam = 1 }) =>
             getDataAppVisualizations(
@@ -58,6 +66,7 @@ export const useDataAppVisualizations = (
                 pageSize,
                 search,
                 sort,
+                isEmbedded,
             ),
         getNextPageParam: (lastPage, pages) => {
             const totalPages = lastPage.pagination?.totalPageCount ?? 0;
@@ -67,3 +76,4 @@ export const useDataAppVisualizations = (
         keepPreviousData: true,
         refetchOnWindowFocus: false,
     });
+};

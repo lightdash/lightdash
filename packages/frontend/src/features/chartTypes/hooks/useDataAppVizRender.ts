@@ -30,7 +30,9 @@ const getRenderBaseUrl = (
     { isEmbedded, savedChartUuid }: DataAppVizRenderTarget,
 ): string => {
     if (isEmbedded) {
-        return `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`;
+        return savedChartUuid
+            ? `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`
+            : `/embed/${projectUuid}/explore/visualizations/${dataAppVizUuid}`;
     }
     return savedChartUuid
         ? `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/charts/${savedChartUuid}`
@@ -54,9 +56,7 @@ const getRenderMetadataQuery = (
     const chartVersionQuery = getChartVersionQuery(target);
     if (chartVersionQuery) return chartVersionQuery;
 
-    return !target.isEmbedded &&
-        !target.savedChartUuid &&
-        pinnedVersion !== undefined
+    return !target.savedChartUuid && pinnedVersion !== undefined
         ? `?version=${pinnedVersion}`
         : '';
 };
@@ -64,11 +64,7 @@ const getRenderMetadataQuery = (
 const isTargetReady = (
     projectUuid: string | undefined,
     dataAppVizUuid: string | null,
-    target: DataAppVizRenderTarget,
-): boolean =>
-    !!projectUuid &&
-    dataAppVizUuid !== null &&
-    (!target.isEmbedded || !!target.savedChartUuid);
+): boolean => !!projectUuid && dataAppVizUuid !== null;
 
 const shouldRetryDataAppVizRenderQuery = (
     failureCount: number,
@@ -121,7 +117,7 @@ export const useDataAppVizRenderMetadata = (
                     pinnedVersion,
                 )}`,
             }),
-        enabled: isTargetReady(projectUuid, dataAppVizUuid, target),
+        enabled: isTargetReady(projectUuid, dataAppVizUuid),
         retry: shouldRetryDataAppVizRenderQuery,
         refetchInterval: (metadata) =>
             metadata?.latestBuildInProgress
@@ -163,7 +159,7 @@ export const useDataAppVizPreviewToken = (
             return token;
         },
         enabled:
-            isTargetReady(projectUuid, dataAppVizUuid, target) &&
+            isTargetReady(projectUuid, dataAppVizUuid) &&
             version !== undefined &&
             version > 0,
         retry: shouldRetryDataAppVizRenderQuery,

@@ -9,6 +9,8 @@ import {
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
+    ApiGetDataAppVizResponse,
+    ApiListDataAppVizsResponse,
     ApiSqlChart,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
@@ -25,6 +27,7 @@ import {
     DateGranularity,
     DateZoom,
     DecodedEmbed,
+    DEFAULT_DATA_APP_VIZ_LIST_SORT,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
     ExecuteAsyncDashboardSqlChartRequestParams,
@@ -40,6 +43,9 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SortField,
     UpdateEmbed,
+    type DataAppVizListSortBy,
+    type DataAppVizListSortDirection,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -51,6 +57,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -757,6 +764,118 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * @summary List chart types available while exploring in an embed
+     */
+    @SuccessResponse('200', 'Success')
+    @Get('/explore/visualizations')
+    @OperationId('listEmbedExploreDataAppVisualizations')
+    async listEmbedExploreDataAppVisualizations(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        @Query() search?: string,
+        @Query() sortBy?: DataAppVizListSortBy,
+        @Query() sortDirection?: DataAppVizListSortDirection,
+    ): Promise<ApiListDataAppVizsResponse> {
+        assertEmbeddedAuth(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getEmbedService().listEmbedExploreDataAppVisualizations(
+                    req.account,
+                    projectUuid,
+                    page && pageSize ? { page, pageSize } : undefined,
+                    search,
+                    {
+                        sortBy: sortBy ?? DEFAULT_DATA_APP_VIZ_LIST_SORT.sortBy,
+                        sortDirection:
+                            sortDirection ??
+                            DEFAULT_DATA_APP_VIZ_LIST_SORT.sortDirection,
+                    },
+                ),
+        };
+    }
+
+    /**
+     * @summary Get a chart type available while exploring in an embed
+     */
+    @SuccessResponse('200', 'Success')
+    @Get('/explore/visualizations/{dataAppVizUuid}')
+    @OperationId('getEmbedExploreDataAppVisualization')
+    async getEmbedExploreDataAppVisualization(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+        @Query() version?: number,
+    ): Promise<ApiGetDataAppVizResponse> {
+        assertEmbeddedAuth(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getEmbedService().getEmbedExploreDataAppVisualization(
+                    req.account,
+                    projectUuid,
+                    dataAppVizUuid,
+                    version,
+                ),
+        };
+    }
+
+    /**
+     * @summary Get embedded Explore chart type render metadata
+     */
+    @SuccessResponse('200', 'Success')
+    @Get('/explore/visualizations/{dataAppVizUuid}/render-metadata')
+    @OperationId('getEmbedExploreDataAppVizRenderMetadata')
+    async getEmbedExploreDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+        @Query() version?: number,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertEmbeddedAuth(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getEmbedService().getEmbedExploreDataAppVizRenderMetadata(
+                    req.account,
+                    projectUuid,
+                    dataAppVizUuid,
+                    version,
+                ),
+        };
+    }
+
+    /**
+     * @summary Get an embedded Explore chart type preview token
+     */
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/explore/visualizations/{dataAppVizUuid}/versions/{version}/preview-token',
+    )
+    @OperationId('getEmbedExploreDataAppVizPreviewToken')
+    async getEmbedExploreDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+        @Path() version: number,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertEmbeddedAuth(req.account);
+        return {
+            status: 'ok',
+            results: {
+                token: await this.getEmbedService().getEmbedExploreDataAppVizPreviewToken(
+                    req.account,
+                    projectUuid,
+                    dataAppVizUuid,
+                    version,
+                ),
+            },
         };
     }
 

@@ -342,6 +342,7 @@ import {
     dashboardBlueprintPromptBlock,
     describeDashboardBlueprint,
 } from './dashboardBlueprint';
+import { mapDataAppViz } from './dataAppViz';
 import {
     assertDataAppVizPreviewVersionAllowed,
     getDataAppVizVersionPin,
@@ -9726,25 +9727,6 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    private static mapDataAppViz(
-        app: DbApp & { viz_schema: DataAppVizSchema | null },
-    ): DataAppViz {
-        return {
-            dataAppVizUuid: app.app_id,
-            slug: app.slug,
-            name: app.name,
-            description: app.description,
-            projectUuid: app.project_uuid,
-            spaceUuid: app.space_uuid,
-            schema: app.viz_schema,
-            createdAt: app.created_at,
-            createdByUserUuid: app.created_by_user_uuid,
-            registrySlug: app.registry_slug,
-            // An icon retired from the curated set reads back as no icon.
-            icon: isChartTypeIcon(app.icon) ? app.icon : null,
-        };
-    }
-
     async listDataAppVisualizations(
         user: SessionUser,
         projectUuid: string,
@@ -9763,7 +9745,7 @@ export class AppGenerateService extends BaseService {
                 search,
                 sort,
             );
-        return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
+        return { data: data.map(mapDataAppViz), pagination };
     }
 
     /** Whether the given entry's `minLightdashVersion` is newer than this instance. Non-semver instance versions are treated as compatible. */
@@ -10220,14 +10202,14 @@ export class AppGenerateService extends BaseService {
             projectUuid: dataAppViz.project_uuid,
         });
         if (version === undefined) {
-            return AppGenerateService.mapDataAppViz(dataAppViz);
+            return mapDataAppViz(dataAppViz);
         }
         const appVersion = await resolveRenderableDataAppVizVersion(
             this.appModel,
             dataAppViz.app_id,
             version,
         );
-        return AppGenerateService.mapDataAppViz({
+        return mapDataAppViz({
             ...dataAppViz,
             viz_schema: appVersion.viz_schema,
         });
