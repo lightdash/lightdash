@@ -483,6 +483,7 @@ const AiArtifactPanelContent: FC<
                         )}
                     >
                         <AiSqlArtifactVisualization
+                            projectUuid={artifact.projectUuid}
                             results={queryResults}
                             headerContent={floatingHead}
                             flush

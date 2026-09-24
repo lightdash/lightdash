@@ -188,6 +188,7 @@ export const AiChartVisualization: FC<Props> = ({
 
         return (
             <AiSqlArtifactVisualization
+                projectUuid={projectUuid}
                 results={queryResults}
                 headerContent={sqlHeaderContent}
             />
