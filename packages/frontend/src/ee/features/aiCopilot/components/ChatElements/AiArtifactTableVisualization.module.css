@@ -1,10 +1,11 @@
 .tableContainer {
     flex-shrink: 1;
     overflow: hidden;
+    /* height is computed from rows; keep borders outside it so nothing scrolls */
+    box-sizing: content-box;
 }
 
 .flush {
     border-left: 0;
     border-right: 0;
-    border-bottom: 0;
 }

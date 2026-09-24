@@ -22,6 +22,7 @@ import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
 type ContentProps = {
     results: InfiniteQueryResults;
     headerContent: ReactNode;
+    flush?: boolean;
 };
 
 type ActionsProps = {
@@ -147,11 +148,13 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
 export const AiSqlArtifactVisualization: FC<ContentProps> = ({
     results,
     headerContent,
+    flush = false,
 }) => {
     return (
         <AiArtifactTableVisualization
             results={results}
             headerContent={headerContent}
+            flush={flush}
             loadingMessage="Loading SQL results..."
         />
     );

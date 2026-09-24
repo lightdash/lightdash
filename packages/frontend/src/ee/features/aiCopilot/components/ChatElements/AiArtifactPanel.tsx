@@ -315,7 +315,7 @@ const AiArtifactPanelContent: FC<
             const composerTitle =
                 artifactData.title ?? 'Composer query results';
             const composerHead = (
-                <Box className={clsx(styles.head, styles.composerHead)}>
+                <Box className={clsx(styles.head, styles.flushHead)}>
                     <Stack gap={0} flex={1} miw={0}>
                         <TruncatedText fz="sm" fw={600} maxWidth="100%">
                             {composerTitle}
@@ -344,7 +344,7 @@ const AiArtifactPanelContent: FC<
                     <Box
                         className={clsx(
                             styles.floatingContent,
-                            styles.composerContent,
+                            styles.flushContent,
                         )}
                     >
                         <AiComposerPipelinePanel
@@ -434,7 +434,7 @@ const AiArtifactPanelContent: FC<
         const metricQuery = semanticVizQueryData?.query.metricQuery;
 
         const floatingHead = (
-            <Box className={styles.head}>
+            <Box className={clsx(styles.head, styles.flushHead)}>
                 <Stack gap={0} flex={1} miw={0}>
                     <TruncatedText fz="sm" fw={600} maxWidth="100%">
                         {title}
@@ -515,10 +515,16 @@ const AiArtifactPanelContent: FC<
         if (sqlVizQueryData) {
             return (
                 <Box className={styles.floatingPanel}>
-                    <Box className={styles.floatingContent}>
+                    <Box
+                        className={clsx(
+                            styles.floatingContent,
+                            styles.flushContent,
+                        )}
+                    >
                         <AiSqlArtifactVisualization
                             results={queryResults}
                             headerContent={floatingHead}
+                            flush
                         />
                     </Box>
                 </Box>
@@ -532,9 +538,11 @@ const AiArtifactPanelContent: FC<
         return (
             <Box className={styles.floatingPanel}>
                 <Box
-                    className={`${styles.floatingContent} ${
-                        shouldShowPill ? styles.withPillClearance : ''
-                    }`}
+                    className={clsx(
+                        styles.floatingContent,
+                        styles.flushContent,
+                        shouldShowPill && styles.withPillClearance,
+                    )}
                 >
                     <AiVisualizationRenderer
                         vizQueryData={semanticVizQueryData}
@@ -544,6 +552,7 @@ const AiArtifactPanelContent: FC<
                         selectedChartType={selectedChartType}
                         headerContent={floatingHead}
                         loadExplore={!isMergeArtifact}
+                        flush
                     />
                 </Box>
                 {shouldShowPill && metricQuery && (

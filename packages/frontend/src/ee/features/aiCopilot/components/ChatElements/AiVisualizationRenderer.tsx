@@ -27,6 +27,7 @@ import {
     IconChevronUp,
     IconExclamationCircle,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
@@ -47,6 +48,7 @@ import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTy
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import AgentVisualizationParameters from './AgentVisualizationParameters';
+import styles from './AiVisualizationRenderer.module.css';
 import {
     getVisualizationFieldsCount,
     getVisualizationFiltersCount,
@@ -79,6 +81,8 @@ type Props = {
     // Screenshot/export surfaces: flips VisualizationProvider into minimal
     // mode so renderers disable drill-down/underlying-data structurally.
     minimal?: boolean;
+    /** Body runs edge to edge; the details row keeps its own padding. */
+    flush?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -98,6 +102,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     loadExplore = true,
     interactionMode = 'full',
     minimal = false,
+    flush = false,
     onScreenshotReady,
     onScreenshotError,
 }) => {
@@ -324,6 +329,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         miw={0}
                         w="100%"
                         maw="100%"
+                        className={clsx(flush && styles.flushViz)}
                         style={{
                             // Scrolling for tables
                             overflow: 'auto',
@@ -358,7 +364,12 @@ export const AiVisualizationRenderer: FC<Props> = ({
                     </Box>
 
                     {displayDetails ? (
-                        <Stack gap="xs" flex="0 0 auto">
+                        <Stack
+                            gap="xs"
+                            flex="0 0 auto"
+                            px={flush ? 'md' : 0}
+                            pb={flush ? 'md' : 0}
+                        >
                             <Flex align="center" justify="flex-start">
                                 <Button
                                     size="compact-xs"
