@@ -1769,12 +1769,14 @@ export class ProjectService extends BaseService {
         userId,
         isRegisteredUser,
         isServiceAccount = false,
+        purpose = 'query',
     }: {
         projectUuid: string;
         warehouseConnectionUuid: string;
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
+        purpose?: 'query' | 'compile';
     }) {
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
@@ -1809,6 +1811,22 @@ export class ProjectService extends BaseService {
             ),
         } as CreateWarehouseCredentials;
         let userWarehouseCredentialsUuid: string | undefined;
+
+        if (purpose === 'compile') {
+            return {
+                ...(await this.refreshCredentialsAndPersistRotation(
+                    credentials,
+                    userId,
+                    organizationWarehouseCredentialsUuid
+                        ? {
+                              kind: 'organization',
+                              organizationWarehouseCredentialsUuid,
+                          }
+                        : connectionRotationSource,
+                )),
+                userWarehouseCredentialsUuid,
+            };
+        }
 
         if (
             organizationWarehouseCredentialsUuid &&
