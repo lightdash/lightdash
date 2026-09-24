@@ -1,3 +1,10 @@
+# [2.336.0](https://github.com/lightdash/lightdash/compare/2.335.0...2.336.0) (2026-09-24)
+
+
+### Features
+
+* warn before exporting very large results ([#29949](https://github.com/lightdash/lightdash/issues/29949)) ([5e38f58](https://github.com/lightdash/lightdash/commit/5e38f58b9474999ee57a95a5b9af0d2399d0e09b))
+
 # [2.335.0](https://github.com/lightdash/lightdash/compare/2.334.1...2.335.0) (2026-09-24)
 
 
