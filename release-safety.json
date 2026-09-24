@@ -1,33 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.334.0",
-  "previousVersion": "2.333.0",
-  "releaseDate": "2026-09-24T20:55:19.369Z",
+  "version": "2.334.1",
+  "previousVersion": "2.334.0",
+  "releaseDate": "2026-09-24T21:07:34.388Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260923150000_add_ai_agent_skills.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_agent",
-          "ai_agent_skill",
-          "ai_agent_skill_access",
-          "ai_agent_skill_version",
-          "organizations",
-          "projects",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -39,10 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `instant_reply` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/jevDecision/allOf[#/components/schemas/AiAgentJevDecision]/outcome` response property for the response status `200`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

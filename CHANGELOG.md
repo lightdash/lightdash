@@ -1,3 +1,10 @@
+## [2.334.1](https://github.com/lightdash/lightdash/compare/2.334.0...2.334.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **connections:** keep SQL charts on their connection in content as code ([#29929](https://github.com/lightdash/lightdash/issues/29929)) ([7abab61](https://github.com/lightdash/lightdash/commit/7abab61b21c9cd4a87653a38d77f7f5238bd73d7))
+
 # [2.334.0](https://github.com/lightdash/lightdash/compare/2.333.0...2.334.0) (2026-09-24)
 
 
