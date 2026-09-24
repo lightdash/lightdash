@@ -1,3 +1,10 @@
+## [2.320.3](https://github.com/lightdash/lightdash/compare/2.320.2...2.320.3) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agent:** collapse query tool steps once the run finishes ([#29880](https://github.com/lightdash/lightdash/issues/29880)) ([7b1d2ca](https://github.com/lightdash/lightdash/commit/7b1d2ca8056ed5ce06da84b335599e95a5e6d78f))
+
 ## [2.320.2](https://github.com/lightdash/lightdash/compare/2.320.1...2.320.2) (2026-09-24)
 
 
