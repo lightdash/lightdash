@@ -35,12 +35,14 @@ export const getRunSqlSection = ({
     // Composer queries replace the standalone runSql tool: raw SQL runs as
     // `sql` nodes inside runComposerQueries, under all the same rules.
     viaComposerQueries = false,
+    answerWithRunQuery = false,
 }: {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
     viaComposerQueries?: boolean;
+    answerWithRunQuery?: boolean;
 }) => {
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
@@ -93,7 +95,11 @@ You have access to a runSql tool that executes raw SELECT queries directly again
 ${intro}
 
 **When to use it:**
-- ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.
+- ${
+        answerWithRunQuery
+            ? 'ALWAYS prefer the semantic layer when the question fits: runQuery for answers, generateVisualization for charts. Both are governed and reusable.'
+            : 'ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.'
+    }
 - Use runSql ONLY when the semantic layer cannot answer the question:
   - joins across tables not modelled in any explore
   - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that generateVisualization cannot produce

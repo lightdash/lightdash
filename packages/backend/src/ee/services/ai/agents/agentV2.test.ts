@@ -2586,6 +2586,7 @@ describe('buildAgentMessages', () => {
             mcpToolNames: [],
             projectContextEntryIds: [],
             turnIntent: 'data_answer',
+            toolIntents: ['data_answer'],
         });
 
         args.messageHistory = [

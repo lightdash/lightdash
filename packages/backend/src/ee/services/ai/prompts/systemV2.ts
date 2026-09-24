@@ -25,8 +25,8 @@ import {
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import {
-    CONTENT_TOOLS_SECTION,
     DOCUMENT_TOOLS_SECTION,
+    getContentToolsSection,
 } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
@@ -55,8 +55,74 @@ const getDataAccessSection = (
         : DATA_ACCESS_DISABLED_SECTION;
 };
 
+export type DeferredPromptSection =
+    | 'runSql'
+    | 'contentTools'
+    | 'schedulingTools'
+    | 'generateDataApp'
+    | 'skills';
+
+export type CapabilitySectionArgs = {
+    availableSkills?: AiAgentSkillReference[];
+    enableFastMetadata?: boolean;
+    enableContentTools?: boolean;
+    enableDocuments?: boolean;
+    enableGenerateDataApp?: boolean;
+    slackChannelId?: string | null;
+    canRunSql?: boolean;
+    enableComposerQueries?: boolean;
+    warehouseType?: WarehouseTypes | null;
+    warehouseSchema?: string | null;
+    sqlScope?: AgentSqlScope | null;
+    runSqlMaxLimit?: number;
+};
+
+const getCapabilitySections = (
+    args: CapabilitySectionArgs,
+): Record<DeferredPromptSection, string> => ({
+    runSql: args.canRunSql
+        ? getRunSqlSection({
+              warehouseType: args.warehouseType ?? null,
+              warehouseSchema: args.warehouseSchema ?? null,
+              sqlScope: args.sqlScope ?? null,
+              runSqlMaxLimit: args.runSqlMaxLimit,
+              viaComposerQueries: args.enableComposerQueries ?? false,
+              answerWithRunQuery: args.enableFastMetadata ?? false,
+          })
+        : '',
+    contentTools: args.enableContentTools
+        ? [
+              getContentToolsSection(args.enableFastMetadata ?? false),
+              args.enableDocuments ? DOCUMENT_TOOLS_SECTION : '',
+          ]
+              .filter(Boolean)
+              .join('\n\n')
+        : '',
+    schedulingTools: args.enableContentTools
+        ? getSchedulingToolsSection(args.slackChannelId ?? null)
+        : '',
+    generateDataApp: args.enableGenerateDataApp
+        ? GENERATE_DATA_APP_SECTION
+        : '',
+    skills: renderAvailableSkills(args.availableSkills ?? []),
+});
+
+/** Instructions for capabilities left out of the system prompt, returned when the agent loads the remaining tools. */
+export const getDeferredToolInstructions = (
+    args: CapabilitySectionArgs,
+    deferredSections: ReadonlySet<DeferredPromptSection>,
+): string => {
+    const sections = getCapabilitySections(args);
+    return [...deferredSections]
+        .map((section) => sections[section])
+        .filter(Boolean)
+        .join('\n\n');
+};
+
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
+    // Capability sections withheld until the agent loads the matching tools.
+    deferredSections?: ReadonlySet<DeferredPromptSection>;
     availableCustomChartTypes?: CustomChartTypeLibrary;
     availableSkills?: AiAgentSkillReference[];
     knowledgeDocuments?: AiAgentDocumentContext[];
@@ -117,21 +183,20 @@ export const getSystemPromptV2 = (args: {
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         enableContentTools = false,
-        enableDocuments = false,
-        enableGenerateDataApp = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
         slackLinksOnly = false,
         canRunSql = false,
         enableComposerQueries = false,
         enableMergeQueries = false,
-        warehouseType = null,
-        warehouseSchema = null,
-        sqlScope = null,
-        runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
+        deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
     } = args;
+
+    const capabilitySections = getCapabilitySections(args);
+    const getCapabilitySection = (section: DeferredPromptSection) =>
+        deferredSections.has(section) ? '' : capabilitySections[section];
 
     let crossExploreJoinRule: string;
     if (enableMergeQueries) {
@@ -334,36 +399,18 @@ export const getSystemPromptV2 = (args: {
             '{{data_access_section}}',
             getDataAccessSection(enableDataAccess, slackLinksOnly),
         )
-        .replace(
-            '{{run_sql_section}}',
-            canRunSql
-                ? getRunSqlSection({
-                      warehouseType,
-                      warehouseSchema,
-                      sqlScope,
-                      runSqlMaxLimit,
-                      viaComposerQueries: enableComposerQueries,
-                  })
-                : '',
-        )
+        .replace('{{run_sql_section}}', getCapabilitySection('runSql'))
         .replace(
             '{{content_tools_section}}',
-            enableContentTools
-                ? [
-                      CONTENT_TOOLS_SECTION,
-                      enableDocuments ? DOCUMENT_TOOLS_SECTION : '',
-                  ]
-                      .filter(Boolean)
-                      .join('\n\n')
-                : '',
+            getCapabilitySection('contentTools'),
         )
         .replace(
             '{{generate_data_app_section}}',
-            enableGenerateDataApp ? GENERATE_DATA_APP_SECTION : '',
+            getCapabilitySection('generateDataApp'),
         )
         .replace(
             '{{scheduling_tools_section}}',
-            enableContentTools ? getSchedulingToolsSection(slackChannelId) : '',
+            getCapabilitySection('schedulingTools'),
         )
         .replace(
             '{{memories_section}}',
@@ -397,7 +444,7 @@ export const getSystemPromptV2 = (args: {
         .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
         .replace('{{project_context}}', projectContextContent);
 
-    const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
+    const skillsSection = getCapabilitySection('skills');
     const mcpConnectionsSection =
         unauthenticatedMcpServerNames.length > 0
             ? `## MCP connections\n${unauthenticatedMcpServerNames

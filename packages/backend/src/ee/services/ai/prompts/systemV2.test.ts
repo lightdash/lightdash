@@ -1,5 +1,6 @@
 import {
     OrganizationMemberRole,
+    WarehouseTypes,
     type AiAgentDocumentContext,
 } from '@lightdash/common';
 import { readFileSync } from 'node:fs';
@@ -10,7 +11,7 @@ import {
     STRUCTURED_FILTER_GUIDANCE_SECTION,
     STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
-import { getSystemPromptV2 } from './systemV2';
+import { getDeferredToolInstructions, getSystemPromptV2 } from './systemV2';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
@@ -55,6 +56,36 @@ describe('getSystemPromptV2 filter expressions', () => {
             promptText({
                 availableExplores: [],
                 date: '2026-08-27',
+            }),
+        );
+
+        expect(rendered.equals(baseline)).toBe(true);
+    });
+
+    test('keeps the flag-off prompt with every capability byte-identical', () => {
+        const baseline = readFileSync(
+            join(__dirname, '__fixtures__/systemV2.flag-off-capabilities.txt'),
+        );
+        const rendered = Buffer.from(
+            promptText({
+                availableExplores: [],
+                date: '2026-08-27',
+                enableDataAccess: true,
+                enableContentTools: true,
+                enableDocuments: true,
+                enableGenerateDataApp: true,
+                canRunSql: true,
+                warehouseType: WarehouseTypes.POSTGRES,
+                warehouseSchema: 'jaffle',
+                runSqlMaxLimit: 5000,
+                slackChannelId: null,
+                availableSkills: [
+                    {
+                        name: 'developing-in-lightdash',
+                        description: 'Guidance for charts and dashboards',
+                        resources: [],
+                    },
+                ],
             }),
         );
 
@@ -1047,6 +1078,52 @@ describe('getSystemPromptV2 existing chart export', () => {
         ).toContain('null for all three source identifiers');
         expect(promptText({ availableExplores: [] })).not.toContain(
             'null for all three source identifiers',
+        );
+    });
+});
+
+describe('getSystemPromptV2 deferred capability sections', () => {
+    const capabilities = {
+        availableExplores: [],
+        enableFastMetadata: true,
+        enableContentTools: true,
+        enableGenerateDataApp: true,
+        canRunSql: true,
+    };
+
+    test('omits deferred sections and returns them for loadAgentTools', () => {
+        const deferred = new Set([
+            'runSql',
+            'contentTools',
+            'generateDataApp',
+        ] as const);
+        const content = promptText({
+            ...capabilities,
+            deferredSections: deferred,
+        });
+        expect(content).not.toContain('**Raw SQL (runSql tool):**');
+        expect(content).not.toContain('## Content tools');
+        expect(content).not.toContain('## Data apps');
+
+        const instructions = getDeferredToolInstructions(
+            capabilities,
+            deferred,
+        );
+        expect(instructions).toContain('**Raw SQL (runSql tool):**');
+        expect(instructions).toContain('## Content tools');
+        expect(instructions).toContain('## Data apps');
+    });
+
+    test('routes data questions to runQuery when it is available', () => {
+        const content = promptText(capabilities);
+        expect(content).toContain(
+            'Use runQuery to answer a data question and generateVisualization for an ad hoc chart.',
+        );
+        expect(content).toContain(
+            'runQuery for answers, generateVisualization for charts',
+        );
+        expect(content).not.toContain(
+            "Use generateVisualization when the user's intent is to answer a data question",
         );
     });
 });
