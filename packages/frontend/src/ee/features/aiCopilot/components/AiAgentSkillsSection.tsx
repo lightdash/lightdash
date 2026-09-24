@@ -5,6 +5,7 @@ import {
     Badge,
     Box,
     Button,
+    Code,
     Combobox,
     Divider,
     Group,
@@ -60,15 +61,13 @@ const SkillRow = ({
     tag: ReactNode;
     menu: ReactNode;
 }) => (
-    <Group p="sm" gap="sm" wrap="nowrap" align="flex-start">
-        <ThemeIcon variant="default" size={36} radius="md">
-            <MantineIcon icon={icon} size="md" color="ldGray.7" />
+    <Group px="sm" py="xs" gap="sm" wrap="nowrap" align="center">
+        <ThemeIcon variant="default" size={28} radius="md">
+            <MantineIcon icon={icon} size="sm" color="ldGray.6" />
         </ThemeIcon>
-        <Stack gap={2} flex={1} miw={0}>
-            <Group gap="xs" align="center">
-                <Text size="sm" fw={500} ff="monospace">
-                    /{name}
-                </Text>
+        <Stack gap={0} flex={1} miw={0}>
+            <Group gap={6} align="center">
+                <Code fz="xs">/{name}</Code>
                 {tag}
             </Group>
             <Text size="xs" c="dimmed" truncate="end">
@@ -153,14 +152,8 @@ const AddSkillMenu = ({
                                     value={skill.uuid}
                                 >
                                     <Stack gap={0}>
-                                        <Group gap="xs">
-                                            <Text
-                                                size="sm"
-                                                fw={500}
-                                                ff="monospace"
-                                            >
-                                                /{skill.name}
-                                            </Text>
+                                        <Group gap={6}>
+                                            <Code fz="xs">/{skill.name}</Code>
                                             <Text size="xs" c="dimmed">
                                                 v
                                                 {
