@@ -1240,13 +1240,89 @@ describe('decideTurn', () => {
             conversation: [],
             context: null,
         });
-        expect(decision).toEqual({ simpleDataAnswer: true, chart: null });
+        expect(decision).toEqual({
+            simpleDataAnswer: true,
+            chart: null,
+            instantReply: null,
+        });
         expect(evaluate).toHaveBeenCalledWith(
             expect.objectContaining({
                 operation: 'model-routing',
-                questions: { simple: expect.anything() },
+                questions: {
+                    simple: expect.anything(),
+                    instantReply: expect.anything(),
+                    englishPrompt: expect.anything(),
+                },
             }),
         );
+    });
+
+    it('answers a confident English acknowledgement without the agent', async () => {
+        const routing = (answers: Record<string, unknown>) =>
+            decideTurn({
+                decisions: { evaluate: vi.fn().mockResolvedValue(answers) },
+                prompt: 'perfect, thanks!',
+                instructions: null,
+                conversation: [],
+                context: null,
+            });
+        expect(
+            (
+                await routing({
+                    simple: noul(0.1),
+                    instantReply: choice('acknowledgement'),
+                    englishPrompt: noul(0.95),
+                })
+            ).decision.instantReply,
+        ).toBe('acknowledgement');
+        expect(
+            (
+                await routing({
+                    simple: noul(0.1),
+                    instantReply: choice('acknowledgement'),
+                    englishPrompt: noul(0.1),
+                })
+            ).decision.instantReply,
+        ).toBeNull();
+        expect(
+            (
+                await routing({
+                    simple: noul(0.1),
+                    instantReply: choice('acknowledgement', 0.6),
+                    englishPrompt: noul(0.95),
+                })
+            ).decision.instantReply,
+        ).toBeNull();
+    });
+
+    it('never answers instantly when the turn is a chart edit', async () => {
+        const { decision } = await decideTurn({
+            decisions: {
+                evaluate: vi
+                    .fn()
+                    .mockResolvedValueOnce({
+                        intent: choice('chart_type'),
+                        multiple: noul(0.05),
+                        nonEdit: noul(0.05),
+                        chartType: choice('line'),
+                        simple: noul(0.1),
+                        instantReply: choice('acknowledgement'),
+                        englishPrompt: noul(0.95),
+                    })
+                    .mockResolvedValueOnce({ covers: noul(0.95) }),
+            },
+            prompt: 'great, as a line',
+            instructions: null,
+            conversation: [],
+            context: buildChartIntentContext({
+                filterRules: [],
+                prompt: 'great, as a line',
+                artifact,
+                explore,
+                usage: noUsage,
+            }),
+        });
+        expect(decision.instantReply).toBeNull();
     });
 
     it('batches routing and chart questions into one request on chart threads', async () => {
@@ -1288,6 +1364,7 @@ describe('decideTurn', () => {
         );
         expect(decision).toEqual({
             simpleDataAnswer: false,
+            instantReply: null,
             chart: {
                 type: 'intent',
                 intent: { kind: 'chart_type', chartType: 'line' },
@@ -1353,6 +1430,7 @@ describe('decideTurn', () => {
         });
         expect(decision).toEqual({
             simpleDataAnswer: false,
+            instantReply: null,
             chart: { type: 'unresolved', reason: 'verify-unavailable' },
         });
         expect(isChartEditAttempt(decision.chart!)).toBe(true);
@@ -1374,6 +1452,7 @@ describe('decideTurn', () => {
         });
         expect(decision).toEqual({
             simpleDataAnswer: false,
+            instantReply: null,
             chart: { type: 'unresolved', reason: 'decision-unavailable' },
         });
     });

@@ -357,12 +357,14 @@ import {
     type ChartIntentResolution,
     type CompoundStep,
     type FieldCandidate,
+    type InstantReplyKind,
 } from '../ai/decisions/chartIntent';
 import {
     describeChart,
     findStaleChartMetadata,
     type ChartMetadata,
 } from '../ai/decisions/chartTitle';
+import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
@@ -12662,6 +12664,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         serviceMs,
         applied,
         fallbackReason,
+        instantReply,
     }: {
         promptUuid: string;
         decisions: AiDecisionClient;
@@ -12670,13 +12673,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
         serviceMs: number | null;
         applied: boolean;
         fallbackReason: string | null;
+        /** The small turn JEV answered without the agent, if any. */
+        instantReply: InstantReplyKind | null;
     }): Promise<void> {
         const { chart } = turn.decision;
         let outcome: DbAiPromptDecision['outcome'] = 'routed';
         let reason: string | null = null;
         let intent: object | null = null;
         if (turn.answers === null) outcome = 'unavailable';
-        else if (chart?.type === 'unresolved') {
+        else if (instantReply) {
+            outcome = 'instant_reply';
+            intent = { kind: instantReply };
+        } else if (chart?.type === 'unresolved') {
             outcome = 'unresolved';
             reason = chart.reason;
         } else if (chart?.type === 'intent') {
@@ -12935,6 +12943,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         serviceMs: decisionServiceMs,
                         applied: false,
                         fallbackReason: null,
+                        instantReply: null,
                     });
                 return clarification;
             }
@@ -12971,6 +12980,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             serviceMs: decisionServiceMs,
                             applied: true,
                             fallbackReason: null,
+                            instantReply: null,
                         });
                     return editResult.stream;
                 }
@@ -12982,6 +12992,62 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 chartMutationContext = chartTurn.chartConfig;
             }
         }
+        const instantReply = turnDecision?.instantReply ?? null;
+        if (
+            decisions &&
+            turn &&
+            instantReply &&
+            stream &&
+            !isSlackPrompt(prompt) &&
+            responseExecution.mode === 'standard' &&
+            !options.runtimeOptions &&
+            !options.toolHints?.length &&
+            !responseExecution.toolAllowlist &&
+            decisionHistory.length > 1
+        ) {
+            const text = composeInstantReply({
+                kind: instantReply,
+                chart: chartTurn
+                    ? {
+                          exploreLabel: chartTurn.explore.label,
+                          context: chartTurn.intentContext,
+                      }
+                    : null,
+                canDownload: this.createAuditedAbility(user).can(
+                    'manage',
+                    subject('ExportCsv', {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: prompt.projectUuid,
+                        metadata: { promptUuid: prompt.promptUuid },
+                    }),
+                ),
+            });
+            if (text) {
+                const reply = await this.respondWithStaticText({
+                    user,
+                    prompt,
+                    agent: agentSettings,
+                    text,
+                    pendingText: Promise.resolve(null),
+                    responseStartedAt,
+                    decisionUsage: () => ({
+                        inputTokens: decisionUsage?.inputTokens ?? 0,
+                        outputTokens: decisionUsage?.outputTokens ?? 0,
+                    }),
+                });
+                await this.recordTurnDecision({
+                    promptUuid: prompt.promptUuid,
+                    decisions,
+                    turn,
+                    latencyMs: decisionLatencyMs,
+                    serviceMs: decisionServiceMs,
+                    applied: true,
+                    fallbackReason: null,
+                    instantReply,
+                });
+                return reply;
+            }
+        }
         if (decisions && turn)
             await this.recordTurnDecision({
                 promptUuid: prompt.promptUuid,
@@ -12991,6 +13057,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 serviceMs: decisionServiceMs,
                 applied: false,
                 fallbackReason: chartEditFallbackReason,
+                instantReply: null,
             });
         const messageHistory = await conversation.resolveMessageHistory();
         const enableSqlMode =

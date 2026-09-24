@@ -11,6 +11,9 @@ const EDIT_LABELS: Record<string, string> = {
     filter_boolean: 'yes/no filter',
     filter_text: 'text match',
     filter_blank: 'blank filter',
+    acknowledgement: 'quick reply',
+    show_query: 'query summary',
+    download_help: 'download help',
     add_metric: 'metric addition',
     remove_metric: 'metric removal',
     swap_metric: 'metric swap',
@@ -95,6 +98,15 @@ export const describeJevDecision = (
                 'JEV looked for a direct chart edit but was not sure enough to apply one, so the agent took over.',
                 decision.reason,
             );
+        case 'instant_reply':
+            return {
+                applied: true,
+                badge: `JEV · ${edit}`,
+                title: 'JEV answered directly',
+                description:
+                    'This was a small follow-up JEV could answer from the chart itself, so the agent model did not run.',
+                reasonCode: null,
+            };
         case 'unavailable':
             return handoff(
                 'JEV unavailable',

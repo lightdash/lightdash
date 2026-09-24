@@ -225,7 +225,8 @@ export type DbAiPromptDecision = {
         | 'not_an_edit'
         | 'unresolved'
         | 'unavailable'
-        | 'routed';
+        | 'routed'
+        | 'instant_reply';
     reason: string | null;
     intent: object | null;
     applied: boolean;

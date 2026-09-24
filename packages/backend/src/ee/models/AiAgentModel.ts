@@ -5736,6 +5736,7 @@ export class AiAgentModel {
             case 'compound':
                 return 'compound';
             case 'intent':
+            case 'instant_reply':
                 return row.intent &&
                     'kind' in row.intent &&
                     typeof row.intent.kind === 'string'
