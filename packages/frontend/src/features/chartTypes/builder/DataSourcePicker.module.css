@@ -63,3 +63,19 @@
     flex-shrink: 0;
     color: var(--mantine-color-blue-light-color);
 }
+
+.suggestionIcon {
+    align-self: flex-start;
+    margin-top: 2px;
+}
+
+.suggestionReason {
+    font-size: rem(11px);
+    line-height: 1.35;
+}
+
+/* Rows truncate at the visible width instead of the widest label; the
+   selector outranks Mantine's autosize min-content rule. */
+.dropdown [data-autosize] .listContent {
+    min-width: 0;
+}

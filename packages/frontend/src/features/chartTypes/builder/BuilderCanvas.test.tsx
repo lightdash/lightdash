@@ -71,6 +71,7 @@ const exploreControls = (
     detach: vi.fn(),
     viewRows: vi.fn(),
     retry: vi.fn(),
+    suggestTable: null,
 });
 
 const ORDERS: AttachedExplore = {

@@ -62,6 +62,7 @@ vi.mock('../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
 }));
 vi.mock('../ee/features/ambientAi/hooks/useChartTypeSuggestions', () => ({
     suggestChartTypeFields: vi.fn(),
+    useSuggestedChartTypeExplore: vi.fn(() => null),
 }));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),

@@ -1,4 +1,7 @@
-import { type Field } from '@lightdash/common';
+import {
+    type Field,
+    type SuggestChartTypeExploreRequest,
+} from '@lightdash/common';
 import { formatDistanceToNow } from 'date-fns';
 import { type PreviewSource } from './savedChartSource';
 
@@ -53,6 +56,9 @@ export type ExploreSourceControls = {
     sourceIdentity: string | null;
     attached: AttachedExplore | null;
     previewSource: PreviewSource;
+    /** What to ask ambient AI for a table that fits the chart; null when it
+     *  is off or nothing has been built yet. */
+    suggestTable: SuggestChartTypeExploreRequest | null;
     includeRows: boolean;
     setIncludeRows: (included: boolean) => void;
     attach: (explore: PickedExplore) => void;
