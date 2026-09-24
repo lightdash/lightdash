@@ -2996,7 +2996,7 @@ export const generateAgentResponse = async ({
                 ),
                 tokenUsage: completedPromptTokenUsage(
                     result.totalUsage?.totalTokens,
-                    result.steps.at(-1)?.usage.totalTokens,
+                    result.finalStep.usage.totalTokens,
                     args.decisionUsage?.inputTokens,
                     args.decisionUsage?.outputTokens,
                 ),
@@ -3479,7 +3479,6 @@ export const streamAgentResponse = async ({
                 }
             },
             onFinish: async ({
-                usage,
                 totalUsage,
                 steps,
                 finishReason,
@@ -3556,7 +3555,7 @@ export const streamAgentResponse = async ({
                             getUserFacingErrorMessage(emptyResponseError),
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
-                            steps.at(-1)?.usage.totalTokens,
+                            finalStep.usage.totalTokens,
                             args.decisionUsage?.inputTokens,
                             args.decisionUsage?.outputTokens,
                         ),
@@ -3568,7 +3567,7 @@ export const streamAgentResponse = async ({
                         promptUuid: args.promptUuid,
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
-                            steps.at(-1)?.usage.totalTokens,
+                            finalStep.usage.totalTokens,
                             args.decisionUsage?.inputTokens,
                             args.decisionUsage?.outputTokens,
                         ),
@@ -3616,7 +3615,7 @@ export const streamAgentResponse = async ({
                 });
                 logger(
                     'On Finish',
-                    `Usage: ${JSON.stringify(usage)}, step length: ${
+                    `Usage: ${JSON.stringify(totalUsage)}, final step: ${JSON.stringify(finalStep.usage)}, step length: ${
                         steps.length
                     }, reasoning length: ${finalStep.reasoning.length}`,
                 );
