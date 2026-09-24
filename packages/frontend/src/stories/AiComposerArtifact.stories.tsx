@@ -13,7 +13,10 @@ import { IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
-import { AiComposerPipelinePanel } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
+import {
+    AiComposerPipelinePanel,
+    type PipelineMode,
+} from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
 
 /** A fan-in pipeline: three sources, one intermediate join, one final join. */
 const fanInQueries: SourceQuery[] = [
@@ -98,6 +101,7 @@ type ArtifactProps = {
     queries: SourceQuery[];
     terminalNodeId: string;
     defaultExpanded?: boolean;
+    defaultMode?: PipelineMode;
 };
 
 /** The floating artifact panel at its real size, with a static results table. */
@@ -105,6 +109,7 @@ const ComposerArtifact = ({
     queries,
     terminalNodeId,
     defaultExpanded,
+    defaultMode,
 }: ArtifactProps) => (
     <Box w={760} h={900}>
         <Box className={panelStyles.floatingPanel}>
@@ -118,6 +123,7 @@ const ComposerArtifact = ({
                     queries={queries}
                     terminalNodeId={terminalNodeId}
                     defaultExpanded={defaultExpanded}
+                    defaultMode={defaultMode}
                 >
                     <Stack gap="md" h="100%" mih={0}>
                         <Box
@@ -162,4 +168,8 @@ export const Collapsed: Story = {};
 
 export const Expanded: Story = {
     args: { defaultExpanded: true },
+};
+
+export const Graph: Story = {
+    args: { defaultExpanded: true, defaultMode: 'graph' },
 };

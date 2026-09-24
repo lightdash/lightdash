@@ -11,10 +11,13 @@ import {
     ActionIcon,
     Box,
     Group,
+    Paper,
+    SegmentedControl,
     Text,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import {
     IconChevronRight,
     IconDatabase,
@@ -22,24 +25,56 @@ import {
     IconHelpCircle,
     IconSitemap,
 } from '@tabler/icons-react';
+import {
+    Background,
+    Handle,
+    Position,
+    ReactFlow,
+    ReactFlowProvider,
+    useNodesInitialized,
+    useNodesState,
+    useReactFlow,
+    type EdgeTypes,
+    type NodeProps,
+    type NodeTypes,
+} from '@xyflow/react';
 import { clsx } from 'clsx';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import '@xyflow/react/dist/style.css';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
+import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
+    sourceLabelOf,
     type PipelineLayer,
     type PipelineNode,
 } from './groupPipeline';
+import {
+    layoutPipelineFlow,
+    toPipelineFlow,
+    type PipelineFlowNode,
+} from './pipelineGraph';
 
 const TRANSFORMATIONS_HELP =
     'Transformations run in DuckDB on top of the source results. They never touch the warehouse.';
 
 const pipelineNodeRowId = (nodeId: string) =>
     `composer-pipeline-node-${nodeId}`;
+
+export type PipelineMode = 'list' | 'graph';
 
 const layerLabel = (layer: PipelineLayer) => {
     const single = layer.nodes.length === 1;
@@ -55,14 +90,14 @@ const layerLabel = (layer: PipelineLayer) => {
     }
 };
 
-const sourceLabel = (query: SourceQuery) => {
+const sourceIcon = (query: SourceQuery) => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
-            return { label: 'Semantic layer', icon: IconSitemap };
+            return IconSitemap;
         case QuerySourceType.SQL:
-            return { label: 'Warehouse SQL', icon: IconDatabase };
+            return IconDatabase;
         case QuerySourceType.EXTERNAL:
-            return { label: 'External data', icon: IconFileSpreadsheet };
+            return IconFileSpreadsheet;
         case QuerySourceType.DUCKDB:
             return null;
         default:
@@ -118,14 +153,19 @@ const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
     );
 };
 
-const PipelineNodeRow: FC<{ node: PipelineNode }> = ({ node }) => {
-    const source = sourceLabel(node.query);
+const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
+    node,
+    selected,
+}) => {
+    const label = sourceLabelOf(node.query);
+    const icon = sourceIcon(node.query);
     const sql = useMemo(() => formattedSqlOf(node.query), [node.query]);
     return (
         <Box
-            className={styles.node}
+            className={clsx(styles.node, selected && styles.selected)}
             id={pipelineNodeRowId(node.nodeId)}
             data-node-id={node.nodeId}
+            data-selected={selected}
         >
             <Box className={styles.nodeHead}>
                 <Box className={styles.dot} />
@@ -133,10 +173,10 @@ const PipelineNodeRow: FC<{ node: PipelineNode }> = ({ node }) => {
                     {node.title}
                     {node.isTerminal ? ' · result' : ''}
                 </Text>
-                {source && (
+                {label && icon && (
                     <Text component="span" className={styles.nodeType}>
-                        <MantineIcon icon={source.icon} size={11} />
-                        {source.label}
+                        <MantineIcon icon={icon} size={11} />
+                        {label}
                     </Text>
                 )}
             </Box>
@@ -162,7 +202,10 @@ const PipelineNodeRow: FC<{ node: PipelineNode }> = ({ node }) => {
     );
 };
 
-const PipelineList: FC<{ layers: PipelineLayer[] }> = ({ layers }) => (
+const PipelineList: FC<{
+    layers: PipelineLayer[];
+    selectedNodeId: string | null;
+}> = ({ layers, selectedNodeId }) => (
     <Box className={styles.body}>
         {layers.map((layer) => (
             <Box key={layer.depth} className={styles.layer}>
@@ -189,18 +232,136 @@ const PipelineList: FC<{ layers: PipelineLayer[] }> = ({ layers }) => (
                     )}
                 </Group>
                 {layer.nodes.map((node) => (
-                    <PipelineNodeRow key={node.nodeId} node={node} />
+                    <PipelineNodeRow
+                        key={node.nodeId}
+                        node={node}
+                        selected={node.nodeId === selectedNodeId}
+                    />
                 ))}
             </Box>
         ))}
     </Box>
 );
 
+const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
+    <Paper
+        component="button"
+        type="button"
+        className={styles.graphNode}
+        data-terminal={data.isTerminal}
+        aria-label={`Go to ${data.title}`}
+        title={data.title}
+    >
+        <Handle
+            type="target"
+            position={Position.Left}
+            className={styles.handle}
+        />
+        <Box className={styles.dot} />
+        <Box className={styles.graphNodeText}>
+            <Text component="span" className={styles.graphNodeTitle} truncate>
+                {data.title}
+            </Text>
+            {data.sourceLabel && (
+                <Text component="span" className={styles.graphNodeType}>
+                    {data.sourceLabel}
+                </Text>
+            )}
+        </Box>
+        <Handle
+            type="source"
+            position={Position.Right}
+            className={styles.handle}
+        />
+    </Paper>
+);
+
+const nodeTypes: NodeTypes = { pipeline: PipelineFlowNodeView };
+const edgeTypes: EdgeTypes = { pipeline: DefaultEdge };
+const FIT_VIEW_OPTIONS = { padding: 0.1, maxZoom: 1 };
+
+const PipelineFlow: FC<{
+    layers: PipelineLayer[];
+    onSelect: (nodeId: string) => void;
+}> = ({ layers, onSelect }) => {
+    const flow = useMemo(() => toPipelineFlow(layers), [layers]);
+    const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
+    const laidOut = useRef(false);
+    const initialized = useNodesInitialized();
+    const { fitView } = useReactFlow();
+    const { ref, width, height } = useElementSize();
+
+    // Positions need measured sizes, so lay out once React Flow has them.
+    useEffect(() => {
+        if (!initialized || laidOut.current) return;
+        laidOut.current = true;
+        setNodes((current) => layoutPipelineFlow(current, flow.edges));
+        requestAnimationFrame(() => void fitView(FIT_VIEW_OPTIONS));
+    }, [initialized, flow.edges, setNodes, fitView]);
+
+    useEffect(() => {
+        if (laidOut.current) void fitView(FIT_VIEW_OPTIONS);
+    }, [width, height, fitView]);
+
+    return (
+        <Box className={styles.graph} ref={ref}>
+            <ReactFlow<PipelineFlowNode>
+                className={clsx(
+                    reactFlowStyles.reactFlow,
+                    !laidOut.current && styles.flowPending,
+                )}
+                nodes={nodes}
+                edges={flow.edges}
+                onNodesChange={onNodesChange}
+                onNodeClick={(_, node) => onSelect(node.id)}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                fitView
+                fitViewOptions={FIT_VIEW_OPTIONS}
+                minZoom={0.25}
+                maxZoom={1.5}
+                attributionPosition="top-right"
+                nodesDraggable={false}
+                nodesConnectable={false}
+                nodesFocusable={false}
+                edgesFocusable={false}
+                elementsSelectable={false}
+                zoomOnScroll={false}
+                zoomOnDoubleClick={false}
+                preventScrolling={false}
+            >
+                <Background />
+            </ReactFlow>
+        </Box>
+    );
+};
+
+// Remount provider and flow when the pipeline shape changes, so the React Flow
+// store does not carry the previous pipeline's measured nodes into the new one.
+const pipelineKey = (layers: PipelineLayer[]) =>
+    layers
+        .flatMap((layer) => layer.nodes)
+        .map((node) => `${node.nodeId}<${node.readNodeIds.join(',')}`)
+        .join('|');
+
+/** Nodes as boxes, reads as edges, laid out left to right. */
+const PipelineGraph: FC<{
+    layers: PipelineLayer[];
+    onSelect: (nodeId: string) => void;
+}> = ({ layers, onSelect }) =>
+    layers.length === 0 ? null : (
+        <ReactFlowProvider key={pipelineKey(layers)}>
+            <PipelineFlow layers={layers} onSelect={onSelect} />
+        </ReactFlowProvider>
+    );
+
 const PipelineBar: FC<{
     nodeCount: number;
     expanded: boolean;
     onToggle: () => void;
-}> = ({ nodeCount, expanded, onToggle }) => (
+    mode: PipelineMode;
+    onModeChange: (mode: PipelineMode) => void;
+}> = ({ nodeCount, expanded, onToggle, mode, onModeChange }) => (
     <Box className={styles.bar}>
         <UnstyledButton
             className={styles.barToggle}
@@ -217,6 +378,19 @@ const PipelineBar: FC<{
                 Queries
             </Text>
         </UnstyledButton>
+        {expanded && (
+            <SegmentedControl
+                size="xs"
+                value={mode}
+                onChange={(value) =>
+                    onModeChange(value === 'graph' ? 'graph' : 'list')
+                }
+                data={[
+                    { label: 'List', value: 'list' },
+                    { label: 'Graph', value: 'graph' },
+                ]}
+            />
+        )}
         <Text component="span" className={styles.meta}>
             {nodeCount} step{nodeCount === 1 ? '' : 's'}
         </Text>
@@ -229,6 +403,7 @@ type Props = {
     /** The results shown above the panel. */
     children: ReactNode;
     defaultExpanded?: boolean;
+    defaultMode?: PipelineMode;
 };
 
 /**
@@ -240,8 +415,11 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     terminalNodeId,
     children,
     defaultExpanded = false,
+    defaultMode = 'list',
 }) => {
     const [expanded, setExpanded] = useState(defaultExpanded);
+    const [mode, setMode] = useState<PipelineMode>(defaultMode);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const layers = useMemo(
         () => groupPipeline(queries, terminalNodeId),
         [queries, terminalNodeId],
@@ -251,8 +429,20 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             nodeCount={queries.length}
             expanded={expanded}
             onToggle={() => setExpanded((value) => !value)}
+            mode={mode}
+            onModeChange={setMode}
         />
     );
+    const selectNode = useCallback((nodeId: string) => {
+        setSelectedNodeId(nodeId);
+        setMode('list');
+        // The list mounts on the next render; centre the chosen row then.
+        requestAnimationFrame(() =>
+            document
+                .getElementById(pipelineNodeRowId(nodeId))
+                ?.scrollIntoView?.({ block: 'center' }),
+        );
+    }, []);
 
     if (!expanded) {
         return (
@@ -275,7 +465,14 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             <ResizableSplitter.Pane id="pipeline" defaultSize={45} min={10}>
                 <Box className={styles.root}>
                     {bar}
-                    <PipelineList layers={layers} />
+                    {mode === 'graph' ? (
+                        <PipelineGraph layers={layers} onSelect={selectNode} />
+                    ) : (
+                        <PipelineList
+                            layers={layers}
+                            selectedNodeId={selectedNodeId}
+                        />
+                    )}
                 </Box>
             </ResizableSplitter.Pane>
         </ResizableSplitter>

@@ -1,4 +1,8 @@
-import { QuerySourceType, type SourceQuery } from '@lightdash/common';
+import {
+    assertUnreachable,
+    QuerySourceType,
+    type SourceQuery,
+} from '@lightdash/common';
 
 export type PipelineNode = {
     nodeId: string;
@@ -9,6 +13,8 @@ export type PipelineNode = {
     depth: number;
     /** Titles of the nodes this one reads; references outside the pipeline stay as-is. */
     reads: string[];
+    /** Node ids this one reads that resolve to nodes in the pipeline. */
+    readNodeIds: string[];
     query: SourceQuery;
 };
 
@@ -18,6 +24,22 @@ export type PipelineLayer = {
     depth: number;
     kind: PipelineLayerKind;
     nodes: PipelineNode[];
+};
+
+/** User-facing label of where a source node reads from; null for transformations. */
+export const sourceLabelOf = (query: SourceQuery): string | null => {
+    switch (query.sourceType) {
+        case QuerySourceType.SEMANTIC_LAYER:
+            return 'Semantic layer';
+        case QuerySourceType.SQL:
+            return 'Warehouse SQL';
+        case QuerySourceType.EXTERNAL:
+            return 'External data';
+        case QuerySourceType.DUCKDB:
+            return null;
+        default:
+            return assertUnreachable(query, 'Unknown source type');
+    }
 };
 
 const nodeIdOf = (query: SourceQuery, index: number) =>
@@ -79,6 +101,7 @@ export const groupPipeline = (
         isTerminal: nodeId === terminalNodeId,
         depth: depths.get(nodeId)!,
         reads: referencesOf(query).map(titleOf),
+        readNodeIds: readsOf(nodeId),
         query,
     }));
 
