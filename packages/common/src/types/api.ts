@@ -452,6 +452,7 @@ import {
     type ApiWarehouseConnectionUserCredentialsResponse,
     type ApiWarehouseConnectionWithCredentialsResponse,
 } from './warehouseConnections';
+import { type ApiSqlRunnerWarehouseConnectionsResponse } from './warehouseConnectionSqlRunner';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1296,6 +1297,7 @@ type ApiResults =
     | ApiWarehouseConnectionWithCredentialsResponse['results']
     | ApiWarehouseConnectionUserCredentialsResponse['results']
     | ApiWarehouseConnectionsForUserCredentialsResponse['results']
+    | ApiSqlRunnerWarehouseConnectionsResponse['results']
     | Document
     | DocumentList
     | ContentReviewRequest

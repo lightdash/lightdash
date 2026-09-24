@@ -379,6 +379,7 @@ export * from './types/validation';
 export * from './types/warehouse';
 export * from './types/warehouseConnectionBindings';
 export * from './types/warehouseConnections';
+export * from './types/warehouseConnectionSqlRunner';
 export * from './types/warehouseConnectCode';
 export * from './types/yamlSchema';
 export * from './utils/accessors';

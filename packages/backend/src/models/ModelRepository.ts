@@ -94,6 +94,7 @@ import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/W
 import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 import { WarehouseConnectionCompileModel } from './WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from './WarehouseConnectionModel/WarehouseConnectionModel';
+import { WarehouseConnectionTablesModel } from './WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 /**
  * Interface outlining all models. Add new models to
  * this list (in alphabetical order, please!).
@@ -175,6 +176,7 @@ export type ModelManifest = {
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
+    warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
@@ -694,6 +696,14 @@ export class ModelRepository
                 new WarehouseConnectionCompileModel({
                     database: this.database,
                 }),
+        );
+    }
+
+    public getWarehouseConnectionTablesModel(): WarehouseConnectionTablesModel {
+        return this.getModel(
+            'warehouseConnectionTablesModel',
+            () =>
+                new WarehouseConnectionTablesModel({ database: this.database }),
         );
     }
 
