@@ -983,7 +983,24 @@ const resolveRemoveFilter = (
     context: ChartIntentContext,
     thresholds: ChartIntentThresholds,
 ): ChartIntentResolution => {
-    const chosen = confident(answers.removeFilterField, thresholds.field);
+    const split = resolveFieldSplit(
+        answers.removeFilterField,
+        context.filteredFields,
+        thresholds,
+    );
+    if (split.type === 'clarify')
+        return {
+            type: 'clarify',
+            question: 'Which filter should I remove?',
+            options: split.labels.map((label) => ({
+                label,
+                prompt: `Remove the ${label} filter`,
+            })),
+        };
+    const chosen =
+        split.type === 'pick'
+            ? split.fieldId
+            : confident(answers.removeFilterField, thresholds.field);
     const field = context.filteredFields.find(({ id }) => id === chosen);
     return field
         ? {
