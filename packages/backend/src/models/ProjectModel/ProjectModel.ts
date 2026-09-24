@@ -244,6 +244,8 @@ const warehouseCredentialsCache =
 
 const INSERT_BATCH_SIZE = 1000;
 
+const DELETE_CONTENT_BATCH_SIZE = 100;
+
 export const ORIGINAL_TYPE_LOCKED_MESSAGE =
     'The warehouse type cannot change while this project has extra connections. Remove the extra connections first.';
 
@@ -1536,12 +1538,58 @@ export class ProjectModel {
         });
     }
 
+    private async deleteRowsInBatches(
+        table: string,
+        idColumn: string,
+        scope: Record<string, string | number>,
+    ): Promise<void> {
+        const deleted = await this.database(table)
+            .whereIn(
+                idColumn,
+                this.database(table)
+                    .select(idColumn)
+                    .where(scope)
+                    .limit(DELETE_CONTENT_BATCH_SIZE),
+            )
+            .delete();
+        if (deleted > 0) {
+            await this.deleteRowsInBatches(table, idColumn, scope);
+        }
+    }
+
+    // Deleting spaces locks `apps` until commit; short batches keep slow
+    // content cascades out of that lock so `apps` migrations are not blocked.
+    async deleteContentInBatches(projectUuid: string): Promise<void> {
+        const project = await this.database('projects')
+            .select('project_id')
+            .where('project_uuid', projectUuid)
+            .first<{ project_id: number } | undefined>();
+        if (!project) return;
+
+        await this.deleteRowsInBatches(SavedChartsTableName, 'saved_query_id', {
+            project_uuid: projectUuid,
+        });
+        await this.deleteRowsInBatches(SavedSqlTableName, 'saved_sql_uuid', {
+            project_uuid: projectUuid,
+        });
+        await this.deleteRowsInBatches(DashboardsTableName, 'dashboard_id', {
+            project_uuid: projectUuid,
+        });
+        await this.deleteRowsInBatches(SpaceTableName, 'space_id', {
+            project_id: project.project_id,
+        });
+    }
+
     async delete(
         projectUuid: string,
         transaction?: Transaction,
     ): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
+
+        if (!transaction) {
+            await this.deleteContentInBatches(projectUuid);
+        }
 
         const deleteInTransaction = async (trx: Transaction): Promise<void> => {
             const [project] = await trx('projects')

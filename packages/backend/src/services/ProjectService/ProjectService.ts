@@ -5308,6 +5308,7 @@ export class ProjectService extends BaseService {
         }
 
         if (project.provisioningSource === 'playground') {
+            await this.projectModel.deleteContentInBatches(projectUuid);
             await this.onboardingModel.runInPlaygroundProvisioningLock(
                 project.organizationUuid,
                 async (trx) => {
