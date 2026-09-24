@@ -169,6 +169,7 @@ const AddChartTypeMenu: FC = () => {
                                     projectUuid,
                                     appUuid,
                                     null,
+                                    'registered',
                                 ],
                                 queryFn: () =>
                                     getDataAppVisualization(

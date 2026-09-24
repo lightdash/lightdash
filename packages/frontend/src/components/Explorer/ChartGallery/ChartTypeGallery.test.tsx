@@ -10,6 +10,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { lightdashApi } from '../../../api';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { EventName } from '../../../types/Events';
@@ -83,6 +85,10 @@ const BUILT_IN_LABELS = [
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
+vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
+    default: vi.fn(() => ({})),
+}));
 const { featureFlags } = vi.hoisted(() => ({
     featureFlags: { current: {} as Record<string, boolean> },
 }));
@@ -786,6 +792,7 @@ const pickableLabels = () =>
 describe('ExplorerChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useEmbed).mockReturnValue({} as ReturnType<typeof useEmbed>);
         selectedTypeProps.selectedProjectType = projectChartType;
         featureFlags.current = {
             [FeatureFlags.EnableDataApps]: true,
@@ -802,6 +809,57 @@ describe('ExplorerChartTypeGallery', () => {
         mocks.canFork.mockReturnValue(false);
         setProjectQuery();
     });
+
+    it.each([
+        { name: 'empty', types: [] },
+        { name: 'populated', types: [projectChartType] },
+    ])(
+        'opens an $name embedded Explore picker without a load error',
+        async ({ types }) => {
+            const { useDataAppVisualizations: useRealDataAppVisualizations } =
+                await vi.importActual<{
+                    useDataAppVisualizations: typeof useDataAppVisualizations;
+                }>(
+                    '../../../features/chartTypes/hooks/useDataAppVisualizations',
+                );
+            mockedUseDataAppVisualizations.mockImplementation(
+                useRealDataAppVisualizations,
+            );
+            vi.mocked(useEmbed).mockReturnValue({
+                embedToken: 'embed-token',
+                projectUuid: 'project-uuid',
+            } as ReturnType<typeof useEmbed>);
+            vi.mocked(lightdashApi).mockImplementation(({ url }) =>
+                url.startsWith('/ee/')
+                    ? Promise.reject({
+                          status: 'error',
+                          error: {
+                              statusCode: 403,
+                              message: 'Registered account required',
+                          },
+                      })
+                    : Promise.resolve({ data: types, pagination: undefined }),
+            );
+
+            renderGallery();
+
+            await waitFor(() =>
+                expect(screen.queryByRole('status')).not.toBeInTheDocument(),
+            );
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Table' })).toBeVisible();
+            expect(lightdashApi).toHaveBeenCalledWith({
+                method: 'GET',
+                url: '/embed/project-uuid/visualizations?page=1&pageSize=6&sortBy=name&sortDirection=asc',
+                body: undefined,
+            });
+            if (types.length > 0) {
+                expect(
+                    screen.getByRole('button', { name: /Event pulse/ }),
+                ).toBeVisible();
+            }
+        },
+    );
 
     it('surfaces Table first without changing its selection command', async () => {
         visualizationConfig.current.chartType = ChartType.PIE;

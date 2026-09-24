@@ -23,6 +23,7 @@ import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
@@ -317,6 +318,10 @@ const queryColumns: ItemsMap = {
     'custom-dimension': customDimension,
     table_calculation: tableCalculation,
 };
+
+vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
+    default: vi.fn(() => ({})),
+}));
 
 describe('DataAppVizConfigTabs', () => {
     const setOption = vi.fn();
@@ -969,6 +974,26 @@ describe('DataAppVizConfigTabs', () => {
         renderWithProviders(<ConfigTabs />);
 
         expect(screen.queryByTestId('upgrade-notice')).not.toBeInTheDocument();
+    });
+
+    it('checks for upgrades using the embedded project endpoint', () => {
+        vi.mocked(useEmbed).mockReturnValue({
+            embedToken: 'embed-token',
+        } as ReturnType<typeof useEmbed>);
+        try {
+            mockContext(queryColumns, 'data-app-viz-uuid', {}, {}, 3);
+            mockLatestRenderable(5);
+            renderWithProviders(<ConfigTabs />);
+            expect(useDataAppVizRenderMetadata).toHaveBeenLastCalledWith(
+                'project-1',
+                'data-app-viz-uuid',
+                { isEmbedded: true, savedChartUuid: undefined },
+            );
+        } finally {
+            vi.mocked(useEmbed).mockReturnValue(
+                {} as ReturnType<typeof useEmbed>,
+            );
+        }
     });
 
     it('does not look for upgrades on an unpinned chart', () => {

@@ -21,6 +21,7 @@ import {
     DateGranularity,
     DateZoom,
     DecodedEmbed,
+    DEFAULT_DATA_APP_VIZ_LIST_SORT,
     Embed,
     EmbedContent,
     EmbedDashboard,
@@ -69,7 +70,11 @@ import {
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
+    type DataAppViz,
+    type DataAppVizListSort,
     type DataAppVizRenderMetadata,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SessionUser,
@@ -112,11 +117,13 @@ import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
 import { assertChartTypesEnabled } from '../AppGenerateService/chartTypeFeatureGate';
+import { mapDataAppViz } from '../AppGenerateService/dataAppViz';
 import {
     assertDataAppVizPreviewVersionAllowed,
     getDataAppVizVersionPin,
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
+    resolveRenderableDataAppVizVersion,
 } from '../AppGenerateService/dataAppVizRender';
 
 const escapeEmbedJwtUserAttributeValue = (value: string): string =>
@@ -1813,6 +1820,152 @@ export class EmbedService extends BaseService {
             tileUuid: tile.uuid,
             chart,
         };
+    }
+
+    private async assertCanUseProjectChartTypesInEmbed(
+        account: AnonymousAccount,
+        projectUuid: string,
+    ): Promise<void> {
+        if (projectUuid !== account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Project mismatch between URL and embed token',
+            );
+        }
+
+        const ability = this.createAuditedAbility(account);
+        const organizationUuid = account.organization?.organizationUuid;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Embed organization is unavailable');
+        }
+        const { data: decodedToken } = account.authentication;
+        const useJwtPermissions =
+            !isDashboardContent(decodedToken.content) ||
+            decodedToken.writeActions?.permissionsMode !== 'roles';
+        const canExplore =
+            ability.can(
+                'view',
+                subject('EmbedExplore', { organizationUuid, projectUuid }),
+            ) ||
+            (useJwtPermissions &&
+                'canExplore' in decodedToken.content &&
+                decodedToken.content.canExplore === true);
+        if (
+            !canExplore ||
+            ability.cannot(
+                'view',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        await assertChartTypesEnabled(this.featureFlagModel, {
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+    }
+
+    async listEmbedProjectDataAppVisualizations(
+        account: AnonymousAccount,
+        projectUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        search?: string,
+        sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
+    ): Promise<KnexPaginatedData<DataAppViz[]>> {
+        await this.assertCanUseProjectChartTypesInEmbed(account, projectUuid);
+        const { data, pagination } =
+            await this.appModel.listDataAppVisualizations(
+                projectUuid,
+                paginateArgs,
+                search,
+                sort,
+            );
+        return { data: data.map(mapDataAppViz), pagination };
+    }
+
+    private async getAuthorizedProjectDataAppVizForEmbed(
+        account: AnonymousAccount,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ) {
+        await this.assertCanUseProjectChartTypesInEmbed(account, projectUuid);
+        return resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+    }
+
+    async getEmbedProjectDataAppVisualization(
+        account: AnonymousAccount,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version?: number,
+    ): Promise<DataAppViz> {
+        const dataAppViz = await this.getAuthorizedProjectDataAppVizForEmbed(
+            account,
+            projectUuid,
+            dataAppVizUuid,
+        );
+        if (version === undefined) return mapDataAppViz(dataAppViz);
+
+        const appVersion = await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+        return mapDataAppViz({
+            ...dataAppViz,
+            viz_schema: appVersion.viz_schema,
+        });
+    }
+
+    async getEmbedProjectDataAppVizRenderMetadata(
+        account: AnonymousAccount,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version?: number,
+    ): Promise<DataAppVizRenderMetadata> {
+        const dataAppViz = await this.getAuthorizedProjectDataAppVizForEmbed(
+            account,
+            projectUuid,
+            dataAppVizUuid,
+        );
+        return resolveDataAppVizRenderMetadata(
+            this.appModel,
+            dataAppViz.app_id,
+            getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+            version,
+        );
+    }
+
+    async getEmbedProjectDataAppVizPreviewToken(
+        account: AnonymousAccount,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const dataAppViz = await this.getAuthorizedProjectDataAppVizForEmbed(
+            account,
+            projectUuid,
+            dataAppVizUuid,
+        );
+        await resolveRenderableDataAppVizVersion(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+        );
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            dataAppViz.app_id,
+            version,
+            account.user.id,
+            dataAppViz.organization_uuid,
+            projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
+        );
     }
 
     private async getAuthorizedDataAppVizForEmbed(

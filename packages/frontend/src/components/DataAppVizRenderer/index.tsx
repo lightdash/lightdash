@@ -200,11 +200,10 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         }),
         [embedToken, renderSavedChartUuid, chartVersionUuid],
     );
-    // Saved charts and immutable AI artifacts must render the version that
-    // their config records. The chart-less edit canvas intentionally remains
-    // unpinned so builders can preview the latest generated version.
+    // Embedded previews retain their recorded version; Chart Studio's
+    // chart-less edit canvas previews the latest generated version.
     const renderPinnedVersion =
-        renderSavedChartUuid || !isEditMode
+        embedToken || renderSavedChartUuid || !isEditMode
             ? config?.dataAppVizVersion
             : undefined;
     const { data: renderMetadata, error: renderMetadataError } =
@@ -223,7 +222,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             !dataAppVizChartConfig ||
             !config ||
             (config.dataAppVizVersion !== undefined &&
-                renderSavedChartUuid !== undefined) ||
+                (!!embedToken || renderSavedChartUuid !== undefined)) ||
             config.dataAppVizVersion === readyMetadata.version
         ) {
             return;
@@ -231,6 +230,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         dataAppVizChartConfig.setDataAppVizVersion(readyMetadata.version);
     }, [
         config,
+        embedToken,
         isEditMode,
         readyMetadata,
         renderSavedChartUuid,

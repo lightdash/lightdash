@@ -13,6 +13,7 @@ import {
 import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
@@ -48,15 +49,10 @@ import DataAppVizUpgradeNotice from './DataAppVizUpgradeNotice';
 
 // Stable identity, so the field pools stay memoized before results land.
 const NO_COLUMNS: ItemsMap = {};
-// The chart-less authoring route answers with the latest renderable version,
-// which is the only upgrade target a pinned chart can move to.
-const LATEST_RENDER_TARGET = {
-    isEmbedded: false,
-    savedChartUuid: undefined,
-};
 
 export const ConfigTabs: FC = memo(() => {
     const projectUuid = useProjectUuid();
+    const { embedToken } = useEmbed();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
@@ -117,7 +113,7 @@ export const ConfigTabs: FC = memo(() => {
         selectedVersion !== null && !isAuthoringSelectedType
             ? dataAppVizUuid
             : null,
-        LATEST_RENDER_TARGET,
+        { isEmbedded: !!embedToken, savedChartUuid: undefined },
     );
     const upgradeTarget =
         selectedVersion !== null &&

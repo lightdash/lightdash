@@ -250,17 +250,30 @@ describe('useDataAppVizRender', () => {
         });
     });
 
-    it('does not call an embed route without a saved chart UUID', () => {
+    it('previews a newly selected custom chart type in embedded Explore', async () => {
+        const target = { isEmbedded: true, savedChartUuid: undefined };
         const { result } = renderHook(() =>
-            useDataAppVizRenderMetadata('project-1', 'viz-1', {
-                isEmbedded: true,
-                savedChartUuid: undefined,
-            }),
+            useDataAppVizRenderMetadata('project-1', 'viz-1', target, 2),
         );
+        const metadataQuery = result.current as unknown as CapturedQuery;
+        expect(metadataQuery.enabled).toBe(true);
+        await metadataQuery.queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/embed/project-1/visualizations/viz-1/render-metadata?version=2',
+        });
 
-        expect((result.current as unknown as CapturedQuery).enabled).toBe(
-            false,
+        mocks.lightdashApi.mockResolvedValue({ token: 'token-2' });
+        const { result: tokenResult } = renderHook(() =>
+            useDataAppVizPreviewToken('project-1', 'viz-1', 2, target, 2),
         );
+        const tokenQuery = tokenResult.current as unknown as CapturedQuery;
+        expect(tokenQuery.enabled).toBe(true);
+        await expect(tokenQuery.queryFn()).resolves.toBe('token-2');
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/embed/project-1/visualizations/viz-1/versions/2/preview-token',
+        });
     });
 
     it.each([
