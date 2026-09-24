@@ -1,3 +1,10 @@
+# [2.315.0](https://github.com/lightdash/lightdash/compare/2.314.2...2.315.0) (2026-09-24)
+
+
+### Features
+
+* add daily job generation monitoring metrics ([#29768](https://github.com/lightdash/lightdash/issues/29768)) ([2d0e3fc](https://github.com/lightdash/lightdash/commit/2d0e3fc7b34dc1ca5f58443ec4d9d4e4cde97750)), closes [#29404](https://github.com/lightdash/lightdash/issues/29404)
+
 ## [2.314.2](https://github.com/lightdash/lightdash/compare/2.314.1...2.314.2) (2026-09-23)
 
 

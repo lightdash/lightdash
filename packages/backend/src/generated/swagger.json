@@ -42318,6 +42318,447 @@
                 },
                 "type": "object"
             },
+            "WarehouseConnection": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "additionalDatabases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "listAllDatabases": {
+                        "type": "boolean"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "isOriginal": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "warehouseConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "additionalDatabases",
+                    "listAllDatabases",
+                    "organizationWarehouseCredentialsUuid",
+                    "warehouseType",
+                    "isOriginal",
+                    "name",
+                    "projectUuid",
+                    "warehouseConnectionUuid"
+                ],
+                "type": "object"
+            },
+            "WarehouseConnectionCapabilities": {
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "canAddConnection": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["reason", "canAddConnection"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionsResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "capabilities": {
+                                "$ref": "#/components/schemas/WarehouseConnectionCapabilities"
+                            },
+                            "connections": {
+                                "items": {
+                                    "$ref": "#/components/schemas/WarehouseConnection"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["capabilities", "connections"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseConnectionWithCredentials": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/WarehouseConnection"
+                    },
+                    {
+                        "properties": {
+                            "warehouseConnection": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WarehouseCredentials"
+                                    }
+                                ],
+                                "nullable": true
+                            }
+                        },
+                        "required": ["warehouseConnection"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiWarehouseConnectionWithCredentialsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectionWithCredentials"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnection"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateWarehouseConnectionRequest": {
+                "properties": {
+                    "additionalDatabases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "listAllDatabases": {
+                        "type": "boolean"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
+                    "warehouseConnection": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object"
+            },
+            "Partial_CreateRedshiftCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateRedshiftCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateRedshiftCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateBigqueryCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateBigqueryCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateBigqueryCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreatePostgresCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreatePostgresCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreatePostgresCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateSnowflakeCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateSnowflakeCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateSnowflakeCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateDatabricksCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDatabricksCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDatabricksCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateTrinoCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateTrinoCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateTrinoCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateClickhouseCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateClickhouseCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateClickhouseCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateAthenaCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateAthenaCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateAthenaCredentials_"
+                    }
+                ]
+            },
+            "Partial_CreateDuckdbMotherduckCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDuckdbMotherduckCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDuckdbMotherduckCredentials_"
+                    }
+                ]
+            },
+            "Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_CreateDuckdbDucklakeCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDuckdbDucklakeCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDuckdbDucklakeCredentials_"
+                    }
+                ]
+            },
+            "Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_CreateDuckdbEmbeddedCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CreateDuckdbEmbeddedCredentials_"
+                    }
+                ]
+            },
+            "Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_DuckdbAnalyticsCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_DuckdbAnalyticsCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_DuckdbAnalyticsCredentials_"
+                    }
+                ]
+            },
+            "CreateWarehouseCredentialsWithOptionalSecrets": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateRedshiftCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateBigqueryCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreatePostgresCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateSnowflakeCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDatabricksCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateTrinoCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateClickhouseCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateAthenaCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbMotherduckCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbDucklakeCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_DuckdbAnalyticsCredentials_"
+                    }
+                ]
+            },
+            "ApiUpdateWarehouseConnectionRequest": {
+                "properties": {
+                    "additionalDatabases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "listAllDatabases": {
+                        "type": "boolean"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
+                    "warehouseConnection": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentialsWithOptionalSecrets"
+                    }
+                },
+                "type": "object"
+            },
+            "ApiRenameWarehouseConnectionRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object"
+            },
             "WarehouseConnectCode": {
                 "properties": {
                     "expiresAt": {
@@ -49047,8 +49488,15 @@
                 "type": "object",
                 "description": "Restricts which part of the warehouse the AI agent may read via raw SQL.\n\nNull (or an empty `schemas` list) means unrestricted — the agent can reach\nanything the project's warehouse connection can reach, which is the\nbehaviour for every project that has not configured a scope.\n\nThis is a correctness control rather than a security boundary: raw SQL\nalready requires `manage SqlRunner`, so the same data is reachable through\nthe SQL Runner regardless. It exists so an agent can be kept off schemas a\ncustomer knows are wrong to answer from, such as a retired dbt project\nliving in the same catalog as the current one."
             },
+            "ConnectionRoute": {
+                "type": "string",
+                "enum": ["single", "multi"]
+            },
             "Project": {
                 "properties": {
+                    "connectionRoute": {
+                        "$ref": "#/components/schemas/ConnectionRoute"
+                    },
                     "agentSqlScope": {
                         "allOf": [
                             {
@@ -50113,253 +50561,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "Partial_CreateRedshiftCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateRedshiftCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateRedshiftCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreateBigqueryCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateBigqueryCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateBigqueryCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreatePostgresCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreatePostgresCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreatePostgresCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreateSnowflakeCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateSnowflakeCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateSnowflakeCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreateDatabricksCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateDatabricksCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateDatabricksCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreateTrinoCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateTrinoCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateTrinoCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreateClickhouseCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateClickhouseCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateClickhouseCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreateAthenaCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateAthenaCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateAthenaCredentials_"
-                    }
-                ]
-            },
-            "Partial_CreateDuckdbMotherduckCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateDuckdbMotherduckCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateDuckdbMotherduckCredentials_"
-                    }
-                ]
-            },
-            "Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {},
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "Partial_CreateDuckdbDucklakeCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateDuckdbDucklakeCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateDuckdbDucklakeCredentials_"
-                    }
-                ]
-            },
-            "Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {},
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "Partial_CreateDuckdbEmbeddedCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_CreateDuckdbEmbeddedCredentials_"
-                    }
-                ]
-            },
-            "Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__": {
-                "properties": {},
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_": {
-                "$ref": "#/components/schemas/Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "Partial_DuckdbAnalyticsCredentials_": {
-                "properties": {},
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "WithOptionalSecrets_DuckdbAnalyticsCredentials_": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_DuckdbAnalyticsCredentials_"
-                    }
-                ]
-            },
-            "CreateWarehouseCredentialsWithOptionalSecrets": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateRedshiftCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateBigqueryCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreatePostgresCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateSnowflakeCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDatabricksCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateTrinoCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateClickhouseCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateAthenaCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbMotherduckCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbDucklakeCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithOptionalSecrets_DuckdbAnalyticsCredentials_"
-                    }
-                ]
             },
             "ApiWarehouseConnectionTestBody": {
                 "properties": {
@@ -64510,7 +64711,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.314.2",
+        "version": "2.315.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,14 +1,52 @@
 {
   "schemaVersion": "2",
-  "version": "2.314.2",
-  "previousVersion": "2.314.1",
-  "releaseDate": "2026-09-23T20:24:27.678Z",
+  "version": "2.315.0",
+  "previousVersion": "2.314.2",
+  "releaseDate": "2026-09-24T07:37:46.957Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 3,
+    "coreCount": 3,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260923200000_add_connection_mode_to_projects.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20260923200100_create_warehouse_connections.ts",
+        "edition": "core",
+        "tables": [
+          "project_connection_mode_events",
+          "warehouse_connection_catalog_cache",
+          "warehouse_connection_manifests",
+          "warehouse_connection_tables",
+          "warehouse_connection_user_credentials_preference",
+          "warehouse_connections"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      },
+      {
+        "name": "20260923200200_add_warehouse_connection_bindings.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
