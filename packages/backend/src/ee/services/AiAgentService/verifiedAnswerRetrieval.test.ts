@@ -260,6 +260,44 @@ describe('verified examples in conversation history', () => {
         ]);
     });
 
+    it('omits deferred examples for the current prompt', async () => {
+        const { service } = setup();
+        const retrieve = vi.spyOn(service, 'retrieveRelevantArtifacts');
+        const result = await service.getChatHistoryFromThreadMessages(history, {
+            ...options,
+            fastDecisionsEnabled: true,
+            currentPromptExamples: { type: 'omit' },
+        });
+        expect(retrieve).not.toHaveBeenCalled();
+        expect(result).toEqual([
+            { role: 'user', content: 'Count orders' },
+            { role: 'assistant', content: 'Previous answer' },
+            { role: 'user', content: 'Now show customer retention' },
+        ]);
+    });
+
+    it('places provided examples after the current prompt without another lookup', async () => {
+        const { service } = setup();
+        const retrieve = vi.spyOn(service, 'retrieveRelevantArtifacts');
+        const examples = {
+            role: 'user' as const,
+            content:
+                'Here are some relevant queries from previous conversations:',
+        };
+        const result = await service.getChatHistoryFromThreadMessages(history, {
+            ...options,
+            fastDecisionsEnabled: true,
+            currentPromptExamples: { type: 'provided', message: examples },
+        });
+        expect(retrieve).not.toHaveBeenCalled();
+        expect(result).toEqual([
+            { role: 'user', content: 'Count orders' },
+            { role: 'assistant', content: 'Previous answer' },
+            { role: 'user', content: 'Now show customer retention' },
+            examples,
+        ]);
+    });
+
     it.each(
         [false, true].flatMap((fastDecisionsEnabled) =>
             [undefined, 'previous-query'].map((queryUuid) => ({
