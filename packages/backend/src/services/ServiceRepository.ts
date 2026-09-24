@@ -961,6 +961,8 @@ export class ServiceRepository
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     natsClient: this.clients.getNatsClient(),
@@ -1108,6 +1110,8 @@ export class ServiceRepository
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     natsClient: this.clients.getNatsClient(),
@@ -2051,6 +2055,8 @@ export class ServiceRepository
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectModel: this.models.getProjectModel(),
+                    userWarehouseCredentialsModel:
+                        this.models.getUserWarehouseCredentialsModel(),
                     featureFlagService: this.getFeatureFlagService(),
                     licenseService: this.getLicenseService(),
                     credentialPolicy: this.getProjectService(),

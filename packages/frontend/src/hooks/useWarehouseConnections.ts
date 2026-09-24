@@ -6,9 +6,16 @@ import {
     type ApiUpdateWarehouseConnectionRequest,
     type WarehouseConnection,
     type WarehouseConnectionCapabilities,
+    type WarehouseConnectionForUserCredentials,
+    type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQueries,
+    useQuery,
+    useQueryClient,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
@@ -66,6 +73,102 @@ export const useWarehouseConnections = (projectUuid: string) => {
         retry: false,
     });
     return { ...query, isEnabled };
+};
+
+export const useWarehouseConnectionsForUserCredentials = (
+    projectUuid: string,
+) =>
+    useQuery<WarehouseConnectionForUserCredentials[], ApiError>({
+        queryKey: [
+            'projects',
+            projectUuid,
+            'warehouse-connection-user-credentials',
+        ],
+        queryFn: () =>
+            lightdashApi<WarehouseConnectionForUserCredentials[]>({
+                url: `/projects/${projectUuid}/warehouse-connection-user-credentials`,
+                method: 'GET',
+                body: undefined,
+            }),
+        retry: false,
+    });
+
+const userCredentialsQueryKey = (
+    projectUuid: string,
+    warehouseConnectionUuid: string,
+) => [
+    'projects',
+    projectUuid,
+    'warehouse-connections',
+    warehouseConnectionUuid,
+    'user-credentials',
+];
+
+export const useWarehouseConnectionsUserCredentials = (
+    projectUuid: string,
+    warehouseConnectionUuids: string[],
+) =>
+    useQueries({
+        queries: warehouseConnectionUuids.map((warehouseConnectionUuid) => ({
+            queryKey: userCredentialsQueryKey(
+                projectUuid,
+                warehouseConnectionUuid,
+            ),
+            queryFn: () =>
+                lightdashApi<WarehouseConnectionUserCredentials>({
+                    url: `${connectionsUrl(projectUuid)}/${warehouseConnectionUuid}/user-credentials`,
+                    method: 'GET',
+                    body: undefined,
+                }),
+            retry: false,
+        })),
+    });
+
+export const useWarehouseConnectionUserCredentialsMutation = (
+    projectUuid: string,
+    options: { onSuccess: () => void },
+) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<
+        undefined,
+        ApiError,
+        {
+            warehouseConnectionUuid: string;
+            userWarehouseCredentialsUuid: string;
+        }
+    >(
+        ({ warehouseConnectionUuid, userWarehouseCredentialsUuid }) =>
+            lightdashApi<undefined>({
+                url: `${connectionsUrl(projectUuid)}/${warehouseConnectionUuid}/user-credentials/${userWarehouseCredentialsUuid}`,
+                method: 'PATCH',
+                body: undefined,
+            }),
+        {
+            mutationKey: [
+                'update_warehouse_connection_user_credentials',
+                projectUuid,
+            ],
+            onSuccess: async (_result, { warehouseConnectionUuid }) => {
+                await queryClient.invalidateQueries(
+                    userCredentialsQueryKey(
+                        projectUuid,
+                        warehouseConnectionUuid,
+                    ),
+                );
+                showToastSuccess({
+                    title: 'Credentials preference saved successfully',
+                });
+                options.onSuccess();
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to save credentials preference',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };
 
 export const useWarehouseConnection = (

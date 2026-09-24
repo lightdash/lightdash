@@ -105,6 +105,7 @@ import type { UserModel } from '../../models/UserModel';
 import type { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
@@ -413,6 +414,7 @@ const getMockedAsyncQueryService = (
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
+        warehouseConnectionModel: {} as WarehouseConnectionModel,
         emailModel: {
             getPrimaryEmailStatus: () => ({
                 isVerified: true,

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    allowsOptionalUserCredentials,
     assertRegisteredAccount,
     ConflictError,
     FeatureFlags,
@@ -19,13 +20,16 @@ import {
     type RegisteredAccount,
     type WarehouseConnection,
     type WarehouseConnectionCapabilities,
+    type WarehouseConnectionForUserCredentials,
     type WarehouseConnectionTestResults,
+    type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
     type WarehouseCredentials,
     type WarehouseTypes,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
     type WarehouseConnectionBoundContent,
     type WarehouseConnectionCredentialSource,
@@ -35,6 +39,7 @@ import {
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { getExtraConnectionRequireUserCredentials } from './extraConnectionUserCredentials';
 
 export type WarehouseCredentialPolicy = {
     assertCanWriteWarehouseConnection: (
@@ -57,7 +62,14 @@ export type WarehouseCredentialPolicy = {
 
 type WarehouseConnectionServiceArguments = {
     warehouseConnectionModel: WarehouseConnectionModel;
-    projectModel: Pick<ProjectModel, 'getSummary'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getSummary' | 'getWarehouseCredentialsForProject'
+    >;
+    userWarehouseCredentialsModel: Pick<
+        UserWarehouseCredentialsModel,
+        'getByUuid'
+    >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     licenseService: Pick<LicenseService, 'canHoldMultipleConnections'>;
     credentialPolicy: WarehouseCredentialPolicy;
@@ -121,7 +133,9 @@ const toNonSensitiveCredentials = (
 export class WarehouseConnectionService extends BaseService {
     private readonly warehouseConnectionModel: WarehouseConnectionModel;
 
-    private readonly projectModel: Pick<ProjectModel, 'getSummary'>;
+    private readonly projectModel: WarehouseConnectionServiceArguments['projectModel'];
+
+    private readonly userWarehouseCredentialsModel: WarehouseConnectionServiceArguments['userWarehouseCredentialsModel'];
 
     private readonly featureFlagService: Pick<FeatureFlagService, 'get'>;
 
@@ -136,6 +150,7 @@ export class WarehouseConnectionService extends BaseService {
         super({ serviceName: 'WarehouseConnectionService' });
         this.warehouseConnectionModel = args.warehouseConnectionModel;
         this.projectModel = args.projectModel;
+        this.userWarehouseCredentialsModel = args.userWarehouseCredentialsModel;
         this.featureFlagService = args.featureFlagService;
         this.licenseService = args.licenseService;
         this.credentialPolicy = args.credentialPolicy;
@@ -325,6 +340,178 @@ export class WarehouseConnectionService extends BaseService {
                 ),
             ),
         };
+    }
+
+    private async getMultiProjectForViewer(
+        account: Account,
+        projectUuid: string,
+        userWarehouseCredentialsUuid?: string,
+    ): Promise<WarehouseConnectionProject> {
+        const summary = await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('Project', {
+                    ...summary,
+                    ...(userWarehouseCredentialsUuid
+                        ? { metadata: { userWarehouseCredentialsUuid } }
+                        : {}),
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const project =
+            await this.warehouseConnectionModel.getProject(projectUuid);
+        WarehouseConnectionService.assertMultiMode(project);
+        return project;
+    }
+
+    private async getExtraConnection(
+        project: WarehouseConnectionProject,
+        warehouseConnectionUuid: string,
+    ): Promise<WarehouseConnection & { warehouseType: WarehouseTypes }> {
+        const connection = await this.warehouseConnectionModel.get(
+            project,
+            warehouseConnectionUuid,
+        );
+        if (connection.isOriginal || connection.warehouseType === null) {
+            throw new ParameterError(
+                'The original connection uses the project warehouse credentials preference.',
+            );
+        }
+        return { ...connection, warehouseType: connection.warehouseType };
+    }
+
+    async listForUserCredentials(
+        account: Account,
+        projectUuid: string,
+    ): Promise<WarehouseConnectionForUserCredentials[]> {
+        assertRegisteredAccount(account);
+        const project = await this.getMultiProjectForViewer(
+            account,
+            projectUuid,
+        );
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const connections = await this.warehouseConnectionModel.list(project);
+        return Promise.all(
+            connections.map(async (connection) => ({
+                warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                name: connection.name,
+                isOriginal: connection.isOriginal,
+                warehouseType: connection.warehouseType,
+                requireUserCredentials: connection.isOriginal
+                    ? originalCredentials.requireUserCredentials === true
+                    : getExtraConnectionRequireUserCredentials(
+                          originalCredentials,
+                          await this.warehouseConnectionModel.getExtraCredentialSource(
+                              project,
+                              connection.warehouseConnectionUuid,
+                          ),
+                      ) === true,
+            })),
+        );
+    }
+
+    async getUserCredentials(
+        account: Account,
+        projectUuid: string,
+        warehouseConnectionUuid: string,
+    ): Promise<WarehouseConnectionUserCredentials> {
+        assertRegisteredAccount(account);
+        const project = await this.getMultiProjectForViewer(
+            account,
+            projectUuid,
+        );
+        const connection = await this.getExtraConnection(
+            project,
+            warehouseConnectionUuid,
+        );
+        const source =
+            await this.warehouseConnectionModel.getExtraCredentialSource(
+                project,
+                warehouseConnectionUuid,
+            );
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const preferredUuid =
+            await this.warehouseConnectionModel.findPreferredUserCredentialsUuid(
+                {
+                    userUuid: account.user.userUuid,
+                    projectUuid,
+                    warehouseConnectionUuid,
+                    warehouseType: connection.warehouseType,
+                },
+            );
+        return {
+            warehouseConnectionUuid,
+            warehouseType: connection.warehouseType,
+            requireUserCredentials:
+                getExtraConnectionRequireUserCredentials(
+                    originalCredentials,
+                    source,
+                ) === true,
+            allowsOptionalUserCredentials: allowsOptionalUserCredentials(
+                toNonSensitiveCredentials(source.credentials),
+            ),
+            userWarehouseCredentials:
+                preferredUuid === null
+                    ? null
+                    : await this.userWarehouseCredentialsModel.getByUuid(
+                          preferredUuid,
+                      ),
+        };
+    }
+
+    async upsertUserCredentialsPreference(
+        account: Account,
+        projectUuid: string,
+        warehouseConnectionUuid: string,
+        userWarehouseCredentialsUuid: string,
+    ): Promise<void> {
+        assertRegisteredAccount(account);
+        const userWarehouseCredentials =
+            await this.userWarehouseCredentialsModel.getByUuid(
+                userWarehouseCredentialsUuid,
+            );
+        if (userWarehouseCredentials.userUuid !== account.user.userUuid) {
+            throw new ForbiddenError();
+        }
+        const project = await this.getMultiProjectForViewer(
+            account,
+            projectUuid,
+            userWarehouseCredentialsUuid,
+        );
+        const connection = await this.getExtraConnection(
+            project,
+            warehouseConnectionUuid,
+        );
+        if (
+            userWarehouseCredentials.credentials.type !==
+            connection.warehouseType
+        ) {
+            throw new ParameterError(
+                'These warehouse credentials do not match the connection warehouse type.',
+            );
+        }
+        if (
+            userWarehouseCredentials.project !== null &&
+            userWarehouseCredentials.project.projectUuid !== projectUuid
+        ) {
+            throw new ParameterError(
+                'These warehouse credentials belong to another project.',
+            );
+        }
+        await this.warehouseConnectionModel.upsertUserCredentialsPreference({
+            userUuid: account.user.userUuid,
+            warehouseConnectionUuid,
+            userWarehouseCredentialsUuid,
+        });
     }
 
     private static toCreateSource(

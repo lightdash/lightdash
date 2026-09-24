@@ -1,4 +1,5 @@
 import {
+    ConflictError,
     CreateOrganizationWarehouseCredentials,
     CreateWarehouseCredentials,
     DuckdbConnectionType,
@@ -251,6 +252,39 @@ export class OrganizationWarehouseCredentialsModel {
         return this.convertToOrganizationWarehouseCredentials(result);
     }
 
+    private async assertNoExtraConnectionUses(
+        organizationWarehouseCredentialsUuid: string,
+    ): Promise<void> {
+        const users = await this.database('warehouse_connections')
+            .innerJoin(
+                'projects',
+                'projects.project_uuid',
+                'warehouse_connections.project_uuid',
+            )
+            .where(
+                'warehouse_connections.organization_warehouse_credentials_uuid',
+                organizationWarehouseCredentialsUuid,
+            )
+            .where('warehouse_connections.is_original', false)
+            .orderBy(['projects.name', 'warehouse_connections.name'])
+            .select<{ project_name: string; connection_name: string }[]>(
+                'projects.name as project_name',
+                'warehouse_connections.name as connection_name',
+            );
+        if (users.length > 0) {
+            throw new ConflictError(
+                `The warehouse type of these credentials cannot change while extra connections use them: ${users
+                    .map(
+                        ({
+                            project_name: projectName,
+                            connection_name: name,
+                        }) => `${projectName} / ${name}`,
+                    )
+                    .join(', ')}.`,
+            );
+        }
+    }
+
     async update(
         uuid: string,
         data: UpdateOrganizationWarehouseCredentials,
@@ -276,6 +310,13 @@ export class OrganizationWarehouseCredentialsModel {
 
         if (data.description !== undefined) {
             updateData.description = data.description;
+        }
+
+        if (
+            data.credentials &&
+            data.credentials.type !== existing.warehouse_type
+        ) {
+            await this.assertNoExtraConnectionUses(uuid);
         }
 
         if (data.credentials) {

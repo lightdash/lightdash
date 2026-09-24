@@ -40,6 +40,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -75,6 +76,7 @@ describe('Csv service', () => {
             userAttributesModel: {} as UserAttributesModel,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
             warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
+            warehouseConnectionModel: {} as WarehouseConnectionModel,
             emailModel: {
                 getPrimaryEmailStatus: (userUuid: string) => ({
                     isVerified: true,
