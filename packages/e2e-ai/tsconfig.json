@@ -1,0 +1,29 @@
+{
+    // No install step: bare imports resolve from the backend's node_modules,
+    // which already has playwright@1.56.1, pg, zod and @lightdash/common.
+    // Playwright applies these paths at runtime too.
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "preserve",
+        "moduleResolution": "bundler",
+        "lib": ["ES2023", "DOM"],
+        "types": ["node"],
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "useUnknownInCatchVariables": true,
+        "noUncheckedIndexedAccess": true,
+        "paths": {
+            // Types for tsc, then the entry file for Playwright, whose
+            // resolver does not follow pg's directory "main".
+            "pg": [
+                "../backend/node_modules/@types/pg",
+                "../backend/node_modules/pg/lib/index.js"
+            ],
+            "*": ["../backend/node_modules/*"]
+        }
+    },
+    "include": ["**/*.ts"],
+    "exclude": ["test-results", "playwright-report"]
+}

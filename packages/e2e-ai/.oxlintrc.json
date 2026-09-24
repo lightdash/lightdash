@@ -1,0 +1,14 @@
+{
+    "$schema": "../../node_modules/oxlint/configuration_schema.json",
+    "extends": ["../../.oxlintrc.base.json"],
+    "rules": {
+        // Steps, polls and the retry-once run in order by design.
+        "no-await-in-loop": "off",
+        // Observations and skipped checks are reported to the terminal.
+        "no-console": "off",
+        // Playwright fixtures must destructure their first argument.
+        "no-empty-pattern": "off",
+        "jest/no-standalone-expect": "off",
+        "vitest/valid-expect": "off"
+    }
+}
