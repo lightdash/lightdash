@@ -346,6 +346,11 @@ export enum FeatureFlags {
      * decisions, scoped tools, fast tool calls, reuse and direct chart paths.
      */
     AiAgentFastDecisions = 'ai-agent-fast-decisions',
+    /**
+     * Organization-scoped rollout of custom agent skills: the skills library,
+     * agent bindings, the slash menu, as-code and MCP exposure.
+     */
+    AiAgentCustomSkills = 'ai-agent-custom-skills',
 }
 
 export type FeatureFlag = {

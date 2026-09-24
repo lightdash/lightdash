@@ -53,6 +53,8 @@ export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
 export * from './documentGuidance';
 export * from './documentTypes';
+export * from './skillTypes';
+export * from './skillValidation';
 export * from './filterExploreByTags';
 export * from './projectContext';
 export * from './requestTypes';

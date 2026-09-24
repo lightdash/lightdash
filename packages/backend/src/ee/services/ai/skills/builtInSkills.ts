@@ -1,11 +1,11 @@
 import {
     getErrorMessage,
     ParameterError,
+    splitAiAgentSkillFrontmatter,
     type ToolRuntime,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import * as fs from 'fs/promises';
-import matter from 'gray-matter';
 import * as path from 'path';
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
@@ -114,7 +114,13 @@ export class BuiltInSkills {
         filePath: string,
         fileContents: string,
     ): ParsedSkillFile {
-        const { content, data } = matter(fileContents);
+        const parts = splitAiAgentSkillFrontmatter(fileContents);
+        if (parts === null) {
+            throw new ParameterError(
+                `Invalid skill frontmatter in ${filePath}: the file must start with a YAML mapping between --- lines`,
+            );
+        }
+        const { body: content, data } = parts;
         const frontmatter = skillFrontmatterSchema.safeParse(data);
         if (!frontmatter.success) {
             throw new ParameterError(
