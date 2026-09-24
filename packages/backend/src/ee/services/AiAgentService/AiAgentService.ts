@@ -94,6 +94,7 @@ import {
     getGenerateDataAppBuildOutcome,
     getGroupByDimensions,
     getItemId,
+    getItemLabelWithoutTableName,
     getItemMap,
     getSlackAiEchartsConfig,
     getValidAiQueryLimit,
@@ -103,6 +104,7 @@ import {
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
     isAgentToolName,
+    isAiAgentSqlArtifactVizQuery,
     isAiComposerChartArtifactConfig,
     isAiDeepResearchRunTerminal,
     isAiMergeChartArtifactConfig,
@@ -317,6 +319,7 @@ import {
     type AgentMcpToolSetup,
     type AgentStreamTextResult,
 } from '../ai/agents/agentV2';
+import { generateChartMetadata } from '../ai/agents/chartMetadataGenerator';
 import { generateCompactionSummary } from '../ai/agents/compactionGenerator';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
@@ -354,6 +357,11 @@ import {
     type CompoundStep,
     type FieldCandidate,
 } from '../ai/decisions/chartIntent';
+import {
+    describeChart,
+    findStaleChartMetadata,
+    type ChartMetadata,
+} from '../ai/decisions/chartTitle';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
@@ -546,8 +554,16 @@ type ChartTurnContext = {
     intentContext: ChartIntentContext;
 };
 
+// The fast edit reply waits this long for a one-number result before sending without it.
+const SINGLE_VALUE_TIMEOUT_MS = 3_000;
+
 type ChartIntentApplication =
-    | { type: 'edit'; edit: ChartEdit; undoneTo: AiArtifact | null }
+    | {
+          type: 'edit';
+          edit: ChartEdit;
+          undoneTo: AiArtifact | null;
+          explore: Explore;
+      }
     | { type: 'fallback'; reason: string };
 
 type AgentResponseStream = {
@@ -12098,27 +12114,38 @@ Use your existing tools to inspect them when relevant to the user's question (re
         | { type: 'fallback'; reason: string }
     > {
         if (step.type === 'needs_values') {
-            const { fieldId, exclude } = step.filter;
-            const fieldLabel =
-                chart.intentContext.filterableFields.find(
-                    ({ id }) => id === fieldId,
-                )?.label ?? fieldId;
-            const candidates = await this.searchFilterValueCandidates({
-                user,
-                projectUuid: prompt.projectUuid,
-                exploreName: explore.name,
-                fieldId,
-                prompt: prompt.prompt,
-            });
-            const values = await selectFilterValues({
-                decisions,
-                prompt: prompt.prompt,
-                filter: step.filter,
-                fieldLabel,
-                candidates,
-            });
-            if (!values)
+            const { exclude } = step.filter;
+            // Each candidate field is checked against its own warehouse values; ranking order breaks ties.
+            const matches = await Promise.all(
+                [step.filter.fieldId, ...step.filter.alternativeFieldIds].map(
+                    async (candidateFieldId) => {
+                        const fieldLabel =
+                            chart.intentContext.filterableFields.find(
+                                ({ id }) => id === candidateFieldId,
+                            )?.label ?? candidateFieldId;
+                        const candidates =
+                            await this.searchFilterValueCandidates({
+                                user,
+                                projectUuid: prompt.projectUuid,
+                                exploreName: explore.name,
+                                fieldId: candidateFieldId,
+                                prompt: prompt.prompt,
+                            });
+                        const selected = await selectFilterValues({
+                            decisions,
+                            prompt: prompt.prompt,
+                            filter: step.filter,
+                            fieldLabel,
+                            candidates,
+                        });
+                        return { fieldId: candidateFieldId, values: selected };
+                    },
+                ),
+            );
+            const match = matches.find(({ values }) => values !== null);
+            if (!match?.values)
                 return { type: 'fallback', reason: 'values-not-found' };
+            const { fieldId, values } = match;
             const valueIntent = {
                 kind: 'filter_values' as const,
                 fieldId,
@@ -12214,6 +12241,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     changed: undoConfig !== null,
                 },
                 undoneTo: undoConfig ? previous : null,
+                explore: chart.explore,
             };
         }
         const steps = plannedSteps(resolution);
@@ -12249,7 +12277,66 @@ Use your existing tools to inspect them when relevant to the user's question (re
             type: 'edit',
             edit: { config: artifact, response: responses.join(' '), changed },
             undoneTo: null,
+            explore,
         };
+    }
+
+    /** Jev decides whether the edit made the title or description stale; only then does the fast model rewrite it. */
+    private async refreshChartMetadata({
+        user,
+        prompt,
+        decisions,
+        current,
+        artifact,
+        explore,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        decisions: AiDecisionClient;
+        current: ChartMetadata;
+        artifact: AiSemanticChartArtifactConfig;
+        explore: Explore;
+    }): Promise<ChartMetadata> {
+        const { summary, generatorContext } = describeChart(artifact, explore);
+        const stale = await findStaleChartMetadata({
+            decisions,
+            request: prompt.prompt,
+            current,
+            summary,
+        });
+        if (!stale || (!stale.title && !stale.description)) return current;
+        try {
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    user.organizationUuid ?? null,
+                );
+            const generated = await generateChartMetadata(
+                {
+                    ...(await this.orgAiCopilotConfigResolver.resolveFastModel(
+                        copilotConfig,
+                        { enableReasoning: false },
+                    )),
+                    telemetry: {
+                        organizationUuid: user.organizationUuid ?? null,
+                        agentUuid: prompt.agentUuid,
+                        threadUuid: prompt.threadUuid,
+                        userUuid: user.userUuid,
+                    },
+                },
+                { ...generatorContext, styleReferenceTitle: current.title },
+            );
+            return {
+                title: stale.title ? generated.title : current.title,
+                description: stale.description
+                    ? generated.description
+                    : current.description,
+            };
+        } catch (error) {
+            Logger.warn(
+                `Chart title refresh failed; keeping the current title: ${String(error)}`,
+            );
+            return current;
+        }
     }
 
     private async tryApplyChartEdit({
@@ -12283,28 +12370,68 @@ Use your existing tools to inspect them when relevant to the user's question (re
             resolution,
         });
         if (resolved.type === 'fallback') return resolved;
-        const { edit, undoneTo } = resolved;
+        const { edit, undoneTo, explore } = resolved;
 
-        const [current, interrupted] = await Promise.all([
+        const [current, interrupted, metadata] = await Promise.all([
             this.aiAgentModel.getArtifact(chart.latest.artifactUuid),
             this.aiAgentModel.hasAiPromptInterrupt(prompt.promptUuid),
+            undoneTo || !edit.changed
+                ? null
+                : this.refreshChartMetadata({
+                      user,
+                      prompt,
+                      decisions,
+                      current: {
+                          title:
+                              chart.artifact.title ?? edit.config.config.title,
+                          description:
+                              chart.artifact.description ??
+                              edit.config.config.description ??
+                              null,
+                      },
+                      artifact: edit.config,
+                      explore,
+                  }),
         ]);
         if (current?.versionUuid !== chart.latest.versionUuid)
             return { type: 'fallback', reason: 'stale-artifact' };
         if (interrupted) return { type: 'fallback', reason: 'interrupted' };
 
-        if (edit.changed)
-            await this.aiAgentModel.createOrUpdateArtifact({
-                threadUuid: prompt.threadUuid,
-                promptUuid: prompt.promptUuid,
-                artifactType: 'chart',
-                title: (undoneTo ?? chart.artifact).title ?? undefined,
-                description:
-                    (undoneTo
-                        ? undoneTo.description
-                        : edit.config.config.description) ?? undefined,
-                vizConfig: { ...edit.config },
-            });
+        const saved = edit.changed
+            ? await this.aiAgentModel.createOrUpdateArtifact({
+                  threadUuid: prompt.threadUuid,
+                  promptUuid: prompt.promptUuid,
+                  artifactType: 'chart',
+                  title:
+                      (undoneTo ? undoneTo.title : metadata?.title) ??
+                      undefined,
+                  description:
+                      (undoneTo
+                          ? undoneTo.description
+                          : metadata?.description) ?? undefined,
+                  vizConfig: metadata
+                      ? {
+                            ...edit.config,
+                            config: {
+                                ...edit.config.config,
+                                title: metadata.title,
+                                description: metadata.description ?? undefined,
+                            },
+                        }
+                      : { ...edit.config },
+              })
+            : null;
+        const value =
+            saved && !undoneTo
+                ? await this.describeSingleValue({
+                      user,
+                      prompt,
+                      agent,
+                      artifact: saved,
+                      config: edit.config,
+                      explore,
+                  })
+                : null;
 
         return {
             type: 'applied',
@@ -12312,11 +12439,86 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
                 prompt,
                 agent,
-                text: edit.response,
+                text: value ? `${edit.response} ${value}` : edit.response,
                 responseStartedAt,
                 decisionUsage,
             }),
         };
+    }
+
+    /** A one-number chart's value, run the same way the chart panel runs it; null for anything else. */
+    private async describeSingleValue({
+        user,
+        prompt,
+        agent,
+        artifact,
+        config,
+        explore,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        artifact: AiArtifact;
+        config: AiSemanticChartArtifactConfig;
+        explore: Explore;
+    }): Promise<string | null> {
+        const { queryConfig } = config.config;
+        const [metricId] = queryConfig.metrics;
+        if (
+            queryConfig.dimensions.length > 0 ||
+            queryConfig.metrics.length !== 1 ||
+            (queryConfig.tableCalculations ?? []).length > 0
+        )
+            return null;
+        try {
+            const vizQuery = await this.getArtifactVizQuery(user, {
+                projectUuid: prompt.projectUuid,
+                agentUuid: agent.uuid,
+                artifactUuid: artifact.artifactUuid,
+                versionUuid: artifact.versionUuid,
+            });
+            if (isAiAgentSqlArtifactVizQuery(vizQuery)) return null;
+            const startedAt = Date.now();
+            /* oxlint-disable no-await-in-loop */
+            while (Date.now() - startedAt < SINGLE_VALUE_TIMEOUT_MS) {
+                const results =
+                    await this.asyncQueryService.getAsyncQueryResults({
+                        account: fromSession(user),
+                        projectUuid: prompt.projectUuid,
+                        queryUuid: vizQuery.query.queryUuid,
+                        page: 1,
+                        pageSize: 1,
+                    });
+                if (results.status === QueryHistoryStatus.READY) {
+                    const cell = results.rows[0]?.[metricId]?.value;
+                    const formatted =
+                        cell && cell.raw !== null && cell.raw !== undefined
+                            ? cell.formatted
+                            : null;
+                    const field = getFields(explore).find(
+                        (item) => getItemId(item) === metricId,
+                    );
+                    return formatted && field
+                        ? `${getItemLabelWithoutTableName(field)}: **${formatted}**.`
+                        : null;
+                }
+                if (
+                    results.status === QueryHistoryStatus.ERROR ||
+                    results.status === QueryHistoryStatus.CANCELLED
+                )
+                    return null;
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 200);
+                });
+            }
+            /* oxlint-enable no-await-in-loop */
+            return null;
+        } catch (error) {
+            Logger.warn(
+                `Fast chart edit value lookup failed: ${String(error)}`,
+            );
+            return null;
+        }
     }
 
     private async respondWithStaticText({

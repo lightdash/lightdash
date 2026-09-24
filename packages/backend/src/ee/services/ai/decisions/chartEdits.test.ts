@@ -419,6 +419,64 @@ describe('applyChartIntent', () => {
             ]);
         });
 
+        it('replaces a period filter on another grain of the same date', () => {
+            const yearExplore = structuredClone(explore);
+            yearExplore.tables.orders.dimensions.date_year = {
+                ...dimension('date_year', DimensionType.DATE, 'Date year'),
+                timeIntervalBaseDimensionName: 'date',
+            } as (typeof yearExplore.tables.orders.dimensions)[string];
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_date_year',
+                    period: {
+                        type: 'calendar',
+                        year: 2023,
+                        quarter: null,
+                        month: null,
+                    },
+                },
+                artifact: withQuery({
+                    filters: {
+                        type: 'and',
+                        dimensions: [
+                            {
+                                fieldId: 'orders_date',
+                                fieldType: DimensionType.DATE,
+                                fieldFilterType: FilterType.DATE,
+                                operator: FilterOperator.IN_BETWEEN,
+                                values: ['2024-01-01', '2024-12-31'],
+                            },
+                            {
+                                fieldId: 'orders_region',
+                                fieldType: DimensionType.STRING,
+                                fieldFilterType: FilterType.STRING,
+                                operator: FilterOperator.EQUALS,
+                                values: ['North'],
+                            },
+                        ],
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+                explore: yearExplore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                { fieldId: 'orders_region' },
+                {
+                    fieldId: 'orders_date_year',
+                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                    values: ['2023-01-01'],
+                },
+                {
+                    fieldId: 'orders_date_year',
+                    operator: FilterOperator.LESS_THAN,
+                    values: ['2024-01-01'],
+                },
+            ]);
+            expect(rulesOf(edit)).toHaveLength(3);
+        });
+
         it('applies a trailing time window through the shared resolver', () => {
             const edit = applyChartIntent({
                 intent: {

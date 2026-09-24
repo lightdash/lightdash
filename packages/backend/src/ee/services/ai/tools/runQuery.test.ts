@@ -641,7 +641,7 @@ describe('getRunQuery', () => {
         );
     });
 
-    it('returns data answers without creating or configuring a chart artifact', async () => {
+    it('keeps data answers as a table artifact without configuring a chart', async () => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
             queryUuid: '11111111-1111-4111-8111-111111111111',
@@ -687,7 +687,11 @@ describe('getRunQuery', () => {
         }
 
         expect(runAsyncQuery).toHaveBeenCalledOnce();
-        expect(createOrUpdateArtifact).not.toHaveBeenCalled();
+        expect(createOrUpdateArtifact).toHaveBeenCalledOnce();
+        expect(
+            createOrUpdateArtifact.mock.calls[0][0].vizConfig.config
+                .chartConfig ?? null,
+        ).toBeNull();
         expect(presentation).not.toHaveBeenCalledWith(
             expect.objectContaining({ operation: 'chart-presentation' }),
         );

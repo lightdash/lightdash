@@ -251,6 +251,13 @@ const describePeriod = ({
     }
 };
 
+/** Time-interval variants of one date share a base, so a new period replaces them all. */
+const dateBaseOf = (explore: Explore, fieldId: string): string => {
+    const field = fieldMap(explore).get(fieldId);
+    if (!field || !isDimension(field)) return fieldId;
+    return `${field.table}.${field.timeIntervalBaseDimensionName ?? field.name}`;
+};
+
 const applyFilter = (
     intent: Extract<
         ChartIntent,
@@ -277,13 +284,18 @@ const applyFilter = (
                 ? periodRules(intent, explore)
                 : valueRules(intent, explore, existing?.rules ?? []);
         if (!rules) return null;
+        const isReplaced = ({ fieldId }: PersistedRule) =>
+            intent.kind === 'filter_period'
+                ? dateBaseOf(explore, fieldId) ===
+                  dateBaseOf(explore, intent.fieldId)
+                : fieldId === intent.fieldId;
         const parsed = filterExpressionResolvedFiltersSchema.safeParse({
             ...current,
             dimensions: {
                 connector: 'and',
                 rules: [
                     ...(existing?.rules ?? []).filter(
-                        ({ fieldId }) => fieldId !== intent.fieldId,
+                        (rule) => !isReplaced(rule),
                     ),
                     ...rules,
                 ],
@@ -588,6 +600,19 @@ export const applyChartIntent = ({
         default:
             return assertUnreachable(intent, 'Unknown chart intent');
     }
+};
+
+/** Dimension and metric filter rules of the chart, or null when they cannot be read. */
+export const getFilterRules = (
+    artifact: AiSemanticChartArtifactConfig,
+): PersistedRule[] | null => {
+    const filters = normalizePersistedFilters(
+        artifact.config.queryConfig.filters,
+    );
+    if (!filters) return null;
+    return [filters.dimensions, filters.metrics].flatMap(
+        (group) => group?.rules ?? [],
+    );
 };
 
 /** Field ids referenced by the chart's persisted filters. */

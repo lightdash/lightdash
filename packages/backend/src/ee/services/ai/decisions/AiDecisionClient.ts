@@ -47,6 +47,7 @@ const LOGGED_OPERATIONS = new Set([
     'chart-intent',
     'chart-presentation',
     'chart-reuse',
+    'chart-title',
     'content-relevance',
     'context-preload',
     'dashboard-layout',

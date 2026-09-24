@@ -594,7 +594,7 @@ export const getRunQuery = ({
     const inputSchema: Schema<RunQueryToolInput> = rawInputSchema;
     let description = baseDescription;
     if (purpose === 'answer') {
-        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows without creating a chart artifact in web chat; Slack also receives an explorable result card.`;
+        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows and saves them as a table artifact, so follow-up edits can refine it; Slack also receives an explorable result card.`;
     } else if (decisions && enableDataAccess) {
         description = `${baseDescription} For builtin charts, you can set chartConfig to null: the server selects a validated default from the question and actual result shape. Supply chartConfig when explicit presentation settings are needed. Query fields, filters and limits are always your responsibility.`;
     }
@@ -795,12 +795,6 @@ export const getRunQuery = ({
                         chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                         contentAsCode?: PreparedChartAsCode,
                     ) => {
-                        if (
-                            purpose === 'answer' &&
-                            !enableFastResponse &&
-                            !isSlackPrompt(prompt)
-                        )
-                            return Promise.resolve(undefined);
                         const vizConfig =
                             persistedExpressionArgs === null
                                 ? {
@@ -1135,12 +1129,6 @@ export const getRunQuery = ({
                     chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                     contentAsCode?: PreparedChartAsCode,
                 ) => {
-                    if (
-                        purpose === 'answer' &&
-                        !enableFastResponse &&
-                        !isSlackPrompt(prompt)
-                    )
-                        return Promise.resolve(undefined);
                     const vizConfig =
                         chartConfig && customChartTypeBinding === null
                             ? {

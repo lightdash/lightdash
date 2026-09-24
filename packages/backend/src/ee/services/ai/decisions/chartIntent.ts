@@ -79,7 +79,12 @@ export type ChartIntent =
     | { kind: 'undo' };
 
 /** A filter whose values still need warehouse candidates before it can be applied. */
-export type PendingValueFilter = { fieldId: string; exclude: boolean };
+export type PendingValueFilter = {
+    fieldId: string;
+    exclude: boolean;
+    /** Runner-up fields whose values are searched too when the field choice is uncertain. */
+    alternativeFieldIds: string[];
+};
 
 export type CompoundStep =
     | { type: 'intent'; intent: Exclude<ChartIntent, { kind: 'undo' }> }
@@ -157,6 +162,7 @@ export const CHART_INTENT_THRESHOLDS = {
     clarifyPair: 0.75,
     clarifyRunnerUp: 0.2,
     clarifyBelow: 0.8,
+    fieldEvidence: 0.15,
     verifiedTieMargin: 0.15,
     covers: 0.6,
 } as const;
@@ -580,6 +586,21 @@ export const buildChartIntentQuestions = ({
             },
         };
     }
+    // Value filters get their own choice so date fields do not compete with value fields.
+    const valueFields = context.filterableFields.filter(
+        ({ isDate }) => !isDate,
+    );
+    if (valueFields.length > 0) {
+        questions.valueFilterField = {
+            type: 'choice',
+            instructions:
+                'If the user wants to keep or exclude particular values, which field do those values come from? Prefer fields already in `chart.dimensions` when they fit.',
+            criteria: {
+                ...fieldCriteria(valueFields, { withDescriptions: false }),
+                none: 'The values belong to a field not in this list',
+            },
+        };
+    }
     if (numbers.length > 0) {
         questions.number = {
             type: 'choice',
@@ -595,6 +616,8 @@ export const buildChartIntentQuestions = ({
     }
     return questions;
 };
+
+const MAX_EVIDENCE_FIELDS = 3;
 
 const confident = (
     answer: DecisionAnswers[string] | undefined,
@@ -823,13 +846,35 @@ const resolveFilter = (
             },
         };
     }
-    const valueField = chosenField?.isDate ? undefined : chosenField;
-    if (!valueField) return { type: 'unresolved', reason: 'filter-field' };
+    const valueFieldIds = new Set(
+        context.filterableFields
+            .filter(({ isDate }) => !isDate)
+            .map(({ id }) => id),
+    );
+    const answer = answers.valueFilterField;
+    const confidentId = confident(answer, field);
+    // An uncertain field choice is settled by which field's values the request names.
+    const [fieldId, ...alternativeFieldIds] =
+        confidentId && valueFieldIds.has(confidentId)
+            ? [confidentId]
+            : Object.entries(
+                  answer?.type === 'choice' ? answer.probabilities : {},
+              )
+                  .filter(
+                      ([id, probability]) =>
+                          valueFieldIds.has(id) &&
+                          probability >= thresholds.fieldEvidence,
+                  )
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, MAX_EVIDENCE_FIELDS)
+                  .map(([id]) => id);
+    if (!fieldId) return { type: 'unresolved', reason: 'filter-field' };
     return {
         type: 'needs_values',
         filter: {
-            fieldId: valueField.id,
+            fieldId,
             exclude: kind === 'exclude_values',
+            alternativeFieldIds,
         },
     };
 };
