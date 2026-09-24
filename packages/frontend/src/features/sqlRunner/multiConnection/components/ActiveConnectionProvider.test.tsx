@@ -8,6 +8,7 @@ import { type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { useActiveConnection } from '../hooks/useActiveConnection';
+import type * as ActiveConnectionModule from '../utils/activeConnection';
 import {
     readLastUsedConnection,
     writeLastUsedConnection,
@@ -15,10 +16,21 @@ import {
 import { ActiveConnectionProvider } from './ActiveConnectionProvider';
 
 const showToastInfo = vi.hoisted(() => vi.fn());
+const forgetLastUsedConnectionCalls = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastInfo }),
 }));
+vi.mock('../utils/activeConnection', async (importOriginal) => {
+    const original = await importOriginal<typeof ActiveConnectionModule>();
+    return {
+        ...original,
+        forgetLastUsedConnection: (...args: [string, string]) => {
+            forgetLastUsedConnectionCalls(...args);
+            return original.forgetLastUsedConnection(...args);
+        },
+    };
+});
 
 const projectUuid = 'project-uuid';
 
@@ -42,6 +54,7 @@ const Consumer: FC = () => {
         isConnectionSettled,
         activeTable,
         setActiveTable,
+        switchConnection,
     } = useActiveConnection();
     return (
         <>
@@ -60,6 +73,12 @@ const Consumer: FC = () => {
                 }
             >
                 open ledger
+            </button>
+            <button
+                type="button"
+                onClick={() => switchConnection('original-uuid')}
+            >
+                pick original
             </button>
         </>
     );
@@ -85,6 +104,7 @@ const renderProvider = (
                 <ActiveConnectionProvider
                     projectUuid={projectUuid}
                     connections={next}
+                    connectionHint={connectionHint}
                 >
                     <Consumer />
                 </ActiveConnectionProvider>,
@@ -96,6 +116,7 @@ describe('ActiveConnectionProvider', () => {
     beforeEach(() => {
         window.localStorage.clear();
         showToastInfo.mockClear();
+        forgetLastUsedConnectionCalls.mockClear();
     });
 
     it('opens on the last connection used in the project', () => {
@@ -118,6 +139,31 @@ describe('ActiveConnectionProvider', () => {
 
         expect(screen.getByTestId('active')).toHaveTextContent('none');
         expect(screen.getByTestId('settled')).toHaveTextContent('false');
+        expect(showToastInfo).not.toHaveBeenCalled();
+        expect(forgetLastUsedConnectionCalls).not.toHaveBeenCalled();
+    });
+
+    it('selects a hinted connection when a stale list refreshes to include it', () => {
+        const view = renderProvider([original], 'finance-uuid');
+
+        expect(screen.getByTestId('active')).toHaveTextContent('none');
+        expect(screen.getByTestId('settled')).toHaveTextContent('false');
+        act(() => view.rerenderWith([original, finance]));
+
+        expect(screen.getByTestId('active')).toHaveTextContent('finance-uuid');
+        expect(screen.getByTestId('settled')).toHaveTextContent('true');
+        expect(showToastInfo).not.toHaveBeenCalled();
+        expect(forgetLastUsedConnectionCalls).not.toHaveBeenCalled();
+    });
+
+    it('keeps the user choice when a hinted connection appears later', async () => {
+        const view = renderProvider([original], 'finance-uuid');
+        await userEvent
+            .setup()
+            .click(screen.getByRole('button', { name: 'pick original' }));
+        act(() => view.rerenderWith([original, finance]));
+
+        expect(screen.getByTestId('active')).toHaveTextContent('original-uuid');
     });
 
     it('drops a connection removed while the runner is open, with its table', async () => {

@@ -54,17 +54,22 @@ describe('OpenInSqlRunnerButton', () => {
         },
     );
 
-    it('keeps the single-project location state unchanged', async () => {
-        renderButton(undefined, 'single');
+    it.each([undefined, null])(
+        'keeps the single-project location state at SQL only for binding %s',
+        async (connection) => {
+            renderButton(connection, 'single');
 
-        await userEvent
-            .setup()
-            .click(screen.getByRole('link', { name: 'Open in SQL Runner' }));
+            await userEvent
+                .setup()
+                .click(
+                    screen.getByRole('link', { name: 'Open in SQL Runner' }),
+                );
 
-        expect(screen.getByTestId('location-state')).toHaveTextContent(
-            JSON.stringify({ sql: 'select 1' }),
-        );
-    });
+            expect(screen.getByTestId('location-state').textContent).toBe(
+                JSON.stringify({ sql: 'select 1' }),
+            );
+        },
+    );
 
     it('waits for the explore binding in a multi-connection project', () => {
         renderButton(undefined, 'multi');

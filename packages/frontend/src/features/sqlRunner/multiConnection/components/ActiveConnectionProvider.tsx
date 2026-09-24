@@ -52,9 +52,31 @@ export const ActiveConnectionProvider: FC<
             lastUsedConnectionUuid: readLastUsedConnection(projectUuid),
         });
     });
+    const userHasPickedConnection = useRef(false);
     const [selectedTable, setActiveTable] = useState<TableIdentity | undefined>(
         undefined,
     );
+
+    useEffect(() => {
+        if (connectionHint === undefined || userHasPickedConnection.current) {
+            return;
+        }
+        const hintedUuid =
+            connectionHint === null
+                ? connections.find((connection) => connection.isOriginal)
+                      ?.warehouseConnectionUuid
+                : connectionHint;
+        if (
+            hintedUuid !== undefined &&
+            hintedUuid !== selectedConnectionUuid &&
+            connections.some(
+                (connection) =>
+                    connection.warehouseConnectionUuid === hintedUuid,
+            )
+        ) {
+            setSelectedConnectionUuid(hintedUuid);
+        }
+    }, [connectionHint, connections, selectedConnectionUuid]);
 
     const activeConnection = useMemo(
         () =>
@@ -118,6 +140,7 @@ export const ActiveConnectionProvider: FC<
 
     const switchConnection = useCallback(
         (warehouseConnectionUuid: string) => {
+            userHasPickedConnection.current = true;
             setSelectedConnectionUuid(warehouseConnectionUuid);
             writeLastUsedConnection(projectUuid, warehouseConnectionUuid);
         },
