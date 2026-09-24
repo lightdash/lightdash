@@ -25,11 +25,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
 
     return (
         <Stack gap="md">
-            <Tabs
-                keepMounted={false}
-                defaultValue="users"
-                variant="pills"
-            >
+            <Tabs keepMounted={false} defaultValue="users" variant="pills">
                 {isGroupManagementEnabled && (
                     <Tabs.List>
                         <Tabs.Tab
