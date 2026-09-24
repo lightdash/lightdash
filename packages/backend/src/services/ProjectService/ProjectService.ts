@@ -217,6 +217,7 @@ import {
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
+    SingleConnectionProjectError,
     snakeCaseName,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
@@ -225,6 +226,7 @@ import {
     SpaceSummary,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    SqlRunnerWarehouseConnection,
     SshTunnelError,
     SummaryExplore,
     SupportedDbtAdapter,
@@ -250,9 +252,11 @@ import {
     VizAggregationOptions,
     VizColumn,
     WarehouseClient,
+    WarehouseConnection,
     WarehouseConnectionError,
     WarehouseConnectionTestResults,
     WarehouseCredentials,
+    WarehouseDatabaseListing,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -359,6 +363,7 @@ import {
     type WarehouseConnectionProject,
 } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type ConnectionBinding } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
+import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -406,6 +411,13 @@ import {
     createAnalyticsClient,
 } from './analyticsProject/analyticsProjectClient';
 import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
+import {
+    credentialsForListedDatabase,
+    findListedCatalogDatabase,
+    findListedDatabase,
+    listConnectionDatabases,
+    supportsConnectionDatabaseListing,
+} from './connectionSqlRunner';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
@@ -488,6 +500,7 @@ export type ProjectServiceArguments = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
+    warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
     fileStorageClient: FileStorageClient;
@@ -645,6 +658,7 @@ export class ProjectService extends BaseService {
     warehouseConnectionModel: WarehouseConnectionModel;
 
     multiConnectionCompiler: MultiConnectionCompiler;
+    warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
 
     emailModel: EmailModel;
 
@@ -737,6 +751,7 @@ export class ProjectService extends BaseService {
         warehouseAvailableTablesModel,
         warehouseConnectionModel,
         warehouseConnectionCompileModel,
+        warehouseConnectionTablesModel,
         emailModel,
         schedulerClient,
         downloadFileModel,
@@ -794,6 +809,7 @@ export class ProjectService extends BaseService {
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
         });
+        this.warehouseConnectionTablesModel = warehouseConnectionTablesModel;
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
@@ -10857,6 +10873,280 @@ export class ProjectService extends BaseService {
             }
             throw new NotFoundError(
                 `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
+            );
+        }
+    }
+
+    private async getConnectionSqlRunnerContext(
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnectionUuid: string,
+        metadata?: Record<string, unknown>,
+    ) {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                    ...(metadata ? { metadata } : {}),
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid,
+            })) !== 'multi'
+        ) {
+            throw new SingleConnectionProjectError();
+        }
+        const project =
+            await this.warehouseConnectionModel.getProject(projectUuid);
+        const connection = await this.warehouseConnectionModel.get(
+            project,
+            warehouseConnectionUuid,
+        );
+        const credentials = await this.getWarehouseCredentials({
+            projectUuid,
+            binding: {
+                kind: 'connection',
+                warehouseConnectionUuid: connection.warehouseConnectionUuid,
+            },
+            userId: account.user.userUuid,
+            isRegisteredUser: true,
+        });
+        return { connection, credentials };
+    }
+
+    private async withConnectionWarehouseClient<T>(
+        projectUuid: string,
+        credentials: CreateWarehouseCredentials,
+        run: (warehouseClient: WarehouseClient) => Promise<T>,
+    ): Promise<T> {
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+        try {
+            return await run(warehouseClient);
+        } finally {
+            await sshTunnel.disconnect();
+        }
+    }
+
+    private async listConnectionSqlRunnerDatabases(
+        projectUuid: string,
+        connection: WarehouseConnection,
+        credentials: CreateWarehouseCredentials,
+    ): Promise<WarehouseDatabaseListing> {
+        return listConnectionDatabases({
+            connection,
+            credentials,
+            listAllDatabases: () =>
+                this.withConnectionWarehouseClient(
+                    projectUuid,
+                    credentials,
+                    (warehouseClient) => warehouseClient.listDatabases(),
+                ),
+        });
+    }
+
+    async getSqlRunnerConnections(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<SqlRunnerWarehouseConnection[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            })) !== 'multi'
+        ) {
+            throw new SingleConnectionProjectError();
+        }
+        const project =
+            await this.warehouseConnectionModel.getProject(projectUuid);
+        const connections = await this.warehouseConnectionModel.list(project);
+        return connections.map(
+            ({ warehouseConnectionUuid, name, isOriginal, warehouseType }) => ({
+                warehouseConnectionUuid,
+                name,
+                isOriginal,
+                warehouseType,
+            }),
+        );
+    }
+
+    async getConnectionDatabases(
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnectionUuid: string,
+    ): Promise<WarehouseDatabaseListing> {
+        const { connection, credentials } =
+            await this.getConnectionSqlRunnerContext(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+            );
+        return this.listConnectionSqlRunnerDatabases(
+            projectUuid,
+            connection,
+            credentials,
+        );
+    }
+
+    async getConnectionTables(
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnectionUuid: string,
+        listedDatabaseName: string,
+    ): Promise<WarehouseTablesCatalog> {
+        const { connection, credentials } =
+            await this.getConnectionSqlRunnerContext(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+            );
+        const listedDatabase = findListedDatabase(
+            await this.listConnectionSqlRunnerDatabases(
+                projectUuid,
+                connection,
+                credentials,
+            ),
+            listedDatabaseName,
+        );
+        const scope = {
+            projectUuid,
+            warehouseConnectionUuid: connection.warehouseConnectionUuid,
+            userWarehouseCredentialsUuid:
+                credentials.userWarehouseCredentialsUuid ?? null,
+        };
+        const cached = await this.warehouseConnectionTablesModel.getTables(
+            scope,
+            listedDatabase.name,
+        );
+        if (cached) return cached;
+
+        const warehouseTables = await this.withConnectionWarehouseClient(
+            projectUuid,
+            credentials,
+            (warehouseClient) =>
+                supportsConnectionDatabaseListing(credentials.type)
+                    ? warehouseClient.getTablesForDatabase(listedDatabase)
+                    : warehouseClient.getAllTables(),
+        );
+        await this.warehouseConnectionTablesModel.replaceTables(
+            scope,
+            listedDatabase.name,
+            warehouseTables,
+        );
+        return WarehouseAvailableTablesModel.toWarehouseCatalog(
+            warehouseTables.map((table) => ({
+                ...table,
+                partition_column: table.partitionColumn || null,
+                table_type: table.tableType,
+            })),
+        );
+    }
+
+    async refreshConnectionTables(
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnectionUuid: string,
+    ): Promise<void> {
+        const { connection, credentials } =
+            await this.getConnectionSqlRunnerContext(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+            );
+        await this.warehouseConnectionTablesModel.clearTables({
+            projectUuid,
+            warehouseConnectionUuid: connection.warehouseConnectionUuid,
+            userWarehouseCredentialsUuid:
+                credentials.userWarehouseCredentialsUuid ?? null,
+        });
+    }
+
+    async getConnectionTableFields(
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnectionUuid: string,
+        {
+            databaseName,
+            schemaName,
+            tableName,
+        }: { databaseName: string; schemaName: string; tableName: string },
+    ): Promise<WarehouseTableSchema> {
+        const queryContext = QueryExecutionContext.SQL_RUNNER;
+        const { connection, credentials } =
+            await this.getConnectionSqlRunnerContext(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+                { tableName, schemaName, databaseName, queryContext },
+            );
+        const listedDatabase = findListedCatalogDatabase(
+            await this.listConnectionSqlRunnerDatabases(
+                projectUuid,
+                connection,
+                credentials,
+            ),
+            databaseName,
+        );
+        const queryTags: RunQueryTags = {
+            organization_uuid: account.organization.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: account.user.userUuid,
+            query_context: queryContext,
+        };
+        const listedDatabaseCredentials = credentialsForListedDatabase(
+            credentials,
+            listedDatabase,
+        );
+        const database =
+            credentials.type === WarehouseTypes.SNOWFLAKE
+                ? databaseName.toUpperCase()
+                : databaseName;
+        try {
+            const warehouseCatalog = await this.withConnectionWarehouseClient(
+                projectUuid,
+                listedDatabaseCredentials,
+                (warehouseClient) =>
+                    warehouseClient.getFields(
+                        tableName,
+                        schemaName,
+                        database,
+                        queryTags,
+                    ),
+            );
+            const fields =
+                warehouseCatalog[database]?.[schemaName]?.[tableName];
+            if (!fields) throw new NotFoundError('Table not found');
+            return fields;
+        } catch (error) {
+            this.logger.error('Error fetching connection warehouse fields', {
+                error: getErrorMessage(error),
+            });
+            if (error instanceof WarehouseConnectionError) throw error;
+            throw new NotFoundError(
+                `Could not find table "${tableName}" in schema "${schemaName}" of database "${databaseName}". Please verify the table exists and you have access to it.`,
             );
         }
     }

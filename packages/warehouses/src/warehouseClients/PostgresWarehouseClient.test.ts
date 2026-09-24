@@ -232,7 +232,12 @@ describe('PostgresWarehouseClient', () => {
                 "has_database_privilege(datname, 'CONNECT')",
             );
             expect(runQuery.mock.calls[0][0]).toContain('ORDER BY datname');
-            expect(runQuery.mock.calls[0][0]).toContain('LIMIT 101');
+            expect(runQuery.mock.calls[0][0]).toMatch(
+                /datname !~ '\[;\/\?:@&=\+\$,#\]'\s+ORDER BY datname\s+LIMIT \$1/,
+            );
+            expect(runQuery.mock.calls[0][0]).toContain('LIMIT $1');
+            expect(runQuery.mock.calls[0][0]).not.toContain('101');
+            expect(runQuery.mock.calls[0][3]).toEqual([101]);
             expect(result.databases).toHaveLength(100);
             expect(result.databases[0]).toEqual({
                 name: 'warehouse',
@@ -243,6 +248,61 @@ describe('PostgresWarehouseClient', () => {
             expect(result.databases[1]).toMatchObject({ isDefault: false });
             expect(result.truncated).toBe(true);
             expect(result.limit).toBe(100);
+        });
+
+        it('leaves out databases whose names the connection string cannot carry', async () => {
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+            });
+            vi.spyOn(warehouse, 'runQuery').mockResolvedValue({
+                rows: [
+                    { datname: 'analytics' },
+                    { datname: 'analytics?sslmode=require' },
+                    { datname: 'finance&host=elsewhere' },
+                    { datname: 'sales#1' },
+                    { datname: 'team/reports' },
+                    { datname: 'my db' },
+                    { datname: 'café' },
+                ],
+                fields: {},
+            });
+
+            const result = await warehouse.listDatabases();
+
+            expect(result.databases.map(({ name }) => name)).toEqual([
+                'warehouse',
+                'analytics',
+                'my db',
+                'café',
+            ]);
+        });
+
+        it('refuses to open a database whose name the connection string cannot carry', async () => {
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+            });
+            const getAllTables = vi.spyOn(
+                PostgresWarehouseClient.prototype,
+                'getAllTables',
+            );
+
+            try {
+                await expect(
+                    warehouse.getTablesForDatabase({
+                        name: 'analytics?sslmode=require',
+                        database: 'analytics?sslmode=require',
+                        schema: null,
+                        isDefault: false,
+                    }),
+                ).rejects.toThrow(
+                    'Database "analytics?sslmode=require" cannot be opened: its name contains one of ; / ? : @ & = + $ , #',
+                );
+                expect(getAllTables).not.toHaveBeenCalled();
+            } finally {
+                getAllTables.mockRestore();
+            }
         });
 
         it('does not report truncation for exactly 100 databases', async () => {

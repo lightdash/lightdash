@@ -263,4 +263,60 @@ describe('ConnectionsPanel', () => {
             }),
         );
     });
+
+    it("edits the original's SQL runner databases and keeps named databases while listing all", async () => {
+        mockApi.mockImplementation(({ method }: { method: string }) =>
+            method === 'PATCH'
+                ? Promise.resolve({ ...original, listAllDatabases: true })
+                : Promise.resolve({
+                      connections: [
+                          { ...original, additionalDatabases: ['sales'] },
+                          extra,
+                      ],
+                      capabilities: { canAddConnection: true, reason: null },
+                  }),
+        );
+        const user = renderPanel();
+
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Actions for Warehouse',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', {
+                name: 'SQL runner databases',
+            }),
+        );
+        const title = await screen.findByText(
+            'SQL runner databases for Warehouse',
+        );
+        const dialog = title.closest<HTMLElement>(
+            '[role="alertdialog"], [role="dialog"]',
+        )!;
+        const additional = within(dialog).getByPlaceholderText(
+            'Type a database name and press Enter',
+        );
+        expect(additional).toBeEnabled();
+        expect(within(dialog).getByText('sales')).toBeInTheDocument();
+
+        await user.click(
+            within(dialog).getByRole('switch', { name: /List all databases/ }),
+        );
+        expect(additional).toBeDisabled();
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Save changes' }),
+        );
+
+        await waitFor(() =>
+            expect(mockApi).toHaveBeenCalledWith({
+                url: `${listUrl}/original-uuid`,
+                method: 'PATCH',
+                body: JSON.stringify({
+                    listAllDatabases: true,
+                    additionalDatabases: ['sales'],
+                }),
+            }),
+        );
+    });
 });

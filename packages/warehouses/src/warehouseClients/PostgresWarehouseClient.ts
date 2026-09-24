@@ -35,6 +35,12 @@ import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
+export const canConnectToPostgresDatabaseName = (database: string): boolean =>
+    decodeURI(encodeURIComponent(database)) === database;
+
+export const unopenablePostgresDatabaseMessage = (database: string) =>
+    `Database "${database}" cannot be opened: its name contains one of ; / ? : @ & = + $ , #`;
+
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
 types.setTypeParser(types.builtins.INT8, BigInt);
 
@@ -963,6 +969,11 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
         if (database === this.credentials.dbname) {
             return operation(this);
         }
+        if (!canConnectToPostgresDatabaseName(database)) {
+            throw new WarehouseQueryError(
+                unopenablePostgresDatabaseMessage(database),
+            );
+        }
 
         const client = new PostgresWarehouseClient({
             ...this.credentials,
@@ -974,17 +985,26 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
     async listDatabases(): Promise<WarehouseDatabaseListing> {
         const databaseNames = new Set([this.credentials.dbname]);
 
-        const { rows } = await this.runQuery(`
+        const { rows } = await this.runQuery(
+            `
             SELECT datname
             FROM pg_database
             WHERE datallowconn
               AND NOT datistemplate
               AND has_database_privilege(datname, 'CONNECT')
+              AND datname !~ '[;/?:@&=+$,#]'
             ORDER BY datname
-            LIMIT ${WAREHOUSE_LISTED_DATABASES_LIMIT + 1}
-        `);
+            LIMIT $1
+        `,
+            undefined,
+            undefined,
+            [WAREHOUSE_LISTED_DATABASES_LIMIT + 1],
+        );
         rows.forEach(({ datname }) => {
-            if (typeof datname === 'string') {
+            if (
+                typeof datname === 'string' &&
+                canConnectToPostgresDatabaseName(datname)
+            ) {
                 databaseNames.add(datname);
             }
         });

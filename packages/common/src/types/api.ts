@@ -438,6 +438,7 @@ import {
     type ValidationResponse,
 } from './validation';
 import {
+    type ApiWarehouseDatabaseListing,
     type ApiWarehouseTableFields,
     type ApiWarehouseTablesCatalog,
 } from './warehouse';
@@ -452,6 +453,7 @@ import {
     type ApiWarehouseConnectionUserCredentialsResponse,
     type ApiWarehouseConnectionWithCredentialsResponse,
 } from './warehouseConnections';
+import { type ApiSqlRunnerWarehouseConnectionsResponse } from './warehouseConnectionSqlRunner';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1296,6 +1298,8 @@ type ApiResults =
     | ApiWarehouseConnectionWithCredentialsResponse['results']
     | ApiWarehouseConnectionUserCredentialsResponse['results']
     | ApiWarehouseConnectionsForUserCredentialsResponse['results']
+    | ApiSqlRunnerWarehouseConnectionsResponse['results']
+    | ApiWarehouseDatabaseListing['results']
     | Document
     | DocumentList
     | ContentReviewRequest

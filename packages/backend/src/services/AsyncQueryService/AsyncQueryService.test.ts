@@ -107,6 +107,7 @@ import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
@@ -417,6 +418,7 @@ const getMockedAsyncQueryService = (
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         warehouseConnectionModel: {} as WarehouseConnectionModel,
         warehouseConnectionCompileModel: {} as WarehouseConnectionCompileModel,
+        warehouseConnectionTablesModel: {} as WarehouseConnectionTablesModel,
         emailModel: {
             getPrimaryEmailStatus: () => ({
                 isVerified: true,
