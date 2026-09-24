@@ -113,7 +113,7 @@ assert.strictEqual(actual.ok, true, JSON.stringify(actual, null, 2));
 assert.strictEqual(actual.unclassified.length, 0);
 assert.deepStrictEqual(new Set(actual.comingSoon), new Set(COMING_SOON_SCOPES));
 assert.strictEqual(actual.generated.length, 41);
-assert.strictEqual(actual.comingSoon.length, 24);
+assert.strictEqual(actual.comingSoon.length, 26);
 assert.strictEqual(
     actual.comingSoon.some((scope) => actual.generated.includes(scope)),
     false,
