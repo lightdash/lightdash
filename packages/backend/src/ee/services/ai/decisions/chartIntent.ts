@@ -19,6 +19,12 @@ import {
     type DecisionAnswers,
     type DecisionQuestion,
 } from './AiDecisionClient';
+import {
+    CORRECTION_QUESTION,
+    isLastingCorrection,
+    pickCorrection,
+    type DetectedCorrection,
+} from './corrections';
 import { SIMPLE_DATA_ANSWER_QUESTION } from './modelRouting';
 
 export const CHART_TYPES = [
@@ -174,6 +180,8 @@ export type TurnDecision = {
     chart: ChartIntentResolution | null;
     /** A small turn the service can answer without the agent, when JEV is sure. */
     instantReply: InstantReplyKind | null;
+    /** A lasting definition or default the user stated; recorded for review, never applied automatically. */
+    correction: DetectedCorrection | null;
 };
 
 export type FieldCandidate = {
@@ -2285,6 +2293,7 @@ export const decideTurn = async ({
                 ? buildChartIntentQuestions({ prompt, context })
                 : { simple: SIMPLE_DATA_ANSWER_QUESTION }),
             ...INSTANT_REPLY_QUESTIONS,
+            ...CORRECTION_QUESTION,
         },
     });
     if (!answers)
@@ -2295,6 +2304,7 @@ export const decideTurn = async ({
                     ? { type: 'unresolved', reason: 'decision-unavailable' }
                     : null,
                 instantReply: null,
+                correction: null,
             },
             answers: null,
         };
@@ -2310,6 +2320,23 @@ export const decideTurn = async ({
                   resolution: interpreted,
               })
             : interpreted;
+    const picked = isLastingCorrection(answers)
+        ? await pickCorrection({
+              decisions,
+              prompt,
+              instructions,
+              fields: context
+                  ? [
+                        ...new Map(
+                            [
+                                ...context.currentFields,
+                                ...context.filterableFields,
+                            ].map((field) => [field.id, field]),
+                        ).values(),
+                    ]
+                  : [],
+          })
+        : null;
     return {
         decision: {
             simpleDataAnswer:
@@ -2318,8 +2345,20 @@ export const decideTurn = async ({
                     CHART_INTENT_THRESHOLDS.simpleDataAnswer,
             chart,
             instantReply: instantReplyOf(answers, chart),
+            correction: picked?.correction ?? null,
         },
-        answers,
+        // Pick answers are kept with the turn under their own prefix for later review.
+        answers: picked?.answers
+            ? {
+                  ...answers,
+                  ...Object.fromEntries(
+                      Object.entries(picked.answers).map(([key, value]) => [
+                          `correction.${key}`,
+                          value,
+                      ]),
+                  ),
+              }
+            : answers,
     };
 };
 

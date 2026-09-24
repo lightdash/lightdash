@@ -62,6 +62,7 @@ const LOGGED_OPERATIONS = new Set([
     'chart-title',
     'content-relevance',
     'context-preload',
+    'correction-pick',
     'dashboard-layout',
     'empty-result-diagnosis',
     'field-recovery',
