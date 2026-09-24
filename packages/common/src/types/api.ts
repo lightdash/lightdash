@@ -509,7 +509,9 @@ export type ApiCompiledQueryResults = {
 
 export type ApiExploresResults = SummaryExplore[];
 
-export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
+export interface ApiExploreResults extends Omit<Explore, 'unfilteredTables'> {
+    warehouseConnectionUuid: string | null;
+}
 
 export type ApiTableGroupsResults = Record<string, GroupType>;
 

@@ -13,6 +13,7 @@ import {
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
+    ApiExploreResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -10561,6 +10562,28 @@ export class ProjectService extends BaseService {
             includeUnfilteredTables,
         );
         return explore;
+    }
+
+    async getExploreResponse(
+        account: Account,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<ApiExploreResults> {
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+            undefined,
+            false,
+        );
+        return {
+            ...explore,
+            warehouseConnectionUuid:
+                await this.projectModel.getExploreWarehouseConnectionUuid(
+                    projectUuid,
+                    exploreName,
+                ),
+        };
     }
 
     async getExploreWithUserAccessControls(

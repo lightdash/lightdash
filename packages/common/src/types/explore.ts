@@ -237,10 +237,17 @@ type SummaryExtraFields = {
     databaseName: string;
 };
 
+type SummaryBindingFields = {
+    warehouseConnectionUuid: string | null;
+};
+
 export type SummaryExplore =
-    | (Pick<Explore, SummaryExploreFields> & SummaryExtraFields)
+    | (Pick<Explore, SummaryExploreFields> &
+          SummaryExtraFields &
+          SummaryBindingFields)
     | (Pick<ExploreError, SummaryExploreErrorFields> &
-          Partial<SummaryExtraFields>);
+          Partial<SummaryExtraFields> &
+          SummaryBindingFields);
 
 /**
  * Check if a SummaryExplore is from an ExploreError (completely failed to compile).
@@ -249,7 +256,8 @@ export type SummaryExplore =
 export const isSummaryExploreError = (
     summary: SummaryExplore,
 ): summary is Pick<ExploreError, SummaryExploreErrorFields> &
-    Partial<SummaryExtraFields> =>
+    Partial<SummaryExtraFields> &
+    SummaryBindingFields =>
     'errors' in summary &&
     summary.errors !== null &&
     summary.errors !== undefined;

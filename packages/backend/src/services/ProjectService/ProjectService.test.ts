@@ -287,6 +287,9 @@ const projectModel = {
     findExploreSplitCandidates: vi.fn<
         ProjectModel['findExploreSplitCandidates']
     >(async () => []),
+    getExploreWarehouseConnectionUuid: vi.fn(
+        async (): Promise<string | null> => null,
+    ),
     getAllExploreSummaries: vi.fn(async () =>
         allExplores.map(exploreToSummaryWithAttributes),
     ),
@@ -5070,6 +5073,38 @@ describe('ProjectService', () => {
             expect(result.map((e) => e.name)).toContain('valid_explore');
             expect(result.map((e) => e.name)).toContain(
                 'explore_with_required_attributes',
+            );
+        });
+    });
+
+    describe('getExploreResponse', () => {
+        test('adds the binding of the explore to the explore', async () => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+                [validExplore],
+            );
+            const getBinding = vi
+                .spyOn(projectModel, 'getExploreWarehouseConnectionUuid')
+                .mockResolvedValueOnce('finance-connection-uuid');
+
+            const result = await service.getExploreResponse(
+                account,
+                projectUuid,
+                validExplore.name,
+            );
+
+            expect(result).toEqual(
+                expect.objectContaining({
+                    name: validExplore.name,
+                    baseTable: validExplore.baseTable,
+                    warehouseConnectionUuid: 'finance-connection-uuid',
+                }),
+            );
+            expect(
+                (result as { unfilteredTables?: unknown }).unfilteredTables,
+            ).toBeUndefined();
+            expect(getBinding).toHaveBeenCalledWith(
+                projectUuid,
+                validExplore.name,
             );
         });
     });

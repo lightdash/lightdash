@@ -289,6 +289,7 @@ type RawSummaryRow = {
     baseTableDatabase: Explore['tables'][string]['database'];
     baseTableSchema: Explore['tables'][string]['schema'];
     baseTableDescription: Explore['tables'][string]['description'] | null;
+    warehouseConnectionUuid: string | null;
     baseTableRequiredAttributes:
         | Explore['tables'][string]['requiredAttributes']
         | null;
@@ -2472,6 +2473,7 @@ export class ProjectModel {
                     base_table.value->>'database' as "baseTableDatabase",
                     base_table.value->>'schema' as "baseTableSchema",
                     base_table.value->>'description' as "baseTableDescription",
+                    ${CachedExploreTableName}.warehouse_connection_uuid as "warehouseConnectionUuid",
                     base_table.value->'requiredAttributes' as "baseTableRequiredAttributes",
                     base_table.value->'anyAttributes' as "baseTableAnyAttributes",
                     explore_summary."aiHint" as "aiHint",
@@ -2516,6 +2518,7 @@ export class ProjectModel {
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
             description: row.baseTableDescription ?? undefined,
+            warehouseConnectionUuid: row.warehouseConnectionUuid,
             aiHint: row.aiHint ?? undefined,
             customMeta: row.customMeta ?? undefined,
             type: row.type ?? undefined,
@@ -2527,6 +2530,20 @@ export class ProjectModel {
             ...(row.errors ? { errors: row.errors } : {}), // Fatal errors from ExploreError
             ...(row.warnings ? { warnings: row.warnings } : {}), // Non-fatal warnings from partial compilation
         }));
+    }
+
+    async getExploreWarehouseConnectionUuid(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<string | null> {
+        const row = await this.database(CachedExploreTableName)
+            .select<{ warehouse_connection_uuid: string | null }[]>(
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', projectUuid)
+            .where('name', exploreName)
+            .first();
+        return row?.warehouse_connection_uuid ?? null;
     }
 
     async getExploreFromCache(

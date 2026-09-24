@@ -303,17 +303,20 @@ export const expectedAllExploreSummary: SummaryExplore[] = [
         schemaName: validExplore.tables[validExplore.baseTable].schema,
         description: validExplore.tables[validExplore.baseTable].description,
         type: ExploreType.DEFAULT,
+        warehouseConnectionUuid: null,
     },
     {
         name: exploreWithError.name,
         label: exploreWithError.label,
         errors: exploreWithError.errors,
+        warehouseConnectionUuid: null,
     },
     {
         name: exploreWithTags.name,
         label: exploreWithTags.label,
         tags: exploreWithTags.tags,
         errors: exploreWithTags.errors,
+        warehouseConnectionUuid: null,
     },
 ];
 
@@ -644,6 +647,7 @@ export const exploreToSummaryWithAttributes = (
             label: explore.label,
             tags: explore.tags,
             errors: explore.errors,
+            warehouseConnectionUuid: null,
         };
     }
 
@@ -659,6 +663,7 @@ export const exploreToSummaryWithAttributes = (
         type: explore.type,
         preAggregateSource: explore.preAggregateSource,
         baseTableRequiredAttributes: baseTable.requiredAttributes,
+        warehouseConnectionUuid: null,
         ...(explore.warnings ? { warnings: explore.warnings } : {}),
     };
 };

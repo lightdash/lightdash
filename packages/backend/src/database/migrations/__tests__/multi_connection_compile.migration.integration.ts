@@ -2085,6 +2085,73 @@ describe('Multi-connection compile on the real schema', () => {
         });
     });
 
+    describe('explore bindings in API responses', () => {
+        const summaryBindings = async (projectUuid: string) =>
+            Object.fromEntries(
+                (await projectModel.getAllExploreSummaries(projectUuid)).map(
+                    (summary) => [
+                        summary.name,
+                        summary.warehouseConnectionUuid,
+                    ],
+                ),
+            );
+
+        test('the explore summaries and the single explore read each binding from the column', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+
+            expect(await summaryBindings(fixture.projectUuid)).toEqual({
+                campaigns: null,
+                customers: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+            });
+            expect(
+                await projectModel.getExploreWarehouseConnectionUuid(
+                    fixture.projectUuid,
+                    'payments',
+                ),
+            ).toBe(fixture.extraConnectionUuid);
+            expect(
+                await projectModel.getExploreWarehouseConnectionUuid(
+                    fixture.projectUuid,
+                    'orders',
+                ),
+            ).toBeNull();
+            expect(
+                await projectModel.getExploreWarehouseConnectionUuid(
+                    fixture.projectUuid,
+                    'not_cached',
+                ),
+            ).toBeNull();
+        });
+
+        test('a connection uuid inside the explore JSON is not the binding', async () => {
+            const fixture = await createProject();
+            const other = await createProject();
+            await database('cached_explore').insert({
+                project_uuid: fixture.projectUuid,
+                name: 'stamped',
+                table_names: ['stamped'],
+                explore: JSON.stringify({
+                    ...explore('stamped', ['stamped']),
+                    connectionUuid: other.extraConnectionUuid,
+                    warehouseConnectionUuid: other.extraConnectionUuid,
+                }),
+            } as never);
+
+            expect(await summaryBindings(fixture.projectUuid)).toEqual({
+                stamped: null,
+            });
+            expect(
+                await projectModel.getExploreWarehouseConnectionUuid(
+                    fixture.projectUuid,
+                    'stamped',
+                ),
+            ).toBeNull();
+        });
+    });
+
     describe('CLI deploy of one source', () => {
         const deployed = (name: string): Explore =>
             ({

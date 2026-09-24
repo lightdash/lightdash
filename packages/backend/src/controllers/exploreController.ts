@@ -140,7 +140,7 @@ export class ExploreController extends BaseController {
         this.setStatus(200);
         const results = await this.services
             .getProjectService()
-            .getExplore(req.account!, projectUuid, exploreId, undefined, false);
+            .getExploreResponse(req.account!, projectUuid, exploreId);
 
         return {
             status: 'ok',
