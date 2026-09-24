@@ -98,6 +98,7 @@ export const BaseResponse: HealthState = {
     },
     query: {
         csvCellsLimit: 100000,
+        exportTimeoutMs: 0,
         csvMaxLimit: 5000000,
         maxLimit: 5000,
         queryMaxLimit: 5000,

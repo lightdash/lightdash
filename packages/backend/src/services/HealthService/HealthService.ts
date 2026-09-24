@@ -160,6 +160,7 @@ export class HealthService extends BaseService {
             query: {
                 // Effective for this org (override ?? env default).
                 csvCellsLimit: effectiveCsvCellsLimit,
+                exportTimeoutMs: this.lightdashConfig.scheduler.jobTimeout,
                 maxLimit: effectiveMaxLimit,
                 // The instance ceilings an org admin can set the per-org limits
                 // to (the env values) — used by the admin panel's "Up to" hints.
