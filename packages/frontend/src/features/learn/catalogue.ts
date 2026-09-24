@@ -29,6 +29,7 @@ const SUBJECT_GATES: Record<string, LearnGate> = {
     AiAgent: 'aiAgents',
     AiAgentThread: 'aiAgents',
     AiAgentDocument: 'aiAgents',
+    AiAgentSkill: 'aiAgents',
     EmbedAiAgent: 'aiAgents',
     EmbedDataApps: 'dataApps',
     AiDeepResearch: 'aiAgents',

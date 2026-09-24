@@ -60,12 +60,14 @@ describe('roleToScopeMapping', () => {
             );
         });
 
-        it("never grants other people's threads, documents or analytics", () => {
+        it("never grants other people's threads, documents, skills or analytics", () => {
             [
                 'view:AiAgentThread',
                 'manage:AiAgentThread',
                 'view:AiAgentDocument',
                 'manage:AiAgentDocument',
+                'view:AiAgentSkill',
+                'manage:AiAgentSkill',
                 'view:Analytics',
             ].forEach((scope) => expect(trainee).not.toContain(scope));
             expect(trainee).toContain('view:AiAgentThread@self');

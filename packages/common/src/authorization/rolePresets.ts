@@ -47,9 +47,13 @@ export const rolePresets = [
     {
         title: 'AI agent manager',
         description:
-            'Create and manage all AI agents and their knowledge documents in assigned projects.',
+            'Create and manage all AI agents, their knowledge documents and their skills in assigned projects.',
         level: 'project',
-        scopes: ['manage:AiAgent', 'manage:AiAgentDocument'],
+        scopes: [
+            'manage:AiAgent',
+            'manage:AiAgentDocument',
+            'manage:AiAgentSkill',
+        ],
     },
 ] satisfies RolePreset[];
 

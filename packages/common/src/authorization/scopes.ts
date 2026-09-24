@@ -1455,6 +1455,22 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:AiAgentSkill',
+        description: 'View AI agent skills',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:AiAgentSkill',
+        description: 'Create and manage AI agent skills',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'view:AiAgentThread',
         description: 'View all AI agent conversation threads',
         isEnterprise: true,

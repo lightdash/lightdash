@@ -22,6 +22,8 @@ export const ADDITIONAL_CONTENT_SCOPES = [
     'view:Analytics',
     'view:AiAgentDocument',
     'manage:AiAgentDocument',
+    'view:AiAgentSkill',
+    'manage:AiAgentSkill',
 ];
 
 export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {

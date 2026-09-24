@@ -41,6 +41,7 @@ interface Organization {
 export type CaslSubjectNames =
     | 'AiAgent'
     | 'AiAgentDocument'
+    | 'AiAgentSkill'
     | 'AiAgentThread'
     | 'AiDeepResearch'
     | 'Analytics'

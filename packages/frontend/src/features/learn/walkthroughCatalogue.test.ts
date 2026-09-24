@@ -23,6 +23,8 @@ describe('walkthrough catalogue', () => {
         'view:Analytics',
         'view:AiAgentDocument',
         'manage:AiAgentDocument',
+        'view:AiAgentSkill',
+        'manage:AiAgentSkill',
         'view:ContentAsCode',
         'create:ContentAsCode',
         'manage:ContentAsCode',
@@ -56,7 +58,7 @@ describe('walkthrough catalogue', () => {
     it('offers only walkthroughs as available modules', () => {
         const modules = buildLearnCatalogue();
         expect(modules.filter((m) => m.available)).toHaveLength(41);
-        expect(modules.filter((m) => !m.available)).toHaveLength(24);
+        expect(modules.filter((m) => !m.available)).toHaveLength(26);
         expect(
             modules.every(
                 (m) => !m.available || SCOPE_TOURS[m.scope] !== undefined,
