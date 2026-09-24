@@ -74,13 +74,22 @@ describe('SchedulerWorker migration quiesce with PostgreSQL', () => {
 
     afterEach(async () => {
         finishJob?.resolve();
-        await Promise.all(workers.map((worker) => worker.stop()));
-        if (utils) {
-            // Retain the isolated queue for inspection after a failed run.
-            console.info(`Scheduler test schema: ${graphile.schema}`);
-            await utils.release();
+        try {
+            await Promise.all(workers.map((worker) => worker.stop()));
+            if (utils) {
+                await utils.withPgClient((client) =>
+                    client.query(
+                        `DROP SCHEMA IF EXISTS "${graphile.schema}" CASCADE`,
+                    ),
+                );
+            }
+        } finally {
+            try {
+                await utils?.release();
+            } finally {
+                vi.restoreAllMocks();
+            }
         }
-        vi.restoreAllMocks();
     });
 
     const startWorker = async () => {

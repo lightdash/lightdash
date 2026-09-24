@@ -16,8 +16,8 @@ and queue locks, with a controlled migration lease and a blocked task handler.
 It needs neither a separate scheduler process nor E2B.
 
 Each case creates a unique `scheduler_quiesce_*` schema, initializes only
-Graphile's tables there, and leaves the schema available for inspection. It does
-not run application migrations or seeds, or modify the application's queue or
+Graphile's tables there, and drops that schema after stopping its workers. It
+does not run application migrations or seeds, or modify the application's queue or
 migration lease. This suite uses its own Vitest configuration rather than the
 full application's integration setup.
 
