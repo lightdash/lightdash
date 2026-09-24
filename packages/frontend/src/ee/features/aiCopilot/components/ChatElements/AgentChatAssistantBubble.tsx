@@ -201,7 +201,7 @@ const groupPersistedToolCalls = (
 
 const getPendingPersistedApprovals = (
     message: AiAgentMessageAssistant,
-): { sql: AiAgentToolCall[]; composerToolCallIds: string[] } => {
+): { sqlToolCalls: AiAgentToolCall[]; composerToolCallIds: string[] } => {
     const resolvedToolCallIds = new Set(
         message.toolResults.map((result) => result.toolCallId),
     );
@@ -210,7 +210,9 @@ const getPendingPersistedApprovals = (
     );
 
     return {
-        sql: unresolved.filter((toolCall) => toolCall.toolName === 'runSql'),
+        sqlToolCalls: unresolved.filter(
+            (toolCall) => toolCall.toolName === 'runSql',
+        ),
         composerToolCallIds: unresolved
             .filter(
                 (toolCall) =>
@@ -839,9 +841,9 @@ const AssistantBubbleContent: FC<{
                     pendingToolCallIds: persistedApprovals.composerToolCallIds,
                 };
                 const pendingApprovalContent =
-                    persistedApprovals.sql.length > 0 ? (
+                    persistedApprovals.sqlToolCalls.length > 0 ? (
                         <Stack gap={6}>
-                            {persistedApprovals.sql.map((toolCall) => (
+                            {persistedApprovals.sqlToolCalls.map((toolCall) => (
                                 <SqlApprovalCard
                                     key={toolCall.toolCallId}
                                     projectUuid={projectUuid}

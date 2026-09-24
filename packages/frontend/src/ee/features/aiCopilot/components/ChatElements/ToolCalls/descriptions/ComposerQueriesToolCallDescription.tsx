@@ -291,6 +291,11 @@ export const ComposerQueriesToolCallDescription: FC<
             ),
         [queries],
     );
+    // One decision covers the whole call, so the actions render once, under
+    // the last node waiting on it.
+    const approvalNodeId = queries.findLast(
+        (node) => nodeStatuses?.[node.nodeId]?.status === 'awaiting_approval',
+    )?.nodeId;
     return (
         <Stack gap={2} align="stretch" w="100%" className={styles.pipeline}>
             {queries.map((node) => (
@@ -299,7 +304,9 @@ export const ComposerQueriesToolCallDescription: FC<
                     node={node}
                     titlesByNodeId={titlesByNodeId}
                     nodeStatus={nodeStatuses?.[node.nodeId]}
-                    approval={approval}
+                    approval={
+                        node.nodeId === approvalNodeId ? approval : undefined
+                    }
                 />
             ))}
         </Stack>

@@ -164,6 +164,34 @@ describe('ComposerQueriesToolCallDescription', () => {
         expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
     });
 
+    it('renders one approval for a pipeline with several SQL nodes', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <ComposerQueriesToolCallDescription
+                    queries={[
+                        sqlNode('orders', 'Orders', 'select 1'),
+                        sqlNode('payments', 'Payments', 'select 2'),
+                    ]}
+                    nodeStatuses={{
+                        orders: { status: 'awaiting_approval' },
+                        payments: { status: 'awaiting_approval' },
+                    }}
+                    approval={{
+                        projectUuid: 'project',
+                        agentUuid: 'agent',
+                        threadUuid: 'thread',
+                        toolCallId: 'call',
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getAllByLabelText('Awaiting approval')).toHaveLength(2);
+        expect(screen.getAllByRole('button', { name: 'Approve' })).toHaveLength(
+            1,
+        );
+    });
+
     it('renders no status indicators for the persisted view', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription

@@ -675,9 +675,8 @@ export const LiveActivityCard: FC<Props> = ({
     // Composer waiting on approval stays "live" so the pipeline is reachable.
     const isActive = isLive || hasComposerApproval;
 
-    // runSql expands by default; composer only while active (its artifact
-    // panel shows the pipeline once done). A user toggle wins until the
-    // active tool changes or a composer run finishes.
+    // runSql expands by default; composer only while active (the artifact panel
+    // shows the pipeline once done). A user toggle wins until expandKey changes.
     const defaultExpanded =
         latestGroup?.toolName === 'runSql' ||
         (isActive && latestGroup?.toolName === 'runComposerQueries');

@@ -26,6 +26,9 @@ type SqlApprovalCardProps = SqlApprovalTarget & {
 
 type SubmitState = 'idle' | 'approved' | 'rejected' | 'autoApproved';
 
+const getAutoApproveKey = (threadUuid: string) =>
+    `sql-auto-approve:${threadUuid}`;
+
 const useSqlApprovalDecision = ({
     projectUuid,
     agentUuid,
@@ -34,7 +37,7 @@ const useSqlApprovalDecision = ({
 }: SqlApprovalTarget) => {
     const dispatch = useAiAgentStoreDispatch();
     const [autoApprove, setAutoApprove] = useSessionStorage<boolean>(
-        `sql-auto-approve:${threadUuid}`,
+        getAutoApproveKey(threadUuid),
         false,
     );
     const [submitting, setSubmitting] = useState<SubmitState>('idle');
@@ -163,7 +166,7 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
     ...target
 }) => {
     const [autoApprove] = useSessionStorage<boolean>(
-        `sql-auto-approve:${target.threadUuid}`,
+        getAutoApproveKey(target.threadUuid),
         false,
     );
 
