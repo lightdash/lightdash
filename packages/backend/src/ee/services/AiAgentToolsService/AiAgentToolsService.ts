@@ -3159,21 +3159,6 @@ export class AiAgentToolsService extends BaseService {
             async () => {
                 await context.onWarehouseQuery?.();
 
-                // Feature flag + CASL checks (and per-source checks, incl. the
-                // agent SQL scope for `sql` nodes via the AI execution context)
-                // are enforced inside the service.
-                const { queries: submissions } =
-                    await this.querySourceService.executeSourceQueries({
-                        account: context.account,
-                        projectUuid: context.projectUuid,
-                        queries,
-                        context: context.defaultQueryExecutionContext,
-                        parameters: {},
-                        userAttributeOverrides:
-                            context.userAttributeOverrides ?? {},
-                        invalidateCache: false,
-                    });
-
                 // Per-node status emission is best-effort UI telemetry: only
                 // transitions are emitted, and a listener error never breaks
                 // execution.
@@ -3193,6 +3178,40 @@ export class AiAgentToolsService extends BaseService {
                         // never let a status listener break the query
                     }
                 };
+
+                // Feature flag + CASL checks (and per-source checks, incl. the
+                // agent SQL scope for `sql` nodes via the AI execution context)
+                // are enforced inside the service. A submission failure fails
+                // every node, before any queryUuid exists.
+                let submissions: Awaited<
+                    ReturnType<QuerySourceService['executeSourceQueries']>
+                >['queries'];
+                try {
+                    ({ queries: submissions } =
+                        await this.querySourceService.executeSourceQueries({
+                            account: context.account,
+                            projectUuid: context.projectUuid,
+                            queries,
+                            context: context.defaultQueryExecutionContext,
+                            parameters: {},
+                            userAttributeOverrides:
+                                context.userAttributeOverrides ?? {},
+                            invalidateCache: false,
+                        }));
+                } catch (error) {
+                    const message =
+                        error instanceof Error ? error.message : null;
+                    queries.forEach((query) => {
+                        if (!query.nodeId) return;
+                        emitNodeStatus({
+                            nodeId: query.nodeId,
+                            queryUuid: null,
+                            status: 'error',
+                            errorMessage: message,
+                        });
+                    });
+                    throw error;
+                }
                 submissions.forEach((submission) =>
                     emitNodeStatus({
                         nodeId: submission.nodeId,

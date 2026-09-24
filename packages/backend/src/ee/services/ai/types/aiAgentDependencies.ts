@@ -648,7 +648,8 @@ export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
  */
 export type ComposerNodeStatusUpdate = {
     nodeId: string;
-    queryUuid: string;
+    /** Null when the pipeline failed before this node was submitted. */
+    queryUuid: string | null;
     status: 'running' | 'success' | 'error';
     errorMessage: string | null;
 };

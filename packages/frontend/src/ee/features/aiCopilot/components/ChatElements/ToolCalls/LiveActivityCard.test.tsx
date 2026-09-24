@@ -137,6 +137,31 @@ describe('LiveActivityCard composer failure', () => {
     });
 });
 
+describe('LiveActivityCard composer submission failure', () => {
+    it('marks every node failed when the call errors before any node starts', () => {
+        const failedGroups: LiveActivityToolGroup[] = [
+            {
+                ...composerToolGroups[0],
+                calls: [
+                    {
+                        ...composerToolGroups[0].calls[0],
+                        isPreliminary: false,
+                        toolOutput: {
+                            result: 'Error running composer queries.',
+                            metadata: { status: 'error' },
+                        },
+                    },
+                ],
+            },
+        ];
+        renderWithProviders(
+            <LiveActivityCard isLive toolGroups={failedGroups} />,
+        );
+
+        expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+    });
+});
+
 describe('LiveActivityCard composer approval', () => {
     const sqlPipeline: LiveActivityToolGroup[] = [
         {

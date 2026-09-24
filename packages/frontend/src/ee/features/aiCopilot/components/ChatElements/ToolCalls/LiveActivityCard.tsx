@@ -624,6 +624,9 @@ const getComposerNodeStatuses = (
             if (outputStatus === 'success')
                 return [[nodeId, { status: 'success' }]];
             if (output === undefined) return [[nodeId, { status: 'pending' }]];
+            // The call errored before any node started: the whole pipeline failed.
+            if (outputStatus === 'error' && eventStatuses.size === 0)
+                return [[nodeId, { status: 'error', errorMessage: null }]];
             // Rejected/timed-out/unattributed failure: nothing truthful to
             // claim about this node, so show no indicator.
             return [];
