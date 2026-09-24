@@ -1,3 +1,10 @@
+# [2.321.0](https://github.com/lightdash/lightdash/compare/2.320.3...2.321.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agent:** composer artifact records every node's queryUuid ([#29874](https://github.com/lightdash/lightdash/issues/29874)) ([3367248](https://github.com/lightdash/lightdash/commit/336724803611cd4fe912e40f07b29acf1cebc6bf))
+
 ## [2.320.3](https://github.com/lightdash/lightdash/compare/2.320.2...2.320.3) (2026-09-24)
 
 

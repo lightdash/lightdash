@@ -46024,6 +46024,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                warehouseConnectionUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 slug: { dataType: 'string' },
                 spaceUuid: { dataType: 'string', required: true },
                 config: { ref: 'AllVizChartConfig', required: true },
@@ -46094,6 +46101,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                warehouseConnectionUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 config: { ref: 'AllVizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
