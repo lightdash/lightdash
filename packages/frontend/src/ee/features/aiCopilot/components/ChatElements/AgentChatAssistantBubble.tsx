@@ -98,6 +98,10 @@ import {
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
 import {
+    getComposerQueryNodes,
+    isWarehouseSqlNode,
+} from './ToolCalls/utils/composerQueryNodes';
+import {
     appendToolCallToActivityGroup,
     canAppendToolCallToActivityGroup,
     createToolCallActivityGroup,
@@ -120,26 +124,11 @@ type SqlApprovalSegment = {
 };
 type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 
-// A composer pipeline gates on human approval only when it contains raw
-// warehouse SQL nodes; the pipeline view shows the approval under those nodes.
-const hasComposerSqlNodes = (toolArgs: unknown): boolean => {
-    if (!toolArgs || typeof toolArgs !== 'object' || !('queries' in toolArgs)) {
-        return false;
-    }
-    const { queries } = toolArgs as { queries?: unknown };
-    if (!Array.isArray(queries)) return false;
-    return queries.some(
-        (node) =>
-            !!node &&
-            typeof node === 'object' &&
-            'sourceType' in node &&
-            node.sourceType === 'sql',
-    );
-};
+// Only pipelines with warehouse SQL nodes gate on human approval.
+const hasComposerSqlNodes = (toolArgs: unknown): boolean =>
+    getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode);
 
-// Composer calls with complete args, no result and no decision yet are
-// waiting on the user. Partially-streamed args are skipped: the tool hasn't
-// started waiting for a decision.
+// Complete args, no result, no decision: the tool is waiting on the user.
 const getPendingComposerApprovalIds = (
     parts: StreamPart[],
     decidedToolCallIds: string[],

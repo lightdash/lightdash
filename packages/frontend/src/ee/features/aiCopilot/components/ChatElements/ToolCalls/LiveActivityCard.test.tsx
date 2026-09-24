@@ -1,7 +1,10 @@
 import { QuerySourceType } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
+import { store } from '../../../store';
 import {
     LiveActivityCard,
     type LiveActivityToolGroup,
@@ -94,6 +97,56 @@ describe('LiveActivityCard composer queries', () => {
     });
 });
 
+describe('LiveActivityCard composer approval', () => {
+    const sqlPipeline: LiveActivityToolGroup[] = [
+        {
+            keyId: 'composer-approval',
+            toolName: 'runComposerQueries',
+            calls: [
+                {
+                    toolCallId: 'composer-approval',
+                    toolName: 'runComposerQueries',
+                    toolArgs: {
+                        title: 'Payments',
+                        description: null,
+                        terminalNodeId: null,
+                        queries: [
+                            {
+                                sourceType: QuerySourceType.SQL,
+                                nodeId: 'payments',
+                                title: 'Average payments',
+                                description: null,
+                                sql: 'select avg(amount) from payments',
+                                limit: 500,
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
+    ];
+
+    it('shows inline approval even when the card is not live', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={sqlPipeline}
+                    composerApproval={{
+                        projectUuid: 'project',
+                        agentUuid: 'agent',
+                        threadUuid: 'thread',
+                        pendingToolCallIds: ['composer-approval'],
+                    }}
+                />
+            </Provider>,
+        );
+
+        expect(screen.getByLabelText('Awaiting approval')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+    });
+});
+
 describe('LiveActivityCard runSql', () => {
     const sqlToolGroups: LiveActivityToolGroup[] = [
         {
@@ -114,5 +167,18 @@ describe('LiveActivityCard runSql', () => {
             <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
         );
         expect(screen.getByRole('button', { expanded: true })).toBeVisible();
+    });
+
+    it('keeps a user collapse when the stream ends', async () => {
+        const { rerender } = renderWithProviders(
+            <LiveActivityCard isLive toolGroups={sqlToolGroups} />,
+        );
+        await userEvent.click(screen.getByRole('button', { expanded: true }));
+        expect(screen.getByRole('button', { expanded: false })).toBeVisible();
+
+        rerender(
+            <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
+        );
+        expect(screen.getByRole('button', { expanded: false })).toBeVisible();
     });
 });

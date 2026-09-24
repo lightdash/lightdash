@@ -24,6 +24,7 @@ import {
     IconSitemap,
     IconX,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
@@ -62,13 +63,11 @@ const NODE_STATUS_LABELS = {
     error: 'Failed',
 } as const;
 
-const NODE_STATUS_TEXT = {
-    pending: 'queued',
-    awaiting_approval: 'awaiting approval',
-    running: 'running',
-    success: null,
-    error: 'failed',
-} as const;
+// Trailing status word on the row; success reads from the check mark alone.
+const getNodeStatusText = (nodeStatus: ComposerQueryNodeStatus) =>
+    nodeStatus.status === 'success'
+        ? null
+        : NODE_STATUS_LABELS[nodeStatus.status].toLowerCase();
 
 const isActiveStatus = (nodeStatus: ComposerQueryNodeStatus | undefined) =>
     nodeStatus?.status === 'running' ||
@@ -191,17 +190,18 @@ const ComposerQueryNode: FC<{
 }> = ({ node, titlesByNodeId, nodeStatus, approval }) => {
     const presentation = getNodePresentation(node, titlesByNodeId);
     const active = isActiveStatus(nodeStatus);
-    // Active and failed nodes open by default; the user's toggle wins until
-    // the node's status changes.
+    // Active and failed nodes open by default; a user toggle wins until the status changes.
     const defaultOpen = active || nodeStatus?.status === 'error';
     const [userOpen, setUserOpen] = useState<boolean | null>(null);
-    const [openFor, setOpenFor] = useState(nodeStatus?.status);
-    if (openFor !== nodeStatus?.status) {
-        setOpenFor(nodeStatus?.status);
+    const [toggledForStatus, setToggledForStatus] = useState(
+        nodeStatus?.status,
+    );
+    if (toggledForStatus !== nodeStatus?.status) {
+        setToggledForStatus(nodeStatus?.status);
         setUserOpen(null);
     }
     const open = userOpen ?? defaultOpen;
-    const statusText = nodeStatus ? NODE_STATUS_TEXT[nodeStatus.status] : null;
+    const statusText = nodeStatus ? getNodeStatusText(nodeStatus) : null;
     const showApproval =
         approval !== undefined && nodeStatus?.status === 'awaiting_approval';
 
@@ -264,7 +264,10 @@ const ComposerQueryNode: FC<{
                         icon={IconChevronRight}
                         size={11}
                         stroke={1.6}
-                        className={`${rowStyles.chevron} ${open ? rowStyles.chevronOpen : ''}`}
+                        className={clsx(
+                            rowStyles.chevron,
+                            open && rowStyles.chevronOpen,
+                        )}
                     />
                 </Group>
             </UnstyledButton>

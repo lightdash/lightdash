@@ -87,12 +87,15 @@ const useSqlApprovalDecision = ({
     };
 };
 
-/**
- * Approve / approve-always / reject buttons only, for hosts that already show
- * the SQL being approved (e.g. a composer pipeline node). Renders nothing
- * once the thread auto-approves.
- */
-export const SqlApprovalActions: FC<SqlApprovalTarget> = (target) => {
+type SqlApprovalActionsProps = SqlApprovalTarget & {
+    size?: 'xs' | 'compact-xs';
+};
+
+/** Approve / approve-always / reject buttons; hides once the thread auto-approves. */
+export const SqlApprovalActions: FC<SqlApprovalActionsProps> = ({
+    size = 'compact-xs',
+    ...target
+}) => {
     const {
         autoApprove,
         submitting,
@@ -101,6 +104,7 @@ export const SqlApprovalActions: FC<SqlApprovalTarget> = (target) => {
         onApproveAlways,
         onReject,
     } = useSqlApprovalDecision(target);
+    const iconSize = size === 'xs' ? 12 : 11;
 
     if (autoApprove) {
         return null;
@@ -115,9 +119,11 @@ export const SqlApprovalActions: FC<SqlApprovalTarget> = (target) => {
             ) : null}
             <Group gap={6}>
                 <Button
-                    size="compact-xs"
+                    size={size}
                     color="indigo"
-                    leftSection={<MantineIcon icon={IconCheck} size={11} />}
+                    leftSection={
+                        <MantineIcon icon={IconCheck} size={iconSize} />
+                    }
                     loading={submitting === 'approved'}
                     disabled={submitting !== 'idle'}
                     onClick={onApprove}
@@ -125,11 +131,11 @@ export const SqlApprovalActions: FC<SqlApprovalTarget> = (target) => {
                     Approve
                 </Button>
                 <Button
-                    size="compact-xs"
+                    size={size}
                     variant="light"
                     color="indigo"
                     leftSection={
-                        <MantineIcon icon={IconShieldCheck} size={11} />
+                        <MantineIcon icon={IconShieldCheck} size={iconSize} />
                     }
                     loading={submitting === 'autoApproved'}
                     disabled={submitting !== 'idle'}
@@ -138,9 +144,9 @@ export const SqlApprovalActions: FC<SqlApprovalTarget> = (target) => {
                     Approve & don't ask again this thread
                 </Button>
                 <Button
-                    size="compact-xs"
+                    size={size}
                     variant="default"
-                    leftSection={<MantineIcon icon={IconX} size={11} />}
+                    leftSection={<MantineIcon icon={IconX} size={iconSize} />}
                     loading={submitting === 'rejected'}
                     disabled={submitting !== 'idle'}
                     onClick={onReject}
@@ -153,25 +159,13 @@ export const SqlApprovalActions: FC<SqlApprovalTarget> = (target) => {
 };
 
 export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
-    projectUuid,
-    agentUuid,
-    threadUuid,
-    toolCallId,
     toolArgs,
+    ...target
 }) => {
-    const {
-        autoApprove,
-        submitting,
-        error,
-        onApprove,
-        onApproveAlways,
-        onReject,
-    } = useSqlApprovalDecision({
-        projectUuid,
-        agentUuid,
-        threadUuid,
-        toolCallId,
-    });
+    const [autoApprove] = useSessionStorage<boolean>(
+        `sql-auto-approve:${target.threadUuid}`,
+        false,
+    );
 
     if (autoApprove) {
         return null;
@@ -207,46 +201,7 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
                 >
                     {toolArgs.sql}
                 </Code>
-                {error ? (
-                    <Text size="xs" c="red.6">
-                        {error}
-                    </Text>
-                ) : null}
-                <Group gap="xs">
-                    <Button
-                        size="xs"
-                        color="indigo"
-                        leftSection={<MantineIcon icon={IconCheck} size={12} />}
-                        loading={submitting === 'approved'}
-                        disabled={submitting !== 'idle'}
-                        onClick={onApprove}
-                    >
-                        Approve
-                    </Button>
-                    <Button
-                        size="xs"
-                        variant="light"
-                        color="indigo"
-                        leftSection={
-                            <MantineIcon icon={IconShieldCheck} size={12} />
-                        }
-                        loading={submitting === 'autoApproved'}
-                        disabled={submitting !== 'idle'}
-                        onClick={onApproveAlways}
-                    >
-                        Approve & don't ask again this thread
-                    </Button>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={<MantineIcon icon={IconX} size={12} />}
-                        loading={submitting === 'rejected'}
-                        disabled={submitting !== 'idle'}
-                        onClick={onReject}
-                    >
-                        Reject
-                    </Button>
-                </Group>
+                <SqlApprovalActions size="xs" {...target} />
             </Stack>
         </Paper>
     );

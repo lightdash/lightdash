@@ -19,7 +19,7 @@ import {
     IconNotes,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
@@ -35,6 +35,10 @@ import { parseAgentStep } from './parseAgentStep';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
+import {
+    getComposerQueryNodes,
+    isWarehouseSqlNode,
+} from './utils/composerQueryNodes';
 import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
@@ -84,10 +88,7 @@ type Props = {
      * replacing row. Empty when no tool has fired a progress event yet.
      */
     stepProgressMessages?: StepProgressMessage[];
-    /**
-     * Composer runs whose warehouse SQL nodes await the user's decision. The
-     * pipeline renders approval actions inline under those nodes.
-     */
+    /** Composer runs whose SQL nodes await a decision; approval renders inline. */
     composerApproval?: ComposerApprovalTarget & {
         pendingToolCallIds: string[];
     };
@@ -574,18 +575,10 @@ const getComposerNodeStatuses = (
     awaitingApproval: boolean,
 ): Record<string, ComposerQueryNodeStatus> | undefined => {
     if (call.toolName !== 'runComposerQueries') return undefined;
-    const args = call.toolArgs as
-        | { queries?: { nodeId?: unknown; sourceType?: unknown }[] }
-        | undefined;
-    const queries = (args?.queries ?? []).filter(
-        (query): query is { nodeId: string; sourceType?: unknown } =>
-            typeof query?.nodeId === 'string',
-    );
+    const queries = getComposerQueryNodes(call.toolArgs);
     const nodeIds = queries.map((query) => query.nodeId);
     const sqlNodeIds = new Set(
-        queries
-            .filter((query) => query.sourceType === 'sql')
-            .map((query) => query.nodeId),
+        queries.filter(isWarehouseSqlNode).map((query) => query.nodeId),
     );
     if (nodeIds.length === 0) return undefined;
 
@@ -675,26 +668,28 @@ export const LiveActivityCard: FC<Props> = ({
     stepProgressMessages = [],
     composerApproval,
 }) => {
-    const [userExpanded, setUserExpanded] = useState(false);
+    const latestGroup =
+        toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
+    const hasComposerApproval =
+        (composerApproval?.pendingToolCallIds.length ?? 0) > 0;
+    // Composer waiting on approval stays "live" so the pipeline is reachable.
+    const isActive = isLive || hasComposerApproval;
 
-    // Query tools expand by default so their SQL is legible while running.
-    // Composer collapses once the run finishes: its artifact panel already
-    // shows the pipeline. The user's explicit toggle resets when the active
-    // tool changes.
-    const latestKeyId =
-        toolGroups.length > 0
-            ? toolGroups[toolGroups.length - 1].keyId
-            : undefined;
-    const latestToolName =
-        toolGroups.length > 0
-            ? toolGroups[toolGroups.length - 1].toolName
-            : undefined;
-    useEffect(() => {
-        setUserExpanded(
-            latestToolName === 'runSql' ||
-                (isLive && latestToolName === 'runComposerQueries'),
-        );
-    }, [isLive, latestKeyId, latestToolName]);
+    // runSql expands by default; composer only while active (its artifact
+    // panel shows the pipeline once done). A user toggle wins until the
+    // active tool changes or a composer run finishes.
+    const defaultExpanded =
+        latestGroup?.toolName === 'runSql' ||
+        (isActive && latestGroup?.toolName === 'runComposerQueries');
+    const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
+        latestGroup?.toolName === 'runComposerQueries' ? isActive : ''
+    }`;
+    const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
+    const [expandedFor, setExpandedFor] = useState(expandKey);
+    if (expandedFor !== expandKey) {
+        setExpandedFor(expandKey);
+        setUserExpanded(null);
+    }
 
     if (toolGroups.length === 0 && !pendingContent) return null;
 
@@ -705,7 +700,7 @@ export const LiveActivityCard: FC<Props> = ({
     // the history. After streaming the header is a *summary title* rather
     // than the latest row, so every tool group (including the last) belongs
     // in the expandable body so its description (e.g. SQL) stays reachable.
-    const showSummaryHeader = !isLive && toolGroups.length > 0;
+    const showSummaryHeader = !isActive && toolGroups.length > 0;
     const latest =
         hasPending || showSummaryHeader || toolGroups.length === 0
             ? null
@@ -719,7 +714,7 @@ export const LiveActivityCard: FC<Props> = ({
     const hasHistory = olderCount > 0;
     // Auto-expand whenever there's pending interactive content so the user
     // sees it immediately, without needing to click the chevron.
-    const expanded = hasPending || userExpanded;
+    const expanded = hasPending || (userExpanded ?? defaultExpanded);
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
@@ -735,7 +730,7 @@ export const LiveActivityCard: FC<Props> = ({
         >
             <UnstyledButton
                 w="100%"
-                onClick={() => setUserExpanded((prev) => !prev)}
+                onClick={() => setUserExpanded(!expanded)}
                 aria-expanded={expanded}
                 className={styles.header}
                 disabled={
@@ -919,7 +914,7 @@ export const LiveActivityCard: FC<Props> = ({
                                                         tc.toolCallId,
                                                 )}
                                                 composerNodeStatuses={
-                                                    isLive || awaitingApproval
+                                                    isActive
                                                         ? getComposerNodeStatuses(
                                                               tc,
                                                               stepProgressMessages,
@@ -931,12 +926,7 @@ export const LiveActivityCard: FC<Props> = ({
                                                     awaitingApproval &&
                                                     composerApproval
                                                         ? {
-                                                              projectUuid:
-                                                                  composerApproval.projectUuid,
-                                                              agentUuid:
-                                                                  composerApproval.agentUuid,
-                                                              threadUuid:
-                                                                  composerApproval.threadUuid,
+                                                              ...composerApproval,
                                                               toolCallId:
                                                                   tc.toolCallId,
                                                           }
