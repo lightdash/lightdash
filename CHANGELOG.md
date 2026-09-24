@@ -1,3 +1,10 @@
+## [2.319.3](https://github.com/lightdash/lightdash/compare/2.319.2...2.319.3) (2026-09-24)
+
+
+### Bug Fixes
+
+* **chart-types:** cache registry thumbnails for good and load them lazily ([#29856](https://github.com/lightdash/lightdash/issues/29856)) ([7c2179c](https://github.com/lightdash/lightdash/commit/7c2179cd4b16960a622693fea4849549e085d512))
+
 ## [2.319.2](https://github.com/lightdash/lightdash/compare/2.319.1...2.319.2) (2026-09-24)
 
 
