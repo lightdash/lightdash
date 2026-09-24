@@ -2963,7 +2963,7 @@ export const generateAgentResponse = async ({
                 ),
                 tokenUsage: completedPromptTokenUsage(
                     result.totalUsage?.totalTokens,
-                    result.usage.totalTokens,
+                    result.steps.at(-1)?.usage.totalTokens,
                     args.decisionUsage?.inputTokens,
                     args.decisionUsage?.outputTokens,
                 ),
@@ -3524,7 +3524,7 @@ export const streamAgentResponse = async ({
                             getUserFacingErrorMessage(emptyResponseError),
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
-                            usage.totalTokens,
+                            steps.at(-1)?.usage.totalTokens,
                             args.decisionUsage?.inputTokens,
                             args.decisionUsage?.outputTokens,
                         ),
@@ -3536,7 +3536,7 @@ export const streamAgentResponse = async ({
                         promptUuid: args.promptUuid,
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
-                            usage.totalTokens,
+                            steps.at(-1)?.usage.totalTokens,
                             args.decisionUsage?.inputTokens,
                             args.decisionUsage?.outputTokens,
                         ),
