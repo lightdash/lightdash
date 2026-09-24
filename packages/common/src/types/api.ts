@@ -446,6 +446,7 @@ import {
     type ApiWarehouseConnectCodeClaimResponse,
     type ApiWarehouseConnectCodeResponse,
 } from './warehouseConnectCode';
+import { type ApiDbtSourceBindingsResponse } from './warehouseConnectionBindings';
 import {
     type ApiWarehouseConnectionResponse,
     type ApiWarehouseConnectionsForUserCredentialsResponse,
@@ -1293,6 +1294,7 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiDbtSourceBindingsResponse['results']
     | ApiWarehouseConnectionsResponse['results']
     | ApiWarehouseConnectionResponse['results']
     | ApiWarehouseConnectionWithCredentialsResponse['results']

@@ -1,12 +1,14 @@
 import {
     assertRegisteredAccount,
     type ApiBindDbtSourceToWarehouseConnectionRequest,
+    type ApiDbtSourceBindingsResponse,
     type ApiErrorPayload,
     type ApiSuccessEmpty,
     type UUID,
 } from '@lightdash/common';
 import {
     Body,
+    Get,
     Hidden,
     Middlewares,
     OperationId,
@@ -27,6 +29,24 @@ import { BaseController } from './baseController';
 @Tags('Projects')
 @Hidden()
 export class WarehouseConnectionBindingController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/bindings')
+    @OperationId('getDbtSourceWarehouseConnectionBindings')
+    async getDbtSourceWarehouseConnectionBindings(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiDbtSourceBindingsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getWarehouseConnectionBindingService()
+                .getDbtSourceBindings(req.account, projectUuid),
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Put('/{projectDbtSourceUuid}')
