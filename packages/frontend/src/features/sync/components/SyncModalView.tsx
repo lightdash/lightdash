@@ -93,14 +93,14 @@ const SendNowButton: FC<{ schedulerUuid: string }> = ({ schedulerUuid }) => {
         <Tooltip label="Sync now">
             <ActionIcon
                 variant="light"
-                color="ldDark.9"
+                color="gray"
                 disabled={isLoading}
                 onClick={() => {
                     track({ name: EventName.SCHEDULER_SEND_NOW_BUTTON });
                     sendNow();
                 }}
             >
-                <MantineIcon color="ldDark.9" icon={IconSend} />
+                <MantineIcon icon={IconSend} />
             </ActionIcon>
         </Tooltip>
     );
@@ -227,7 +227,7 @@ export const SyncModalView: FC<Props> = ({
                                                 <Tooltip label="Edit">
                                                     <ActionIcon
                                                         variant="light"
-                                                        color="ldDark.9"
+                                                        color="gray"
                                                         onClick={() => {
                                                             setAction(
                                                                 SyncModalAction.EDIT,
@@ -238,7 +238,6 @@ export const SyncModalView: FC<Props> = ({
                                                         }}
                                                     >
                                                         <MantineIcon
-                                                            color="ldDark.9"
                                                             icon={IconPencil}
                                                         />
                                                     </ActionIcon>
