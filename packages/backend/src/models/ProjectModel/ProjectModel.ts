@@ -3388,16 +3388,26 @@ export class ProjectModel {
         onLockAcquired: () => Promise<void>,
         onLockFailed?: () => Promise<void>,
     ): Promise<void> {
+        // Look up project_id outside the transaction. onLockAcquired can run for as
+        // long as a full dbt compile, and any statement against `projects` inside the
+        // transaction below would hold an AccessShareLock on that table for the same
+        // duration, blocking any migration that needs AccessExclusiveLock on it.
+        const [project] = await this.database(ProjectTableName)
+            .select('project_id')
+            .where('project_uuid', projectUuid)
+            .limit(1);
+
+        if (!project) return; // No project with uuid in DB
+
         await this.database.transaction(async (trx) => {
             // pg_advisory_xact_lock takes a 64bit integer as key
             // we can't use project_uuid (uuidv4) as key, not even a hash,
             // so we will be using autoinc project_id from DB.
-            const projectLock = await trx.raw(`
-                SELECT pg_try_advisory_xact_lock(${CACHED_EXPLORES_PG_LOCK_NAMESPACE}, project_id)
-                FROM projects
-                WHERE project_uuid = '${projectUuid}' LIMIT 1  `);
+            const projectLock = await trx.raw(
+                `SELECT pg_try_advisory_xact_lock(${CACHED_EXPLORES_PG_LOCK_NAMESPACE}, ?)`,
+                [project.project_id],
+            );
 
-            if (projectLock.rows.length === 0) return; // No project with uuid in DB
             const acquiresLock = projectLock.rows[0].pg_try_advisory_xact_lock;
             if (acquiresLock) {
                 await onLockAcquired();
