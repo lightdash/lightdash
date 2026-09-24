@@ -315,7 +315,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 FROM prod-builder AS build-cli
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
-COPY packages/cli/tsconfig.json ./packages/cli/
+COPY packages/cli/tsconfig*.json ./packages/cli/
 COPY packages/cli/src/ ./packages/cli/src/
 # postbuild vendors the data-app template into dist/vendor
 COPY sandboxes/data-apps/template/ ./sandboxes/data-apps/template/
