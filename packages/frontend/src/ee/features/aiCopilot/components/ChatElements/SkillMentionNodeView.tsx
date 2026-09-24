@@ -39,7 +39,7 @@ export const SkillMentionNodeView = ({ node }: NodeViewProps) => {
                 />
             </Box>
             <Box component="span" className={styles.contentMentionLabel}>
-                /{name}
+                {name}
             </Box>
         </NodeViewWrapper>
     );
