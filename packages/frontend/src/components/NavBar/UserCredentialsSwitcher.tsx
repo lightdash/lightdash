@@ -17,13 +17,7 @@ import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils
 import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { useNavBarMenuProps } from './NavBarPortalContext';
-
-const routesThatNeedWarehouseCredentials = [
-    '/projects/:projectUuid/tables/:tableId',
-    '/projects/:projectUuid/saved/:savedQueryUuid/:mode?',
-    '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
-    '/projects/:projectUuid/sqlRunner',
-];
+import { routesThatNeedWarehouseCredentials } from './routesThatNeedWarehouseCredentials';
 
 const UserCredentialsSwitcher = () => {
     const menuProps = useNavBarMenuProps();

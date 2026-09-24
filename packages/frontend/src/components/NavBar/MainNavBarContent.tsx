@@ -22,10 +22,10 @@ import {
     revealInlineNavMenuOnToggle,
 } from './NavBarPortalContext';
 import { NotificationsMenu } from './NotificationsMenu';
+import ProjectCredentialsSwitcher from './ProjectCredentialsSwitcher';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
 import { useCompactNavigation } from './useCompactNavigation';
-import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 import UserMenu from './UserMenu';
 
 const AiAgentsButton = lazy(() =>
@@ -175,7 +175,7 @@ export const MainNavBarContent: FC<Props> = ({
                         <ProjectSwitcher portalTarget="#navbar-header" />
                     )}
 
-                    <UserCredentialsSwitcher />
+                    <ProjectCredentialsSwitcher />
                 </NavGroup>
 
                 <UserMenu withLabel={compact} />

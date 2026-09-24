@@ -43,7 +43,7 @@ vi.mock('./BrowseMenu', () => ({ default: () => null }));
 vi.mock('./SettingsMenu', () => ({ default: () => null }));
 vi.mock('./HelpMenu', () => ({ default: () => null }));
 vi.mock('./HeadwayMenuItem', () => ({ default: () => null }));
-vi.mock('./UserCredentialsSwitcher', () => ({ default: () => null }));
+vi.mock('./ProjectCredentialsSwitcher', () => ({ default: () => null }));
 vi.mock('./AutopilotNavButton', () => ({ AutopilotNavButton: () => null }));
 vi.mock('./MetricsLink', () => ({ MetricsLink: () => null }));
 vi.mock('./NotificationsMenu', () => ({ NotificationsMenu: () => null }));
