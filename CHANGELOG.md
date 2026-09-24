@@ -1,3 +1,10 @@
+# [2.328.0](https://github.com/lightdash/lightdash/compare/2.327.2...2.328.0) (2026-09-24)
+
+
+### Features
+
+* **connections:** explores, CLI and content as code for multiple connections ([#29909](https://github.com/lightdash/lightdash/issues/29909)) ([4cb3448](https://github.com/lightdash/lightdash/commit/4cb3448a1a846e212195b36bd0fc1de7366ce853))
+
 ## [2.327.2](https://github.com/lightdash/lightdash/compare/2.327.1...2.327.2) (2026-09-24)
 
 

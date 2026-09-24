@@ -7297,6 +7297,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        connection: { dataType: 'string' },
                         access: { ref: 'ContentAsCodeDirectAccess' },
                         downloadedAt: { dataType: 'datetime' },
                         updatedAt: { dataType: 'datetime' },
@@ -7430,6 +7431,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                connection: { dataType: 'string' },
                 parameters: {
                     dataType: 'union',
                     subSchemas: [
@@ -10238,6 +10240,13 @@ const models: TsoaRoute.Models = {
                 },
                 sql: { dataType: 'string', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
+                connection: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -18154,6 +18163,14 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 createdAt: { dataType: 'datetime', required: true },
+                warehouseConnectionUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 chartKind: { ref: 'ChartKind', required: true },
                 config: { ref: 'AllVizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
@@ -46376,6 +46393,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                warehouseConnectionUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 parameterValues: { ref: 'ParametersValuesMap' },
                 columns: {
                     dataType: 'array',
@@ -56872,6 +56896,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SummaryBindingFields: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                warehouseConnectionUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ExploreError.SummaryExploreErrorFields_': {
         dataType: 'refAlias',
         type: {
@@ -56973,6 +57015,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { ref: 'Pick_Explore.SummaryExploreFields_' },
                         { ref: 'SummaryExtraFields' },
+                        { ref: 'SummaryBindingFields' },
                     ],
                 },
                 {
@@ -56980,6 +57023,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { ref: 'Pick_ExploreError.SummaryExploreErrorFields_' },
                         { ref: 'Partial_SummaryExtraFields_' },
+                        { ref: 'SummaryBindingFields' },
                     ],
                 },
             ],
@@ -57191,17 +57235,183 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_Explore.unfilteredTables_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_Explore.Exclude_keyofExplore.unfilteredTables__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExploreResults: {
-        dataType: 'refAlias',
-        type: { ref: 'Omit_Explore.unfilteredTables_', validators: {} },
+        dataType: 'refObject',
+        properties: {
+            name: { dataType: 'string', required: true },
+            parameters: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'Record_string.LightdashProjectParameter_' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            label: { dataType: 'string', required: true },
+            caseSensitive: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'boolean' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            type: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'ExploreType' }, { dataType: 'undefined' }],
+            },
+            spotlight: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            owner: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'string' },
+                                    { dataType: 'undefined' },
+                                ],
+                            },
+                            categories: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    {
+                                        dataType: 'array',
+                                        array: { dataType: 'string' },
+                                    },
+                                    { dataType: 'undefined' },
+                                ],
+                            },
+                            visibility: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'enum', enums: ['show'] },
+                                    { dataType: 'enum', enums: ['hide'] },
+                                ],
+                                required: true,
+                            },
+                        },
+                    },
+                    { dataType: 'undefined' },
+                ],
+            },
+            tags: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+                required: true,
+            },
+            joinedTables: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'CompiledExploreJoin' },
+                required: true,
+            },
+            warnings: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'InlineError' },
+                    },
+                    { dataType: 'undefined' },
+                ],
+            },
+            baseTable: { dataType: 'string', required: true },
+            warehouse: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            groupLabel: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            groups: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'undefined' },
+                ],
+            },
+            tables: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {},
+                additionalProperties: { ref: 'CompiledTable' },
+                required: true,
+            },
+            targetDatabase: { ref: 'SupportedDbtAdapter', required: true },
+            databricksCompute: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            ymlPath: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            sqlPath: {
+                dataType: 'union',
+                subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
+            },
+            aiHint: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'undefined' },
+                ],
+            },
+            customMeta: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'Record_string.CustomMetaValue_' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            granularityLabels: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'Partial_Record_TimeFrames.string__' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            savedParameterValues: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ParametersValuesMap' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            preAggregates: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'PreAggregateDef' },
+                    },
+                    { dataType: 'undefined' },
+                ],
+            },
+            preAggregateSource: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'PreAggregateSource' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            externalSource: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'ExternalSourceRef' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            warehouseConnectionUuid: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+        },
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreAggregateCheckResult: {
@@ -63213,6 +63423,18 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 role: { ref: 'SpaceMemberRole', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeployTarget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                region: { dataType: 'string' },
+                database: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -116489,6 +116711,13 @@ export function RegisterRoutes(app: Router) {
             array: { dataType: 'refAlias', ref: 'AnyType' },
         },
         complete: { in: 'query', name: 'complete', dataType: 'boolean' },
+        sourceUuid: { in: 'query', name: 'sourceUuid', dataType: 'string' },
+        targetDatabase: {
+            in: 'query',
+            name: 'targetDatabase',
+            dataType: 'string',
+        },
+        targetRegion: { in: 'query', name: 'targetRegion', dataType: 'string' },
     };
     app.put(
         '/api/v1/projects/:projectUuid/explores',
@@ -125634,6 +125863,8 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                target: { ref: 'DeployTarget' },
+                sourceUuid: { dataType: 'string' },
                 dbtModelNames: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -125842,6 +126073,8 @@ export function RegisterRoutes(app: Router) {
             name: 'body',
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                target: { ref: 'DeployTarget' },
+                sourceUuid: { dataType: 'string' },
                 dbtModelNames: {
                     dataType: 'array',
                     array: { dataType: 'string' },

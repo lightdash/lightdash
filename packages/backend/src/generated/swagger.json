@@ -7459,6 +7459,9 @@
                     },
                     {
                         "properties": {
+                            "connection": {
+                                "type": "string"
+                            },
                             "access": {
                                 "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
                                 "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
@@ -7642,6 +7645,9 @@
             },
             "VirtualViewAsCode": {
                 "properties": {
+                    "connection": {
+                        "type": "string"
+                    },
                     "parameters": {
                         "allOf": [
                             {
@@ -10610,6 +10616,9 @@
                     },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "connection": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -19310,6 +19319,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
                     },
@@ -19350,6 +19363,7 @@
                     "lastUpdatedAt",
                     "createdBy",
                     "createdAt",
+                    "warehouseConnectionUuid",
                     "chartKind",
                     "config",
                     "limit",
@@ -46292,6 +46306,10 @@
             },
             "CreateVirtualViewPayload": {
                 "properties": {
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "parameterValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
                     },
@@ -57052,6 +57070,16 @@
                 "required": ["databaseName", "schemaName"],
                 "type": "object"
             },
+            "SummaryBindingFields": {
+                "properties": {
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["warehouseConnectionUuid"],
+                "type": "object"
+            },
             "Pick_ExploreError.SummaryExploreErrorFields_": {
                 "properties": {
                     "name": {
@@ -57131,6 +57159,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/SummaryExtraFields"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SummaryBindingFields"
                             }
                         ]
                     },
@@ -57141,6 +57172,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Partial_SummaryExtraFields_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SummaryBindingFields"
                             }
                         ]
                     }
@@ -57292,12 +57326,150 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_Explore.unfilteredTables_": {
-                "$ref": "#/components/schemas/Pick_Explore.Exclude_keyofExplore.unfilteredTables__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
             "ApiExploreResults": {
-                "$ref": "#/components/schemas/Omit_Explore.unfilteredTables_"
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
+                            "categories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "joinedTables": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledExploreJoin"
+                        },
+                        "type": "array"
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal compilation or validation warnings (e.g. fields that failed to\ncompile, warehouse-rejected column references). The explore is still usable."
+                    },
+                    "baseTable": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                    },
+                    "tables": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CompiledTable"
+                        },
+                        "type": "object"
+                    },
+                    "targetDatabase": {
+                        "$ref": "#/components/schemas/SupportedDbtAdapter"
+                    },
+                    "databricksCompute": {
+                        "type": "string"
+                    },
+                    "ymlPath": {
+                        "type": "string"
+                    },
+                    "sqlPath": {
+                        "type": "string"
+                    },
+                    "aiHint": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "customMeta": {
+                        "$ref": "#/components/schemas/Record_string.CustomMetaValue_"
+                    },
+                    "granularityLabels": {
+                        "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
+                        "description": "Project `granularity_labels` overrides, keyed by TimeFrames. Consumed\nby the date zoom to relabel standard granularities."
+                    },
+                    "savedParameterValues": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "preAggregates": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreAggregateDef"
+                        },
+                        "type": "array"
+                    },
+                    "preAggregateSource": {
+                        "$ref": "#/components/schemas/PreAggregateSource"
+                    },
+                    "externalSource": {
+                        "$ref": "#/components/schemas/ExternalSourceRef",
+                        "description": "Present ⇒ generated from an external source table (CSV upload, Google Sheet)."
+                    },
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "label",
+                    "tags",
+                    "joinedTables",
+                    "baseTable",
+                    "tables",
+                    "targetDatabase",
+                    "warehouseConnectionUuid"
+                ],
+                "type": "object",
+                "additionalProperties": true
             },
             "PreAggregateCheckResult": {
                 "anyOf": [
@@ -63375,6 +63547,18 @@
                 "required": ["role"],
                 "type": "object"
             },
+            "DeployTarget": {
+                "properties": {
+                    "region": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    }
+                },
+                "required": ["database"],
+                "type": "object"
+            },
             "ApiStartDeploySessionResponse": {
                 "properties": {
                     "results": {
@@ -65157,7 +65341,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.327.2",
+        "version": "2.328.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -97305,6 +97489,30 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sourceUuid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "targetDatabase",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "targetRegion",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "requestBody": {
@@ -104727,6 +104935,12 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "target": {
+                                        "$ref": "#/components/schemas/DeployTarget"
+                                    },
+                                    "sourceUuid": {
+                                        "type": "string"
+                                    },
                                     "dbtModelNames": {
                                         "items": {
                                             "type": "string"
@@ -104906,6 +105120,12 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "target": {
+                                        "$ref": "#/components/schemas/DeployTarget"
+                                    },
+                                    "sourceUuid": {
+                                        "type": "string"
+                                    },
                                     "dbtModelNames": {
                                         "items": {
                                             "type": "string"
