@@ -112,6 +112,7 @@ const SqlRunner = ({
             dispatch(
                 setState({
                     ...shareState.sqlRunnerState,
+                    connectionRoute: store.getState().sqlRunner.connectionRoute,
                     fetchResultsOnLoad:
                         routesSingle || hintedConnectionExists === true,
                 }),

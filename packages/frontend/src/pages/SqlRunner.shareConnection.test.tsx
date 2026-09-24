@@ -136,18 +136,22 @@ const gate = (): Gate => {
     return { resolve, promise };
 };
 
+const mode = { current: 'multi' as 'multi' | 'single' };
 const serve = ({
     shareGate,
     connectionsGate,
+    projectGate,
 }: {
     shareGate?: Gate;
     connectionsGate?: Gate;
+    projectGate?: Gate;
 }) =>
     mockApi.mockImplementation(async ({ url }: { url: string }) => {
         if (url === `/projects/${projectUuid}`) {
+            if (projectGate) await projectGate.promise;
             return {
                 projectUuid,
-                connectionRoute: 'multi',
+                connectionRoute: mode.current,
                 warehouseConnection: { type: WarehouseTypes.POSTGRES },
             };
         }
@@ -178,6 +182,7 @@ const renderPage = () => {
 describe('review PR12b: real SqlRunner page with a shared link', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mode.current = 'multi';
         window.localStorage.clear();
         store.dispatch(resetState());
         window.localStorage.setItem(
@@ -212,6 +217,103 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
             setTimeout(r, 100);
         });
         expect(executeSqlQuery).not.toHaveBeenCalled();
+    });
+
+    it('COLD: a valid hint waits for connections and runs on Finance', async () => {
+        const shareGate = gate();
+        const connectionsGate = gate();
+        serve({ shareGate, connectionsGate });
+        renderPage();
+        await act(async () => {
+            shareGate.resolve({ params: shareParams('finance-uuid') });
+        });
+        await waitFor(() =>
+            expect(
+                mockApi.mock.calls.some(
+                    ([call]) =>
+                        (call as { url: string }).url === connectionsUrl,
+                ),
+            ).toBe(true),
+        );
+        expect(store.getState().sqlRunner.sql).toBe('');
+        await act(async () => {
+            connectionsGate.resolve(undefined);
+        });
+        await waitFor(() =>
+            expect(executeSqlQuery).toHaveBeenCalledWith(
+                projectUuid,
+                'select 1',
+                10,
+                {},
+                true,
+                'finance-uuid',
+            ),
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('Finance');
+    });
+
+    it('SINGLE cold: a share auto-runs once and permits a manual run', async () => {
+        mode.current = 'single';
+        const shareGate = gate();
+        const projectGate = gate();
+        serve({ shareGate, projectGate });
+        renderPage();
+        await act(async () => {
+            shareGate.resolve({ params: shareParams(undefined) });
+        });
+        await act(async () => {
+            projectGate.resolve(undefined);
+        });
+        await waitFor(() =>
+            expect(store.getState().sqlRunner.sql).toBe('select 1'),
+        );
+        await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(1));
+        expect(store.getState().sqlRunner.connectionRoute).toEqual({
+            route: 'single',
+        });
+        await store.dispatch(
+            runSqlQuery({
+                sql: 'select 1',
+                limit: 10,
+                projectUuid,
+                parameterValues: {},
+            }),
+        );
+        expect(executeSqlQuery).toHaveBeenCalledTimes(2);
+        expect(
+            mockApi.mock.calls.map(([call]) => (call as { url: string }).url),
+        ).not.toContain(connectionsUrl);
+    });
+
+    it('SINGLE warm: a share auto-runs once and permits a manual run', async () => {
+        mode.current = 'single';
+        const shareGate = gate();
+        serve({ shareGate });
+        renderPage();
+        await waitFor(() =>
+            expect(store.getState().sqlRunner.connectionRoute).toEqual({
+                route: 'single',
+            }),
+        );
+        await act(async () => {
+            shareGate.resolve({ params: shareParams(undefined) });
+        });
+        await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(1));
+        expect(store.getState().sqlRunner.connectionRoute).toEqual({
+            route: 'single',
+        });
+        await store.dispatch(
+            runSqlQuery({
+                sql: 'select 1',
+                limit: 10,
+                projectUuid,
+                parameterValues: {},
+            }),
+        );
+        expect(executeSqlQuery).toHaveBeenCalledTimes(2);
+        expect(
+            mockApi.mock.calls.map(([call]) => (call as { url: string }).url),
+        ).not.toContain(connectionsUrl);
     });
 
     it('WARM: connections cached before the share resolves, unknown hint must still never run', async () => {
