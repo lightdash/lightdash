@@ -1,3 +1,10 @@
+## [2.336.2](https://github.com/lightdash/lightdash/compare/2.336.1...2.336.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **connections:** share links, extra credential setting and compile warnings for multiple connections ([#29932](https://github.com/lightdash/lightdash/issues/29932)) ([56686cd](https://github.com/lightdash/lightdash/commit/56686cd9c2347be1ac02324dd4123dd837fdcfdb))
+
 ## [2.336.1](https://github.com/lightdash/lightdash/compare/2.336.0...2.336.1) (2026-09-24)
 
 
