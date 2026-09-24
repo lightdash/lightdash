@@ -1705,6 +1705,8 @@ export const getAgentTools = (
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+              listThreadComposerPipelines:
+                  dependencies.listThreadComposerPipelines,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
               canRunSql: args.canRunSql,

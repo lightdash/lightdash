@@ -5,6 +5,7 @@ import {
     AiAgentDocumentSummary,
     AiAgentJudgeProjectContextEntry,
     AiArtifact,
+    AiComposerChartArtifactConfig,
     AiMetricQueryWithFilters,
     AiPromptSteer,
     AiWebAppPrompt,
@@ -621,6 +622,11 @@ export type CreateOrUpdateArtifactFn = (data: {
     description?: string;
     vizConfig: Record<string, unknown>;
 }) => Promise<AiArtifact>;
+
+/** Every stored composer pipeline of the thread's chart artifact versions, oldest first. */
+export type ListThreadComposerPipelinesFn = (
+    threadUuid: string,
+) => Promise<AiComposerChartArtifactConfig[]>;
 
 export type CheckUserPermissionFn = (args: {
     userId: string;

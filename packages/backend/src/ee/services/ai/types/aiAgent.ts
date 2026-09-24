@@ -74,6 +74,7 @@ import {
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
+    ListThreadComposerPipelinesFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
@@ -380,6 +381,7 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    listThreadComposerPipelines: ListThreadComposerPipelinesFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
     listDataAppThemes: ListDataAppThemesFn;

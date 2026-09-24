@@ -1,4 +1,5 @@
 import {
+    buildComposerArtifactPipeline,
     createToolComposerQueriesArgsSchema,
     isSlackPrompt,
     QuerySourceType,
@@ -15,6 +16,7 @@ import { type QueryReviewer } from '../decisions/queryReview';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
+    ListThreadComposerPipelinesFn,
     RecordSqlApprovalFn,
     RunComposerQueriesFn,
     UpdateProgressFn,
@@ -32,6 +34,7 @@ type Dependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    listThreadComposerPipelines: ListThreadComposerPipelinesFn;
     maxQueryLimit: number;
     enableDataAccess: boolean;
     canRunSql: boolean;
@@ -94,6 +97,7 @@ export const getRunComposerQueries = ({
     waitForSqlApproval,
     recordSqlApproval,
     createOrUpdateArtifact,
+    listThreadComposerPipelines,
     maxQueryLimit,
     enableDataAccess,
     canRunSql,
@@ -235,6 +239,13 @@ export const getRunComposerQueries = ({
                 // v0 surface is web chat only; keep Slack (if ever assembled
                 // there) to the text result without an artifact.
                 if (!isSlackPrompt(prompt)) {
+                    const pipeline = buildComposerArtifactPipeline({
+                        queries,
+                        submissions,
+                        earlierPipelines: await listThreadComposerPipelines(
+                            prompt.threadUuid,
+                        ),
+                    });
                     await createOrUpdateArtifact({
                         threadUuid: prompt.threadUuid,
                         promptUuid: prompt.promptUuid,
@@ -244,15 +255,10 @@ export const getRunComposerQueries = ({
                         vizConfig: {
                             source: 'composer',
                             schemaVersion: 1,
-                            queries,
+                            queries: pipeline.queries,
                             terminalNodeId: resolvedTerminalNodeId,
                             lastQueryUuid: terminal.queryUuid,
-                            nodeResults: Object.fromEntries(
-                                submissions.map((submission) => [
-                                    submission.nodeId,
-                                    { queryUuid: submission.queryUuid },
-                                ]),
-                            ),
+                            nodeResults: pipeline.nodeResults,
                         } satisfies AiComposerChartArtifactConfig,
                     });
                 }
