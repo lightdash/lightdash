@@ -49,12 +49,13 @@ afterEach(() => {
 });
 
 describe('ciphertext registry', () => {
-    test('contains the full 25-field inventory', () => {
+    test('contains the full 26-field inventory', () => {
         expect(
             CIPHERTEXT_REGISTRY.map((e) => `${e.table}.${e.column}`),
         ).toEqual([
             'projects.dbt_connection',
             'warehouse_credentials.encrypted_credentials',
+            'warehouse_connections.encrypted_credentials',
             'organization_warehouse_credentials.warehouse_connection',
             'user_warehouse_credentials.encrypted_credentials',
             'project_dbt_sources.dbt_connection',
