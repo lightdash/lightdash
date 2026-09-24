@@ -4353,6 +4353,19 @@ export class CoderService extends BaseService {
             connections,
             sqlChartAsCode.connection,
         );
+        if (
+            existingSqlChart?.warehouse_connection_uuid &&
+            existingSqlChart.warehouse_connection_uuid !==
+                warehouseConnectionUuid
+        ) {
+            const currentConnection = getContentConnectionName(
+                connections,
+                existingSqlChart.warehouse_connection_uuid,
+            );
+            throw new ParameterError(
+                `The connection of SQL chart "${slug}" is "${currentConnection}" and cannot change on upload. Move it in the SQL runner, then download it again.`,
+            );
+        }
         const binding: SqlChartConnectionBinding | undefined =
             connections.length > 0
                 ? { kind: 'connection', warehouseConnectionUuid }

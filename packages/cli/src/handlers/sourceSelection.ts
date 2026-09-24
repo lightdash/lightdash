@@ -1,5 +1,6 @@
 import {
     AuthorizationError,
+    ParameterError,
     type ApiProjectDbtSourcesResponse,
     type ProjectDbtSourceSummary,
 } from '@lightdash/common';
@@ -16,7 +17,7 @@ export const selectProjectSource = (
 ): ProjectDbtSourceSummary => {
     const selected = sources.find((source) => source.name === name);
     if (!selected) {
-        throw new Error(
+        throw new ParameterError(
             `The dbt source "${name}" does not belong to this project.\n\nAvailable sources:\n${formatSourceNames(sources)}`,
         );
     }

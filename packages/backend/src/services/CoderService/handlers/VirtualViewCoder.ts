@@ -349,7 +349,7 @@ export class VirtualViewCoder extends BaseService {
                 )[slug] ?? null;
             if (storedBinding !== warehouseConnectionUuid) {
                 throw new ParameterError(
-                    `The connection of virtual view "${slug}" cannot change on upload.`,
+                    `The connection of virtual view "${slug}" cannot change on upload. Create a new virtual view on the other connection.`,
                 );
             }
             const transformed = VirtualViewCoder.transform(existing);

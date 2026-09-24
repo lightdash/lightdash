@@ -1,4 +1,7 @@
-import { type ProjectDbtSourceSummary } from '@lightdash/common';
+import {
+    ParameterError,
+    type ProjectDbtSourceSummary,
+} from '@lightdash/common';
 import { getConfig } from '../config';
 import { lightdashApi } from './dbt/apiClient';
 import {
@@ -42,6 +45,9 @@ describe('selectProjectSource', () => {
     });
 
     test('refuses an unknown name and lists the sources of the project', () => {
+        expect(() => selectProjectSource(sources, 'marketing')).toThrow(
+            ParameterError,
+        );
         expect(() => selectProjectSource(sources, 'marketing')).toThrow(
             'The dbt source "marketing" does not belong to this project.\n\nAvailable sources:\n  - dbt_project\n  - finance',
         );

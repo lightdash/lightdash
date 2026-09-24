@@ -416,7 +416,7 @@ describe('CoderService virtual views as code', () => {
                     true,
                 ),
             ).rejects.toThrow(
-                'The connection of virtual view "orders_by_customer" cannot change on upload.',
+                'The connection of virtual view "orders_by_customer" cannot change on upload. Create a new virtual view on the other connection.',
             );
             expect(projectService.updateVirtualView).not.toHaveBeenCalled();
         });
