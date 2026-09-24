@@ -13,6 +13,7 @@ export type VirtualViewAsCode = {
     sql: string;
     columns: ResultColumn[];
     parameters: ParametersValuesMap | null;
+    connection?: string;
 };
 
 export type VirtualViewAsCodeSkip = {

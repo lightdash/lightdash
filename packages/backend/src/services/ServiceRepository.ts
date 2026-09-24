@@ -1550,6 +1550,8 @@ export class ServiceRepository
                         this.models.getOrganizationMemberProfileModel(),
                     userModel: this.models.getUserModel(),
                     directAccessService: this.getDirectAccessService(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                 }),
         );
     }

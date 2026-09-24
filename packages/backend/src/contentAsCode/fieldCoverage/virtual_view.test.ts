@@ -30,5 +30,12 @@ describeContentAsCodeSchemaContract({
         'warnings',
         'ymlPath',
     ],
-    documentOnlyFields: ['columns', 'contentType', 'slug', 'sql', 'version'],
+    documentOnlyFields: [
+        'columns',
+        'connection',
+        'contentType',
+        'slug',
+        'sql',
+        'version',
+    ],
 });

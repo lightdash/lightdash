@@ -120,6 +120,7 @@ const buildService = (
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,
         userModel: {} as never,
+        warehouseConnectionModel: {} as never,
     });
 
 const stubSpace = (service: CoderService, uuid: string = SPACE_UUID) =>

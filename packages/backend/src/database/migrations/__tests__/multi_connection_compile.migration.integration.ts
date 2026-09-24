@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     calculateCompilationReport,
+    DimensionType,
     ExploreType,
     JobStatusType,
     JobStepType,
@@ -2124,6 +2125,52 @@ describe('Multi-connection compile on the real schema', () => {
                     'not_cached',
                 ),
             ).toBeNull();
+        });
+
+        test('a virtual view is created on the connection it is given, and bindings read in one batch', async () => {
+            const fixture = await createProject();
+            const warehouseClient = warehouseClientFromCredentials(
+                postgresWarehouse(EXTRA_DB),
+            );
+            const payload = {
+                sql: 'SELECT 1 AS amount',
+                columns: [
+                    {
+                        reference: 'amount',
+                        type: DimensionType.NUMBER,
+                    },
+                ],
+            };
+
+            await projectModel.createVirtualView(
+                fixture.projectUuid,
+                { ...payload, name: 'finance_view' },
+                warehouseClient,
+                fixture.extraConnectionUuid,
+            );
+            await projectModel.createVirtualView(
+                fixture.projectUuid,
+                { ...payload, name: 'original_view' },
+                warehouseClient,
+                null,
+            );
+            await projectModel.updateVirtualView(
+                fixture.projectUuid,
+                'finance_view',
+                { ...payload, name: 'Finance view renamed' },
+                warehouseClient,
+            );
+
+            expect(
+                await projectModel.findExploreWarehouseConnectionUuids(
+                    fixture.projectUuid,
+                    ['finance_view', 'original_view', 'not_cached'],
+                ),
+            ).toEqual({
+                finance_view: fixture.extraConnectionUuid,
+                original_view: null,
+                not_cached: null,
+            });
         });
 
         test('a connection uuid inside the explore JSON is not the binding', async () => {

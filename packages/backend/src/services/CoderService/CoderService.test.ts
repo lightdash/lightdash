@@ -1157,6 +1157,7 @@ describe('CoderService', () => {
                 groupsModel: {} as AnyType,
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
             });
 
             const { tiles: result } = await service.convertTileWithSlugsToUuids(
@@ -1246,6 +1247,7 @@ describe('CoderService', () => {
                 groupsModel: {} as AnyType,
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
             });
 
             const { tiles, warnings } =
@@ -1312,6 +1314,7 @@ describe('CoderService', () => {
                 groupsModel: {} as AnyType,
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
             });
 
             const { tiles: result } = await service.convertTileWithSlugsToUuids(
@@ -1374,6 +1377,7 @@ describe('CoderService', () => {
                 groupsModel: {} as AnyType,
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
             });
         };
 
@@ -1508,6 +1512,7 @@ describe('CoderService', () => {
                 groupsModel: {} as AnyType,
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
             });
 
             const { tiles, warnings } =
@@ -1585,6 +1590,7 @@ describe('CoderService', () => {
                 groupsModel: {} as AnyType,
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
             });
 
             const { tiles, warnings } =

@@ -2532,6 +2532,24 @@ export class ProjectModel {
         }));
     }
 
+    async findExploreWarehouseConnectionUuids(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<Record<string, string | null>> {
+        const rows = await this.database(CachedExploreTableName)
+            .select<
+                { name: string; warehouse_connection_uuid: string | null }[]
+            >('name', 'warehouse_connection_uuid')
+            .where('project_uuid', projectUuid)
+            .whereIn('name', exploreNames);
+        const bindings = new Map(
+            rows.map((row) => [row.name, row.warehouse_connection_uuid]),
+        );
+        return Object.fromEntries(
+            exploreNames.map((name) => [name, bindings.get(name) ?? null]),
+        );
+    }
+
     async getExploreWarehouseConnectionUuid(
         projectUuid: string,
         exploreName: string,
@@ -6353,6 +6371,7 @@ export class ProjectModel {
             parameterValues,
         }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
+        warehouseConnectionUuid: string | null = null,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
             name,
@@ -6380,6 +6399,7 @@ export class ProjectModel {
                 name: virtualView.name,
                 table_names: Object.keys(virtualView.tables || {}),
                 explore: virtualView,
+                warehouse_connection_uuid: warehouseConnectionUuid,
             });
         });
 

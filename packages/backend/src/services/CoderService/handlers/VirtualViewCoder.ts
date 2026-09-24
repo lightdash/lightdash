@@ -17,15 +17,21 @@ import {
     SessionUser,
     snakeCaseName,
     VirtualViewAsCode,
+    type WarehouseConnection,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../../BaseService';
 import { ProjectService } from '../../ProjectService/ProjectService';
 
 type VirtualViewCoderArguments = {
     projectModel: ProjectModel;
     projectService?: ProjectService;
+    warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'list'
+    >;
 };
 
 export class VirtualViewCoder extends BaseService {
@@ -33,10 +39,68 @@ export class VirtualViewCoder extends BaseService {
 
     private readonly projectService?: ProjectService;
 
-    constructor({ projectModel, projectService }: VirtualViewCoderArguments) {
+    private readonly warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'list'
+    >;
+
+    constructor({
+        projectModel,
+        projectService,
+        warehouseConnectionModel,
+    }: VirtualViewCoderArguments) {
         super();
         this.projectModel = projectModel;
         this.projectService = projectService;
+        this.warehouseConnectionModel = warehouseConnectionModel;
+    }
+
+    private async listConnections(
+        projectUuid: string,
+    ): Promise<WarehouseConnection[]> {
+        if (
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'original',
+            })) !== 'multi'
+        ) {
+            return [];
+        }
+        return this.warehouseConnectionModel.list(
+            await this.warehouseConnectionModel.getProject(projectUuid),
+        );
+    }
+
+    private static withConnection(
+        virtualView: VirtualViewAsCode,
+        connections: WarehouseConnection[],
+        warehouseConnectionUuid: string | null,
+    ): VirtualViewAsCode {
+        const connection = connections.find(
+            (candidate) =>
+                !candidate.isOriginal &&
+                candidate.warehouseConnectionUuid === warehouseConnectionUuid,
+        );
+        return connection
+            ? { ...virtualView, connection: connection.name }
+            : virtualView;
+    }
+
+    private async resolveConnection(
+        projectUuid: string,
+        name: string | undefined,
+    ): Promise<string | null> {
+        if (name === undefined) return null;
+        const connection = (await this.listConnections(projectUuid)).find(
+            (candidate) => candidate.name === name,
+        );
+        if (!connection) {
+            throw new ParameterError(
+                `This project has no connection named "${name}".`,
+            );
+        }
+        return connection.isOriginal
+            ? null
+            : connection.warehouseConnectionUuid;
     }
 
     private static transform(virtualView: Explore): VirtualViewAsCode | null {
@@ -104,6 +168,14 @@ export class VirtualViewCoder extends BaseService {
         const requested = slugs ? new Set(slugs) : null;
         const cached =
             await this.projectModel.findVirtualViewsFromCache(projectUuid);
+        const connections = await this.listConnections(projectUuid);
+        const bindings =
+            connections.length === 0
+                ? {}
+                : await this.projectModel.findExploreWarehouseConnectionUuids(
+                      projectUuid,
+                      Object.keys(cached),
+                  );
         const virtualViews: VirtualViewAsCode[] = [];
         const skipped: ApiVirtualViewAsCodeListResponse['results']['skipped'] =
             [];
@@ -122,7 +194,14 @@ export class VirtualViewCoder extends BaseService {
                     return;
                 }
                 const transformed = VirtualViewCoder.transform(explore);
-                if (transformed) virtualViews.push(transformed);
+                if (transformed)
+                    virtualViews.push(
+                        VirtualViewCoder.withConnection(
+                            transformed,
+                            connections,
+                            bindings[explore.name] ?? null,
+                        ),
+                    );
                 else {
                     skipped.push({
                         slug: explore.name,
@@ -240,6 +319,10 @@ export class VirtualViewCoder extends BaseService {
             virtualView.parameters ?? undefined,
         );
 
+        const warehouseConnectionUuid = await this.resolveConnection(
+            projectUuid,
+            virtualView.connection,
+        );
         const existingByName = await this.projectModel.findExploresFromCache(
             projectUuid,
             'name',
@@ -261,7 +344,26 @@ export class VirtualViewCoder extends BaseService {
             ),
         };
         if (existing && existing.type === ExploreType.VIRTUAL) {
-            const current = VirtualViewCoder.transform(existing);
+            const storedBinding =
+                (
+                    await this.projectModel.findExploreWarehouseConnectionUuids(
+                        projectUuid,
+                        [slug],
+                    )
+                )[slug] ?? null;
+            if (storedBinding !== warehouseConnectionUuid) {
+                throw new ParameterError(
+                    `The connection of virtual view "${slug}" cannot change on upload.`,
+                );
+            }
+            const transformed = VirtualViewCoder.transform(existing);
+            const current = transformed
+                ? VirtualViewCoder.withConnection(
+                      transformed,
+                      await this.listConnections(projectUuid),
+                      storedBinding,
+                  )
+                : null;
             if (!current && !force) {
                 throw new ParameterError(
                     'Malformed existing virtual view requires force to replace',
@@ -314,6 +416,7 @@ export class VirtualViewCoder extends BaseService {
                 parameterValues: normalized.parameters ?? undefined,
             },
             false,
+            warehouseConnectionUuid,
         );
         return { action: PromotionAction.CREATE };
     }

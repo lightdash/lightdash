@@ -13403,6 +13403,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         payload: CreateVirtualViewPayload,
         resolveParameterValues = true,
+        warehouseConnectionUuid: string | null = null,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -13435,7 +13436,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                binding: { kind: 'connection', warehouseConnectionUuid },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -13456,6 +13457,7 @@ export class ProjectService extends BaseService {
                 parameterValues: effectiveParameterValues,
             },
             warehouseClient,
+            warehouseConnectionUuid,
         );
 
         this.analytics.trackAccount(account, {

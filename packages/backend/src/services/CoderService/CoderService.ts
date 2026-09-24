@@ -131,6 +131,7 @@ import {
 } from '../../models/SpaceModel';
 import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
@@ -210,6 +211,10 @@ type CoderServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
     directAccessService: DirectAccessService;
+    warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'list'
+    >;
 };
 
 type UpsertContentAsCodeOptions = {
@@ -308,6 +313,7 @@ export class CoderService extends BaseService {
         organizationMemberProfileModel,
         userModel,
         directAccessService,
+        warehouseConnectionModel,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -337,6 +343,7 @@ export class CoderService extends BaseService {
         this.virtualViewCoder = new VirtualViewCoder({
             projectModel,
             projectService,
+            warehouseConnectionModel,
         });
         this.scheduledContentCoder = new ScheduledContentCoder({
             projectModel,
