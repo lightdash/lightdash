@@ -162,9 +162,18 @@ export const isChartEditAttempt = (resolution: ChartIntentResolution) =>
     (resolution.type === 'unresolved' &&
         !NON_EDIT_REASONS.has(resolution.reason));
 
+export const INSTANT_REPLY_KINDS = [
+    'acknowledgement',
+    'show_query',
+    'download_help',
+] as const;
+export type InstantReplyKind = (typeof INSTANT_REPLY_KINDS)[number];
+
 export type TurnDecision = {
     simpleDataAnswer: boolean;
     chart: ChartIntentResolution | null;
+    /** A small turn the service can answer without the agent, when JEV is sure. */
+    instantReply: InstantReplyKind | null;
 };
 
 export type FieldCandidate = {
@@ -246,6 +255,8 @@ export const CHART_INTENT_THRESHOLDS = {
     option: 0.5,
     value: 0.6,
     simpleDataAnswer: 0.7,
+    instantReply: 0.85,
+    englishPrompt: 0.8,
     clarifyPair: 0.75,
     clarifyRunnerUp: 0.2,
     clarifyBelow: 0.8,
@@ -2203,6 +2214,46 @@ export const verifyChartPlan = async ({
         : { type: 'unresolved', reason: 'not-covered' };
 };
 
+const INSTANT_REPLY_QUESTIONS: Record<string, DecisionQuestion> = {
+    instantReply: {
+        type: 'choice',
+        instructions:
+            'Is `prompt` one of these small follow-ups about the previous answer, needing no new analysis?',
+        criteria: {
+            acknowledgement:
+                'Only thanks, agreement or a reaction to the previous answer; it asks for nothing',
+            show_query: 'Asks to see the query or SQL behind the current chart',
+            download_help:
+                'Asks how to download or export the current data or chart',
+            other: 'Anything else, including any change, new data, a question about the data or an explanation',
+        },
+    },
+    englishPrompt: {
+        type: 'noul',
+        instructions: 'Is `prompt` written in English?',
+    },
+};
+
+const isInstantReplyKind = (value: string | null): value is InstantReplyKind =>
+    INSTANT_REPLY_KINDS.some((kind) => kind === value);
+
+/** Only confident, English, non-edit small turns skip the agent; the replies are fixed English text. */
+const instantReplyOf = (
+    answers: DecisionAnswers,
+    chart: ChartIntentResolution | null,
+): InstantReplyKind | null => {
+    const kind = confident(
+        answers.instantReply,
+        CHART_INTENT_THRESHOLDS.instantReply,
+    );
+    if (!isInstantReplyKind(kind) || (chart && isChartEditAttempt(chart)))
+        return null;
+    return (decisionProbability(answers.englishPrompt) ?? 0) >=
+        CHART_INTENT_THRESHOLDS.englishPrompt
+        ? kind
+        : null;
+};
+
 /** One batched request per turn: model routing plus, on chart threads, the chart intent. */
 export const decideTurn = async ({
     decisions,
@@ -2229,9 +2280,12 @@ export const decideTurn = async ({
                   chart: describeChart(context, { filterDetails: true }),
               }
             : { prompt, instructions },
-        questions: context
-            ? buildChartIntentQuestions({ prompt, context })
-            : { simple: SIMPLE_DATA_ANSWER_QUESTION },
+        questions: {
+            ...(context
+                ? buildChartIntentQuestions({ prompt, context })
+                : { simple: SIMPLE_DATA_ANSWER_QUESTION }),
+            ...INSTANT_REPLY_QUESTIONS,
+        },
     });
     if (!answers)
         return {
@@ -2240,6 +2294,7 @@ export const decideTurn = async ({
                 chart: context
                     ? { type: 'unresolved', reason: 'decision-unavailable' }
                     : null,
+                instantReply: null,
             },
             answers: null,
         };
@@ -2262,6 +2317,7 @@ export const decideTurn = async ({
                 (decisionProbability(answers.simple) ?? 0) >=
                     CHART_INTENT_THRESHOLDS.simpleDataAnswer,
             chart,
+            instantReply: instantReplyOf(answers, chart),
         },
         answers,
     };

@@ -37,6 +37,18 @@ describe('describeJevDecision', () => {
         ).toMatchObject({ applied: true, badge: 'JEV · clarifying question' });
     });
 
+    it('credits JEV for an instant reply', () => {
+        expect(
+            describeJevDecision(
+                decision({
+                    outcome: 'instant_reply',
+                    applied: true,
+                    editKind: 'show_query',
+                }),
+            ),
+        ).toMatchObject({ applied: true, badge: 'JEV · query summary' });
+    });
+
     it('keeps the reason code for handoffs', () => {
         expect(
             describeJevDecision(

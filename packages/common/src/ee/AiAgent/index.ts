@@ -304,7 +304,8 @@ export type AiAgentJevDecision = {
         | 'not_an_edit'
         | 'unresolved'
         | 'unavailable'
-        | 'routed';
+        | 'routed'
+        | 'instant_reply';
     /** True when the edit was applied without the agent. */
     applied: boolean;
     /** Why the edit could not be resolved, when JEV tried. */
