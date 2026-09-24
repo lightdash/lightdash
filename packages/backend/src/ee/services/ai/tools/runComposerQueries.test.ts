@@ -203,6 +203,11 @@ describe('getRunComposerQueries', () => {
                     ],
                     terminalNodeId: 'joined',
                     lastQueryUuid: 'query-3',
+                    nodeResults: {
+                        revenue: { queryUuid: 'query-1' },
+                        signups: { queryUuid: 'query-2' },
+                        joined: { queryUuid: 'query-3' },
+                    },
                 }),
             }),
         );

@@ -14,6 +14,8 @@ export type AiComposerChartArtifactConfig = {
     terminalNodeId: QueryNodeId;
     /** Snapshot of the terminal node's last run; rendering v0 reads only this. */
     lastQueryUuid: string;
+    /** One entry per node in `queries`; optional only for rows written before this field existed. */
+    nodeResults?: Record<QueryNodeId, { queryUuid: string }>;
 };
 
 export const isAiComposerChartArtifactConfig = (
