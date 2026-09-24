@@ -657,7 +657,9 @@ export const LiveActivityCard: FC<Props> = ({
     const [userExpanded, setUserExpanded] = useState(false);
 
     // Query tools expand by default so their SQL is legible while running.
-    // The user's explicit toggle resets when the active tool changes.
+    // Composer collapses once the run finishes: its artifact panel already
+    // shows the pipeline. The user's explicit toggle resets when the active
+    // tool changes.
     const latestKeyId =
         toolGroups.length > 0
             ? toolGroups[toolGroups.length - 1].keyId
@@ -667,13 +669,11 @@ export const LiveActivityCard: FC<Props> = ({
             ? toolGroups[toolGroups.length - 1].toolName
             : undefined;
     useEffect(() => {
-        if (
+        setUserExpanded(
             latestToolName === 'runSql' ||
-            latestToolName === 'runComposerQueries'
-        )
-            setUserExpanded(true);
-        else setUserExpanded(false);
-    }, [latestKeyId, latestToolName]);
+                (isLive && latestToolName === 'runComposerQueries'),
+        );
+    }, [isLive, latestKeyId, latestToolName]);
 
     if (toolGroups.length === 0 && !pendingContent) return null;
 
