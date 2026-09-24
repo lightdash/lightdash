@@ -60564,6 +60564,14 @@
                     "exploreName": {
                         "type": "string"
                     },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
                     "nodeId": {
                         "$ref": "#/components/schemas/QueryNodeId",
                         "description": "Names this query so other queries in the same submission can reference its results."
@@ -60597,6 +60605,14 @@
                     },
                     "sql": {
                         "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
                     },
                     "nodeId": {
                         "$ref": "#/components/schemas/QueryNodeId",
@@ -60648,6 +60664,14 @@
                     },
                     "sql": {
                         "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
                     },
                     "nodeId": {
                         "$ref": "#/components/schemas/QueryNodeId",
@@ -60703,6 +60727,14 @@
                     },
                     "sql": {
                         "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
                     },
                     "nodeId": {
                         "$ref": "#/components/schemas/QueryNodeId",
@@ -64711,7 +64743,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.315.0",
+        "version": "2.316.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

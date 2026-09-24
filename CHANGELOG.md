@@ -1,3 +1,11 @@
+# [2.316.0](https://github.com/lightdash/lightdash/compare/2.315.0...2.316.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agent:** composer artifact pipeline panel, List mode ([#29804](https://github.com/lightdash/lightdash/issues/29804)) ([e2b6282](https://github.com/lightdash/lightdash/commit/e2b628289a6958ab86370a4c5b67f4c783cdae9b))
+* **ai-agent:** composer node titles from the agent, end to end ([#29803](https://github.com/lightdash/lightdash/issues/29803)) ([a729fe7](https://github.com/lightdash/lightdash/commit/a729fe7a8337333fa883541fb8a335e50d2ae2e5))
+
 # [2.315.0](https://github.com/lightdash/lightdash/compare/2.314.2...2.315.0) (2026-09-24)
 
 
