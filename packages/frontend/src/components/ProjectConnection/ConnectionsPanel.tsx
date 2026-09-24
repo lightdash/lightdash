@@ -1,8 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    DbtProjectType,
-    DefaultSupportedDbtVersion,
     omitEmptySecrets,
     ProjectType,
     validateWarehouseConnectionName,
@@ -39,6 +37,7 @@ import {
 import { useRef, useState, type FC } from 'react';
 import {
     hidesConnectionsPanel,
+    isSingleConnectionProject,
     useCreateWarehouseConnection,
     useDeleteWarehouseConnection,
     useRenameWarehouseConnection,
@@ -49,23 +48,17 @@ import {
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { ConnectionFields } from './ConnectionFields';
+import { unusedDbtFormValues } from './connectionFormDefaults';
 import classes from './ConnectionsPanel.module.css';
-import { dbtDefaults } from './DbtForms/defaultValues';
-import { FormProvider, useForm, type Form } from './formContext';
+import { EnableMultipleConnectionsCard } from './EnableMultipleConnections';
+import { useForm } from './formContext';
 import { getWarehouseLabel } from './ProjectConnectFlow/utils';
-import { ProjectFormProvider } from './ProjectFormProvider';
 import WarehouseDatabaseListingFields, {
     type WarehouseDatabaseListingValues,
 } from './WarehouseDatabaseListingFields';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { warehouseValueValidators } from './WarehouseForms/validators';
-import WarehouseSchemaInput from './WarehouseSchemaInput';
-import WarehouseSettingsForm from './WarehouseSettingsForm';
-
-const unusedDbtFormValues = {
-    dbt: { ...dbtDefaults.formValues[DbtProjectType.NONE] },
-    dbtVersion: DefaultSupportedDbtVersion,
-};
 
 const ConnectionRow: FC<{
     connection: WarehouseConnection;
@@ -130,55 +123,6 @@ const ConnectionRow: FC<{
             </Menu.Dropdown>
         </Menu>
     </Group>
-);
-
-const ConnectionFields: FC<{
-    form: Form;
-    intro: string;
-    projectUuid: string;
-    warehouseType: WarehouseTypes;
-    nameRef?: React.Ref<HTMLInputElement>;
-    savedProject?: Project;
-    showName: boolean;
-}> = ({
-    form,
-    intro,
-    projectUuid,
-    warehouseType,
-    nameRef,
-    savedProject,
-    showName,
-}) => (
-    <FormProvider form={form}>
-        <ProjectFormProvider
-            projectUuid={projectUuid}
-            savedProject={savedProject}
-        >
-            <Stack gap="md">
-                <Text size="sm" c="dimmed">
-                    {intro}
-                </Text>
-                {showName && (
-                    <TextInput
-                        ref={nameRef}
-                        label="Name"
-                        description="Shown wherever this connection is picked."
-                        placeholder="e.g. Finance warehouse"
-                        required
-                        maxLength={WAREHOUSE_CONNECTION_NAME_MAX_LENGTH}
-                        {...form.getInputProps('name')}
-                    />
-                )}
-                <WarehouseSettingsForm disabled={false}>
-                    <WarehouseSchemaInput
-                        warehouseType={warehouseType}
-                        disabled={false}
-                        warehouseOnly
-                    />
-                </WarehouseSettingsForm>
-            </Stack>
-        </ProjectFormProvider>
-    </FormProvider>
 );
 
 const AddConnectionModal: FC<{
@@ -518,6 +462,9 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
     const [action, setAction] = useState<ConnectionAction | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
 
+    if (isEnabled && isSingleConnectionProject(error)) {
+        return <EnableMultipleConnectionsCard projectUuid={projectUuid} />;
+    }
     if (!isEnabled || hidesConnectionsPanel(error)) {
         return null;
     }

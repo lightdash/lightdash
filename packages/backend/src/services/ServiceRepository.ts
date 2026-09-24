@@ -101,6 +101,7 @@ import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
 import { WarehouseConnectionBindingService } from './WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { WarehouseConnectionService } from './WarehouseConnectionService/WarehouseConnectionService';
+import { WarehouseConnectionSwitchService } from './WarehouseConnectionSwitchService/WarehouseConnectionSwitchService';
 import { WarehouseConnectService } from './WarehouseConnectService/WarehouseConnectService';
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
@@ -182,6 +183,7 @@ interface ServiceManifest {
     projectParametersService: ProjectParametersService;
     projectDbtSourcesService: ProjectDbtSourcesService;
     warehouseConnectionService: WarehouseConnectionService;
+    warehouseConnectionSwitchService: WarehouseConnectionSwitchService;
     warehouseConnectionBindingService: WarehouseConnectionBindingService;
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
@@ -2087,6 +2089,24 @@ export class ServiceRepository
                     featureFlagService: this.getFeatureFlagService(),
                     licenseService: this.getLicenseService(),
                     credentialPolicy: this.getProjectService(),
+                }),
+        );
+    }
+
+    public getWarehouseConnectionSwitchService(): WarehouseConnectionSwitchService {
+        return this.getService(
+            'warehouseConnectionSwitchService',
+            () =>
+                new WarehouseConnectionSwitchService({
+                    warehouseConnectionSwitchModel:
+                        this.models.getWarehouseConnectionSwitchModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
+                    projectModel: this.models.getProjectModel(),
+                    featureFlagService: this.getFeatureFlagService(),
+                    licenseService: this.getLicenseService(),
+                    credentialPolicy: this.getProjectService(),
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }
