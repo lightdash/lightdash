@@ -75,11 +75,11 @@
     margin-bottom: 5px;
 }
 
-.nodeId {
-    flex-shrink: 0;
+.title {
+    flex-shrink: 1;
+    min-width: 0;
     color: var(--mantine-color-ldGray-9);
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     line-height: 1;
 }

@@ -36,6 +36,8 @@ type ComposerNode = ToolComposerQueriesArgs['queries'][number];
 const semanticNode: ComposerNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
     nodeId: 'revenue',
+    title: 'Revenue by month',
+    description: null,
     exploreName: 'payments',
     dimensions: ['payments_month'],
     metrics: ['payments_total_revenue'],
@@ -47,6 +49,8 @@ const semanticNode: ComposerNode = {
 const sqlNode: ComposerNode = {
     sourceType: QuerySourceType.SQL,
     nodeId: 'signups',
+    title: 'Signups by month',
+    description: null,
     sql: 'SELECT month, count(*) AS signups FROM raw.users GROUP BY 1',
     limit: 500,
 };
@@ -54,6 +58,8 @@ const sqlNode: ComposerNode = {
 const duckdbNode: ComposerNode = {
     sourceType: QuerySourceType.DUCKDB,
     nodeId: 'joined',
+    title: 'Revenue vs signups',
+    description: 'Joins monthly revenue with monthly signups.',
     sql: 'SELECT * FROM revenue JOIN signups USING (month)',
     references: ['revenue', 'signups'],
     limit: 500,
@@ -62,6 +68,8 @@ const duckdbNode: ComposerNode = {
 const externalNode: ComposerNode = {
     sourceType: QuerySourceType.EXTERNAL,
     nodeId: 'targets',
+    title: 'Targets by region',
+    description: null,
     sql: 'SELECT region, target FROM targets',
     tables: {
         targets: '2b7cd26e-1b5a-4aaf-9955-e25c381c501f',
@@ -177,6 +185,22 @@ describe('getRunComposerQueries', () => {
                 vizConfig: expect.objectContaining({
                     source: 'composer',
                     schemaVersion: 1,
+                    queries: [
+                        expect.objectContaining({
+                            nodeId: 'revenue',
+                            title: 'Revenue by month',
+                        }),
+                        expect.objectContaining({
+                            nodeId: 'signups',
+                            title: 'Signups by month',
+                        }),
+                        expect.objectContaining({
+                            nodeId: 'joined',
+                            title: 'Revenue vs signups',
+                            description:
+                                'Joins monthly revenue with monthly signups.',
+                        }),
+                    ],
                     terminalNodeId: 'joined',
                     lastQueryUuid: 'query-3',
                 }),
@@ -276,6 +300,7 @@ describe('getRunComposerQueries', () => {
             queries: [
                 {
                     ...externalNode,
+                    description: undefined,
                     tables: {
                         targets: '2b7cd26e-1b5a-4aaf-9955-e25c381c501f',
                     },
@@ -305,8 +330,13 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.runComposerQueries).toHaveBeenCalledWith({
             queries: [
-                { ...semanticNode, filters: undefined, sorts: undefined },
-                externalNode,
+                {
+                    ...semanticNode,
+                    description: undefined,
+                    filters: undefined,
+                    sorts: undefined,
+                },
+                { ...externalNode, description: undefined },
                 composedNode,
             ],
             terminalNodeId: 'joined',

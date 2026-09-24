@@ -16,25 +16,17 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 
-export const TOOL_COMPOSER_QUERIES_DESCRIPTION = `Execute a composer query: a pipeline of one or more queries submitted together, where DuckDB queries can join and transform the results of the other queries. Results are stored as a chart artifact that renders the terminal node's results table in the thread.
+export const TOOL_COMPOSER_QUERIES_DESCRIPTION = `Run a pipeline: one or more queries submitted together, where duckdb queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.
 
-Use this tool when a single source cannot answer the question — e.g. joining a semantic layer metric query with an uploaded CSV, joining with raw warehouse SQL, or post-processing prior results with SQL. A pipeline may also be a single node: a lone "sql" node is how raw warehouse SQL runs when no standalone runSql tool is available.
+Node kinds:
+- "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
+- "sql": raw SQL against the project warehouse; may need user approval. A lone sql node is how raw SQL runs when there is no runSql tool.
+- "external": DuckDB SQL over uploaded or connected tables declared in "tables".
+- "duckdb": DuckDB SQL over other results declared in "references".
 
-How to build a pipeline:
-- Every query is a node. Name each node with "nodeId" (letters, digits, underscores; starting with a letter or underscore).
-- "semanticLayer" nodes run a metric query against an explore. Result columns are named by field id — exactly the dimensions and metrics requested (e.g. metric "payments_total_revenue" yields column "payments_total_revenue").
-- "sql" nodes run raw SQL against the project's data warehouse, in the warehouse's SQL dialect. Result columns are the SELECT output names. SQL execution may require the user to approve the SQL first.
-- "external" nodes run DuckDB SQL over durable external tables such as uploaded CSVs and connected data sources. Declare the tables via "tables": an array of table names, or a map of {sqlAlias: tableNameOrTableUuid}. Use the exact table name or UUID supplied in the user's attached-source context. One source may expose many tables, and one external node can read any subset of them. Result columns are the SELECT output names.
-- "duckdb" nodes run DuckDB SQL over other queries' results. Declare which results the SQL reads via "references": the shorthand array form lists node ids from this submission, each exposed as a table named by its node id (["orders", "revenue"] lets the SQL run SELECT * FROM orders JOIN revenue ...); the map form aliases tables or references stored results by queryUuid ({"o": "orders", "prev": "<queryUuid>"}). A referenced table's columns are the upstream result's columns.
-- The "terminal" node is the one whose results the artifact shows and whose rows are returned to you. By default it is the unique sink (the one node no other node references); pass "terminalNodeId" explicitly when the pipeline has multiple sinks.
+Every node has a "nodeId" (for references) and a "title" (what users see). The terminal node is the unique sink by default, or "terminalNodeId".
 
-Results are reusable across calls:
-- Every call returns a queryUuid per node. Any of them — not just the terminal one — can be referenced by a later call via the map form of "references".
-- Referencing a queryUuid reads the stored result; the query behind it is NOT re-run. A duckdb-only submission over stored results touches no source and needs no SQL approval, however many times you iterate.
-- This supports step-by-step work: run a source query once, then explore its result with as many follow-up duckdb submissions over the same queryUuid as you need.
-- The artifact shown in the thread always renders your LATEST call's terminal result, so finish with the submission that produces the table the user should see — referencing earlier queryUuids keeps that final pipeline small.
-
-Returns the terminal node's result columns and a CSV preview of its rows, plus per-node queryUuids.`;
+Reuse across calls: every call returns a queryUuid per node. Referencing a queryUuid in the map form of "references" reads the stored result without re-running it or asking for approval. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.`;
 
 const nodeIdSchema = z
     .string()
@@ -45,6 +37,24 @@ const nodeIdSchema = z
     .describe(
         'Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.',
     );
+
+const nodeTitleSchema = z
+    .string()
+    .describe(
+        'Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.',
+    );
+
+const nodeDescriptionSchema = z
+    .string()
+    .nullable()
+    .describe(
+        'One sentence on what this query does, only when the title is not enough. Null otherwise.',
+    );
+
+const nodeMetaSchema = {
+    title: nodeTitleSchema,
+    description: nodeDescriptionSchema,
+};
 
 const semanticLayerFiltersSchema = z
     .object({
@@ -85,6 +95,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const semanticLayerNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.SEMANTIC_LAYER),
         nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
         exploreName: z
             .string()
             .describe('The explore to run the metric query against.'),
@@ -111,6 +122,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const sqlNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.SQL),
         nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
         sql: z
             .string()
             .describe(
@@ -122,6 +134,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const duckdbNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.DUCKDB),
         nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
         sql: z
             .string()
             .describe(
@@ -138,6 +151,7 @@ export const createToolComposerQueriesArgsSchema = ({
     const externalNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.EXTERNAL),
         nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
         sql: z
             .string()
             .describe(
@@ -193,6 +207,13 @@ export type ToolComposerQueryNode = z.infer<
     typeof toolComposerQueriesArgsSchema
 >['queries'][number];
 
+const toSourceQueryNodeMeta = (
+    node: ToolComposerQueryNode,
+): Pick<SqlSourceQuery, 'title' | 'description'> => ({
+    title: node.title,
+    description: node.description ?? undefined,
+});
+
 /**
  * Converts a validated tool node into the canonical SourceQuery shape the
  * query source service takes. The explicit return types pin drift at compile
@@ -213,6 +234,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
                 exploreName: node.exploreName,
                 dimensions: node.dimensions,
                 metrics: node.metrics,
@@ -225,6 +247,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
                 sql: node.sql,
                 limit: node.limit,
             };
@@ -232,6 +255,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
                 sql: node.sql,
                 references: node.references,
                 limit: node.limit,
@@ -240,6 +264,7 @@ export const toolComposerQueryNodeToSourceQuery = (
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
                 sql: node.sql,
                 tables: node.tables,
                 limit: node.limit,
@@ -293,12 +318,19 @@ export const parsePartialToolComposerQueriesArgs = (
         const { nodeId } = node;
         if (typeof nodeId !== 'string' || nodeId.length === 0) return [];
         const sql = typeof node.sql === 'string' ? node.sql : '';
+        const meta = {
+            nodeId,
+            // Title falls back to the node id until it streams in
+            title: typeof node.title === 'string' ? node.title : nodeId,
+            description:
+                typeof node.description === 'string' ? node.description : null,
+        };
         switch (node.sourceType) {
             case QuerySourceType.SEMANTIC_LAYER:
                 return [
                     {
                         sourceType: QuerySourceType.SEMANTIC_LAYER,
-                        nodeId,
+                        ...meta,
                         exploreName:
                             typeof node.exploreName === 'string'
                                 ? node.exploreName
@@ -314,7 +346,7 @@ export const parsePartialToolComposerQueriesArgs = (
                 return [
                     {
                         sourceType: QuerySourceType.SQL,
-                        nodeId,
+                        ...meta,
                         sql,
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
@@ -323,7 +355,7 @@ export const parsePartialToolComposerQueriesArgs = (
                 return [
                     {
                         sourceType: QuerySourceType.DUCKDB,
-                        nodeId,
+                        ...meta,
                         sql,
                         references: asReferenceMapOrArray(node.references),
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -333,7 +365,7 @@ export const parsePartialToolComposerQueriesArgs = (
                 return [
                     {
                         sourceType: QuerySourceType.EXTERNAL,
-                        nodeId,
+                        ...meta,
                         sql,
                         tables: asReferenceMapOrArray(node.tables),
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,

@@ -26,6 +26,8 @@ describe('LiveActivityCard composer queries', () => {
                                             sourceType:
                                                 QuerySourceType.EXTERNAL,
                                             nodeId: 'targets',
+                                            title: 'Revenue targets',
+                                            description: null,
                                             sql: 'select * from targets_csv',
                                             tables: ['targets_csv'],
                                             limit: 500,

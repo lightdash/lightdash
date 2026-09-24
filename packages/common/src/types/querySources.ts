@@ -80,6 +80,10 @@ export type SemanticLayerSourceQuery = {
     sourceType: QuerySourceType.SEMANTIC_LAYER;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     exploreName: string;
     /** Dimension field ids to group by, from the explore's schema. */
     dimensions: FieldId[];
@@ -121,6 +125,10 @@ export type SqlSourceQuery = {
     sourceType: QuerySourceType.SQL;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     sql: string;
     limit?: number;
     /**
@@ -145,6 +153,10 @@ export type DuckdbSourceQuery = {
     sourceType: QuerySourceType.DUCKDB;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     sql: string;
     limit?: number;
     /**
@@ -180,6 +192,10 @@ export type ExternalSourceQuery = {
     sourceType: QuerySourceType.EXTERNAL;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     sql: string;
     limit?: number;
     tables:

@@ -2,7 +2,81 @@ import { QuerySourceType } from '../../../../types/querySources';
 import {
     DEFAULT_COMPOSER_QUERY_LIMIT,
     parsePartialToolComposerQueriesArgs,
+    toolComposerQueriesArgsSchema,
+    toolComposerQueryNodeToSourceQuery,
 } from './toolComposerQueryArgs';
+
+describe('toolComposerQueriesArgsSchema node titles', () => {
+    const sqlNode = {
+        sourceType: QuerySourceType.SQL,
+        nodeId: 'signups',
+        title: 'Signups by month',
+        description: null,
+        sql: 'SELECT 1',
+    };
+    const args = (node: object) => ({
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [node],
+    });
+
+    it('requires a title on every node', () => {
+        const { title, ...untitled } = sqlNode;
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(args(untitled)).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(args(sqlNode)).success,
+        ).toBe(true);
+    });
+
+    it('accepts a null description', () => {
+        const parsed = toolComposerQueriesArgsSchema.parse(args(sqlNode));
+        expect(parsed.queries[0].description).toBeNull();
+    });
+});
+
+describe('toolComposerQueryNodeToSourceQuery', () => {
+    it('keeps title and description, mapping null description to undefined', () => {
+        expect(
+            toolComposerQueryNodeToSourceQuery({
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'joined',
+                title: 'Revenue vs signups',
+                description: 'Joins revenue with signups by month.',
+                sql: 'SELECT * FROM revenue JOIN signups USING (month)',
+                references: ['revenue', 'signups'],
+                limit: 500,
+            }),
+        ).toEqual({
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'joined',
+            title: 'Revenue vs signups',
+            description: 'Joins revenue with signups by month.',
+            sql: 'SELECT * FROM revenue JOIN signups USING (month)',
+            references: ['revenue', 'signups'],
+            limit: 500,
+        });
+        expect(
+            toolComposerQueryNodeToSourceQuery({
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'signups',
+                title: 'Signups',
+                description: null,
+                sql: 'SELECT 1',
+                limit: 500,
+            }),
+        ).toEqual({
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'signups',
+            title: 'Signups',
+            description: undefined,
+            sql: 'SELECT 1',
+            limit: 500,
+        });
+    });
+});
 
 describe('parsePartialToolComposerQueriesArgs', () => {
     it('returns null when no node is renderable yet', () => {
@@ -33,6 +107,8 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                 {
                     sourceType: QuerySourceType.SEMANTIC_LAYER,
                     nodeId: 'revenue',
+                    title: 'Revenue by month',
+                    description: 'Total revenue per month.',
                     exploreName: 'payments',
                     dimensions: ['payments_month'],
                     // metrics not streamed yet
@@ -40,6 +116,7 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                 {
                     sourceType: QuerySourceType.SQL,
                     nodeId: 'signups',
+                    // title not streamed yet
                     sql: 'SELECT month, count(*) FROM raw.us',
                 },
             ],
@@ -53,6 +130,8 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                 {
                     sourceType: QuerySourceType.SEMANTIC_LAYER,
                     nodeId: 'revenue',
+                    title: 'Revenue by month',
+                    description: 'Total revenue per month.',
                     exploreName: 'payments',
                     dimensions: ['payments_month'],
                     metrics: [],
@@ -63,6 +142,9 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                 {
                     sourceType: QuerySourceType.SQL,
                     nodeId: 'signups',
+                    // Title falls back to the node id until it streams in
+                    title: 'signups',
+                    description: null,
                     // Cut-off SQL is kept as-is so it can grow with the stream
                     sql: 'SELECT month, count(*) FROM raw.us',
                     limit: DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -91,6 +173,8 @@ describe('parsePartialToolComposerQueriesArgs', () => {
             {
                 sourceType: QuerySourceType.EXTERNAL,
                 nodeId: 'targets',
+                title: 'targets',
+                description: null,
                 sql: '',
                 tables: { t: 'table-uuid' },
                 limit: DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -98,6 +182,8 @@ describe('parsePartialToolComposerQueriesArgs', () => {
             {
                 sourceType: QuerySourceType.DUCKDB,
                 nodeId: 'joined',
+                title: 'joined',
+                description: null,
                 sql: '',
                 references: ['revenue', 'targets'],
                 limit: DEFAULT_COMPOSER_QUERY_LIMIT,
