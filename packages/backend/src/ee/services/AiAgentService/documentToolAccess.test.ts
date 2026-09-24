@@ -23,7 +23,11 @@ type PrivateService = {
     ) => Promise<unknown>;
     generateOrStreamAgentResponse: (
         user: unknown,
-        conversation: { messageHistory: []; compactionSummary: null },
+        conversation: {
+            messageHistory: [];
+            compactionSummary: null;
+            resolveMessageHistory: () => Promise<[]>;
+        },
         options: { prompt: unknown; stream: false; canManageAgent: false },
     ) => Promise<unknown>;
 };
@@ -157,7 +161,11 @@ describe('Document runtime access', () => {
             await expect(
                 privateService.generateOrStreamAgentResponse(
                     user,
-                    { messageHistory: [], compactionSummary: null },
+                    {
+                        messageHistory: [],
+                        compactionSummary: null,
+                        resolveMessageHistory: async () => [],
+                    },
                     { prompt, stream: false, canManageAgent: false },
                 ),
             ).rejects.toBe(stopAtDependencies);

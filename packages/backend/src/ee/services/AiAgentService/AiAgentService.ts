@@ -525,7 +525,15 @@ type SuggestionThreadMessages = Awaited<
 type AgentConversationContext = {
     messageHistory: ModelMessage[];
     compactionSummary: string | null;
+    /** Full history for the agent; may add verified examples that fast decisions skip. */
+    resolveMessageHistory: () => Promise<ModelMessage[]>;
 };
+
+/** How the history builder treats verified examples for the prompt being answered. */
+type CurrentPromptExamples =
+    | { type: 'retrieve' }
+    | { type: 'omit' }
+    | { type: 'provided'; message: UserModelMessage | null };
 
 type ChartTurnContext = {
     latest: Awaited<
@@ -6824,11 +6832,14 @@ export class AiAgentService extends BaseService {
             onPromptResolved,
             resetErrorForStreamRetry = false,
             expectedDeepResearchRunUuid,
+            deferCurrentVerifiedExamples = false,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
+            /** Look up the prompt's verified examples without blocking fast decisions on them. */
+            deferCurrentVerifiedExamples?: boolean;
             onPromptResolved?: (
                 promptUuid: string,
                 responseState: AiPromptResponseState,
@@ -6979,27 +6990,64 @@ export class AiAgentService extends BaseService {
                 targetThreadMessages,
                 applicableCompaction?.compacted_through_ai_prompt_uuid ?? null,
             );
+        const historyOptions = {
+            organizationUuid: prompt.organizationUuid,
+            projectUuid: agent.projectUuid,
+            agentUuid: agent.uuid,
+            retrieveRelevantArtifacts:
+                retrieveRelevantArtifacts &&
+                this.getIsVerifiedArtifactsEnabled(),
+            currentPromptUuid: prompt.promptUuid,
+            userUuid: user.userUuid,
+            fastDecisionsEnabled: !!(await this.getBattleDecisionClient(
+                user,
+                prompt.battleProfile,
+            )),
+        };
+        // Fast decisions only need the conversation; the example lookup embeds the
+        // prompt, so it starts now and the agent awaits it only if it runs.
+        const deferExamples =
+            deferCurrentVerifiedExamples &&
+            historyOptions.fastDecisionsEnabled &&
+            historyOptions.retrieveRelevantArtifacts;
+        const pendingExamples = deferExamples
+            ? this.buildRelevantArtifactsMessage({
+                  agentUuid: agent.uuid,
+                  promptUuid: prompt.promptUuid,
+                  organizationUuid: prompt.organizationUuid,
+                  projectUuid: agent.projectUuid,
+                  searchQuery: prompt.prompt,
+                  userUuid: user.userUuid,
+                  compact: true,
+              })
+            : null;
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
             compactedThreadMessages,
             {
-                organizationUuid: prompt.organizationUuid,
-                projectUuid: agent.projectUuid,
-                agentUuid: agent.uuid,
-                retrieveRelevantArtifacts:
-                    retrieveRelevantArtifacts &&
-                    this.getIsVerifiedArtifactsEnabled(),
-                currentPromptUuid: prompt.promptUuid,
-                userUuid: user.userUuid,
-                fastDecisionsEnabled: !!(await this.getBattleDecisionClient(
-                    user,
-                    prompt.battleProfile,
-                )),
+                ...historyOptions,
+                currentPromptExamples: pendingExamples
+                    ? { type: 'omit' }
+                    : { type: 'retrieve' },
             },
         );
+        const resolveChatHistory = pendingExamples
+            ? async () =>
+                  this.getChatHistoryFromThreadMessages(
+                      compactedThreadMessages,
+                      {
+                          ...historyOptions,
+                          currentPromptExamples: {
+                              type: 'provided',
+                              message: await pendingExamples,
+                          },
+                      },
+                  )
+            : async () => chatHistoryMessages;
 
         return {
             user,
             chatHistoryMessages,
+            resolveChatHistory,
             prompt,
             compaction: applicableCompaction,
         };
@@ -7165,6 +7213,7 @@ export class AiAgentService extends BaseService {
             const {
                 user: validatedUser,
                 chatHistoryMessages,
+                resolveChatHistory,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -7172,6 +7221,7 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
+                deferCurrentVerifiedExamples: true,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -7230,6 +7280,7 @@ export class AiAgentService extends BaseService {
                     {
                         messageHistory: chatHistoryMessages,
                         compactionSummary: compaction?.summary ?? null,
+                        resolveMessageHistory: resolveChatHistory,
                     },
                     {
                         prompt,
@@ -7814,6 +7865,7 @@ export class AiAgentService extends BaseService {
             const {
                 user: validatedUser,
                 chatHistoryMessages,
+                resolveChatHistory,
                 prompt,
                 compaction,
             } = await this.prepareAgentThreadResponse(user, {
@@ -7846,6 +7898,7 @@ export class AiAgentService extends BaseService {
                 {
                     messageHistory: chatHistoryMessages,
                     compactionSummary: compaction?.summary ?? null,
+                    resolveMessageHistory: resolveChatHistory,
                 },
                 {
                     prompt,
@@ -10040,6 +10093,36 @@ Use your existing tools to inspect them when relevant to the user's question (re
         return backfilled;
     }
 
+    private async buildRelevantArtifactsMessage({
+        compact,
+        ...query
+    }: {
+        agentUuid: string;
+        promptUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        searchQuery: string;
+        userUuid?: string;
+        compact?: boolean;
+    }): Promise<UserModelMessage | null> {
+        try {
+            const artifacts = await this.retrieveRelevantArtifacts(query);
+            return artifacts.length > 0
+                ? AiAgentService.createRelevantArtifactsMessage(
+                      artifacts,
+                      compact,
+                  )
+                : null;
+        } catch (error) {
+            Logger.error(
+                `Failed to retrieve relevant artifacts for prompt ${query.promptUuid}`,
+                error,
+            );
+            Sentry.captureException(error);
+            return null;
+        }
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -10054,8 +10137,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
             currentPromptUuid: string;
             userUuid?: string;
             fastDecisionsEnabled?: boolean;
+            currentPromptExamples?: CurrentPromptExamples;
         },
     ): Promise<ModelMessage[]> {
+        const currentPromptExamples = options.currentPromptExamples ?? {
+            type: 'retrieve',
+        };
         const promptUuids = threadMessages.map(
             (message) => message.ai_prompt_uuid,
         );
@@ -10087,35 +10174,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const includeVerifiedExamples = options.fastDecisionsEnabled
                     ? message.ai_prompt_uuid === options.currentPromptUuid
                     : index === 0;
+                const examplesForMessage =
+                    message.ai_prompt_uuid === options.currentPromptUuid
+                        ? currentPromptExamples
+                        : ({ type: 'retrieve' } as const);
                 if (
                     includeVerifiedExamples &&
-                    options.retrieveRelevantArtifacts
+                    options.retrieveRelevantArtifacts &&
+                    examplesForMessage.type !== 'omit'
                 ) {
-                    try {
-                        const artifacts = await this.retrieveRelevantArtifacts({
-                            agentUuid: options.agentUuid,
-                            promptUuid: message.ai_prompt_uuid,
-                            organizationUuid: options.organizationUuid,
-                            projectUuid: options.projectUuid,
-                            searchQuery: message.prompt,
-                            userUuid: options.userUuid,
-                        });
-
-                        if (artifacts.length > 0) {
-                            messages.push(
-                                AiAgentService.createRelevantArtifactsMessage(
-                                    artifacts,
-                                    options.fastDecisionsEnabled,
-                                ),
-                            );
-                        }
-                    } catch (error) {
-                        Logger.error(
-                            `Failed to retrieve relevant artifacts for prompt ${message.ai_prompt_uuid}`,
-                            error,
-                        );
-                        Sentry.captureException(error);
-                    }
+                    const examples =
+                        examplesForMessage.type === 'provided'
+                            ? examplesForMessage.message
+                            : await this.buildRelevantArtifactsMessage({
+                                  agentUuid: options.agentUuid,
+                                  promptUuid: message.ai_prompt_uuid,
+                                  organizationUuid: options.organizationUuid,
+                                  projectUuid: options.projectUuid,
+                                  searchQuery: message.prompt,
+                                  userUuid: options.userUuid,
+                                  compact: options.fastDecisionsEnabled,
+                              });
+                    if (examples) messages.push(examples);
                 }
 
                 const toolCallsAndResults =
@@ -12484,7 +12564,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         const { prompt, stream } = options;
         const responseStartedAt = Date.now();
-        const { messageHistory, compactionSummary } = conversation;
+        const { messageHistory: decisionHistory, compactionSummary } =
+            conversation;
 
         // Web prompts get a transient `data-step-progress` channel on the
         // SSE stream so the bubble can show "Starting sandbox…" /
@@ -12529,7 +12610,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             !compactionSummary &&
             !responseExecution.toolAllowlist &&
             agentSettings.enableDataAccess &&
-            messageHistory.length > 1 &&
+            decisionHistory.length > 1 &&
             resolveStandardToolAllowlist(
                 prompt.threadCreatedFrom,
                 undefined,
@@ -12546,7 +12627,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   decisions,
                   prompt: prompt.prompt,
                   instructions: agentSettings.instruction,
-                  conversation: messageHistory.slice(-3),
+                  conversation: decisionHistory.slice(-3),
                   context: chartTurn?.intentContext ?? null,
               })
             : null;
@@ -12641,6 +12722,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 applied: false,
                 fallbackReason: chartEditFallbackReason,
             });
+        const messageHistory = await conversation.resolveMessageHistory();
         const enableSqlMode =
             options.enableSqlMode ?? agentSettings.enableSqlMode;
 
@@ -15001,6 +15083,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 {
                     messageHistory: chatHistoryMessages,
                     compactionSummary: null,
+                    resolveMessageHistory: async () => chatHistoryMessages,
                 },
                 {
                     prompt: slackPrompt,
