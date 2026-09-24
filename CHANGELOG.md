@@ -1,3 +1,10 @@
+## [2.320.1](https://github.com/lightdash/lightdash/compare/2.320.0...2.320.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **autopilot:** flag stale content in one bulk call ([#29873](https://github.com/lightdash/lightdash/issues/29873)) ([c137fa8](https://github.com/lightdash/lightdash/commit/c137fa83fbd823894ffcac233a959e3d5e039ac1))
+
 # [2.320.0](https://github.com/lightdash/lightdash/compare/2.319.6...2.320.0) (2026-09-24)
 
 
