@@ -2847,8 +2847,9 @@ export class ProjectService extends BaseService {
     ): Promise<string> {
         const { projectDbtSourceUuid, ...deploy } = args;
         if (
-            (await this.projectModel.getConnectionRoute(args.projectUuid)) !==
-            'multi'
+            (await this.projectModel.getConnectionRoute(args.projectUuid, {
+                kind: 'original',
+            })) !== 'multi'
         ) {
             return this.saveExploresToCacheAndIndexCatalog(deploy);
         }
@@ -3257,9 +3258,9 @@ export class ProjectService extends BaseService {
         warehouseConnectionUuidMap: ReadonlyMap<string, string>;
     }): Promise<void> {
         if (
-            (await this.projectModel.getConnectionRoute(
-                upstreamProjectUuid,
-            )) === 'multi'
+            (await this.projectModel.getConnectionRoute(upstreamProjectUuid, {
+                kind: 'original',
+            })) === 'multi'
         ) {
             await this.projectDbtSourcesModel.copySourcesWithConnectionMap(
                 upstreamProjectUuid,
@@ -4667,6 +4668,7 @@ export class ProjectService extends BaseService {
                             if (
                                 (await this.projectModel.getConnectionRoute(
                                     projectUuid,
+                                    { kind: 'original' },
                                 )) === 'multi'
                             ) {
                                 multiConnection =
@@ -6144,6 +6146,7 @@ export class ProjectService extends BaseService {
                 return credentials;
             },
             trackingParams,
+            analytics: this.analytics,
         });
     }
 
@@ -9602,8 +9605,9 @@ export class ProjectService extends BaseService {
             };
             let multiConnection: MultiConnectionCompilation | null = null;
             if (
-                (await this.projectModel.getConnectionRoute(projectUuid)) ===
-                'multi'
+                (await this.projectModel.getConnectionRoute(projectUuid, {
+                    kind: 'original',
+                })) === 'multi'
             ) {
                 multiConnection = await this.compileMultiConnectionProject({
                     projectUuid,

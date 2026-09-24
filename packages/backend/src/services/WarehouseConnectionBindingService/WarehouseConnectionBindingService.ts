@@ -1,12 +1,16 @@
 import { subject } from '@casl/ability';
-import { ForbiddenError, type Account } from '@lightdash/common';
+import {
+    ForbiddenError,
+    ParameterError,
+    type Account,
+} from '@lightdash/common';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { BaseService } from '../BaseService';
 import { type WarehouseCredentialPolicy } from '../WarehouseConnectionService/WarehouseConnectionService';
 
 type WarehouseConnectionBindingServiceArguments = {
-    projectModel: Pick<ProjectModel, 'getSummary'>;
+    projectModel: Pick<ProjectModel, 'getSummary' | 'getDbtSourceIdentity'>;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     credentialPolicy: Pick<
         WarehouseCredentialPolicy,
@@ -15,7 +19,10 @@ type WarehouseConnectionBindingServiceArguments = {
 };
 
 export class WarehouseConnectionBindingService extends BaseService {
-    private readonly projectModel: Pick<ProjectModel, 'getSummary'>;
+    private readonly projectModel: Pick<
+        ProjectModel,
+        'getSummary' | 'getDbtSourceIdentity'
+    >;
 
     private readonly warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 
@@ -58,6 +65,13 @@ export class WarehouseConnectionBindingService extends BaseService {
             summary,
             {},
         );
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        if (projectDbtSourceUuid === identity.dbtSourceUuid) {
+            throw new ParameterError(
+                'The primary dbt source always runs on the original connection',
+            );
+        }
         await this.warehouseConnectionCompileModel.bindDbtSource(
             projectUuid,
             projectDbtSourceUuid,

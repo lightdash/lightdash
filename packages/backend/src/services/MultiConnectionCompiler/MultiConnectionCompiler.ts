@@ -13,6 +13,7 @@ import {
 import { SshTunnel } from '@lightdash/warehouses';
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import Logger from '../../logging/logger';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import {
@@ -263,6 +264,7 @@ export class MultiConnectionCompiler {
         fetchSourceManifest,
         loadExtraCredentials,
         trackingParams,
+        analytics,
     }: {
         projectUuid: string;
         primary: PrimaryCompileInput;
@@ -271,6 +273,7 @@ export class MultiConnectionCompiler {
         fetchSourceManifest: FetchSourceManifest;
         loadExtraCredentials: LoadExtraConnectionCredentials;
         trackingParams?: TrackingParams;
+        analytics?: LightdashAnalytics;
     }): Promise<MultiConnectionCompilation> {
         const [originalPlan, ...extraPlans] = await this.planGroups(
             projectUuid,
@@ -308,6 +311,7 @@ export class MultiConnectionCompiler {
             ),
             cachedWarehouse: primary.cachedWarehouse,
             dbtVersion,
+            analytics,
             dbtProjectDir: primary.dbtProjectDir,
             selectedModelIds: originalMerged.selectedModelIds,
         });

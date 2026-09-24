@@ -85,6 +85,20 @@ export class WarehouseConnectionRouter {
         return this.routeFor(projectUuid, connectionMode);
     }
 
+    async getTaggedRoute(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<ConnectionRoute> {
+        const route = await this.getRoute(projectUuid);
+        Sentry.setTag('warehouse.route', route);
+        Sentry.setTag('warehouse.binding_kind', binding.kind);
+        Sentry.getActiveSpan()?.setAttributes({
+            'warehouse.route': route,
+            'warehouse.binding_kind': binding.kind,
+        });
+        return route;
+    }
+
     async requireSingleRoute(
         projectUuid: string,
         binding: ConnectionBinding,

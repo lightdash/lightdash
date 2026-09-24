@@ -22,8 +22,12 @@ import {
     ListedDatabasesPostgresWarehouseClient,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
@@ -56,6 +60,11 @@ import {
     postgresWarehouse,
     type FixtureModel,
 } from './multiConnectionCompileFixtures';
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    setTag: vi.fn(),
+}));
 
 const SECRET = 'multi-connection-compile-test-secret';
 const suffix = randomUUID().replaceAll('-', '').slice(0, 10);
@@ -312,6 +321,36 @@ describe('Multi-connection compile on the real schema', () => {
             ]),
         );
 
+    const addExtra = async (
+        fixture: Fixture,
+        name: string,
+        credentials: CreateWarehouseCredentials,
+    ) =>
+        (
+            await warehouseConnectionModel.createExtra(
+                await warehouseConnectionModel.getProject(fixture.projectUuid),
+                {
+                    name,
+                    warehouseType: credentials.type,
+                    source: { kind: 'project', credentials },
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                    createdByUserUuid: null as never,
+                },
+            )
+        ).warehouseConnectionUuid;
+
+    const setCredentials = async (
+        fixture: Fixture,
+        warehouseConnectionUuid: string,
+        credentials: CreateWarehouseCredentials,
+    ) =>
+        warehouseConnectionModel.updateExtraCredentials(
+            await warehouseConnectionModel.getProject(fixture.projectUuid),
+            warehouseConnectionUuid,
+            { kind: 'project', credentials },
+        );
+
     const setDefaultSourceManifests = () => {
         sourceManifests.marketing = dbtManifest('marketing', [
             { name: 'campaigns', database: ORIGINAL_DB, table: 'campaigns' },
@@ -505,8 +544,18 @@ describe('Multi-connection compile on the real schema', () => {
             getExtraConnectionWarehouseCredentials: CompileCredentials['getExtraConnectionWarehouseCredentials'];
         };
 
+        type CompileServiceOptions = {
+            multiDbtSources: boolean;
+            dbtProjectDir: string | undefined;
+        };
+        const defaultCompileServiceOptions: CompileServiceOptions = {
+            multiDbtSources: true,
+            dbtProjectDir: undefined,
+        };
+
         const primaryBuild = async (
             projectUuid: string,
+            dbtProjectDir: string | undefined,
         ): Promise<PrimaryBuild> => {
             const warehouseCredentials = postgresWarehouse(ORIGINAL_DB);
             const cachedWarehouse = {
@@ -526,6 +575,7 @@ describe('Multi-connection compile on the real schema', () => {
                         warehouseClientFromCredentials(warehouseCredentials),
                     cachedWarehouse: cachedWarehouse as never,
                     dbtVersion: SupportedDbtVersions.V1_8,
+                    dbtProjectDir,
                 }),
                 sshTunnel: { disconnect: async () => {} },
                 warehouseCredentials,
@@ -534,10 +584,14 @@ describe('Multi-connection compile on the real schema', () => {
             };
         };
 
-        const compileService = (projectUuid: string) => {
+        const compileService = (
+            projectUuid: string,
+            options: CompileServiceOptions = defaultCompileServiceOptions,
+        ) => {
+            const analytics = { track: vi.fn() };
             const service = new ProjectService({
                 lightdashConfig: lightdashConfigMock,
-                analytics: { track: vi.fn() },
+                analytics,
                 projectModel,
                 projectDbtSourcesModel,
                 warehouseConnectionModel,
@@ -557,7 +611,10 @@ describe('Multi-connection compile on the real schema', () => {
                     database,
                 }),
                 featureFlagModel: {
-                    get: async () => ({ id: 'flag', enabled: true }),
+                    get: async () => ({
+                        id: 'flag',
+                        enabled: options.multiDbtSources,
+                    }),
                 },
                 catalogModel: {
                     getCatalogItemsWithTags: async () => [],
@@ -581,10 +638,10 @@ describe('Multi-connection compile on the real schema', () => {
             } as never);
             const internals = service as unknown as CompileInternals;
             vi.spyOn(internals, 'buildAdapter').mockImplementation(() =>
-                primaryBuild(projectUuid),
+                primaryBuild(projectUuid, options.dbtProjectDir),
             );
             vi.spyOn(internals, 'testProjectAdapter').mockImplementation(() =>
-                primaryBuild(projectUuid),
+                primaryBuild(projectUuid, options.dbtProjectDir),
             );
             vi.spyOn(internals, 'buildSourceAdapter').mockImplementation(
                 async (dbtConnection, _location, _organization, shared) => {
@@ -606,7 +663,7 @@ describe('Multi-connection compile on the real schema', () => {
                     };
                 },
             );
-            return { service, internals };
+            return { service, internals, analytics };
         };
 
         const compilingUser = async (projectUuid: string) => {
@@ -936,29 +993,134 @@ describe('Multi-connection compile on the real schema', () => {
             });
         });
 
-        test('saveDeployExplores on a multi project refuses a deploy that is not complete and saves nothing', async () => {
-            const fixture = await createProject();
-            await compile(fixture);
-            const before = await dump(fixture.projectUuid);
-            const user = await compilingUser(fixture.projectUuid);
+        test.each([
+            { complete: false, dbtModelNames: ['orders'] },
+            { complete: undefined, dbtModelNames: undefined },
+        ])(
+            'saveDeployExplores on a multi project refuses a deploy with complete $complete and saves nothing',
+            async ({ complete, dbtModelNames }) => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const before = await dump(fixture.projectUuid);
+                const user = await compilingUser(fixture.projectUuid);
 
-            await expect(
-                compileService(fixture.projectUuid).service.saveDeployExplores({
-                    userUuid: user.userUuid,
-                    projectUuid: fixture.projectUuid,
-                    explores: [explore('orders', ['orders'])],
-                    compilationSource: 'cli_deploy',
-                    jobUuid: null,
-                    requestMethod: 'cli',
-                    complete: false,
-                    dbtModelNames: ['orders'],
-                    projectDbtSourceUuid: null,
-                }),
-            ).rejects.toThrow(
-                'A deploy to a project with multiple connections must send every explore of its dbt source',
+                await expect(
+                    compileService(
+                        fixture.projectUuid,
+                    ).service.saveDeployExplores({
+                        userUuid: user.userUuid,
+                        projectUuid: fixture.projectUuid,
+                        explores: [explore('orders', ['orders'])],
+                        compilationSource: 'cli_deploy',
+                        jobUuid: null,
+                        requestMethod: 'cli',
+                        complete,
+                        dbtModelNames,
+                        projectDbtSourceUuid: null,
+                    }),
+                ).rejects.toThrow(
+                    'A deploy to a project with multiple connections must send every explore of its dbt source',
+                );
+                expect(await dump(fixture.projectUuid)).toEqual(before);
+            },
+        );
+
+        test('compileProject on a multi project with additional dbt sources off compiles the primary on the original and still compiles the extra connection', async () => {
+            const fixture = await createProject();
+            const { service } = compileService(fixture.projectUuid, {
+                multiDbtSources: false,
+                dbtProjectDir: undefined,
+            });
+            const user = await compilingUser(fixture.projectUuid);
+            const jobUuid = await createJob(fixture.projectUuid, user.userUuid);
+
+            await service.compileProject(
+                user,
+                fixture.projectUuid,
+                RequestMethod.WEB_APP,
+                jobUuid,
             );
-            expect(await dump(fixture.projectUuid)).toEqual(before);
+
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                customers: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+            });
+            expect(fetchedWith.map(({ source }) => source)).toEqual([
+                'finance',
+            ]);
         });
+
+        test('a multi compile reads the lightdash config of the primary with the analytics handle', async () => {
+            const fixture = await createProject();
+            const dbtProjectDir = mkdtempSync(
+                path.join(tmpdir(), 'multi-compile-config-'),
+            );
+            writeFileSync(
+                path.join(dbtProjectDir, 'lightdash.config.yml'),
+                'spotlight:\n  default_visibility: show\n',
+            );
+            try {
+                const { service, analytics } = compileService(
+                    fixture.projectUuid,
+                    { multiDbtSources: true, dbtProjectDir },
+                );
+                const user = await compilingUser(fixture.projectUuid);
+                const jobUuid = await createJob(
+                    fixture.projectUuid,
+                    user.userUuid,
+                );
+
+                await service.compileProject(
+                    user,
+                    fixture.projectUuid,
+                    RequestMethod.WEB_APP,
+                    jobUuid,
+                );
+
+                expect(analytics.track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'lightdashconfig.loaded',
+                        userId: user.userUuid,
+                    }),
+                );
+            } finally {
+                rmSync(dbtProjectDir, { recursive: true, force: true });
+            }
+        });
+
+        test.each([
+            ['compileProject', runCompileProject],
+            ['testAndCompileProject', runTestAndCompileProject],
+        ] as const)(
+            '%s tags the connection route and binding kind on Sentry',
+            async (_entryPoint, run) => {
+                const multi = await createProject();
+                const single = await createProject();
+                await routeSingle(single.projectUuid);
+                const setTag = vi.mocked(Sentry.setTag);
+                setTag.mockClear();
+
+                await run(multi.projectUuid);
+                const multiTags = setTag.mock.calls.filter(([key]) =>
+                    key.startsWith('warehouse.'),
+                );
+                setTag.mockClear();
+                await run(single.projectUuid);
+                const singleTags = setTag.mock.calls.filter(([key]) =>
+                    key.startsWith('warehouse.'),
+                );
+
+                expect(multiTags).toEqual([
+                    ['warehouse.route', 'multi'],
+                    ['warehouse.binding_kind', 'original'],
+                ]);
+                expect(singleTags).toEqual([
+                    ['warehouse.route', 'single'],
+                    ['warehouse.binding_kind', 'original'],
+                ]);
+            },
+        );
 
         type PreviewCopy = {
             copyPreviewDbtSources: (args: {
@@ -1570,6 +1732,133 @@ describe('Multi-connection compile on the real schema', () => {
         });
     });
 
+    describe('two extra connections and sequential deploys', () => {
+        test('each extra connection compiles its own sources, a dead one is carried by name, and a name produced by two healthy extras is refused with both names', async () => {
+            const fixture = await createProject();
+            const marketingUuid = await addExtra(
+                fixture,
+                'Marketing warehouse',
+                postgresWarehouse(ORIGINAL_DB),
+            );
+            await bind(fixture, 'marketing', marketingUuid);
+
+            await compile(fixture);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: marketingUuid,
+                customers: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+            });
+            expect(
+                await database('warehouse_connection_manifests')
+                    .select('warehouse_connection_uuid')
+                    .whereIn('warehouse_connection_uuid', [
+                        marketingUuid,
+                        fixture.extraConnectionUuid,
+                    ]),
+            ).toHaveLength(2);
+
+            await setCredentials(
+                fixture,
+                marketingUuid,
+                postgresWarehouse(ORIGINAL_DB, DEAD_PORT),
+            );
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'payments', database: EXTRA_DB, table: 'payments' },
+                { name: 'refunds', database: EXTRA_DB, table: 'refunds' },
+            ]);
+            fetchedWith.length = 0;
+            const carried = await compile(fixture);
+            expect(carried.warnings).toEqual([
+                expect.stringContaining(
+                    'Connection "Marketing warehouse" failed to compile',
+                ),
+            ]);
+            expect(fetchedWith.map(({ source }) => source)).toEqual([
+                'finance',
+            ]);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: marketingUuid,
+                customers: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+                refunds: fixture.extraConnectionUuid,
+            });
+
+            await setCredentials(
+                fixture,
+                marketingUuid,
+                postgresWarehouse(ORIGINAL_DB),
+            );
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'payments', database: EXTRA_DB, table: 'payments' },
+                { name: 'campaigns', database: EXTRA_DB, table: 'campaigns' },
+            ]);
+            const before = await dump(fixture.projectUuid);
+            const refusal = await compile(fixture).then(
+                () => null,
+                (error: Error) => error,
+            );
+            expect(refusal?.message).toContain('Explore "campaigns"');
+            expect(refusal?.message).toContain('Finance warehouse');
+            expect(refusal?.message).toContain('Marketing warehouse');
+            expect(await dump(fixture.projectUuid)).toEqual(before);
+        });
+
+        test('with a dead extra, an explore whose model left a healthy group is still dropped', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+            await setCredentials(
+                fixture,
+                fixture.extraConnectionUuid,
+                postgresWarehouse(EXTRA_DB, DEAD_PORT),
+            );
+
+            const compilation = await compile(fixture, [primaryModels[0]]);
+
+            expect(compilation.warnings).toHaveLength(1);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+            });
+        });
+
+        test('a deploy of the primary after a deploy of an extra source keeps the extra source explores bound', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+
+            await compiler.save(
+                fixture.projectUuid,
+                await compiler.prepareSourceDeploy({
+                    projectUuid: fixture.projectUuid,
+                    projectDbtSourceUuid: fixture.sourceUuids.finance,
+                    explores: [explore('refunds', ['refunds'])],
+                }),
+            );
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: null,
+                customers: null,
+                orders: null,
+                refunds: fixture.extraConnectionUuid,
+            });
+
+            await compiler.save(
+                fixture.projectUuid,
+                await compiler.prepareSourceDeploy({
+                    projectUuid: fixture.projectUuid,
+                    projectDbtSourceUuid: null,
+                    explores: [explore('orders', ['orders'])],
+                }),
+            );
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: null,
+                orders: null,
+                refunds: fixture.extraConnectionUuid,
+            });
+        });
+    });
+
     describe('dbt source bindings', () => {
         test('copying sources remaps each binding, keeps NULL, and refuses an unmapped binding', async () => {
             const upstream = await createProject();
@@ -1671,6 +1960,26 @@ describe('Multi-connection compile on the real schema', () => {
             );
             expect(await financeBinding(fixture.projectUuid)).toBe(
                 fixture.extraConnectionUuid,
+            );
+        });
+
+        test('the binding service refuses to bind the primary dbt source and says why', async () => {
+            const fixture = await createProject();
+            const identity = await projectModel.getDbtSourceIdentity(
+                fixture.projectUuid,
+            );
+
+            await expect(
+                bindingService().bindDbtSource(
+                    await projectAdmin(fixture.projectUuid),
+                    fixture.projectUuid,
+                    identity.dbtSourceUuid,
+                    fixture.extraConnectionUuid,
+                ),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'The primary dbt source always runs on the original connection',
+                ),
             );
         });
 
