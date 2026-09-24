@@ -26,7 +26,8 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getProject } from './dbt/refresh';
-import { deploy } from './deploy';
+import { deploy, getDeployTarget } from './deploy';
+import { resolveProjectSourceUuid } from './sourceSelection';
 import {
     getDisableTimestampConversionFromProject,
     getProjectDisableTimestampConversion,
@@ -60,7 +61,17 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     partialCompilation?: boolean;
     combine?: boolean;
     combineManifestProjectUuid?: string;
+    source?: string;
 };
+
+const previewDeployDestination = async (
+    projectUuid: string,
+    options: PreviewHandlerOptions,
+    projectType: CliProjectType,
+) => ({
+    sourceUuid: await resolveProjectSourceUuid(projectUuid, options.source),
+    deployTarget: await getDeployTarget(options, projectType),
+});
 
 type StopPreviewHandlerOptions = {
     name: string;
@@ -350,6 +361,11 @@ export const previewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
+            ...(await previewDeployDestination(
+                project.projectUuid,
+                options,
+                projectTypeConfig.type,
+            )),
             complete: isProjectComplete,
         });
 
@@ -424,6 +440,11 @@ export const previewHandler = async (
                         await deploy(compileResult.explores, {
                             ...options,
                             projectUuid: project.projectUuid,
+                            ...(await previewDeployDestination(
+                                project.projectUuid,
+                                options,
+                                projectTypeConfig.type,
+                            )),
                             complete: compileResult.isProjectComplete,
                         });
                     }
@@ -597,6 +618,11 @@ export const startPreviewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
+            ...(await previewDeployDestination(
+                previewProject.projectUuid,
+                options,
+                projectTypeConfig.type,
+            )),
             complete: isProjectComplete,
         });
         const url = await projectUrl(previewProject);
@@ -690,6 +716,11 @@ export const startPreviewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
+            ...(await previewDeployDestination(
+                project.projectUuid,
+                options,
+                projectTypeConfig.type,
+            )),
             complete: isProjectComplete,
         });
         const url = await projectUrl(project);

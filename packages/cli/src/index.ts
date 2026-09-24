@@ -53,6 +53,7 @@ import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
+import { setSourceHandler } from './handlers/sourceSelection';
 import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
 import { validateHandler, VALIDATION_SEVERITIES } from './handlers/validate';
@@ -298,6 +299,13 @@ configProgram
     )
     .action(setProjectHandler);
 configProgram
+    .command('set-source <name>')
+    .description(
+        'Choose the dbt source that deploys to the active project use, by name.',
+    )
+    .option('--verbose', undefined, false)
+    .action(setSourceHandler);
+configProgram
     .command('list-projects')
     .description(
         'List all projects in the organization (excludes preview projects)',
@@ -496,6 +504,10 @@ program
     .command('preview')
     .description('Creates a new preview project - waits for a keypress to stop')
     .option(
+        '--source <name>',
+        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+    )
+    .option(
         '--name <preview name>',
         'Custom name for the preview. If a name is not provided, a unique, randomly generated name will be created.',
     )
@@ -642,6 +654,10 @@ program
 program
     .command('start-preview')
     .description('Creates a new preview project')
+    .option(
+        '--source <name>',
+        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+    )
     .option(
         '--name [preview name]',
         '[required] Name for the preview project. If a preview project with this name already exists, it will be updated, otherwise it will create a new preview project ',
@@ -1311,6 +1327,10 @@ appsProgram
 program
     .command('deploy')
     .description('Compiles and deploys a Lightdash project')
+    .option(
+        '--source <name>',
+        'The dbt source to deploy, by name. Its explores use the warehouse connection of that source. Overrides `lightdash config set-source`',
+    )
     .option(
         '--project <project uuid or slug>',
         'Project UUID or slug to deploy to. Overrides the default project configured via `lightdash config set-project`',
