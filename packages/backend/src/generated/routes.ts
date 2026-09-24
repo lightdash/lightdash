@@ -157,6 +157,8 @@ import { WarehouseConnectionBindingController } from './../controllers/warehouse
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { WarehouseConnectionController } from './../controllers/warehouseConnectionController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { WarehouseConnectionSwitchController } from './../controllers/warehouseConnectionSwitchController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { WarehouseConnectionUserCredentialsController } from './../controllers/warehouseConnectionUserCredentialsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiAgentAdminController } from './../ee/controllers/AiAgentAdminController';
@@ -43240,6 +43242,249 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseConnectionSwitchAvailability: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                originalWarehouseType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'WarehouseTypes' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reason: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                canSwitch: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiWarehouseConnectionSwitchAvailabilityResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'WarehouseConnectionSwitchAvailability',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseConnectionSwitchOriginal: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                additionalDatabases: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                listAllDatabases: { dataType: 'boolean', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseConnectionSwitchContentCounts: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dashboards: { dataType: 'double', required: true },
+                scheduledDeliveries: { dataType: 'double', required: true },
+                dbtSources: { dataType: 'double', required: true },
+                sqlChartVersions: { dataType: 'double', required: true },
+                sqlCharts: { dataType: 'double', required: true },
+                explores: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseConnectionSwitchPlan: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                personalCredentials: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        requireUserCredentials: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        usersWithPersonalCredentials: {
+                            dataType: 'double',
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                staysOnOriginal: {
+                    ref: 'WarehouseConnectionSwitchContentCounts',
+                    required: true,
+                },
+                connection: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        usesOrganizationCredentials: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        database: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        warehouseType: {
+                            ref: 'WarehouseTypes',
+                            required: true,
+                        },
+                        name: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                original: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'WarehouseConnectionSwitchOriginal' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                warehouseType: {
+                                    ref: 'WarehouseTypes',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                    required: true,
+                },
+                planHash: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiWarehouseConnectionSwitchPlanResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'WarehouseConnectionSwitchPlan',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateWarehouseConnectionRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                additionalDatabases: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                listAllDatabases: { dataType: 'boolean' },
+                organizationWarehouseCredentialsUuid: { dataType: 'string' },
+                warehouseConnection: { ref: 'CreateWarehouseCredentials' },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiWarehouseConnectionSwitchRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                connection: {
+                    ref: 'ApiCreateWarehouseConnectionRequest',
+                    required: true,
+                },
+                original: {
+                    ref: 'WarehouseConnectionSwitchOriginal',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseConnectionSwitchResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                warehouseConnectionUuid: { dataType: 'string', required: true },
+                originalWarehouseConnectionUuid: {
+                    dataType: 'string',
+                    required: true,
+                },
+                eventUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiWarehouseConnectionSwitchResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'WarehouseConnectionSwitchResult',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiExecuteWarehouseConnectionSwitchRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ApiWarehouseConnectionSwitchRequest' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        idempotencyKey: { dataType: 'string', required: true },
+                        planHash: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseConnection: {
         dataType: 'refAlias',
         type: {
@@ -43365,24 +43610,6 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: { ref: 'WarehouseConnection', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCreateWarehouseConnectionRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                additionalDatabases: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                listAllDatabases: { dataType: 'boolean' },
-                organizationWarehouseCredentialsUuid: { dataType: 'string' },
-                warehouseConnection: { ref: 'CreateWarehouseCredentials' },
-                name: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -97227,6 +97454,210 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listWarehouseConnectionsForUserCredentials',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsWarehouseConnectionSwitchController_getWarehouseConnectionSwitchAvailability: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/warehouse-connection-mode',
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionSwitchController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionSwitchController.prototype
+                .getWarehouseConnectionSwitchAvailability,
+        ),
+
+        async function WarehouseConnectionSwitchController_getWarehouseConnectionSwitchAvailability(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsWarehouseConnectionSwitchController_getWarehouseConnectionSwitchAvailability,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<WarehouseConnectionSwitchController>(
+                        WarehouseConnectionSwitchController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getWarehouseConnectionSwitchAvailability',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsWarehouseConnectionSwitchController_previewWarehouseConnectionSwitch: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiWarehouseConnectionSwitchRequest',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/warehouse-connection-mode/preview',
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionSwitchController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionSwitchController.prototype
+                .previewWarehouseConnectionSwitch,
+        ),
+
+        async function WarehouseConnectionSwitchController_previewWarehouseConnectionSwitch(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsWarehouseConnectionSwitchController_previewWarehouseConnectionSwitch,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<WarehouseConnectionSwitchController>(
+                        WarehouseConnectionSwitchController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'previewWarehouseConnectionSwitch',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsWarehouseConnectionSwitchController_switchToMultipleWarehouseConnections: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiExecuteWarehouseConnectionSwitchRequest',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/warehouse-connection-mode/switch',
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionSwitchController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            WarehouseConnectionSwitchController.prototype
+                .switchToMultipleWarehouseConnections,
+        ),
+
+        async function WarehouseConnectionSwitchController_switchToMultipleWarehouseConnections(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsWarehouseConnectionSwitchController_switchToMultipleWarehouseConnections,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<WarehouseConnectionSwitchController>(
+                        WarehouseConnectionSwitchController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'switchToMultipleWarehouseConnections',
                     controller,
                     response,
                     next,

@@ -1,3 +1,10 @@
+# [2.335.0](https://github.com/lightdash/lightdash/compare/2.334.1...2.335.0) (2026-09-24)
+
+
+### Features
+
+* **connections:** enable multiple connections on a project ([#29886](https://github.com/lightdash/lightdash/issues/29886)) ([7cf9c6e](https://github.com/lightdash/lightdash/commit/7cf9c6e8c4e5e99af4b1efeb79f7bfb64fd9cee8))
+
 ## [2.334.1](https://github.com/lightdash/lightdash/compare/2.334.0...2.334.1) (2026-09-24)
 
 

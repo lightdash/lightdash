@@ -43298,6 +43298,272 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "WarehouseConnectionSwitchAvailability": {
+                "properties": {
+                    "originalWarehouseType": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WarehouseTypes"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "canSwitch": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["originalWarehouseType", "reason", "canSwitch"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionSwitchAvailabilityResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectionSwitchAvailability"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseConnectionSwitchOriginal": {
+                "properties": {
+                    "additionalDatabases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "listAllDatabases": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["additionalDatabases", "listAllDatabases", "name"],
+                "type": "object"
+            },
+            "WarehouseConnectionSwitchContentCounts": {
+                "properties": {
+                    "dashboards": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "scheduledDeliveries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dbtSources": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sqlChartVersions": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sqlCharts": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "explores": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "dashboards",
+                    "scheduledDeliveries",
+                    "dbtSources",
+                    "sqlChartVersions",
+                    "sqlCharts",
+                    "explores"
+                ],
+                "type": "object"
+            },
+            "WarehouseConnectionSwitchPlan": {
+                "properties": {
+                    "personalCredentials": {
+                        "properties": {
+                            "requireUserCredentials": {
+                                "type": "boolean"
+                            },
+                            "usersWithPersonalCredentials": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "requireUserCredentials",
+                            "usersWithPersonalCredentials"
+                        ],
+                        "type": "object"
+                    },
+                    "staysOnOriginal": {
+                        "$ref": "#/components/schemas/WarehouseConnectionSwitchContentCounts"
+                    },
+                    "connection": {
+                        "properties": {
+                            "usesOrganizationCredentials": {
+                                "type": "boolean"
+                            },
+                            "database": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "warehouseType": {
+                                "$ref": "#/components/schemas/WarehouseTypes"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "usesOrganizationCredentials",
+                            "database",
+                            "warehouseType",
+                            "name"
+                        ],
+                        "type": "object"
+                    },
+                    "original": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WarehouseConnectionSwitchOriginal"
+                            },
+                            {
+                                "properties": {
+                                    "warehouseType": {
+                                        "$ref": "#/components/schemas/WarehouseTypes"
+                                    }
+                                },
+                                "required": ["warehouseType"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "planHash": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "personalCredentials",
+                    "staysOnOriginal",
+                    "connection",
+                    "original",
+                    "planHash"
+                ],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionSwitchPlanResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectionSwitchPlan"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateWarehouseConnectionRequest": {
+                "properties": {
+                    "additionalDatabases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "listAllDatabases": {
+                        "type": "boolean"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    },
+                    "warehouseConnection": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionSwitchRequest": {
+                "properties": {
+                    "connection": {
+                        "$ref": "#/components/schemas/ApiCreateWarehouseConnectionRequest"
+                    },
+                    "original": {
+                        "$ref": "#/components/schemas/WarehouseConnectionSwitchOriginal"
+                    }
+                },
+                "required": ["connection", "original"],
+                "type": "object"
+            },
+            "WarehouseConnectionSwitchResult": {
+                "properties": {
+                    "warehouseConnectionUuid": {
+                        "type": "string"
+                    },
+                    "originalWarehouseConnectionUuid": {
+                        "type": "string"
+                    },
+                    "eventUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "warehouseConnectionUuid",
+                    "originalWarehouseConnectionUuid",
+                    "eventUuid"
+                ],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionSwitchResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectionSwitchResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiExecuteWarehouseConnectionSwitchRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiWarehouseConnectionSwitchRequest"
+                    },
+                    {
+                        "properties": {
+                            "idempotencyKey": {
+                                "type": "string"
+                            },
+                            "planHash": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["idempotencyKey", "planHash"],
+                        "type": "object"
+                    }
+                ]
+            },
             "WarehouseConnection": {
                 "properties": {
                     "updatedAt": {
@@ -43437,30 +43703,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiCreateWarehouseConnectionRequest": {
-                "properties": {
-                    "additionalDatabases": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "listAllDatabases": {
-                        "type": "boolean"
-                    },
-                    "organizationWarehouseCredentialsUuid": {
-                        "type": "string"
-                    },
-                    "warehouseConnection": {
-                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name"],
                 "type": "object"
             },
             "Partial_CreateRedshiftCredentials_": {
@@ -66119,7 +66361,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.334.1",
+        "version": "2.335.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
