@@ -34,12 +34,12 @@
     min-height: 0;
 }
 
-/* Composer artifact: body edge to edge, only the head keeps padding. */
-.composerContent {
+/* Artifact body edge to edge, only the head keeps padding. */
+.flushContent {
     padding: 0;
 }
 
-.composerHead {
+.flushHead {
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md) 0;
 }
 

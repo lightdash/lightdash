@@ -1,0 +1,11 @@
+/* Flush body: the shared table sets its padding via Mantine style props
+ * (inline), so this needs !important to win. */
+.flushViz [data-testid='ai-visualization'] > div {
+    padding: 0 !important;
+}
+
+.flushViz [class*='tableScrollableWrapper'] {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+}
