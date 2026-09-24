@@ -172,17 +172,15 @@ describe('AiComposerPipelinePanel query details', () => {
         renderPanel({ defaultExpanded: true, onDisplayNode });
         const row = () =>
             document.getElementById('composer-pipeline-node-amounts')!;
-        const code = () => row().querySelector('code');
-        expect(code()).toBeNull();
-        fireEvent.click(
-            within(row()).getByRole('button', { name: 'View query' }),
-        );
-        expect(code()).toHaveTextContent(/select\s+2/i);
+        const toggle = (name: string) =>
+            within(row()).getByRole('button', { name });
+        expect(toggle('View query')).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(toggle('View query'));
+        expect(toggle('Hide query')).toHaveAttribute('aria-expanded', 'true');
+        expect(row().querySelector('code')).toHaveTextContent(/select\s+2/i);
         expect(onDisplayNode).not.toHaveBeenCalled();
-        fireEvent.click(
-            within(row()).getByRole('button', { name: 'Hide query' }),
-        );
-        expect(code()).toBeNull();
+        fireEvent.click(toggle('Hide query'));
+        expect(toggle('View query')).toHaveAttribute('aria-expanded', 'false');
     });
 
     it('displays a node from the keyboard', () => {

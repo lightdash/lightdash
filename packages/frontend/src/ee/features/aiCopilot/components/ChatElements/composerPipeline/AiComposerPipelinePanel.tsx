@@ -10,7 +10,7 @@ import {
 import {
     ActionIcon,
     Box,
-    Button,
+    Collapse,
     Group,
     Paper,
     SegmentedControl,
@@ -180,19 +180,31 @@ const QueryDetails: FC<{ query: SourceQuery }> = ({ query }) => {
                     className={styles.details}
                     onClick={(event) => event.stopPropagation()}
                 >
-                    <Button
-                        variant="subtle"
-                        size="compact-xs"
+                    <UnstyledButton
+                        className={styles.queryToggle}
                         onClick={() => setQueryOpen((value) => !value)}
                         aria-expanded={queryOpen}
                     >
+                        <MantineIcon
+                            icon={IconChevronRight}
+                            size={11}
+                            stroke={1.6}
+                            className={clsx(
+                                styles.chevron,
+                                queryOpen && styles.chevronOpen,
+                            )}
+                        />
                         {queryOpen ? 'Hide query' : 'View query'}
-                    </Button>
-                    {queryOpen && (
+                    </UnstyledButton>
+                    <Collapse
+                        expanded={queryOpen}
+                        transitionDuration={240}
+                        transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
+                    >
                         <Box className={styles.code}>
                             <CodeBlock code={sql} language="sql" />
                         </Box>
-                    )}
+                    </Collapse>
                 </Box>
             )}
         </>
