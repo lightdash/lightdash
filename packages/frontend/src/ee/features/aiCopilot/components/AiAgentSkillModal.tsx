@@ -113,8 +113,11 @@ const SkillForm = ({
         },
         validate: {
             name: (value) => (isEditing ? null : nameError(value)),
+            description: (value) =>
+                value.trim().length === 0 ? 'A description is required' : null,
+            instructions: (value) =>
+                value.trim().length === 0 ? 'Instructions are required' : null,
         },
-        validateInputOnChange: ['name'],
     });
     const [validatedFor, setValidatedFor] = useState<string | null>(null);
 
@@ -132,16 +135,10 @@ const SkillForm = ({
     const currentFiles = filesFor(form.values);
     const currentKey = currentFiles[AI_AGENT_SKILL_FILE_NAME];
 
-    const runValidation = () => {
-        if (nameError(form.values.name) !== null) return;
-        setValidatedFor(currentKey);
-        validate.mutate(currentFiles);
-    };
-
     const validation = validatedFor === currentKey ? validate.data : undefined;
-    const hasBlockingErrors = validation !== undefined && !validation.valid;
 
     const handleSave = async () => {
+        if (form.validate().hasErrors) return;
         const result = await validate.mutateAsync(currentFiles);
         setValidatedFor(currentKey);
         if (!result.valid) return;
@@ -179,12 +176,6 @@ const SkillForm = ({
                 updateSkill.isLoading ||
                 validate.isLoading
             }
-            confirmDisabled={
-                form.values.description.trim().length === 0 ||
-                form.values.instructions.trim().length === 0 ||
-                hasBlockingErrors ||
-                (!isEditing && nameError(form.values.name) !== null)
-            }
         >
             <Stack gap="lg">
                 <TextInput
@@ -205,15 +196,16 @@ const SkillForm = ({
                     }
                     data-autofocus={!isEditing}
                     {...form.getInputProps('name')}
-                    onBlur={runValidation}
                 />
                 <TextInput
                     label="Description"
                     placeholder="Summarise the week for a region, with movers and risks"
                     {...form.getInputProps('description')}
-                    onBlur={runValidation}
                 />
-                <Input.Wrapper label="Instructions">
+                <Input.Wrapper
+                    label="Instructions"
+                    error={form.errors.instructions}
+                >
                     <Box className={styles.editor}>
                         <Textarea
                             variant="unstyled"
@@ -224,7 +216,7 @@ const SkillForm = ({
                             classNames={{ input: styles.editorInput }}
                             aria-label="Instructions"
                             {...form.getInputProps('instructions')}
-                            onBlur={runValidation}
+                            error={undefined}
                         />
                         <Group
                             justify="space-between"
