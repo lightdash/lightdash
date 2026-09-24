@@ -60,7 +60,12 @@ import {
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
-import { getSystemPromptV2 } from '../prompts/systemV2';
+import {
+    getDeferredToolInstructions,
+    getSystemPromptV2,
+    type CapabilitySectionArgs,
+    type DeferredPromptSection,
+} from '../prompts/systemV2';
 import {
     accumulatePromptTokenUsage,
     completedPromptTokenUsage,
@@ -153,6 +158,8 @@ import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { createQueryToolCallRepair } from './queryToolCallRepair';
 import {
     createIntentToolGate,
+    getDeferredPromptSections,
+    getIntentToolNames,
     type IntentToolGate,
 } from './referenceToolGating';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -2231,6 +2238,26 @@ export const getPromptMcpServers = (
         ),
     }));
 
+const getCapabilitySectionArgs = (
+    args: AiAgentArgs,
+): CapabilitySectionArgs => ({
+    availableSkills: args.availableSkills,
+    enableFastMetadata: !!args.decisions && args.execution.mode === 'standard',
+    enableContentTools: args.enableDataAccess && args.enableContentTools,
+    enableDocuments:
+        args.enableDataAccess &&
+        args.enableContentTools &&
+        args.enableDocuments,
+    enableGenerateDataApp: args.enableGenerateDataApp,
+    slackChannelId: args.slackChannelId,
+    canRunSql: args.canRunSql,
+    enableComposerQueries: args.enableComposerQueries,
+    warehouseType: args.warehouseType,
+    warehouseSchema: args.warehouseSchema,
+    sqlScope: args.sqlScope,
+    runSqlMaxLimit: args.runSqlMaxLimit,
+});
+
 export const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
@@ -2241,6 +2268,7 @@ export const getAgentMessages = (
     customChartTypeLibrary: CustomChartTypeLibrary,
     preparedSeed?: string,
     projectContextPreloaded = false,
+    deferredSections: ReadonlySet<DeferredPromptSection> = new Set(),
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -2308,19 +2336,18 @@ export const getAgentMessages = (
         ...getDeepResearchInstructions(),
     ].filter((instruction): instruction is string => !!instruction);
     const systemPrompt = getSystemPromptV2({
+        ...getCapabilitySectionArgs(args),
+        deferredSections,
         enableChartExport:
             !!args.decisions &&
             args.enableDataAccess &&
             args.execution.mode === 'standard',
-        enableFastMetadata:
-            !!args.decisions && args.execution.mode === 'standard',
         agentName: args.agentSettings.name,
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
         availableExplores,
         availableCustomChartTypes: customChartTypeLibrary,
-        availableSkills: args.availableSkills,
         knowledgeDocuments: args.knowledgeDocuments,
         deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
@@ -2335,21 +2362,8 @@ export const getAgentMessages = (
         enableRepoDiscovery: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        enableContentTools: args.enableDataAccess && args.enableContentTools,
-        enableDocuments:
-            args.enableDataAccess &&
-            args.enableContentTools &&
-            args.enableDocuments,
-        enableGenerateDataApp: args.enableGenerateDataApp,
-        slackChannelId: args.slackChannelId,
-        canRunSql: args.canRunSql,
         slackLinksOnly: args.slackLinksOnly,
-        enableComposerQueries: args.enableComposerQueries,
         enableMergeQueries: args.enableMergeQueries,
-        warehouseType: args.warehouseType,
-        warehouseSchema: args.warehouseSchema,
-        sqlScope: args.sqlScope,
-        runSqlMaxLimit: args.runSqlMaxLimit,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,
@@ -2416,6 +2430,7 @@ export const getFastDataAnswerPreparedContext = (
         mcpToolNames: [],
         projectContextEntryIds: [],
         turnIntent: 'data_answer',
+        toolIntents: ['data_answer'],
     };
 };
 
@@ -2524,9 +2539,19 @@ const prepareAgentTurn = async ({
             args.messageHistory,
         );
     }
+    const turnIntent = preparedContext?.turnIntent ?? null;
+    const toolIntents = preparedContext?.toolIntents ?? [];
+    const deferredSections = getDeferredPromptSections(
+        getIntentToolNames(tools, toolIntents),
+    );
     const intentToolGate = createIntentToolGate(
         tools,
-        preparedContext?.turnIntent ?? null,
+        turnIntent,
+        toolIntents,
+        getDeferredToolInstructions(
+            getCapabilitySectionArgs(args),
+            deferredSections,
+        ),
     );
     tools = reportEarlyToolProgress
         ? withEarlyToolProgress(
@@ -2548,6 +2573,7 @@ const prepareAgentTurn = async ({
             ? ''
             : preparedSeed,
         !!preparedContext?.projectContextEntryIds.length,
+        deferredSections,
     );
     if (preparedContext?.content) {
         messages.push({

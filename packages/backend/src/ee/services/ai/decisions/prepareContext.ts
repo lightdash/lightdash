@@ -7,6 +7,7 @@ import { getAgentQuestion, getAgentRetrievalContext } from './agentQuestion';
 import {
     confidentChoice,
     decisionProbability,
+    type DecisionAnswers,
     type DecisionQuestion,
 } from './AiDecisionClient';
 
@@ -19,19 +20,56 @@ export type PreparedContext = {
     mcpToolNames: string[];
     projectContextEntryIds: string[];
     turnIntent: TurnIntent | null;
+    /** Turn types whose tools start the turn; the confident type, or the likely ones when none is confident. */
+    toolIntents: TurnIntent[];
 };
 
-export type TurnIntent =
-    | 'reference_answer'
-    | 'data_answer'
-    | 'chart'
-    | 'chart_from_previous'
-    | 'chart_export'
-    | 'data_app_create'
-    | 'data_app_iterate'
-    | 'data_app_read'
-    | 'repository_change'
-    | 'other';
+const TURN_INTENTS = [
+    'reference_answer',
+    'data_answer',
+    'chart',
+    'chart_from_previous',
+    'chart_export',
+    'data_app_create',
+    'data_app_iterate',
+    'data_app_read',
+    'repository_change',
+    'other',
+] as const;
+
+export type TurnIntent = (typeof TURN_INTENTS)[number];
+
+const isTurnIntent = (value: string): value is TurnIntent =>
+    TURN_INTENTS.some((intent) => intent === value);
+
+const LIKELY_INTENTS_COVERAGE = 0.9;
+const MAX_LIKELY_INTENTS = 2;
+
+/** The fewest turn types, at most two, that together cover most of Jev's probability, excluding other. */
+const likelyTurnIntents = (
+    answer: DecisionAnswers[string] | undefined,
+    allowed: ReadonlySet<string>,
+): TurnIntent[] => {
+    if (answer?.type !== 'choice') return [];
+    const ranked = Object.entries(answer.probabilities).sort(
+        ([, a], [, b]) => b - a,
+    );
+    const picked: TurnIntent[] = [];
+    let coverage = 0;
+    for (const [intent, probability] of ranked) {
+        if (coverage >= LIKELY_INTENTS_COVERAGE) break;
+        if (
+            intent === 'other' ||
+            !isTurnIntent(intent) ||
+            !allowed.has(intent) ||
+            picked.length === MAX_LIKELY_INTENTS
+        )
+            return [];
+        picked.push(intent);
+        coverage += probability;
+    }
+    return coverage >= LIKELY_INTENTS_COVERAGE ? picked : [];
+};
 
 // AI SDK 7 allows a tool description to be a function of its call context.
 // Candidates are budgeted by serialized size, so only a literal string can be
@@ -309,6 +347,7 @@ export const prepareRelevantContext = async (
             mcpToolNames: [],
             projectContextEntryIds: [],
             turnIntent: 'chart_from_previous',
+            toolIntents: ['chart_from_previous'],
         };
     }
     const selectedMcpTool = confidentChoice(answers.mcpTool, 0.95);
@@ -392,6 +431,7 @@ export const prepareRelevantContext = async (
         0.9,
     ) as TurnIntent | null;
     let turnIntent: TurnIntent | null = null;
+    let toolIntents: TurnIntent[] = [];
     if (questions.turnIntent) {
         if (args.forceChartMutationRouting) {
             turnIntent = 'chart_from_previous';
@@ -400,9 +440,18 @@ export const prepareRelevantContext = async (
             conversation.routingContextComplete
         ) {
             turnIntent = classifiedTurnIntent;
+            const question = questions.turnIntent;
+            toolIntents =
+                !turnIntent && question.type === 'choice'
+                    ? likelyTurnIntents(
+                          answers.turnIntent,
+                          new Set(Object.keys(question.criteria)),
+                      )
+                    : [];
         }
     }
-    return content || preloadedMcpTool || turnIntent
+    if (turnIntent) toolIntents = [turnIntent];
+    return content || preloadedMcpTool || turnIntent || toolIntents.length
         ? {
               content,
               mcpToolNames: preloadedMcpTool ? [preloadedMcpTool] : [],
@@ -410,6 +459,7 @@ export const prepareRelevantContext = async (
                   ? selectedContext.map(({ id }) => id)
                   : [],
               turnIntent,
+              toolIntents,
           }
         : null;
 };

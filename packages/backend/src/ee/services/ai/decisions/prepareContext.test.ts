@@ -112,6 +112,54 @@ describe('context preloading', () => {
         },
     );
 
+    it.each([
+        [
+            'narrows tools to the likely turn types',
+            { data_answer: 0.6, chart_from_previous: 0.35, other: 0.05 },
+            ['data_answer', 'chart_from_previous'],
+        ],
+        [
+            'keeps the full toolbox when another outcome is plausible',
+            { data_answer: 0.6, chart_from_previous: 0.1, other: 0.3 },
+            [],
+        ],
+        [
+            'keeps the full toolbox when two turn types cover too little',
+            { data_answer: 0.45, chart_from_previous: 0.3, chart: 0.25 },
+            [],
+        ],
+    ] as const)(
+        '%s when no single turn type is confident',
+        async (_, probabilities, expected) => {
+            const { args, dependencies, request } = setup();
+            args.availableSkills = [];
+            args.knowledgeDocuments = [];
+            args.messageHistory = [
+                { role: 'user', content: 'What is our average cost?' },
+                { role: 'assistant', content: 'Which cost do you mean?' },
+                { role: 'user', content: 'the operating one' },
+            ];
+            request.mockResolvedValue(
+                Response.json({
+                    model: 'test',
+                    answers: {
+                        turnIntent: {
+                            type: 'choice',
+                            choice: 'data_answer',
+                            confidence: probabilities.data_answer,
+                            probabilities,
+                        },
+                    },
+                }),
+            );
+            const context = await prepareRelevantContext(args, dependencies, {
+                loadAgentTools: getLoadAgentTools(),
+            });
+            expect(context?.turnIntent ?? null).toBeNull();
+            expect(context?.toolIntents ?? []).toEqual(expected);
+        },
+    );
+
     it('uses a confident Jev route for mixed requests', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];
@@ -324,7 +372,7 @@ describe('context preloading', () => {
         expect(context?.turnIntent).toBe('chart_from_previous');
     });
 
-    it('does not narrow tools when Jev confidence is low for a chart follow-up', async () => {
+    it('narrows a low-confidence chart follow-up to the likely chart turn types', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];
         args.knowledgeDocuments = [];
@@ -357,7 +405,8 @@ describe('context preloading', () => {
         const context = await prepareRelevantContext(args, dependencies, {
             loadAgentTools: getLoadAgentTools(),
         });
-        expect(context).toBeNull();
+        expect(context?.turnIntent).toBeNull();
+        expect(context?.toolIntents).toEqual(['chart_from_previous', 'chart']);
     });
 
     it.each([

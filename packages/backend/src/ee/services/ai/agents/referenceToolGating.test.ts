@@ -2,7 +2,11 @@ import { generateText, stepCountIs, tool, type ToolSet } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
-import { createIntentToolGate } from './referenceToolGating';
+import {
+    createIntentToolGate,
+    getDeferredPromptSections,
+    getIntentToolNames,
+} from './referenceToolGating';
 
 const usage = {
     inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
@@ -20,6 +24,8 @@ const tools = () => ({
     iterateDataApp: tool({ inputSchema: z.object({}) }),
     listDataAppThemes: tool({ inputSchema: z.object({}) }),
     createContent: tool({ inputSchema: z.object({}) }),
+    runContentQuery: tool({ inputSchema: z.object({}) }),
+    runSql: tool({ inputSchema: z.object({}) }),
     editRepo: tool({ inputSchema: z.object({}) }),
 });
 
@@ -155,5 +161,105 @@ describe('intent toolbox', () => {
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
         ).not.toContain('generateVisualization');
+    });
+});
+
+describe('deferred prompt sections', () => {
+    it('starts with the union of likely turn types when none is confident', () => {
+        const active = createIntentToolGate(tools(), null, [
+            'data_answer',
+            'chart_from_previous',
+        ]).activeTools();
+        expect(active).toEqual(
+            expect.arrayContaining(['runQuery', 'generateVisualization']),
+        );
+        expect(active).not.toContain('createContent');
+        expect(active).not.toContain('editRepo');
+    });
+
+    it('keeps the full toolbox when a likely turn type does not narrow it', () => {
+        expect(
+            createIntentToolGate(tools(), null, [
+                'data_answer',
+                'other',
+            ]).activeTools(),
+        ).toBeUndefined();
+    });
+
+    it('keeps runContentQuery out of the data answer toolbox', () => {
+        expect(
+            createIntentToolGate(tools(), 'data_answer').activeTools(),
+        ).not.toContain('runContentQuery');
+    });
+
+    it('defers sections whose tools are outside the initial toolbox', () => {
+        expect([
+            ...getDeferredPromptSections(
+                getIntentToolNames(tools(), ['data_answer']),
+            ),
+        ]).toEqual(
+            expect.arrayContaining([
+                'runSql',
+                'contentTools',
+                'generateDataApp',
+            ]),
+        );
+        expect(
+            getDeferredPromptSections(
+                getIntentToolNames(tools(), ['data_app_create']),
+            ),
+        ).not.toContain('generateDataApp');
+        expect(
+            getDeferredPromptSections(getIntentToolNames(tools(), ['other']))
+                .size,
+        ).toBe(0);
+    });
+
+    it('returns deferred instructions when the remaining tools load', async () => {
+        const gate = createIntentToolGate(
+            tools(),
+            'data_answer',
+            ['data_answer'],
+            '## Content tools',
+        );
+        let secondPrompt = '';
+        let calls = 0;
+        await generateText({
+            model: new MockLanguageModelV3({
+                doGenerate: async (options) => {
+                    calls += 1;
+                    if (calls === 1) {
+                        return {
+                            content: [
+                                {
+                                    type: 'tool-call',
+                                    toolCallId: 'load-1',
+                                    toolName: 'loadAgentTools',
+                                    input: '{}',
+                                },
+                            ],
+                            finishReason: {
+                                unified: 'tool-calls',
+                                raw: undefined,
+                            },
+                            usage,
+                            warnings: [],
+                        };
+                    }
+                    secondPrompt = JSON.stringify(options.prompt);
+                    return {
+                        content: [{ type: 'text', text: 'done' }],
+                        finishReason: { unified: 'stop', raw: undefined },
+                        usage,
+                        warnings: [],
+                    };
+                },
+            }),
+            tools: gate.tools,
+            prompt: 'Save this as a chart.',
+            prepareStep: () => ({ activeTools: gate.activeTools() }),
+            stopWhen: stepCountIs(3),
+        });
+        expect(secondPrompt).toContain('## Content tools');
     });
 });
