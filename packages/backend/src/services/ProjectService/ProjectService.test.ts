@@ -326,6 +326,7 @@ const projectModel = {
     ),
     update: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
+    deleteContentInBatches: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
         async () => ({ cacheTtlSeconds: null }),
     ),
@@ -3113,6 +3114,15 @@ describe('ProjectService', () => {
         );
         expect(onboardingModel.update.mock.invocationCallOrder[0]).toBeLessThan(
             projectModel.delete.mock.invocationCallOrder[0],
+        );
+        expect(projectModel.deleteContentInBatches).toHaveBeenCalledWith(
+            projectUuid,
+        );
+        expect(
+            projectModel.deleteContentInBatches.mock.invocationCallOrder[0],
+        ).toBeLessThan(
+            onboardingModel.runInPlaygroundProvisioningLock.mock
+                .invocationCallOrder[0],
         );
     });
 
