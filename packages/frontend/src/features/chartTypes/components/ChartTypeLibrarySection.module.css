@@ -1,0 +1,11 @@
+.updatesToggle {
+    align-self: flex-start;
+}
+
+.updateTile {
+    text-align: left;
+}
+
+.updateTile:hover {
+    background-color: var(--mantine-color-default-hover);
+}

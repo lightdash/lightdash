@@ -705,7 +705,7 @@ describe('ChartTypeGallery', () => {
         );
     });
 
-    it('opens upgrades from the library even when the chart is outside the loaded gallery', () => {
+    it('opens upgrades from the library even when the chart is outside the loaded gallery', async () => {
         setData([]);
         const viz = makeDataAppViz({ registrySlug: 'radial-gauge' });
         vi.mocked(useDataAppVisualization).mockReturnValue({
@@ -722,6 +722,11 @@ describe('ChartTypeGallery', () => {
 
         fireEvent.click(
             screen.getByRole('button', {
+                name: 'Updates available for 1 already installed chart',
+            }),
+        );
+        fireEvent.click(
+            await screen.findByRole('button', {
                 name: /Radial gauge.*Upgrade to v1.2.0/,
             }),
         );
