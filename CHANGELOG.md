@@ -1,3 +1,10 @@
+## [2.316.1](https://github.com/lightdash/lightdash/compare/2.316.0...2.316.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **sync:** show Sync now and Edit icons in Google Sheets sync list ([#29847](https://github.com/lightdash/lightdash/issues/29847)) ([5e87332](https://github.com/lightdash/lightdash/commit/5e8733218320052b1b69971864355dbb8acf1d9a))
+
 # [2.316.0](https://github.com/lightdash/lightdash/compare/2.315.0...2.316.0) (2026-09-24)
 
 

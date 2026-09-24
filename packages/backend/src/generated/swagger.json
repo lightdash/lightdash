@@ -42318,6 +42318,50 @@
                 },
                 "type": "object"
             },
+            "WarehouseConnectionForUserCredentials": {
+                "properties": {
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "isOriginal": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "warehouseConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "requireUserCredentials",
+                    "warehouseType",
+                    "isOriginal",
+                    "name",
+                    "warehouseConnectionUuid"
+                ],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionsForUserCredentialsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/WarehouseConnectionForUserCredentials"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "WarehouseConnection": {
                 "properties": {
                     "updatedAt": {
@@ -42757,6 +42801,236 @@
                     }
                 },
                 "required": ["name"],
+                "type": "object"
+            },
+            "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/RedshiftAuthenticationType"
+                    },
+                    "assumeRoleArn": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
+                "properties": {
+                    "type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                            },
+                            {
+                                "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                            },
+                            {
+                                "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
+                            }
+                        ]
+                    },
+                    "user": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateBigqueryCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateDatabricksCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateAthenaCredentials.type-or-accessKeyId_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    },
+                    "accessKeyId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateDuckdbCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ProjectType": {
+                "enum": ["DEFAULT", "PREVIEW", "TRAINING"],
+                "type": "string"
+            },
+            "UserWarehouseCredentialsProject": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "name", "projectUuid"],
+                "type": "object"
+            },
+            "UserWarehouseCredentials": {
+                "properties": {
+                    "project": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UserWarehouseCredentialsProject"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "credentials": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-accessKeyId_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type_"
+                            }
+                        ]
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "project",
+                    "credentials",
+                    "updatedAt",
+                    "createdAt",
+                    "name",
+                    "userUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "WarehouseConnectionUserCredentials": {
+                "properties": {
+                    "userWarehouseCredentials": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UserWarehouseCredentials"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "allowsOptionalUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "warehouseConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "userWarehouseCredentials",
+                    "allowsOptionalUserCredentials",
+                    "requireUserCredentials",
+                    "warehouseType",
+                    "warehouseConnectionUuid"
+                ],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionUserCredentialsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectionUserCredentials"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "WarehouseConnectCode": {
@@ -43971,190 +44245,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
-                    },
-                    "user": {
-                        "type": "string"
-                    },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/RedshiftAuthenticationType"
-                    },
-                    "assumeRoleArn": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "user"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
-                "properties": {
-                    "type": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
-                            },
-                            {
-                                "$ref": "#/components/schemas/WarehouseTypes.TRINO"
-                            },
-                            {
-                                "$ref": "#/components/schemas/WarehouseTypes.CLICKHOUSE"
-                            }
-                        ]
-                    },
-                    "user": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "user"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
-                    },
-                    "user": {
-                        "type": "string"
-                    },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
-                    }
-                },
-                "required": ["type", "user"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreateBigqueryCredentials.type_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreateDatabricksCredentials.type_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreateAthenaCredentials.type-or-accessKeyId_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
-                    },
-                    "accessKeyId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Pick_CreateDuckdbCredentials.type_": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "ProjectType": {
-                "enum": ["DEFAULT", "PREVIEW", "TRAINING"],
-                "type": "string"
-            },
-            "UserWarehouseCredentialsProject": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/ProjectType"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "name", "projectUuid"],
-                "type": "object"
-            },
-            "UserWarehouseCredentials": {
-                "properties": {
-                    "project": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/UserWarehouseCredentialsProject"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "credentials": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-accessKeyId_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type_"
-                            }
-                        ]
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "project",
-                    "credentials",
-                    "updatedAt",
-                    "createdAt",
-                    "name",
-                    "userUuid",
-                    "uuid"
-                ],
                 "type": "object"
             },
             "Pick_CreateRedshiftCredentials.type-or-user-or-password_": {
@@ -64743,7 +64833,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.316.0",
+        "version": "2.316.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
