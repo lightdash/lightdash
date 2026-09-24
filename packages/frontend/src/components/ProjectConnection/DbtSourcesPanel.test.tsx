@@ -25,6 +25,11 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
 
 const mockApi = lightdashApi as unknown as Mock;
 
+const singleProject = {
+    projectUuid: 'project-uuid',
+    connectionRoute: 'single' as const,
+};
+
 const source = {
     projectDbtSourceUuid: 'source-uuid',
     name: 'my source!',
@@ -127,7 +132,7 @@ const routeApi = (sourceName?: string) => {
 
 const openAddSourceModal = async () => {
     const user = userEvent.setup();
-    renderWithProviders(<DbtSourcesPanel projectUuid="project-uuid" />);
+    renderWithProviders(<DbtSourcesPanel project={singleProject} />);
     await user.click(await screen.findByRole('button', { name: 'Add source' }));
     await screen.findByText('Add a dbt source');
     return {
@@ -138,7 +143,7 @@ const openAddSourceModal = async () => {
 
 const openEditSourceModal = async (sourceName: string) => {
     const user = userEvent.setup();
-    renderWithProviders(<DbtSourcesPanel projectUuid="project-uuid" />);
+    renderWithProviders(<DbtSourcesPanel project={singleProject} />);
     await user.click(
         await screen.findByRole('button', {
             name: `Actions for ${sourceName}`,
@@ -301,7 +306,7 @@ describe('DbtSourcesPanel', () => {
 
     it('shows and renames the primary source with an explore-name warning', async () => {
         const user = userEvent.setup();
-        renderWithProviders(<DbtSourcesPanel projectUuid="project-uuid" />);
+        renderWithProviders(<DbtSourcesPanel project={singleProject} />);
 
         expect(await screen.findByText('dbt_project')).toBeInTheDocument();
         expect(screen.getByText('Source name')).toBeInTheDocument();

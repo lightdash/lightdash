@@ -2988,6 +2988,75 @@ describe('Multi-connection compile on the real schema', () => {
             );
         });
 
+        test('the binding service lists the connections and the binding of each additional source', async () => {
+            const fixture = await createProject();
+
+            await expect(
+                bindingService().getDbtSourceBindings(
+                    await projectAdmin(fixture.projectUuid),
+                    fixture.projectUuid,
+                ),
+            ).resolves.toEqual({
+                connections: [
+                    {
+                        warehouseConnectionUuid: fixture.originalConnectionUuid,
+                        name: 'Original',
+                        isOriginal: true,
+                    },
+                    {
+                        warehouseConnectionUuid: fixture.extraConnectionUuid,
+                        name: 'Finance warehouse',
+                        isOriginal: false,
+                    },
+                ],
+                sources: [
+                    {
+                        projectDbtSourceUuid: fixture.sourceUuids.marketing,
+                        warehouseConnectionUuid: null,
+                    },
+                    {
+                        projectDbtSourceUuid: fixture.sourceUuids.finance,
+                        warehouseConnectionUuid: fixture.extraConnectionUuid,
+                    },
+                ],
+            });
+        });
+
+        test('the binding list is refused on a single project and without permission to manage the project', async () => {
+            const fixture = await createProject();
+            const { organizationUuid } = await projectModel.getSummary(
+                fixture.projectUuid,
+            );
+            const viewer = fromSession(
+                {
+                    ...defaultSessionUser,
+                    organizationUuid,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'view' },
+                    ] as never),
+                },
+                'session-cookie',
+            );
+
+            await expect(
+                bindingService().getDbtSourceBindings(
+                    viewer,
+                    fixture.projectUuid,
+                ),
+            ).rejects.toThrow(
+                'You do not have permission to manage this project',
+            );
+            await database('projects')
+                .where('project_uuid', fixture.projectUuid)
+                .update({ connection_mode: 'single' } as never);
+            await expect(
+                bindingService().getDbtSourceBindings(
+                    await projectAdmin(fixture.projectUuid),
+                    fixture.projectUuid,
+                ),
+            ).rejects.toThrow(SingleConnectionProjectError);
+        });
+
         test('the binding service refuses to bind a source in a single project', async () => {
             const fixture = await createProject();
             await database('projects')

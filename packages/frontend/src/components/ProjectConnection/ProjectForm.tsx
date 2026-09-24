@@ -130,9 +130,7 @@ export const ProjectForm: FC<Props> = ({
 
             {savedProject &&
                 savedProject.type !== ProjectType.PREVIEW &&
-                !isNative && (
-                    <DbtSourcesPanel projectUuid={savedProject.projectUuid} />
-                )}
+                !isNative && <DbtSourcesPanel project={savedProject} />}
         </Stack>
     );
 };

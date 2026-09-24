@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     ParameterError,
     type Account,
+    type DbtSourceBindings,
 } from '@lightdash/common';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
@@ -39,12 +40,10 @@ export class WarehouseConnectionBindingService extends BaseService {
         this.credentialPolicy = args.credentialPolicy;
     }
 
-    async bindDbtSource(
+    private async assertCanManageProject(
         account: Account,
         projectUuid: string,
-        projectDbtSourceUuid: string,
-        warehouseConnectionUuid: string | null,
-    ): Promise<void> {
+    ) {
         const summary = await this.projectModel.getSummary(projectUuid);
         if (
             this.createAuditedAbility(account).cannot(
@@ -60,6 +59,26 @@ export class WarehouseConnectionBindingService extends BaseService {
                 'You do not have permission to manage this project',
             );
         }
+        return summary;
+    }
+
+    async getDbtSourceBindings(
+        account: Account,
+        projectUuid: string,
+    ): Promise<DbtSourceBindings> {
+        await this.assertCanManageProject(account, projectUuid);
+        return this.warehouseConnectionCompileModel.getDbtSourceBindings(
+            projectUuid,
+        );
+    }
+
+    async bindDbtSource(
+        account: Account,
+        projectUuid: string,
+        projectDbtSourceUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<void> {
+        const summary = await this.assertCanManageProject(account, projectUuid);
         this.credentialPolicy.assertCanWriteWarehouseConnection(
             account,
             summary,

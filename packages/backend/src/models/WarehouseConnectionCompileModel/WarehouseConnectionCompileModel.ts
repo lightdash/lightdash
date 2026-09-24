@@ -1,6 +1,7 @@
 import {
     NotFoundError,
     SingleConnectionProjectError,
+    type DbtSourceBindings,
     type WarehouseCatalog,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -70,6 +71,43 @@ export class WarehouseConnectionCompileModel {
             listAllDatabases: row.list_all_databases,
             additionalDatabases: row.additional_databases,
         }));
+    }
+
+    async getDbtSourceBindings(
+        projectUuid: string,
+    ): Promise<DbtSourceBindings> {
+        const project = await this.database('projects')
+            .select<{ connection_mode: string }[]>('connection_mode')
+            .where('project_uuid', projectUuid)
+            .first();
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        if (project.connection_mode !== 'multi') {
+            throw new SingleConnectionProjectError();
+        }
+        const [connections, sources] = await Promise.all([
+            this.getCompileConnections(projectUuid),
+            this.database<DbDbtSourceBinding>(DBT_SOURCES_TABLE)
+                .select('project_dbt_source_uuid', 'warehouse_connection_uuid')
+                .where('project_uuid', projectUuid)
+                .orderBy('precedence'),
+        ]);
+        return {
+            connections: connections.map(
+                ({ warehouseConnectionUuid, name, isOriginal }) => ({
+                    warehouseConnectionUuid,
+                    name,
+                    isOriginal,
+                }),
+            ),
+            sources: sources.map((source) => ({
+                projectDbtSourceUuid: source.project_dbt_source_uuid,
+                warehouseConnectionUuid: source.warehouse_connection_uuid,
+            })),
+        };
     }
 
     async getCatalogCache(
