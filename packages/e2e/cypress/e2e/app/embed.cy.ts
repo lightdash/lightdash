@@ -428,18 +428,24 @@ describe('Embedded AI agent dashboard viewer', () => {
 
                         const token = resp.body.results.url.split('#')[1];
                         const threadsPath = `/embed/${SEED_PROJECT.project_uuid}/ai-agents/${agentUuid}/threads`;
+                        cy.intercept('POST', '**/api/v1/embed/*/dashboard*').as(
+                            'embedDashboard',
+                        );
                         cy.visit(
                             `/embed/${SEED_PROJECT.project_uuid}/ai-agents/${agentUuid}/dashboards/${dashboard.uuid}?embedBackUrl=${encodeURIComponent(threadsPath)}#${token}`,
                         );
+                        cy.wait('@embedDashboard')
+                            .its('response.statusCode')
+                            .should('eq', 200);
 
                         cy.contains('Payments total revenue');
                         cy.contains(`What's the average spend per customer?`);
 
-                        // Read-only: no exports in the tile menu.
-                        openTileMenu(`What's the average spend per customer?`);
+                        getTile(`What's the average spend per customer?`)
+                            .findByRole('button', { name: 'Tile actions' })
+                            .should('not.exist');
                         cy.contains('Download data').should('not.exist');
                         cy.contains('Export image').should('not.exist');
-                        cy.get('body').click(1, 1);
 
                         cy.findByRole('button', { name: 'Back to AI' }).click();
                         cy.location('pathname').should('eq', threadsPath);
