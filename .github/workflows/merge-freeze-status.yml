@@ -37,19 +37,51 @@ jobs:
         run: |
           set -euo pipefail
 
+          with_retries() {
+            local label=$1 attempt
+            shift
+            for attempt in 1 2 3; do
+              if "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "::warning::$label failed on attempt $attempt. Retrying in $((attempt * 10))s."
+                sleep $((attempt * 10))
+              fi
+            done
+            return 1
+          }
+
+          read_frozen() {
+            local rules
+            rules=$(gh api --paginate --slurp "repos/$REPO/rules/branches/$branch?per_page=100") || return 1
+            frozen=$(jq -er '
+              if type == "array" and length > 0 and all(.[]; type == "array")
+              then add else error("Invalid branch rule pages") end
+              | if all(.[]; type == "object" and (.type | type == "string"))
+                then . else error("Invalid branch rules") end
+              | [.[] | select(.type == "required_status_checks")
+                 | .parameters.required_status_checks
+                 | if type == "array" and all(.[]; type == "object" and (.context | type == "string"))
+                   then .[] else error("Invalid required status checks") end]
+              | any(.[]; .context == "merge-freeze") | tostring
+            ' <<<"$rules")
+          }
+
+          post_status() {
+            gh api --method POST "repos/$REPO/statuses/$SHA" \
+              -f state="$state" \
+              -f context=merge-freeze \
+              -f description="$description" \
+              -f target_url="$FREEZE_URL" >/dev/null
+          }
+
           branch=$(jq -rn --arg branch "$BRANCH" '$branch | @uri')
-          rules=$(gh api --paginate --slurp "repos/$REPO/rules/branches/$branch?per_page=100")
-          frozen=$(jq -er '
-            if type == "array" and length > 0 and all(.[]; type == "array")
-            then add else error("Invalid branch rule pages") end
-            | if all(.[]; type == "object" and (.type | type == "string"))
-              then . else error("Invalid branch rules") end
-            | [.[] | select(.type == "required_status_checks")
-               | .parameters.required_status_checks
-               | if type == "array" and all(.[]; type == "object" and (.context | type == "string"))
-                 then .[] else error("Invalid required status checks") end]
-            | any(.[]; .context == "merge-freeze") | tostring
-          ' <<<"$rules")
+
+          if ! with_retries "Reading the $BRANCH branch rules" read_frozen; then
+            echo "::error title=Freeze state unknown::Could not read the $BRANCH branch rules after 3 attempts. This does not mean merges are frozen. Re-run this job."
+            exit 1
+          fi
 
           if [ "$frozen" = "true" ]; then
             state=failure
@@ -59,10 +91,9 @@ jobs:
             description="Merges to main are open"
           fi
 
-          gh api --method POST "repos/$REPO/statuses/$SHA" \
-            -f state="$state" \
-            -f context=merge-freeze \
-            -f description="$description" \
-            -f target_url="$FREEZE_URL" >/dev/null
+          if ! with_retries "Posting the merge-freeze status" post_status; then
+            echo "::error title=Freeze status not posted::$description, but the merge-freeze status could not be posted after 3 attempts. Re-run this job."
+            exit 1
+          fi
 
           echo "$description"
