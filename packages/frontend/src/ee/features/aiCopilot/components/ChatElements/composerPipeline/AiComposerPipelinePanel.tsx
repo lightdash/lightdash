@@ -40,6 +40,7 @@ import {
 } from '@xyflow/react';
 import { clsx } from 'clsx';
 import {
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -204,57 +205,43 @@ const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
 const PipelineList: FC<{
     layers: PipelineLayer[];
     selectedNodeId: string | null;
-}> = ({ layers, selectedNodeId }) => {
-    const bodyRef = useRef<HTMLDivElement>(null);
-    // Centre the row chosen in the graph once the list has mounted.
-    useEffect(() => {
-        if (!selectedNodeId) return;
-        const row = bodyRef.current?.querySelector<HTMLElement>(
-            `#${pipelineNodeRowId(selectedNodeId)}`,
-        );
-        row?.scrollIntoView?.({ block: 'center' });
-    }, [selectedNodeId]);
-    return (
-        <Box className={styles.body} ref={bodyRef}>
-            {layers.map((layer) => (
-                <Box key={layer.depth} className={styles.layer}>
-                    <Group gap={4} className={styles.layerHeading}>
-                        <Text component="span" inherit>
-                            {layerLabel(layer)}
-                        </Text>
-                        {layer.kind === 'transformations' && (
-                            <Tooltip
-                                label={TRANSFORMATIONS_HELP}
-                                multiline
-                                w={260}
-                                position="top-start"
+}> = ({ layers, selectedNodeId }) => (
+    <Box className={styles.body}>
+        {layers.map((layer) => (
+            <Box key={layer.depth} className={styles.layer}>
+                <Group gap={4} className={styles.layerHeading}>
+                    <Text component="span" inherit>
+                        {layerLabel(layer)}
+                    </Text>
+                    {layer.kind === 'transformations' && (
+                        <Tooltip
+                            label={TRANSFORMATIONS_HELP}
+                            multiline
+                            w={260}
+                            position="top-start"
+                        >
+                            <ActionIcon
+                                variant="subtle"
+                                size="xs"
+                                className={styles.helpIcon}
+                                aria-label="About transformations"
                             >
-                                <ActionIcon
-                                    variant="subtle"
-                                    size="xs"
-                                    className={styles.helpIcon}
-                                    aria-label="About transformations"
-                                >
-                                    <MantineIcon
-                                        icon={IconHelpCircle}
-                                        size={12}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </Group>
-                    {layer.nodes.map((node) => (
-                        <PipelineNodeRow
-                            key={node.nodeId}
-                            node={node}
-                            selected={node.nodeId === selectedNodeId}
-                        />
-                    ))}
-                </Box>
-            ))}
-        </Box>
-    );
-};
+                                <MantineIcon icon={IconHelpCircle} size={12} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </Group>
+                {layer.nodes.map((node) => (
+                    <PipelineNodeRow
+                        key={node.nodeId}
+                        node={node}
+                        selected={node.nodeId === selectedNodeId}
+                    />
+                ))}
+            </Box>
+        ))}
+    </Box>
+);
 
 const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
     <Paper
@@ -299,28 +286,29 @@ const PipelineFlow: FC<{
 }> = ({ layers, onSelect }) => {
     const flow = useMemo(() => toPipelineFlow(layers), [layers]);
     const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
-    const [laidOut, setLaidOut] = useState(false);
+    const laidOut = useRef(false);
     const initialized = useNodesInitialized();
     const { fitView } = useReactFlow();
     const { ref, width, height } = useElementSize();
 
     // Positions need measured sizes, so lay out once React Flow has them.
     useEffect(() => {
-        if (!initialized || laidOut) return;
+        if (!initialized || laidOut.current) return;
+        laidOut.current = true;
         setNodes((current) => layoutPipelineFlow(current, flow.edges));
-        setLaidOut(true);
-    }, [initialized, laidOut, flow.edges, setNodes]);
+        requestAnimationFrame(() => void fitView(FIT_VIEW_OPTIONS));
+    }, [initialized, flow.edges, setNodes, fitView]);
 
     useEffect(() => {
-        if (laidOut) void fitView(FIT_VIEW_OPTIONS);
-    }, [laidOut, width, height, fitView]);
+        if (laidOut.current) void fitView(FIT_VIEW_OPTIONS);
+    }, [width, height, fitView]);
 
     return (
         <Box className={styles.graph} ref={ref}>
             <ReactFlow<PipelineFlowNode>
                 className={clsx(
                     reactFlowStyles.reactFlow,
-                    !laidOut && styles.flowPending,
+                    !laidOut.current && styles.flowPending,
                 )}
                 nodes={nodes}
                 edges={flow.edges}
@@ -448,10 +436,16 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             onModeChange={setMode}
         />
     );
-    const selectNode = (nodeId: string) => {
+    const selectNode = useCallback((nodeId: string) => {
         setSelectedNodeId(nodeId);
         setMode('list');
-    };
+        // The list mounts on the next render; centre the chosen row then.
+        requestAnimationFrame(() =>
+            document
+                .getElementById(pipelineNodeRowId(nodeId))
+                ?.scrollIntoView?.({ block: 'center' }),
+        );
+    }, []);
 
     if (!expanded) {
         return (
