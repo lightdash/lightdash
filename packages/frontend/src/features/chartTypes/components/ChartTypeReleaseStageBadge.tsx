@@ -9,7 +9,7 @@ const ChartTypeReleaseStageBadge: FC<{
     if (stage === 'stable') return null;
     if (stage === 'beta') {
         return (
-            <Badge size="xs" variant="light" color="yellow">
+            <Badge size="xs" variant="light" color="indigo">
                 Beta
             </Badge>
         );
