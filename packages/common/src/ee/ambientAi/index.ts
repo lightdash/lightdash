@@ -4,6 +4,7 @@ import {
     type TableCalculation,
 } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
+import { type DataAppVizField } from '../apps/types';
 
 export type ApiAiGenerateCustomVizResponse = {
     status: 'ok';
@@ -131,4 +132,39 @@ export type GeneratedTooltip = {
 export type ApiAiGenerateTooltipResponse = {
     status: 'ok';
     results: GeneratedTooltip;
+};
+
+/** Chart Studio: which fields of a table fit a chart type's declared inputs. */
+export type SuggestChartTypeFieldsRequest = {
+    prompt: string;
+    /** Answers to the clarifying questions, in the order they were asked. */
+    clarifications: string[];
+    exploreName: string;
+    /** The declared inputs to pick for. A rebuild sends only the new ones. */
+    fields: DataAppVizField[];
+};
+
+export type SuggestedChartTypeFieldAlternative = {
+    fieldId: string;
+    reason: string;
+};
+
+export type SuggestedChartTypeField = {
+    /** The declared input's name. */
+    fieldName: string;
+    /** Item ids in the explore. One unless the input accepts multiple; empty when nothing of the right type exists. */
+    fieldIds: string[];
+    /** One line, shown on hover. */
+    reason: string;
+    /** Up to two runners-up, shown in the select's Suggested group. */
+    alternatives: SuggestedChartTypeFieldAlternative[];
+};
+
+export type SuggestedChartTypeFields = {
+    suggestions: SuggestedChartTypeField[];
+};
+
+export type ApiAiSuggestChartTypeFieldsResponse = {
+    status: 'ok';
+    results: SuggestedChartTypeFields;
 };

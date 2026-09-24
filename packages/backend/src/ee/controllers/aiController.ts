@@ -5,6 +5,7 @@ import {
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGenerateTooltipResponse,
+    ApiAiSuggestChartTypeFieldsResponse,
     ApiErrorPayload,
     assertRegisteredAccount,
     GenerateChartMetadataRequest,
@@ -13,6 +14,7 @@ import {
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     ItemsMap,
+    SuggestChartTypeFieldsRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -166,6 +168,27 @@ export class AiController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiService().generateTooltip(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart-type/suggest-fields')
+    @OperationId('suggestChartTypeFields')
+    async suggestChartTypeFields(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: SuggestChartTypeFieldsRequest,
+    ): Promise<ApiAiSuggestChartTypeFieldsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().suggestChartTypeFields(
                 toSessionUser(req.account),
                 projectUuid,
                 body,

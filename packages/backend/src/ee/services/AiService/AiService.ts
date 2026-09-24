@@ -19,6 +19,8 @@ import {
     isField,
     ItemsMap,
     SessionUser,
+    SuggestChartTypeFieldsRequest,
+    SuggestedChartTypeFields,
     TableCalculationType,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -36,6 +38,7 @@ import { BaseService } from '../../../services/BaseService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
+    ChartTypeFieldsSuggested,
     ConvertSqlToFormulaGenerated,
     CustomVizGenerated,
     GenerateChartMetadataGenerated,
@@ -51,6 +54,10 @@ import {
     type ChartSimilarityInput,
     type ChartSimilarityMatch,
 } from '../ai/agents/chartSimilarity';
+import {
+    getChartTypeFieldCandidates,
+    suggestChartTypeFields as suggestChartTypeFieldsFromContext,
+} from '../ai/agents/chartTypeSuggestionGenerator';
 import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
 import {
     detectDataAppAnomalies,
@@ -408,21 +415,7 @@ export class AiService extends BaseService {
         projectUuid: string,
         payload: GenerateChartMetadataRequest,
     ): Promise<GeneratedChartMetadata> {
-        const project = await this.projectService.getProject(
-            projectUuid,
-            fromSession(user),
-        );
-        if (
-            this.createAuditedAbility(user).cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        await this.assertCanManageExplore(user, projectUuid);
 
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
@@ -449,6 +442,68 @@ export class AiService extends BaseService {
         });
 
         return result;
+    }
+
+    private async assertCanManageExplore(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    async suggestChartTypeFields(
+        user: SessionUser,
+        projectUuid: string,
+        payload: SuggestChartTypeFieldsRequest,
+    ): Promise<SuggestedChartTypeFields> {
+        await this.assertCanManageExplore(user, projectUuid);
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const explore = await this.projectService.getExplore(
+            fromSession(user),
+            projectUuid,
+            payload.exploreName,
+        );
+
+        const { suggestions, timedOut } =
+            await suggestChartTypeFieldsFromContext(modelOptions, {
+                prompt: payload.prompt,
+                clarifications: payload.clarifications,
+                inputs: payload.fields,
+                exploreLabel: explore.label,
+                candidates: getChartTypeFieldCandidates(explore),
+            });
+
+        this.analytics.track<ChartTypeFieldsSuggested>({
+            userId: user.userUuid,
+            event: 'ai.chart_type_fields.suggested',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                inputCount: payload.fields.length,
+                suggestedInputCount: suggestions.filter(
+                    (suggestion) => suggestion.fieldIds.length > 0,
+                ).length,
+                timedOut,
+            },
+        });
+
+        return { suggestions };
     }
 
     async generateTableCalculation(
