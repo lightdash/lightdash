@@ -1835,10 +1835,11 @@ describe('Multi runtime identity wiring on the real schema', () => {
                                 sql: 'CURRENT_TIMESTAMP',
                                 compiledSql: 'CURRENT_TIMESTAMP',
                                 tablesReferences: ['refunds'],
+                                timestampDomain: 'naive',
                                 hidden: false,
                             },
                             happened_at_day: {
-                                type: DimensionType.DATE,
+                                type: DimensionType.TIMESTAMP,
                                 name: 'happened_at_day',
                                 label: 'happened_at_day',
                                 table: 'refunds',
@@ -1850,6 +1851,7 @@ describe('Multi runtime identity wiring on the real schema', () => {
                                 tablesReferences: ['refunds'],
                                 timeInterval: TimeFrames.DAY,
                                 timeIntervalBaseDimensionName: 'happened_at',
+                                timestampDomain: 'naive',
                                 hidden: false,
                             },
                         },
@@ -1921,11 +1923,11 @@ describe('Multi runtime identity wiring on the real schema', () => {
             return { ...fixture, user, account: fromSession(user) };
         };
 
-        const sqlBuildingProjectService = () => {
+        const sqlBuildingProjectService = (timezoneSupport = false) => {
             const service = new ProjectService({
                 ...serviceArgs(),
                 featureFlagModel: {
-                    get: async () => ({ id: 'flag', enabled: false }),
+                    get: async () => ({ id: 'flag', enabled: timezoneSupport }),
                 },
                 organizationSettingsModel: {
                     get: async () => ({
@@ -2018,6 +2020,27 @@ describe('Multi runtime identity wiring on the real schema', () => {
 
             expect(query).toContain(originalWeekSql);
             expect(query).not.toContain(extraWeekSql);
+        });
+
+        test('with timezone support on, a timestamp truncation on an explore bound to an extra connection uses the timezone of that connection', async () => {
+            const fixture = await createSqlBuildingProject('multi');
+            const service = sqlBuildingProjectService(true);
+            const compileDay = (exploreName: string) =>
+                service.compileQuery({
+                    account: fixture.account,
+                    projectUuid: fixture.projectUuid,
+                    exploreName,
+                    body: {
+                        ...weekQuery(exploreName),
+                        dimensions: ['refunds_happened_at_day'],
+                    },
+                });
+
+            const extra = await compileDay('extra_refunds');
+            const original = await compileDay('original_refunds');
+
+            expect(extra.query).toContain(EXTRA_TIMEZONE);
+            expect(original.query).not.toContain(EXTRA_TIMEZONE);
         });
 
         test('validateFormula for an explore bound to an extra connection compiles the formula with the SQL builder of that connection', async () => {
