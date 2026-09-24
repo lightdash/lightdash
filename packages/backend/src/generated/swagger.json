@@ -24481,6 +24481,612 @@
                 "type": "object",
                 "description": "Chart Studio: which table fits a chart type, before any preview data is attached."
             },
+            "AiAgentSkillAvailability": {
+                "type": "string",
+                "enum": ["agent", "mcp"]
+            },
+            "AiAgentSkillVersionSource": {
+                "type": "string",
+                "enum": ["ui", "as_code", "restore", "system"]
+            },
+            "AiAgentSkillVersionSummary": {
+                "properties": {
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "restoredFromVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/AiAgentSkillVersionSource"
+                    },
+                    "contentHash": {
+                        "type": "string"
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserUuid",
+                    "createdAt",
+                    "restoredFromVersion",
+                    "source",
+                    "contentHash",
+                    "versionNumber",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentSkillSummary": {
+                "properties": {
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "agentUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Agents this skill is bound to."
+                    },
+                    "currentVersion": {
+                        "$ref": "#/components/schemas/AiAgentSkillVersionSummary"
+                    },
+                    "availability": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentSkillAvailability"
+                        },
+                        "type": "array"
+                    },
+                    "userInvocable": {
+                        "type": "boolean"
+                    },
+                    "disableModelInvocation": {
+                        "type": "boolean"
+                    },
+                    "argumentHint": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Frontmatter fields the chat and MCP surfaces need without the body."
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "deletedAt",
+                    "updatedAt",
+                    "createdAt",
+                    "updatedByUserUuid",
+                    "createdByUserUuid",
+                    "agentUuids",
+                    "currentVersion",
+                    "availability",
+                    "userInvocable",
+                    "disableModelInvocation",
+                    "argumentHint",
+                    "description",
+                    "title",
+                    "name",
+                    "projectUuid",
+                    "organizationUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiAiAgentSkillSummaryListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentSkillSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAgentSkillMetadata": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
+            },
+            "AiAgentSkillFrontmatter": {
+                "properties": {
+                    "compatibility": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "license": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiAgentSkillMetadata"
+                    },
+                    "availability": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentSkillAvailability"
+                        },
+                        "type": "array"
+                    },
+                    "userInvocable": {
+                        "type": "boolean"
+                    },
+                    "disableModelInvocation": {
+                        "type": "boolean"
+                    },
+                    "arguments": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "argumentHint": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "whenToUse": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "compatibility",
+                    "license",
+                    "metadata",
+                    "availability",
+                    "userInvocable",
+                    "disableModelInvocation",
+                    "arguments",
+                    "argumentHint",
+                    "whenToUse",
+                    "title",
+                    "description",
+                    "name"
+                ],
+                "type": "object",
+                "description": "Frontmatter fields Lightdash honours, after defaults are applied."
+            },
+            "AiAgentSkillParsedResource": {
+                "properties": {
+                    "body": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "fileName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["body", "description", "name", "fileName"],
+                "type": "object"
+            },
+            "AiAgentSkillParsed": {
+                "properties": {
+                    "resources": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentSkillParsedResource"
+                        },
+                        "type": "array"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "frontmatter": {
+                        "$ref": "#/components/schemas/AiAgentSkillFrontmatter"
+                    }
+                },
+                "required": ["resources", "body", "frontmatter"],
+                "type": "object"
+            },
+            "AiAgentSkillIssueCode": {
+                "type": "string",
+                "enum": [
+                    "skill_file_missing",
+                    "frontmatter_invalid",
+                    "name_missing",
+                    "name_invalid",
+                    "name_reserved",
+                    "name_mismatch",
+                    "description_missing",
+                    "description_too_long",
+                    "compatibility_too_long",
+                    "field_invalid",
+                    "field_ignored",
+                    "field_rejected",
+                    "body_shell_injection",
+                    "body_file_reference",
+                    "body_env_variable",
+                    "body_too_large",
+                    "body_too_long",
+                    "resource_path_invalid",
+                    "resource_too_large",
+                    "too_many_resources",
+                    "skill_too_large",
+                    "unknown_file"
+                ]
+            },
+            "AiAgentSkillIssue": {
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "File or folder path inside the skill folder the issue refers to."
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "$ref": "#/components/schemas/AiAgentSkillIssueCode"
+                    }
+                },
+                "required": ["path", "message", "code"],
+                "type": "object"
+            },
+            "AiAgentSkillValidationResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "warnings": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentSkillIssue"
+                                },
+                                "type": "array"
+                            },
+                            "errors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentSkillIssue"
+                                },
+                                "type": "array",
+                                "description": "Always empty when valid; typed as an array for the OpenAPI schema."
+                            },
+                            "parsed": {
+                                "$ref": "#/components/schemas/AiAgentSkillParsed"
+                            },
+                            "valid": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["warnings", "errors", "parsed", "valid"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "warnings": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentSkillIssue"
+                                },
+                                "type": "array"
+                            },
+                            "errors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentSkillIssue"
+                                },
+                                "type": "array"
+                            },
+                            "parsed": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "valid": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["warnings", "errors", "parsed", "valid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentSkillValidationResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentSkillValidationResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAgentSkillFiles": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
+            },
+            "ApiValidateAiAgentSkill": {
+                "properties": {
+                    "files": {
+                        "$ref": "#/components/schemas/AiAgentSkillFiles"
+                    }
+                },
+                "required": ["files"],
+                "type": "object"
+            },
+            "AiAgentSkillContent": {
+                "properties": {
+                    "files": {
+                        "$ref": "#/components/schemas/AiAgentSkillFiles"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["files", "schemaVersion"],
+                "type": "object"
+            },
+            "AiAgentSkill": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentSkillSummary"
+                    },
+                    {
+                        "properties": {
+                            "parsed": {
+                                "$ref": "#/components/schemas/AiAgentSkillParsed"
+                            },
+                            "content": {
+                                "$ref": "#/components/schemas/AiAgentSkillContent"
+                            }
+                        },
+                        "required": ["parsed", "content"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentSkillResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentSkill"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateAiAgentSkill": {
+                "properties": {
+                    "agentUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Agents to bind on creation."
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "files": {
+                        "$ref": "#/components/schemas/AiAgentSkillFiles"
+                    }
+                },
+                "required": ["projectUuid", "files"],
+                "type": "object"
+            },
+            "ApiUpdateAiAgentSkill": {
+                "properties": {
+                    "files": {
+                        "$ref": "#/components/schemas/AiAgentSkillFiles"
+                    }
+                },
+                "required": ["files"],
+                "type": "object"
+            },
+            "ApiAiAgentSkillDeleteResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "unboundAgentUuids": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["unboundAgentUuids"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentSkillVersionListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentSkillVersionSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAgentSkillVersion": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentSkillVersionSummary"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "$ref": "#/components/schemas/AiAgentSkillContent"
+                            },
+                            "skillUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content", "skillUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentSkillVersionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentSkillVersion"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiAgentBuiltInSkillSummary": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "name"],
+                "type": "object",
+                "description": "A built-in skill as shown beside custom skills in binding UI and the slash menu."
+            },
+            "AgentSkillsListing": {
+                "properties": {
+                    "builtInSkills": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentBuiltInSkillSummary"
+                        },
+                        "type": "array"
+                    },
+                    "skills": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentSkillSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["builtInSkills", "skills"],
+                "type": "object"
+            },
+            "ApiAgentSkillsListingResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AgentSkillsListing"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSetAgentSkills": {
+                "properties": {
+                    "skillUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["skillUuids"],
+                "type": "object",
+                "description": "Authoritative set of skills bound to one agent."
+            },
             "AiAgentDocumentRelevance": {
                 "type": "string",
                 "enum": ["high", "medium", "low", "none"]
@@ -27870,6 +28476,52 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "builtIn": {
+                                "type": "boolean"
+                            },
+                            "versionNumber": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "pinnedVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "skillUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "arguments": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["skill"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "builtIn",
+                            "versionNumber",
+                            "pinnedVersionUuid",
+                            "skillUuid",
+                            "arguments",
+                            "name",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -28765,6 +29417,50 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "skill": {
+                                                        "properties": {
+                                                            "contentHash": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "versionNumber": {
+                                                                "type": "number",
+                                                                "format": "double",
+                                                                "nullable": true
+                                                            },
+                                                            "uuid": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "builtIn": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "contentHash",
+                                                            "versionNumber",
+                                                            "uuid",
+                                                            "builtIn",
+                                                            "name"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "aiWritebackRunUuid": {
                                                         "type": "string"
                                                     },
@@ -29245,12 +29941,12 @@
                     "versionUuid": {
                         "type": "string"
                     },
-                    "artifactUuid": {
-                        "type": "string"
-                    },
                     "versionNumber": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "artifactUuid": {
+                        "type": "string"
                     },
                     "artifactType": {
                         "type": "string",
@@ -29261,8 +29957,8 @@
                     "title",
                     "description",
                     "versionUuid",
-                    "artifactUuid",
                     "versionNumber",
+                    "artifactUuid",
                     "artifactType"
                 ],
                 "type": "object",
@@ -29405,7 +30101,8 @@
                             "not_an_edit",
                             "unresolved",
                             "unavailable",
-                            "routed"
+                            "routed",
+                            "instant_reply"
                         ]
                     }
                 },
@@ -30047,6 +30744,23 @@
                         },
                         "required": ["designUuid", "type"],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "arguments": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["skill"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["arguments", "name", "type"],
+                        "type": "object"
                     }
                 ]
             },
@@ -30395,12 +31109,12 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "artifactUuid": {
-                        "type": "string"
-                    },
                     "versionNumber": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "artifactUuid": {
+                        "type": "string"
                     },
                     "artifactType": {
                         "type": "string",
@@ -30444,8 +31158,8 @@
                     "description",
                     "versionUuid",
                     "createdAt",
-                    "artifactUuid",
                     "versionNumber",
+                    "artifactUuid",
                     "artifactType",
                     "threadUuid",
                     "promptUuid",
@@ -36933,9 +37647,9 @@
                 "type": "string",
                 "enum": [
                     "sandbox",
+                    "agent",
                     "install",
                     "clone",
-                    "agent",
                     "commit",
                     "push",
                     "pull_request"
@@ -65405,7 +66119,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.333.0",
+        "version": "2.334.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -71717,6 +72431,502 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/aiAgents/skills": {
+            "get": {
+                "operationId": "listAiAgentSkills",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillSummaryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the organization's custom skills. With a project, returns the\norganization-wide skills plus the ones scoped to that project. Deleted\nskills are included on request so one of their versions can be restored.",
+                "summary": "List AI agent skills",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "includeDeleted",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createAiAgentSkill",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a custom skill from its files and publish version 1.",
+                "summary": "Create an AI agent skill",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateAiAgentSkill"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/skills/validate": {
+            "post": {
+                "operationId": "validateAiAgentSkill",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillValidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Validate a skill folder without saving it. Returns the same errors and\nwarnings the editor and the CLI show.",
+                "summary": "Validate an AI agent skill",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiValidateAiAgentSkill"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/skills/{skillUuid}": {
+            "get": {
+                "operationId": "getAiAgentSkill",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The skill with its current content and parsed frontmatter. Deleted\nskills are returned too, so their history stays reachable.",
+                "summary": "Get an AI agent skill",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "skillUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateAiAgentSkill",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Save the skill's files. Publishes a new version when the content changed.",
+                "summary": "Update an AI agent skill",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "skillUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateAiAgentSkill"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteAiAgentSkill",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Soft-delete the skill and unbind it from every agent. Returns the\nagents that lost it.",
+                "summary": "Delete an AI agent skill",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "skillUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/skills/{skillUuid}/versions": {
+            "get": {
+                "operationId": "listAiAgentSkillVersions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillVersionListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Every version of the skill, newest first, without content.",
+                "summary": "List an AI agent skill's versions",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "skillUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/skills/{skillUuid}/versions/{versionNumber}": {
+            "get": {
+                "operationId": "getAiAgentSkillVersion",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillVersionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One version of the skill with its full content.",
+                "summary": "Get one version of an AI agent skill",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "skillUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionNumber",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/skills/{skillUuid}/versions/{versionNumber}/restore": {
+            "post": {
+                "operationId": "restoreAiAgentSkillVersion",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentSkillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Publish a new version whose content equals the chosen one. Also\nrestores a soft-deleted skill.",
+                "summary": "Restore a version of an AI agent skill",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "skillUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionNumber",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/skills": {
+            "get": {
+                "operationId": "listAgentSkills",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentSkillsListingResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The skills this agent serves: its bound custom skills plus the built-in\nones. Anyone who can use the agent can read this.",
+                "summary": "List agent skills",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "setAgentSkills",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentSkillsListingResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Replace the set of custom skills bound to this agent.",
+                "summary": "Set agent skills",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSetAgentSkills"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents": {

@@ -1,3 +1,16 @@
+# [2.334.0](https://github.com/lightdash/lightdash/compare/2.333.0...2.334.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agents:** add custom skill storage, types and validator ([#29807](https://github.com/lightdash/lightdash/issues/29807)) ([e94831d](https://github.com/lightdash/lightdash/commit/e94831d8c47b8e9758dd2f30362e2cea758a9ed9))
+* **ai-agents:** add the custom skills API and agent bindings ([#29809](https://github.com/lightdash/lightdash/issues/29809)) ([132ebe1](https://github.com/lightdash/lightdash/commit/132ebe1800c233c3a7ff1c9b8dc29ea850e426b0))
+* **ai-agents:** add view and manage scopes for agent skills ([#29808](https://github.com/lightdash/lightdash/issues/29808)) ([bff3538](https://github.com/lightdash/lightdash/commit/bff3538250c8407505e8430b7bc079994aca22d9))
+* **ai-agents:** detect lasting corrections with JEV and record them ([#29939](https://github.com/lightdash/lightdash/issues/29939)) ([371776a](https://github.com/lightdash/lightdash/commit/371776ab8da5541826bce239bcb16cb491c612f3))
+* **ai-agents:** let JEV answer small follow-ups instantly ([#29938](https://github.com/lightdash/lightdash/issues/29938)) ([d70a651](https://github.com/lightdash/lightdash/commit/d70a651654160c552d7d706d8316017488cda7be))
+* **ai-agents:** serve custom skills to the agent and add slash invocation ([#29810](https://github.com/lightdash/lightdash/issues/29810)) ([0a94232](https://github.com/lightdash/lightdash/commit/0a94232df1bc17a3f32e87559b21717637fbb0a0))
+* **mcp:** expose custom agent skills over the MCP server ([#29811](https://github.com/lightdash/lightdash/issues/29811)) ([b9bb2c8](https://github.com/lightdash/lightdash/commit/b9bb2c879cf545043cd032ac231eaf27ce28c1fb))
+
 # [2.333.0](https://github.com/lightdash/lightdash/compare/2.332.0...2.333.0) (2026-09-24)
 
 
