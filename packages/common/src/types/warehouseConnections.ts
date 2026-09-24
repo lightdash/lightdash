@@ -104,3 +104,16 @@ export type ApiWarehouseConnectionUserCredentialsResponse = {
     status: 'ok';
     results: WarehouseConnectionUserCredentials;
 };
+
+export type WarehouseConnectionForUserCredentials = {
+    warehouseConnectionUuid: string;
+    name: string;
+    isOriginal: boolean;
+    warehouseType: WarehouseTypes;
+    requireUserCredentials: boolean;
+};
+
+export type ApiWarehouseConnectionsForUserCredentialsResponse = {
+    status: 'ok';
+    results: WarehouseConnectionForUserCredentials[];
+};

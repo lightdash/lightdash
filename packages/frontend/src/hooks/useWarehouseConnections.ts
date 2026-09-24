@@ -6,6 +6,7 @@ import {
     type ApiUpdateWarehouseConnectionRequest,
     type WarehouseConnection,
     type WarehouseConnectionCapabilities,
+    type WarehouseConnectionForUserCredentials,
     type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
 } from '@lightdash/common';
@@ -74,19 +75,21 @@ export const useWarehouseConnections = (projectUuid: string) => {
     return { ...query, isEnabled };
 };
 
-export const useWarehouseConnectionList = (
+export const useWarehouseConnectionsForUserCredentials = (
     projectUuid: string,
-    enabled: boolean,
 ) =>
-    useQuery<ProjectWarehouseConnections, ApiError>({
-        queryKey: connectionsQueryKey(projectUuid),
+    useQuery<WarehouseConnectionForUserCredentials[], ApiError>({
+        queryKey: [
+            'projects',
+            projectUuid,
+            'warehouse-connection-user-credentials',
+        ],
         queryFn: () =>
-            lightdashApi<ProjectWarehouseConnections>({
-                url: connectionsUrl(projectUuid),
+            lightdashApi<WarehouseConnectionForUserCredentials[]>({
+                url: `/projects/${projectUuid}/warehouse-connection-user-credentials`,
                 method: 'GET',
                 body: undefined,
             }),
-        enabled,
         retry: false,
     });
 

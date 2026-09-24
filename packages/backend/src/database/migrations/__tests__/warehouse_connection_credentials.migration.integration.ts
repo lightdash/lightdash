@@ -23,6 +23,7 @@ import {
 } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { type ConnectionBinding } from '../../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE } from '../../../services/WarehouseConnectionService/extraConnectionUserCredentials';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -46,7 +47,7 @@ type CredentialsResult = CreateWarehouseCredentials & {
 
 type ProjectServiceCredentials = {
     getWarehouseCredentials: (
-        args: CredentialCall & { binding: { kind: 'original' } },
+        args: CredentialCall & { binding: ConnectionBinding },
     ) => Promise<CredentialsResult>;
     getExtraConnectionWarehouseCredentials: (
         args: CredentialCall & { warehouseConnectionUuid: string },
@@ -996,6 +997,47 @@ describe('Extra connection credentials on the real schema', () => {
     });
 
     describe('P6 guard: never the newest credential of the type', () => {
+        test('a saved choice whose credential was edited to another warehouse type is not merged, and the user is asked again', async () => {
+            const organization = await createOrganization();
+            const project = await createProject(organization, {
+                mode: 'multi',
+                credentials: withRequire(postgres, true),
+            });
+            const extra = await createExtra(project, { credentials: postgres });
+            const personal = await createPersonal(organization.userUuid, {
+                type: WarehouseTypes.POSTGRES,
+                user: 'personal-user',
+                password: 'personal-password',
+            });
+            await preferForConnection(organization.userUuid, extra, personal);
+            await new UserWarehouseCredentialsModel({
+                database,
+                encryptionUtil,
+            }).update(organization.userUuid, personal, {
+                name: 'Personal',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'snowflake-user',
+                    password: 'snowflake-password',
+                },
+            } as never);
+
+            await expect(
+                extraCredentials(project, extra, organization.userUuid),
+            ).rejects.toBeInstanceOf(MissingWarehouseCredentialsError);
+            await expect(
+                credentialsApi.getWarehouseCredentials({
+                    projectUuid: project,
+                    userId: organization.userUuid,
+                    isRegisteredUser: true,
+                    binding: {
+                        kind: 'connection',
+                        warehouseConnectionUuid: extra,
+                    },
+                }),
+            ).rejects.toBeInstanceOf(MissingWarehouseCredentialsError);
+        });
+
         test('a credential chosen for project A is not used for an extra connection in project B', async () => {
             const organization = await createOrganization();
             const projectA = await createProject(organization, {

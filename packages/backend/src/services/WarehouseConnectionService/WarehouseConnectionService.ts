@@ -20,6 +20,7 @@ import {
     type RegisteredAccount,
     type WarehouseConnection,
     type WarehouseConnectionCapabilities,
+    type WarehouseConnectionForUserCredentials,
     type WarehouseConnectionTestResults,
     type WarehouseConnectionUserCredentials,
     type WarehouseConnectionWithCredentials,
@@ -380,6 +381,39 @@ export class WarehouseConnectionService extends BaseService {
             );
         }
         return { ...connection, warehouseType: connection.warehouseType };
+    }
+
+    async listForUserCredentials(
+        account: Account,
+        projectUuid: string,
+    ): Promise<WarehouseConnectionForUserCredentials[]> {
+        assertRegisteredAccount(account);
+        const project = await this.getMultiProjectForViewer(
+            account,
+            projectUuid,
+        );
+        const originalCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const connections = await this.warehouseConnectionModel.list(project);
+        return Promise.all(
+            connections.map(async (connection) => ({
+                warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                name: connection.name,
+                isOriginal: connection.isOriginal,
+                warehouseType: connection.warehouseType,
+                requireUserCredentials: connection.isOriginal
+                    ? originalCredentials.requireUserCredentials === true
+                    : getExtraConnectionRequireUserCredentials(
+                          originalCredentials,
+                          await this.warehouseConnectionModel.getExtraCredentialSource(
+                              project,
+                              connection.warehouseConnectionUuid,
+                          ),
+                      ) === true,
+            })),
+        );
     }
 
     async getUserCredentials(

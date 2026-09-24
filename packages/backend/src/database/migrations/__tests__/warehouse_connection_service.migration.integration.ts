@@ -1397,6 +1397,194 @@ describe('WarehouseConnectionService on the real schema', () => {
                 ),
             ).rejects.toBeInstanceOf(ForbiddenError);
         });
+
+        test('the per-connection GET returns no secret from the chosen credential', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                credentials: {
+                    ...postgresCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            const created = await addExtra(fixture);
+            const personal = await createPersonal(
+                fixture.userUuid,
+                personalPostgres,
+            );
+            const service = buildService();
+            await service.upsertUserCredentialsPreference(
+                fixture.viewer,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                personal,
+            );
+
+            const result = await service.getUserCredentials(
+                fixture.viewer,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+            );
+
+            expect(result.userWarehouseCredentials).toMatchObject({
+                uuid: personal,
+                credentials: {
+                    type: WarehouseTypes.POSTGRES,
+                    user: 'personal-user',
+                },
+            });
+            expect(JSON.stringify(result)).not.toContain('personal-password');
+            expect(JSON.stringify(result)).not.toContain('analyst-password');
+        });
+
+        test('a second choice for the same connection replaces the first', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            const first = await createPersonal(
+                fixture.userUuid,
+                personalPostgres,
+            );
+            const second = await createPersonal(
+                fixture.userUuid,
+                personalPostgres,
+            );
+            const service = buildService();
+
+            await service.upsertUserCredentialsPreference(
+                fixture.viewer,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                first,
+            );
+            await service.upsertUserCredentialsPreference(
+                fixture.viewer,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                second,
+            );
+
+            expect(
+                await service.getUserCredentials(
+                    fixture.viewer,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                ),
+            ).toMatchObject({ userWarehouseCredentials: { uuid: second } });
+            expect(
+                await database(
+                    'warehouse_connection_user_credentials_preference',
+                )
+                    .where(
+                        'warehouse_connection_uuid',
+                        created.warehouseConnectionUuid,
+                    )
+                    .select('user_warehouse_credentials_uuid'),
+            ).toEqual([{ user_warehouse_credentials_uuid: second }]);
+        });
+    });
+
+    describe('connections for the credentials switcher', () => {
+        test('a project viewer lists every connection with its type and requirement, and no secret', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                credentials: {
+                    ...postgresCredentials,
+                    requireUserCredentials: true,
+                },
+            });
+            const finance = await addExtra(fixture, 'Finance');
+            const organizationCredential = await createOrganizationCredential(
+                fixture.organizationUuid,
+            );
+            const shared = await buildService().create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                {
+                    name: 'Shared',
+                    organizationWarehouseCredentialsUuid:
+                        organizationCredential,
+                },
+            );
+
+            const connections = await buildService().listForUserCredentials(
+                fixture.viewer,
+                fixture.projectUuid,
+            );
+
+            expect(connections).toEqual([
+                {
+                    warehouseConnectionUuid: fixture.originalUuid,
+                    name: 'Original',
+                    isOriginal: true,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    requireUserCredentials: true,
+                },
+                {
+                    warehouseConnectionUuid: finance.warehouseConnectionUuid,
+                    name: 'Finance',
+                    isOriginal: false,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    requireUserCredentials: true,
+                },
+                {
+                    warehouseConnectionUuid: shared.warehouseConnectionUuid,
+                    name: 'Shared',
+                    isOriginal: false,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    requireUserCredentials: true,
+                },
+            ]);
+            expect(JSON.stringify(connections)).not.toContain(
+                'analyst-password',
+            );
+            expect(JSON.stringify(connections)).not.toContain(
+                organizationCredential,
+            );
+        });
+
+        test('an extra connection does not require personal credentials when the original does not', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const finance = await addExtra(fixture, 'Finance');
+
+            expect(
+                await buildService().listForUserCredentials(
+                    fixture.viewer,
+                    fixture.projectUuid,
+                ),
+            ).toEqual([
+                expect.objectContaining({
+                    isOriginal: true,
+                    requireUserCredentials: false,
+                }),
+                expect.objectContaining({
+                    warehouseConnectionUuid: finance.warehouseConnectionUuid,
+                    requireUserCredentials: false,
+                }),
+            ]);
+        });
+
+        test('is refused on a single project and without permission to view the project', async () => {
+            const single = await createProject({ mode: 'single' });
+            const multi = await createProject({ mode: 'multi' });
+            await addExtra(multi);
+            const outsider = account(
+                multi.userUuid,
+                multi.organizationUuid,
+                [],
+            );
+
+            await expect(
+                buildService().listForUserCredentials(
+                    single.viewer,
+                    single.projectUuid,
+                ),
+            ).rejects.toBeInstanceOf(SingleConnectionProjectError);
+            await expect(
+                buildService().listForUserCredentials(
+                    outsider,
+                    multi.projectUuid,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
     });
 
     describe('the project row lock', () => {

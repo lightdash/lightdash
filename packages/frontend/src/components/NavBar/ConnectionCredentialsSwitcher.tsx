@@ -13,7 +13,7 @@ import {
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
 import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import {
-    useWarehouseConnectionList,
+    useWarehouseConnectionsForUserCredentials,
     useWarehouseConnectionsUserCredentials,
     useWarehouseConnectionUserCredentialsMutation,
 } from '../../hooks/useWarehouseConnections';
@@ -44,18 +44,15 @@ const ConnectionCredentialsSwitcher: FC<Props> = ({
         useState<ConnectionCredentialsSection | null>(null);
     const { projectUuid } = project;
 
-    const { data: connectionList } = useWarehouseConnectionList(
-        projectUuid,
-        true,
-    );
+    const { data: connectionList, error: connectionsError } =
+        useWarehouseConnectionsForUserCredentials(projectUuid);
     const extraConnections = useMemo(
         () =>
-            connectionList?.connections.filter(
-                (connection) => !connection.isOriginal,
-            ) ?? [],
+            connectionList?.filter((connection) => !connection.isOriginal) ??
+            [],
         [connectionList],
     );
-    const originalConnection = connectionList?.connections.find(
+    const originalConnection = connectionList?.find(
         (connection) => connection.isOriginal,
     );
     const extraUserCredentials = useWarehouseConnectionsUserCredentials(
@@ -138,7 +135,7 @@ const ConnectionCredentialsSwitcher: FC<Props> = ({
         }
     });
 
-    if (sections.length === 0) {
+    if (sections.length === 0 && !connectionsError) {
         return null;
     }
 
@@ -164,6 +161,12 @@ const ConnectionCredentialsSwitcher: FC<Props> = ({
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {connectionsError && (
+                        <Text c="red" fz="xs" px="sm" py="xs" maw={260}>
+                            Could not load the warehouse connections:{' '}
+                            {connectionsError.error.message}
+                        </Text>
+                    )}
                     {sections.map((section, index) => (
                         <ConnectionCredentialsMenuSection
                             key={section.key}

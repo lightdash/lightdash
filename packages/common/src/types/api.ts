@@ -447,6 +447,7 @@ import {
 } from './warehouseConnectCode';
 import {
     type ApiWarehouseConnectionResponse,
+    type ApiWarehouseConnectionsForUserCredentialsResponse,
     type ApiWarehouseConnectionsResponse,
     type ApiWarehouseConnectionUserCredentialsResponse,
     type ApiWarehouseConnectionWithCredentialsResponse,
@@ -1294,6 +1295,7 @@ type ApiResults =
     | ApiWarehouseConnectionResponse['results']
     | ApiWarehouseConnectionWithCredentialsResponse['results']
     | ApiWarehouseConnectionUserCredentialsResponse['results']
+    | ApiWarehouseConnectionsForUserCredentialsResponse['results']
     | Document
     | DocumentList
     | ContentReviewRequest

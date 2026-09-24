@@ -2,7 +2,7 @@ import {
     WarehouseTypes,
     type Project,
     type UserWarehouseCredentials,
-    type WarehouseConnection,
+    type WarehouseConnectionForUserCredentials,
     type WarehouseConnectionUserCredentials,
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
@@ -18,19 +18,19 @@ vi.mock('../../api', () => ({
 
 const mockApi = lightdashApi as unknown as Mock;
 
+const CONNECTIONS_URL =
+    'GET /projects/project-uuid/warehouse-connection-user-credentials';
+
+const MANAGE_ONLY_LIST_URL = 'GET /projects/project-uuid/warehouse-connections';
+
 const connection = (
-    overrides: Partial<WarehouseConnection>,
-): WarehouseConnection => ({
+    overrides: Partial<WarehouseConnectionForUserCredentials>,
+): WarehouseConnectionForUserCredentials => ({
     warehouseConnectionUuid: 'original-uuid',
-    projectUuid: 'project-uuid',
     name: 'Warehouse',
     isOriginal: true,
     warehouseType: WarehouseTypes.POSTGRES,
-    organizationWarehouseCredentialsUuid: null,
-    listAllDatabases: false,
-    additionalDatabases: [],
-    createdAt: new Date('2026-09-01T00:00:00Z'),
-    updatedAt: new Date('2026-09-01T00:00:00Z'),
+    requireUserCredentials: false,
     ...overrides,
 });
 
@@ -61,22 +61,22 @@ const project = (requireUserCredentials: boolean) =>
 const serve = ({
     extraRequires,
     extraPreference,
+    connectionsError = false,
 }: {
     extraRequires: boolean;
     extraPreference: string | null;
+    connectionsError?: boolean;
 }) => {
     const responses: Record<string, unknown> = {
-        'GET /projects/project-uuid/warehouse-connections': {
-            connections: [
-                connection({}),
-                connection({
-                    warehouseConnectionUuid: 'finance-uuid',
-                    name: 'Finance',
-                    isOriginal: false,
-                }),
-            ],
-            capabilities: { canAddConnection: true, reason: null },
-        },
+        [CONNECTIONS_URL]: [
+            connection({}),
+            connection({
+                warehouseConnectionUuid: 'finance-uuid',
+                name: 'Finance',
+                isOriginal: false,
+                requireUserCredentials: extraRequires,
+            }),
+        ],
         'GET /projects/project-uuid/warehouse-connections/finance-uuid/user-credentials':
             {
                 warehouseConnectionUuid: 'finance-uuid',
@@ -106,6 +106,19 @@ const serve = ({
         async ({ url, method }: { url: string; method: string }) => {
             if (method === 'PATCH') return undefined;
             const key = `${method} ${url}`;
+            if (
+                key === MANAGE_ONLY_LIST_URL ||
+                (key === CONNECTIONS_URL && connectionsError)
+            ) {
+                throw {
+                    error: {
+                        name: 'ForbiddenError',
+                        statusCode: 403,
+                        message:
+                            'You do not have permission to manage this project',
+                    },
+                };
+            }
             if (!(key in responses)) {
                 throw new Error(`Unexpected request ${key}`);
             }
@@ -202,5 +215,59 @@ describe('ConnectionCredentialsSwitcher', () => {
         expect(
             screen.queryByRole('button', { name: 'Warehouse credentials' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('shows the extra connections to a project viewer without the manage-only connection list', async () => {
+        serve({ extraRequires: true, extraPreference: null });
+        renderWithProviders(
+            <ConnectionCredentialsSwitcher
+                project={project(true)}
+                onPreferenceSaved={vi.fn()}
+            />,
+        );
+        const user = userEvent.setup();
+
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Warehouse credentials',
+            }),
+        );
+
+        expect(await screen.findByText('Finance')).toBeInTheDocument();
+        expect(
+            mockApi.mock.calls.map(
+                ([request]) =>
+                    `${(request as { method: string }).method} ${(request as { url: string }).url}`,
+            ),
+        ).not.toContain(MANAGE_ONLY_LIST_URL);
+    });
+
+    it('tells the user when the connections cannot be loaded, and keeps the project section', async () => {
+        serve({
+            extraRequires: true,
+            extraPreference: null,
+            connectionsError: true,
+        });
+        renderWithProviders(
+            <ConnectionCredentialsSwitcher
+                project={project(true)}
+                onPreferenceSaved={vi.fn()}
+            />,
+        );
+        const user = userEvent.setup();
+
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Warehouse credentials',
+            }),
+        );
+
+        expect(
+            await screen.findByText(
+                'Could not load the warehouse connections: You do not have permission to manage this project',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Jaffle')).toBeInTheDocument();
+        expect(screen.getByText('Main login')).toBeInTheDocument();
     });
 });
