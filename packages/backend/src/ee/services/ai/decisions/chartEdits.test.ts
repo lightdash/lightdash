@@ -785,6 +785,113 @@ describe('applyChartIntent', () => {
         });
     });
 
+    describe('yes/no, text and blank filters', () => {
+        const withTypes = structuredClone(explore);
+        Object.assign(withTypes.tables.orders.dimensions, {
+            is_paid: dimension('is_paid', DimensionType.BOOLEAN, 'Is paid'),
+        });
+        const only = (edit: ReturnType<typeof applyChartIntent>) =>
+            rulesOf(edit)?.[0];
+
+        it('filters a yes/no field to true or false', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_boolean',
+                    fieldId: 'orders_is_paid',
+                    value: false,
+                },
+                artifact,
+                explore: withTypes,
+            });
+            expect(only(edit)).toMatchObject({
+                operator: FilterOperator.EQUALS,
+                values: [false],
+            });
+            expect(edit?.response).toBe(
+                'Showing only rows where **Is paid** is false.',
+            );
+        });
+
+        it('matches and excludes part of a text', () => {
+            const kept = applyChartIntent({
+                intent: {
+                    kind: 'filter_text',
+                    fieldId: 'orders_region',
+                    mode: 'starts_with',
+                    exclude: false,
+                    values: ['No'],
+                },
+                artifact,
+                explore: withTypes,
+            });
+            expect(only(kept)).toMatchObject({
+                operator: FilterOperator.STARTS_WITH,
+                values: ['No'],
+            });
+            const removed = applyChartIntent({
+                intent: {
+                    kind: 'filter_text',
+                    fieldId: 'orders_region',
+                    mode: 'contains',
+                    exclude: true,
+                    values: ['TEST', 'DEMO'],
+                },
+                artifact,
+                explore: withTypes,
+            });
+            expect(only(removed)).toMatchObject({
+                operator: FilterOperator.NOT_INCLUDE,
+                values: ['TEST', 'DEMO'],
+            });
+            expect(removed?.response).toBe(
+                'Removed **Region** values containing "TEST" or "DEMO".',
+            );
+        });
+
+        it('keeps or removes empty values', () => {
+            expect(
+                only(
+                    applyChartIntent({
+                        intent: {
+                            kind: 'filter_blank',
+                            fieldId: 'orders_region',
+                            blank: false,
+                        },
+                        artifact,
+                        explore: withTypes,
+                    }),
+                ),
+            ).toMatchObject({ operator: FilterOperator.NOT_NULL });
+        });
+
+        it('rejects filters the field type cannot take', () => {
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'filter_boolean',
+                        fieldId: 'orders_region',
+                        value: true,
+                    },
+                    artifact,
+                    explore: withTypes,
+                }),
+            ).toBeNull();
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'filter_text',
+                        fieldId: 'orders_region',
+                        mode: 'ends_with',
+                        exclude: true,
+                        values: ['x'],
+                    },
+                    artifact,
+                    explore: withTypes,
+                }),
+            ).toBeNull();
+        });
+    });
+
     describe('ranges and thresholds', () => {
         it('filters an explicit date range with an exclusive end', () => {
             const edit = applyChartIntent({

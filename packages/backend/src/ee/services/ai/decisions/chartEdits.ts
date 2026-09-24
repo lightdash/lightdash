@@ -23,6 +23,7 @@ import type {
     ChartPeriod,
     ChartTypeOption,
     NumberComparison,
+    TextMatchMode,
 } from './chartIntent';
 
 export type ChartEdit = {
@@ -939,6 +940,137 @@ const applyNumberFilter = (
     };
 };
 
+/** Replaces any rule on the field with one new row-level rule, keeping the other filters. */
+const applyDimensionRule = (
+    artifact: AiSemanticChartArtifactConfig,
+    explore: Explore,
+    rule: Omit<RuleInput, 'fieldType' | 'fieldFilterType'>,
+    accepts: (filterType: FilterType) => boolean,
+    response: (label: string) => string,
+): ChartEdit | null => {
+    const field = fieldMap(explore).get(rule.fieldId);
+    const current = normalizePersistedFilters(
+        artifact.config.queryConfig.filters,
+    );
+    if (!field || !isDimension(field) || !current) return null;
+    const filterType = getFilterTypeFromItemType(field.type);
+    if (!accepts(filterType)) return null;
+    const group = current.dimensions;
+    if (group && group.connector !== 'and') return null;
+    const parsed = filterExpressionResolvedFiltersSchema.safeParse({
+        ...current,
+        dimensions: {
+            connector: 'and',
+            rules: [
+                ...(group?.rules ?? []).filter(
+                    ({ fieldId }) => fieldId !== rule.fieldId,
+                ),
+                {
+                    fieldId: rule.fieldId,
+                    operator: rule.operator,
+                    // Null checks carry no values; the schema rejects an explicit undefined.
+                    ...(rule.values ? { values: rule.values } : {}),
+                    fieldType: field.type,
+                    fieldFilterType: filterType,
+                },
+            ],
+        },
+    });
+    if (!parsed.success || 'type' in parsed.data) return null;
+    const config = reparse(artifact, {
+        ...artifact.config,
+        queryConfig: { ...artifact.config.queryConfig, filters: parsed.data },
+    });
+    return config
+        ? {
+              config,
+              response: response(getItemLabelWithoutTableName(field)),
+              changed: true,
+          }
+        : null;
+};
+
+const TEXT_OPERATORS: Record<TextMatchMode, FilterOperator> = {
+    contains: FilterOperator.INCLUDE,
+    starts_with: FilterOperator.STARTS_WITH,
+    ends_with: FilterOperator.ENDS_WITH,
+};
+
+const TEXT_WORDS: Record<TextMatchMode, string> = {
+    contains: 'containing',
+    starts_with: 'starting with',
+    ends_with: 'ending with',
+};
+
+const applyValueShapeFilter = (
+    intent: Extract<
+        ChartIntent,
+        | { kind: 'filter_boolean' }
+        | { kind: 'filter_text' }
+        | { kind: 'filter_blank' }
+    >,
+    artifact: AiSemanticChartArtifactConfig,
+    explore: Explore,
+): ChartEdit | null => {
+    switch (intent.kind) {
+        case 'filter_boolean':
+            return applyDimensionRule(
+                artifact,
+                explore,
+                {
+                    fieldId: intent.fieldId,
+                    operator: FilterOperator.EQUALS,
+                    values: [intent.value],
+                },
+                (type) => type === FilterType.BOOLEAN,
+                (label) =>
+                    `Showing only rows where **${label}** is ${intent.value ? 'true' : 'false'}.`,
+            );
+        case 'filter_text': {
+            // Only "contains" can be negated; the resolver never sends other excluded modes.
+            if (intent.exclude && intent.mode !== 'contains') return null;
+            const quoted = intent.values
+                .map((value) => `"${value}"`)
+                .join(' or ');
+            return applyDimensionRule(
+                artifact,
+                explore,
+                {
+                    fieldId: intent.fieldId,
+                    operator: intent.exclude
+                        ? FilterOperator.NOT_INCLUDE
+                        : TEXT_OPERATORS[intent.mode],
+                    values: intent.values,
+                },
+                (type) => type === FilterType.STRING,
+                (label) =>
+                    intent.exclude
+                        ? `Removed **${label}** values containing ${quoted}.`
+                        : `Filtered to **${label}** ${TEXT_WORDS[intent.mode]} ${quoted}.`,
+            );
+        }
+        case 'filter_blank':
+            return applyDimensionRule(
+                artifact,
+                explore,
+                {
+                    fieldId: intent.fieldId,
+                    operator: intent.blank
+                        ? FilterOperator.NULL
+                        : FilterOperator.NOT_NULL,
+                    values: undefined,
+                },
+                () => true,
+                (label) =>
+                    intent.blank
+                        ? `Showing only rows where **${label}** is empty.`
+                        : `Removed rows where **${label}** is empty.`,
+            );
+        default:
+            return assertUnreachable(intent, 'Unknown value filter');
+    }
+};
+
 /** Pure reducer: applies one typed intent to the chart, or returns null so the full agent can take over. */
 export const applyChartIntent = ({
     intent,
@@ -963,6 +1095,10 @@ export const applyChartIntent = ({
             return applyRemoveFilter(intent, artifact, explore);
         case 'filter_number':
             return applyNumberFilter(intent, artifact, explore);
+        case 'filter_boolean':
+        case 'filter_text':
+        case 'filter_blank':
+            return applyValueShapeFilter(intent, artifact, explore);
         case 'add_metric':
         case 'remove_metric':
         case 'swap_metric':

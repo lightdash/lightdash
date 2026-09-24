@@ -63,6 +63,13 @@ export const NUMBER_COMPARISONS = [
 ] as const;
 export type NumberComparison = (typeof NUMBER_COMPARISONS)[number];
 
+export const TEXT_MATCH_MODES = [
+    'contains',
+    'starts_with',
+    'ends_with',
+] as const;
+export type TextMatchMode = (typeof TEXT_MATCH_MODES)[number];
+
 export type ChartIntent =
     | { kind: 'chart_type'; chartType: ChartTypeOption }
     | { kind: 'series'; op: 'stack' | 'unstack' | 'swap' | 'split' }
@@ -88,6 +95,15 @@ export type ChartIntent =
           comparison: NumberComparison;
           values: number[];
       }
+    | { kind: 'filter_boolean'; fieldId: string; value: boolean }
+    | {
+          kind: 'filter_text';
+          fieldId: string;
+          mode: TextMatchMode;
+          exclude: boolean;
+          values: string[];
+      }
+    | { kind: 'filter_blank'; fieldId: string; blank: boolean }
     | { kind: 'remove_filter'; fieldId: string }
     | { kind: 'add_metric'; fieldId: string }
     | { kind: 'remove_metric'; fieldId: string }
@@ -184,6 +200,10 @@ export type ChartIntentContext = {
     thresholdFields: FieldCandidate[];
     /** Amounts stated in the prompt; JEV selects among them rather than generating one. */
     amounts: number[];
+    /** Visible yes/no dimensions of the chart's explore. */
+    booleanFields: FieldCandidate[];
+    /** Words and quoted phrases from the prompt that a text match could use. */
+    textCandidates: string[];
     /** Each current filter as a short sentence, such as "Region is North or South". */
     filters: string[];
 };
@@ -365,6 +385,30 @@ export const extractAmountCandidates = (prompt: string): number[] => {
     return [...new Set(amounts.filter(Number.isFinite))].slice(0, 12);
 };
 
+const MAX_TEXT_CANDIDATES = 20;
+
+/** Quoted phrases and words from the prompt; JEV picks the text to match rather than writing it. */
+export const extractTextCandidates = (prompt: string): string[] => {
+    const quoted = [...prompt.matchAll(/["'“‘]([^"'”’]{2,40})["'”’]/g)].map(
+        ([, phrase]) => phrase.trim(),
+    );
+    const words = [
+        ...prompt.matchAll(
+            /(?:[.@][\p{L}\p{N}]+|[\p{L}\p{N}][\p{L}\p{N}._@-]*)/gu,
+        ),
+    ].map(([word]) => word.replace(/[._-]+$/, ''));
+    const seen = new Set<string>();
+    return [...quoted, ...words]
+        .filter((word) => word.length >= 2)
+        .filter((word) => {
+            const key = word.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .slice(0, MAX_TEXT_CANDIDATES);
+};
+
 const toCandidate = (
     field: ReturnType<typeof getFields>[number],
     explore: Explore,
@@ -531,6 +575,17 @@ export const buildChartIntentContext = ({
         metricOptions,
         grain: grainOptions(query.dimensions, explore, usage),
         amounts: extractAmountCandidates(prompt),
+        textCandidates: extractTextCandidates(prompt),
+        booleanFields: exploreFields
+            .filter(isDimension)
+            .filter(
+                (field) =>
+                    !field.hidden &&
+                    getFilterTypeFromItemType(field.type) ===
+                        FilterType.BOOLEAN,
+            )
+            .map((field) => toCandidate(field, explore, usage))
+            .slice(0, MAX_FIELD_OPTIONS),
         thresholdFields: [
             ...byId(query.metrics),
             ...filterableFields.filter(({ id }) => {
@@ -692,6 +747,10 @@ export const buildChartIntentQuestions = ({
                     'Dates bounded by specific calendar days or months: from a start, up to an end, or between the two',
                 number_threshold:
                     'Keep only rows or groups where a number is above, below or between stated amounts',
+                yes_no: 'Keep only rows where a yes/no field is true, or only where it is false',
+                text_match:
+                    'Keep or remove rows whose text contains, starts with or ends with some text, rather than equalling a whole value',
+                blank: 'Keep only, or remove, rows where a field is empty or missing',
                 other: 'Any other kind of filter',
             },
         },
@@ -961,6 +1020,69 @@ export const buildChartIntentQuestions = ({
             criteria: { ...amountOptions, none: 'No upper bound is stated' },
         };
     }
+    if (context.booleanFields.length > 0) {
+        questions.booleanField = {
+            type: 'choice',
+            instructions:
+                'If the user wants only rows where a yes/no field is true or false, which field?',
+            criteria: {
+                ...fieldCriteria(context.booleanFields, {
+                    withDescriptions: true,
+                }),
+                none: 'No listed yes/no field fits',
+            },
+        };
+        questions.booleanValue = {
+            type: 'choice',
+            instructions:
+                'If the user filters on a yes/no field, do they keep the rows where it is true or where it is false?',
+            criteria: {
+                true: 'Keep rows where it is true (yes)',
+                false: 'Keep rows where it is false (no)',
+            },
+        };
+    }
+    if (context.textCandidates.length > 0) {
+        const textOptions = Object.fromEntries(
+            context.textCandidates.map((text) => [text, JSON.stringify(text)]),
+        );
+        questions.matchMode = {
+            type: 'choice',
+            instructions:
+                'If the user wants rows matched on part of a text, how is the text matched?',
+            criteria: {
+                contains: 'The text appears anywhere in the value',
+                starts_with: 'The value starts with the text',
+                ends_with: 'The value ends with the text',
+            },
+        };
+        questions.matchText = {
+            type: 'choice',
+            instructions:
+                'If the user wants rows matched on part of a text, which of these words from `prompt` is the text to match?',
+            criteria: { ...textOptions, none: 'None of these' },
+        };
+        questions.matchTextAlso = {
+            type: 'choice',
+            instructions:
+                'If the user names a second, alternative text to match as well, which of these words from `prompt` is it?',
+            criteria: { ...textOptions, none: 'Only one text is named' },
+        };
+        questions.excludeMatches = {
+            type: 'noul',
+            instructions:
+                'If the user wants rows matched on part of a text, do they want the matching rows removed rather than kept?',
+        };
+    }
+    questions.blankMode = {
+        type: 'choice',
+        instructions:
+            'If the user filters on empty or missing values, do they keep only the empty rows or remove them?',
+        criteria: {
+            blank: 'Keep only rows where the field is empty or missing',
+            not_blank: 'Remove rows where the field is empty or missing',
+        },
+    };
     if (numbers.length > 0) {
         questions.number = {
             type: 'choice',
@@ -1273,6 +1395,49 @@ const resolveThreshold = (
         : unresolved;
 };
 
+const isTextMatchMode = (value: string | null): value is TextMatchMode =>
+    TEXT_MATCH_MODES.some((mode) => mode === value);
+
+const resolveTextMatch = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): ChartIntentResolution => {
+    const unresolved = { type: 'unresolved', reason: 'filter-text' } as const;
+    const textFields = context.filterableFields.filter(({ isDate }) => !isDate);
+    const textField = textFields.find(
+        ({ id }) =>
+            id === confident(answers.valueFilterField, thresholds.field),
+    );
+    const mode = confident(answers.matchMode, thresholds.option);
+    const picked = [answers.matchText, answers.matchTextAlso]
+        .map((answer) => confident(answer, thresholds.option))
+        .filter(
+            (text): text is string =>
+                text !== null && context.textCandidates.includes(text),
+        );
+    const values = [...new Set(picked)];
+    const exclude = (decisionProbability(answers.excludeMatches) ?? 0) >= 0.5;
+    // Only "contains" has a negated operator, so other excluded matches stay with the agent.
+    if (
+        !textField ||
+        !isTextMatchMode(mode) ||
+        values.length === 0 ||
+        (exclude && mode !== 'contains')
+    )
+        return unresolved;
+    return {
+        type: 'intent',
+        intent: {
+            kind: 'filter_text',
+            fieldId: textField.id,
+            mode,
+            exclude,
+            values,
+        },
+    };
+};
+
 const resolveFilter = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -1283,6 +1448,41 @@ const resolveFilter = (
     const kind = confident(answers.filterKind, option);
     if (!kind || kind === 'other')
         return { type: 'unresolved', reason: 'filter-kind' };
+    if (kind === 'yes_no') {
+        const chosenBoolean = confident(answers.booleanField, field);
+        const booleanField = context.booleanFields.find(
+            ({ id }) => id === chosenBoolean,
+        );
+        const value = confident(answers.booleanValue, option);
+        return booleanField && (value === 'true' || value === 'false')
+            ? {
+                  type: 'intent',
+                  intent: {
+                      kind: 'filter_boolean',
+                      fieldId: booleanField.id,
+                      value: value === 'true',
+                  },
+              }
+            : { type: 'unresolved', reason: 'filter-boolean' };
+    }
+    if (kind === 'text_match')
+        return resolveTextMatch(answers, context, thresholds);
+    if (kind === 'blank') {
+        const blankField = context.filterableFields.find(
+            ({ id }) => id === confident(answers.filterField, field),
+        );
+        const mode = confident(answers.blankMode, option);
+        return blankField && (mode === 'blank' || mode === 'not_blank')
+            ? {
+                  type: 'intent',
+                  intent: {
+                      kind: 'filter_blank',
+                      fieldId: blankField.id,
+                      blank: mode === 'blank',
+                  },
+              }
+            : { type: 'unresolved', reason: 'filter-blank' };
+    }
     if (kind === 'number_threshold')
         return resolveThreshold(answers, context, thresholds);
     const chosen = confident(answers.filterField, field);
@@ -1902,6 +2102,12 @@ const describeStep = (
             return `Filter ${labelFor(context, intent.fieldId)} to ${describePeriod(intent.period)}`;
         case 'remove_filter':
             return `Remove the ${labelFor(context, intent.fieldId)} filter and keep the other filters`;
+        case 'filter_boolean':
+            return `Keep only rows where ${labelFor(context, intent.fieldId)} is ${intent.value ? 'true' : 'false'}`;
+        case 'filter_text':
+            return `${intent.exclude ? 'Remove' : 'Keep only'} rows where ${labelFor(context, intent.fieldId)} ${intent.mode.replace('_', ' ')} ${intent.values.map((value) => JSON.stringify(value)).join(' or ')}`;
+        case 'filter_blank':
+            return `${intent.blank ? 'Keep only' : 'Remove'} rows where ${labelFor(context, intent.fieldId)} is empty`;
         case 'filter_number':
             return `Keep only ${labelFor(context, intent.fieldId)} ${
                 {
