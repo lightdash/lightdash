@@ -740,6 +740,9 @@ export type HealthState = {
         defaultLimit: number;
         /** Effective CSV/Excel cells limit for the requesting org. */
         csvCellsLimit: number;
+        /** Scheduler job timeout (SCHEDULER_JOB_TIMEOUT). Exports that run
+         *  longer fail. */
+        exportTimeoutMs: number;
         /** Instance ceiling an org admin can set the per-org query rows limit
          *  to: LIGHTDASH_QUERY_MAX_LIMIT. */
         queryMaxLimit: number;

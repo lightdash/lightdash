@@ -143,6 +143,28 @@ describe('health', () => {
         });
     });
 
+    it('returns the scheduler job timeout as the export timeout', async () => {
+        const service = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                scheduler: {
+                    ...lightdashConfigMock.scheduler,
+                    jobTimeout: 600000,
+                },
+            },
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await service.getHealthState(undefined)).query.exportTimeoutMs,
+        ).toBe(600000);
+    });
+
     it('advertises playground projects only when a license key is configured', async () => {
         expect(
             (await healthService.getHealthState(undefined))
