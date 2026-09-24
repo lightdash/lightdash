@@ -59,6 +59,7 @@ on:
   pull_request:
     paths:
       - dockerfile
+      - dockerfile-prs
       - docker/**
       - scripts/ci/**
       - .github/workflows/docker-build-test.yml
@@ -152,6 +153,29 @@ jobs:
           fi
           echo "resolved image: $image_ref"
           echo "ref=$image_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Perl security backport in the final image
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          docker run --rm --network none --entrypoint sh "$IMAGE_REF" -ec '
+            for package in perl-base perl perl-modules-5.36 libperl5.36; do
+              version=$(dpkg-query -W -f="\${Version}" "$package")
+              echo "$package $version"
+              test "$version" = "5.36.0-7+deb12u3+lightdash1"
+            done
+            cd /
+            test -f usr/share/perl/5.36.0/File/GlobMapper.pm
+            # The slim base intentionally excludes documentation and manual pages.
+            md5sum --check --quiet --ignore-missing \
+              /var/lib/dpkg/info/perl-base.md5sums \
+              /var/lib/dpkg/info/perl.md5sums \
+              /var/lib/dpkg/info/perl-modules-5.36.md5sums \
+              /var/lib/dpkg/info/libperl5.36:*.md5sums
+          '
+          docker run --rm --network none --entrypoint perl \
+            -v "$PWD/docker/security/CVE-2026-48962/verify.pl:/tmp/verify-perl.pl:ro" \
+            "$IMAGE_REF" /tmp/verify-perl.pl
 
       - name: Collect image config
         env:
