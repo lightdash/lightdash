@@ -1,4 +1,5 @@
 import {
+    getFieldLabel,
     getFormatted,
     getRaw,
     resolveValueColor,
@@ -80,10 +81,15 @@ function App() {
         ink: token('--ll-ink'),
     };
     const axisTick = { fill: ll.text, fontSize: 11.5, fontWeight: 500 };
+    // Name fields with their host labels ("Total revenue"), never the raw
+    // query ids; getFieldLabel falls back to the id only on hosts that send
+    // no field metadata.
+    const valueLabel = getFieldLabel(context, valField);
     const data = rows.slice(0, maxBars).map((row) => ({
         label: getFormatted(row, catField),
         category: getRaw(row, catField),
         value: Number(getRaw(row, valField) ?? 0),
+        formatted: getFormatted(row, valField),
     }));
 
     return (
@@ -112,8 +118,15 @@ function App() {
                         axisLine={false}
                         tickFormatter={(v) => v.toLocaleString()}
                     />
-                    <Tooltip wrapperClassName="ll-tooltip" cursor={false} />
-                    <Bar dataKey="value">
+                    <Tooltip
+                        wrapperClassName="ll-tooltip"
+                        cursor={false}
+                        formatter={(value, name, item) => [
+                            item.payload.formatted,
+                            name,
+                        ]}
+                    />
+                    <Bar dataKey="value" name={valueLabel}>
                         {data.map((d, i) => (
                             <Cell
                                 key={`${d.label}-${i}`}

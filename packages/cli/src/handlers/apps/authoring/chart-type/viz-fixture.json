@@ -3,6 +3,14 @@
         "category": "orders_status",
         "value": "orders_total_revenue"
     },
+    "fields": {
+        "orders_status": { "label": "Status", "tableLabel": "Orders" },
+        "orders_total_revenue": {
+            "label": "Total revenue",
+            "tableLabel": "Orders",
+            "format": { "type": "currency", "currency": "USD", "round": 0 }
+        }
+    },
     "rows": [
         {
             "orders_status": {

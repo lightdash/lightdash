@@ -150,6 +150,17 @@ describe('buildStaticAuthoringFiles — chart-type flavor', () => {
         expect(Array.isArray(fixture.rows)).toBe(true);
     });
 
+    it('labels every mapped field in the starter fixture', () => {
+        // The starter names fields via getFieldLabel, so the local preview
+        // only shows labels (not raw ids) when the fixture carries them.
+        const fixture = JSON.parse(text('viz-fixture.json'));
+        for (const fieldId of Object.values(fixture.fieldMapping).flat()) {
+            expect(fixture.fields[fieldId as string]?.label).toEqual(
+                expect.any(String),
+            );
+        }
+    });
+
     it('documents the fixture preview flow in AGENTS.md', () => {
         expect(text('AGENTS.md')).toContain('vizFixture');
     });
