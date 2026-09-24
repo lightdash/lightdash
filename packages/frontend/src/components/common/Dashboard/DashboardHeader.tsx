@@ -351,11 +351,15 @@ const DashboardHeader = memo(
         const { user, health } = useApp();
         const preAggregatesEnabled =
             health.data?.preAggregates.enabled ?? false;
+        const hasDashboardManageAbility = !!user.data?.ability.can(
+            'manage',
+            subject('Dashboard', dashboard),
+        );
+        // Read-only, so verification does not restrict it
+        const userCanViewPreAggregateAudit = hasDashboardManageAbility;
         const userCanManageDashboard =
-            !!user.data?.ability.can(
-                'manage',
-                subject('Dashboard', dashboard),
-            ) &&
+            !!user.data &&
+            hasDashboardManageAbility &&
             canMutateVerifiedContent(
                 user.data.ability,
                 {
@@ -936,7 +940,7 @@ const DashboardHeader = memo(
                                 withArrow
                                 disabled={
                                     !compact &&
-                                    !userCanManageDashboard &&
+                                    !hasDashboardManageAbility &&
                                     !userCanExportData &&
                                     !userCanViewContentAsCode &&
                                     !canViewDashboardComments &&
@@ -1096,51 +1100,48 @@ const DashboardHeader = memo(
                                             </Menu.Item>
                                         )}
                                     {/* TODO: add a create-issue entry point once the issues flow is finalized */}
-                                    {!!userCanManageDashboard && (
-                                        <>
-                                            {preAggregatesEnabled &&
-                                                preAggregateStatuses &&
-                                                Object.keys(
-                                                    preAggregateStatuses,
-                                                ).length > 0 && (
-                                                    <>
+                                    {userCanViewPreAggregateAudit &&
+                                        preAggregatesEnabled &&
+                                        preAggregateStatuses &&
+                                        Object.keys(preAggregateStatuses)
+                                            .length > 0 && (
+                                            <>
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconBolt}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        preAggAuditHandlers.open
+                                                    }
+                                                >
+                                                    Pre-aggregation audit
+                                                </Menu.Item>
+                                                {userCanRefreshPreAggregates &&
+                                                    uniquePreAggregateNames.length >
+                                                        0 && (
                                                         <Menu.Item
                                                             leftSection={
                                                                 <MantineIcon
                                                                     icon={
-                                                                        IconBolt
+                                                                        IconRefreshDot
                                                                     }
                                                                 />
                                                             }
                                                             onClick={
-                                                                preAggAuditHandlers.open
+                                                                preAggRefreshHandlers.open
                                                             }
                                                         >
-                                                            Pre-aggregation
-                                                            audit
+                                                            Rebuild
+                                                            pre-aggregates
                                                         </Menu.Item>
-                                                        {userCanRefreshPreAggregates &&
-                                                            uniquePreAggregateNames.length >
-                                                                0 && (
-                                                                <Menu.Item
-                                                                    leftSection={
-                                                                        <MantineIcon
-                                                                            icon={
-                                                                                IconRefreshDot
-                                                                            }
-                                                                        />
-                                                                    }
-                                                                    onClick={
-                                                                        preAggRefreshHandlers.open
-                                                                    }
-                                                                >
-                                                                    Rebuild
-                                                                    pre-aggregates
-                                                                </Menu.Item>
-                                                            )}
-                                                        <Menu.Divider />
-                                                    </>
-                                                )}
+                                                    )}
+                                                <Menu.Divider />
+                                            </>
+                                        )}
+                                    {!!userCanManageDashboard && (
+                                        <>
                                             {canAuthorDashboard && (
                                                 <>
                                                     <Menu.Item
