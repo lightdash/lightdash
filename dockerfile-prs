@@ -18,10 +18,8 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
 # ------------------------------
 # Build versioned Perl packages in an isolated stage.
 FROM node:24-bookworm-slim AS perl-security-build
-ARG PERL_VERSION=5.36.0-7+deb12u3
-ARG PERL_BACKPORT_VERSION=5.36.0-7+deb12u3+lightdash1
 COPY docker/security/perl-bookworm /tmp/perl-backport
-RUN bash /tmp/perl-backport/build.sh "${PERL_VERSION}" "${PERL_BACKPORT_VERSION}"
+RUN bash /tmp/perl-backport/build.sh
 
 FROM node:24-bookworm-slim AS pnpm-base
 

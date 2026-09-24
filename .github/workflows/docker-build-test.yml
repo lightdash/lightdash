@@ -59,7 +59,6 @@ on:
   pull_request:
     paths:
       - dockerfile
-      - dockerfile-prs
       - docker/**
       - scripts/ci/**
       - .github/workflows/docker-build-test.yml

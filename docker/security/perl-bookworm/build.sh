@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly perl_version="${1:?Expected the Debian source package version}"
-readonly backport_version="${2:?Expected the Lightdash package version}"
+readonly perl_version='5.36.0-7+deb12u3'
+readonly backport_version='5.36.0-7+deb12u3+lightdash1'
 patch_file="$(dirname "$(realpath "$0")")/globmapper.patch"
 readonly patch_file
 
