@@ -16,20 +16,9 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
 # ------------------------------
 # Stage 0: install dependencies
 # ------------------------------
-# Build versioned Perl packages in an isolated stage.
-FROM node:24-bookworm-slim AS perl-security-build
-COPY docker/security/perl-bookworm /tmp/perl-backport
-RUN bash /tmp/perl-backport/build.sh
-
 FROM node:24-bookworm-slim AS pnpm-base
 
-# Install the versioned backport through APT in every build and runtime stage.
-RUN --mount=type=bind,from=perl-security-build,source=/packages,target=/tmp/perl-packages \
-    apt-get update \
-    && apt-get install -y --no-install-recommends /tmp/perl-packages/*.deb \
-    && dpkg-query -W perl-base perl perl-modules-5.36 libperl5.36 \
-    && echo '78ba0fce947e6b09da9009b4bb5bc86e23d482ec6a7518b64b89c27f76f03bb5  /usr/share/perl/5.36.0/File/GlobMapper.pm' | sha256sum --check \
-    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=bind,source=docker/security/perl-bookworm,target=/tmp/perl-backport bash /tmp/perl-backport/install.sh
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
