@@ -76,3 +76,26 @@ describe('LiveActivityCard composer queries', () => {
         expect(screen.queryByText('External data')).not.toBeVisible();
     });
 });
+
+describe('LiveActivityCard runSql', () => {
+    const sqlToolGroups: LiveActivityToolGroup[] = [
+        {
+            keyId: 'sql-call',
+            toolName: 'runSql',
+            calls: [
+                {
+                    toolCallId: 'sql-call',
+                    toolName: 'runSql',
+                    toolArgs: { sql: 'select 1 as one', limit: 10 },
+                },
+            ],
+        },
+    ];
+
+    it('stays expanded after the run finishes', () => {
+        renderWithProviders(
+            <LiveActivityCard isLive={false} toolGroups={sqlToolGroups} />,
+        );
+        expect(screen.getByRole('button', { expanded: true })).toBeVisible();
+    });
+});
