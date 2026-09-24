@@ -2248,11 +2248,24 @@ export class ProjectService extends BaseService {
     }: Parameters<ProjectService['getSingleRouteWarehouseCredentials']>[0] & {
         binding: ConnectionBinding;
     }) {
-        await this.projectModel.requireSingleConnectionRoute(
+        const target = await this.projectModel.resolveWarehouseCredentialRead(
             args.projectUuid,
             binding,
         );
-        return this.getSingleRouteWarehouseCredentials(args);
+        switch (target.kind) {
+            case 'original':
+                return this.getSingleRouteWarehouseCredentials(args);
+            case 'extra':
+                return this.getExtraConnectionWarehouseCredentials({
+                    projectUuid: args.projectUuid,
+                    warehouseConnectionUuid: target.warehouseConnectionUuid,
+                    userId: args.userId,
+                    isRegisteredUser: args.isRegisteredUser,
+                    isServiceAccount: args.isServiceAccount,
+                });
+            default:
+                return assertUnreachable(target, 'Unknown credential target');
+        }
     }
 
     private async getSingleRouteWarehouseCredentials({

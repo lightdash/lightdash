@@ -1,7 +1,13 @@
-import { NotImplementedError, type ConnectionRoute } from '@lightdash/common';
+import {
+    assertUnreachable,
+    NotFoundError,
+    NotImplementedError,
+    type ConnectionRoute,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { type Knex } from 'knex';
 import { DatabaseError } from 'pg';
+import { validate as isUuid } from 'uuid';
 import Logger from '../../logging/logger';
 
 export type ConnectionBinding =
@@ -9,6 +15,12 @@ export type ConnectionBinding =
     | { kind: 'sqlChart'; savedSqlUuid: string }
     | { kind: 'connection'; warehouseConnectionUuid: string | null }
     | { kind: 'original' };
+
+export type CredentialReadTarget =
+    | { kind: 'original' }
+    | { kind: 'extra'; warehouseConnectionUuid: string };
+
+const ORIGINAL_CONNECTION: CredentialReadTarget = { kind: 'original' };
 
 const UNDEFINED_COLUMN = '42703';
 
@@ -90,5 +102,54 @@ export class WarehouseConnectionRouter {
             );
         }
         return route;
+    }
+
+    async resolveCredentialRead(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<CredentialReadTarget> {
+        const route = await this.getRoute(projectUuid);
+        Sentry.setTag('warehouse.route', route);
+        Sentry.setTag('warehouse.binding_kind', binding.kind);
+        Sentry.getActiveSpan()?.setAttributes({
+            'warehouse.route': route,
+            'warehouse.binding_kind': binding.kind,
+        });
+        if (route === 'single') return ORIGINAL_CONNECTION;
+        switch (binding.kind) {
+            case 'original':
+                return ORIGINAL_CONNECTION;
+            case 'connection':
+                return this.resolveConnectionBinding(
+                    projectUuid,
+                    binding.warehouseConnectionUuid,
+                );
+            case 'explore':
+            case 'sqlChart':
+                throw new NotImplementedError(
+                    'Multiple connections are not available',
+                );
+            default:
+                return assertUnreachable(binding, 'Unknown connection binding');
+        }
+    }
+
+    private async resolveConnectionBinding(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<CredentialReadTarget> {
+        if (warehouseConnectionUuid === null) return ORIGINAL_CONNECTION;
+        if (!isUuid(warehouseConnectionUuid)) {
+            throw new NotFoundError('Connection not found');
+        }
+        const connection = await this.database('warehouse_connections')
+            .select<{ is_original: boolean }[]>('is_original')
+            .where('warehouse_connection_uuid', warehouseConnectionUuid)
+            .where('project_uuid', projectUuid)
+            .first();
+        if (!connection) throw new NotFoundError('Connection not found');
+        return connection.is_original
+            ? ORIGINAL_CONNECTION
+            : { kind: 'extra', warehouseConnectionUuid };
     }
 }

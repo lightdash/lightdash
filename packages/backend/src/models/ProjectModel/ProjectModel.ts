@@ -30,6 +30,7 @@ import {
     isUserManagedExplore,
     normalizeWarehouseCredentials,
     NotFoundError,
+    NotImplementedError,
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
@@ -203,6 +204,7 @@ import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
     WarehouseConnectionRouter,
     type ConnectionBinding,
+    type CredentialReadTarget,
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -4155,11 +4157,29 @@ export class ProjectModel {
         return this.connectionRouter.requireSingleRoute(projectUuid, binding);
     }
 
+    async resolveWarehouseCredentialRead(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<CredentialReadTarget> {
+        return this.connectionRouter.resolveCredentialRead(
+            projectUuid,
+            binding,
+        );
+    }
+
     async getWarehouseCredentialsForBinding(
         projectUuid: string,
         binding: ConnectionBinding,
     ): Promise<CreateWarehouseCredentials> {
-        await this.requireSingleConnectionRoute(projectUuid, binding);
+        const target = await this.resolveWarehouseCredentialRead(
+            projectUuid,
+            binding,
+        );
+        if (target.kind === 'extra') {
+            throw new NotImplementedError(
+                'Extra connection credentials load per user',
+            );
+        }
         return this.getWarehouseCredentialsForProject(projectUuid);
     }
 

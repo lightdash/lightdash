@@ -442,6 +442,9 @@ export const singleRouteProjectModelMethods = {
     async requireSingleConnectionRoute() {
         return 'single' as const;
     },
+    async resolveWarehouseCredentialRead() {
+        return { kind: 'original' as const };
+    },
     async getWarehouseCredentialsForBinding(
         this: {
             getWarehouseCredentialsForProject: (

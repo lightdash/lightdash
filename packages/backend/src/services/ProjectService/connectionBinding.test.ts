@@ -43,7 +43,7 @@ describe('connection bindings at warehouse credential call sites', () => {
     });
 
     test(
-        'only the single-route paths call the unrouted credential loader',
+        'only the original-connection paths call the unrouted credential loader',
         () => {
             const unroutedCallers = sourceFiles(backendSource)
                 .map((file) => ({
@@ -53,7 +53,11 @@ describe('connection bindings at warehouse credential call sites', () => {
                 .filter(({ calls }) => calls > 0);
             expect(unroutedCallers).toEqual([
                 { file: 'models/ProjectModel/ProjectModel.ts', calls: 2 },
-                { file: 'services/ProjectService/ProjectService.ts', calls: 1 },
+                { file: 'services/ProjectService/ProjectService.ts', calls: 2 },
+                {
+                    file: 'services/WarehouseConnectionService/WarehouseConnectionService.ts',
+                    calls: 1,
+                },
             ]);
         },
         SOURCE_SCAN_TIMEOUT_MS,

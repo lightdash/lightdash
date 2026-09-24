@@ -4922,8 +4922,8 @@ describe('ProjectService', () => {
                 kind: 'explore' as const,
                 exploreName: 'orders',
             };
-            const requireSingleConnectionRoute = vi
-                .spyOn(projectModel, 'requireSingleConnectionRoute')
+            const resolveWarehouseCredentialRead = vi
+                .spyOn(projectModel, 'resolveWarehouseCredentialRead')
                 .mockRejectedValueOnce(
                     new NotImplementedError(
                         'Multiple connections are not available',
@@ -4945,7 +4945,7 @@ describe('ProjectService', () => {
                     binding,
                 }),
             ).rejects.toThrow('Multiple connections are not available');
-            expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+            expect(resolveWarehouseCredentialRead).toHaveBeenCalledWith(
                 projectUuid,
                 binding,
             );
