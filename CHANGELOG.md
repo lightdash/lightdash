@@ -1,3 +1,16 @@
+# [2.332.0](https://github.com/lightdash/lightdash/compare/2.331.1...2.332.0) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep battle sides from sharing composer query results ([#29934](https://github.com/lightdash/lightdash/issues/29934)) ([8d045db](https://github.com/lightdash/lightdash/commit/8d045db92803d0807b0f38b0062eb6064979fbec))
+* **connections:** build explore SQL for an extra connection ([#29927](https://github.com/lightdash/lightdash/issues/29927)) ([2b0dd66](https://github.com/lightdash/lightdash/commit/2b0dd660b32bb3a840799cfe3c6bf4503239c7ae))
+
+
+### Features
+
+* **ai-agents:** let JEV filter explicit date ranges and number thresholds ([#29930](https://github.com/lightdash/lightdash/issues/29930)) ([8a97dc8](https://github.com/lightdash/lightdash/commit/8a97dc8fac93a1bbb029c0305d2892ca66190d3e))
+
 ## [2.331.1](https://github.com/lightdash/lightdash/compare/2.331.0...2.331.1) (2026-09-24)
 
 
