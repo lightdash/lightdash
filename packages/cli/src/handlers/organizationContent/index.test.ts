@@ -1,6 +1,7 @@
 import { LightdashError } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import GlobalState from '../../globalState';
+import { downloadSkills, upsertSkills } from '../skillsAsCode';
 import {
     downloadCustomRoles,
     uploadCustomRoles,
@@ -46,6 +47,11 @@ vi.mock('./userAttributes', async (importOriginal) => ({
     downloadUserAttributes: vi.fn(),
     uploadUserAttributes: vi.fn(),
 }));
+vi.mock('../skillsAsCode', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../skillsAsCode')>()),
+    downloadSkills: vi.fn(),
+    upsertSkills: vi.fn(),
+}));
 vi.mock('./themes', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./themes')>()),
     downloadThemes: vi.fn(),
@@ -86,6 +92,7 @@ describe('organization content download', () => {
         vi.mocked(downloadUsers).mockResolvedValue(3);
         vi.mocked(downloadGroups).mockResolvedValue(4);
         vi.mocked(downloadThemes).mockResolvedValue(5);
+        vi.mocked(downloadSkills).mockResolvedValue(1);
     });
 
     it('skips groups when the group service is disabled', async () => {
@@ -112,7 +119,7 @@ describe('organization content download', () => {
     it('reports a duration for every downloaded resource', async () => {
         await downloadOrganizationContent({ config });
 
-        expect(spinner.succeed).toHaveBeenCalledTimes(5);
+        expect(spinner.succeed).toHaveBeenCalledTimes(6);
         spinner.succeed.mock.calls.forEach(([message]) =>
             expect(message).toMatch(/\(\d+ms\)$/),
         );
@@ -200,6 +207,7 @@ describe('organization content upload sequencing', () => {
         vi.mocked(prepareThemeUploads).mockResolvedValue([]);
         vi.mocked(uploadThemes).mockResolvedValue(themeSummary());
         vi.mocked(countDependencySkippedGroups).mockResolvedValue(2);
+        vi.mocked(upsertSkills).mockResolvedValue({});
     });
 
     it('preflights themes, then awaits organization resource uploads in order', async () => {
@@ -278,7 +286,7 @@ describe('organization content upload sequencing', () => {
     it('reports a duration for every uploaded resource', async () => {
         await uploadOrganizationContent({ config });
 
-        expect(spinner.succeed).toHaveBeenCalledTimes(5);
+        expect(spinner.succeed).toHaveBeenCalledTimes(6);
         spinner.succeed.mock.calls.forEach(([message]) =>
             expect(message).toMatch(/\(\d+ms\)$/),
         );
