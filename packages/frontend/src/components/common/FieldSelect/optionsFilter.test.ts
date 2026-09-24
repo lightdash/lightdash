@@ -68,9 +68,9 @@ describe('FieldSelect optionsFilter', () => {
             search: '',
             limit: 50,
         });
-        expect(result.map((g) => ('group' in g ? g.items.length : 1))).toEqual(
-            [30, 19, 1],
-        );
+        expect(result.map((g) => ('group' in g ? g.items.length : 1))).toEqual([
+            30, 19, 1,
+        ]);
     });
 
     it('keeps the ungrouped limit unchanged', () => {
