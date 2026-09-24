@@ -166,11 +166,18 @@ const serve = ({
         throw new Error(`Unexpected request ${url}`);
     });
 
-const renderPage = () => {
+const renderPage = (connectionHint?: string | null) => {
     renderWithProviders(
         <MemoryRouter
             initialEntries={[
-                `/projects/${projectUuid}/sql-runner?share=share-id`,
+                {
+                    pathname: `/projects/${projectUuid}/sql-runner`,
+                    search: '?share=share-id',
+                    state:
+                        connectionHint === undefined
+                            ? undefined
+                            : { warehouseConnectionUuid: connectionHint },
+                },
             ]}
         >
             <SqlRunnerNewPage />
@@ -350,6 +357,27 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         const shareGate = gate();
         serve({ shareGate });
         renderPage();
+        await screen.findByTestId('provider');
+        await act(async () => {
+            shareGate.resolve({ params: shareParams('finance-uuid') });
+        });
+        await waitFor(() =>
+            expect(executeSqlQuery).toHaveBeenCalledWith(
+                projectUuid,
+                'select 1',
+                10,
+                {},
+                true,
+                'finance-uuid',
+            ),
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('Finance');
+    });
+
+    it('uses the share hint when navigation state names another connection', async () => {
+        const shareGate = gate();
+        serve({ shareGate });
+        renderPage('original-uuid');
         await screen.findByTestId('provider');
         await act(async () => {
             shareGate.resolve({ params: shareParams('finance-uuid') });
