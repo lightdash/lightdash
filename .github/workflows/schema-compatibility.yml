@@ -162,6 +162,10 @@ jobs:
         env:
           PGDATABASE: lightdash
           PGCONNECTIONURI: postgres://postgres:password@localhost:5432/lightdash
+      - name: Scheduler migration drain regression tests
+        run: pnpm -F backend test:scheduler-integration
+        env:
+          SCHEDULER_TEST_DATABASE_URL: postgres://postgres:password@localhost:5432/postgres
 
   previous-release:
     name: Previous release against this schema

@@ -4,7 +4,7 @@ import { SchedulerMigrationQuiesce } from './SchedulerMigrationQuiesce';
 const makeHooks = () => ({
     onQuiesceStateChange: vi.fn(),
     onFailure: vi.fn(),
-    stopWorkersForRetry: vi.fn(async () => {}),
+    drainWorkers: vi.fn(async () => {}),
     startResumeWorkers: vi.fn(async () => {}),
     finishResumeRamp: vi.fn(async () => {}),
 });
@@ -52,7 +52,7 @@ describe('SchedulerMigrationQuiesce', () => {
         await permit;
     });
 
-    it('parks in-flight jobs through Graphile after the grace period', async () => {
+    it('drains in-flight jobs after the grace period', async () => {
         const hooks = makeHooks();
         const controller = new SchedulerMigrationQuiesce({
             probe: makeProbe(() => true),
@@ -66,7 +66,7 @@ describe('SchedulerMigrationQuiesce', () => {
 
         await vi.advanceTimersByTimeAsync(1_000);
 
-        expect(hooks.stopWorkersForRetry).toHaveBeenCalledWith(
+        expect(hooks.drainWorkers).toHaveBeenCalledWith(
             'Migration lease grace period expired',
         );
         await controller.stop();

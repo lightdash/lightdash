@@ -38,7 +38,10 @@ import {
     SchedulerDeliveryError,
 } from './SchedulerDeliveryError';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
-import { SchedulerMigrationQuiesce } from './SchedulerMigrationQuiesce';
+import {
+    MigrationDequeueWaitCancelledError,
+    SchedulerMigrationQuiesce,
+} from './SchedulerMigrationQuiesce';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
@@ -132,6 +135,7 @@ const PG_PING_QUERY = `SELECT pg_notify('jobs:insert', '')`;
 type ManagedRunner = {
     runner: Runner;
     workerPool: WorkerPool | null;
+    stopPromise: Promise<void> | null;
 };
 
 class ForwardingWorkerEvents extends EventEmitter {
@@ -346,8 +350,8 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                     Logger.error('Migration quiesce failed', error);
                 },
-                stopWorkersForRetry: (reason) =>
-                    this.stopManagedRunnersForRetry(reason),
+                drainWorkers: (reason) =>
+                    this.drainManagedRunnersForMigration(reason),
                 startResumeWorkers: () => this.startResumeWorkers(),
                 finishResumeRamp: () => this.finishResumeRamp(),
             },
@@ -396,12 +400,11 @@ export class SchedulerWorker extends SchedulerTask {
             return;
         }
 
-        for (const { runner } of managedRunners) {
-            this.expectedRunnerStops.add(runner);
-        }
         const { shutdownTimeout } = this.lightdashConfig.scheduler;
         const drained = Promise.all(
-            managedRunners.map(({ runner }) => runner.stop()),
+            managedRunners.map((managedRunner) =>
+                this.stopManagedRunner(managedRunner),
+            ),
         ).then(
             () => 'drained' as const,
             (error: unknown) => {
@@ -447,6 +450,23 @@ export class SchedulerWorker extends SchedulerTask {
         events.once('pool:create', ({ workerPool: createdWorkerPool }) => {
             workerPool = createdWorkerPool;
         });
+        events.on('worker:create', ({ worker }) => {
+            const graphileWorker = worker;
+            const release = graphileWorker.release.bind(graphileWorker);
+            // Graphile 0.13 uses Promise.all for release. An expected dequeue
+            // cancellation must not close the pool before other jobs finish.
+            graphileWorker.release = () => {
+                const released: unknown = release();
+                if (released === undefined) return undefined;
+                return graphileWorker.promise.catch((error: unknown) => {
+                    if (
+                        !(error instanceof MigrationDequeueWaitCancelledError)
+                    ) {
+                        throw error;
+                    }
+                });
+            };
+        });
 
         const runner = await runGraphileWorker({
             connectionString: this.lightdashConfig.database.connectionUri,
@@ -466,7 +486,11 @@ export class SchedulerWorker extends SchedulerTask {
             events,
         });
 
-        const managedRunner = { runner, workerPool };
+        const managedRunner: ManagedRunner = {
+            runner,
+            workerPool,
+            stopPromise: null,
+        };
         this.managedRunners.add(managedRunner);
         if (includeCron) {
             this.runner = runner;
@@ -474,14 +498,46 @@ export class SchedulerWorker extends SchedulerTask {
         this.isRunning = true;
 
         void runner.promise.finally(() => {
-            this.managedRunners.delete(managedRunner);
-            this.isRunning = this.managedRunners.size > 0;
-            if (!this.isStopping && !this.expectedRunnerStops.delete(runner)) {
-                this.workerHealth?.markPoolDead(
-                    'graphile runner stopped unexpectedly',
-                );
+            // Graphile resolves runner.promise before active handlers finish.
+            if (!this.expectedRunnerStops.delete(runner)) {
+                this.managedRunners.delete(managedRunner);
+                this.isRunning = this.managedRunners.size > 0;
+                if (!this.isStopping) {
+                    this.workerHealth?.markPoolDead(
+                        'graphile runner stopped unexpectedly',
+                    );
+                }
             }
         });
+    }
+
+    private stopManagedRunner(entry: ManagedRunner): Promise<void> {
+        const managedRunner = entry;
+        if (managedRunner.stopPromise === null) {
+            const { runner } = managedRunner;
+            this.expectedRunnerStops.add(runner);
+            managedRunner.stopPromise = runner.stop().finally(() => {
+                this.expectedRunnerStops.delete(runner);
+                this.managedRunners.delete(managedRunner);
+                this.isRunning = this.managedRunners.size > 0;
+                if (this.runner === runner) {
+                    this.runner = undefined;
+                }
+            });
+        }
+        return managedRunner.stopPromise;
+    }
+
+    private async drainManagedRunnersForMigration(
+        reason: string,
+    ): Promise<void> {
+        Logger.info(`Draining scheduler workers: ${reason}`);
+        // Migration resume keeps this process alive, so never unlock live jobs.
+        await Promise.all(
+            [...this.managedRunners].map((managedRunner) =>
+                this.stopManagedRunner(managedRunner),
+            ),
+        );
     }
 
     private async startResumeWorkers(): Promise<void> {
@@ -527,12 +583,15 @@ export class SchedulerWorker extends SchedulerTask {
         }
 
         await Promise.all(
-            managedRunners.map(async ({ runner, workerPool }) => {
+            managedRunners.map(async (managedRunner) => {
+                const { workerPool } = managedRunner;
                 if (workerPool !== null) {
                     await workerPool.gracefulShutdown(reason);
                 }
                 try {
-                    await runner.stop();
+                    if (managedRunner.stopPromise === null) {
+                        await this.stopManagedRunner(managedRunner);
+                    }
                 } catch (error) {
                     Logger.warn(
                         `Scheduler runner stop failed: ${getErrorMessage(error)}`,
