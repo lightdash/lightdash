@@ -9796,8 +9796,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         if (!(await this.areCustomSkillsEnabled(user))) {
             throw new ForbiddenError('Custom agent skills are not enabled');
         }
-        const builtIns = await this.aiAgentToolsService.listAgentSkills();
-        if (builtIns.some((skill) => skill.name === name)) return;
+        // Built-ins are model-only: their names are reserved, so they never match here.
         const bound = await this.aiAgentSkillModel.findBoundToAgentByName({
             agentUuid: agent.uuid,
             name,
