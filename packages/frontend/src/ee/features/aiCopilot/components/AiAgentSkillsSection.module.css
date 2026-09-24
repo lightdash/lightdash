@@ -1,3 +1,18 @@
 .scrollableOptions {
     overflow-y: auto;
 }
+
+.search {
+    margin: 0;
+    padding: 6px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.searchInput {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.option {
+    padding: 6px 8px;
+}

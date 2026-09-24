@@ -24,6 +24,7 @@ import {
     IconFileText,
     IconPencil,
     IconPlus,
+    IconSearch,
     IconX,
 } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
@@ -110,7 +111,7 @@ const AddSkillMenu = ({
         <Combobox
             store={combobox}
             withinPortal
-            width={360}
+            width={320}
             position="bottom-end"
             onOptionSubmit={(value) => {
                 combobox.closeDropdown();
@@ -132,17 +133,26 @@ const AddSkillMenu = ({
                     Add skill
                 </Button>
             </Combobox.Target>
-            <Combobox.Dropdown>
+            <Combobox.Dropdown p={0}>
                 {canBind && bindable.length > 0 ? (
                     <>
                         <Combobox.Search
+                            size="xs"
                             value={search}
                             onChange={(event) =>
                                 setSearch(event.currentTarget.value)
                             }
                             placeholder="Search library"
+                            leftSection={
+                                <MantineIcon icon={IconSearch} color="dimmed" />
+                            }
+                            classNames={{
+                                wrapper: styles.search,
+                                input: styles.searchInput,
+                            }}
                         />
                         <Combobox.Options
+                            p={4}
                             mah={280}
                             className={styles.scrollableOptions}
                         >
@@ -150,10 +160,18 @@ const AddSkillMenu = ({
                                 <Combobox.Option
                                     key={skill.uuid}
                                     value={skill.uuid}
+                                    className={styles.option}
                                 >
-                                    <Stack gap={0}>
-                                        <Group gap={6}>
-                                            <Code fz="xs">/{skill.name}</Code>
+                                    <Stack gap={2} miw={0}>
+                                        <Group gap={6} wrap="nowrap">
+                                            <Text
+                                                size="xs"
+                                                fw={500}
+                                                ff="monospace"
+                                                truncate="end"
+                                            >
+                                                /{skill.name}
+                                            </Text>
                                             <Text size="xs" c="dimmed">
                                                 v
                                                 {
@@ -165,7 +183,7 @@ const AddSkillMenu = ({
                                         <Text
                                             size="xs"
                                             c="dimmed"
-                                            lineClamp={1}
+                                            truncate="end"
                                         >
                                             {skill.description}
                                         </Text>
@@ -174,19 +192,21 @@ const AddSkillMenu = ({
                             ))}
                             {matches.length === 0 ? (
                                 <Combobox.Empty>
-                                    No skill matches "{search.trim()}"
+                                    <Text size="xs" c="dimmed" py="xs">
+                                        No skill matches "{search.trim()}"
+                                    </Text>
                                 </Combobox.Empty>
                             ) : null}
                         </Combobox.Options>
                     </>
                 ) : (
-                    <Stack align="center" gap={4} py="lg" px="md">
+                    <Stack align="center" gap={4} py="md" px="md">
                         <MantineIcon
                             icon={IconBooks}
-                            size="lg"
+                            size="md"
                             color="ldGray.5"
                         />
-                        <Text size="sm" fw={500}>
+                        <Text size="xs" fw={500}>
                             No skills to add
                         </Text>
                         <Text size="xs" c="dimmed" ta="center">
@@ -196,11 +216,14 @@ const AddSkillMenu = ({
                     </Stack>
                 )}
                 {canCreate ? (
-                    <Combobox.Footer>
-                        <Combobox.Option value={CREATE_OPTION}>
-                            <Group gap="xs">
-                                <MantineIcon icon={IconPlus} />
-                                <Text size="sm" fw={500}>
+                    <Combobox.Footer p={4}>
+                        <Combobox.Option
+                            value={CREATE_OPTION}
+                            className={styles.option}
+                        >
+                            <Group gap={6} wrap="nowrap">
+                                <MantineIcon icon={IconPlus} size="sm" />
+                                <Text size="xs" fw={500}>
                                     Create new skill
                                 </Text>
                             </Group>
