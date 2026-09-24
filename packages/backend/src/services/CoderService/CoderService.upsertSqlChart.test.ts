@@ -82,6 +82,11 @@ const projectConnections = [
         name: 'Finance',
         isOriginal: false,
     },
+    {
+        warehouseConnectionUuid: 'reporting-uuid',
+        name: 'Reporting',
+        isOriginal: false,
+    },
 ];
 
 const buildService = (
@@ -149,10 +154,14 @@ const stubSpace = (service: CoderService, uuid: string = SPACE_UUID) =>
         created: false,
     });
 
-const existingRow = (spaceUuid: string = SPACE_UUID) => ({
+const existingRow = (
+    spaceUuid: string = SPACE_UUID,
+    warehouseConnectionUuid: string | null = null,
+) => ({
     saved_sql_uuid: 'existing-uuid',
     space_uuid: spaceUuid,
     slug: sqlChartAsCode.slug,
+    warehouse_connection_uuid: warehouseConnectionUuid,
 });
 
 const upsert = (service: CoderService, user: SessionUser) =>
@@ -448,7 +457,7 @@ describe('CoderService.upsertSqlChart - connections', () => {
         async (connection, warehouseConnectionUuid) => {
             connectionState.route = 'multi';
             const { savedSqlModel, error } = await uploadWith(
-                [existingRow(SPACE_UUID)],
+                [existingRow(SPACE_UUID, warehouseConnectionUuid)],
                 connection,
             );
 
@@ -459,6 +468,51 @@ describe('CoderService.upsertSqlChart - connections', () => {
             );
         },
     );
+
+    it.each([undefined, 'Warehouse', 'Reporting'])(
+        'refuses a bound SQL chart when the uploaded connection is %s',
+        async (connection) => {
+            connectionState.route = 'multi';
+            const { savedSqlModel, service, error } = await uploadWith(
+                [existingRow(SPACE_UUID, 'finance-uuid')],
+                connection,
+            );
+
+            expect(error).toEqual(
+                new ParameterError(
+                    'The connection of SQL chart "my-sql-chart" is "Finance" and cannot change on upload. Move it in the SQL runner, then download it again.',
+                ),
+            );
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+            expect(service.getOrCreateSpace).not.toHaveBeenCalled();
+        },
+    );
+
+    it('accepts an unchanged extra connection on an existing SQL chart', async () => {
+        connectionState.route = 'multi';
+        const { savedSqlModel, error } = await uploadWith(
+            [existingRow(SPACE_UUID, 'finance-uuid')],
+            'Finance',
+        );
+
+        expect(error).toBeNull();
+        expect(savedSqlModel.update).toHaveBeenCalledWith(
+            expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+            { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
+        );
+    });
+
+    it('keeps a single project existing SQL chart upload unchanged', async () => {
+        const { savedSqlModel, error } = await uploadWith(
+            [existingRow()],
+            undefined,
+        );
+
+        expect(error).toBeNull();
+        expect(savedSqlModel.update).toHaveBeenCalledWith(
+            expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+        );
+    });
 
     it('writes a single project SQL chart the way main does', async () => {
         const { savedSqlModel, error } = await uploadWith([], undefined);
