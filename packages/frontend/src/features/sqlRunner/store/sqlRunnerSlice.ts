@@ -500,6 +500,14 @@ export const {
     selectConnectionRoute,
 } = sqlRunnerSlice.selectors;
 
+export const selectIsConnectionReady = createSelector(
+    [sqlRunnerSlice.selectors.selectConnectionRoute],
+    (connectionRoute) =>
+        connectionRoute.route === 'single' ||
+        (connectionRoute.route === 'multi' &&
+            connectionRoute.connection !== null),
+);
+
 export const selectConnectionUuid = createSelector(
     [sqlRunnerSlice.selectors.selectConnectionRoute],
     (connectionRoute) => connectionUuidOf(connectionRoute),

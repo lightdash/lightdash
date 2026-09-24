@@ -43,7 +43,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
 import { useSqlQueryRun } from '../../sqlRunner/hooks/useSqlQueryRun';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { selectConnectionUuid } from '../../sqlRunner/store/sqlRunnerSlice';
 import { compareSqlQueries } from '../../sqlRunner/store/sqlRunnerSlice';
 import { useUpdateVirtualView } from '../hooks/useVirtualView';
 import { compareColumns, type ColumnDiff } from '../utils/compareColumns';
@@ -290,7 +289,6 @@ export const HeaderVirtualView: FC<{
         VizColumn[] | undefined
     >(undefined);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
-    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     const [columnDiffs, setColumnDiffs] = useState<ColumnDiff[]>([]);
     const [chartValidationErrors, setChartValidationErrors] = useState<
         ValidationResponse[] | undefined
@@ -357,7 +355,6 @@ export const HeaderVirtualView: FC<{
                 sql,
                 limit: 1,
                 parameterValues: savedParameterValues,
-                warehouseConnectionUuid,
             });
 
             if (results) {

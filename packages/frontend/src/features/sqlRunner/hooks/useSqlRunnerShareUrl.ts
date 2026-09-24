@@ -20,6 +20,7 @@ const EXCLUDED_KEYS_FROM_SHARE_STATE = [
     'queryError',
     'editorHighlightError',
     'fetchResultsOnLoad',
+    'connectionRoute',
 ] as const;
 
 type ExcludedKeysFromShareState =
@@ -100,6 +101,7 @@ export const useSqlRunnerShareUrl = (
                     sqlRunnerState = {
                         ...initialState,
                         ...sqlRunnerParams.sqlRunnerState,
+                        connectionRoute: initialState.connectionRoute,
                     };
                     chartConfig = sqlRunnerParams.chartConfig;
                 } else {
@@ -107,6 +109,7 @@ export const useSqlRunnerShareUrl = (
                     sqlRunnerState = {
                         ...initialState,
                         ...sqlRunnerParams,
+                        connectionRoute: initialState.connectionRoute,
                     };
                 }
             } catch (e) {

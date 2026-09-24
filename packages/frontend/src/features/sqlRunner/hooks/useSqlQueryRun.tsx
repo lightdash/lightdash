@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
+import { useAppSelector } from '../store/hooks';
+import { selectConnectionUuid } from '../store/sqlRunnerSlice';
 
 export type ResultsAndColumns = {
     queryUuid: string;
@@ -19,7 +21,6 @@ type UseSqlQueryRunParams = {
     sql: SqlRunnerBody['sql'];
     limit: SqlRunnerBody['limit'];
     parameterValues?: ParametersValuesMap;
-    warehouseConnectionUuid?: string | null;
 };
 
 /**
@@ -34,12 +35,13 @@ export const useSqlQueryRun = (
         UseSqlQueryRunParams
     >,
 ) => {
+    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     return useMutation<
         ResultsAndColumns | undefined,
         ApiError,
         UseSqlQueryRunParams
     >(
-        async ({ sql, limit, parameterValues, warehouseConnectionUuid }) =>
+        async ({ sql, limit, parameterValues }) =>
             executeSqlQuery(
                 projectUuid,
                 sql,

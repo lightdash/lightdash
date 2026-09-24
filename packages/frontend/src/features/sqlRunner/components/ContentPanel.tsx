@@ -54,15 +54,14 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
+import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     clearParameterValues,
     EditorTabs,
     selectActiveChartType,
     selectActiveEditorTab,
-    selectConnectionRoute,
     selectConnectionUuid,
-    selectFetchResultsOnLoad,
     selectLimit,
     selectParameterValues,
     selectProjectUuid,
@@ -91,7 +90,6 @@ import { SqlRunnerEditor } from './SqlRunnerEditor';
 export const ContentPanel: FC = () => {
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
-    const fetchResultsOnLoad = useAppSelector(selectFetchResultsOnLoad);
     const projectUuid = useAppSelector(selectProjectUuid);
     const sql = useAppSelector(selectSql);
     const queryUuid = useAppSelector(selectQueryUuid);
@@ -229,39 +227,7 @@ export const ContentPanel: FC = () => {
     ]);
 
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
-    const isConnectionReady = useAppSelector((state) => {
-        const connectionRoute = selectConnectionRoute(state);
-        return (
-            connectionRoute.route === 'single' ||
-            (connectionRoute.route === 'multi' &&
-                connectionRoute.connection !== null)
-        );
-    });
-
-    useEffect(
-        // When the user opens the sql runner and the query results are not yet loaded, run the query and then change to the visualization tab
-        function handleEditModeOnLoad() {
-            if (!isConnectionReady) return;
-            if (fetchResultsOnLoad && !hasQueryResults) {
-                void handleRunQuery(sql);
-            } else if (
-                fetchResultsOnLoad &&
-                hasQueryResults &&
-                mode === 'default'
-            ) {
-                dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-            }
-        },
-        [
-            isConnectionReady,
-            fetchResultsOnLoad,
-            handleRunQuery,
-            hasQueryResults,
-            dispatch,
-            sql,
-            mode,
-        ],
-    );
+    useRunQueryOnLoad({ runQuery: handleRunQuery, hasQueryResults });
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs

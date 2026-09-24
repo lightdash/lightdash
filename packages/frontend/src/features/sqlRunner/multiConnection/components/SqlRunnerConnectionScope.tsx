@@ -3,7 +3,7 @@ import isEqual from 'lodash/isEqual';
 import {
     useEffect,
     useMemo,
-    useRef,
+    useState,
     type FC,
     type PropsWithChildren,
 } from 'react';
@@ -44,7 +44,9 @@ const ActiveConnectionStoreSync: FC<{ isEditingSavedChart: boolean }> = ({
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
-    const appliedChartUuid = useRef<string | undefined>(undefined);
+    const [appliedChartUuid, setAppliedChartUuid] = useState<
+        string | undefined
+    >(undefined);
     const chartBinding = savedSqlChart
         ? connections.find((connection) =>
               savedSqlChart.warehouseConnectionUuid === null
@@ -55,24 +57,18 @@ const ActiveConnectionStoreSync: FC<{ isEditingSavedChart: boolean }> = ({
         : undefined;
 
     useEffect(() => {
-        if (
-            !savedSqlChart ||
-            appliedChartUuid.current === savedSqlChart.savedSqlUuid
-        ) {
+        if (!savedSqlChart || appliedChartUuid === savedSqlChart.savedSqlUuid) {
             return;
         }
-        appliedChartUuid.current = savedSqlChart.savedSqlUuid;
         if (chartBinding) {
             switchConnection(chartBinding.warehouseConnectionUuid);
         }
-    }, [savedSqlChart, chartBinding, switchConnection]);
+        setAppliedChartUuid(savedSqlChart.savedSqlUuid);
+    }, [savedSqlChart, chartBinding, switchConnection, appliedChartUuid]);
 
     const isWaitingForChart =
         isEditingSavedChart &&
-        (!savedSqlChart ||
-            (chartBinding !== undefined &&
-                activeConnection?.warehouseConnectionUuid !==
-                    chartBinding.warehouseConnectionUuid));
+        (!savedSqlChart || appliedChartUuid !== savedSqlChart.savedSqlUuid);
 
     const desired = useMemo<SqlRunnerConnectionRoute>(
         () => ({

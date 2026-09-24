@@ -145,4 +145,24 @@ describe('HeaderEdit and the connection of a saved SQL chart', () => {
             },
         });
     });
+
+    it('does not save a change while no connection is chosen', async () => {
+        store.dispatch(
+            setConnectionRoute({ route: 'multi', connection: null }),
+        );
+        renderWithProviders(
+            <Provider store={store}>
+                <HeaderEdit />
+            </Provider>,
+        );
+        act(() => {
+            store.dispatch(setSql('select 2'));
+        });
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole('button', { name: 'Save' }));
+
+        expect(updateSqlChart).not.toHaveBeenCalled();
+    });
 });
