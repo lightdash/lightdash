@@ -5,7 +5,7 @@ import {
     type AiPromptContextItem,
     type UiStringResolver,
 } from '@lightdash/common';
-import { Badge, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { type Editor } from '@tiptap/core';
 import Mention, { type MentionOptions } from '@tiptap/extension-mention';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -36,11 +36,10 @@ export type SkillMentionItem = {
     label: string;
     name: string;
     description: string;
-    builtIn: boolean;
     argumentHint: string | null;
 };
 
-/** Custom skills a user may invoke from the composer, then the built-ins. */
+/** Skills a user may invoke from the composer; built-ins are model-only. */
 export const toSkillMentionItems = (
     listing: AgentSkillsListing | undefined,
 ): SkillMentionItem[] => {
@@ -55,18 +54,9 @@ export const toSkillMentionItems = (
             label: `/${skill.name}`,
             name: skill.name,
             description: skill.description,
-            builtIn: false,
             argumentHint: skill.argumentHint,
         }));
-    const builtIn = listing.builtInSkills.map<SkillMentionItem>((skill) => ({
-        id: `builtin:${skill.name}`,
-        label: `/${skill.name}`,
-        name: skill.name,
-        description: skill.description,
-        builtIn: true,
-        argumentHint: null,
-    }));
-    return [...custom, ...builtIn];
+    return custom;
 };
 
 const matchesQuery = (item: SkillMentionItem, query: string) => {
@@ -78,16 +68,13 @@ const matchesQuery = (item: SkillMentionItem, query: string) => {
     );
 };
 
-const findSkillMention = (
-    editor: Editor,
-): { name: string; builtIn: boolean } | null => {
-    let found: { name: string; builtIn: boolean } | null = null;
+const findSkillMention = (editor: Editor): { name: string } | null => {
+    let found: { name: string } | null = null;
     editor.state.doc.descendants((node) => {
         if (node.type.name === SKILL_MENTION_NAME && found === null) {
             found = {
                 name:
                     typeof node.attrs.name === 'string' ? node.attrs.name : '',
-                builtIn: node.attrs.builtIn === true,
             };
         }
         return found === null;
@@ -120,9 +107,6 @@ const renderSkillMentionItem =
                         <Text size="xs" c="dimmed" ff="monospace" truncate>
                             {item.argumentHint}
                         </Text>
-                    ) : null}
-                    {item.builtIn ? (
-                        <Badge size="xs">{strings('skillMenu.builtIn')}</Badge>
                     ) : null}
                 </Group>
                 <Text size="xs" c="dimmed" truncate="end">
@@ -169,7 +153,6 @@ const generateSkillMentionSuggestion = ({
                     type: SKILL_MENTION_NAME,
                     attrs: {
                         name: item.name,
-                        builtIn: item.builtIn,
                         argumentHint: item.argumentHint,
                     },
                 },
@@ -340,7 +323,6 @@ export const createSkillMentionExtension = (
         addAttributes() {
             return {
                 name: { default: null },
-                builtIn: { default: false },
                 argumentHint: { default: null },
             };
         },
@@ -403,7 +385,7 @@ export const extractSkillMentionContext = (
                 skillUuid: null,
                 pinnedVersionUuid: null,
                 versionNumber: null,
-                builtIn: mention.builtIn,
+                builtIn: false,
                 displayName: null,
             },
         ],

@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { type AiAgentSkillSummary } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
     Code,
@@ -19,7 +18,6 @@ import {
 import {
     IconBooks,
     IconChevronDown,
-    IconCode,
     IconDots,
     IconFileText,
     IconPencil,
@@ -231,8 +229,8 @@ const AddSkillMenu = ({
 };
 
 /**
- * The skills this agent serves. Bound custom skills can be edited and removed,
- * built-ins are always on, and a new skill created here is bound on save.
+ * The skills bound to this agent. They can be edited and removed, and a new
+ * skill created here is bound on save.
  */
 export const AiAgentSkillsSection = ({
     agentUuid,
@@ -264,7 +262,6 @@ export const AiAgentSkillsSection = ({
     >(null);
 
     const bound = listing.data?.skills ?? [];
-    const builtIns = listing.data?.builtInSkills ?? [];
     const boundUuids = bound.map((skill) => skill.uuid);
     const bindable = (catalogue.data ?? []).filter(
         (skill) => !boundUuids.includes(skill.uuid),
@@ -354,20 +351,10 @@ export const AiAgentSkillsSection = ({
             ...(bound.length === 0
                 ? [
                       <Text key="empty" size="xs" c="dimmed" p="sm">
-                          No custom skills bound yet.
+                          No skills added to this agent yet.
                       </Text>,
                   ]
                 : []),
-            ...builtIns.map((skill) => (
-                <SkillRow
-                    key={skill.name}
-                    name={skill.name}
-                    description={skill.description}
-                    icon={IconCode}
-                    tag={<Badge size="xs">Built-in</Badge>}
-                    menu={null}
-                />
-            )),
         ];
         return (
             <Paper p={0}>

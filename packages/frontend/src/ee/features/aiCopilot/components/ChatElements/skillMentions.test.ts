@@ -45,20 +45,16 @@ const listing: AgentSkillsListing = {
 };
 
 describe('toSkillMentionItems', () => {
-    it('lists only user-invocable agent skills, custom before built-in', () => {
+    it('lists only user-invocable agent skills and never built-ins', () => {
         expect(toSkillMentionItems(listing).map((item) => item.label)).toEqual([
             '/weekly-review',
-            '/table-calculations',
         ]);
     });
 
-    it('carries the argument hint and the built-in marker', () => {
-        const [custom, builtIn] = toSkillMentionItems(listing);
-        expect(custom).toMatchObject({
+    it('carries the argument hint', () => {
+        expect(toSkillMentionItems(listing)[0]).toMatchObject({
             argumentHint: '[region]',
-            builtIn: false,
         });
-        expect(builtIn).toMatchObject({ argumentHint: null, builtIn: true });
     });
 
     it('is empty without a listing', () => {
