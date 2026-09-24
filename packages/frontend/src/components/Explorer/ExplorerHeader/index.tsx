@@ -17,6 +17,7 @@ import {
 } from '../../../features/explorer/store';
 import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMergeChangeSinceRun';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
+import { useExploreConnectionName } from '../../../hooks/useConnectionBadges';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
@@ -25,6 +26,7 @@ import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { useIsModalHosted } from '../../../providers/Explorer/useIsModalHosted';
+import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import { RefreshButton } from '../../RefreshButton';
@@ -68,6 +70,10 @@ const ExplorerHeader: FC = memo(() => {
     );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const connectionName = useExploreConnectionName(
+        projectUuid,
+        unsavedChartVersion.tableName,
+    );
 
     const { getHasDashboardChanges } = useDashboardStorage();
 
@@ -174,6 +180,7 @@ const ExplorerHeader: FC = memo(() => {
             </Box>
 
             <Group gap="xs">
+                <ConnectionBadge name={connectionName} />
                 {showMergeOutOfDate && (
                     <Tooltip
                         w={400}

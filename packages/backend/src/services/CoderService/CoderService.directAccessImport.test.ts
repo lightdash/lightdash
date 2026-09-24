@@ -75,6 +75,7 @@ const buildService = ({ members = [], groups = [], gateError }: Setup = {}) => {
             findOrganizationMembersByEmails: vi.fn(async () => members),
         } as never,
         userModel: {} as never,
+        warehouseConnectionModel: {} as never,
         directAccessService: { assertEnabled, replacePolicy } as never,
     });
     return { service, assertEnabled, replacePolicy };

@@ -602,13 +602,19 @@ export class SqlRunnerController extends BaseController {
 
         const virtualViewName = await this.services
             .getProjectService()
-            .createVirtualView(req.account!, projectUuid, {
-                name,
-                label,
-                sql,
-                columns,
-                parameterValues,
-            });
+            .createVirtualView(
+                req.account!,
+                projectUuid,
+                {
+                    name,
+                    label,
+                    sql,
+                    columns,
+                    parameterValues,
+                    warehouseConnectionUuid: body.warehouseConnectionUuid,
+                },
+                true,
+            );
 
         return {
             status: 'ok',

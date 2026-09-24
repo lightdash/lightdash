@@ -91,6 +91,7 @@ const buildService = ({ policies, members, groups }: Setup) =>
             ),
         } as never,
         userModel: {} as never,
+        warehouseConnectionModel: {} as never,
         directAccessService: {
             listPoliciesForExport: vi.fn(async () => policies),
         } as never,

@@ -14,6 +14,7 @@ export type TileBaseProps<T> = {
     chartName?: string;
     titleHref?: string;
     description?: string | null;
+    connectionName?: string | null;
     tile: T;
     isLoading?: boolean;
     hasError?: boolean;

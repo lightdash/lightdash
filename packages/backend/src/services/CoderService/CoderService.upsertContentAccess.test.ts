@@ -153,6 +153,7 @@ const buildService = () =>
         groupsModel: {} as AnyType,
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
+        warehouseConnectionModel: {} as never,
     });
 
 const registerContentAccessTests = (

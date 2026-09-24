@@ -24,12 +24,18 @@ import { useProjectTableGroups } from '../../../hooks/useProjectTableGroups';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
+import { getBindingConnectionUuid } from '../../common/connectionName';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import {
+    ExploreConnectionEmptyState,
+    ExploreConnectionFilter,
+} from './ExploreConnectionFilter';
 import { buildExploreTree, sortExploreTree } from './exploreTree';
+import { useExploreConnectionFilter } from './useExploreConnectionFilter';
 import VirtualizedExploreList from './VirtualizedExploreList';
 
 const getPreAggregateName = (explore: SummaryExplore) =>
@@ -61,6 +67,8 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [, startTransition] = useTransition();
     const exploresResult = useExplores(projectUuid, true, true);
+    const { connections, connectionFilter, setConnectionFilter } =
+        useExploreConnectionFilter(projectUuid);
     const tableGroupsResult = useProjectTableGroups(projectUuid);
     const { data: org } = useOrganization();
     const { data: externalSourcesFlag } = useServerFeatureFlag(
@@ -85,8 +93,17 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
             : '';
         if (exploresResult.data) {
             let explores = Object.values(exploresResult.data);
+            if (connections !== null && connectionFilter !== null) {
+                explores = explores.filter(
+                    (explore) =>
+                        getBindingConnectionUuid(
+                            connections,
+                            explore.warehouseConnectionUuid,
+                        ) === connectionFilter,
+                );
+            }
             if (validSearch !== '') {
-                explores = new Fuse(Object.values(exploresResult.data), {
+                explores = new Fuse(explores, {
                     keys: [
                         { name: 'label', weight: 2 },
                         { name: 'name', weight: 2 },
@@ -110,7 +127,15 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
             return explores;
         }
         return undefined;
-    }, [exploresResult.data, debouncedSearch]);
+    }, [exploresResult.data, debouncedSearch, connections, connectionFilter]);
+
+    const emptyConnectionName =
+        connectionFilter !== null && filteredExplores?.length === 0
+            ? (connections?.find(
+                  ({ warehouseConnectionUuid }) =>
+                      warehouseConnectionUuid === connectionFilter,
+              )?.name ?? null)
+            : null;
 
     const tableGroupDetails = useMemo(
         () => tableGroupsResult.data ?? {},
@@ -294,17 +319,39 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             data-tour-suggest="Orders by status"
                         />
 
-                        <VirtualizedExploreList
-                            groupedExploreTree={groupedExploreTree}
-                            defaultUngroupedExplores={defaultUngroupedExplores}
-                            customUngroupedExplores={customUngroupedExplores}
-                            preAggregateExplores={sortedPreAggregateExplores}
-                            externalSourceExplores={
-                                sortedExternalSourceExplores
-                            }
-                            searchQuery={debouncedSearch}
-                            onExploreClick={handleExploreClick}
-                        />
+                        {connections !== null && (
+                            <ExploreConnectionFilter
+                                connections={connections}
+                                connectionFilter={connectionFilter}
+                                onChange={setConnectionFilter}
+                            />
+                        )}
+
+                        {emptyConnectionName !== null ? (
+                            <ExploreConnectionEmptyState
+                                connectionName={emptyConnectionName}
+                                isSearching={debouncedSearch !== ''}
+                            />
+                        ) : (
+                            <VirtualizedExploreList
+                                groupedExploreTree={groupedExploreTree}
+                                defaultUngroupedExplores={
+                                    defaultUngroupedExplores
+                                }
+                                customUngroupedExplores={
+                                    customUngroupedExplores
+                                }
+                                preAggregateExplores={
+                                    sortedPreAggregateExplores
+                                }
+                                externalSourceExplores={
+                                    sortedExternalSourceExplores
+                                }
+                                searchQuery={debouncedSearch}
+                                connections={connections}
+                                onExploreClick={handleExploreClick}
+                            />
+                        )}
                     </Stack>
                 </ItemDetailProvider>
                 {canShowAddData && projectUuid && (

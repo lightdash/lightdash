@@ -123,7 +123,10 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
-import { SavedSqlModel } from '../../models/SavedSqlModel';
+import {
+    SavedSqlModel,
+    type SqlChartConnectionBinding,
+} from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import {
     SpaceModel,
@@ -131,6 +134,7 @@ import {
 } from '../../models/SpaceModel';
 import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
@@ -163,6 +167,11 @@ import {
     withTileWarnings,
 } from './dashboardReferences';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
+import {
+    getContentConnectionName,
+    listContentConnections,
+    resolveContentConnection,
+} from './handlers/contentConnections';
 import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
 import { VirtualViewCoder } from './handlers/VirtualViewCoder';
 import { paginateAsCode } from './pagination';
@@ -210,6 +219,10 @@ type CoderServiceArguments = {
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
     directAccessService: DirectAccessService;
+    warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'list'
+    >;
 };
 
 type UpsertContentAsCodeOptions = {
@@ -271,6 +284,11 @@ export class CoderService extends BaseService {
 
     userModel: UserModel;
 
+    warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'list'
+    >;
+
     private readonly virtualViewCoder: VirtualViewCoder;
 
     private readonly scheduledContentCoder: ScheduledContentCoder;
@@ -308,6 +326,7 @@ export class CoderService extends BaseService {
         organizationMemberProfileModel,
         userModel,
         directAccessService,
+        warehouseConnectionModel,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -334,9 +353,11 @@ export class CoderService extends BaseService {
         this.directAccessService = directAccessService;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
+        this.warehouseConnectionModel = warehouseConnectionModel;
         this.virtualViewCoder = new VirtualViewCoder({
             projectModel,
             projectService,
+            warehouseConnectionModel,
         });
         this.scheduledContentCoder = new ScheduledContentCoder({
             projectModel,
@@ -3032,8 +3053,9 @@ export class CoderService extends BaseService {
             pageSize: maxResults,
         });
 
-        const transformedSqlCharts = paginatedSqlChartRows.map((row) =>
-            CoderService.transformSqlChart(
+        const connections = await listContentConnections(this, projectUuid);
+        const transformedSqlCharts = paginatedSqlChartRows.map((row) => {
+            const sqlChart = CoderService.transformSqlChart(
                 {
                     name: row.name,
                     description: row.description,
@@ -3045,8 +3067,15 @@ export class CoderService extends BaseService {
                     lastUpdatedAt: row.last_version_updated_at,
                 },
                 row.path,
-            ),
-        );
+            );
+            const connection = getContentConnectionName(
+                connections,
+                row.warehouse_connection_uuid,
+            );
+            return connection === undefined
+                ? sqlChart
+                : { ...sqlChart, connection };
+        });
 
         // getSqlCharts is the export path itself (gated above), so access
         // blocks always ride along. Dashboard-owned SQL charts never reach
@@ -4319,9 +4348,15 @@ export class CoderService extends BaseService {
             });
         }
 
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
+        const connections = await listContentConnections(this, projectUuid);
+        const warehouseConnectionUuid = resolveContentConnection(
+            connections,
+            sqlChartAsCode.connection,
+        );
+        const binding: SqlChartConnectionBinding | undefined =
+            connections.length > 0
+                ? { kind: 'connection', warehouseConnectionUuid }
+                : undefined;
 
         const { space, created: spaceCreated } = await this.getOrCreateSpace(
             projectUuid,
@@ -4355,19 +4390,28 @@ export class CoderService extends BaseService {
                 `Creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
             );
 
-            const { savedSqlUuid } = await this.savedSqlModel.create(
-                user.userUuid,
-                projectUuid,
-                {
-                    name: sqlChartAsCode.name,
-                    description: sqlChartAsCode.description,
-                    sql: sqlChartAsCode.sql,
-                    limit: sqlChartAsCode.limit,
-                    config: sqlChartAsCode.config,
-                    spaceUuid: space.uuid,
-                    slug: sqlChartAsCode.slug, // Force the slug from the YAML file
-                },
-            );
+            const sqlChartToCreate = {
+                name: sqlChartAsCode.name,
+                description: sqlChartAsCode.description,
+                sql: sqlChartAsCode.sql,
+                limit: sqlChartAsCode.limit,
+                config: sqlChartAsCode.config,
+                spaceUuid: space.uuid,
+                slug: sqlChartAsCode.slug, // Force the slug from the YAML file
+            };
+            const { savedSqlUuid } =
+                binding === undefined
+                    ? await this.savedSqlModel.create(
+                          user.userUuid,
+                          projectUuid,
+                          sqlChartToCreate,
+                      )
+                    : await this.savedSqlModel.create(
+                          user.userUuid,
+                          projectUuid,
+                          sqlChartToCreate,
+                          binding,
+                      );
 
             this.logger.info(
                 `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
@@ -4416,7 +4460,7 @@ export class CoderService extends BaseService {
             `Updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
         );
 
-        await this.savedSqlModel.update({
+        const sqlChartUpdate = {
             userUuid: user.userUuid,
             savedSqlUuid: existingSqlChart.saved_sql_uuid,
             sqlChart: {
@@ -4431,7 +4475,12 @@ export class CoderService extends BaseService {
                     config: sqlChartAsCode.config,
                 },
             },
-        });
+        };
+        if (binding === undefined) {
+            await this.savedSqlModel.update(sqlChartUpdate);
+        } else {
+            await this.savedSqlModel.update(sqlChartUpdate, binding);
+        }
 
         this.logger.info(
             `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,

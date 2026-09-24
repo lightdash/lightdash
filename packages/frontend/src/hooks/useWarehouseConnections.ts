@@ -77,6 +77,7 @@ export const useWarehouseConnections = (projectUuid: string) => {
 
 export const useWarehouseConnectionsForUserCredentials = (
     projectUuid: string,
+    enabled = true,
 ) =>
     useQuery<WarehouseConnectionForUserCredentials[], ApiError>({
         queryKey: [
@@ -90,6 +91,7 @@ export const useWarehouseConnectionsForUserCredentials = (
                 method: 'GET',
                 body: undefined,
             }),
+        enabled,
         retry: false,
     });
 

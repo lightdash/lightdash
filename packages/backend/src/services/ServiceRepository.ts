@@ -1550,6 +1550,8 @@ export class ServiceRepository
                         this.models.getOrganizationMemberProfileModel(),
                     userModel: this.models.getUserModel(),
                     directAccessService: this.getDirectAccessService(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                 }),
         );
     }
@@ -1598,6 +1600,8 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                     // Lazy accessor (not the instance) to promote embedded data
                     // apps during dashboard promotion. AppGenerateService depends
                     // on PromoteService, so resolving it eagerly here would cycle.

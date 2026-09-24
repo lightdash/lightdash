@@ -24,11 +24,13 @@ import {
 } from 'react';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useConnectionBadges } from '../../hooks/useConnectionBadges';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { getConnectionName } from '../common/connectionName';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -161,6 +163,7 @@ const SqlChartTile: FC<Props> = ({
                   parameters,
               },
     );
+    const connections = useConnectionBadges(effectiveProjectUuid);
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
         if (!chartResultsData?.chartSpec) return chartResultsData?.chartSpec;
@@ -293,6 +296,10 @@ const SqlChartTile: FC<Props> = ({
                 isLoading={isChartResultsLoading}
                 hasError={!!chartResultsError}
                 chartKind={chartData.config.type}
+                connectionName={getConnectionName(
+                    connections,
+                    chartData.warehouseConnectionUuid,
+                )}
                 {...rest}
                 titleHref={`/projects/${effectiveProjectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
@@ -334,6 +341,10 @@ const SqlChartTile: FC<Props> = ({
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
             chartKind={chartData.config.type}
+            connectionName={getConnectionName(
+                connections,
+                chartData.warehouseConnectionUuid,
+            )}
             fullWidth={chartData.config.type === ChartKind.TABLE}
             {...rest}
             extraMenuItems={

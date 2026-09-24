@@ -291,3 +291,94 @@ describe('deploy completeness transport', () => {
         );
     });
 });
+
+describe('deploy dbt source and target transport', () => {
+    const batchedResponses = async ({ url }: { url: string }) => {
+        if (url.endsWith('/deploy')) {
+            return { deploySessionUuid: 'deploy-session-uuid' } as never;
+        }
+        if (url.endsWith('/batch')) {
+            return { batchNumber: 0, exploreCount: 1 } as never;
+        }
+        if (url.endsWith('/finalize')) {
+            return {
+                exploreCount: 1,
+                warnings: { warningCount: 0, exploresWithWarnings: [] },
+                status: DeploySessionStatus.COMPLETED,
+            } as never;
+        }
+        return null as never;
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(readAndLoadLightdashProjectConfig).mockResolvedValue({
+            spotlight: { default_visibility: 'show' },
+        });
+        vi.mocked(LightdashAnalytics.track).mockResolvedValue(undefined);
+    });
+
+    test('sends the dbt source and the dbt target when the batched deploy finalizes', async () => {
+        vi.mocked(lightdashApi).mockImplementation(batchedResponses);
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            complete: true,
+            sourceUuid: 'finance-source-uuid',
+            deployTarget: { database: 'finance', region: 'eu-west-1' },
+        });
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'POST',
+            url: '/api/v2/projects/project-uuid/deploy/deploy-session-uuid/finalize',
+            body: JSON.stringify({
+                sourceUuid: 'finance-source-uuid',
+                target: { database: 'finance', region: 'eu-west-1' },
+            }),
+        });
+    });
+
+    test('sends the dbt source and the dbt target with a single-request deploy', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue(null as never);
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+            complete: true,
+            dbtModelNames: ['orders'],
+            sourceUuid: 'finance-source-uuid',
+            deployTarget: { database: 'finance' },
+        });
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'PUT',
+            url: '/api/v2/projects/project-uuid/deploy',
+            body: JSON.stringify({
+                explores: [compiledExplore],
+                dbtModelNames: ['orders'],
+                complete: true,
+                sourceUuid: 'finance-source-uuid',
+                target: { database: 'finance' },
+            }),
+        });
+    });
+
+    test('sends the dbt source and the dbt target as query parameters to the array endpoint', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue(null as never);
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+            complete: true,
+            sourceUuid: 'finance-source-uuid',
+            deployTarget: { database: 'fin ance', region: 'eu-west-1' },
+        });
+
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'PUT',
+                url: '/api/v1/projects/project-uuid/explores?complete=true&sourceUuid=finance-source-uuid&targetDatabase=fin%20ance&targetRegion=eu-west-1',
+            }),
+        );
+    });
+});

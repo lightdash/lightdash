@@ -226,7 +226,7 @@ export type MultiConnectionCarry =
     | {
           kind: 'otherDbtSources';
           dbtSourceUuid: string;
-          primaryDbtSourceUuid: string;
+          warehouseConnectionUuid: string | null;
       };
 
 export type ProjectModelArguments = {
@@ -291,6 +291,7 @@ type RawSummaryRow = {
     baseTableDatabase: Explore['tables'][string]['database'];
     baseTableSchema: Explore['tables'][string]['schema'];
     baseTableDescription: Explore['tables'][string]['description'] | null;
+    warehouseConnectionUuid: string | null;
     baseTableRequiredAttributes:
         | Explore['tables'][string]['requiredAttributes']
         | null;
@@ -2520,6 +2521,7 @@ export class ProjectModel {
                     base_table.value->>'database' as "baseTableDatabase",
                     base_table.value->>'schema' as "baseTableSchema",
                     base_table.value->>'description' as "baseTableDescription",
+                    ${CachedExploreTableName}.warehouse_connection_uuid as "warehouseConnectionUuid",
                     base_table.value->'requiredAttributes' as "baseTableRequiredAttributes",
                     base_table.value->'anyAttributes' as "baseTableAnyAttributes",
                     explore_summary."aiHint" as "aiHint",
@@ -2564,6 +2566,7 @@ export class ProjectModel {
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
             description: row.baseTableDescription ?? undefined,
+            warehouseConnectionUuid: row.warehouseConnectionUuid,
             aiHint: row.aiHint ?? undefined,
             customMeta: row.customMeta ?? undefined,
             type: row.type ?? undefined,
@@ -2575,6 +2578,38 @@ export class ProjectModel {
             ...(row.errors ? { errors: row.errors } : {}), // Fatal errors from ExploreError
             ...(row.warnings ? { warnings: row.warnings } : {}), // Non-fatal warnings from partial compilation
         }));
+    }
+
+    async findExploreWarehouseConnectionUuids(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<Record<string, string | null>> {
+        const rows = await this.database(CachedExploreTableName)
+            .select<
+                { name: string; warehouse_connection_uuid: string | null }[]
+            >('name', 'warehouse_connection_uuid')
+            .where('project_uuid', projectUuid)
+            .whereIn('name', exploreNames);
+        const bindings = new Map(
+            rows.map((row) => [row.name, row.warehouse_connection_uuid]),
+        );
+        return Object.fromEntries(
+            exploreNames.map((name) => [name, bindings.get(name) ?? null]),
+        );
+    }
+
+    async getExploreWarehouseConnectionUuid(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<string | null> {
+        const row = await this.database(CachedExploreTableName)
+            .select<{ warehouse_connection_uuid: string | null }[]>(
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', projectUuid)
+            .where('name', exploreName)
+            .first();
+        return row?.warehouse_connection_uuid ?? null;
     }
 
     async getExploreFromCache(
@@ -3418,8 +3453,12 @@ export class ProjectModel {
                 break;
             case 'otherDbtSources':
                 void carriedQuery.whereRaw(
-                    "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', ?) <> ?",
-                    [carry.primaryDbtSourceUuid, carry.dbtSourceUuid],
+                    `CASE
+                        WHEN COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') IS NOT NULL
+                            THEN COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') <> ?
+                        ELSE warehouse_connection_uuid IS DISTINCT FROM ?::uuid
+                    END`,
+                    [carry.dbtSourceUuid, carry.warehouseConnectionUuid],
                 );
                 break;
             default:
@@ -6387,6 +6426,7 @@ export class ProjectModel {
             parameterValues,
         }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
+        warehouseConnectionUuid: string | null = null,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
             name,
@@ -6414,6 +6454,7 @@ export class ProjectModel {
                 name: virtualView.name,
                 table_names: Object.keys(virtualView.tables || {}),
                 explore: virtualView,
+                warehouse_connection_uuid: warehouseConnectionUuid,
             });
         });
 

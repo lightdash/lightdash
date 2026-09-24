@@ -143,6 +143,7 @@ import { useEmbedDashboardChartDownload } from '../../hooks/dashboard/useEmbedDa
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useExploreConnectionName } from '../../hooks/useConnectionBadges';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
@@ -685,6 +686,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
         const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
         const projectUuid = useProjectUuid();
+        const connectionName = useExploreConnectionName(
+            projectUuid,
+            chart.tableName,
+        );
         const projectUrlIdentifier = useProjectUrlIdentifier();
         const { canViewExplore, canViewUnderlyingData, canDrillInto } =
             useContextMenuPermissions({ minimal: false });
@@ -1194,6 +1199,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         return (
             <>
                 <TileBase
+                    connectionName={connectionName}
                     lockHeaderVisibility={isCommentsMenuOpen}
                     chartKind={chartKind}
                     visibleHeaderElement={

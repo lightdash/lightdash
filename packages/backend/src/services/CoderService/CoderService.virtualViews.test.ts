@@ -77,8 +77,39 @@ const asCode: VirtualViewAsCode = {
     parameters: { region: 'EU' },
 };
 
-const buildService = (existing: Explore | null = virtualView) => {
+type ConnectionSetup = {
+    route: 'single' | 'multi';
+    bindings: Record<string, string | null>;
+    listsConnections?: boolean;
+};
+
+const SINGLE: ConnectionSetup = { route: 'single', bindings: {} };
+
+const connections = [
+    {
+        warehouseConnectionUuid: 'original-uuid',
+        name: 'Warehouse',
+        isOriginal: true,
+    },
+    {
+        warehouseConnectionUuid: 'finance-uuid',
+        name: 'Finance',
+        isOriginal: false,
+    },
+];
+
+const buildService = (
+    existing: Explore | null = virtualView,
+    setup: ConnectionSetup = SINGLE,
+) => {
     const projectModel = {
+        getConnectionRoute: vi.fn(async () => setup.route),
+        findExploreWarehouseConnectionUuids: vi.fn(
+            async (_projectUuid: string, names: string[]) =>
+                Object.fromEntries(
+                    names.map((name) => [name, setup.bindings[name] ?? null]),
+                ),
+        ),
         getSummary: vi.fn(async () => ({ projectUuid, organizationUuid })),
         findVirtualViewsFromCache: vi.fn(async () =>
             existing ? { [existing.name]: existing } : {},
@@ -116,6 +147,14 @@ const buildService = (existing: Explore | null = virtualView) => {
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,
         userModel: {} as never,
+        warehouseConnectionModel: {
+            getProject: vi.fn(async () => ({ projectUuid })),
+            list: vi.fn(async () =>
+                setup.route === 'multi' || setup.listsConnections
+                    ? connections
+                    : [],
+            ),
+        } as never,
     });
     return { service, projectService };
 };
@@ -229,6 +268,7 @@ describe('CoderService virtual views as code', () => {
             expect.objectContaining({
                 name: asCode.slug,
                 label: asCode.name,
+                warehouseConnectionUuid: null,
             }),
             false,
         );
@@ -248,5 +288,174 @@ describe('CoderService virtual views as code', () => {
                 asCode,
             ),
         ).rejects.toThrow('cannot be adopted');
+    });
+
+    describe('connections', () => {
+        const MULTI_BOUND: ConnectionSetup = {
+            route: 'multi',
+            bindings: { orders_by_customer: 'finance-uuid' },
+        };
+        const MULTI_ORIGINAL: ConnectionSetup = {
+            route: 'multi',
+            bindings: { orders_by_customer: null },
+        };
+
+        test('a download names the extra connection of a bound virtual view', async () => {
+            const { service } = buildService(virtualView, MULTI_BOUND);
+
+            await expect(
+                service.getVirtualViews(user, projectUuid),
+            ).resolves.toEqual({
+                virtualViews: [{ ...asCode, connection: 'Finance' }],
+                skipped: [],
+                missingSlugs: [],
+            });
+        });
+
+        test('a download has no connection field for the original connection', async () => {
+            const { service } = buildService(virtualView, MULTI_ORIGINAL);
+
+            const result = await service.getVirtualViews(user, projectUuid);
+
+            expect(result.virtualViews).toEqual([asCode]);
+            expect(result.virtualViews[0]).not.toHaveProperty('connection');
+        });
+
+        test('an upload that names an extra connection creates the view on it', async () => {
+            const { service, projectService } = buildService(null, {
+                route: 'multi',
+                bindings: {},
+            });
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Finance' },
+                ),
+            ).resolves.toEqual({ action: PromotionAction.CREATE });
+            expect(projectService.createVirtualView).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                expect.objectContaining({
+                    name: asCode.slug,
+                    warehouseConnectionUuid: 'finance-uuid',
+                }),
+                false,
+            );
+        });
+
+        test('an upload that names a connection to a single project fails and names it (D4)', async () => {
+            const { service, projectService } = buildService(null);
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Warehouse B' },
+                ),
+            ).rejects.toThrow(
+                'This project has no connection named "Warehouse B".',
+            );
+            expect(projectService.createVirtualView).not.toHaveBeenCalled();
+        });
+
+        test('an upload that names a connection the project lacks fails and names it', async () => {
+            const { service, projectService } = buildService(null, {
+                route: 'multi',
+                bindings: {},
+            });
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Warehouse B' },
+                ),
+            ).rejects.toThrow(
+                'This project has no connection named "Warehouse B".',
+            );
+            expect(projectService.createVirtualView).not.toHaveBeenCalled();
+        });
+
+        test('an identical upload of a bound view has no changes', async () => {
+            const { service, projectService } = buildService(
+                virtualView,
+                MULTI_BOUND,
+            );
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Finance' },
+                ),
+            ).resolves.toEqual({ action: PromotionAction.NO_CHANGES });
+            expect(projectService.updateVirtualView).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['moves a bound view to the original', MULTI_BOUND, undefined],
+            ['moves an original view to an extra', MULTI_ORIGINAL, 'Finance'],
+        ])('refuses an upload that %s', async (_name, setup, connection) => {
+            const { service, projectService } = buildService(
+                virtualView,
+                setup,
+            );
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, name: 'Renamed', connection },
+                    true,
+                ),
+            ).rejects.toThrow(
+                'The connection of virtual view "orders_by_customer" cannot change on upload.',
+            );
+            expect(projectService.updateVirtualView).not.toHaveBeenCalled();
+        });
+
+        test('an identical upload that names the original connection has no changes', async () => {
+            const { service, projectService } = buildService(
+                virtualView,
+                MULTI_ORIGINAL,
+            );
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Warehouse' },
+                ),
+            ).resolves.toEqual({ action: PromotionAction.NO_CHANGES });
+            expect(projectService.updateVirtualView).not.toHaveBeenCalled();
+        });
+
+        test('a single project refuses a connection name even when connections are listed (D4)', async () => {
+            const { service, projectService } = buildService(null, {
+                route: 'single',
+                bindings: {},
+                listsConnections: true,
+            });
+
+            await expect(
+                service.upsertVirtualView(
+                    user as never,
+                    projectUuid,
+                    asCode.slug,
+                    { ...asCode, connection: 'Warehouse' },
+                ),
+            ).rejects.toThrow(
+                'This project has no connection named "Warehouse".',
+            );
+            expect(projectService.createVirtualView).not.toHaveBeenCalled();
+        });
     });
 });

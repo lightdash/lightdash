@@ -764,6 +764,21 @@ describe('Multi runtime identity wiring on the real schema', () => {
             },
         );
 
+        test('a SQL chart read returns the connection of its latest version', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await create(fixture, fixture.extraConnectionUuid);
+            const originalChart = await create(fixture, null);
+
+            expect(
+                (await savedSqlModel.getByUuid(created.savedSqlUuid, {}))
+                    .warehouseConnectionUuid,
+            ).toBe(fixture.extraConnectionUuid);
+            expect(
+                (await savedSqlModel.getByUuid(originalChart.savedSqlUuid, {}))
+                    .warehouseConnectionUuid,
+            ).toBeNull();
+        });
+
         test('a multi update with a connection field writes it on the new version', async () => {
             const fixture = await createProject({ mode: 'multi' });
             const created = await create(fixture, null);

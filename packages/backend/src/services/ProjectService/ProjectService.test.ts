@@ -287,6 +287,9 @@ const projectModel = {
     findExploreSplitCandidates: vi.fn<
         ProjectModel['findExploreSplitCandidates']
     >(async () => []),
+    getExploreWarehouseConnectionUuid: vi.fn(
+        async (): Promise<string | null> => null,
+    ),
     getAllExploreSummaries: vi.fn(async () =>
         allExplores.map(exploreToSummaryWithAttributes),
     ),
@@ -648,59 +651,6 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
-
-    describe('connection route guard at write entry points', () => {
-        const refuseMultiRoute = () =>
-            vi
-                .spyOn(projectModel, 'requireSingleConnectionRoute')
-                .mockRejectedValueOnce(
-                    new NotImplementedError(
-                        'Multiple connections are not available',
-                    ),
-                );
-        const upstreamUuid = 'multi-upstream-project-uuid';
-        const compileUser: SessionUser = {
-            ...user,
-            organizationUuid: 'organizationUuid',
-            organizationName: 'organizationName',
-            organizationCreatedAt: new Date('2026-08-16T00:00:00.000Z'),
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: ['update', 'view'] },
-                { subject: 'Job', action: ['create', 'view'] },
-                { subject: 'CompileProject', action: ['manage'] },
-                { subject: 'DeployProject', action: ['manage'] },
-            ]),
-        };
-
-        test.each([
-            {
-                entryPoint: 'setExplores',
-                guardedProjectUuid: projectUuid,
-                call: () => service.setExplores(compileUser, projectUuid, []),
-            },
-        ])(
-            'refuses a project that routes multi at $entryPoint',
-            async ({ call, guardedProjectUuid }) => {
-                const guard = refuseMultiRoute();
-                const saveExplores = vi.spyOn(
-                    service,
-                    'saveExploresToCacheAndIndexCatalog',
-                );
-                try {
-                    await expect(call()).rejects.toThrow(
-                        'Multiple connections are not available',
-                    );
-                    expect(guard).toHaveBeenCalledWith(guardedProjectUuid, {
-                        kind: 'original',
-                    });
-                    expect(saveExplores).not.toHaveBeenCalled();
-                } finally {
-                    guard.mockRestore();
-                    saveExplores.mockRestore();
-                }
-            },
-        );
-    });
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
@@ -5133,6 +5083,38 @@ describe('ProjectService', () => {
             expect(result.map((e) => e.name)).toContain('valid_explore');
             expect(result.map((e) => e.name)).toContain(
                 'explore_with_required_attributes',
+            );
+        });
+    });
+
+    describe('getExploreResponse', () => {
+        test('adds the binding of the explore to the explore', async () => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+                [validExplore],
+            );
+            const getBinding = vi
+                .spyOn(projectModel, 'getExploreWarehouseConnectionUuid')
+                .mockResolvedValueOnce('finance-connection-uuid');
+
+            const result = await service.getExploreResponse(
+                account,
+                projectUuid,
+                validExplore.name,
+            );
+
+            expect(result).toEqual(
+                expect.objectContaining({
+                    name: validExplore.name,
+                    baseTable: validExplore.baseTable,
+                    warehouseConnectionUuid: 'finance-connection-uuid',
+                }),
+            );
+            expect(
+                (result as { unfilteredTables?: unknown }).unfilteredTables,
+            ).toBeUndefined();
+            expect(getBinding).toHaveBeenCalledWith(
+                projectUuid,
+                validExplore.name,
             );
         });
     });

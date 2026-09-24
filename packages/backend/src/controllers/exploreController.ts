@@ -59,6 +59,9 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
         @Body() body: AnyType[], // tsoa doesn't seem to work with explores from CLI
         @Query() complete?: boolean,
+        @Query() sourceUuid?: string,
+        @Query() targetDatabase?: string,
+        @Query() targetRegion?: string,
     ): Promise<ApiSetExploresResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -70,6 +73,19 @@ export class ExploreController extends BaseController {
                 body,
                 req.header(LightdashCliVersionHeader),
                 complete,
+                undefined,
+                {
+                    sourceUuid: sourceUuid ?? null,
+                    target:
+                        targetDatabase === undefined
+                            ? null
+                            : {
+                                  database: targetDatabase,
+                                  ...(targetRegion === undefined
+                                      ? {}
+                                      : { region: targetRegion }),
+                              },
+                },
             );
 
         return {
@@ -124,7 +140,7 @@ export class ExploreController extends BaseController {
         this.setStatus(200);
         const results = await this.services
             .getProjectService()
-            .getExplore(req.account!, projectUuid, exploreId, undefined, false);
+            .getExploreResponse(req.account!, projectUuid, exploreId);
 
         return {
             status: 'ok',

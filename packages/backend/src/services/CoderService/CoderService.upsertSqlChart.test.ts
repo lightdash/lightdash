@@ -2,8 +2,8 @@ import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AnyType,
     ForbiddenError,
-    NotImplementedError,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     SessionUser,
     SpaceMemberRole,
@@ -67,7 +67,22 @@ const accessContext = (projectUuid: string = PROJECT_UUID) => ({
     admins: [],
 });
 
-const requireSingleConnectionRoute = vi.fn(async () => 'single');
+const connectionState = vi.hoisted(() => ({
+    route: 'single' as 'single' | 'multi',
+}));
+
+const projectConnections = [
+    {
+        warehouseConnectionUuid: 'original-uuid',
+        name: 'Warehouse',
+        isOriginal: true,
+    },
+    {
+        warehouseConnectionUuid: 'finance-uuid',
+        name: 'Finance',
+        isOriginal: false,
+    },
+];
 
 const buildService = (
     savedSqlModel: AnyType,
@@ -91,7 +106,7 @@ const buildService = (
                 projectUuid: PROJECT_UUID,
                 organizationUuid: ORG_UUID,
             })),
-            requireSingleConnectionRoute,
+            getConnectionRoute: vi.fn(async () => connectionState.route),
         } as unknown as ProjectModel,
         savedChartModel: {} as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
@@ -120,6 +135,12 @@ const buildService = (
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,
         userModel: {} as never,
+        warehouseConnectionModel: {
+            getProject: vi.fn(async () => ({ projectUuid: PROJECT_UUID })),
+            list: vi.fn(async () =>
+                connectionState.route === 'multi' ? projectConnections : [],
+            ),
+        } as never,
     });
 
 const stubSpace = (service: CoderService, uuid: string = SPACE_UUID) =>
@@ -360,8 +381,11 @@ describe('CoderService.upsertSqlChart - permissions', () => {
     });
 });
 
-describe('CoderService.upsertSqlChart - connection route', () => {
-    afterEach(() => vi.clearAllMocks());
+describe('CoderService.upsertSqlChart - connections', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+        connectionState.route = 'single';
+    });
 
     const user = makeUser([
         { subject: 'ContentAsCode', action: 'create' },
@@ -373,56 +397,174 @@ describe('CoderService.upsertSqlChart - connection route', () => {
         },
     ]);
 
-    it.each([
-        { upload: 'create', rows: [] },
-        { upload: 'update', rows: [existingRow(SPACE_UUID)] },
-    ])(
-        'refuses to $upload a SQL chart on a project that routes multi',
-        async ({ rows }) => {
-            requireSingleConnectionRoute.mockRejectedValueOnce(
-                new NotImplementedError(
-                    'Multiple connections are not available',
-                ),
-            );
-            const savedSqlModel = {
-                find: vi.fn(async () => rows),
-                create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
-                update: vi.fn(async () => ({ savedSqlUuid: 'existing-uuid' })),
-            };
-            const service = buildService(savedSqlModel);
-            stubSpace(service);
-
-            const error = await upsert(service, user).then(
+    const uploadWith = async (
+        rows: AnyType[],
+        connection: string | undefined,
+    ) => {
+        const savedSqlModel = {
+            find: vi.fn(async () => rows),
+            create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
+            update: vi.fn(async () => ({ savedSqlUuid: 'existing-uuid' })),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+        const result = await service
+            .upsertSqlChart(user, PROJECT_UUID, sqlChartAsCode.slug, {
+                ...sqlChartAsCode,
+                connection,
+            })
+            .then(
                 () => null,
-                (e: unknown) => e,
+                (error: unknown) => error,
             );
+        return { savedSqlModel, service, error: result };
+    };
 
-            expect(savedSqlModel.create).not.toHaveBeenCalled();
-            expect(savedSqlModel.update).not.toHaveBeenCalled();
-            expect(service.getOrCreateSpace).not.toHaveBeenCalled();
-            expect(error).toBeInstanceOf(NotImplementedError);
-            expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+    it.each([
+        ['Finance', 'finance-uuid'],
+        ['Warehouse', null],
+        [undefined, null],
+    ])(
+        'creates a SQL chart on a multi project with the connection %s',
+        async (connection, warehouseConnectionUuid) => {
+            connectionState.route = 'multi';
+            const { savedSqlModel, error } = await uploadWith([], connection);
+
+            expect(error).toBeNull();
+            expect(savedSqlModel.create).toHaveBeenCalledWith(
+                'user-uuid',
                 PROJECT_UUID,
-                { kind: 'original' },
+                expect.objectContaining({ slug: sqlChartAsCode.slug }),
+                { kind: 'connection', warehouseConnectionUuid },
             );
         },
     );
 
-    it('checks permissions before the route', async () => {
-        const savedSqlModel = {
-            find: vi.fn(async () => []),
-            create: vi.fn(),
-            update: vi.fn(),
-        };
-        const service = buildService(savedSqlModel);
-        stubSpace(service);
+    it.each([
+        ['Finance', 'finance-uuid'],
+        [undefined, null],
+    ])(
+        'updates a SQL chart on a multi project with the connection %s',
+        async (connection, warehouseConnectionUuid) => {
+            connectionState.route = 'multi';
+            const { savedSqlModel, error } = await uploadWith(
+                [existingRow(SPACE_UUID)],
+                connection,
+            );
+
+            expect(error).toBeNull();
+            expect(savedSqlModel.update).toHaveBeenCalledWith(
+                expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+                { kind: 'connection', warehouseConnectionUuid },
+            );
+        },
+    );
+
+    it('writes a single project SQL chart the way main does', async () => {
+        const { savedSqlModel, error } = await uploadWith([], undefined);
+
+        expect(error).toBeNull();
+        expect(savedSqlModel.create).toHaveBeenCalledWith(
+            'user-uuid',
+            PROJECT_UUID,
+            expect.objectContaining({ slug: sqlChartAsCode.slug }),
+        );
+    });
+
+    it.each([
+        ['single', 'Warehouse B'],
+        ['multi', 'Warehouse B'],
+    ] as const)(
+        'refuses a %s project upload that names a missing connection, before any write (D4)',
+        async (route, connection) => {
+            connectionState.route = route;
+            const { savedSqlModel, service, error } = await uploadWith(
+                [],
+                connection,
+            );
+
+            expect(error).toEqual(
+                new ParameterError(
+                    'This project has no connection named "Warehouse B".',
+                ),
+            );
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(service.getOrCreateSpace).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('CoderService.getSqlCharts - connections', () => {
+    afterEach(() => {
+        vi.clearAllMocks();
+        connectionState.route = 'single';
+    });
+
+    const row = (slug: string, warehouseConnectionUuid: string | null) => ({
+        saved_sql_uuid: `${slug}-uuid`,
+        space_uuid: 'chart-space-uuid',
+        name: slug,
+        description: null,
+        slug,
+        sql: 'SELECT 1',
+        limit: 500,
+        config: {},
+        chart_kind: 'table',
+        last_version_updated_at: new Date('2026-09-24T00:00:00Z'),
+        path: 'my_space',
+        warehouse_connection_uuid: warehouseConnectionUuid,
+    });
+
+    const download = async (rows: AnyType[]) => {
+        const service = buildService({ find: vi.fn(async () => rows) });
+        vi.spyOn(
+            service as unknown as {
+                filterPrivateContent: (...args: AnyType[]) => AnyType;
+            },
+            'filterPrivateContent',
+        ).mockImplementation(async (_user, _project, items) => items);
+        vi.spyOn(
+            service as unknown as {
+                getPortableDirectAccessByUuid: (...args: AnyType[]) => AnyType;
+            },
+            'getPortableDirectAccessByUuid',
+        ).mockResolvedValue(new Map());
+        return service.getSqlCharts(
+            makeUser([{ subject: 'ContentAsCode', action: 'view' }]),
+            PROJECT_UUID,
+        );
+    };
+
+    it('names the extra connection of a bound SQL chart and leaves the original out', async () => {
+        connectionState.route = 'multi';
+
+        const { sqlCharts } = await download([
+            row('finance', 'finance-uuid'),
+            row('orders', null),
+        ]);
+
+        expect(
+            sqlCharts.map(({ slug, connection }) => ({ slug, connection })),
+        ).toEqual([
+            { slug: 'finance', connection: 'Finance' },
+            { slug: 'orders', connection: undefined },
+        ]);
+        expect(sqlCharts[1]).not.toHaveProperty('connection');
+    });
+
+    it('writes no connection field for a single project', async () => {
+        const { sqlCharts } = await download([row('orders', null)]);
+
+        expect(sqlCharts[0]).not.toHaveProperty('connection');
+    });
+
+    it('fails when a SQL chart is bound to a connection that is not in the project', async () => {
+        connectionState.route = 'multi';
 
         await expect(
-            upsert(
-                service,
-                makeUser([{ subject: 'ContentAsCode', action: 'create' }]),
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(requireSingleConnectionRoute).not.toHaveBeenCalled();
+            download([row('planted', 'other-project-connection-uuid')]),
+        ).rejects.toThrow(
+            'Content is bound to a connection that is not in this project.',
+        );
     });
 });

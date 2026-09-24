@@ -227,6 +227,7 @@ const buildService = ({
             ]),
         } as AnyType,
         userModel: userModel as AnyType,
+        warehouseConnectionModel: {} as never,
     });
     return {
         service,

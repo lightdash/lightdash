@@ -18,9 +18,11 @@ describeContentAsCodeSchemaContract({
         'savedSqlUuid',
         'space',
         'views',
+        'warehouseConnectionUuid',
     ],
     documentOnlyFields: [
         'access',
+        'connection',
         'contentType',
         'downloadedAt',
         'spaceSlug',

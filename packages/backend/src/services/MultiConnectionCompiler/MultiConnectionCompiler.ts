@@ -1,5 +1,7 @@
 import {
     getErrorMessage,
+    getModelsFromManifest,
+    isExploreError,
     NotFoundError,
     ParameterError,
     type CompilationHistoryReport,
@@ -85,6 +87,36 @@ type MultiConnectionCompilerArguments = {
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
+};
+
+const stampedError = (
+    explore: Explore | ExploreError,
+    dbtSourceUuid: string,
+): Explore | ExploreError => {
+    const stamped: (Explore | ExploreError) & { dbtSourceUuid: string } = {
+        ...explore,
+        dbtSourceUuid,
+    };
+    return stamped;
+};
+
+const modelSources = (manifest: DbtManifest): ReadonlyMap<string, string> =>
+    new Map(
+        getModelsFromManifest(manifest).flatMap((model) =>
+            model.lightdash_source_uuid
+                ? [[model.name, model.lightdash_source_uuid] as const]
+                : [],
+        ),
+    );
+
+const withErrorSource = (
+    explore: Explore | ExploreError,
+    sources: ReadonlyMap<string, string>,
+): Explore | ExploreError => {
+    const dbtSourceUuid = sources.get(explore.name);
+    return isExploreError(explore) && dbtSourceUuid !== undefined
+        ? stampedError(explore, dbtSourceUuid)
+        : explore;
 };
 
 export class MultiConnectionCompiler {
@@ -209,11 +241,10 @@ export class MultiConnectionCompiler {
                 dbtVersion,
                 selectedModelIds,
             });
-            const explores = await adapter.compileAllExplores(
-                trackingParams,
-                false,
-                true,
-            );
+            const sources = modelSources(manifest);
+            const explores = (
+                await adapter.compileAllExplores(trackingParams, false, true)
+            ).map((explore) => withErrorSource(explore, sources));
             return {
                 plan,
                 explores,
@@ -229,6 +260,7 @@ export class MultiConnectionCompiler {
 
     private static async *groupExplores(
         original: AsyncIterable<Explore | ExploreError>,
+        originalSources: ReadonlyMap<string, string>,
         originalConnectionName: string,
         extraGroups: CompiledExtraGroup[],
     ): AsyncIterable<Explore | ExploreError> {
@@ -249,7 +281,7 @@ export class MultiConnectionCompiler {
         );
         for await (const explore of original) {
             claim(explore.name, originalConnectionName);
-            yield explore;
+            yield withErrorSource(explore, originalSources);
         }
         for (const group of extraGroups) {
             yield* group.explores;
@@ -379,6 +411,7 @@ export class MultiConnectionCompiler {
             originalAdapter,
             exploreStream: MultiConnectionCompiler.groupExplores(
                 originalStream,
+                modelSources(originalMerged.manifest),
                 originalPlan.connectionName,
                 compiledExtraGroups,
             ),
@@ -478,7 +511,7 @@ export class MultiConnectionCompiler {
                           ),
                       ),
                   }
-                : explore;
+                : stampedError(explore, dbtSourceUuid);
         return {
             exploreStream: (async function* deployedExplores() {
                 for (const explore of explores) {
@@ -489,7 +522,7 @@ export class MultiConnectionCompiler {
             carry: {
                 kind: 'otherDbtSources',
                 dbtSourceUuid,
-                primaryDbtSourceUuid: identity.dbtSourceUuid,
+                warehouseConnectionUuid,
             },
             persistArtifacts: async () => {},
         };

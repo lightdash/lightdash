@@ -13,6 +13,7 @@ import {
     ApiCreatePreviewResults,
     ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
+    ApiExploreResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -390,6 +391,12 @@ import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import {
+    NO_CLI_DEPLOY_SELECTION,
+    resolveCliDeploySource,
+    withoutClientBindings,
+    type CliDeploySelection,
+} from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import {
@@ -2892,10 +2899,10 @@ export class ProjectService extends BaseService {
     async saveDeployExplores(
         args: SaveCompiledExploresArgs & {
             explores: (Explore | ExploreError)[];
-            projectDbtSourceUuid: string | null;
+            cliDeploy: CliDeploySelection;
         },
     ): Promise<string> {
-        const { projectDbtSourceUuid, ...deploy } = args;
+        const { cliDeploy, ...deploy } = args;
         if (
             (await this.projectModel.getConnectionRoute(args.projectUuid, {
                 kind: 'original',
@@ -2908,12 +2915,21 @@ export class ProjectService extends BaseService {
                 'A deploy to a project with multiple connections must send every explore of its dbt source',
             );
         }
+        const projectDbtSourceUuid = await resolveCliDeploySource(
+            {
+                projectModel: this.projectModel,
+                projectDbtSourcesModel: this.projectDbtSourcesModel,
+                warehouseConnectionModel: this.warehouseConnectionModel,
+            },
+            args.projectUuid,
+            cliDeploy,
+        );
         const { explores, ...metadata } = deploy;
         const sourceDeploy =
             await this.multiConnectionCompiler.prepareSourceDeploy({
                 projectUuid: args.projectUuid,
                 projectDbtSourceUuid,
-                explores,
+                explores: explores.map(withoutClientBindings),
             });
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
@@ -4224,6 +4240,7 @@ export class ProjectService extends BaseService {
         cliVersion?: string | null,
         complete?: boolean,
         dbtModelNames?: string[],
+        cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -4257,10 +4274,6 @@ export class ProjectService extends BaseService {
             );
         }
 
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
-
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
             enabled: this.lightdashConfig.preAggregates.enabled,
@@ -4278,7 +4291,7 @@ export class ProjectService extends BaseService {
             cliVersion,
             complete,
             dbtModelNames,
-            projectDbtSourceUuid: null,
+            cliDeploy,
         });
 
         await this.schedulerClient.generateValidation({
@@ -10552,6 +10565,28 @@ export class ProjectService extends BaseService {
         return explore;
     }
 
+    async getExploreResponse(
+        account: Account,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<ApiExploreResults> {
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+            undefined,
+            false,
+        );
+        return {
+            ...explore,
+            warehouseConnectionUuid:
+                await this.projectModel.getExploreWarehouseConnectionUuid(
+                    projectUuid,
+                    exploreName,
+                ),
+        };
+    }
+
     async getExploreWithUserAccessControls(
         account: Account,
         projectUuid: string,
@@ -13364,6 +13399,27 @@ export class ProjectService extends BaseService {
         }, []);
     }
 
+    private async getVirtualViewConnectionUuid(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<string | null> {
+        if (warehouseConnectionUuid === null) return null;
+        if (
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'original',
+            })) !== 'multi'
+        ) {
+            throw new ParameterError(
+                'A virtual view can name a connection only in a project with multiple connections',
+            );
+        }
+        const target = await this.projectModel.resolveWarehouseCredentialRead(
+            projectUuid,
+            { kind: 'connection', warehouseConnectionUuid },
+        );
+        return target.kind === 'extra' ? target.warehouseConnectionUuid : null;
+    }
+
     async createVirtualView(
         account: Account,
         projectUuid: string,
@@ -13397,11 +13453,18 @@ export class ProjectService extends BaseService {
                 'Virtual view with this name already exists',
             );
         }
+        const boundConnectionUuid = await this.getVirtualViewConnectionUuid(
+            projectUuid,
+            payload.warehouseConnectionUuid ?? null,
+        );
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid: boundConnectionUuid,
+                },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -13422,6 +13485,7 @@ export class ProjectService extends BaseService {
                 parameterValues: effectiveParameterValues,
             },
             warehouseClient,
+            boundConnectionUuid,
         );
 
         this.analytics.trackAccount(account, {
@@ -13482,7 +13546,14 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid:
+                        await this.projectModel.getExploreWarehouseConnectionUuid(
+                            projectUuid,
+                            exploreName,
+                        ),
+                },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),

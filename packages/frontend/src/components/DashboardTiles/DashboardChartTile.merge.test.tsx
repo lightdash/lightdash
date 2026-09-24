@@ -152,6 +152,7 @@ const compiledMetric = (
 });
 
 const ordersExplore: ApiExploreResults = {
+    warehouseConnectionUuid: null,
     name: 'orders',
     label: 'Orders',
     tags: [],

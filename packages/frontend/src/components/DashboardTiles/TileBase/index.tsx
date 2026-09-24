@@ -38,6 +38,7 @@ import { useState } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
+import ConnectionBadge from '../../common/ConnectionBadge';
 import { FloatingActionsPill } from '../../common/FloatingActionsPill';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -55,6 +56,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     verification = null,
     chartName,
     description = null,
+    connectionName = null,
     tile,
     isLoading = false,
     hasError = false,
@@ -435,6 +437,9 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             </Tooltip>
                         )}
                     </Box>
+                    {!minimal && !hideTitle && (
+                        <ConnectionBadge name={connectionName} />
+                    )}
                     {headerActions}
                 </Group>
 
