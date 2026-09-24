@@ -66,8 +66,8 @@ const pickY = (
 const pickSemanticAxes = (
     columns: ResultColumn[],
     node: SourceQuery | null,
-): { x: ResultColumn | undefined; y: ResultColumn | undefined } | null => {
-    if (node?.sourceType !== QuerySourceType.SEMANTIC_LAYER) return null;
+): { x: ResultColumn | undefined; y: ResultColumn | undefined } | undefined => {
+    if (node?.sourceType !== QuerySourceType.SEMANTIC_LAYER) return undefined;
     const byReference = new Map(
         columns.map((column) => [column.reference, column]),
     );
@@ -77,7 +77,7 @@ const pickSemanticAxes = (
     const y = node.metrics
         .map((fieldId) => byReference.get(fieldId))
         .find((column) => column !== undefined && isNumeric(column));
-    if (!x && !y) return null;
+    if (!x && !y) return undefined;
     return { x: x ?? pickX(columns), y: y ?? pickY(columns, x) };
 };
 
@@ -119,11 +119,12 @@ export const getComposerVizPlan = ({
         x?.type === DimensionType.STRING
             ? x
             : firstOfType(columns, DimensionType.STRING);
-    const categoryValue =
-        category &&
-        (y?.reference !== category.reference ? y : undefined) !== undefined
-            ? y
-            : category && pickY(columns, category);
+    // Pie and funnel slice the string column; y stays unless it is that column.
+    const categoryValue = ((): ResultColumn | undefined => {
+        if (!category) return undefined;
+        if (y && y.reference !== category.reference) return y;
+        return pickY(columns, category);
+    })();
     if (
         category &&
         categoryValue &&

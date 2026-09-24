@@ -167,6 +167,27 @@ describe('getComposerVizPlan', () => {
         expect(result.availableKinds).toEqual(CARTESIAN);
     });
 
+    test('pie and funnel follow the string column, not a date x', () => {
+        const columns = [
+            column('day', DimensionType.DATE),
+            column('status', DimensionType.STRING),
+            column('n', DimensionType.NUMBER),
+        ];
+        const uniqueStatus = plan(columns, [
+            { day: '2024-01-01', status: 'a', n: 1 },
+            { day: '2024-01-01', status: 'b', n: 2 },
+        ]);
+        expect(uniqueStatus.defaultKind).toBe('table');
+        expect(uniqueStatus.axes.pie?.x.reference).toBe('status');
+
+        const duplicateStatus = plan(columns, [
+            { day: '2024-01-01', status: 'a', n: 1 },
+            { day: '2024-01-02', status: 'a', n: 2 },
+        ]);
+        expect(duplicateStatus.defaultKind).toBe('line');
+        expect(duplicateStatus.axes.pie).toBeUndefined();
+    });
+
     test('one row with a number opens as a big number and offers it last', () => {
         const result = plan(
             [
