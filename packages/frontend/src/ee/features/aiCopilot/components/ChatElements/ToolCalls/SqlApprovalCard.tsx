@@ -13,26 +13,31 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { markToolCallDecided } from '../../../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreDispatch } from '../../../store/hooks';
 
-type SqlApprovalCardProps = {
+export type SqlApprovalTarget = {
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
     toolCallId: string;
+};
+
+type SqlApprovalCardProps = SqlApprovalTarget & {
     toolArgs: { sql: string; limit?: number };
 };
 
 type SubmitState = 'idle' | 'approved' | 'rejected' | 'autoApproved';
 
-export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
+const getAutoApproveKey = (threadUuid: string) =>
+    `sql-auto-approve:${threadUuid}`;
+
+const useSqlApprovalDecision = ({
     projectUuid,
     agentUuid,
     threadUuid,
     toolCallId,
-    toolArgs,
-}) => {
+}: SqlApprovalTarget) => {
     const dispatch = useAiAgentStoreDispatch();
     const [autoApprove, setAutoApprove] = useSessionStorage<boolean>(
-        `sql-auto-approve:${threadUuid}`,
+        getAutoApproveKey(threadUuid),
         false,
     );
     const [submitting, setSubmitting] = useState<SubmitState>('idle');
@@ -75,6 +80,96 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
         }
     }, [autoApprove, submitDecision]);
 
+    return {
+        autoApprove,
+        submitting,
+        error,
+        onApprove,
+        onApproveAlways,
+        onReject,
+    };
+};
+
+type SqlApprovalActionsProps = SqlApprovalTarget & {
+    size?: 'xs' | 'compact-xs';
+};
+
+/** Approve / approve-always / reject buttons; hides once the thread auto-approves. */
+export const SqlApprovalActions: FC<SqlApprovalActionsProps> = ({
+    size = 'compact-xs',
+    ...target
+}) => {
+    const {
+        autoApprove,
+        submitting,
+        error,
+        onApprove,
+        onApproveAlways,
+        onReject,
+    } = useSqlApprovalDecision(target);
+    const iconSize = size === 'xs' ? 12 : 11;
+
+    if (autoApprove) {
+        return null;
+    }
+
+    return (
+        <Stack gap={6}>
+            {error ? (
+                <Text size="xs" c="red.6">
+                    {error}
+                </Text>
+            ) : null}
+            <Group gap={6}>
+                <Button
+                    size={size}
+                    color="indigo"
+                    leftSection={
+                        <MantineIcon icon={IconCheck} size={iconSize} />
+                    }
+                    loading={submitting === 'approved'}
+                    disabled={submitting !== 'idle'}
+                    onClick={onApprove}
+                >
+                    Approve
+                </Button>
+                <Button
+                    size={size}
+                    variant="light"
+                    color="indigo"
+                    leftSection={
+                        <MantineIcon icon={IconShieldCheck} size={iconSize} />
+                    }
+                    loading={submitting === 'autoApproved'}
+                    disabled={submitting !== 'idle'}
+                    onClick={onApproveAlways}
+                >
+                    Approve & don't ask again this thread
+                </Button>
+                <Button
+                    size={size}
+                    variant="default"
+                    leftSection={<MantineIcon icon={IconX} size={iconSize} />}
+                    loading={submitting === 'rejected'}
+                    disabled={submitting !== 'idle'}
+                    onClick={onReject}
+                >
+                    Reject
+                </Button>
+            </Group>
+        </Stack>
+    );
+};
+
+export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
+    toolArgs,
+    ...target
+}) => {
+    const [autoApprove] = useSessionStorage<boolean>(
+        getAutoApproveKey(target.threadUuid),
+        false,
+    );
+
     if (autoApprove) {
         return null;
     }
@@ -109,46 +204,7 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
                 >
                     {toolArgs.sql}
                 </Code>
-                {error ? (
-                    <Text size="xs" c="red.6">
-                        {error}
-                    </Text>
-                ) : null}
-                <Group gap="xs">
-                    <Button
-                        size="xs"
-                        color="indigo"
-                        leftSection={<MantineIcon icon={IconCheck} size={12} />}
-                        loading={submitting === 'approved'}
-                        disabled={submitting !== 'idle'}
-                        onClick={onApprove}
-                    >
-                        Approve
-                    </Button>
-                    <Button
-                        size="xs"
-                        variant="light"
-                        color="indigo"
-                        leftSection={
-                            <MantineIcon icon={IconShieldCheck} size={12} />
-                        }
-                        loading={submitting === 'autoApproved'}
-                        disabled={submitting !== 'idle'}
-                        onClick={onApproveAlways}
-                    >
-                        Approve & don't ask again this thread
-                    </Button>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={<MantineIcon icon={IconX} size={12} />}
-                        loading={submitting === 'rejected'}
-                        disabled={submitting !== 'idle'}
-                        onClick={onReject}
-                    >
-                        Reject
-                    </Button>
-                </Group>
+                <SqlApprovalActions size="xs" {...target} />
             </Stack>
         </Paper>
     );
