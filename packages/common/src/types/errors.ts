@@ -436,6 +436,19 @@ export class ConflictError extends LightdashError {
     }
 }
 
+export class SingleConnectionProjectError extends LightdashError {
+    constructor(
+        message = 'This project uses a single warehouse connection. Enable multiple connections first.',
+    ) {
+        super({
+            message,
+            name: 'SingleConnectionProjectError',
+            statusCode: 409,
+            data: {},
+        });
+    }
+}
+
 export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({

@@ -1942,6 +1942,34 @@ export class ProjectService extends BaseService {
         }
     }
 
+    assertCanWriteWarehouseConnection(
+        account: Account,
+        project: Pick<
+            ProjectSummary,
+            'organizationUuid' | 'provisioningSource'
+        >,
+        data: {
+            warehouseConnection?: CreateWarehouseCredentials;
+            organizationWarehouseCredentialsUuid?: string;
+        },
+    ): void {
+        if (project.provisioningSource === 'analytics')
+            throw new ForbiddenError(
+                'Internal analytics configuration is managed by the backend',
+            );
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
+        ProjectService.assertPersistableSnowflakeAuthentication(
+            data.warehouseConnection,
+        );
+        this.assertCanUseOrganizationWarehouseCredentials(
+            account,
+            project.organizationUuid,
+            data,
+        );
+    }
+
     // The project-update form sends masked oauthClientId / oauthClientSecret
     // (placeholder values), so merge them in from the saved project before
     // _resolveWarehouseClientCredentials runs the M2M token exchange. No-op for
@@ -4762,6 +4790,29 @@ export class ProjectService extends BaseService {
             { warehouseConnection: fillOmittedSecrets(merged) },
             account.user.userUuid,
             savedProject.organizationUuid,
+        );
+        return this.runWarehouseConnectionHops(resolved.warehouseConnection);
+    }
+
+    async testWarehouseConnectionCredentials(
+        account: RegisteredAccount,
+        organizationUuid: string,
+        warehouseConnection: CreateWarehouseCredentials,
+    ): Promise<WarehouseConnectionTestResults> {
+        if (isMissingBigqueryKeyfile(warehouseConnection)) {
+            return buildConnectionTestResults([
+                {
+                    stage: 'database',
+                    status: 'failed',
+                    message:
+                        'No service account key file. Paste the key file, or save the connection with one first.',
+                },
+            ]);
+        }
+        const resolved = await this._resolveWarehouseClientCredentials(
+            { warehouseConnection },
+            account.user.userUuid,
+            organizationUuid,
         );
         return this.runWarehouseConnectionHops(resolved.warehouseConnection);
     }

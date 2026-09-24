@@ -5,6 +5,7 @@ import useApp from '../../providers/App/useApp';
 import LightdashLogo from '../../svgs/logo-icon.svg';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
+import ConnectionsPanel from './ConnectionsPanel';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtSourcesPanel from './DbtSourcesPanel';
 import { useFormContext } from './formContext';
@@ -124,6 +125,8 @@ export const ProjectForm: FC<Props> = ({
                     </div>
                 </SettingsGridCard>
             )}
+
+            <ConnectionsPanel savedProject={savedProject} />
 
             {savedProject &&
                 savedProject.type !== ProjectType.PREVIEW &&
