@@ -98,9 +98,7 @@ describe('DeployService', () => {
         'passes batched completeness $complete and model inventory $dbtModelNames to the cache write',
         async ({ complete, dbtModelNames }) => {
             const projectService = {
-                saveExploresToCacheAndIndexCatalog: vi
-                    .fn()
-                    .mockResolvedValue('index-job-uuid'),
+                saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
             };
             const deploySessionModel = {
                 getSession: vi.fn().mockResolvedValue({
@@ -146,10 +144,12 @@ describe('DeployService', () => {
                 dbtModelNames,
             );
 
-            expect(
-                projectService.saveExploresToCacheAndIndexCatalog,
-            ).toHaveBeenCalledWith(
-                expect.objectContaining({ complete, dbtModelNames }),
+            expect(projectService.saveDeployExplores).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    complete,
+                    dbtModelNames,
+                    projectDbtSourceUuid: null,
+                }),
             );
         },
     );
@@ -195,7 +195,7 @@ describe('DeployService', () => {
 
     it('refuses to finalize a deploy for a project that routes multi', async () => {
         const updateStatus = vi.fn().mockResolvedValue(undefined);
-        const saveExploresToCacheAndIndexCatalog = vi.fn();
+        const saveDeployExplores = vi.fn();
         const requireSingleConnectionRoute = vi
             .fn()
             .mockRejectedValue(
@@ -221,7 +221,7 @@ describe('DeployService', () => {
                 requireSingleConnectionRoute,
                 getWithSensitiveFields: vi.fn(),
             },
-            projectService: { saveExploresToCacheAndIndexCatalog },
+            projectService: { saveDeployExplores },
             schedulerClient: {},
         } as never);
 
@@ -233,6 +233,6 @@ describe('DeployService', () => {
             { kind: 'original' },
         );
         expect(updateStatus).not.toHaveBeenCalled();
-        expect(saveExploresToCacheAndIndexCatalog).not.toHaveBeenCalled();
+        expect(saveDeployExplores).not.toHaveBeenCalled();
     });
 });

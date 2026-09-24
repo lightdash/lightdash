@@ -24,7 +24,7 @@ export type DeployExploreEnhancer = (
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
-    saveExploresToCacheAndIndexCatalog: (args: {
+    saveDeployExplores: (args: {
         userUuid: string;
         projectUuid: string;
         explores: (Explore | ExploreError)[];
@@ -35,6 +35,7 @@ type ProjectServiceInterface = {
         cliVersion?: string | null;
         complete?: boolean;
         dbtModelNames?: string[];
+        projectDbtSourceUuid: string | null;
     }) => Promise<string>;
 };
 
@@ -243,7 +244,7 @@ export class DeployService extends BaseService {
 
             // Use the existing saveExploresToCache method from ProjectService
             // This ensures we maintain the same validation and caching logic
-            await this.projectService.saveExploresToCacheAndIndexCatalog({
+            await this.projectService.saveDeployExplores({
                 userUuid: user.userUuid,
                 projectUuid,
                 explores,
@@ -253,6 +254,7 @@ export class DeployService extends BaseService {
                 cliVersion,
                 complete: deployData.complete,
                 dbtModelNames,
+                projectDbtSourceUuid: null,
             });
 
             // Schedule validation (same as in original finalizeDeploy)

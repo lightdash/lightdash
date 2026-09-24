@@ -2,6 +2,7 @@ import {
     AgentSqlScope,
     AlreadyExistsError,
     AnyType,
+    assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CompiledTable,
@@ -22,6 +23,7 @@ import {
     ExploreType,
     ExternalSourceScope,
     generateSlug,
+    getErrorMessage,
     getExploreSplitCandidates,
     getLtreePathFromSlug,
     GroupType,
@@ -64,6 +66,7 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    type ConnectionRoute,
     type SummaryExplore,
 } from '@lightdash/common';
 import {
@@ -208,6 +211,19 @@ import {
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
+
+export type BoundExplore = {
+    explore: Explore | ExploreError;
+    warehouseConnectionUuid: string | null;
+};
+
+export type MultiConnectionCarry =
+    | { kind: 'connections'; warehouseConnectionUuids: string[] }
+    | {
+          kind: 'otherDbtSources';
+          dbtSourceUuid: string;
+          primaryDbtSourceUuid: string;
+      };
 
 export type ProjectModelArguments = {
     database: Knex;
@@ -3115,6 +3131,258 @@ export class ProjectModel {
         );
     }
 
+    async saveMultiConnectionExplores(
+        projectUuid: string,
+        explores: AsyncIterable<BoundExplore>,
+        carry: MultiConnectionCarry,
+    ): Promise<{ cachedExploreUuids: string[] }> {
+        return wrapSentryTransaction(
+            'ProjectModel.saveMultiConnectionExplores',
+            {},
+            async () => {
+                const saveUuid = uuidv4();
+                try {
+                    const stagedBindings = new Map<string, string | null>();
+                    const stagedNameOrder: string[] = [];
+                    const sizedRows = async function* sizedRowsGenerator() {
+                        for await (const {
+                            explore,
+                            warehouseConnectionUuid,
+                        } of explores) {
+                            const stagedBinding = stagedBindings.get(
+                                explore.name,
+                            );
+                            if (
+                                stagedBinding !== undefined &&
+                                stagedBinding !== warehouseConnectionUuid
+                            ) {
+                                throw new ParameterError(
+                                    `Explore "${explore.name}" is produced by more than one connection. Explore names must be unique across connections.`,
+                                );
+                            }
+                            if (stagedBinding === undefined) {
+                                stagedBindings.set(
+                                    explore.name,
+                                    warehouseConnectionUuid,
+                                );
+                                stagedNameOrder.push(explore.name);
+                            }
+                            const serialised = JSON.stringify(explore);
+                            yield {
+                                row: {
+                                    save_uuid: saveUuid,
+                                    project_uuid: projectUuid,
+                                    name: explore.name,
+                                    table_names: Object.keys(
+                                        explore.tables || {},
+                                    ),
+                                    explore: serialised,
+                                    warehouse_connection_uuid:
+                                        warehouseConnectionUuid,
+                                },
+                                bytes: Buffer.byteLength(serialised),
+                            };
+                        }
+                    };
+
+                    for await (const { rows } of chunkAsyncRowsByBytes(
+                        sizedRows(),
+                    )) {
+                        const uniqueRows = Array.from(
+                            new Map(
+                                rows.map((row) => [row.name, row]),
+                            ).values(),
+                        );
+                        await this.database(CachedExploreStagingTableName)
+                            .insert(uniqueRows)
+                            .onConflict(['save_uuid', 'name', 'project_uuid'])
+                            .merge(['table_names', 'explore']);
+                    }
+
+                    const { promotedRows, managedNames, carriedNames } =
+                        await this.database.transaction(async (trx) => {
+                            await ProjectModel.lockAndEnsureCachedExplores(
+                                trx,
+                                projectUuid,
+                            );
+                            const carriedResult =
+                                await ProjectModel.stageCarriedExplores(
+                                    trx,
+                                    projectUuid,
+                                    saveUuid,
+                                    carry,
+                                );
+                            const managedResult = await trx.raw<{
+                                rows: { name: string }[];
+                            }>(
+                                `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
+                                 SELECT ?, project_uuid, name, table_names, explore, warehouse_connection_uuid
+                                 FROM ??
+                                 WHERE project_uuid = ?
+                                   AND explore->>'type' = ANY(?)
+                                 ON CONFLICT (save_uuid, name, project_uuid) DO UPDATE
+                                 SET table_names = EXCLUDED.table_names,
+                                     explore = EXCLUDED.explore,
+                                     warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
+                                 RETURNING name`,
+                                [
+                                    CachedExploreStagingTableName,
+                                    saveUuid,
+                                    CachedExploreTableName,
+                                    projectUuid,
+                                    [...USER_MANAGED_EXPLORE_TYPES],
+                                ],
+                            );
+                            const expectedNames = new Set(
+                                stagedBindings.keys(),
+                            );
+                            carriedResult.forEach((name) =>
+                                expectedNames.add(name),
+                            );
+                            managedResult.rows.forEach(({ name }) =>
+                                expectedNames.add(name),
+                            );
+                            if (expectedNames.size === 0) {
+                                throw new ParameterError('No explores to save');
+                            }
+                            const lockedStagedRows = await trx(
+                                CachedExploreStagingTableName,
+                            )
+                                .select<{ name: string }[]>('name')
+                                .where({
+                                    save_uuid: saveUuid,
+                                    project_uuid: projectUuid,
+                                })
+                                .forUpdate();
+                            if (
+                                lockedStagedRows.length !==
+                                    expectedNames.size ||
+                                lockedStagedRows.some(
+                                    ({ name }) => !expectedNames.has(name),
+                                )
+                            ) {
+                                throw new UnexpectedServerError(
+                                    'Cached explore staging name set mismatch',
+                                );
+                            }
+                            await trx(CachedExploreTableName)
+                                .where('project_uuid', projectUuid)
+                                .delete();
+                            const promotedResult = await trx.raw<{
+                                rows: {
+                                    name: string;
+                                    cached_explore_uuid: string;
+                                }[];
+                            }>(
+                                `INSERT INTO ?? (cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
+                                 SELECT cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid
+                                 FROM ??
+                                 WHERE save_uuid = ? AND project_uuid = ?
+                                 RETURNING name, cached_explore_uuid`,
+                                [
+                                    CachedExploreTableName,
+                                    CachedExploreStagingTableName,
+                                    saveUuid,
+                                    projectUuid,
+                                ],
+                            );
+                            return {
+                                promotedRows: promotedResult.rows,
+                                managedNames: managedResult.rows.map(
+                                    ({ name }) => name,
+                                ),
+                                carriedNames: carriedResult,
+                            };
+                        });
+                    const cachedExploreUuidsByName = new Map(
+                        promotedRows.map(
+                            ({
+                                name,
+                                cached_explore_uuid: cachedExploreUuid,
+                            }) => [name, cachedExploreUuid],
+                        ),
+                    );
+                    const resultNames = [...stagedNameOrder];
+                    [...carriedNames, ...managedNames].forEach((name) => {
+                        if (!resultNames.includes(name)) resultNames.push(name);
+                    });
+                    Logger.info(
+                        `dbt.compile.saveMultiConnectionExplores projectUuid=${projectUuid} explores=${cachedExploreUuidsByName.size} carried=${carriedNames.length}`,
+                    );
+                    return {
+                        cachedExploreUuids: resultNames.map((name) => {
+                            const cachedExploreUuid =
+                                cachedExploreUuidsByName.get(name);
+                            if (cachedExploreUuid === undefined) {
+                                throw new UnexpectedServerError(
+                                    `Missing cached explore UUID for ${name}`,
+                                );
+                            }
+                            return cachedExploreUuid;
+                        }),
+                    };
+                } finally {
+                    await this.database(CachedExploreStagingTableName)
+                        .where('save_uuid', saveUuid)
+                        .delete()
+                        .catch((error) => {
+                            Logger.error(
+                                `dbt.compile.saveMultiConnectionExplores.cleanupFailed projectUuid=${projectUuid} saveUuid=${saveUuid}: ${getErrorMessage(
+                                    error,
+                                )}`,
+                            );
+                        });
+                }
+            },
+        );
+    }
+
+    private static async stageCarriedExplores(
+        trx: Transaction,
+        projectUuid: string,
+        saveUuid: string,
+        carry: MultiConnectionCarry,
+    ): Promise<string[]> {
+        const carriedQuery = trx(CachedExploreTableName)
+            .select(
+                trx.raw('?', [saveUuid]),
+                'project_uuid',
+                'name',
+                'table_names',
+                'explore',
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', projectUuid)
+            .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
+                [...USER_MANAGED_EXPLORE_TYPES],
+            ]);
+        switch (carry.kind) {
+            case 'connections':
+                if (carry.warehouseConnectionUuids.length === 0) return [];
+                void carriedQuery.whereIn(
+                    'warehouse_connection_uuid',
+                    carry.warehouseConnectionUuids,
+                );
+                break;
+            case 'otherDbtSources':
+                void carriedQuery.whereRaw(
+                    "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', ?) <> ?",
+                    [carry.primaryDbtSourceUuid, carry.dbtSourceUuid],
+                );
+                break;
+            default:
+                return assertUnreachable(carry, 'Unknown carried explores');
+        }
+        const result = await trx.raw<{ rows: { name: string }[] }>(
+            `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
+             ?
+             ON CONFLICT (save_uuid, name, project_uuid) DO NOTHING
+             RETURNING name`,
+            [CachedExploreStagingTableName, carriedQuery],
+        );
+        return result.rows.map(({ name }) => name);
+    }
+
     async tryAcquireProjectLock(
         projectUuid: string,
         onLockAcquired: () => Promise<void>,
@@ -4155,6 +4423,10 @@ export class ProjectModel {
         binding: ConnectionBinding,
     ) {
         return this.connectionRouter.requireSingleRoute(projectUuid, binding);
+    }
+
+    async getConnectionRoute(projectUuid: string): Promise<ConnectionRoute> {
+        return this.connectionRouter.getRoute(projectUuid);
     }
 
     async resolveWarehouseCredentialRead(

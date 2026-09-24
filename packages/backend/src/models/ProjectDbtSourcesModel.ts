@@ -18,6 +18,14 @@ import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 
 const PG_UNIQUE_VIOLATION = '23505';
 
+export type BoundProjectDbtSource = ProjectDbtSource & {
+    warehouseConnectionUuid: string | null;
+};
+
+type DbBoundProjectDbtSource = DbProjectDbtSource & {
+    warehouse_connection_uuid: string | null;
+};
+
 type ProjectDbtSourcesModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
@@ -265,5 +273,71 @@ export class ProjectDbtSourcesModel {
         await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
             .delete();
+    }
+
+    async getSourcesWithBindings(
+        projectUuid: string,
+    ): Promise<BoundProjectDbtSource[]> {
+        const rows = await this.database<DbBoundProjectDbtSource>(
+            ProjectDbtSourcesTableName,
+        )
+            .where('project_uuid', projectUuid)
+            .orderBy('precedence', 'asc')
+            .orderBy('name', 'asc');
+        return rows.map((row) => ({
+            ...this.convertRow(row),
+            warehouseConnectionUuid: row.warehouse_connection_uuid,
+        }));
+    }
+
+    async copySourcesWithConnectionMap(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+        warehouseConnectionUuidMap: ReadonlyMap<string, string>,
+    ): Promise<void> {
+        const sources = await this.database<DbBoundProjectDbtSource>(
+            ProjectDbtSourcesTableName,
+        )
+            .select(
+                'name',
+                'is_primary',
+                'precedence',
+                'dbt_connection_type',
+                'dbt_connection',
+                'warehouse_database',
+                'warehouse_schema',
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', sourceProjectUuid);
+        if (sources.length === 0) {
+            return;
+        }
+        const rows = sources.map((source) => {
+            const warehouseConnectionUuid =
+                source.warehouse_connection_uuid === null
+                    ? null
+                    : warehouseConnectionUuidMap.get(
+                          source.warehouse_connection_uuid,
+                      );
+            if (warehouseConnectionUuid === undefined) {
+                throw new ParameterError(
+                    `The copy has no connection for dbt source "${source.name}"`,
+                );
+            }
+            return {
+                project_uuid: targetProjectUuid,
+                name: source.name,
+                is_primary: source.is_primary,
+                precedence: source.precedence,
+                dbt_connection_type: source.dbt_connection_type,
+                dbt_connection: source.dbt_connection,
+                warehouse_database: source.warehouse_database,
+                warehouse_schema: source.warehouse_schema,
+                warehouse_connection_uuid: warehouseConnectionUuid,
+            };
+        });
+        await this.database<DbBoundProjectDbtSource>(
+            ProjectDbtSourcesTableName,
+        ).insert(rows);
     }
 }

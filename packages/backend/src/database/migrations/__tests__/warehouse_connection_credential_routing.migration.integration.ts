@@ -66,7 +66,7 @@ const extraConnectionCredentials: CreatePostgresCredentials = {
 
 const MULTIPLE_CONNECTIONS_REFUSAL = 'Multiple connections are not available';
 
-const LANDED = ['PR 6'];
+const LANDED = ['PR 6', 'PR 7'];
 
 type GuardOwnerRow =
     | {
@@ -542,7 +542,6 @@ describe('Credential reads by connection binding on the real schema', () => {
         );
 
         test.each<ConnectionBinding>([
-            { kind: 'explore', exploreName: 'orders' },
             {
                 kind: 'sqlChart',
                 savedSqlUuid: '00000000-0000-4000-8000-000000000000',
@@ -576,6 +575,127 @@ describe('Credential reads by connection binding on the real schema', () => {
                 expect(loadOriginal).not.toHaveBeenCalled();
             },
         );
+    });
+
+    describe('an explore binding on a project that routes multi', () => {
+        const cacheExplore = (
+            projectUuid: string,
+            name: string,
+            warehouseConnectionUuid: string | null,
+        ) =>
+            database('cached_explore').insert({
+                project_uuid: projectUuid,
+                name,
+                table_names: [name],
+                explore: JSON.stringify({ name }),
+                warehouse_connection_uuid: warehouseConnectionUuid,
+            } as never);
+
+        test('an explore bound to NULL loads the original through main code', async () => {
+            const fixture = await createMultiProject();
+            await cacheExplore(fixture.projectUuid, 'orders', null);
+            const binding: ConnectionBinding = {
+                kind: 'explore',
+                exploreName: 'orders',
+            };
+
+            await expect(
+                readCredentials(fixture.projectUuid, fixture.userUuid, binding),
+            ).resolves.toEqual({
+                ...originalCredentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            await expect(
+                projectModel.getWarehouseCredentialsForBinding(
+                    fixture.projectUuid,
+                    binding,
+                ),
+            ).resolves.toEqual(originalCredentials);
+        });
+
+        test("an explore bound to the original's uuid loads the original through main code", async () => {
+            const fixture = await createMultiProject();
+            await cacheExplore(
+                fixture.projectUuid,
+                'orders',
+                fixture.originalConnectionUuid,
+            );
+
+            await expect(
+                readCredentials(fixture.projectUuid, fixture.userUuid, {
+                    kind: 'explore',
+                    exploreName: 'orders',
+                }),
+            ).resolves.toEqual({
+                ...originalCredentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+        });
+
+        test('an explore bound to an extra connection loads the extra connection', async () => {
+            const fixture = await createMultiProject();
+            await cacheExplore(
+                fixture.projectUuid,
+                'payments',
+                fixture.extraConnectionUuid,
+            );
+            await cacheExplore(fixture.projectUuid, 'orders', null);
+            const binding: ConnectionBinding = {
+                kind: 'explore',
+                exploreName: 'payments',
+            };
+
+            const routed = await readCredentials(
+                fixture.projectUuid,
+                fixture.userUuid,
+                binding,
+            );
+
+            expect(routed).toEqual(
+                await credentialsApi.getExtraConnectionWarehouseCredentials({
+                    projectUuid: fixture.projectUuid,
+                    warehouseConnectionUuid: fixture.extraConnectionUuid,
+                    userId: fixture.userUuid,
+                    isRegisteredUser: true,
+                }),
+            );
+            expect(routed).toMatchObject({ host: 'extra.internal' });
+            await expect(
+                projectModel.getWarehouseCredentialsForBinding(
+                    fixture.projectUuid,
+                    binding,
+                ),
+            ).rejects.toBeInstanceOf(NotImplementedError);
+        });
+
+        test('an explore of another project is not found and never loads the original', async () => {
+            const fixture = await createMultiProject();
+            const other = await createMultiProject();
+            await cacheExplore(
+                other.projectUuid,
+                'payments',
+                other.extraConnectionUuid,
+            );
+            const loadOriginal = vi.spyOn(
+                projectModel,
+                'getWarehouseCredentialsForProject',
+            );
+            const binding: ConnectionBinding = {
+                kind: 'explore',
+                exploreName: 'payments',
+            };
+
+            await expect(
+                readCredentials(fixture.projectUuid, fixture.userUuid, binding),
+            ).rejects.toThrow(new NotFoundError('Explore not found'));
+            await expect(
+                projectModel.getWarehouseCredentialsForBinding(
+                    fixture.projectUuid,
+                    binding,
+                ),
+            ).rejects.toThrow(new NotFoundError('Explore not found'));
+            expect(loadOriginal).not.toHaveBeenCalled();
+        });
     });
 
     describe('a project that routes single', () => {

@@ -50,8 +50,19 @@ type ProjectServiceCredentials = {
         args: CredentialCall & { binding: ConnectionBinding },
     ) => Promise<CredentialsResult>;
     getExtraConnectionWarehouseCredentials: (
-        args: CredentialCall & { warehouseConnectionUuid: string },
+        args: CredentialCall & {
+            warehouseConnectionUuid: string;
+            purpose?: 'query' | 'compile';
+        },
     ) => Promise<CredentialsResult>;
+    buildAdapter: (
+        projectUuid: string,
+        user: { userUuid: string; organizationUuid: string },
+    ) => Promise<{
+        warehouseCredentials: CreateWarehouseCredentials;
+        sshTunnel: { disconnect: () => Promise<void> };
+        adapter: { destroy: () => Promise<void> };
+    }>;
     refreshCredentials: (
         args: CreateWarehouseCredentials,
         userUuid: string,
@@ -736,6 +747,191 @@ describe('Extra connection credentials on the real schema', () => {
                 userWarehouseCredentialsUuid: personalUuid,
             });
         });
+    });
+
+    describe('the compile purpose', () => {
+        const compileCredentials = (
+            projectUuid: string,
+            warehouseConnectionUuid: string,
+            userUuid: string,
+        ) =>
+            credentialsApi.getExtraConnectionWarehouseCredentials({
+                projectUuid,
+                warehouseConnectionUuid,
+                userId: userUuid,
+                isRegisteredUser: true,
+                purpose: 'compile',
+            });
+
+        test('a compile uses the stored credentials where a query merges the chosen personal credential, and the query purpose is the default', async () => {
+            const organization = await createOrganization();
+            const multiProject = await createProject(organization, {
+                mode: 'multi',
+                credentials: withRequire(postgres, true),
+            });
+            const extra = await createExtra(multiProject, {
+                credentials: withRequire(
+                    { ...postgres, host: 'extra-host' },
+                    true,
+                ),
+            });
+            const personalUuid = await createPersonal(
+                organization.userUuid,
+                passwordPersonal(WarehouseTypes.POSTGRES),
+            );
+            await preferForConnection(
+                organization.userUuid,
+                extra,
+                personalUuid,
+            );
+
+            const query = await extraCredentials(
+                multiProject,
+                extra,
+                organization.userUuid,
+            );
+            const explicitQuery =
+                await credentialsApi.getExtraConnectionWarehouseCredentials({
+                    projectUuid: multiProject,
+                    warehouseConnectionUuid: extra,
+                    ...callerArgs(organization.userUuid, 'registered'),
+                    purpose: 'query',
+                });
+            const compile = await compileCredentials(
+                multiProject,
+                extra,
+                organization.userUuid,
+            );
+
+            expect(explicitQuery).toEqual(query);
+            expect(query.userWarehouseCredentialsUuid).toBe(personalUuid);
+            expect(query).not.toMatchObject({ user: 'project-user' });
+            expect(compile).toEqual({
+                ...withRequire({ ...postgres, host: 'extra-host' }, true),
+                userWarehouseCredentialsUuid: undefined,
+            });
+        });
+
+        test('a compile refreshes an organisation credential through the organisation sink and stored credentials through the connection sink', async () => {
+            const organization = await createOrganization();
+            const multiProject = await createProject(organization, {
+                mode: 'multi',
+                credentials: withRequire(postgres, false),
+            });
+            const organizationCredential = await createOrganizationCredential(
+                organization,
+                withRequire({ ...postgres, host: 'shared-host' }, true),
+            );
+            const shared = await createExtra(multiProject, {
+                credentials: withRequire(
+                    { ...postgres, host: 'shared-host' },
+                    true,
+                ),
+                organizationWarehouseCredentialsUuid: organizationCredential,
+                name: 'Shared',
+            });
+            const own = await createExtra(multiProject, {
+                credentials: { ...postgres, host: 'own-host' },
+                name: 'Own',
+            });
+            const refresh = vi.spyOn(
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        credentials: CreateWarehouseCredentials,
+                        userUuid: string,
+                        source: unknown,
+                    ) => Promise<CreateWarehouseCredentials>;
+                },
+                'refreshCredentialsAndPersistRotation',
+            );
+
+            await expect(
+                compileCredentials(multiProject, shared, organization.userUuid),
+            ).resolves.toMatchObject({ host: 'shared-host' });
+            await expect(
+                compileCredentials(multiProject, own, organization.userUuid),
+            ).resolves.toMatchObject({ host: 'own-host' });
+
+            expect(refresh.mock.calls.map(([, , source]) => source)).toEqual([
+                {
+                    kind: 'organization',
+                    organizationWarehouseCredentialsUuid:
+                        organizationCredential,
+                },
+                expect.objectContaining({
+                    kind: 'warehouseConnection',
+                    warehouseConnectionUuid: own,
+                }),
+            ]);
+        });
+
+        test('a compile without any personal credential succeeds where a query is refused', async () => {
+            const organization = await createOrganization();
+            const multiProject = await createProject(organization, {
+                mode: 'multi',
+                credentials: withRequire(postgres, true),
+            });
+            const extra = await createExtra(multiProject, {
+                credentials: withRequire(postgres, true),
+            });
+
+            await expect(
+                extraCredentials(multiProject, extra, organization.userUuid),
+            ).rejects.toBeInstanceOf(MissingWarehouseCredentialsError);
+            await expect(
+                compileCredentials(multiProject, extra, organization.userUuid),
+            ).resolves.toMatchObject({ host: postgres.host });
+        });
+
+        test.each([
+            [
+                'Postgres requiring user credentials',
+                withRequire(postgres, true),
+            ],
+            ['Postgres not requiring them', withRequire(postgres, false)],
+            ['Athena with an access key', withRequire(athenaAccessKey, false)],
+            ['Athena assuming a role', withRequire(athenaAssumeRole, true)],
+        ] as const)(
+            '%s: an extra connection compiles with the credentials main compiles the same blob with',
+            async (_name, credentials) => {
+                const organization = await createOrganization();
+                const singleProject = await createProject(organization, {
+                    mode: 'single',
+                    credentials,
+                });
+                await database('projects')
+                    .update({
+                        dbt_connection_type: 'none',
+                        dbt_connection: encrypt({ type: 'none' }),
+                    } as never)
+                    .where('project_uuid', singleProject);
+                const multiProject = await createProject(organization, {
+                    mode: 'multi',
+                    credentials,
+                });
+                const extra = await createExtra(multiProject, { credentials });
+                await createPersonal(
+                    organization.userUuid,
+                    passwordPersonal(credentials.type),
+                );
+
+                const main = await credentialsApi.buildAdapter(singleProject, {
+                    userUuid: organization.userUuid,
+                    organizationUuid: organization.organizationUuid,
+                });
+                await main.adapter.destroy();
+                await main.sshTunnel.disconnect();
+                const { userWarehouseCredentialsUuid, ...compiled } =
+                    await compileCredentials(
+                        multiProject,
+                        extra,
+                        organization.userUuid,
+                    );
+
+                expect(userWarehouseCredentialsUuid).toBeUndefined();
+                expect(compiled).toEqual(main.warehouseCredentials);
+            },
+        );
     });
 
     describe('D5: require user credentials comes from the original', () => {

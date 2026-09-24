@@ -10,6 +10,7 @@ export type CompilationHistoryReport = {
     dimensionsCount: number;
     exploresWithErrors: ExploreError[];
     baseTableNames: string[];
+    connectionWarnings?: string[];
 };
 
 export type ExploreWarningSummary = Pick<Explore, 'name'> & {

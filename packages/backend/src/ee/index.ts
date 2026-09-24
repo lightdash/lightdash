@@ -1061,6 +1061,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getWarehouseAvailableTablesModel(),
                     warehouseConnectionModel:
                         models.getWarehouseConnectionModel(),
+                    warehouseConnectionCompileModel:
+                        models.getWarehouseConnectionCompileModel(),
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     natsClient: clients.getNatsClient(),
@@ -1285,6 +1287,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getWarehouseAvailableTablesModel(),
                     warehouseConnectionModel:
                         models.getWarehouseConnectionModel(),
+                    warehouseConnectionCompileModel:
+                        models.getWarehouseConnectionCompileModel(),
                     emailModel: models.getEmailModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     natsClient: clients.getNatsClient(),
