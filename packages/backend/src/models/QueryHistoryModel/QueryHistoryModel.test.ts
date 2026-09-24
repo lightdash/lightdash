@@ -1,5 +1,6 @@
 import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
 import type { Knex } from 'knex';
+import { createHash } from 'node:crypto';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
@@ -182,6 +183,168 @@ describe('QueryHistoryModel', () => {
                 userUuid,
             });
             expect(hash1).not.toBe(hash2);
+        });
+    });
+
+    describe('getCacheKey for extra connections', () => {
+        const identifiers = {
+            sql: 'SELECT * FROM orders',
+            timezone: 'UTC',
+            userUuid: null,
+        };
+
+        test('extra-connection cache keys differ per connection', () => {
+            const warehouseB = QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                warehouseConnectionUuid: 'connection-b',
+            });
+            const warehouseC = QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                warehouseConnectionUuid: 'connection-c',
+            });
+
+            expect(warehouseB).not.toBe(warehouseC);
+        });
+
+        test('an extra-connection key differs from the original key for the same query', () => {
+            const original = QueryHistoryModel.getCacheKey(
+                'project',
+                identifiers,
+            );
+            const extra = QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                warehouseConnectionUuid: 'connection-b',
+            });
+
+            expect(extra).not.toBe(original);
+        });
+
+        test('the extra-connection suffix is appended after every other identifier', () => {
+            expect(
+                QueryHistoryModel.getCacheKey('pins-project-uuid', {
+                    sql: 'SELECT 1',
+                    timezone: 'Europe/London',
+                    userUuid: 'pins-user-uuid',
+                    dataTimezone: 'America/New_York',
+                    externalSourceSalt: 'source-v7',
+                    warehouseConnectionUuid: 'connection-b',
+                }),
+            ).toBe(
+                createHash('sha256')
+                    .update(
+                        'v3.pins-project-uuid.pins-user-uuid.SELECT 1.Europe/London.dtz:America/New_York.source-v7.connection:connection-b',
+                    )
+                    .digest('hex'),
+            );
+        });
+    });
+
+    describe('getCacheKey golden values (SPK-2340)', () => {
+        const pinsProjectUuid = 'pins-project-uuid';
+        const pinsUserUuid = 'pins-user-uuid';
+        const pinsTimezone = 'Europe/London';
+        const pinsDataTimezone = 'America/New_York';
+        const pinsExternalSourceSalt = 'source-v7';
+
+        const exploreMetricSql = `SELECT "orders".order_id AS "orders_order_id" FROM "public"."orders" AS "orders" LIMIT 500`;
+        const sqlRunnerSql = `SELECT * FROM orders WHERE region = 'EMEA'`;
+        const sqlChartSql = `SELECT count(*) AS "count" FROM "public"."orders" AS "orders"`;
+        const pivotedSql = `WITH pivoted AS (SELECT * FROM crosstab($$SELECT "orders".order_id, "orders".region, "orders".revenue FROM "public"."orders" AS "orders"$$)) SELECT * FROM pivoted`;
+
+        test('explore metric query, no timezone, no personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: exploreMetricSql,
+                    userUuid: null,
+                }),
+            ).toBe(
+                '1430c9929f676db55079f555b8ce10a50bac3604fe1b2f952dc27341d293cd06',
+            );
+        });
+
+        test('explore metric query, with display timezone, no personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: exploreMetricSql,
+                    timezone: pinsTimezone,
+                    userUuid: null,
+                }),
+            ).toBe(
+                '89150ecbc7c6ab1d0b10b4d689fabf6181c0cea7b63ad312ae16ca56bca02eff',
+            );
+        });
+
+        test('explore metric query, with display timezone and personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: exploreMetricSql,
+                    timezone: pinsTimezone,
+                    userUuid: pinsUserUuid,
+                }),
+            ).toBe(
+                '8bb4c2eafe2c2d6b6ea84b2b53386981de2c2c5d2c385ca1157bc724bf05c5e0',
+            );
+        });
+
+        test('explore metric query, with display and data timezone, no personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: exploreMetricSql,
+                    timezone: pinsTimezone,
+                    userUuid: null,
+                    dataTimezone: pinsDataTimezone,
+                }),
+            ).toBe(
+                '5a61eedb1d4e4dc1709a1c08843bed0748269b4e54ed81bc80d9412195c8b9a1',
+            );
+        });
+
+        test('SQL runner query, no timezone, no personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: sqlRunnerSql,
+                    userUuid: null,
+                }),
+            ).toBe(
+                '8bea5d57fa57ee86d7e095a94a0c09ea881f040c8daac80eefcda180396b9575',
+            );
+        });
+
+        test('SQL chart query, with display timezone, no personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: sqlChartSql,
+                    timezone: pinsTimezone,
+                    userUuid: null,
+                }),
+            ).toBe(
+                'f2f76d7d2c2261285310f88b73a422a26c227258cb5d1e5f572f425a5ad95c6d',
+            );
+        });
+
+        test('pivoted query, with display timezone, no personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: pivotedSql,
+                    timezone: pinsTimezone,
+                    userUuid: null,
+                }),
+            ).toBe(
+                'a3308188e99033ff9f0ae9150242c0ea136775600c7ce1bf5111cae2f73b77c6',
+            );
+        });
+
+        test('explore metric query, with external source salt, no personal credentials', () => {
+            expect(
+                QueryHistoryModel.getCacheKey(pinsProjectUuid, {
+                    sql: exploreMetricSql,
+                    timezone: pinsTimezone,
+                    userUuid: null,
+                    externalSourceSalt: pinsExternalSourceSalt,
+                }),
+            ).toBe(
+                '33efccf84fba3974bb81a93e5267e0e8ef6b31a514d963997b435640d3ae23e4',
+            );
         });
     });
 });

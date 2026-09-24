@@ -1,18 +1,22 @@
 import { WarehouseTypes } from '@lightdash/common';
-import knex, { type Knex } from 'knex';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { type Knex } from 'knex';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import {
-    connectionModeTestDatabaseUri,
     inRolledBackTransaction,
     insertRoutingTestProject,
     setProjectRoutesMulti,
     withProjectsCopy,
     withProjectsWithoutConnectionMode,
-} from '../WarehouseConnectionRouter/connectionModeSchema.testUtils';
-import { ProjectModel } from './ProjectModel';
+} from '../../../models/WarehouseConnectionRouter/connectionModeSchema.testUtils';
+import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    createMigratedTestDatabase,
+    type MigratedTestDatabase,
+} from './migratedTestDatabase';
 
 describe('ProjectModel connection routing on the real schema', () => {
+    let migrated: MigratedTestDatabase;
     let database: Knex;
     const encryptionUtil = new EncryptionUtil({
         lightdashConfig: lightdashConfigMock,
@@ -25,16 +29,16 @@ describe('ProjectModel connection routing on the real schema', () => {
             encryptionUtil,
         });
 
-    beforeAll(() => {
-        database = knex({
-            client: 'pg',
-            connection: { connectionString: connectionModeTestDatabaseUri() },
-            pool: { min: 0, max: 4 },
-        });
-    });
+    const connection = () =>
+        database.client.config.connection as Knex.StaticConnectionConfig;
+
+    beforeAll(async () => {
+        migrated = await createMigratedTestDatabase('project_connection_route');
+        database = migrated.database;
+    }, 600000);
 
     afterAll(async () => {
-        await database.destroy();
+        await migrated?.destroy();
     });
 
     describe('before the connection modes migration', () => {
@@ -71,6 +75,7 @@ describe('ProjectModel connection routing on the real schema', () => {
                         password: 'analyst-password',
                     });
                 },
+                connection(),
             );
         });
 
@@ -83,6 +88,7 @@ describe('ProjectModel connection routing on the real schema', () => {
                     ).get(fixture.projectUuid);
                     expect(project.connectionRoute).toBe('single');
                 },
+                connection(),
             );
         });
     });
@@ -110,6 +116,7 @@ describe('ProjectModel connection routing on the real schema', () => {
                     'CREATE TABLE :schema.warehouse_connections (warehouse_connection_uuid uuid, project_uuid uuid)',
                 ],
                 run,
+                connection(),
             );
 
         test('get rejects instead of routing single', async () => {
@@ -155,14 +162,10 @@ describe('ProjectModel connection routing on the real schema', () => {
         });
 
         test.each([
-            {
-                kind: 'sqlChart' as const,
-                savedSqlUuid: 'b1c2d3e4-0000-4000-8000-000000000001',
-            },
             { kind: 'connection' as const, warehouseConnectionUuid: null },
             { kind: 'original' as const },
         ])(
-            'refuses credentials for a project that routes multi with a $kind binding',
+            'loads the original credentials for a project that routes multi with a $kind binding',
             async (binding) => {
                 await inRolledBackTransaction(database, async (transaction) => {
                     const { projectUuid } = await insertRoutingTestProject(
@@ -172,17 +175,45 @@ describe('ProjectModel connection routing on the real schema', () => {
                     await setProjectRoutesMulti(transaction, projectUuid, [
                         { name: 'Finance', isOriginal: false },
                     ]);
+                    const projectModel = projectModelFor(transaction);
                     await expect(
-                        projectModelFor(
-                            transaction,
-                        ).getWarehouseCredentialsForBinding(
+                        projectModel.getWarehouseCredentialsForBinding(
                             projectUuid,
                             binding,
                         ),
-                    ).rejects.toThrow('Multiple connections are not available');
+                    ).resolves.toEqual(
+                        await projectModel.getWarehouseCredentialsForProject(
+                            projectUuid,
+                        ),
+                    );
                 });
             },
         );
+
+        test('refuses to load an extra connection through the project model, which loads it per user', async () => {
+            await inRolledBackTransaction(database, async (transaction) => {
+                const { projectUuid } = await insertRoutingTestProject(
+                    transaction,
+                    encryptionUtil,
+                );
+                await setProjectRoutesMulti(transaction, projectUuid, [
+                    { name: 'Finance', isOriginal: false },
+                ]);
+                const [extra] = await transaction('warehouse_connections')
+                    .where('project_uuid', projectUuid)
+                    .where('is_original', false)
+                    .select('warehouse_connection_uuid');
+                await expect(
+                    projectModelFor(
+                        transaction,
+                    ).getWarehouseCredentialsForBinding(projectUuid, {
+                        kind: 'connection',
+                        warehouseConnectionUuid:
+                            extra.warehouse_connection_uuid,
+                    }),
+                ).rejects.toThrow('Extra connection credentials load per user');
+            });
+        });
 
         test('reports each project route from its own mode and extra connections', async () => {
             await inRolledBackTransaction(database, async (transaction) => {

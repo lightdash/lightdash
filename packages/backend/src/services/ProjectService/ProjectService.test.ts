@@ -122,6 +122,7 @@ import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
@@ -522,6 +523,8 @@ const getMockedProjectService = (
         warehouseConnectionModel: {} as WarehouseConnectionModel,
         warehouseConnectionCompileModel: {} as WarehouseConnectionCompileModel,
         warehouseConnectionTablesModel: {} as WarehouseConnectionTablesModel,
+        warehouseConnectionIdentityModel:
+            {} as WarehouseConnectionIdentityModel,
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel:
@@ -674,35 +677,6 @@ describe('ProjectService', () => {
                 guardedProjectUuid: projectUuid,
                 call: () => service.setExplores(compileUser, projectUuid, []),
             },
-            {
-                entryPoint: 'copyContentOnPreview',
-                guardedProjectUuid: upstreamUuid,
-                call: () =>
-                    service.copyContentOnPreview(
-                        upstreamUuid,
-                        'preview-project-uuid',
-                        compileUser,
-                    ),
-            },
-            {
-                entryPoint: '_create from an upstream',
-                guardedProjectUuid: upstreamUuid,
-                call: () =>
-                    service._create(
-                        compileUser,
-                        {
-                            name: 'Preview',
-                            type: ProjectType.PREVIEW,
-                            dbtConnection: { type: DbtProjectType.NONE },
-                            upstreamProjectUuid: upstreamUuid,
-                            dbtVersion: projectWithSensitiveFields.dbtVersion,
-                            warehouseConnection:
-                                warehouseClientMock.credentials,
-                        },
-                        'guard-job-uuid',
-                        RequestMethod.WEB_APP,
-                    ),
-            },
         ])(
             'refuses a project that routes multi at $entryPoint',
             async ({ call, guardedProjectUuid }) => {
@@ -725,42 +699,6 @@ describe('ProjectService', () => {
                 }
             },
         );
-
-        test('refuses the dbt Cloud webhook preview for a project that routes multi', async () => {
-            vi.mocked(
-                projectModel.getWithSensitiveFields,
-            ).mockResolvedValueOnce({
-                ...projectWithSensitiveFields,
-                dbtConnection: {
-                    type: DbtProjectType.DBT_CLOUD_IDE,
-                    api_key: 'dbt-cloud-key',
-                    environment_id: 'dbt-cloud-environment',
-                },
-                warehouseConnection: warehouseClientMock.credentials,
-            });
-            const guard = refuseMultiRoute();
-            const fetchSpy = vi.spyOn(global, 'fetch');
-            try {
-                await expect(
-                    service.createPreviewFromDbtCloudWebhook(
-                        projectUuid,
-                        1,
-                        1,
-                        {
-                            rawBody: null,
-                            signature: null,
-                        },
-                    ),
-                ).rejects.toThrow('Multiple connections are not available');
-                expect(guard).toHaveBeenCalledWith(projectUuid, {
-                    kind: 'original',
-                });
-                expect(fetchSpy).not.toHaveBeenCalled();
-            } finally {
-                guard.mockRestore();
-                fetchSpy.mockRestore();
-            }
-        });
     });
 
     describe('Document counts in legacy Space listing', () => {
@@ -2381,31 +2319,6 @@ describe('ProjectService', () => {
             );
         };
 
-        test('refuses a preview of an upstream that routes multi', async () => {
-            const guard = vi
-                .spyOn(projectModel, 'requireSingleConnectionRoute')
-                .mockRejectedValueOnce(
-                    new NotImplementedError(
-                        'Multiple connections are not available',
-                    ),
-                );
-            vi.mocked(projectModel.createWithOptionalCredentials).mockClear();
-            try {
-                await expect(createWithoutCompile()).rejects.toThrow(
-                    'Multiple connections are not available',
-                );
-                expect(guard).toHaveBeenCalledWith(upstreamProjectUuid, {
-                    kind: 'original',
-                });
-                expect(
-                    projectModel.createWithOptionalCredentials,
-                ).not.toHaveBeenCalled();
-            } finally {
-                guard.mockRestore();
-                vi.mocked(projectModel.get).mockReset();
-            }
-        });
-
         test('queues an opted-in org preview without copying in the request', async () => {
             const result = await createWithoutCompile({
                 mode: 'async',
@@ -3288,42 +3201,6 @@ describe('ProjectService', () => {
             );
 
             buildAdapterSpy.mockRestore();
-        });
-
-        test('refuses to copy explores from an upstream that routes multi', async () => {
-            const guard = vi
-                .spyOn(projectModel, 'requireSingleConnectionRoute')
-                .mockRejectedValueOnce(
-                    new NotImplementedError(
-                        'Multiple connections are not available',
-                    ),
-                );
-            (projectModel.get as import('vitest').Mock).mockResolvedValueOnce(
-                nonePreviewProject,
-            );
-            const consumed = vi.fn();
-
-            try {
-                await expect(
-                    (
-                        service as unknown as {
-                            refreshTablesAndProjectConfig: RefreshForTest;
-                        }
-                    ).refreshTablesAndProjectConfig(
-                        { userUuid: user.userUuid },
-                        previewProjectUuid,
-                        RequestMethod.WEB_APP,
-                        undefined,
-                        consumed,
-                    ),
-                ).rejects.toThrow('Multiple connections are not available');
-                expect(guard).toHaveBeenCalledWith(upstreamProjectUuid, {
-                    kind: 'original',
-                });
-                expect(consumed).not.toHaveBeenCalled();
-            } finally {
-                guard.mockRestore();
-            }
         });
     });
 

@@ -66,7 +66,7 @@ const extraConnectionCredentials: CreatePostgresCredentials = {
 
 const MULTIPLE_CONNECTIONS_REFUSAL = 'Multiple connections are not available';
 
-const LANDED = ['PR 6', 'PR 7'];
+const LANDED = ['PR 6', 'PR 7', 'PR 8'];
 
 type GuardOwnerRow =
     | {
@@ -541,14 +541,26 @@ describe('Credential reads by connection binding on the real schema', () => {
             },
         );
 
-        test.each<ConnectionBinding>([
+        test.each<{ binding: ConnectionBinding; error: NotFoundError }>([
             {
-                kind: 'sqlChart',
-                savedSqlUuid: '00000000-0000-4000-8000-000000000000',
+                binding: {
+                    kind: 'sqlChart',
+                    savedSqlUuid: '00000000-0000-4000-8000-000000000000',
+                },
+                error: new NotFoundError('Saved sql not found'),
+            },
+            {
+                binding: {
+                    kind: 'query',
+                    queryUuid: '00000000-0000-4000-8000-000000000000',
+                },
+                error: new NotFoundError(
+                    'Query 00000000-0000-4000-8000-000000000000 not found in project',
+                ),
             },
         ])(
-            '$kind still refuses and never loads the original',
-            async (binding) => {
+            'a $binding.kind the project does not have is not found and never loads the original',
+            async ({ binding, error }) => {
                 const fixture = await createMultiProject();
                 const loadOriginal = vi.spyOn(
                     projectModel,
@@ -561,17 +573,13 @@ describe('Credential reads by connection binding on the real schema', () => {
                         fixture.userUuid,
                         binding,
                     ),
-                ).rejects.toThrow(
-                    new NotImplementedError(MULTIPLE_CONNECTIONS_REFUSAL),
-                );
+                ).rejects.toThrow(error.message);
                 await expect(
                     projectModel.getWarehouseCredentialsForBinding(
                         fixture.projectUuid,
                         binding,
                     ),
-                ).rejects.toThrow(
-                    new NotImplementedError(MULTIPLE_CONNECTIONS_REFUSAL),
-                );
+                ).rejects.toThrow(error.message);
                 expect(loadOriginal).not.toHaveBeenCalled();
             },
         );

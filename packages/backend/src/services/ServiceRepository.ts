@@ -969,6 +969,8 @@ export class ServiceRepository
                         this.models.getWarehouseConnectionCompileModel(),
                     warehouseConnectionTablesModel:
                         this.models.getWarehouseConnectionTablesModel(),
+                    warehouseConnectionIdentityModel:
+                        this.models.getWarehouseConnectionIdentityModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     natsClient: this.clients.getNatsClient(),
@@ -1122,6 +1124,8 @@ export class ServiceRepository
                         this.models.getWarehouseConnectionCompileModel(),
                     warehouseConnectionTablesModel:
                         this.models.getWarehouseConnectionTablesModel(),
+                    warehouseConnectionIdentityModel:
+                        this.models.getWarehouseConnectionIdentityModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     natsClient: this.clients.getNatsClient(),
@@ -1637,6 +1641,8 @@ export class ServiceRepository
                     schedulerModel: this.models.getSchedulerModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    warehouseConnectionIdentityModel:
+                        this.models.getWarehouseConnectionIdentityModel(),
                 }),
         );
     }

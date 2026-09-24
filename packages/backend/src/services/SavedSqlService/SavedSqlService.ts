@@ -36,8 +36,13 @@ import { getAccountWriteContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedSqlModel } from '../../models/SavedSqlModel';
+import {
+    SavedSqlModel,
+    type SqlChartConnectionBinding,
+    type SqlChartVersionBinding,
+} from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import type {
@@ -58,6 +63,7 @@ type SavedSqlServiceArguments = {
     schedulerModel: SchedulerModel;
     analyticsModel: AnalyticsModel;
     spacePermissionService: SpacePermissionService;
+    warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
 };
 
 // TODO: Rename to SqlRunnerService
@@ -82,6 +88,8 @@ export class SavedSqlService
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
+
     constructor(args: SavedSqlServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -92,6 +100,53 @@ export class SavedSqlService
         this.schedulerModel = args.schedulerModel;
         this.analyticsModel = args.analyticsModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.warehouseConnectionIdentityModel =
+            args.warehouseConnectionIdentityModel;
+    }
+
+    private async getConnectionBinding(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null | undefined,
+    ): Promise<SqlChartConnectionBinding | undefined> {
+        if (
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'original',
+            })) !== 'multi'
+        ) {
+            if (
+                warehouseConnectionUuid !== undefined &&
+                warehouseConnectionUuid !== null
+            ) {
+                throw new ParameterError(
+                    'A SQL chart can name a connection only in a project with multiple connections',
+                );
+            }
+            return undefined;
+        }
+        return {
+            kind: 'connection',
+            warehouseConnectionUuid:
+                await this.warehouseConnectionIdentityModel.getSaveWarehouseConnectionUuid(
+                    projectUuid,
+                    warehouseConnectionUuid ?? null,
+                ),
+        };
+    }
+
+    private async getVersionBinding(
+        projectUuid: string,
+        sqlChart: UpdateSqlChart,
+    ): Promise<SqlChartVersionBinding | undefined> {
+        const warehouseConnectionUuid =
+            sqlChart.versionedData?.warehouseConnectionUuid;
+        const binding = await this.getConnectionBinding(
+            projectUuid,
+            warehouseConnectionUuid,
+        );
+        if (binding === undefined || warehouseConnectionUuid !== undefined) {
+            return binding;
+        }
+        return { kind: 'latest' };
     }
 
     static getCreateVersionEventProperties(
@@ -427,14 +482,14 @@ export class SavedSqlService
             },
         );
 
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
-
         const createdChart = await this.savedSqlModel.create(
             user.userUuid,
             projectUuid,
             sqlChart,
+            await this.getConnectionBinding(
+                projectUuid,
+                sqlChart.warehouseConnectionUuid,
+            ),
         );
 
         this.analytics.track({
@@ -503,15 +558,14 @@ export class SavedSqlService
             },
         );
 
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
-
-        const updatedChart = await this.savedSqlModel.update({
-            userUuid: user.userUuid,
-            savedSqlUuid,
-            sqlChart,
-        });
+        const updatedChart = await this.savedSqlModel.update(
+            {
+                userUuid: user.userUuid,
+                savedSqlUuid,
+                sqlChart,
+            },
+            await this.getVersionBinding(projectUuid, sqlChart),
+        );
 
         this.analytics.track({
             event: 'sql_chart.updated',

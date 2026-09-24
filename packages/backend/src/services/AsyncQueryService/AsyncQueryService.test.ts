@@ -106,6 +106,7 @@ import type { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { type WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -419,6 +420,8 @@ const getMockedAsyncQueryService = (
         warehouseConnectionModel: {} as WarehouseConnectionModel,
         warehouseConnectionCompileModel: {} as WarehouseConnectionCompileModel,
         warehouseConnectionTablesModel: {} as WarehouseConnectionTablesModel,
+        warehouseConnectionIdentityModel:
+            {} as WarehouseConnectionIdentityModel,
         emailModel: {
             getPrimaryEmailStatus: () => ({
                 isVerified: true,
@@ -1651,6 +1654,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -1739,6 +1743,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -1800,6 +1805,76 @@ describe('AsyncQueryService', () => {
             );
         });
 
+        test('an extra connection records its binding and gets its own cache key; the original keeps main', async () => {
+            (
+                serviceWithCache.findResultsCache as import('vitest').Mock
+            ).mockResolvedValue({ cacheHit: false });
+            const create = serviceWithCache.queryHistoryModel
+                .create as import('vitest').Mock;
+            create.mockClear();
+            create.mockResolvedValue({ queryUuid: 'test-query-uuid' });
+            const runAsyncWarehouseQuerySpy = vi
+                .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+            const execute = (warehouseConnectionUuid: string | null) =>
+                serviceWithCache['executeAsyncQuery'](
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        context: QueryExecutionContext.EXPLORE,
+                        queryTags: {
+                            query_context: QueryExecutionContext.EXPLORE,
+                        },
+                        invalidateCache: false,
+                        queryComposer: createQueryComposerMock(),
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid,
+                    },
+                    { query: metricQueryMock },
+                );
+
+            await execute(null);
+            await execute('7a1d3c52-6f0e-4b8a-9d21-5c3e8f4a2b10');
+            await execute('0c6e9f13-2a47-4d5b-8e39-1f7b6d2c4a85');
+
+            const [original, extra, otherExtra] = create.mock.calls;
+            expect(original).toHaveLength(2);
+            expect(extra[2]).toEqual({
+                warehouseConnectionUuid: '7a1d3c52-6f0e-4b8a-9d21-5c3e8f4a2b10',
+            });
+            expect(otherExtra[2]).toEqual({
+                warehouseConnectionUuid: '0c6e9f13-2a47-4d5b-8e39-1f7b6d2c4a85',
+            });
+            expect(extra[1].cacheKey).toBe(
+                QueryHistoryModel.getCacheKey(projectUuid, {
+                    sql: 'SELECT * FROM test',
+                    timezone: undefined,
+                    userUuid: null,
+                    dataTimezone: undefined,
+                    warehouseConnectionUuid:
+                        '7a1d3c52-6f0e-4b8a-9d21-5c3e8f4a2b10',
+                }),
+            );
+            expect(original[1].cacheKey).toBe(
+                QueryHistoryModel.getCacheKey(projectUuid, {
+                    sql: 'SELECT * FROM test',
+                    timezone: undefined,
+                    userUuid: null,
+                    dataTimezone: undefined,
+                }),
+            );
+            expect(
+                new Set([
+                    original[1].cacheKey,
+                    extra[1].cacheKey,
+                    otherExtra[1].cacheKey,
+                ]).size,
+            ).toBe(3);
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenLastCalledWith(
+                expect.objectContaining({ cacheKey: otherExtra[1].cacheKey }),
+            );
+        });
+
         test('marks playground queries for exclusion from the usage event stream', async () => {
             projectModel.getSummary.mockResolvedValueOnce({
                 ...projectSummary,
@@ -1824,6 +1899,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -1875,6 +1951,7 @@ describe('AsyncQueryService', () => {
                         useTimezoneAwareDateTrunc: false,
                     }),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -1925,6 +2002,7 @@ describe('AsyncQueryService', () => {
                         useTimezoneAwareDateTrunc: true,
                     }),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -1977,6 +2055,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: true,
                     queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -2060,6 +2139,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock, invalidateCache: true },
             );
@@ -2117,6 +2197,7 @@ describe('AsyncQueryService', () => {
                     invalidateCache: false,
                     queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -2209,6 +2290,7 @@ describe('AsyncQueryService', () => {
                         ],
                     }),
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -2283,6 +2365,7 @@ describe('AsyncQueryService', () => {
                         mode: 'opportunistic',
                     },
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -2353,6 +2436,7 @@ describe('AsyncQueryService', () => {
                         mode: 'required',
                     },
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 {
                     query: {
@@ -2435,6 +2519,7 @@ describe('AsyncQueryService', () => {
                         mode: 'required',
                     },
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 {
                     query: {
@@ -2519,6 +2604,7 @@ describe('AsyncQueryService', () => {
                         mode: 'opportunistic',
                     },
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -4999,6 +5085,7 @@ describe('AsyncQueryService', () => {
                     queryComposer: createQueryComposerMock(),
                     originalColumns: mockOriginalColumns,
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -5066,6 +5153,7 @@ describe('AsyncQueryService', () => {
                     queryComposer: createQueryComposerMock(),
                     originalColumns: mockOriginalColumns,
                     warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
                 },
                 { query: metricQueryMock },
             );
@@ -5145,6 +5233,10 @@ describe('AsyncQueryService', () => {
                     service,
                     '_getWarehouseClient',
                 );
+                const resolveCredentialRead = vi.spyOn(
+                    mockProjectModel,
+                    'resolveWarehouseCredentialRead',
+                );
 
                 const runQueryAndTransformRowsSpy = vi.spyOn(
                     AsyncQueryService,
@@ -5177,6 +5269,11 @@ describe('AsyncQueryService', () => {
 
                 // THEN: SSH tunnel connection established with tunnel credentials
                 expect(mockSshTunnel.connect).toHaveBeenCalledWith();
+
+                expect(resolveCredentialRead).toHaveBeenCalledWith(
+                    projectUuid,
+                    { kind: 'query', queryUuid: 'test-query-uuid' },
+                );
 
                 // THEN: _getWarehouseClient called with original credentials
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
@@ -6432,6 +6529,43 @@ describe('AsyncQueryService', () => {
             });
         });
 
+        it('refuses to rerun a query whose connection was removed and runs nothing (K10)', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const account = buildAccount();
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(mockSourceQueryHistory(500));
+            const resolve = vi
+                .spyOn(service.projectModel, 'resolveWarehouseCredentialRead')
+                .mockRejectedValue(
+                    new NotFoundError("Connection 'Finance' was removed"),
+                );
+            const runSpy = vi
+                .spyOn(
+                    service as unknown as {
+                        runAsyncMetricQueryWithoutPermissionCheck: (
+                            ...args: unknown[]
+                        ) => Promise<unknown>;
+                    },
+                    'runAsyncMetricQueryWithoutPermissionCheck',
+                )
+                .mockResolvedValue({ queryUuid: 'rerun-query-uuid' } as never);
+
+            await expect(
+                service.executeAsyncUnboundedRerunFromQueryHistory({
+                    account,
+                    projectUuid,
+                    queryUuid: 'capped-query-uuid',
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                }),
+            ).rejects.toThrow("Connection 'Finance' was removed");
+            expect(resolve).toHaveBeenCalledWith(projectUuid, {
+                kind: 'query',
+                queryUuid: 'capped-query-uuid',
+            });
+            expect(runSpy).not.toHaveBeenCalled();
+        });
+
         // Wide-query case: a source limit already at (or above) the org's
         // cell-based cap means rerunning can't return more rows than the
         // capped result already has — 'All Results' must never deliver less.
@@ -6464,6 +6598,280 @@ describe('AsyncQueryService', () => {
 
             expect(runSpy).not.toHaveBeenCalled();
             expect(result).toEqual({ outcome: 'noImprovementPossible' });
+        });
+    });
+
+    describe('every query producer records the connection it resolves to', () => {
+        const extraConnectionUuid = 'extra-connection-uuid';
+        const resolvedCredentials = {
+            warehouseCredentials: {
+                ...warehouseClientMock.credentials,
+                userWarehouseCredentialsUuid: undefined,
+            },
+            warehouseConnectionUuid: extraConnectionUuid,
+        };
+        const viewer = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                    { subject: 'Dashboard', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+        const savedChart = {
+            uuid: 'savedChartUuid',
+            name: 'Chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            tableName: validExplore.name,
+            metricQuery: metricQueryMock,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.TABLE },
+        };
+        const sqlChart = {
+            savedSqlUuid: 'savedSqlUuid',
+            sql: 'select 1',
+            config: {},
+            limit: 10,
+            project: { projectUuid },
+            organization: {
+                organizationUuid: projectSummary.organizationUuid,
+            },
+        };
+        const composer = () =>
+            createQueryComposerMock({
+                sql: 'SELECT 1',
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+                availableParameterDefinitions: {},
+            });
+
+        const buildService = () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => savedChart),
+                } as unknown as SavedChartModel,
+                savedSqlModel: {
+                    getByUuid: vi.fn(async () => sqlChart),
+                } as unknown as SavedSqlModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                    addSqlChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                spaceModel: {
+                    getSpaceSummary: vi.fn(async () => ({
+                        uuid: 'spaceUuid',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                    })),
+                } as unknown as SpaceModel,
+                dashboardModel: {
+                    getDashboardParametersByIdOrSlug: vi.fn(
+                        async () => undefined,
+                    ),
+                } as unknown as DashboardModel,
+            });
+            const internals = service as AnyType;
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            internals.getExploreForMetricQueryExecution = vi
+                .fn()
+                .mockResolvedValue({ explore: validExplore });
+            internals.getWarehouseCredentialsWithConnection = vi
+                .fn()
+                .mockResolvedValue(resolvedCredentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            internals.getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            internals.prepareMetricQueryAsyncQueryArgs = vi
+                .fn()
+                .mockImplementation(async () => composer());
+            internals.assertSavedChartAccess = vi.fn(async () => {});
+            internals.checkDashboardChartQueryPermissions = vi.fn(
+                async () => {},
+            );
+            internals.prepareSqlChartAsyncQueryArgs = vi.fn(async () => ({
+                warehouseConnection: {
+                    sshTunnel: { disconnect: vi.fn(async () => {}) },
+                },
+                ...resolvedCredentials,
+                queryTags: {},
+                metricQuery: metricQueryMock,
+                queryComposer: composer(),
+                originalColumns: {},
+                parameterReferences: [],
+                usedParameters: {},
+            }));
+            const execute = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+            service['executeAsyncQuery'] = execute;
+            return { service, execute };
+        };
+
+        test.each([
+            {
+                producer: 'metric query',
+                run: (service: AsyncQueryService) =>
+                    service.executeAsyncMetricQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                    }),
+            },
+            {
+                producer: 'saved chart',
+                run: (service: AsyncQueryService) =>
+                    service.executeAsyncSavedChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        chartUuid: savedChart.uuid,
+                        versionUuid: undefined,
+                        context: QueryExecutionContext.CHART,
+                        invalidateCache: false,
+                        limit: undefined,
+                        parameters: undefined,
+                        pivotResults: false,
+                        filterOverrides: undefined,
+                    }),
+            },
+            {
+                producer: 'dashboard chart',
+                run: (service: AsyncQueryService) =>
+                    service.executeAsyncDashboardChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        tileUuid: 'tile-1',
+                        chartUuid: savedChart.uuid,
+                        dashboardUuid: 'dashboard-uuid',
+                        dashboardFilters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                        invalidateCache: false,
+                        limit: undefined,
+                        parameters: undefined,
+                        pivotResults: false,
+                    }),
+            },
+            {
+                producer: 'SQL chart',
+                run: (service: AsyncQueryService) =>
+                    service.executeAsyncSqlChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        savedSqlUuid: sqlChart.savedSqlUuid,
+                        context: QueryExecutionContext.SQL_CHART,
+                        invalidateCache: false,
+                    }),
+            },
+            {
+                producer: 'dashboard SQL chart',
+                run: (service: AsyncQueryService) =>
+                    service.executeAsyncDashboardSqlChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        savedSqlUuid: sqlChart.savedSqlUuid,
+                        dashboardUuid: 'dashboard-uuid',
+                        tileUuid: 'tile-1',
+                        dashboardFilters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                        invalidateCache: false,
+                    } as never),
+            },
+        ])(
+            'the $producer query records the resolved connection',
+            async ({ run }) => {
+                const { service, execute } = buildService();
+
+                await run(service);
+
+                expect(execute).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        warehouseConnectionUuid: extraConnectionUuid,
+                    }),
+                    expect.any(Object),
+                );
+            },
+        );
+
+        test('the field value search query records the resolved connection', async () => {
+            const { service, execute } = buildService();
+            (service.projectModel as AnyType).findExploreByTableName = vi.fn(
+                async () => validExplore,
+            );
+
+            await service.executeAsyncFieldValueSearch({
+                account: sessionAccount,
+                projectUuid,
+                table: 'a',
+                fieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                filters: undefined,
+                forceRefresh: false,
+                invalidateCache: false,
+                parameters: undefined,
+            } as never);
+
+            expect(execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    warehouseConnectionUuid: extraConnectionUuid,
+                }),
+                expect.any(Object),
+            );
+        });
+
+        test('the totals query records the resolved connection', async () => {
+            const { service } = buildService();
+            const stop = new Error('stop after the totals query starts');
+            const prepared = vi
+                .spyOn(service as AnyType, 'executePreparedAsyncQuery')
+                .mockRejectedValue(stop);
+
+            await expect(
+                service.calculateMetricQueryTotal({
+                    account: sessionAccount,
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    metricQuery: metricQueryMock,
+                    explore: validExplore,
+                    context: QueryExecutionContext.EXPLORE,
+                    queryTags: {},
+                } as never),
+            ).rejects.toBe(stop);
+            expect(prepared).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    warehouseConnectionUuid: extraConnectionUuid,
+                }),
+                expect.any(Object),
+                expect.any(String),
+            );
         });
     });
 
@@ -8372,6 +8780,116 @@ describe('saved chart query result access', () => {
                     queryUuid: 'derived-query-uuid',
                 }),
             ).rejects.toThrow(ForbiddenError);
+        },
+    );
+    it.each([
+        {
+            operation: 'totals' as const,
+            binding: { kind: 'explore', exploreName: validExplore.name },
+        },
+        {
+            operation: 'rerun' as const,
+            binding: { kind: 'explore', exploreName: validExplore.name },
+        },
+        {
+            operation: 'underlying' as const,
+            binding: { kind: 'query', queryUuid: 'source-query-uuid' },
+        },
+    ])(
+        'a derived $operation query runs on and records the connection it resolves to',
+        async ({ operation, binding }) => {
+            const { account, service, history, resolveAccess } = buildFixture();
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [{ userUuid: account.user.id, role: 'viewer' }],
+            });
+            const execution = service as unknown as {
+                getExploreForMetricQueryExecution: () => Promise<unknown>;
+                getExploreWithUserAccessControls: () => Promise<unknown>;
+                prepareMetricQueryAsyncQueryArgs: () => Promise<QueryComposer>;
+                getExtraConnectionWarehouseCredentials: () => Promise<unknown>;
+                executeAsyncQuery: (
+                    args: unknown,
+                    parameters: ExecuteAsyncQueryRequestParams,
+                ) => Promise<{ queryUuid: string; cacheMetadata: {} }>;
+            };
+            vi.spyOn(
+                execution,
+                'getExploreForMetricQueryExecution',
+            ).mockResolvedValue({ explore: validExplore });
+            vi.spyOn(
+                execution,
+                'getExploreWithUserAccessControls',
+            ).mockResolvedValue({ explore: validExplore });
+            vi.spyOn(
+                execution,
+                'prepareMetricQueryAsyncQueryArgs',
+            ).mockResolvedValue(createQueryComposerMock());
+            const resolve = vi
+                .spyOn(service.projectModel, 'resolveWarehouseCredentialRead')
+                .mockResolvedValue({
+                    kind: 'extra',
+                    warehouseConnectionUuid: 'extra-connection-uuid',
+                });
+            vi.spyOn(
+                execution,
+                'getExtraConnectionWarehouseCredentials',
+            ).mockResolvedValue({
+                ...warehouseClientMock.credentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            const persist = vi
+                .spyOn(execution, 'executeAsyncQuery')
+                .mockResolvedValue({
+                    queryUuid: 'derived-query-uuid',
+                    cacheMetadata: {},
+                });
+            try {
+                const args = {
+                    account,
+                    projectUuid,
+                    queryUuid: history.queryUuid,
+                };
+                switch (operation) {
+                    case 'totals':
+                        await service.executeAsyncCalculateTotalFromQueryHistory(
+                            {
+                                ...args,
+                                kind: 'grandTotal',
+                            },
+                        );
+                        break;
+                    case 'rerun':
+                        await service.executeAsyncUnboundedRerunFromQueryHistory(
+                            {
+                                ...args,
+                                context: QueryExecutionContext.CSV,
+                            },
+                        );
+                        break;
+                    case 'underlying':
+                        await service.executeAsyncUnderlyingDataQuery({
+                            account,
+                            projectUuid,
+                            underlyingDataSourceQueryUuid: history.queryUuid,
+                            filters: {},
+                            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                        });
+                        break;
+                    default:
+                        assertUnreachable(operation, 'Unknown derivation');
+                }
+
+                expect(resolve).toHaveBeenCalledWith(projectUuid, binding);
+                expect(persist).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        warehouseConnectionUuid: 'extra-connection-uuid',
+                    }),
+                    expect.any(Object),
+                );
+            } finally {
+                resolve.mockRestore();
+            }
         },
     );
     it.each(['underlying', 'compose', 'merge'] as const)(

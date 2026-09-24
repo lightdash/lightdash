@@ -9,10 +9,12 @@ import { type Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { validate as isUuid } from 'uuid';
 import Logger from '../../logging/logger';
+import { WarehouseConnectionIdentityModel } from '../WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 
 export type ConnectionBinding =
     | { kind: 'explore'; exploreName: string }
     | { kind: 'sqlChart'; savedSqlUuid: string }
+    | { kind: 'query'; queryUuid: string }
     | { kind: 'connection'; warehouseConnectionUuid: string | null }
     | { kind: 'original' };
 
@@ -35,10 +37,15 @@ const isMissingConnectionModeColumn = (error: unknown): boolean =>
 export class WarehouseConnectionRouter {
     private readonly database: Knex;
 
+    private readonly identityModel: WarehouseConnectionIdentityModel;
+
     private hasWarnedMissingColumn = false;
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+        this.identityModel = new WarehouseConnectionIdentityModel({
+            database,
+        });
     }
 
     async withConnectionModeColumn<T>(
@@ -144,8 +151,20 @@ export class WarehouseConnectionRouter {
                     binding.exploreName,
                 );
             case 'sqlChart':
-                throw new NotImplementedError(
-                    'Multiple connections are not available',
+                return this.resolveConnectionBinding(
+                    projectUuid,
+                    await this.identityModel.getSqlChartWarehouseConnectionUuid(
+                        projectUuid,
+                        binding.savedSqlUuid,
+                    ),
+                );
+            case 'query':
+                return this.resolveConnectionBinding(
+                    projectUuid,
+                    await this.identityModel.getQueryWarehouseConnectionUuid(
+                        projectUuid,
+                        binding.queryUuid,
+                    ),
                 );
             default:
                 return assertUnreachable(binding, 'Unknown connection binding');

@@ -1,6 +1,7 @@
 import knex, { type Knex } from 'knex';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { getAdminDatabase } from '../../../testing/migratedDatabase';
 
 export type MigratedTestDatabase = {
     database: Knex;
@@ -23,7 +24,7 @@ export const createMigratedTestDatabase = async (
         client: 'pg',
         connection: {
             ...settings,
-            database: process.env.PGDATABASE ?? 'postgres',
+            database: getAdminDatabase(),
         },
     });
     await admin.raw('CREATE DATABASE ??', [databaseName]);

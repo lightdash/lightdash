@@ -272,6 +272,7 @@ export type CreateSqlChart = {
     config: AllVizChartConfig;
     spaceUuid: string;
     slug?: string; // Optional: force a specific slug (used by content-as-code)
+    warehouseConnectionUuid?: string | null;
 };
 
 export type UpdateUnversionedSqlChart = {
@@ -284,6 +285,7 @@ export type UpdateVersionedSqlChart = {
     sql: string;
     limit: number;
     config: AllVizChartConfig;
+    warehouseConnectionUuid?: string | null;
 };
 
 export type UpdateSqlChart = {
