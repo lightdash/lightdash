@@ -19,14 +19,17 @@ import {
     Text,
     Tooltip,
     type ComboboxItem,
-    type ComboboxParsedItem,
-    type OptionsFilter,
     type SelectProps,
 } from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import FieldIcon from '../Filters/FieldIcon';
 import classes from './FieldSelect.module.css';
+import {
+    ADD_TO_QUERY_GROUP_LABEL,
+    optionsFilter,
+    SUGGESTED_GROUP_LABEL,
+} from './optionsFilter';
 
 interface FieldSelectItem extends ComboboxItem {
     item: Item;
@@ -36,42 +39,6 @@ interface FieldSelectItem extends ComboboxItem {
      *  group has no per-table headers to carry it. */
     tablePrefix?: string;
 }
-
-const ADD_TO_QUERY_GROUP_LABEL = 'Add to query';
-const SUGGESTED_GROUP_LABEL = 'Suggested';
-
-// Mantine's default filter only sees `label`, which no longer carries the
-// table name for "Add to query" options — match the prefix too, so searching
-// "orders amount" still finds them.
-const optionsFilter: OptionsFilter = ({ options, search, limit }) => {
-    const words = search.toLowerCase().trim().split(/\s+/);
-    const matches = (option: ComboboxItem) => {
-        const { label, tablePrefix } = option as FieldSelectItem;
-        const haystack = `${tablePrefix ?? ''} ${label}`.toLowerCase();
-        return words.every((word) => haystack.includes(word));
-    };
-
-    const result: ComboboxParsedItem[] = [];
-    let count = 0;
-    for (const item of options) {
-        if (count >= limit) break;
-        if ('group' in item) {
-            const kept: ComboboxItem[] = [];
-            for (const option of item.items) {
-                if (count >= limit) break;
-                if (matches(option)) {
-                    kept.push(option);
-                    count += 1;
-                }
-            }
-            if (kept.length > 0) result.push({ ...item, items: kept });
-        } else if (matches(item)) {
-            result.push(item);
-            count += 1;
-        }
-    }
-    return result;
-};
 
 type FieldSelectProps<T extends Item = Item> = Omit<
     SelectProps,
