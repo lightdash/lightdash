@@ -7,11 +7,15 @@ set -euo pipefail
 # https://security-tracker.debian.org/tracker/CVE-2026-48962
 # https://github.com/pmqs/IO-Compress/commit/f2db247bf90d4cc7ee2710be384946081f3b4610
 #
-# Remove this directory and its RUN hooks in dockerfile and dockerfile-prs when
-# adopting an official fixed Bookworm package, or migrating to Debian 13 (Trixie)
-# with Perl >= 5.40.1-6+deb13u1. Confirm the installed package includes the fix;
-# changing the Debian release alone is insufficient. Update the package-version
-# and file-checksum assertions in .github/workflows/docker-build-test.yml too.
+# This pinned backport requires maintenance; it does not automatically adopt
+# Debian's future fix. Once Debian publishes a confirmed fixed Bookworm package,
+# remove this directory and its RUN hooks in dockerfile and dockerfile-prs,
+# install the official package through APT, and update the package-version and
+# file-checksum assertions in .github/workflows/docker-build-test.yml.
+# Also remove this backport when migrating to Debian 13 (Trixie) with Perl
+# >= 5.40.1-6+deb13u1, updating those checks for the official package. Confirm the
+# installed package includes the fix; changing the Debian release alone is
+# insufficient.
 readonly perl_version='5.36.0-7+deb12u3'
 readonly backport_version='5.36.0-7+deb12u3+lightdash1'
 readonly -a perl_packages=(perl-base perl perl-modules-5.36 libperl5.36)
