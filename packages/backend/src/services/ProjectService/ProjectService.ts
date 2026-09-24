@@ -13398,12 +13398,32 @@ export class ProjectService extends BaseService {
         }, []);
     }
 
+    private async getVirtualViewConnectionUuid(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<string | null> {
+        if (warehouseConnectionUuid === null) return null;
+        if (
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'original',
+            })) !== 'multi'
+        ) {
+            throw new ParameterError(
+                'A virtual view can name a connection only in a project with multiple connections',
+            );
+        }
+        const target = await this.projectModel.resolveWarehouseCredentialRead(
+            projectUuid,
+            { kind: 'connection', warehouseConnectionUuid },
+        );
+        return target.kind === 'extra' ? target.warehouseConnectionUuid : null;
+    }
+
     async createVirtualView(
         account: Account,
         projectUuid: string,
         payload: CreateVirtualViewPayload,
         resolveParameterValues = true,
-        warehouseConnectionUuid: string | null = null,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -13432,11 +13452,18 @@ export class ProjectService extends BaseService {
                 'Virtual view with this name already exists',
             );
         }
+        const boundConnectionUuid = await this.getVirtualViewConnectionUuid(
+            projectUuid,
+            payload.warehouseConnectionUuid ?? null,
+        );
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid },
+                binding: {
+                    kind: 'connection',
+                    warehouseConnectionUuid: boundConnectionUuid,
+                },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -13457,7 +13484,7 @@ export class ProjectService extends BaseService {
                 parameterValues: effectiveParameterValues,
             },
             warehouseClient,
-            warehouseConnectionUuid,
+            boundConnectionUuid,
         );
 
         this.analytics.trackAccount(account, {

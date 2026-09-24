@@ -1748,6 +1748,176 @@ describe('Multi-connection compile on the real schema', () => {
                 columns: [{ reference: 'amount', type: DimensionType.NUMBER }],
             };
 
+            const viewService = (projectUuid: string) => {
+                const { service } = compileService(projectUuid);
+                Object.assign(service, {
+                    userAttributesModel: {
+                        getAttributeValuesForOrgMember: async () => ({}),
+                    },
+                    emailModel: {
+                        getPrimaryEmailStatus: async () => ({
+                            isVerified: false,
+                        }),
+                    },
+                    analytics: { track: vi.fn(), trackAccount: vi.fn() },
+                });
+                return service;
+            };
+
+            const viewBinding = async (projectUuid: string, name: string) =>
+                (
+                    await database('cached_explore')
+                        .select('warehouse_connection_uuid')
+                        .where('project_uuid', projectUuid)
+                        .where('name', name)
+                        .first()
+                )?.warehouse_connection_uuid;
+
+            test('the SQL runner creates a view on the connection it names, and the view runs there', async () => {
+                const fixture = await createProject();
+                const user = await compilingUser(fixture.projectUuid);
+
+                await viewService(fixture.projectUuid).createVirtualView(
+                    fromSession(user, 'session-cookie'),
+                    fixture.projectUuid,
+                    {
+                        ...viewPayload,
+                        name: 'finance_view',
+                        warehouseConnectionUuid: fixture.extraConnectionUuid,
+                    },
+                    false,
+                );
+                await viewService(fixture.projectUuid).createVirtualView(
+                    fromSession(user, 'session-cookie'),
+                    fixture.projectUuid,
+                    {
+                        ...viewPayload,
+                        name: 'original_view',
+                        warehouseConnectionUuid: fixture.originalConnectionUuid,
+                    },
+                    false,
+                );
+
+                expect(
+                    await viewBinding(fixture.projectUuid, 'finance_view'),
+                ).toBe(fixture.extraConnectionUuid);
+                expect(
+                    await viewBinding(fixture.projectUuid, 'original_view'),
+                ).toBeNull();
+                await expect(
+                    projectModel.resolveWarehouseCredentialRead(
+                        fixture.projectUuid,
+                        { kind: 'explore', exploreName: 'finance_view' },
+                    ),
+                ).resolves.toEqual({
+                    kind: 'extra',
+                    warehouseConnectionUuid: fixture.extraConnectionUuid,
+                });
+            });
+
+            test.each([
+                ['a connection of another project', 'other'],
+                ['an unknown connection', 'unknown'],
+            ] as const)(
+                'the SQL runner refuses to create a view on %s and writes nothing',
+                async (_name, planted) => {
+                    const fixture = await createProject();
+                    const other = await createProject();
+                    const user = await compilingUser(fixture.projectUuid);
+
+                    await expect(
+                        viewService(fixture.projectUuid).createVirtualView(
+                            fromSession(user, 'session-cookie'),
+                            fixture.projectUuid,
+                            {
+                                ...viewPayload,
+                                name: 'planted_view',
+                                warehouseConnectionUuid:
+                                    planted === 'other'
+                                        ? other.extraConnectionUuid
+                                        : randomUUID(),
+                            },
+                            false,
+                        ),
+                    ).rejects.toThrow(
+                        new NotFoundError('Connection not found'),
+                    );
+                    expect(
+                        await viewBinding(fixture.projectUuid, 'planted_view'),
+                    ).toBeUndefined();
+                },
+            );
+
+            test('a single project refuses a connection and writes nothing', async () => {
+                const fixture = await createProject();
+                await routeSingle(fixture.projectUuid);
+                const user = await compilingUser(fixture.projectUuid);
+
+                await expect(
+                    viewService(fixture.projectUuid).createVirtualView(
+                        fromSession(user, 'session-cookie'),
+                        fixture.projectUuid,
+                        {
+                            ...viewPayload,
+                            name: 'single_view',
+                            warehouseConnectionUuid:
+                                fixture.extraConnectionUuid,
+                        },
+                        false,
+                    ),
+                ).rejects.toThrow(
+                    new ParameterError(
+                        'A virtual view can name a connection only in a project with multiple connections',
+                    ),
+                );
+                expect(
+                    await viewBinding(fixture.projectUuid, 'single_view'),
+                ).toBeUndefined();
+            });
+
+            test.each([null, undefined])(
+                'a single project creates the view on the original when the connection is %s',
+                async (warehouseConnectionUuid) => {
+                    const fixture = await createProject();
+                    await routeSingle(fixture.projectUuid);
+                    const user = await compilingUser(fixture.projectUuid);
+
+                    await viewService(fixture.projectUuid).createVirtualView(
+                        fromSession(user, 'session-cookie'),
+                        fixture.projectUuid,
+                        {
+                            ...viewPayload,
+                            name: 'single_view',
+                            warehouseConnectionUuid,
+                        },
+                        false,
+                    );
+
+                    expect(
+                        await viewBinding(fixture.projectUuid, 'single_view'),
+                    ).toBeNull();
+                },
+            );
+
+            test('the SQL runner request field names the connection of a new view', async () => {
+                const fixture = await createProject();
+                const user = await compilingUser(fixture.projectUuid);
+
+                await viewService(fixture.projectUuid).createVirtualView(
+                    fromSession(user, 'session-cookie'),
+                    fixture.projectUuid,
+                    {
+                        ...viewPayload,
+                        name: 'request_view',
+                        warehouseConnectionUuid: fixture.extraConnectionUuid,
+                    },
+                );
+
+                expect(
+                    await viewBinding(fixture.projectUuid, 'request_view'),
+                ).toBe(fixture.extraConnectionUuid);
+            });
+
             test('updating a view bound to an extra connection uses the credentials of that connection and keeps its binding', async () => {
                 const fixture = await createProject();
                 const [{ project_id: projectId }] = await database('projects')

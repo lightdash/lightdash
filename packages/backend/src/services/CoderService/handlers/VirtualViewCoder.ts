@@ -417,9 +417,9 @@ export class VirtualViewCoder extends BaseService {
                 sql: normalized.sql,
                 columns: normalized.columns,
                 parameterValues: normalized.parameters ?? undefined,
+                warehouseConnectionUuid,
             },
             false,
-            warehouseConnectionUuid,
         );
         return { action: PromotionAction.CREATE };
     }

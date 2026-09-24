@@ -268,9 +268,9 @@ describe('CoderService virtual views as code', () => {
             expect.objectContaining({
                 name: asCode.slug,
                 label: asCode.name,
+                warehouseConnectionUuid: null,
             }),
             false,
-            null,
         );
     });
 
@@ -338,9 +338,11 @@ describe('CoderService virtual views as code', () => {
             expect(projectService.createVirtualView).toHaveBeenCalledWith(
                 user,
                 projectUuid,
-                expect.objectContaining({ name: asCode.slug }),
+                expect.objectContaining({
+                    name: asCode.slug,
+                    warehouseConnectionUuid: 'finance-uuid',
+                }),
                 false,
-                'finance-uuid',
             );
         });
 

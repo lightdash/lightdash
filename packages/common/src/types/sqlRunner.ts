@@ -326,6 +326,7 @@ export type CreateVirtualViewPayload = {
     sql: string;
     columns: VizColumn[];
     parameterValues?: ParametersValuesMap;
+    warehouseConnectionUuid?: string | null;
 };
 
 export type UpdateVirtualViewPayload = CreateVirtualViewPayload;
