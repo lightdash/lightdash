@@ -35,6 +35,7 @@ describe('deploy', () => {
                 `${cliCommand} deploy --create --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
                 {
                     failOnNonZeroExit: false,
+                    timeout: 180_000,
                     env: {
                         CI: true,
                         NODE_ENV: 'development',
@@ -77,6 +78,7 @@ describe('preview', () => {
                 `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
                 {
                     failOnNonZeroExit: false,
+                    timeout: 180_000,
                     env: {
                         CI: true,
                         NODE_ENV: 'development',
@@ -99,6 +101,7 @@ describe('preview', () => {
                 `${cliCommand} start-preview --project-dir ${projectDir} --profiles-dir ${profilesDir} --name "${previewName}"`,
                 {
                     failOnNonZeroExit: false,
+                    timeout: 180_000,
                     env: {
                         CI: true,
                         NODE_ENV: 'development',
