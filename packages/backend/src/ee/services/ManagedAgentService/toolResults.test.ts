@@ -4,6 +4,7 @@ import {
     type ValidationResponse,
 } from '@lightdash/common';
 import {
+    describeManagedAgentStaleFlag,
     getValidationRootCauseTableName,
     summarizeManagedAgentBrokenContent,
 } from './toolResults';
@@ -99,5 +100,44 @@ describe('summarizeManagedAgentBrokenContent', () => {
             error_count: 2,
             errors_truncated: false,
         });
+    });
+});
+
+describe('describeManagedAgentStaleFlag', () => {
+    const item = {
+        lastViewedAt: null,
+        lastViewedByUserUuid: null,
+        lastViewedByUserName: null,
+        createdByUserUuid: 'user-uuid',
+        createdByUserName: 'User',
+        createdAt: new Date('2026-01-02T10:00:00Z'),
+        contentUuid: 'chart-uuid',
+        contentName: 'Chart',
+        contentType: 'chart' as const,
+        spaceUuid: 'space-uuid',
+        viewsCount: 0,
+        reason: 'never_viewed' as const,
+    };
+
+    it('describes never-viewed content', () => {
+        expect(describeManagedAgentStaleFlag(item, 90)).toBe(
+            'Never viewed since it was created on 2026-01-02 (90+ day staleness policy).',
+        );
+    });
+
+    it('describes content that has not been viewed recently', () => {
+        expect(
+            describeManagedAgentStaleFlag(
+                {
+                    ...item,
+                    lastViewedAt: new Date('2026-03-04T08:00:00Z'),
+                    viewsCount: 12,
+                    reason: 'not_viewed_recently',
+                },
+                120,
+            ),
+        ).toBe(
+            'Not viewed since 2026-03-04, 12 views in total, created on 2026-01-02 (120+ day staleness policy).',
+        );
     });
 });

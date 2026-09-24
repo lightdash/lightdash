@@ -128,9 +128,9 @@ export const buildManagedAgentSystemPrompt = (
             case 'observe':
                 return `${intro}\nRecord notable staleness patterns with log_insight. Do NOT flag or delete anything.`;
             case 'flag':
-                return `${intro}\n- Any reason → flag_content\n- Content YOU created (slug starts with "agent-") → NEVER flag\nInclude last_viewed_at, views_count, and created_at in the description.`;
+                return `${intro}\n- Flag them with bulk_flag_stale_content, once with target_type "chart" and once with "dashboard" when that list is non-empty. NEVER flag stale items one by one with flag_content\n- The handler skips content YOU created and existing flags; use its counts in the summary`;
             case 'cleanup':
-                return `${intro}\n- First sighting of a stale item (any reason) → flag_content; NEVER delete on first sight\n- Items you flagged more than ${escalationHours} hours ago that were not reversed or dismissed → soft_delete_content\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\n- Max 25 individual soft-deletes per run. When the cap is reached, flag the remaining candidates and report the backlog in your summary instead of deleting\nInclude last_viewed_at, views_count, and created_at in the description.`;
+                return `${intro}\n- Flag them with bulk_flag_stale_content, once with target_type "chart" and once with "dashboard" when that list is non-empty. NEVER flag stale items one by one with flag_content, and NEVER delete on first sight\n- Its already_flagged items with escalation_eligible true were flagged more than ${escalationHours} hours ago and not reversed or dismissed → soft_delete_content\n- Content YOU created (slug starts with "agent-") → NEVER flag or delete\n- Max 25 individual soft-deletes per run. When the cap is reached, leave the remaining candidates flagged and report the backlog in your summary instead of deleting\nInclude last_viewed_at, views_count, and created_at in soft-delete descriptions.`;
             default:
                 return assertUnreachable(
                     aggression,
@@ -342,6 +342,14 @@ const autopilotToolDefinitionList = [
             reason: nonEmptyString().describe(
                 'Why this model-level group needs review',
             ),
+        }),
+    },
+    {
+        name: 'bulk_flag_stale_content',
+        description:
+            'Flag every stale chart or dashboard that get_stale_charts or get_stale_dashboards returns, in one call. Descriptions are written from the staleness data, so do not enumerate UUIDs or call flag_content for stale items. Existing active flags are preserved without resetting escalation, and already_flagged lists them with flagged_at and escalation_eligible. Protected, verified and agent-created content is skipped. Reports created, already-flagged and blocked counts. Does not modify or delete content. Safe to retry after interruption.',
+        inputSchema: z.object({
+            target_type: contentTargetType,
         }),
     },
     {
@@ -639,6 +647,7 @@ const aggressionDisabledTools: Record<
     observe: [
         'flag_content',
         'bulk_flag_broken_content',
+        'bulk_flag_stale_content',
         'soft_delete_content',
         'bulk_delete_broken_content',
     ],

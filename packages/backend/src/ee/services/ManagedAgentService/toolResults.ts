@@ -2,6 +2,7 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isDataAppValidationError,
+    type UnusedContentItem,
     type ValidationResponse,
 } from '@lightdash/common';
 
@@ -150,4 +151,18 @@ export const summarizeManagedAgentBrokenContent = (
     });
 
     return [...byContentUuid.values()];
+};
+
+const toIsoDate = (date: Date) => date.toISOString().split('T')[0];
+
+// Written server-side so bulk stale flags never depend on model output.
+export const describeManagedAgentStaleFlag = (
+    item: UnusedContentItem,
+    stalenessDays: number,
+): string => {
+    const policy = `${stalenessDays}+ day staleness policy`;
+    if (item.lastViewedAt === null) {
+        return `Never viewed since it was created on ${toIsoDate(item.createdAt)} (${policy}).`;
+    }
+    return `Not viewed since ${toIsoDate(item.lastViewedAt)}, ${item.viewsCount} views in total, created on ${toIsoDate(item.createdAt)} (${policy}).`;
 };
