@@ -2,6 +2,7 @@ import {
     ChartType,
     FeatureFlags,
     getAppDisplayName,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
@@ -45,6 +46,7 @@ import ExplorerChartTypeAuthoringView from './ExplorerChartTypeAuthoringView';
 // Stable identities, so the workspace does not rebind before results land.
 const NO_ITEMS: ItemsMap = {};
 const NO_OPTIONS: DataAppVizOptionValues = {};
+const NO_FIELD_OPTIONS: DataAppVizFieldOptionValues = {};
 
 type Props = {
     authoring: ChartTypeAuthoringState;
@@ -158,6 +160,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const schema = dataAppViz?.schema ?? null;
     const persistedFieldMapping = chartTypeConfig?.fieldMapping ?? null;
     const optionValues = chartTypeConfig?.optionValues ?? NO_OPTIONS;
+    const fieldOptionValues =
+        chartTypeConfig?.fieldOptionValues ?? NO_FIELD_OPTIONS;
     const previewFieldMapping = useMemo(
         () =>
             schema
@@ -213,6 +217,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                       pivotDetails: resultsData.pivotDetails ?? null,
                       colorPalette,
                       optionValues,
+                      fieldOptionValues,
                       resolvedColors,
                   })
                 : null,
@@ -224,6 +229,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             resultsData.pivotDetails,
             colorPalette,
             optionValues,
+            fieldOptionValues,
             resolvedColors,
         ],
     );

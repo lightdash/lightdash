@@ -1,6 +1,7 @@
 import {
     getDataAppVizFieldIds,
     getEffectiveOptionValues,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
@@ -10,6 +11,7 @@ import { Box, Divider, Stack, Tabs, Text } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import OverflowTabsList from '../../../components/common/OverflowTabsList/OverflowTabsList';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
+import DataAppVizFieldOptions from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldOptions';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import { groupDataAppVizOptions } from '../../../components/VisualizationConfigs/DataAppVizConfig/dataAppVizOptionGroups';
@@ -32,6 +34,13 @@ type Props = {
     /** Only what the author explicitly changed; defaults resolve at render. */
     optionValues: DataAppVizOptionValues;
     onOptionChange: (name: string, value: DataAppVizOptionValue) => void;
+    fieldOptionValues: DataAppVizFieldOptionValues;
+    onFieldOptionChange: (
+        fieldName: string,
+        fieldId: string,
+        optionName: string,
+        value: DataAppVizOptionValue,
+    ) => void;
     /** Preview-only; a chart using the viz owns the palette the normal way. */
     colorPaletteUuid: string | null;
     onPaletteChange: (colorPaletteUuid: string | null) => void;
@@ -63,6 +72,8 @@ const ConfigurePanel: FC<Props> = ({
     schema,
     optionValues,
     onOptionChange,
+    fieldOptionValues,
+    onFieldOptionChange,
     colorPaletteUuid,
     onPaletteChange,
     resolvedColorPalette,
@@ -108,8 +119,19 @@ const ConfigurePanel: FC<Props> = ({
     );
 
     const optionGroups = useMemo(
-        () => groupDataAppVizOptions(schema.configOptions, schema.colorPalette),
-        [schema.configOptions, schema.colorPalette],
+        () =>
+            groupDataAppVizOptions(
+                schema.configOptions,
+                schema.colorPalette,
+                schema.fields,
+                previewContext?.fieldMapping ?? {},
+            ),
+        [
+            schema.configOptions,
+            schema.colorPalette,
+            schema.fields,
+            previewContext?.fieldMapping,
+        ],
     );
 
     // Only meaningful against real rows: the sample binds slot to slot.
@@ -126,6 +148,45 @@ const ConfigurePanel: FC<Props> = ({
             }),
         );
     }, [schema.fields, previewContext, previewDataSource]);
+
+    const renderFieldOptions = (group: string | null) =>
+        previewContext &&
+        schema.fields.map((field) => {
+            const fieldIds = getDataAppVizFieldIds(
+                previewContext.fieldMapping[field.name],
+            );
+            const hasOptions = (field.configOptions ?? []).some(
+                (option) => (option.group ?? null) === group,
+            );
+            return (
+                hasOptions &&
+                fieldIds.length > 0 && (
+                    <Stack key={field.name} gap="xs">
+                        <Text fz="xs" fw={600}>
+                            {field.label}
+                        </Text>
+                        <DataAppVizFieldOptions
+                            field={field}
+                            group={group}
+                            fieldIds={fieldIds}
+                            getFieldLabel={(fieldId) =>
+                                previewContext.fields[fieldId]?.label ?? fieldId
+                            }
+                            values={fieldOptionValues[field.name] ?? {}}
+                            colorPalette={resolvedColorPalette}
+                            onChange={(fieldId, optionName, value) =>
+                                onFieldOptionChange(
+                                    field.name,
+                                    fieldId,
+                                    optionName,
+                                    value,
+                                )
+                            }
+                        />
+                    </Stack>
+                )
+            );
+        });
 
     const [selectedTab, setSelectedTab] = useState<string | null>('general');
     // A tab a rebuild stopped declaring must not leave the panel blank.
@@ -183,6 +244,7 @@ const ConfigurePanel: FC<Props> = ({
                             binding={inputsBinding}
                             sourceHint={sourceHint}
                         />
+                        {renderFieldOptions(null)}
                         <DataAppVizInputGuidance
                             guidance={schema.inputGuidance}
                         />
@@ -224,6 +286,8 @@ const ConfigurePanel: FC<Props> = ({
                                     }
                                 />
                             ))}
+                            {group.hasFieldOptions &&
+                                renderFieldOptions(group.label)}
                             {group.hasPalette && (
                                 <PalettePicker
                                     label="Color palette"

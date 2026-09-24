@@ -25,6 +25,49 @@ const validFields = {
     ],
 };
 
+describe.each([
+    ['persisted', dataAppVizSchema],
+    ['generated', dataAppVizGenerationSchema],
+])('%s per-field options', (_name, schema) => {
+    const colorOption = {
+        type: 'color',
+        name: 'color',
+        label: 'Colour',
+        default: '#000000',
+    };
+    const declaration = (configOptions: unknown) => ({
+        fields: [{ ...validFields.fields[1], configOptions }],
+        configOptions: [],
+        colorPalette: null,
+    });
+
+    it('accepts the chart-wide option union on a field', () => {
+        expect(
+            schema.parse(declaration([colorOption])).fields[0].configOptions,
+        ).toEqual([colorOption]);
+    });
+
+    it('treats a null or absent declaration as none', () => {
+        expect(
+            schema.parse(declaration(null)).fields[0].configOptions,
+        ).toBeUndefined();
+        expect(
+            schema.parse(declaration(undefined)).fields[0].configOptions,
+        ).toBeUndefined();
+    });
+
+    it('rejects duplicate names and unknown option types', () => {
+        expect(
+            schema.safeParse(declaration([colorOption, colorOption])).success,
+        ).toBe(false);
+        expect(
+            schema.safeParse(
+                declaration([{ ...colorOption, type: 'gradient' }]),
+            ).success,
+        ).toBe(false);
+    });
+});
+
 describe('isOfficialChartType', () => {
     it('is true only when registrySlug is set', () => {
         expect(isOfficialChartType({ registrySlug: 'radial-gauge' })).toBe(

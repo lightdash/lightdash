@@ -1,5 +1,7 @@
 import {
     type DataAppVizConfigOption,
+    type DataAppVizField,
+    type DataAppVizFieldMapping,
     type DataAppVizPaletteDeclaration,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
@@ -26,6 +28,8 @@ const renderTabs = (
     configOptions: DataAppVizConfigOption[],
     colorPalette: DataAppVizPaletteDeclaration | null = null,
     onChange = vi.fn(),
+    fields: DataAppVizField[] = [],
+    fieldMapping: DataAppVizFieldMapping = {},
 ) =>
     renderWithProviders(
         <DataAppVizOptionTabs
@@ -36,6 +40,11 @@ const renderTabs = (
             colorPalette={colorPalette}
             resolvedColorPalette={['#111111', '#222222']}
             paletteControl={paletteControl}
+            fields={fields}
+            fieldMapping={fieldMapping}
+            renderFieldOptions={(group) => (
+                <div data-testid="field-options">{group}</div>
+            )}
         />,
     );
 
@@ -97,5 +106,42 @@ describe('DataAppVizOptionTabs', () => {
         await user.click(screen.getByRole('tab', { name: 'Colours' }));
 
         expect(screen.getByTestId('palette')).toBeInTheDocument();
+    });
+
+    const metricsField: DataAppVizField = {
+        name: 'metrics',
+        label: 'Metrics',
+        type: 'metric',
+        required: true,
+        configOptions: [
+            {
+                type: 'color',
+                name: 'color',
+                label: 'Colour',
+                group: 'Series',
+                default: '#111111',
+            },
+        ],
+    };
+
+    it('renders grouped per-field options in their group tab', async () => {
+        const user = userEvent.setup();
+        renderTabs(options, null, vi.fn(), [metricsField], {
+            metrics: ['orders_revenue'],
+        });
+
+        expect(
+            screen.getAllByRole('tab').map((tab) => tab.textContent),
+        ).toEqual(['General', 'Style', 'Display', 'Series']);
+        await user.click(screen.getByRole('tab', { name: 'Series' }));
+        expect(screen.getByTestId('field-options')).toHaveTextContent('Series');
+    });
+
+    it('adds no per-field option tab while the input has no bound field', () => {
+        renderTabs(options, null, vi.fn(), [metricsField], {});
+
+        expect(
+            screen.getAllByRole('tab').map((tab) => tab.textContent),
+        ).toEqual(['General', 'Style', 'Display']);
     });
 });

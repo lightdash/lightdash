@@ -23,6 +23,12 @@ const mocks = vi.hoisted(() => ({
                           type: 'dimension' | 'metric';
                           required: boolean;
                           multiple?: boolean;
+                          configOptions?: Array<{
+                              type: 'color';
+                              name: string;
+                              label: string;
+                              default: string;
+                          }>;
                       }>;
                       configOptions: Array<{
                           type: 'text';
@@ -686,6 +692,52 @@ describe('DataAppVizRenderer', () => {
                     fieldMapping: {
                         category: 'orders_category',
                         values: ['orders_count'],
+                    },
+                }),
+            }),
+            undefined,
+        );
+    });
+
+    it('delivers declared per-field defaults for a chart saved without per-field values', () => {
+        const metadata = readyMetadata();
+        mocks.metadata.current = {
+            ...metadata,
+            schema: {
+                ...metadata.schema,
+                fields: [
+                    ...metadata.schema.fields,
+                    {
+                        name: 'values',
+                        label: 'Values',
+                        type: 'metric',
+                        required: true,
+                        multiple: true,
+                        configOptions: [
+                            {
+                                type: 'color',
+                                name: 'color',
+                                label: 'Colour',
+                                default: '#000000',
+                            },
+                        ],
+                    },
+                ],
+            },
+        };
+        mocks.fieldMapping.current = {
+            category: 'orders_category',
+            values: ['orders_count'],
+        };
+
+        renderRenderer();
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                dataAppVizContext: expect.objectContaining({
+                    options: { title: 'Sales' },
+                    fieldOptions: {
+                        values: { orders_count: { color: '#000000' } },
                     },
                 }),
             }),

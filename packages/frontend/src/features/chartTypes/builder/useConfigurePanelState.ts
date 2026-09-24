@@ -1,4 +1,5 @@
 import {
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
 } from '@lightdash/common';
@@ -8,6 +9,14 @@ export type ConfigurePanelState = {
     /** Only what the author explicitly changed; defaults resolve at render. */
     optionValues: DataAppVizOptionValues;
     onOptionChange: (name: string, value: DataAppVizOptionValue) => void;
+    /** Per-field values keyed by the previewed field ids. */
+    fieldOptionValues: DataAppVizFieldOptionValues;
+    onFieldOptionChange: (
+        fieldName: string,
+        fieldId: string,
+        optionName: string,
+        value: DataAppVizOptionValue,
+    ) => void;
     /** Preview-only palette pick; null follows the host's palette. */
     colorPaletteUuid: string | null;
     onPaletteChange: (colorPaletteUuid: string | null) => void;
@@ -23,6 +32,8 @@ export const useConfigurePanelState = (
     const [optionValues, setOptionValues] = useState<DataAppVizOptionValues>(
         {},
     );
+    const [fieldOptionValues, setFieldOptionValues] =
+        useState<DataAppVizFieldOptionValues>({});
     const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
         null,
     );
@@ -32,6 +43,7 @@ export const useConfigurePanelState = (
         prevVizUuid.current = dataAppVizUuid;
         if (prev === null && dataAppVizUuid !== null) return;
         setOptionValues({});
+        setFieldOptionValues({});
         setColorPaletteUuid(null);
     }, [dataAppVizUuid]);
 
@@ -41,9 +53,31 @@ export const useConfigurePanelState = (
         [],
     );
 
+    const onFieldOptionChange = useCallback(
+        (
+            fieldName: string,
+            fieldId: string,
+            optionName: string,
+            value: DataAppVizOptionValue,
+        ) =>
+            setFieldOptionValues((prev) => ({
+                ...prev,
+                [fieldName]: {
+                    ...prev[fieldName],
+                    [fieldId]: {
+                        ...prev[fieldName]?.[fieldId],
+                        [optionName]: value,
+                    },
+                },
+            })),
+        [],
+    );
+
     return {
         optionValues,
         onOptionChange,
+        fieldOptionValues,
+        onFieldOptionChange,
         colorPaletteUuid,
         onPaletteChange: setColorPaletteUuid,
     };

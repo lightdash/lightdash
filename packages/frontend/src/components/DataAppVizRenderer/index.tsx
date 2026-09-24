@@ -1,6 +1,7 @@
 import {
     ChartType,
     deriveDataAppVizFieldMetadata,
+    getDataAppVizFieldOptions,
     getEffectiveOptionValues,
     hasCustomBinDimension,
     type ApiError,
@@ -175,6 +176,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const dataAppVizUuid = config?.dataAppVizUuid ?? null;
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
+    const fieldOptionValues = config?.fieldOptionValues;
     const rows = resultsData?.rows;
     const pivotDetails = resultsData?.pivotDetails ?? null;
 
@@ -493,7 +495,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     ]);
 
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
-        if (!rows || !configOptions || !reconciledFieldMapping)
+        if (!rows || !configOptions || !fields || !reconciledFieldMapping)
             return undefined;
         return {
             fieldMapping: reconciledFieldMapping,
@@ -505,6 +507,11 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             options: getEffectiveOptionValues(
                 configOptions,
                 optionValues ?? {},
+            ),
+            fieldOptions: getDataAppVizFieldOptions(
+                fields,
+                reconciledFieldMapping,
+                fieldOptionValues ?? {},
             ),
             // Already resolved through the full palette cascade and dark-mode
             // corrected by the visualization context.
@@ -523,7 +530,9 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         itemsMap,
         rows,
         configOptions,
+        fields,
         optionValues,
+        fieldOptionValues,
         colorPalette,
         resolvedColors,
         pivotDetails,

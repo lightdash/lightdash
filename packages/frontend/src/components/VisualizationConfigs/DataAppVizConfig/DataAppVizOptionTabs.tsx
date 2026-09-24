@@ -1,5 +1,7 @@
 import {
     type DataAppVizConfigOption,
+    type DataAppVizField,
+    type DataAppVizFieldMapping,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizPaletteDeclaration,
@@ -28,6 +30,12 @@ type Props = {
      * owns the control; this component only places it.
      */
     paletteControl: ReactNode;
+    /** The contract's inputs, whose grouped per-field options get tabs too. */
+    fields: DataAppVizField[];
+    /** Inputs with no bound field get no per-field option tabs. */
+    fieldMapping: DataAppVizFieldMapping;
+    /** Per-field options declared with `group`, rendered in that tab. */
+    renderFieldOptions: (group: string) => ReactNode;
 };
 
 /**
@@ -46,10 +54,19 @@ const DataAppVizOptionTabs: FC<Props> = ({
     colorPalette,
     resolvedColorPalette,
     paletteControl,
+    fields,
+    fieldMapping,
+    renderFieldOptions,
 }) => {
     const optionGroups = useMemo(
-        () => groupDataAppVizOptions(configOptions, colorPalette),
-        [configOptions, colorPalette],
+        () =>
+            groupDataAppVizOptions(
+                configOptions,
+                colorPalette,
+                fields,
+                fieldMapping,
+            ),
+        [configOptions, colorPalette, fields, fieldMapping],
     );
 
     if (optionGroups.length === 0) return <>{generalContent}</>;
@@ -86,6 +103,8 @@ const DataAppVizOptionTabs: FC<Props> = ({
                                 </Config.Section>
                             </Config>
                         ))}
+                        {group.hasFieldOptions &&
+                            renderFieldOptions(group.label)}
                         {group.hasPalette && paletteControl}
                     </Stack>
                 </Tabs.Panel>

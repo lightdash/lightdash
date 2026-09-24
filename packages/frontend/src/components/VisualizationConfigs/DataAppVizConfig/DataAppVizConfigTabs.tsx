@@ -4,10 +4,14 @@ import {
     diffDataAppVizSchema,
     FeatureFlags,
     getAppDisplayName,
+    getDataAppVizFieldIds,
     getEffectiveOptionValues,
     getItemId,
+    getItemLabelWithoutTableName,
     isOfficialChartType,
+    pruneDataAppVizFieldOptionValues,
     pruneDataAppVizOptionValues,
+    type DataAppVizField,
     type ItemsMap,
 } from '@lightdash/common';
 import { Anchor, Box, Stack, Text } from '@mantine/core';
@@ -41,6 +45,7 @@ import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOp
 import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
 import classes from './DataAppVizConfigTabs.module.css';
+import DataAppVizFieldOptions from './DataAppVizFieldOptions';
 import DataAppVizInputGuidance from './DataAppVizInputGuidance';
 import DataAppVizLibraryUpgradeNotice from './DataAppVizLibraryUpgradeNotice';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
@@ -136,8 +141,15 @@ export const ConfigTabs: FC = memo(() => {
     );
     const colorPalette = dataAppViz?.schema?.colorPalette ?? null;
     const optionContractKey = useMemo(
-        () => JSON.stringify({ configOptions, colorPalette }),
-        [configOptions, colorPalette],
+        () =>
+            JSON.stringify({
+                configOptions,
+                colorPalette,
+                fieldOptions: dataAppViz?.schema?.fields.map(
+                    (field) => field.configOptions,
+                ),
+            }),
+        [configOptions, colorPalette, dataAppViz],
     );
 
     const canCreateApp = useCanCreateDataApp(projectUuid);
@@ -169,6 +181,7 @@ export const ConfigTabs: FC = memo(() => {
         clearDataAppViz,
         setField,
         setOption,
+        setFieldOption,
         upgradeDataAppVizVersion,
     } = visualizationConfig.chartConfig;
     const fields = dataAppViz?.schema?.fields ?? [];
@@ -224,6 +237,11 @@ export const ConfigTabs: FC = memo(() => {
                     upgradeTarget.schema.configOptions,
                     selectedViz.optionValues,
                 ),
+                pruneDataAppVizFieldOptionValues(
+                    upgradeTarget.schema.fields,
+                    nextBindings,
+                    selectedViz.fieldOptionValues,
+                ),
             );
             setPivotDimensions(
                 deriveDataAppVizPivotConfig(
@@ -232,6 +250,34 @@ export const ConfigTabs: FC = memo(() => {
                 )?.columns,
             );
         };
+
+        const renderFieldOptions = (
+            field: DataAppVizField,
+            fieldIds: string[],
+            group: string | null,
+        ) => (
+            <DataAppVizFieldOptions
+                key={`${selectedViz.dataAppVizUuid}:${optionContractKey}`}
+                field={field}
+                group={group}
+                fieldIds={fieldIds}
+                getFieldLabel={(fieldId) => {
+                    const item = effectiveItemsMap[fieldId];
+                    return item ? getItemLabelWithoutTableName(item) : fieldId;
+                }}
+                values={selectedViz.fieldOptionValues[field.name] ?? {}}
+                colorPalette={resolvedColorPalette}
+                onChange={(fieldId, optionName, value) =>
+                    setFieldOption(
+                        selectedViz.dataAppVizUuid,
+                        field.name,
+                        fieldId,
+                        optionName,
+                        value,
+                    )
+                }
+            />
+        );
 
         const settings = (
             <Stack>
@@ -249,6 +295,9 @@ export const ConfigTabs: FC = memo(() => {
                     fields={fields}
                     fieldMapping={effectiveBindings}
                     onFieldChange={handleFieldChange}
+                    renderFieldOptions={(field, fieldIds) =>
+                        renderFieldOptions(field, fieldIds, null)
+                    }
                 />
                 <DataAppVizInputGuidance
                     guidance={dataAppViz?.schema?.inputGuidance}
@@ -312,6 +361,33 @@ export const ConfigTabs: FC = memo(() => {
                     colorPalette={colorPalette}
                     resolvedColorPalette={resolvedColorPalette}
                     paletteControl={<ColorPaletteSection size="xs" />}
+                    fields={fields}
+                    fieldMapping={effectiveBindings}
+                    renderFieldOptions={(group) =>
+                        fields.map((field) => {
+                            const fieldIds = getDataAppVizFieldIds(
+                                effectiveBindings[field.name],
+                            );
+                            const hasOptions = (field.configOptions ?? []).some(
+                                (option) => (option.group ?? null) === group,
+                            );
+                            return (
+                                hasOptions &&
+                                fieldIds.length > 0 && (
+                                    <Stack key={field.name} gap="xs">
+                                        <Text fz="xs" fw={600}>
+                                            {field.label}
+                                        </Text>
+                                        {renderFieldOptions(
+                                            field,
+                                            fieldIds,
+                                            group,
+                                        )}
+                                    </Stack>
+                                )
+                            );
+                        })
+                    }
                 />
             </>
         );

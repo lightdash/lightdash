@@ -20,6 +20,7 @@ import {
     FilterType,
     formatFilterExamplesAsJsonLines,
     getCustomMetricType,
+    getDataAppVizFieldIds,
     getErrorMessage,
     getExploreParameterDefinitions,
     getExploreParameterReferences,
@@ -1821,6 +1822,51 @@ export function validateCustomChartTypeChartConfig(
             }
         });
     }
+
+    Object.entries(chartConfig.fieldOptions ?? {}).forEach(
+        ([slot, byFieldId]) => {
+            const slotDeclaration = vizSchema.fields.find(
+                (field) => field.name === slot,
+            );
+            const declaredOptions = slotDeclaration?.configOptions ?? [];
+            if (declaredOptions.length === 0) {
+                errors.push(
+                    `Slot "${slot}" declares no per-field options; remove it from fieldOptions.`,
+                );
+                return;
+            }
+            const boundFieldIds = new Set(
+                getDataAppVizFieldIds(chartConfig.fieldMapping[slot]),
+            );
+            Object.entries(byFieldId).forEach(([fieldId, values]) => {
+                if (!boundFieldIds.has(fieldId)) {
+                    errors.push(
+                        `fieldOptions.${slot} references "${fieldId}", which is not bound to slot "${slot}" in fieldMapping.`,
+                    );
+                    return;
+                }
+                Object.entries(values).forEach(([name, value]) => {
+                    const declaration = declaredOptions.find(
+                        (option) => option.name === name,
+                    );
+                    if (!declaration) {
+                        errors.push(
+                            `Unknown per-field option "${name}" on slot "${slot}". It declares: ${declaredOptions
+                                .map((option) => option.name)
+                                .join(', ')}.`,
+                        );
+                        return;
+                    }
+                    const optionError = getOptionValidationError(
+                        declaration,
+                        value,
+                    );
+                    if (optionError)
+                        errors.push(`${slot} → ${fieldId}: ${optionError}`);
+                });
+            });
+        },
+    );
 
     if (errors.length > 0) {
         const errorMessage = `Invalid configuration for custom chart type "${

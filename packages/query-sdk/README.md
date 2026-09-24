@@ -278,6 +278,23 @@ const user = await lightdash.auth.getUser();
 // { name: 'John Doe', email: '...', role: 'admin', orgId: '...', attributes: {} }
 ```
 
+## Per-field options (chart types)
+
+A chart type input that declares `configOptions` gets one set of values per
+bound query field. `useVizContext().fieldOptions[inputName][fieldId]` holds the
+current value of each of those options, with declared defaults filled in. A
+pivoted column takes the values of its field: find the field through
+`pivotDetails.valuesColumns[].referenceField`. Hosts that predate per-field
+options send none, so the map can be empty; fall back to the declared default.
+
+```tsx
+const { fieldMapping, fieldOptions } = useVizContext();
+const ids = Array.isArray(fieldMapping.values) ? fieldMapping.values : [];
+const colors = ids.map(
+    (id) => (fieldOptions.values?.[id]?.color as string) ?? '#7162FF',
+);
+```
+
 ## How it works
 
 1. `createClient()` sets up auth and the API transport

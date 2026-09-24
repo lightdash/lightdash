@@ -28,12 +28,6 @@ export type DataAppVizSchemaChanges = {
     colorPalette: DataAppVizPaletteChange;
 };
 
-const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
-    a.label === b.label &&
-    a.type === b.type &&
-    a.required === b.required &&
-    (a.multiple === true) === (b.multiple === true);
-
 const isSameOption = (
     a: DataAppVizConfigOption,
     b: DataAppVizConfigOption,
@@ -56,6 +50,31 @@ const isSameOption = (
     }
     return true;
 };
+
+/** Compares option lists by name, so a reorder is not a change. */
+export const isSameDataAppVizConfigOptionList = (
+    a: DataAppVizConfigOption[],
+    b: DataAppVizConfigOption[],
+): boolean => {
+    const bByName = new Map(b.map((option) => [option.name, option]));
+    return (
+        a.length === b.length &&
+        a.every((option) => {
+            const other = bByName.get(option.name);
+            return other !== undefined && isSameOption(option, other);
+        })
+    );
+};
+
+const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
+    a.label === b.label &&
+    a.type === b.type &&
+    a.required === b.required &&
+    (a.multiple === true) === (b.multiple === true) &&
+    isSameDataAppVizConfigOptionList(
+        a.configOptions ?? [],
+        b.configOptions ?? [],
+    );
 
 const diffByName = <T extends { name: string }>(
     before: T[],
