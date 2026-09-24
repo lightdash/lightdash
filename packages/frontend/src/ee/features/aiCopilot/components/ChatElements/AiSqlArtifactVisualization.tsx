@@ -4,14 +4,13 @@ import {
     type ComposerVizKind,
     type ResultColumn,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu } from '@mantine/core';
+import { ActionIcon, Menu } from '@mantine/core';
 import {
     IconDeviceFloppy,
     IconDots,
     IconDownload,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -26,12 +25,10 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../../providers/App/useApp';
 import { useUpdateArtifactVersionSavedSql } from '../../hooks/useProjectAiAgents';
-import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
-import styles from './AiArtifactPanel.module.css';
-import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
-import { AiComposerChartVisualization } from './AiComposerChartVisualization';
 import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
+import { AiVizSwitchedResult } from './AiVizSwitchedResult';
+import { pickVizKind } from './AiVizSwitchedResult.utils';
 import { useArtifactResultRows } from './useArtifactResultRows';
 
 const LOADING_MESSAGE = 'Loading SQL results...';
@@ -164,10 +161,8 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
     );
 };
 
-/**
- * A SQL answer renders like a composer node result: the same default-viz
- * rule over its columns, the same switcher, charts from the fetched rows.
- */
+// A SQL answer renders like a composer node result: same default-viz rule,
+// same switcher, charts from the fetched rows.
 export const AiSqlArtifactVisualization: FC<ContentProps> = ({
     projectUuid,
     results,
@@ -179,50 +174,18 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
         () => getComposerVizPlan({ columns, rows, node: null }),
         [columns, rows],
     );
-    const [chosenKind, setChosenKind] = useState<ComposerVizKind | null>(null);
-    const kind =
-        chosenKind && plan.availableKinds.includes(chosenKind)
-            ? chosenKind
-            : plan.defaultKind;
-    const axes = kind === 'table' ? undefined : plan.axes[kind];
-    const showPill = plan.availableKinds.length > 1;
+    const [chosenKind, setChosenKind] = useState<ComposerVizKind>();
 
     return (
-        <Box className={styles.displayedResult}>
-            <Box
-                className={clsx(
-                    styles.displayedResultBody,
-                    showPill && styles.withPillClearance,
-                )}
-            >
-                {kind !== 'table' && axes ? (
-                    <AiComposerChartVisualization
-                        projectUuid={projectUuid}
-                        results={results}
-                        kind={kind}
-                        axes={axes}
-                        headerContent={headerContent}
-                        loadingMessage={LOADING_MESSAGE}
-                    />
-                ) : (
-                    <AiArtifactTableVisualization
-                        results={results}
-                        headerContent={headerContent}
-                        flush={flush}
-                        loadingMessage={LOADING_MESSAGE}
-                    />
-                )}
-            </Box>
-            {showPill && (
-                <Box className={styles.floatingPill}>
-                    <AgentVisualizationChartTypeSwitcher
-                        availableChartTypes={plan.availableKinds}
-                        selectedChartType={kind}
-                        onChartTypeChange={setChosenKind}
-                        variant="pill"
-                    />
-                </Box>
-            )}
-        </Box>
+        <AiVizSwitchedResult
+            projectUuid={projectUuid}
+            results={results}
+            plan={plan}
+            kind={pickVizKind(plan, chosenKind)}
+            onKindChange={setChosenKind}
+            headerContent={headerContent}
+            loadingMessage={LOADING_MESSAGE}
+            flush={flush}
+        />
     );
 };
