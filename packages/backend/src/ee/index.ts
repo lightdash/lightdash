@@ -1430,6 +1430,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService: repository.getAiAgentService(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
+                    aiAgentSkillService:
+                        repository.getAiAgentSkillService<AiAgentSkillService>(),
                     aiRouterService:
                         repository.getAiRouterService<AiRouterService>(),
                     aiWritebackService: repository.getAiWritebackService(),

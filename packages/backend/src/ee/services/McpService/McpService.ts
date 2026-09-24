@@ -8,6 +8,7 @@ import {
     AiWritebackSource,
     AnyType,
     ApiKeyAccount,
+    assertRegisteredAccount,
     assertUnreachable,
     buildRunSqlDescription,
     ChartType,
@@ -95,6 +96,8 @@ import {
     toolRunQueryExpressionArgsSchemaV2Mcp,
     UnexpectedServerError,
     UserAttributeValueMap,
+    type AiAgentSkill,
+    type RegisteredAccount,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryArgsV2,
     type ToolRunQueryExpressionArgsMcp,
@@ -118,6 +121,7 @@ import {
     // eslint-disable-next-line import/extensions
 } from '@modelcontextprotocol/sdk/types.js';
 import * as Sentry from '@sentry/node';
+import crypto from 'crypto';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
 import path from 'path';
@@ -152,6 +156,10 @@ import { VERSION } from '../../../version';
 import { DbMcpClientInfo } from '../../database/entities/mcpToolCall';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
 import { getMcpAnalystPrompt } from '../ai/prompts/mcpAnalyst';
+import type {
+    BuiltInSkillToolReference,
+    BuiltInSkillToolResource,
+} from '../ai/skills/builtInSkills';
 import { getCreateContent } from '../ai/tools/createContent';
 import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery';
 import { getEditContent } from '../ai/tools/editContent';
@@ -182,6 +190,7 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { validateQueryParameters } from '../ai/utils/validators';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
+import { type AiAgentSkillService } from '../AiAgentSkillService';
 import {
     AiAgentToolsService,
     McpAiAgentToolsRuntime,
@@ -408,6 +417,7 @@ type McpServiceArguments = {
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiAgentService: AiAgentService;
     aiAgentToolsService: AiAgentToolsService;
+    aiAgentSkillService: AiAgentSkillService;
     aiRouterService: AiRouterService;
     aiWritebackService: AiWritebackService;
 };
@@ -479,12 +489,24 @@ const mcpProtocolContextSchema = z.object({
 
 type McpProtocolContext = z.infer<typeof mcpProtocolContextSchema>;
 
+type CustomMcpSkill = {
+    reference: BuiltInSkillToolReference;
+    body: string;
+    resourceBodies: { reference: BuiltInSkillToolResource; body: string }[];
+};
+
 const getMcpContext = (
     extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
 ): McpProtocolContext => mcpProtocolContextSchema.parse(extra);
 
 export type McpServerToolOptions = {
-    req: { pinnedProjectUuid: string | undefined };
+    req: {
+        pinnedProjectUuid: string | undefined;
+        // The caller, so per-organization skill resources can be registered
+        // on the request's server instance.
+        user: SessionUser | undefined;
+        account: Account | undefined;
+    };
     featureAvailability: {
         mcpContentWritesEnabled: boolean;
         scheduledDeliveryEnabled: boolean;
@@ -531,6 +553,8 @@ export class McpService extends BaseService {
 
     private aiAgentToolsService: AiAgentToolsService;
 
+    private aiAgentSkillService: AiAgentSkillService;
+
     private aiRouterService: AiRouterService;
 
     private aiWritebackService: AiWritebackService;
@@ -555,6 +579,7 @@ export class McpService extends BaseService {
         aiOrganizationSettingsService,
         aiAgentService,
         aiAgentToolsService,
+        aiAgentSkillService,
         aiRouterService,
         aiWritebackService,
     }: McpServiceArguments) {
@@ -576,6 +601,7 @@ export class McpService extends BaseService {
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
         this.aiAgentService = aiAgentService;
         this.aiAgentToolsService = aiAgentToolsService;
+        this.aiAgentSkillService = aiAgentSkillService;
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
         try {
@@ -2232,7 +2258,11 @@ export class McpService extends BaseService {
 
     setupHandlers(
         { req, featureAvailability: options }: McpServerToolOptions = {
-            req: { pinnedProjectUuid: undefined },
+            req: {
+                pinnedProjectUuid: undefined,
+                user: undefined,
+                account: undefined,
+            },
             featureAvailability: {
                 mcpContentWritesEnabled: true,
                 scheduledDeliveryEnabled: true,
@@ -4406,7 +4436,11 @@ export class McpService extends BaseService {
 
         // Skill resources load asynchronously; register them directly on the
         // new server so no server swap spans the await.
-        await this.setupSkillResourceHandlers(newServer);
+        await this.setupSkillResourceHandlers(
+            newServer,
+            options.req.user,
+            options.req.account,
+        );
 
         return newServer;
     }
@@ -4421,8 +4455,15 @@ export class McpService extends BaseService {
                 outputSchema: mcpListSkillsTool.outputSchema.shape,
                 annotations: mcpListSkillsTool.annotations,
             },
-            async () => {
-                const skills = await this.aiAgentToolsService.listMcpSkills();
+            async (_args, extra) => {
+                const [builtIn, custom] = await Promise.all([
+                    this.aiAgentToolsService.listMcpSkills(),
+                    this.getCustomMcpSkills(getMcpContext(extra)),
+                ]);
+                const skills = [
+                    ...builtIn,
+                    ...custom.map((skill) => skill.reference),
+                ];
                 return mcpListSkillsTool.result.structured(
                     JSON.stringify({ skills }, null, 2),
                     { skills },
@@ -4439,10 +4480,13 @@ export class McpService extends BaseService {
                 outputSchema: mcpReadSkillTool.outputSchema.shape,
                 annotations: mcpReadSkillTool.annotations,
             },
-            async (args) => {
-                const result = await this.aiAgentToolsService.loadMcpSkill(
-                    args.name,
-                );
+            async (args, extra) => {
+                const result =
+                    (await this.aiAgentToolsService.loadMcpSkill(args.name)) ??
+                    (await this.readCustomMcpSkill(
+                        getMcpContext(extra),
+                        args.name,
+                    ));
                 if (!result) {
                     throw new NotFoundError(
                         `Skill "${args.name}" was not found`,
@@ -4466,9 +4510,15 @@ export class McpService extends BaseService {
                 outputSchema: mcpReadSkillResourceTool.outputSchema.shape,
                 annotations: mcpReadSkillResourceTool.annotations,
             },
-            async (args) => {
+            async (args, extra) => {
                 const result =
-                    await this.aiAgentToolsService.loadMcpSkillResource(args);
+                    (await this.aiAgentToolsService.loadMcpSkillResource(
+                        args,
+                    )) ??
+                    (await this.readCustomMcpSkillResource(
+                        getMcpContext(extra),
+                        args,
+                    ));
                 if (!result) {
                     throw new NotFoundError(
                         `Skill resource "${args.path}" was not found for skill "${args.name}"`,
@@ -4484,9 +4534,126 @@ export class McpService extends BaseService {
         );
     }
 
+    /**
+     * The caller's custom skills shaped like built-ins for the MCP surface,
+     * under the `custom` authority so a customer name never shadows a
+     * built-in URI. The digest is the version's content hash, so a client
+     * that cached a skill can tell it changed.
+     */
+    private async getCustomMcpSkills(
+        ctx: McpProtocolContext,
+    ): Promise<CustomMcpSkill[]> {
+        try {
+            const { user, account, organizationUuid } =
+                McpService.getAccount(ctx);
+            assertRegisteredAccount(account);
+            const contextRow = await this.mcpContextModel.getContext(
+                user.userUuid,
+                organizationUuid,
+            );
+            const skills = await this.aiAgentSkillService.listMcpSkills(
+                account,
+                {
+                    agentUuid: contextRow?.context.agentUuid ?? null,
+                },
+            );
+            return skills.map((skill) => McpService.toCustomMcpSkill(skill));
+        } catch (error) {
+            this.logger.warn('Failed to list custom skills for MCP', { error });
+            return [];
+        }
+    }
+
+    static toCustomMcpSkill(skill: AiAgentSkill): CustomMcpSkill {
+        const base = `skill://custom/${skill.name}`;
+        const skillBody = skill.content.files['SKILL.md'] ?? '';
+        const title = skill.title ?? skill.name;
+        const digestOf = (text: string) =>
+            `sha256:${crypto.createHash('sha256').update(text).digest('hex')}`;
+        const resources = skill.parsed.resources.map((resource) => {
+            const raw =
+                skill.content.files[`resources/${resource.fileName}`] ?? '';
+            return {
+                reference: {
+                    path: `resources/${resource.fileName}`,
+                    uri: `${base}/resources/${resource.fileName}`,
+                    name: `${skill.name}/resources/${resource.fileName.replace(/\.md$/, '')}`,
+                    title: `${title} / ${resource.name}`,
+                    description: resource.description,
+                    mimeType: 'text/markdown',
+                    size: Buffer.byteLength(raw, 'utf8'),
+                    digest: digestOf(raw),
+                },
+                body: raw,
+            };
+        });
+        return {
+            reference: {
+                name: skill.name,
+                uri: `${base}/SKILL.md`,
+                title,
+                description: skill.parsed.frontmatter.argumentHint
+                    ? `${skill.description} Arguments: ${skill.parsed.frontmatter.argumentHint}`
+                    : skill.description,
+                mimeType: 'text/markdown',
+                size: Buffer.byteLength(skillBody, 'utf8'),
+                digest: skill.currentVersion.contentHash,
+                resources: resources.map((resource) => resource.reference),
+            },
+            body: skillBody,
+            resourceBodies: resources,
+        };
+    }
+
+    private async readCustomMcpSkill(
+        ctx: McpProtocolContext,
+        name: string,
+    ): Promise<{ skill: BuiltInSkillToolReference; body: string } | undefined> {
+        const skill = (await this.getCustomMcpSkills(ctx)).find(
+            (item) => item.reference.name === name.trim().toLowerCase(),
+        );
+        return skill ? { skill: skill.reference, body: skill.body } : undefined;
+    }
+
+    private async readCustomMcpSkillResource(
+        ctx: McpProtocolContext,
+        args: { name: string; path: string },
+    ): Promise<
+        | {
+              skill: BuiltInSkillToolReference;
+              resource: BuiltInSkillToolResource;
+              body: string;
+          }
+        | undefined
+    > {
+        const skill = (await this.getCustomMcpSkills(ctx)).find(
+            (item) => item.reference.name === args.name.trim().toLowerCase(),
+        );
+        const resource = skill?.resourceBodies.find(
+            (item) => item.reference.path === args.path,
+        );
+        return skill && resource
+            ? {
+                  skill: skill.reference,
+                  resource: resource.reference,
+                  body: resource.body,
+              }
+            : undefined;
+    }
+
     private async setupSkillResourceHandlers(
         mcpServer: McpServer,
+        user: SessionUser | undefined,
+        account: Account | undefined,
     ): Promise<void> {
+        if (user && account?.isRegisteredUser()) {
+            assertRegisteredAccount(account);
+            await this.setupCustomSkillResourceHandlers(
+                mcpServer,
+                user,
+                account,
+            );
+        }
         // Built-in skills are optional context, not core MCP functionality.
         // This runs per request (createServer is per-request), so a skill load
         // or registration failure must never reject and 500 the whole endpoint
@@ -4761,6 +4928,103 @@ export class McpService extends BaseService {
      * through this — a direct mcpServer.registerTool call still works but
      * silently skips recording.
      */
+    /**
+     * Custom skills are registered per request for the caller, so the
+     * resource list is exactly what list_skills returns for them. Same
+     * failure policy as built-ins: never 500 the endpoint over optional context.
+     */
+    private async setupCustomSkillResourceHandlers(
+        mcpServer: McpServer,
+        user: SessionUser,
+        account: RegisteredAccount,
+    ): Promise<void> {
+        try {
+            if (!user.organizationUuid) return;
+            const contextRow = await this.mcpContextModel.getContext(
+                user.userUuid,
+                user.organizationUuid,
+            );
+            const skills = await this.aiAgentSkillService.listMcpSkills(
+                account,
+                {
+                    agentUuid: contextRow?.context.agentUuid ?? null,
+                },
+            );
+            const custom = skills.map((skill) =>
+                McpService.toCustomMcpSkill(skill),
+            );
+            const entries = custom.flatMap((skill) => [
+                { resource: skill.reference, body: skill.body },
+                ...skill.resourceBodies.map((item) => ({
+                    resource: item.reference,
+                    body: item.body,
+                })),
+            ]);
+            entries.forEach(({ resource, body }) => {
+                mcpServer.registerResource(
+                    resource.name,
+                    resource.uri,
+                    {
+                        title: resource.title,
+                        description: resource.description,
+                        mimeType: resource.mimeType,
+                        size: resource.size,
+                    },
+                    async () => ({
+                        contents: [
+                            {
+                                uri: resource.uri,
+                                mimeType: resource.mimeType,
+                                text: body,
+                            },
+                        ],
+                    }),
+                );
+            });
+            if (custom.length > 0) {
+                const index = JSON.stringify(
+                    {
+                        $schema:
+                            'https://schemas.agentskills.io/discovery/0.2.0/schema.json',
+                        skills: custom.map((skill) => ({
+                            name: skill.reference.name,
+                            type: 'skill-md',
+                            description: skill.reference.description,
+                            url: skill.reference.uri,
+                            digest: skill.reference.digest,
+                        })),
+                    },
+                    null,
+                    2,
+                );
+                mcpServer.registerResource(
+                    'custom-skills-index',
+                    'skill://custom/index.json',
+                    {
+                        title: 'Custom skills index',
+                        description:
+                            'Agent Skills discovery index of the custom skills available to this caller.',
+                        mimeType: 'application/json',
+                        size: Buffer.byteLength(index, 'utf8'),
+                    },
+                    async () => ({
+                        contents: [
+                            {
+                                uri: 'skill://custom/index.json',
+                                mimeType: 'application/json',
+                                text: index,
+                            },
+                        ],
+                    }),
+                );
+            }
+        } catch (error) {
+            this.logger.warn('Failed to register custom skill resources', {
+                error,
+            });
+        }
+    }
+
     private registerTrackedTool: McpServer['registerTool'] = (
         name,
         config,

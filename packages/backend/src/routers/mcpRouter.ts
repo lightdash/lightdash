@@ -404,7 +404,11 @@ mcpRouter.all(
                     ),
                 ]);
                 const toolOptions: McpServerToolOptions = {
-                    req: { pinnedProjectUuid },
+                    req: {
+                        pinnedProjectUuid,
+                        user: req.user,
+                        account: req.account,
+                    },
                     featureAvailability: {
                         mcpContentWritesEnabled,
                         scheduledDeliveryEnabled,

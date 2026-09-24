@@ -248,7 +248,9 @@ describe('MCP tool catalogue activity', () => {
             );
             expect(mcpService.recordToolList).toHaveBeenCalledWith({
                 catalogue: {
-                    req: { pinnedProjectUuid: undefined },
+                    req: expect.objectContaining({
+                        pinnedProjectUuid: undefined,
+                    }),
                     featureAvailability: expect.objectContaining({
                         runSqlEnabled: false,
                         runMetricQueryEnabled: false,
@@ -376,7 +378,9 @@ describe('project-scoped MCP route', () => {
             expect.objectContaining({ userUuid: 'user-uuid' }),
         );
         expect(mcpService.createServer).toHaveBeenCalledWith({
-            req: { pinnedProjectUuid: PROJECT_UUID },
+            req: expect.objectContaining({
+                pinnedProjectUuid: PROJECT_UUID,
+            }),
             featureAvailability: expect.objectContaining({
                 filterExpressionsEnabled: true,
             }),
