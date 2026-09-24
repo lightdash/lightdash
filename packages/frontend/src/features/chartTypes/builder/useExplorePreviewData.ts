@@ -14,7 +14,7 @@ import {
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import {
     buildExplorePreviewMetricQuery,
@@ -138,15 +138,19 @@ export const useExplorePreviewData = ({
     explore,
     schema,
     fieldMapping,
+    isPickingFields,
 }: {
     projectUuid: string | undefined;
     /** Null runs nothing. */
     explore: LoadedExplore | null;
     schema: DataAppVizSchema | null;
     fieldMapping: DataAppVizFieldMapping;
+    /** Bindings are still being suggested: hold the last request so the
+     *  query runs once, with the suggested bindings. */
+    isPickingFields: boolean;
 }): ExplorePreviewRun => {
     const exploreName = explore?.name ?? null;
-    const bindingRequestKey = useMemo(() => {
+    const liveBindingRequestKey = useMemo(() => {
         if (!explore || !schema) return '';
         const mappedFields = Object.fromEntries(
             schema.fields.flatMap((field) => {
@@ -160,6 +164,15 @@ export const useExplorePreviewData = ({
             fieldMapping: mappedFields,
         });
     }, [explore, fieldMapping, schema]);
+    const [heldBindingRequestKey, setHeldBindingRequestKey] = useState(
+        liveBindingRequestKey,
+    );
+    if (!isPickingFields && heldBindingRequestKey !== liveBindingRequestKey) {
+        setHeldBindingRequestKey(liveBindingRequestKey);
+    }
+    const bindingRequestKey = isPickingFields
+        ? heldBindingRequestKey
+        : liveBindingRequestKey;
     const [debouncedBindingRequestKey] = useDebouncedValue(
         bindingRequestKey,
         FIELD_CHANGE_DEBOUNCE_MS,

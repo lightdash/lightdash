@@ -250,6 +250,7 @@ describe('ConfigurePanel', () => {
                 queriedFieldCount: 3,
                 status: 'ready',
                 isRunning: false,
+                isPickingFields: false,
                 rowCount: 6,
                 ranAt: null,
                 message: null,

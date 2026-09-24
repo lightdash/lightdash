@@ -12,13 +12,14 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Combobox,
     Group,
     Stack,
     Text,
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle, IconSparkles } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -44,6 +45,16 @@ export type ChartInputsAddToQuery = {
     isPending: (fieldId: string) => boolean;
 };
 
+/** An input ambient AI bound for the prompt, while the author keeps it. */
+export type ChartInputAiPick = {
+    /** Why the suggested field fits this chart input. */
+    reason: string;
+    /** Labels of the other fields that would fit. */
+    alsoFits: string[];
+    /** The pick and its alternatives, leading the select's list. */
+    suggestedItems: Item[];
+};
+
 /** Binding the declared slots to a real run's columns. Null keeps the
  *  read-only list every sample-data session shows. */
 export type ChartInputsBinding = {
@@ -55,6 +66,10 @@ export type ChartInputsBinding = {
     ) => void;
     /** Null when the source's query is fixed, as a saved chart's is. */
     addToQuery: ChartInputsAddToQuery | null;
+    /** Inputs whose current binding ambient AI picked, by input name. */
+    aiPicks: Record<string, ChartInputAiPick>;
+    /** Inputs ambient AI is still picking a field for. */
+    pickingFieldNames: ReadonlySet<string>;
 };
 
 type Pools = Record<'dimension' | 'metric' | 'column', Item[]>;
@@ -73,8 +88,27 @@ type Props = {
     /** Real columns to bind against; null leaves the inputs read-only. */
     binding?: ChartInputsBinding | null;
     /** Where the inputs' fields come from; null on sample data. */
-    sourceHint: string | null;
+    sourceHint: { text: string; isAiPicked: boolean } | null;
 };
+
+const aiPickTooltip = (pick: ChartInputAiPick) =>
+    pick.alsoFits.length > 0
+        ? `${pick.reason} Also fits: ${pick.alsoFits.join(', ')}.`
+        : pick.reason;
+
+const AiPickMark: FC<{ pick: ChartInputAiPick }> = ({ pick }) => (
+    <Tooltip label={aiPickTooltip(pick)} position="top" multiline maw={280}>
+        <Box
+            component="span"
+            role="img"
+            tabIndex={0}
+            aria-label={`Picked for your prompt. ${aiPickTooltip(pick)}`}
+            className={classes.aiMark}
+        >
+            <MantineIcon icon={IconSparkles} size={14} color="indigo.4" />
+        </Box>
+    </Tooltip>
+);
 
 const BindingControl: FC<{
     field: DataAppVizField;
@@ -82,12 +116,37 @@ const BindingControl: FC<{
     pools: Pools;
     addPools: Pools;
 }> = ({ field, binding, pools, addPools }) => {
-    const items = pools[poolKeyForSlot(field)];
-    const addItems = addPools[poolKeyForSlot(field)];
+    const aiPick = binding.aiPicks[field.name] ?? null;
+    const poolItems = pools[poolKeyForSlot(field)];
+    const poolAddItems = addPools[poolKeyForSlot(field)];
+    // Suggestions lead the list only from `items`, so any not yet in the
+    // query move there from "Add to query".
+    const liftedIds = new Set((aiPick?.suggestedItems ?? []).map(getItemId));
+    const items = [
+        ...poolItems,
+        ...poolAddItems.filter((item) => liftedIds.has(getItemId(item))),
+    ];
+    const addItems = poolAddItems.filter(
+        (item) => !liftedIds.has(getItemId(item)),
+    );
     const hasNoItems = items.length === 0 && addItems.length === 0;
     const value = binding.fieldMapping[field.name];
     const selectedIds = getDataAppVizFieldIds(value);
     const addToQuery = binding.addToQuery;
+
+    if (binding.pickingFieldNames.has(field.name)) {
+        return (
+            <FieldSelect
+                size="xs"
+                aria-label={field.label}
+                placeholder="Picking a field"
+                disabled
+                loading
+                items={[]}
+                onChange={() => undefined}
+            />
+        );
+    }
 
     if (field.multiple) {
         return (
@@ -106,6 +165,22 @@ const BindingControl: FC<{
         );
     }
 
+    const isClearable = !field.required;
+    const aiRightSection = aiPick
+        ? {
+              rightSection: (
+                  <Group gap={2} wrap="nowrap">
+                      <AiPickMark pick={aiPick} />
+                      <Combobox.Chevron size="xs" />
+                  </Group>
+              ),
+              rightSectionWidth: isClearable && selectedIds[0] ? 64 : 44,
+              rightSectionPointerEvents: isClearable
+                  ? ('all' as const)
+                  : ('none' as const),
+          }
+        : {};
+
     return (
         <FieldSelect
             size="xs"
@@ -121,6 +196,7 @@ const BindingControl: FC<{
             )}
             items={items}
             addItems={addItems}
+            suggestedItems={aiPick?.suggestedItems}
             loading={
                 selectedIds[0] !== undefined &&
                 addToQuery !== null &&
@@ -132,8 +208,9 @@ const BindingControl: FC<{
                     newField ? getItemId(newField) : null,
                 )
             }
-            clearable={!field.required}
+            clearable={isClearable}
             hasGrouping
+            {...aiRightSection}
         />
     );
 };
@@ -173,17 +250,31 @@ const ChartInputsList: FC<Props> = ({
                     Chart inputs
                 </Text>
                 {sourceHint !== null && (
-                    <Text fz="xs" c="dimmed">
-                        {sourceHint}
-                    </Text>
+                    <Group gap={4} wrap="nowrap" align="flex-start">
+                        {sourceHint.isAiPicked && (
+                            <MantineIcon
+                                icon={IconSparkles}
+                                size={13}
+                                color="indigo.4"
+                                className={classes.hintIcon}
+                            />
+                        )}
+                        <Text fz="xs" c="dimmed">
+                            {sourceHint.text}
+                        </Text>
+                    </Group>
                 )}
             </Stack>
             <Stack gap="sm">
                 {fields.map((field) => {
                     const isUnbound =
                         binding !== null &&
+                        !binding.pickingFieldNames.has(field.name) &&
                         getDataAppVizFieldIds(binding.fieldMapping[field.name])
                             .length === 0;
+                    const multipleAiPick = field.multiple
+                        ? (binding?.aiPicks[field.name] ?? null)
+                        : null;
                     return (
                         <Box key={field.name}>
                             <Group
@@ -234,6 +325,9 @@ const ChartInputsList: FC<Props> = ({
                                         <VisuallyHidden>
                                             Required
                                         </VisuallyHidden>
+                                    )}
+                                    {multipleAiPick && (
+                                        <AiPickMark pick={multipleAiPick} />
                                     )}
                                     {isUnbound && (
                                         <Badge size="xs" color="orange">

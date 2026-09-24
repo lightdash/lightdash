@@ -81,6 +81,7 @@ const ORDERS: AttachedExplore = {
     queriedFieldCount: 0,
     status: 'idle',
     isRunning: false,
+    isPickingFields: false,
     rowCount: null,
     ranAt: null,
     message: null,

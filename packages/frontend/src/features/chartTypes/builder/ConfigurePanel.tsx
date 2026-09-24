@@ -82,13 +82,23 @@ const ConfigurePanel: FC<Props> = ({
             ? savedChartSource
             : (attachedExploreSource ?? savedChartSource);
     // A table's query follows the inputs; a saved chart's query is fixed.
+    const isAiPicked =
+        inputsBinding !== null && Object.keys(inputsBinding.aiPicks).length > 0;
     const sourceHint =
         previewDataSource.kind === 'sample'
             ? null
             : exploreSource?.attached
-              ? `Fields from ${exploreSource.attached.label}. Changing one re-runs the query.`
+              ? {
+                    text: isAiPicked
+                        ? `Picked from ${exploreSource.attached.label} for your prompt. Changing one re-runs the query.`
+                        : `Fields from ${exploreSource.attached.label}. Changing one re-runs the query.`,
+                    isAiPicked,
+                }
               : savedChartSource?.attached
-                ? `Fields from ${savedChartSource.attached.chartName}. Changing one re-runs the query.`
+                ? {
+                      text: `Fields from ${savedChartSource.attached.chartName}. Changing one re-runs the query.`,
+                      isAiPicked: false,
+                  }
                 : null;
     const { data: palettes = [] } = useColorPalettes();
 
