@@ -2,6 +2,7 @@ import {
     getErrorMessage,
     NotFoundError,
     ParameterError,
+    type CompilationHistoryReport,
     type CreateWarehouseCredentials,
     type DbtManifest,
     type Explore,
@@ -35,6 +36,14 @@ import { type CachedWarehouse, type TrackingParams } from '../../types';
 import { projectMergedManifest } from '../ProjectService/projectMergedManifest';
 
 const gzipAsync = promisify(gzip);
+
+export const withConnectionWarnings = (
+    report: CompilationHistoryReport,
+    warnings: string[],
+): CompilationHistoryReport =>
+    warnings.length === 0
+        ? report
+        : { ...report, connectionWarnings: warnings };
 
 export type FetchSourceManifest = (
     source: CompilableDbtSource,

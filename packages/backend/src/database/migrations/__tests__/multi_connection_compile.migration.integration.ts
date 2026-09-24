@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    calculateCompilationReport,
     ExploreType,
     NotFoundError,
     ParameterError,
@@ -19,12 +20,16 @@ import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
+import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type CompilableDbtSource } from '../../../projectAdapters/CompileGroup';
-import { MultiConnectionCompiler } from '../../../services/MultiConnectionCompiler/MultiConnectionCompiler';
+import {
+    MultiConnectionCompiler,
+    withConnectionWarnings,
+} from '../../../services/MultiConnectionCompiler/MultiConnectionCompiler';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -214,6 +219,7 @@ describe('Multi-connection compile on the real schema', () => {
         originalCredentials: CreateWarehouseCredentials = postgresWarehouse(
             ORIGINAL_DB,
         ),
+        includeUnboundSources = true,
     ) => {
         const compilation = await compiler.compile({
             projectUuid: fixture.projectUuid,
@@ -234,7 +240,7 @@ describe('Multi-connection compile on the real schema', () => {
                 },
             },
             dbtVersion: SupportedDbtVersions.V1_8,
-            includeUnboundSources: true,
+            includeUnboundSources,
             fetchSourceManifest,
         });
         await compiler.save(fixture.projectUuid, compilation);
@@ -683,6 +689,81 @@ describe('Multi-connection compile on the real schema', () => {
                 orders: null,
                 payments: null,
             });
+        });
+
+        test('with additional dbt sources off, the original compiles only the primary and extra groups still compile', async () => {
+            const fixture = await createProject();
+
+            await compile(
+                fixture,
+                primaryModels,
+                postgresWarehouse(ORIGINAL_DB),
+                false,
+            );
+
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                customers: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+            });
+            expect(fetchedWith.map(({ source }) => source)).toEqual([
+                'finance',
+            ]);
+            await expect(
+                projectModel.getMergedManifest(fixture.projectUuid),
+            ).rejects.toThrow();
+        });
+
+        test('the compile log names a dead extra connection, and has no connection warnings when every group compiles', async () => {
+            const fixture = await createProject();
+            const compileLogModel = new ProjectCompileLogModel({ database });
+            const { organizationUuid } = await projectModel.getSummary(
+                fixture.projectUuid,
+            );
+            const logCompile = async (warnings: string[]) =>
+                compileLogModel.insert({
+                    projectUuid: fixture.projectUuid,
+                    jobUuid: null,
+                    userUuid: null,
+                    organizationUuid,
+                    compilationSource: 'refresh_dbt',
+                    dbtConnectionType: 'github',
+                    requestMethod: null,
+                    warehouseType: 'postgres',
+                    report: withConnectionWarnings(
+                        calculateCompilationReport({
+                            explores: (
+                                await cachedExplores(fixture.projectUuid)
+                            ).map(({ explore }) => explore),
+                        }),
+                        warnings,
+                    ),
+                });
+            const healthy = await compile(fixture);
+            await logCompile(healthy.warnings);
+            await warehouseConnectionModel.updateExtraCredentials(
+                await warehouseConnectionModel.getProject(fixture.projectUuid),
+                fixture.extraConnectionUuid,
+                {
+                    kind: 'project',
+                    credentials: postgresWarehouse(EXTRA_DB, DEAD_PORT),
+                },
+            );
+            const dead = await compile(fixture);
+            await logCompile(dead.warnings);
+
+            const logs = await compileLogModel.getLogs({
+                organizationUuid,
+                projectUuid: fixture.projectUuid,
+                sort: { column: 'created_at', direction: 'asc' },
+            });
+            const [healthyLog, deadLog] = logs.data.map(({ report }) => report);
+            expect(healthyLog).not.toHaveProperty('connectionWarnings');
+            expect(deadLog.connectionWarnings).toEqual([
+                expect.stringContaining(
+                    'Connection "Finance warehouse" failed to compile, so its previous explores are kept',
+                ),
+            ]);
         });
 
         test('the compile fails when the original connection fails, as on main, and the cache is unchanged', async () => {
