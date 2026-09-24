@@ -16,6 +16,12 @@ permissions:
   issues: write
   packages: write
 
+env:
+  # Rainbow creates a preview per PR at this URL as soon as the PR opens (see
+  # rainbow.toml); the e2e and CLI suites below point at it rather than at the
+  # Okteto preview the `preview` job deploys.
+  PREVIEW_URL: https://lightdash--pr-${{ github.event.number }}.lightdash.rainbowmachine.dev
+
 jobs:
   # ============================================================================
   # Stage 0: Fast checks (no install needed)
@@ -486,7 +492,7 @@ jobs:
             }
 
   # ============================================================================
-  # Stage 3: E2E and CLI tests (only after preview is up)
+  # Stage 3: E2E and CLI tests (against the Rainbow preview)
   # ============================================================================
 
   # Build cypress e2e image (only when E2E tests that use it will run)
@@ -522,7 +528,7 @@ jobs:
     if: needs.files-changed.outputs.backend == 'true'
     timeout-minutes: 25
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed]
+    needs: [files-changed]
     name: "E2E: API (Vitest)"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -548,10 +554,14 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      - name: Wait for preview environment
+        uses: ./.github/workflows/_wait_for_preview
+        with:
+          url: ${{ env.PREVIEW_URL }}
       - name: Run API tests
         run: pnpm -F api-tests test:api
         env:
-          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          SITE_URL: ${{ env.PREVIEW_URL }}
           PGHOST: ${{ secrets.PGHOST }}
           PGPASSWORD: ${{ secrets.PGPASSWORD }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -573,7 +583,7 @@ jobs:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
+    needs: [files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
       options: --user 1001
@@ -598,13 +608,17 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      - name: Wait for preview environment
+        uses: ./.github/workflows/_wait_for_preview
+        with:
+          url: ${{ env.PREVIEW_URL }}
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           browser: firefox
           working-directory: packages/e2e
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
+          config: "baseUrl=${{ env.PREVIEW_URL }},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
         env:
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
@@ -635,7 +649,7 @@ jobs:
     if: needs.files-changed.outputs.timezone == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed, build-cypress-e2e-image]
+    needs: [files-changed, build-cypress-e2e-image]
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
       options: --user 1001
@@ -660,6 +674,10 @@ jobs:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
+      - name: Wait for preview environment
+        uses: ./.github/workflows/_wait_for_preview
+        with:
+          url: ${{ env.PREVIEW_URL }}
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -667,7 +685,7 @@ jobs:
           browser: firefox
           working-directory: packages/e2e
           spec: cypress/e2e/app/dates.cy.ts
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false"
+          config: "baseUrl=${{ env.PREVIEW_URL }},video=false"
         env:
           TZ: ${{ matrix.timezone }}
           CYPRESS_TZ: ${{ matrix.timezone }}
@@ -685,7 +703,7 @@ jobs:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed]
+    needs: [files-changed]
     name: "CLI: Without dbt"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -710,20 +728,24 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Wait for preview environment
+        uses: ./.github/workflows/_wait_for_preview
+        with:
+          url: ${{ env.PREVIEW_URL }}
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/api,cypress/cli/yaml-only
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ env.PREVIEW_URL }}"
 
   # CLI tests with dbt
   cli-tests:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed]
+    needs: [files-changed]
     name: "CLI: Integration"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
@@ -774,13 +796,17 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Wait for preview environment
+        uses: ./.github/workflows/_wait_for_preview
+        with:
+          url: ${{ env.PREVIEW_URL }}
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/integration/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ env.PREVIEW_URL }}"
         env:
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
@@ -791,7 +817,7 @@ jobs:
     if: needs.files-changed.outputs.cli == 'true'
     timeout-minutes: 30
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed]
+    needs: [files-changed]
     strategy:
       fail-fast: false
       matrix:
@@ -851,13 +877,17 @@ jobs:
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
+      - name: Wait for preview environment
+        uses: ./.github/workflows/_wait_for_preview
+        with:
+          url: ${{ env.PREVIEW_URL }}
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/dbt/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ env.PREVIEW_URL }}"
         env:
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
