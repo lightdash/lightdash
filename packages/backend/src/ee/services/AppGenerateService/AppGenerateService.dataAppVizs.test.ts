@@ -431,6 +431,42 @@ describe('AppGenerateService data app vizs', () => {
     });
 
     describe('the chart type usage flag gate', () => {
+        it.each([
+            [false, false],
+            [false, true],
+            [true, false],
+            [true, true],
+        ])('lists with data apps=%s, library=%s', async (dataApps, library) => {
+            const list = vi
+                .fn()
+                .mockResolvedValue({ data: [], pagination: undefined });
+            const service = buildService(
+                { listDataAppVisualizations: list },
+                {
+                    featureFlags: {
+                        [FeatureFlags.EnableDataApps]: dataApps,
+                        [FeatureFlags.ChartTypeRegistry]: library,
+                    },
+                },
+            );
+            const getFeatureFlag = vi.spyOn(service['featureFlagModel'], 'get');
+            const result = service.listDataAppVisualizations(USER, 'project-1');
+            if (dataApps || library) {
+                await expect(result).resolves.toMatchObject({ data: [] });
+                expect(list).toHaveBeenCalled();
+            } else {
+                await expect(result).rejects.toThrow(
+                    'Chart types are not enabled',
+                );
+                expect(list).not.toHaveBeenCalled();
+            }
+            expect(getFeatureFlag).toHaveBeenCalledWith({
+                user: USER,
+                featureFlagId: FeatureFlags.EnableDataApps,
+            });
+            expect(getFeatureFlag).toHaveBeenCalledTimes(dataApps ? 1 : 2);
+        });
+
         // Usage follows either flag: the library flag alone is enough to
         // pick, configure, and render installed chart types.
         const libraryOnly = {
@@ -1054,7 +1090,7 @@ describe('AppGenerateService data app vizs', () => {
                 findVisualizationApp: vi.fn().mockResolvedValue(undefined),
             };
             const service = buildService(appModel);
-            const dataAppsEnabledFor = vi.spyOn(service, 'dataAppsEnabledFor');
+            const getFeatureFlag = vi.spyOn(service['featureFlagModel'], 'get');
 
             await expect(
                 service.getDataAppVizRenderMetadata(
@@ -1066,7 +1102,7 @@ describe('AppGenerateService data app vizs', () => {
                 message: 'Data app visualization not found',
             });
 
-            expect(dataAppsEnabledFor).not.toHaveBeenCalled();
+            expect(getFeatureFlag).not.toHaveBeenCalled();
         });
 
         it('resolves the template-filtered viz before validating a token version', async () => {
@@ -1074,7 +1110,7 @@ describe('AppGenerateService data app vizs', () => {
                 findVisualizationApp: vi.fn().mockResolvedValue(undefined),
             };
             const service = buildService(appModel);
-            const dataAppsEnabledFor = vi.spyOn(service, 'dataAppsEnabledFor');
+            const getFeatureFlag = vi.spyOn(service['featureFlagModel'], 'get');
 
             await expect(
                 service.getDataAppVizPreviewToken(
@@ -1085,7 +1121,7 @@ describe('AppGenerateService data app vizs', () => {
                 ),
             ).rejects.toThrow(NotFoundError);
 
-            expect(dataAppsEnabledFor).not.toHaveBeenCalled();
+            expect(getFeatureFlag).not.toHaveBeenCalled();
         });
 
         it('rejects a real viz when chart types are disabled', async () => {
