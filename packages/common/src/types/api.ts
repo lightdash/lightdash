@@ -858,6 +858,11 @@ export type ApiAddDeployBatchResponse = {
     };
 };
 
+export type DeployTarget = {
+    database: string;
+    region?: string;
+};
+
 export type ApiDeployExploresResults = {
     exploreCount: number;
     warnings: ExploreWarningReport;

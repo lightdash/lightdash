@@ -648,59 +648,6 @@ describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
 
-    describe('connection route guard at write entry points', () => {
-        const refuseMultiRoute = () =>
-            vi
-                .spyOn(projectModel, 'requireSingleConnectionRoute')
-                .mockRejectedValueOnce(
-                    new NotImplementedError(
-                        'Multiple connections are not available',
-                    ),
-                );
-        const upstreamUuid = 'multi-upstream-project-uuid';
-        const compileUser: SessionUser = {
-            ...user,
-            organizationUuid: 'organizationUuid',
-            organizationName: 'organizationName',
-            organizationCreatedAt: new Date('2026-08-16T00:00:00.000Z'),
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: ['update', 'view'] },
-                { subject: 'Job', action: ['create', 'view'] },
-                { subject: 'CompileProject', action: ['manage'] },
-                { subject: 'DeployProject', action: ['manage'] },
-            ]),
-        };
-
-        test.each([
-            {
-                entryPoint: 'setExplores',
-                guardedProjectUuid: projectUuid,
-                call: () => service.setExplores(compileUser, projectUuid, []),
-            },
-        ])(
-            'refuses a project that routes multi at $entryPoint',
-            async ({ call, guardedProjectUuid }) => {
-                const guard = refuseMultiRoute();
-                const saveExplores = vi.spyOn(
-                    service,
-                    'saveExploresToCacheAndIndexCatalog',
-                );
-                try {
-                    await expect(call()).rejects.toThrow(
-                        'Multiple connections are not available',
-                    );
-                    expect(guard).toHaveBeenCalledWith(guardedProjectUuid, {
-                        kind: 'original',
-                    });
-                    expect(saveExplores).not.toHaveBeenCalled();
-                } finally {
-                    guard.mockRestore();
-                    saveExplores.mockRestore();
-                }
-            },
-        );
-    });
-
     describe('Document counts in legacy Space listing', () => {
         it.each([
             { enabled: false, canViewDocument: true, expectedCount: 0 },

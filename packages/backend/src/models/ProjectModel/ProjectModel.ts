@@ -226,7 +226,7 @@ export type MultiConnectionCarry =
     | {
           kind: 'otherDbtSources';
           dbtSourceUuid: string;
-          primaryDbtSourceUuid: string;
+          warehouseConnectionUuid: string | null;
       };
 
 export type ProjectModelArguments = {
@@ -3370,8 +3370,12 @@ export class ProjectModel {
                 break;
             case 'otherDbtSources':
                 void carriedQuery.whereRaw(
-                    "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', ?) <> ?",
-                    [carry.primaryDbtSourceUuid, carry.dbtSourceUuid],
+                    `CASE
+                        WHEN COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') IS NOT NULL
+                            THEN COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') <> ?
+                        ELSE warehouse_connection_uuid IS DISTINCT FROM ?::uuid
+                    END`,
+                    [carry.dbtSourceUuid, carry.warehouseConnectionUuid],
                 );
                 break;
             default:

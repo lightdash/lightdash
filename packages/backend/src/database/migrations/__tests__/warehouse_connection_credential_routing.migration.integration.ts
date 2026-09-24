@@ -66,7 +66,7 @@ const extraConnectionCredentials: CreatePostgresCredentials = {
 
 const MULTIPLE_CONNECTIONS_REFUSAL = 'Multiple connections are not available';
 
-const LANDED = ['PR 6', 'PR 7', 'PR 8'];
+const LANDED = ['PR 6', 'PR 7', 'PR 8', 'PR 10'];
 
 type GuardOwnerRow =
     | {
@@ -228,19 +228,19 @@ const GUARD_OWNERS: GuardOwnerRow[] = [
     ),
     writeGuard(
         'G15',
-        ['PR 10'],
+        ['PR 8', 'PR 10'],
         'services/CoderService/CoderService.ts',
         'upsertSqlChart',
     ),
     writeGuard(
         'G16',
-        ['PR 10'],
+        ['PR 8', 'PR 10'],
         'services/PromoteService/PromoteService.ts',
         'promoteSqlChart',
     ),
     writeGuard(
         'G17',
-        ['PR 10'],
+        ['PR 8', 'PR 10'],
         'services/PromoteService/PromoteService.ts',
         'promoteDashboard',
     ),

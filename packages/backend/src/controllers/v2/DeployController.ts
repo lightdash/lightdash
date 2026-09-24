@@ -8,6 +8,7 @@ import {
     ApiStartDeploySessionResponse,
     assertRegisteredAccount,
     LightdashCliVersionHeader,
+    type DeployTarget,
 } from '@lightdash/common';
 import {
     Body,
@@ -54,6 +55,8 @@ export class DeployController extends BaseController {
             explores: AnyType[];
             complete: boolean;
             dbtModelNames: string[];
+            sourceUuid?: string;
+            target?: DeployTarget;
         },
     ): Promise<ApiSetExploresResponse> {
         assertRegisteredAccount(req.account);
@@ -66,6 +69,10 @@ export class DeployController extends BaseController {
                 req.header(LightdashCliVersionHeader),
                 body.complete,
                 body.dbtModelNames,
+                {
+                    sourceUuid: body.sourceUuid ?? null,
+                    target: body.target ?? null,
+                },
             );
         return { status: 'ok', results };
     }
@@ -148,7 +155,12 @@ export class DeployController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() sessionUuid: string,
-        @Body() body?: { dbtModelNames?: string[] },
+        @Body()
+        body?: {
+            dbtModelNames?: string[];
+            sourceUuid?: string;
+            target?: DeployTarget;
+        },
     ): Promise<ApiFinalizeDeployResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -160,6 +172,10 @@ export class DeployController extends BaseController {
                 sessionUuid,
                 req.header(LightdashCliVersionHeader),
                 body?.dbtModelNames,
+                {
+                    sourceUuid: body?.sourceUuid ?? null,
+                    target: body?.target ?? null,
+                },
             );
         return {
             status: 'ok',

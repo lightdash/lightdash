@@ -390,6 +390,12 @@ import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import {
+    NO_CLI_DEPLOY_SELECTION,
+    resolveCliDeploySource,
+    withoutClientBindings,
+    type CliDeploySelection,
+} from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import {
@@ -2892,10 +2898,10 @@ export class ProjectService extends BaseService {
     async saveDeployExplores(
         args: SaveCompiledExploresArgs & {
             explores: (Explore | ExploreError)[];
-            projectDbtSourceUuid: string | null;
+            cliDeploy: CliDeploySelection;
         },
     ): Promise<string> {
-        const { projectDbtSourceUuid, ...deploy } = args;
+        const { cliDeploy, ...deploy } = args;
         if (
             (await this.projectModel.getConnectionRoute(args.projectUuid, {
                 kind: 'original',
@@ -2908,12 +2914,21 @@ export class ProjectService extends BaseService {
                 'A deploy to a project with multiple connections must send every explore of its dbt source',
             );
         }
+        const projectDbtSourceUuid = await resolveCliDeploySource(
+            {
+                projectModel: this.projectModel,
+                projectDbtSourcesModel: this.projectDbtSourcesModel,
+                warehouseConnectionModel: this.warehouseConnectionModel,
+            },
+            args.projectUuid,
+            cliDeploy,
+        );
         const { explores, ...metadata } = deploy;
         const sourceDeploy =
             await this.multiConnectionCompiler.prepareSourceDeploy({
                 projectUuid: args.projectUuid,
                 projectDbtSourceUuid,
-                explores,
+                explores: explores.map(withoutClientBindings),
             });
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
@@ -4224,6 +4239,7 @@ export class ProjectService extends BaseService {
         cliVersion?: string | null,
         complete?: boolean,
         dbtModelNames?: string[],
+        cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -4257,10 +4273,6 @@ export class ProjectService extends BaseService {
             );
         }
 
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
-
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
             enabled: this.lightdashConfig.preAggregates.enabled,
@@ -4278,7 +4290,7 @@ export class ProjectService extends BaseService {
             cliVersion,
             complete,
             dbtModelNames,
-            projectDbtSourceUuid: null,
+            cliDeploy,
         });
 
         await this.schedulerClient.generateValidation({

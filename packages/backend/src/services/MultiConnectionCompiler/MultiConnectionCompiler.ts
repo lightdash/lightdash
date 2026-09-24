@@ -87,6 +87,17 @@ type MultiConnectionCompilerArguments = {
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 };
 
+const stampedError = (
+    explore: Explore | ExploreError,
+    dbtSourceUuid: string,
+): Explore | ExploreError => {
+    const stamped: (Explore | ExploreError) & { dbtSourceUuid: string } = {
+        ...explore,
+        dbtSourceUuid,
+    };
+    return stamped;
+};
+
 export class MultiConnectionCompiler {
     private readonly projectModel: ProjectModel;
 
@@ -478,7 +489,7 @@ export class MultiConnectionCompiler {
                           ),
                       ),
                   }
-                : explore;
+                : stampedError(explore, dbtSourceUuid);
         return {
             exploreStream: (async function* deployedExplores() {
                 for (const explore of explores) {
@@ -489,7 +500,7 @@ export class MultiConnectionCompiler {
             carry: {
                 kind: 'otherDbtSources',
                 dbtSourceUuid,
-                primaryDbtSourceUuid: identity.dbtSourceUuid,
+                warehouseConnectionUuid,
             },
             persistArtifacts: async () => {},
         };

@@ -17,6 +17,7 @@ import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { BaseService } from './BaseService';
+import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
@@ -35,7 +36,7 @@ type ProjectServiceInterface = {
         cliVersion?: string | null;
         complete?: boolean;
         dbtModelNames?: string[];
-        projectDbtSourceUuid: string | null;
+        cliDeploy: CliDeploySelection;
     }) => Promise<string>;
 };
 
@@ -98,10 +99,6 @@ export class DeployService extends BaseService {
                 `User does not have permission to deploy to this project`,
             );
         }
-
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
 
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
@@ -193,6 +190,7 @@ export class DeployService extends BaseService {
         sessionUuid: string,
         cliVersion?: string | null,
         dbtModelNames?: string[],
+        cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
     ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
         const session = await this.deploySessionModel.getSession(sessionUuid);
 
@@ -214,10 +212,6 @@ export class DeployService extends BaseService {
                 `Deploy session is not in uploading state`,
             );
         }
-
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
 
         try {
             // Update status to finalizing
@@ -254,7 +248,7 @@ export class DeployService extends BaseService {
                 cliVersion,
                 complete: deployData.complete,
                 dbtModelNames,
-                projectDbtSourceUuid: null,
+                cliDeploy,
             });
 
             // Schedule validation (same as in original finalizeDeploy)

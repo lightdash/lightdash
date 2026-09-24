@@ -1,7 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     DeploySessionStatus,
-    NotImplementedError,
     ProjectType,
     type MemberAbility,
     type RegisteredAccount,
@@ -148,61 +147,14 @@ describe('DeployService', () => {
                 expect.objectContaining({
                     complete,
                     dbtModelNames,
-                    projectDbtSourceUuid: null,
+                    cliDeploy: { sourceUuid: null, target: null },
                 }),
             );
         },
     );
 
-    it('refuses to start a deploy session for a project that routes multi', async () => {
-        const builder = new AbilityBuilder<MemberAbility>(Ability);
-        builder.can('manage', 'DeployProject');
-        const createSession = vi.fn().mockResolvedValue('deploy-session-uuid');
-        const requireSingleConnectionRoute = vi
-            .fn()
-            .mockRejectedValue(
-                new NotImplementedError(
-                    'Multiple connections are not available',
-                ),
-            );
-        const service = new DeployService({
-            deploySessionModel: { createSession },
-            projectModel: {
-                requireSingleConnectionRoute,
-                getWithSensitiveFields: vi.fn().mockResolvedValue({
-                    projectUuid: 'project-uuid',
-                    organizationUuid: 'org-uuid',
-                    name: 'Project',
-                    type: ProjectType.DEFAULT,
-                }),
-            },
-            projectService: {},
-            schedulerClient: {},
-        } as never);
-
-        await expect(
-            service.startDeploySession(
-                buildAccount(builder.build()),
-                'project-uuid',
-            ),
-        ).rejects.toThrow('Multiple connections are not available');
-        expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
-            'project-uuid',
-            { kind: 'original' },
-        );
-        expect(createSession).not.toHaveBeenCalled();
-    });
-
-    it('refuses to finalize a deploy for a project that routes multi', async () => {
-        const updateStatus = vi.fn().mockResolvedValue(undefined);
-        const saveDeployExplores = vi.fn();
-        const requireSingleConnectionRoute = vi
-            .fn()
-            .mockRejectedValue(
-                new NotImplementedError(
-                    'Multiple connections are not available',
-                ),
-            );
+    it('passes the dbt source and the dbt target of the CLI to the cache write', async () => {
+        const saveDeployExplores = vi.fn().mockResolvedValue('index-job-uuid');
         const user = toSessionUser(buildAccount(new Ability()));
         const service = new DeployService({
             deploySessionModel: {
@@ -215,24 +167,43 @@ describe('DeployService', () => {
                     exploreCount: 0,
                     createdAt: new Date(),
                 }),
-                updateStatus,
+                updateStatus: vi.fn().mockResolvedValue(undefined),
+                getDeployData: vi
+                    .fn()
+                    .mockResolvedValue({ explores: [], complete: true }),
+                deleteSession: vi.fn().mockResolvedValue(undefined),
             },
             projectModel: {
-                requireSingleConnectionRoute,
-                getWithSensitiveFields: vi.fn(),
+                getWithSensitiveFields: vi.fn().mockResolvedValue({
+                    organizationUuid: 'org-uuid',
+                    warehouseConnection: null,
+                }),
             },
             projectService: { saveDeployExplores },
-            schedulerClient: {},
+            schedulerClient: {
+                generateValidation: vi.fn().mockResolvedValue(undefined),
+            },
         } as never);
 
-        await expect(
-            service.finalizeDeploy(user, 'project-uuid', 'deploy-session-uuid'),
-        ).rejects.toThrow('Multiple connections are not available');
-        expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+        await service.finalizeDeploy(
+            user,
             'project-uuid',
-            { kind: 'original' },
+            'deploy-session-uuid',
+            'cli-1',
+            undefined,
+            {
+                sourceUuid: 'finance-source-uuid',
+                target: { database: 'finance' },
+            },
         );
-        expect(updateStatus).not.toHaveBeenCalled();
-        expect(saveDeployExplores).not.toHaveBeenCalled();
+
+        expect(saveDeployExplores).toHaveBeenCalledWith(
+            expect.objectContaining({
+                cliDeploy: {
+                    sourceUuid: 'finance-source-uuid',
+                    target: { database: 'finance' },
+                },
+            }),
+        );
     });
 });
