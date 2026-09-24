@@ -4,19 +4,32 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 
-export type PipelineNode = {
+type PipelineNodeBase = {
     nodeId: string;
     title: string;
     description: string | null;
     isTerminal: boolean;
     /** Longest path from a source; 0 for nodes that read nothing. */
     depth: number;
-    /** Titles of the nodes this one reads; references outside the pipeline stay as-is. */
+    /** Titles of the nodes this one reads; unknown array-form references stay as-is. */
     reads: string[];
-    /** Node ids this one reads that resolve to nodes in the pipeline. */
+    /** Node ids this one reads that resolve to nodes or placeholders in the pipeline. */
     readNodeIds: string[];
+};
+
+export type PipelineQueryNode = PipelineNodeBase & {
+    kind: 'query';
     query: SourceQuery;
 };
+
+/** A map-form read of an earlier result that is not a node in the pipeline. */
+export type PipelinePlaceholderNode = PipelineNodeBase & {
+    kind: 'placeholder';
+};
+
+export type PipelineNode = PipelineQueryNode | PipelinePlaceholderNode;
+
+export const EARLIER_RESULT_NOTE = 'Earlier result';
 
 export type PipelineLayerKind = 'sources' | 'transformations' | 'result';
 
@@ -45,18 +58,26 @@ export const sourceLabelOf = (query: SourceQuery): string | null => {
 const nodeIdOf = (query: SourceQuery, index: number) =>
     query.nodeId ?? `query_${index + 1}`;
 
-const referencesOf = (query: SourceQuery): string[] => {
+type Reference = { alias: string | null; value: string };
+
+const referencesOf = (query: SourceQuery): Reference[] => {
     if (query.sourceType !== QuerySourceType.DUCKDB || !query.references)
         return [];
     return Array.isArray(query.references)
-        ? query.references
-        : Object.values(query.references);
+        ? query.references.map((value) => ({ alias: null, value }))
+        : Object.entries(query.references).map(([alias, value]) => ({
+              alias,
+              value,
+          }));
 };
+
+const placeholderIdOf = (reference: string) => `earlier:${reference}`;
 
 /**
  * Layers a pipeline by longest path from a source, so a fan-in join lands
  * after everything it reads. The terminal node alone forms the last (result)
  * layer wherever it sits. Cycles and unknown references count as depth 0.
+ * Unknown map-form references become placeholder source nodes named by alias.
  */
 export const groupPipeline = (
     queries: SourceQuery[],
@@ -67,17 +88,48 @@ export const groupPipeline = (
         query,
     }));
     const byId = new Map(entries.map((entry) => [entry.nodeId, entry]));
-    const readsOf = (nodeId: string) =>
-        referencesOf(byId.get(nodeId)!.query).filter((reference) =>
-            byId.has(reference),
+
+    const placeholders = new Map<string, PipelinePlaceholderNode>();
+    entries.forEach(({ query }) =>
+        referencesOf(query).forEach(({ alias, value }) => {
+            if (alias === null || byId.has(value)) return;
+            const nodeId = placeholderIdOf(value);
+            if (placeholders.has(nodeId)) return;
+            placeholders.set(nodeId, {
+                kind: 'placeholder',
+                nodeId,
+                title: alias,
+                description: EARLIER_RESULT_NOTE,
+                isTerminal: false,
+                depth: 0,
+                reads: [],
+                readNodeIds: [],
+            });
+        }),
+    );
+
+    const resolveRead = ({ value }: Reference) => {
+        const entry = byId.get(value);
+        if (entry) return { nodeId: value, title: entry.query.title ?? value };
+        const placeholder = placeholders.get(placeholderIdOf(value));
+        if (placeholder)
+            return { nodeId: placeholder.nodeId, title: placeholder.title };
+        return { nodeId: null, title: value };
+    };
+    const readsOf = (query: SourceQuery) =>
+        referencesOf(query).map(resolveRead);
+    const readNodeIdsOf = (query: SourceQuery) =>
+        readsOf(query).flatMap(({ nodeId }) =>
+            nodeId === null ? [] : [nodeId],
         );
 
     const depths = new Map<string, number>();
     const depthOf = (nodeId: string, seen: Set<string>): number => {
         const cached = depths.get(nodeId);
         if (cached !== undefined) return cached;
-        if (seen.has(nodeId)) return 0;
-        const upstream = readsOf(nodeId);
+        const entry = byId.get(nodeId);
+        if (!entry || seen.has(nodeId)) return 0;
+        const upstream = readNodeIdsOf(entry.query);
         const depth =
             upstream.length === 0
                 ? 0
@@ -92,19 +144,20 @@ export const groupPipeline = (
     };
     entries.forEach((entry) => depthOf(entry.nodeId, new Set()));
 
-    const titleOf = (reference: string) =>
-        byId.get(reference)?.query.title ?? reference;
-    const nodes: PipelineNode[] = entries.map(({ nodeId, query }) => ({
-        nodeId,
-        title: query.title ?? nodeId,
-        description: query.description ?? null,
-        isTerminal: nodeId === terminalNodeId,
-        depth: depths.get(nodeId)!,
-        reads: referencesOf(query).map(titleOf),
-        readNodeIds: readsOf(nodeId),
-        query,
-    }));
-
+    const nodes: PipelineNode[] = [
+        ...entries.map<PipelineQueryNode>(({ nodeId, query }) => ({
+            kind: 'query',
+            nodeId,
+            title: query.title ?? nodeId,
+            description: query.description ?? null,
+            isTerminal: nodeId === terminalNodeId,
+            depth: depths.get(nodeId)!,
+            reads: readsOf(query).map(({ title }) => title),
+            readNodeIds: readNodeIdsOf(query),
+            query,
+        })),
+        ...placeholders.values(),
+    ];
     const terminal = nodes.filter((node) => node.isTerminal);
     const others = nodes.filter((node) => !node.isTerminal);
     const layerDepths = [...new Set(others.map((node) => node.depth))].sort(

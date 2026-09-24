@@ -43,16 +43,12 @@ describe('groupPipeline', () => {
         expect(layers[2].nodes[0].isTerminal).toBe(true);
     });
 
-    it('resolves reads to titles, keeps unknown references and falls back to node ids', () => {
+    it('resolves reads to titles, keeps unknown array references and falls back to node ids', () => {
         const layers = groupPipeline(
             [
                 sql('orders', 'Orders by status'),
                 sql('amounts'),
-                duckdb('joined', {
-                    o: 'orders',
-                    a: 'amounts',
-                    prev: 'query-uuid-1',
-                }),
+                duckdb('joined', ['orders', 'amounts', 'query-uuid-1']),
             ],
             'joined',
         );
@@ -67,6 +63,58 @@ describe('groupPipeline', () => {
         expect(layers[0].nodes.map((node) => node.title)).toEqual([
             'Orders by status',
             'amounts',
+        ]);
+    });
+
+    it('turns an unknown map-form reference into an earlier result placeholder', () => {
+        const uuid = 'bcf89bb4-c964-4c1e-9a55-0d6a3f1a2b3c';
+        const layers = groupPipeline(
+            [
+                sql('orders', 'Orders by status'),
+                duckdb('ranked', { prev: uuid }, 'Ranked'),
+                duckdb('joined', { o: 'orders', r: 'ranked' }, 'Joined'),
+            ],
+            'joined',
+        );
+        expect(layers.map((layer) => [layer.kind, ids(layer.nodes)])).toEqual([
+            ['sources', ['orders', `earlier:${uuid}`]],
+            ['transformations', ['ranked']],
+            ['result', ['joined']],
+        ]);
+        expect(layers[0].nodes[1]).toMatchObject({
+            kind: 'placeholder',
+            title: 'prev',
+            description: 'Earlier result',
+            depth: 0,
+            reads: [],
+        });
+        expect(layers[1].nodes[0]).toMatchObject({
+            reads: ['prev'],
+            readNodeIds: [`earlier:${uuid}`],
+        });
+        const rendered = layers.flatMap((layer) =>
+            layer.nodes.flatMap((node) => [
+                node.title,
+                node.description,
+                ...node.reads,
+            ]),
+        );
+        expect(rendered.join(' ')).not.toContain(uuid);
+    });
+
+    it('adds one placeholder per earlier result read by several nodes', () => {
+        const layers = groupPipeline(
+            [
+                duckdb('a', { prev: 'uuid-1' }),
+                duckdb('b', { earlier: 'uuid-1' }),
+                duckdb('final', ['a', 'b']),
+            ],
+            'final',
+        );
+        expect(layers[0].nodes.map((node) => node.title)).toEqual(['prev']);
+        expect(layers[1].nodes.map((node) => node.reads)).toEqual([
+            ['prev'],
+            ['prev'],
         ]);
     });
 

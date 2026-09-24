@@ -17,7 +17,7 @@ const sql = (nodeId: string, title: string): SourceQuery => ({
 const duckdb = (
     nodeId: string,
     title: string,
-    references: string[],
+    references: string[] | Record<string, string>,
 ): SourceQuery => ({
     sourceType: QuerySourceType.DUCKDB,
     nodeId,
@@ -74,6 +74,33 @@ describe('toPipelineFlow', () => {
             ['b', 'ab'],
             ['ab', 'final'],
         ]);
+    });
+
+    it('draws an earlier result placeholder with an edge to its reader', () => {
+        const { nodes, edges } = toPipelineFlow(
+            groupPipeline(
+                [duckdb('final', 'Final', { prev: 'uuid-1' })],
+                'final',
+            ),
+        );
+        expect(nodes.map((node) => [node.id, node.data])).toEqual([
+            [
+                'earlier:uuid-1',
+                {
+                    title: 'prev',
+                    sourceLabel: 'Earlier result',
+                    isTerminal: false,
+                },
+            ],
+            ['final', { title: 'Final', sourceLabel: null, isTerminal: true }],
+        ]);
+        expect(edges.map((edge) => [edge.source, edge.target])).toEqual([
+            ['earlier:uuid-1', 'final'],
+        ]);
+        const laidOut = layoutPipelineFlow(measured(nodes), edges);
+        expect(xOf(laidOut, 'earlier:uuid-1')).toBeLessThan(
+            xOf(laidOut, 'final'),
+        );
     });
 
     it('returns empty arrays for an empty pipeline', () => {
