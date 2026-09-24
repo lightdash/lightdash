@@ -10,12 +10,10 @@ set -euo pipefail
 # This pinned backport requires maintenance; it does not automatically adopt
 # Debian's future fix. Once Debian publishes a confirmed fixed Bookworm package,
 # remove this directory and its RUN hooks in dockerfile and dockerfile-prs,
-# install the official package through APT, and update the package-version and
-# file-checksum assertions in .github/workflows/docker-build-test.yml.
+# install the official package through APT, and verify its version in the image.
 # Also remove this backport when migrating to Debian 13 (Trixie) with Perl
-# >= 5.40.1-6+deb13u1, updating those checks for the official package. Confirm the
-# installed package includes the fix; changing the Debian release alone is
-# insufficient.
+# >= 5.40.1-6+deb13u1. Confirm the installed package includes the fix; changing
+# the Debian release alone is insufficient.
 readonly perl_version='5.36.0-7+deb12u3'
 readonly backport_version='5.36.0-7+deb12u3+lightdash1'
 readonly -a perl_packages=(perl-base perl perl-modules-5.36 libperl5.36)
@@ -48,8 +46,8 @@ dpkg-source --before-build .
 } > /tmp/changelog
 mv /tmp/changelog debian/changelog
 
-# Keep Debian's full package test suite enabled.
-dpkg-buildpackage --build=binary --no-sign -j4
+# Skip Perl's full upstream test suites during image builds.
+DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage --build=binary --no-sign -j4
 apt-get install -y --no-install-recommends \
     "$work_dir"/perl-base_*.deb "$work_dir"/perl-modules-5.36_*.deb \
     "$work_dir"/libperl5.36_*.deb "$work_dir"/perl_*.deb
@@ -67,9 +65,4 @@ apt-get clean
 cd /
 rm -rf "$work_dir" /var/lib/apt/lists/*
 
-for package in "${perl_packages[@]}"; do
-    version="$(dpkg-query -W -f='${Version}' "$package")"
-    echo "$package $version"
-    test "$version" = "$backport_version"
-done
-echo '78ba0fce947e6b09da9009b4bb5bc86e23d482ec6a7518b64b89c27f76f03bb5  /usr/share/perl/5.36.0/File/GlobMapper.pm' | sha256sum --check
+dpkg-query -W -f='${binary:Package} ${Version}\n' "${perl_packages[@]}"

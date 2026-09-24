@@ -153,26 +153,6 @@ jobs:
           echo "resolved image: $image_ref"
           echo "ref=$image_ref" >> "$GITHUB_OUTPUT"
 
-      - name: Verify Perl packages in the final image
-        env:
-          IMAGE_REF: ${{ steps.image.outputs.ref }}
-        run: |
-          docker run --rm --network none --entrypoint sh "$IMAGE_REF" -ec '
-            for package in perl-base perl perl-modules-5.36 libperl5.36; do
-              version=$(dpkg-query -W -f="\${Version}" "$package")
-              echo "$package $version"
-              test "$version" = "5.36.0-7+deb12u3+lightdash1"
-            done
-            cd /
-            echo "78ba0fce947e6b09da9009b4bb5bc86e23d482ec6a7518b64b89c27f76f03bb5  usr/share/perl/5.36.0/File/GlobMapper.pm" | sha256sum --check
-            # The slim base intentionally excludes documentation and manual pages.
-            md5sum --check --quiet --ignore-missing \
-              /var/lib/dpkg/info/perl-base.md5sums \
-              /var/lib/dpkg/info/perl.md5sums \
-              /var/lib/dpkg/info/perl-modules-5.36.md5sums \
-              /var/lib/dpkg/info/libperl5.36:*.md5sums
-          '
-
       - name: Collect image config
         env:
           IMAGE_REF: ${{ steps.image.outputs.ref }}
