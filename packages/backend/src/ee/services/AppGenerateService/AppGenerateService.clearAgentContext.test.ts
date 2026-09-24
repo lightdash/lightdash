@@ -123,9 +123,15 @@ describe('clearAgentContext', () => {
     it('rejects a user without manage permission', async () => {
         const { service, appModel } = buildService({ canManage: false });
 
-        await expect(
-            service.clearAgentContext(makeUser(), PROJECT_UUID, APP_UUID),
-        ).rejects.toThrow(ForbiddenError);
+        const result = service.clearAgentContext(
+            makeUser(),
+            PROJECT_UUID,
+            APP_UUID,
+        );
+        await expect(result).rejects.toThrow(ForbiddenError);
+        await expect(result).rejects.toThrow(
+            'Insufficient permissions to modify data apps',
+        );
         expect(appModel.createThread).not.toHaveBeenCalled();
     });
 });

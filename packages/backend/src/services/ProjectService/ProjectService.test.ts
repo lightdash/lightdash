@@ -6196,109 +6196,54 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(ForbiddenError);
         });
 
-        test('should delegate to projectModel when admin enables the feature', async () => {
-            const adminUser: SessionUser = {
-                ...user,
-                role: OrganizationMemberRole.ADMIN,
-                ability: defineUserAbility(
-                    {
-                        userUuid: user.userUuid,
-                        role: OrganizationMemberRole.ADMIN,
-                        organizationUuid: 'organizationUuid',
-                    },
-                    [],
-                ),
-            };
+        test.each([
+            { hasDefaultUserSpaces: true, queuesBackfill: true },
+            { hasDefaultUserSpaces: false, queuesBackfill: false },
+        ])(
+            'admin sets hasDefaultUserSpaces=$hasDefaultUserSpaces (backfill queued: $queuesBackfill)',
+            async ({ hasDefaultUserSpaces, queuesBackfill }) => {
+                const adminUser: SessionUser = {
+                    ...user,
+                    role: OrganizationMemberRole.ADMIN,
+                    ability: defineUserAbility(
+                        {
+                            userUuid: user.userUuid,
+                            role: OrganizationMemberRole.ADMIN,
+                            organizationUuid: 'organizationUuid',
+                        },
+                        [],
+                    ),
+                };
 
-            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
-                hasDefaultUserSpaces: true,
-            });
+                await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                    hasDefaultUserSpaces,
+                });
 
-            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
-                1,
-            );
-            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledWith(
-                projectUuid,
-                true,
-            );
-        });
-
-        test('should delegate to projectModel when admin disables the feature', async () => {
-            const adminUser: SessionUser = {
-                ...user,
-                role: OrganizationMemberRole.ADMIN,
-                ability: defineUserAbility(
-                    {
-                        userUuid: user.userUuid,
-                        role: OrganizationMemberRole.ADMIN,
-                        organizationUuid: 'organizationUuid',
-                    },
-                    [],
-                ),
-            };
-
-            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
-                hasDefaultUserSpaces: false,
-            });
-
-            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
-                1,
-            );
-            expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledWith(
-                projectUuid,
-                false,
-            );
-        });
-
-        test('should queue backfill job when enabling the feature', async () => {
-            const adminUser: SessionUser = {
-                ...user,
-                role: OrganizationMemberRole.ADMIN,
-                ability: defineUserAbility(
-                    {
-                        userUuid: user.userUuid,
-                        role: OrganizationMemberRole.ADMIN,
-                        organizationUuid: 'organizationUuid',
-                    },
-                    [],
-                ),
-            };
-
-            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
-                hasDefaultUserSpaces: true,
-            });
-
-            expect(
-                schedulerClient.backfillDefaultUserSpaces,
-            ).toHaveBeenCalledWith({
-                organizationUuid: projectSummary.organizationUuid,
-                projectUuid,
-                userUuid: adminUser.userUuid,
-            });
-        });
-
-        test('should not queue backfill job when disabling the feature', async () => {
-            const adminUser: SessionUser = {
-                ...user,
-                role: OrganizationMemberRole.ADMIN,
-                ability: defineUserAbility(
-                    {
-                        userUuid: user.userUuid,
-                        role: OrganizationMemberRole.ADMIN,
-                        organizationUuid: 'organizationUuid',
-                    },
-                    [],
-                ),
-            };
-
-            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
-                hasDefaultUserSpaces: false,
-            });
-
-            expect(
-                schedulerClient.backfillDefaultUserSpaces,
-            ).not.toHaveBeenCalled();
-        });
+                expect(
+                    projectModel.updateDefaultUserSpaces,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    projectUuid,
+                    hasDefaultUserSpaces,
+                );
+                expect(
+                    vi.mocked(schedulerClient.backfillDefaultUserSpaces).mock
+                        .calls,
+                ).toEqual(
+                    queuesBackfill
+                        ? [
+                              [
+                                  {
+                                      organizationUuid:
+                                          projectSummary.organizationUuid,
+                                      projectUuid,
+                                      userUuid: adminUser.userUuid,
+                                  },
+                              ],
+                          ]
+                        : [],
+                );
+            },
+        );
     });
 
     describe('selective deploy model inventory', () => {
