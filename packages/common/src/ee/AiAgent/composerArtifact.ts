@@ -4,6 +4,9 @@ import {
     type SourceQuery,
 } from '../../types/querySources';
 
+/** Per node: the queryUuid of its last run. */
+export type ComposerNodeResults = Record<QueryNodeId, { queryUuid: string }>;
+
 /**
  * A composer query (multi-source pipeline) stored as a chart artifact. The
  * pipeline is stored replayable from day one; v0 rendering reads only the
@@ -19,7 +22,7 @@ export type AiComposerChartArtifactConfig = {
     /** Snapshot of the terminal node's last run; rendering v0 reads only this. */
     lastQueryUuid: string;
     /** One entry per node in `queries`; optional only for rows written before this field existed. */
-    nodeResults?: Record<QueryNodeId, { queryUuid: string }>;
+    nodeResults?: ComposerNodeResults;
 };
 
 export const isAiComposerChartArtifactConfig = (
@@ -38,14 +41,21 @@ export const isAiComposerChartArtifactConfig = (
     'lastQueryUuid' in config &&
     typeof config.lastQueryUuid === 'string';
 
-type ComposerNodeResults = Record<QueryNodeId, { queryUuid: string }>;
-
 const NODE_ID_MAX_LENGTH = 63;
 
-const getCopiedNodeId = (nodeId: QueryNodeId, queryUuid: string) => {
-    const suffix = `_${queryUuid.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}`;
-    if (nodeId.endsWith(suffix)) return nodeId;
-    return `${nodeId.slice(0, NODE_ID_MAX_LENGTH - suffix.length)}${suffix}`;
+// Suffix grows deterministically (8, 12, 16… hex chars) until the id is free.
+const getCopiedNodeId = (
+    nodeId: QueryNodeId,
+    queryUuid: string,
+    takenIds: Set<QueryNodeId>,
+): QueryNodeId => {
+    const hex = queryUuid.replace(/[^a-zA-Z0-9]/g, '');
+    if (nodeId.endsWith(`_${hex.slice(0, 8)}`)) return nodeId;
+    for (let length = 8; ; length += 4) {
+        const suffix = `_${hex.slice(0, length)}`;
+        const candidate = `${nodeId.slice(0, NODE_ID_MAX_LENGTH - suffix.length)}${suffix}`;
+        if (!takenIds.has(candidate) || length >= hex.length) return candidate;
+    }
 };
 
 /**
@@ -79,6 +89,10 @@ export const buildComposerArtifactPipeline = ({
         });
     });
 
+    const submittedNodeIds = new Set(
+        submissions.map((submission) => submission.nodeId),
+    );
+    const takenIds = new Set(submittedNodeIds);
     const copiedIdsByQueryUuid = new Map<string, QueryNodeId>();
     const copiedNodes: SourceQuery[] = [];
     const copiedNodeResults: ComposerNodeResults = {};
@@ -90,7 +104,12 @@ export const buildComposerArtifactPipeline = ({
         const earlier = earlierNodesByQueryUuid.get(queryUuid);
         if (!earlier?.node.nodeId) return null;
 
-        const nodeId = getCopiedNodeId(earlier.node.nodeId, queryUuid);
+        const nodeId = getCopiedNodeId(
+            earlier.node.nodeId,
+            queryUuid,
+            takenIds,
+        );
+        takenIds.add(nodeId);
         copiedIdsByQueryUuid.set(queryUuid, nodeId);
 
         let node: SourceQuery = { ...earlier.node, nodeId };
@@ -119,9 +138,6 @@ export const buildComposerArtifactPipeline = ({
         return nodeId;
     };
 
-    const submittedNodeIds = new Set(
-        submissions.map((submission) => submission.nodeId),
-    );
     const submittedQueries = queries.map((node): SourceQuery => {
         if (
             node.sourceType !== QuerySourceType.DUCKDB ||

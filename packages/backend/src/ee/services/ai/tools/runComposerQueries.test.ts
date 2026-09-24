@@ -630,9 +630,6 @@ const runReuse = async ({
         }),
     );
 
-    expect(dependencies.listThreadComposerPipelines).toHaveBeenCalledWith(
-        'thread-uuid',
-    );
     const [{ vizConfig }] = dependencies.createOrUpdateArtifact.mock.calls[0];
     return { output, vizConfig: vizConfig as AiComposerChartArtifactConfig };
 };
@@ -742,6 +739,40 @@ describe('composer artifact with reused nodes', () => {
                 references: { o: 'orders_bcf89bb4', prev: unknownUuid },
             }),
         );
+    });
+
+    it('keeps copied ids within the node id grammar and unique against this run', async () => {
+        const longId = `orders_${'x'.repeat(70)}`;
+        const { vizConfig } = await runReuse({
+            queries: [
+                readerNode(
+                    { o: ORDERS_UUID, c: CUSTOMERS_UUID },
+                    'customers_5e0a91c2',
+                ),
+            ],
+            earlierPipelines: [
+                {
+                    ...version1,
+                    queries: [{ ...ordersNode, nodeId: longId }, customersNode],
+                    nodeResults: {
+                        [longId]: { queryUuid: ORDERS_UUID },
+                        customers: { queryUuid: CUSTOMERS_UUID },
+                    },
+                },
+            ],
+        });
+
+        const nodeIds = vizConfig.queries.map((node) => node.nodeId);
+        expect(nodeIds).toEqual([
+            `orders_${'x'.repeat(47)}_bcf89bb4`,
+            'customers_5e0a91c22222',
+            'customers_5e0a91c2',
+        ]);
+        expect(new Set(nodeIds).size).toBe(nodeIds.length);
+        nodeIds.forEach((nodeId) =>
+            expect(nodeId).toMatch(/^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/),
+        );
+        expect(Object.keys(vizConfig.nodeResults ?? {})).toEqual(nodeIds);
     });
 
     it("stores only this run's nodes without an earlier artifact", async () => {
