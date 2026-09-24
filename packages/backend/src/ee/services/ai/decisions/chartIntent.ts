@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    FilterOperator,
     FilterType,
     getFields,
     getFilterTypeFromItemType,
@@ -148,7 +149,8 @@ export type ChartIntentContext = {
     filterableFields: FieldCandidate[];
     /** Fields the chart is currently filtered on. */
     filteredFields: FieldCandidate[];
-    filters: ChartFilterEvidence[];
+    /** Each current filter as a short sentence, such as "Region is North or South". */
+    filters: string[];
 };
 
 /** One persisted filter rule, as evidence of what the chart currently keeps. */
@@ -158,13 +160,24 @@ export type ChartFilterRule = {
     values?: unknown[];
 };
 
-type ChartFilterEvidence = {
-    field: string;
-    operator: string;
-    values: string[];
-};
-
 const MAX_FILTER_VALUES = 5;
+
+const describeFilterRule = (
+    label: string,
+    operator: string,
+    values: string[],
+): string => {
+    switch (operator) {
+        case FilterOperator.EQUALS:
+            return `${label} is ${values.join(' or ')}`;
+        case FilterOperator.NOT_EQUALS:
+            return `${label} is not ${values.join(' or ')}`;
+        case FilterOperator.IN_BETWEEN:
+            return `${label} between ${values.join(' and ')}`;
+        default:
+            return `${label} ${operator} ${values.join(', ')}`.trim();
+    }
+};
 
 const CHART_INTENT_TIMEOUT_MS = 1_500;
 
@@ -397,13 +410,11 @@ export const buildChartIntentContext = ({
         const field = filteredFields.find(({ id }) => id === fieldId);
         return field
             ? [
-                  {
-                      field: field.label,
+                  describeFilterRule(
+                      field.label,
                       operator,
-                      values: (values ?? [])
-                          .slice(0, MAX_FILTER_VALUES)
-                          .map(String),
-                  },
+                      (values ?? []).slice(0, MAX_FILTER_VALUES).map(String),
+                  ),
               ]
             : [];
     });
@@ -417,7 +428,11 @@ export const buildChartIntentContext = ({
     };
 };
 
-const describeChart = (context: ChartIntentContext) => {
+// Verification sees only whether filters exist; their values skew its coverage judgment.
+const describeChart = (
+    context: ChartIntentContext,
+    { filterDetails }: { filterDetails: boolean },
+) => {
     const { config } = context.artifact;
     const chart = config.chartConfig;
     const labelOf = (id: string) =>
@@ -435,7 +450,9 @@ const describeChart = (context: ChartIntentContext) => {
         stacked: builtin?.stackBars ?? false,
         dimensions: config.queryConfig.dimensions.map(labelOf),
         metrics: config.queryConfig.metrics.map(labelOf),
-        filters: context.filters,
+        ...(filterDetails
+            ? { filters: context.filters }
+            : { hasFilters: config.queryConfig.filters !== null }),
         sortedBy: config.queryConfig.sorts.map(
             ({ fieldId, descending }) =>
                 `${labelOf(fieldId)} ${descending ? 'descending' : 'ascending'}`,
@@ -499,7 +516,7 @@ export const buildChartIntentQuestions = ({
         wantsFilter: {
             type: 'noul',
             instructions:
-                'Does the request ask to restrict the chart to, or exclude, certain values or a time window? Removing or clearing a filter the chart already has does not count.',
+                'Does the request ask to restrict the chart to, or exclude, certain values or a time window?',
         },
         wantsSort: {
             type: 'noul',
@@ -983,7 +1000,24 @@ const resolveRemoveFilter = (
     context: ChartIntentContext,
     thresholds: ChartIntentThresholds,
 ): ChartIntentResolution => {
-    const chosen = confident(answers.removeFilterField, thresholds.field);
+    const split = resolveFieldSplit(
+        answers.removeFilterField,
+        context.filteredFields,
+        thresholds,
+    );
+    if (split.type === 'clarify')
+        return {
+            type: 'clarify',
+            question: 'Which filter should I remove?',
+            options: split.labels.map((label) => ({
+                label,
+                prompt: `Remove the ${label} filter`,
+            })),
+        };
+    const chosen =
+        split.type === 'pick'
+            ? split.fieldId
+            : confident(answers.removeFilterField, thresholds.field);
     const field = context.filteredFields.find(({ id }) => id === chosen);
     return field
         ? {
@@ -1011,6 +1045,9 @@ type ComposableIntent = keyof typeof COMPOSABLE;
 const isComposable = (intent: IntentKey): intent is ComposableIntent =>
     intent in COMPOSABLE;
 
+// Removing a filter reads as filtering too; verification still catches a genuinely extra filter.
+const FILTER_REMOVALS = new Set<IntentKey>(['remove_filter', 'clear_filters']);
+
 /** Edit kinds requested beyond the primary intent; any extra makes the turn compound. */
 const extraEdits = (
     answers: DecisionAnswers,
@@ -1020,6 +1057,7 @@ const extraEdits = (
     (Object.keys(COMPOSABLE) as ComposableIntent[]).filter(
         (kind) =>
             kind !== primary &&
+            !(kind === 'filter' && FILTER_REMOVALS.has(primary)) &&
             (decisionProbability(answers[COMPOSABLE[kind]]) ?? 0) >=
                 thresholds.wants,
     );
@@ -1270,7 +1308,7 @@ export const verifyChartPlan = async ({
         operation: 'chart-intent-verify',
         state: {
             request: prompt,
-            chart: describeChart(context),
+            chart: describeChart(context, { filterDetails: false }),
             plannedChange: steps
                 .map((step) => describeStep(step, context))
                 .join('; then '),
@@ -1312,7 +1350,7 @@ export const decideTurn = async ({
                   prompt,
                   instructions,
                   conversation,
-                  chart: describeChart(context),
+                  chart: describeChart(context, { filterDetails: true }),
               }
             : { prompt, instructions },
         questions: context
