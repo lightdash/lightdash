@@ -74,10 +74,7 @@ const hasDuplicateValues = (rows: RawResultRow[], reference: string) => {
     });
 };
 
-/**
- * Picks the kinds a node result can render as and the one it opens with,
- * from column types and row shape alone. Pure and deterministic.
- */
+/** Kinds a node result can render as and the one it opens with, from column types and row shape alone. */
 export const getComposerVizPlan = ({
     columns,
     rows,
@@ -108,10 +105,7 @@ export const getComposerVizPlan = ({
     return { availableKinds, defaultKind, x, y };
 };
 
-/**
- * Chart data straight from the fetched rows: x as the index, y as the single
- * value column. No aggregation, no pivot, no server call.
- */
+/** Chart data straight from the fetched rows: x as the index, y as the value. No aggregation, no server call. */
 export const buildComposerChartData = ({
     rows,
     x,

@@ -19,11 +19,8 @@ type ContentProps = {
     flush?: boolean;
 };
 
-/**
- * A displayed node result: the table, or a chart built client-side from the
- * same rows. Results are creator-scoped and expire, so a failed fetch is an
- * intentional empty state rather than an error card.
- */
+// A displayed node result: table or a chart from the same rows. Results
+// expire, so a failed fetch is an empty state rather than an error card.
 export const AiComposerArtifactVisualization: FC<ContentProps> = ({
     projectUuid,
     results,

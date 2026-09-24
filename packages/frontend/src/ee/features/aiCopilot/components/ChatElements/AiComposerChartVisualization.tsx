@@ -15,7 +15,7 @@ import {
     Center,
     Loader,
     Stack,
-    useMantineColorScheme,
+    useComputedColorScheme,
 } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import ChartView from '../../../../../components/DataViz/visualizations/ChartView';
@@ -53,10 +53,7 @@ type ChartProps = {
     y: ResultColumn;
 };
 
-/**
- * Charts the rows already fetched for the table: x as the index, y as the
- * value, through the constant-function results runner. Nothing hits the server.
- */
+// Charts the rows already fetched for the table; nothing hits the server.
 const ComposerChart: FC<ChartProps> = ({
     projectUuid,
     kind,
@@ -65,14 +62,14 @@ const ComposerChart: FC<ChartProps> = ({
     x,
     y,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
+    const isDark = useComputedColorScheme('light') === 'dark';
     const { data: palette } = useProjectColorPalette(projectUuid);
     const colors = useMemo(
         () =>
-            (colorScheme === 'dark' ? palette?.darkColors : undefined) ??
+            (isDark ? palette?.darkColors : undefined) ??
             palette?.colors ??
             ECHARTS_DEFAULT_COLORS,
-        [colorScheme, palette],
+        [isDark, palette],
     );
 
     const { model, config } = useMemo(() => {
@@ -160,11 +157,7 @@ export const AiComposerChartVisualization: FC<Props> = ({
     if (isLoading) {
         return (
             <Center h={300}>
-                <Loader
-                    type="dots"
-                    color="ldGray.6"
-                    delayedMessage={loadingMessage}
-                />
+                <Loader type="dots" delayedMessage={loadingMessage} />
             </Center>
         );
     }

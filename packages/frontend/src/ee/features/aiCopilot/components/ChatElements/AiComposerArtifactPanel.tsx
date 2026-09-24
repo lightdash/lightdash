@@ -26,10 +26,8 @@ type Props = {
     onClose: (() => void) | null;
 };
 
-/**
- * Composer artifact: the displayed node result on top with its viz switcher,
- * the pipeline panel underneath. Viz choices are ephemeral.
- */
+// Composer artifact: the displayed node result and its viz switcher on top,
+// the pipeline panel underneath. Viz choices are ephemeral.
 export const AiComposerArtifactPanel: FC<Props> = ({
     projectUuid,
     title,
