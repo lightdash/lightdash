@@ -22742,18 +22742,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SuggestedChartTypeFieldAlternative: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                reason: { dataType: 'string', required: true },
-                fieldId: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SuggestedChartTypeField: {
         dataType: 'refAlias',
         type: {
@@ -22761,10 +22749,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 alternatives: {
                     dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'SuggestedChartTypeFieldAlternative',
-                    },
+                    array: { dataType: 'string' },
                     required: true,
                 },
                 reason: { dataType: 'string', required: true },

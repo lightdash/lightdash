@@ -1,3 +1,10 @@
+## [2.327.1](https://github.com/lightdash/lightdash/compare/2.327.0...2.327.1) (2026-09-24)
+
+
+### Performance Improvements
+
+* **chart-studio:** faster ambient field picks for a suggested table ([#29923](https://github.com/lightdash/lightdash/issues/29923)) ([1eef231](https://github.com/lightdash/lightdash/commit/1eef231e0a8ed87d1b1a6b086f3aed339c2ba6ed))
+
 # [2.327.0](https://github.com/lightdash/lightdash/compare/2.326.0...2.327.0) (2026-09-24)
 
 

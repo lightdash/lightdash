@@ -24318,26 +24318,14 @@
                 "required": ["fieldsContext", "prompt"],
                 "type": "object"
             },
-            "SuggestedChartTypeFieldAlternative": {
-                "properties": {
-                    "reason": {
-                        "type": "string"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["reason", "fieldId"],
-                "type": "object"
-            },
             "SuggestedChartTypeField": {
                 "properties": {
                     "alternatives": {
                         "items": {
-                            "$ref": "#/components/schemas/SuggestedChartTypeFieldAlternative"
+                            "type": "string"
                         },
                         "type": "array",
-                        "description": "Up to two runners-up, shown in the select's Suggested group."
+                        "description": "Item ids of up to two runners-up, shown in the select's Suggested group."
                     },
                     "reason": {
                         "type": "string",
@@ -65169,7 +65157,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.327.0",
+        "version": "2.327.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
