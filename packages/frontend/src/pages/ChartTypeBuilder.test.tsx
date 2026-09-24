@@ -1854,10 +1854,15 @@ describe('ChartTypeBuilder', () => {
 
             await act(async () => pending.resolve(suggestions));
 
-            expect(lastPreviewCall()).toMatchObject({
-                isPickingFields: false,
-                fieldMapping: { group: 'orders_region', value: 'orders_total' },
-            });
+            await waitFor(() =>
+                expect(lastPreviewCall()).toMatchObject({
+                    isPickingFields: false,
+                    fieldMapping: {
+                        group: 'orders_region',
+                        value: 'orders_total',
+                    },
+                }),
+            );
             expect(
                 screen.getByText(
                     'Picked from Orders for your prompt. Changing one re-runs the query.',

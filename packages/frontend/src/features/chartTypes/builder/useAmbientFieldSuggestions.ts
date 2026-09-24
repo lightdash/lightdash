@@ -7,7 +7,8 @@ import {
     type SuggestedChartTypeField,
     type SuggestedChartTypeFieldAlternative,
 } from '@lightdash/common';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useRef } from 'react';
 import { suggestChartTypeFields } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
@@ -119,8 +120,78 @@ export const useAmbientFieldSuggestions = ({
     fields: DataAppVizField[] | null;
     context: ChartTypePromptContext;
 }): AmbientFieldSuggestions => {
-    const [state, setState] = useState<SourceSuggestions | null>(null);
-    const current = state?.sourceKey === sourceKey ? state : null;
+    const history = useRef<SourceSuggestions | null>(null);
+    const request =
+        enabled && projectUuid && sourceKey && explore && fields
+            ? { projectUuid, sourceKey, explore, fields, context }
+            : null;
+    const { data } = useQuery({
+        queryKey: [
+            'chart-type-field-suggestions',
+            projectUuid,
+            sourceKey,
+            fields?.map((field) => field.name),
+        ],
+        queryFn: async ({ signal }): Promise<SourceSuggestions> => {
+            if (!request) {
+                throw new Error('Chart field suggestions need an explore');
+            }
+            const base =
+                history.current?.sourceKey === request.sourceKey
+                    ? history.current
+                    : null;
+            const asked = new Set(base?.askedFieldNames ?? []);
+            const requested = request.fields.filter(
+                (field) => !asked.has(field.name),
+            );
+            const suggestions =
+                requested.length === 0
+                    ? []
+                    : await suggestChartTypeFields(
+                          request.projectUuid,
+                          {
+                              prompt: request.context.prompt,
+                              clarifications: request.context.clarifications,
+                              exploreName: request.explore.name,
+                              fields: requested,
+                          },
+                          signal,
+                      )
+                          .then((results) => results.suggestions)
+                          .catch(() => [] as SuggestedChartTypeField[]);
+            const picks = Object.fromEntries(
+                requested.flatMap((field) => {
+                    const suggestion = suggestions.find(
+                        (candidate) => candidate.fieldName === field.name,
+                    );
+                    const pick = suggestion
+                        ? toPick(field, suggestion, request.explore.itemsMap)
+                        : null;
+                    return pick ? [[field.name, pick] as const] : [];
+                }),
+            );
+            const result = {
+                sourceKey: request.sourceKey,
+                askedFieldNames: [
+                    ...(base?.askedFieldNames ?? []),
+                    ...requested.map((field) => field.name),
+                ],
+                picks: { ...base?.picks, ...picks },
+            };
+            if (!signal?.aborted) history.current = result;
+            return result;
+        },
+        enabled: request !== null && request.fields.length > 0,
+        retry: false,
+        staleTime: Infinity,
+        cacheTime: 0,
+    });
+    const current =
+        data?.sourceKey === sourceKey
+            ? data
+            : history.current?.sourceKey === sourceKey
+              ? history.current
+              : null;
 
     const pendingFields = useMemo(() => {
         if (!enabled || !projectUuid || !sourceKey || !explore || !fields) {
@@ -130,61 +201,6 @@ export const useAmbientFieldSuggestions = ({
         return fields.filter((field) => !asked.has(field.name));
     }, [enabled, projectUuid, sourceKey, explore, fields, current]);
     const pendingKey = pendingFields.map((field) => field.name).join('\n');
-
-    const latest = useRef({ pendingFields, explore, context });
-    latest.current = { pendingFields, explore, context };
-
-    useEffect(() => {
-        const request = latest.current;
-        if (pendingKey === '' || !projectUuid || !sourceKey || !request.explore)
-            return;
-        const requested = request.pendingFields;
-        const { itemsMap } = request.explore;
-        const controller = new AbortController();
-        let isCurrent = true;
-        void suggestChartTypeFields(
-            projectUuid,
-            {
-                prompt: request.context.prompt,
-                clarifications: request.context.clarifications,
-                exploreName: request.explore.name,
-                fields: requested,
-            },
-            controller.signal,
-        )
-            .then((results) => results.suggestions)
-            .catch(() => [] as SuggestedChartTypeField[])
-            .then((suggestions) => {
-                if (!isCurrent) return;
-                const picks = Object.fromEntries(
-                    requested.flatMap((field) => {
-                        const suggestion = suggestions.find(
-                            (candidate) => candidate.fieldName === field.name,
-                        );
-                        const pick = suggestion
-                            ? toPick(field, suggestion, itemsMap)
-                            : null;
-                        return pick ? [[field.name, pick] as const] : [];
-                    }),
-                );
-                setState((previous) => {
-                    const base =
-                        previous?.sourceKey === sourceKey ? previous : null;
-                    return {
-                        sourceKey,
-                        askedFieldNames: [
-                            ...(base?.askedFieldNames ?? []),
-                            ...requested.map((field) => field.name),
-                        ],
-                        picks: { ...base?.picks, ...picks },
-                    };
-                });
-            });
-        return () => {
-            isCurrent = false;
-            controller.abort();
-        };
-    }, [pendingKey, projectUuid, sourceKey]);
 
     const picks = useMemo(() => current?.picks ?? {}, [current]);
     const seed = useMemo<DataAppVizFieldMapping>(
