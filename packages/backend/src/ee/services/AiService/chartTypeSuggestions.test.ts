@@ -131,9 +131,7 @@ describe('suggestChartTypeFields', () => {
                         fieldName: 'x',
                         fieldIds: ['orders_revenue'],
                         reason: 'Wrong kind.',
-                        alternatives: [
-                            { fieldId: 'orders_status', reason: 'Status.' },
-                        ],
+                        alternatives: ['orders_status'],
                     },
                 ],
             },
@@ -161,7 +159,7 @@ describe('suggestChartTypeFields', () => {
             {
                 fieldName: 'x',
                 fieldIds: ['orders_status'],
-                reason: 'Status.',
+                reason: 'status fits X.',
                 alternatives: [],
             },
         ]);

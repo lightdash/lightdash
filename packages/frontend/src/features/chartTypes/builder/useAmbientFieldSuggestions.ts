@@ -5,10 +5,9 @@ import {
     type DataAppVizFieldMapping,
     type ItemsMap,
     type SuggestedChartTypeField,
-    type SuggestedChartTypeFieldAlternative,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
-import { useMemo, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef } from 'react';
 import { suggestChartTypeFields } from '../../../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
@@ -25,7 +24,8 @@ export type ChartTypePromptContext = {
 export type AiFieldPick = {
     fieldIds: string[];
     reason: string;
-    alternatives: SuggestedChartTypeFieldAlternative[];
+    /** Item ids of the runners-up. */
+    alternatives: string[];
 };
 
 type SourceSuggestions = {
@@ -44,6 +44,40 @@ export type AmbientFieldSuggestions = {
 };
 
 const NO_PENDING: ReadonlySet<string> = new Set();
+
+// An answer outlives the attach that asked for it, so a table suggested in the
+// picker can be asked about before the author picks it.
+const ANSWER_CACHE_MS = 5 * 60 * 1000;
+
+const answerQuery = (
+    projectUuid: string,
+    exploreName: string,
+    fields: DataAppVizField[],
+    context: ChartTypePromptContext,
+) => ({
+    queryKey: [
+        'chart-type-field-suggestions-answer',
+        projectUuid,
+        exploreName,
+        fields.map((field) => field.name),
+        context.prompt,
+        context.clarifications,
+    ],
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+        suggestChartTypeFields(
+            projectUuid,
+            {
+                prompt: context.prompt,
+                clarifications: context.clarifications,
+                exploreName,
+                fields,
+            },
+            signal,
+        ).then((results) => results.suggestions),
+    retry: false,
+    staleTime: Infinity,
+    cacheTime: ANSWER_CACHE_MS,
+});
 
 /**
  * The prompt and clarification answers behind the version on screen. A
@@ -88,12 +122,8 @@ const toPick = (
     return {
         fieldIds,
         reason: suggestion.reason,
-        alternatives: suggestion.alternatives.filter(
-            (alternative, index, all) =>
-                pool.has(alternative.fieldId) &&
-                !fieldIds.includes(alternative.fieldId) &&
-                all.findIndex((a) => a.fieldId === alternative.fieldId) ===
-                    index,
+        alternatives: [...new Set(suggestion.alternatives)].filter(
+            (id) => pool.has(id) && !fieldIds.includes(id),
         ),
     };
 };
@@ -102,7 +132,8 @@ const toPick = (
  * Ask the model which explore fields fit the chart inputs: every input when a
  * table is picked, only the new ones after a rebuild. Failure, timeout, or
  * ambient AI off leave the automap to it. Bindings the author changes win
- * over these through the host's overrides.
+ * over these through the host's overrides. The table ambient AI suggests is
+ * asked about as soon as it is known, so picking it finds the answer ready.
  */
 export const useAmbientFieldSuggestions = ({
     projectUuid,
@@ -111,6 +142,7 @@ export const useAmbientFieldSuggestions = ({
     explore,
     fields,
     context,
+    suggestedExploreName,
 }: {
     projectUuid: string | undefined;
     enabled: boolean;
@@ -119,8 +151,30 @@ export const useAmbientFieldSuggestions = ({
     explore: LoadedExplore | null;
     fields: DataAppVizField[] | null;
     context: ChartTypePromptContext;
+    /** The table the picker will suggest; null when none is known yet. */
+    suggestedExploreName: string | null;
 }): AmbientFieldSuggestions => {
+    const queryClient = useQueryClient();
     const history = useRef<SourceSuggestions | null>(null);
+    useEffect(() => {
+        if (!enabled || !projectUuid || !suggestedExploreName || !fields) {
+            return;
+        }
+        if (fields.length === 0 || suggestedExploreName === explore?.name) {
+            return;
+        }
+        void queryClient.prefetchQuery(
+            answerQuery(projectUuid, suggestedExploreName, fields, context),
+        );
+    }, [
+        queryClient,
+        enabled,
+        projectUuid,
+        suggestedExploreName,
+        explore?.name,
+        fields,
+        context,
+    ]);
     const request =
         enabled && projectUuid && sourceKey && explore && fields
             ? { projectUuid, sourceKey, explore, fields, context }
@@ -147,17 +201,15 @@ export const useAmbientFieldSuggestions = ({
             const suggestions =
                 requested.length === 0
                     ? []
-                    : await suggestChartTypeFields(
-                          request.projectUuid,
-                          {
-                              prompt: request.context.prompt,
-                              clarifications: request.context.clarifications,
-                              exploreName: request.explore.name,
-                              fields: requested,
-                          },
-                          signal,
-                      )
-                          .then((results) => results.suggestions)
+                    : await queryClient
+                          .fetchQuery(
+                              answerQuery(
+                                  request.projectUuid,
+                                  request.explore.name,
+                                  requested,
+                                  request.context,
+                              ),
+                          )
                           .catch(() => [] as SuggestedChartTypeField[]);
             const picks = Object.fromEntries(
                 requested.flatMap((field) => {
