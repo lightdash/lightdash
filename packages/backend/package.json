@@ -111,6 +111,7 @@
         "@tsoa/runtime": "6.6.0",
         "@types/async": "3.2.16",
         "@types/sshpk": "1.17.1",
+        "@typesafe-ai/sdk": "0.6.0",
         "ai": "7.0.106",
         "ajv": "8.18.0",
         "ajv-formats": "2.1.1",

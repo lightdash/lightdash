@@ -43,19 +43,27 @@ describe('AiDecisionClient', () => {
         const client = new AiDecisionClient(config, fetcher);
         const answers = await client.evaluate(request);
         expect(confidentChoice(answers?.pick)).toBe('a');
-        const options = fetcher.mock.calls[0][1];
-        expect(options?.headers).toEqual({
+        const [url, options] = fetcher.mock.calls[0];
+        expect(url).toBe('https://api.typesafe.ai/v1/systemone');
+        expect(options?.headers).toMatchObject({
             Authorization: 'Bearer test-key',
             'Content-Type': 'application/json',
         });
         expect(options).toHaveProperty('dispatcher');
-        expect(options?.body).toBe(
-            JSON.stringify({
-                model: config.model,
-                state: request.state,
-                questions: request.questions,
-            }),
-        );
+        expect(JSON.parse(String(options?.body))).toEqual({
+            model: config.model,
+            state: request.state,
+            questions: request.questions,
+        });
+    });
+
+    it('never retries, so a failing provider costs one attempt per turn', async () => {
+        const fetcher = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(new Response('down', { status: 503 }));
+        const client = new AiDecisionClient(config, fetcher);
+        expect(await client.evaluate(request)).toBeNull();
+        expect(fetcher).toHaveBeenCalledTimes(1);
     });
 
     it('tracks provider usage without mixing it into the decision answers', async () => {

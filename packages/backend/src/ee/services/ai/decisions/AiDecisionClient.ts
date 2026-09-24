@@ -1,3 +1,10 @@
+import {
+    APIError,
+    APITimeoutError,
+    APIUserAbortError,
+    TypeSafeClient,
+    type EntryType,
+} from '@typesafe-ai/sdk';
 import { Agent, type Dispatcher } from 'undici';
 import { z } from 'zod';
 import type { LightdashConfig } from '../../../../config/parseConfig';
@@ -10,7 +17,12 @@ export type DecisionQuestion =
           instructions: string;
           criteria: Record<string, string | null>;
       }
-    | { type: 'score'; instructions: string; criteria: string[] };
+    | {
+          type: 'score';
+          instructions: string;
+          /** An ordered rubric of at least two levels, as the provider requires. */
+          criteria: readonly [string, string, ...string[]];
+      };
 
 const probability = z.number().finite().min(0).max(1);
 const answerSchema = z.discriminatedUnion('type', [
@@ -68,40 +80,6 @@ const LOGGED_OPERATIONS = new Set([
     'writeback-source',
 ]);
 
-const readBoundedJson = async (response: Response): Promise<unknown> => {
-    const contentLength = Number(response.headers.get('content-length'));
-    if (
-        Number.isFinite(contentLength) &&
-        contentLength > MAX_DECISION_PAYLOAD_BYTES
-    ) {
-        await response.body?.cancel();
-        throw new Error('Decision provider response too large');
-    }
-    if (!response.body) return null;
-
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let bytes = 0;
-    try {
-        while (true) {
-            // The provider response is small; serial reads enforce the cap.
-            // eslint-disable-next-line no-await-in-loop
-            const { done, value } = await reader.read();
-            if (done) break;
-            bytes += value.byteLength;
-            if (bytes > MAX_DECISION_PAYLOAD_BYTES) {
-                // eslint-disable-next-line no-await-in-loop
-                await reader.cancel();
-                throw new Error('Decision provider response too large');
-            }
-            chunks.push(value);
-        }
-    } finally {
-        reader.releaseLock();
-    }
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-};
-
 export type DecisionAnswers = z.infer<typeof responseSchema>['answers'];
 export type AiDecisionUsage = {
     inputTokens: number;
@@ -118,9 +96,42 @@ const JEV_DISPATCHER = new Agent({
     keepAliveMaxTimeout: 300_000,
 });
 type DecisionConfig = LightdashConfig['ai']['decisions'];
+
+class DecisionResponseTooLarge extends Error {}
+
+/** SDK transport: our keep-alive pool, and a size cap since the SDK buffers whole bodies. */
+const createSdk = (config: DecisionConfig, request: typeof fetch) =>
+    new TypeSafeClient({
+        apiKey: config.apiKey ?? '',
+        defaultModel: config.model,
+        timeout: MAX_DECISION_TIMEOUT_MS,
+        // A retry turns a fast fallback into a slow one on a turn-latency budget.
+        retry: { maxRetries: 0 },
+        // Provider errors can carry user data; outcomes are logged locally instead.
+        logLevel: 'off',
+        fetch: async (input, init) => {
+            const response = await request(input, {
+                ...init,
+                ...({ dispatcher: JEV_DISPATCHER } as {
+                    dispatcher: Dispatcher;
+                }),
+            });
+            const length = Number(response.headers.get('content-length'));
+            if (
+                Number.isFinite(length) &&
+                length > MAX_DECISION_PAYLOAD_BYTES
+            ) {
+                await response.body?.cancel();
+                throw new DecisionResponseTooLarge();
+            }
+            return response;
+        },
+    });
 type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
 export class AiDecisionClient {
+    private readonly sdk: TypeSafeClient;
+
     constructor(
         private readonly config: DecisionConfig,
         private readonly request: typeof fetch = fetch,
@@ -129,7 +140,10 @@ export class AiDecisionClient {
             consecutiveFailures: 0,
             retryAfter: 0,
         },
-    ) {}
+        sdk?: TypeSafeClient,
+    ) {
+        this.sdk = sdk ?? createSdk(config, request);
+    }
 
     withUsage(usage: AiDecisionUsage): AiDecisionClient {
         return new AiDecisionClient(
@@ -137,6 +151,7 @@ export class AiDecisionClient {
             this.request,
             usage,
             this.health,
+            this.sdk,
         );
     }
 
@@ -188,36 +203,22 @@ export class AiDecisionClient {
                 outcome = 'state-too-large';
                 return null;
             }
-            const deadline = AbortSignal.timeout(
-                Math.min(
-                    Math.max(timeoutMs ?? 0, this.config.timeoutMs),
-                    MAX_DECISION_TIMEOUT_MS,
-                ),
+            // JSON round-trip matches what the size check measured and yields a JSON value.
+            const jsonState: EntryType = JSON.parse(
+                JSON.stringify(state ?? null),
             );
-            const response = await this.request(
-                'https://api.typesafe.ai/v1/systemone',
-                {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${this.config.apiKey}`,
-                        'Content-Type': 'application/json',
+            const { data, response } = await this.sdk
+                .systemOne(
+                    { state: jsonState, questions, model: this.config.model },
+                    {
+                        signal,
+                        timeout: Math.min(
+                            Math.max(timeoutMs ?? 0, this.config.timeoutMs),
+                            MAX_DECISION_TIMEOUT_MS,
+                        ),
                     },
-                    body,
-                    signal: signal
-                        ? AbortSignal.any([signal, deadline])
-                        : deadline,
-                    ...({ dispatcher: JEV_DISPATCHER } as {
-                        dispatcher: Dispatcher;
-                    }),
-                },
-            );
-            if (!response.ok) {
-                outcome = 'provider-http-error';
-                retryableFailure =
-                    response.status === 429 || response.status >= 500;
-                await response.body?.cancel();
-                throw new Error('Decision provider unavailable');
-            }
+                )
+                .withResponse();
             const serviceMs = Number(
                 response.headers.get(SERVICE_TIME_HEADER) ?? Number.NaN,
             );
@@ -225,7 +226,7 @@ export class AiDecisionClient {
                 this.usage.serviceMs = (this.usage.serviceMs ?? 0) + serviceMs;
             outcome = 'invalid-response';
             retryableFailure = false;
-            const rawResponse = await readBoundedJson(response);
+            const rawResponse: unknown = data;
             const providerUsage = z
                 .object({ usage: usageSchema.optional() })
                 .safeParse(rawResponse);
@@ -298,12 +299,13 @@ export class AiDecisionClient {
             outcome = 'success';
             return answers;
         } catch (error) {
-            if (signal?.aborted) outcome = 'cancelled';
-            else if (
-                error instanceof DOMException &&
-                error.name === 'TimeoutError'
-            )
-                outcome = 'timeout';
+            if (error instanceof APIError) {
+                outcome = 'provider-http-error';
+                retryableFailure = error.status === 429 || error.status >= 500;
+            }
+            if (signal?.aborted || error instanceof APIUserAbortError)
+                outcome = 'cancelled';
+            else if (error instanceof APITimeoutError) outcome = 'timeout';
             if (!signal?.aborted && retryableFailure) {
                 this.health.consecutiveFailures += 1;
                 if (this.health.consecutiveFailures >= 3) {
