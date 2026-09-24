@@ -1,3 +1,15 @@
+## [2.323.1](https://github.com/lightdash/lightdash/compare/2.323.0...2.323.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** use domain-neutral examples in JEV turn routing ([#29900](https://github.com/lightdash/lightdash/issues/29900)) ([22bdc8e](https://github.com/lightdash/lightdash/commit/22bdc8e90f5fbba2998fa511cd5faaa3e9fb92da))
+
+
+### Performance Improvements
+
+* **ai-agents:** stream JEV chart edit replies before the title check ([#29898](https://github.com/lightdash/lightdash/issues/29898)) ([25c094e](https://github.com/lightdash/lightdash/commit/25c094e1267a3ba4db7cb82d192c56276a0c6f08))
+
 # [2.323.0](https://github.com/lightdash/lightdash/compare/2.322.0...2.323.0) (2026-09-24)
 
 
