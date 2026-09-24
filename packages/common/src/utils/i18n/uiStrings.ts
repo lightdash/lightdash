@@ -12,6 +12,7 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'skillMenu.header': 'Skills',
     'skillMenu.noneAvailable': 'No skills available for this agent',
     'skillMenu.noMatch':
         'No skill matches "{query}". Keep typing to send as text.',

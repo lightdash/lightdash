@@ -174,7 +174,8 @@ const generateSkillMentionSuggestion = ({
         };
         const listProps = (query: string, editor: Editor) => ({
             renderItem: renderSkillMentionItem(strings, query),
-            legend: 'compact' as const,
+            getGroupKey: () => 'skills',
+            groupLabels: { skills: strings('skillMenu.header') },
             emptyMessage: emptyMessage(query, editor),
         });
         // The menu spans the composer's text column, from the line below the caret.

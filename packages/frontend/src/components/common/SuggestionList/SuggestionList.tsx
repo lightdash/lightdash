@@ -32,8 +32,6 @@ type SuggestionListProps<T extends SuggestionItem> = SuggestionProps<T> & {
     /** Display labels for each group key. Falls back to the raw key. */
     groupLabels?: Record<string, string>;
     emptyMessage?: string;
-    /** `compact` shows only the keys, right-aligned, with a single "select" label. */
-    legend?: 'full' | 'compact';
 };
 
 export const SuggestionList = forwardRef<
@@ -137,48 +135,27 @@ export const SuggestionList = forwardRef<
                       ))
                     : props.items.map((item, index) => renderRow(item, index))}
             </div>
-            {props.legend === 'compact' ? (
-                <Group
-                    gap={6}
-                    wrap="nowrap"
-                    justify="flex-end"
-                    className={styles.footer}
-                >
-                    <Group gap={4} wrap="nowrap">
-                        <kbd className={styles.kbd}>↑</kbd>
-                        <kbd className={styles.kbd}>↓</kbd>
-                    </Group>
-                    <Group gap={4} wrap="nowrap">
-                        <kbd className={styles.kbd}>↵</kbd>
-                        <Text size="xs" inherit>
-                            select
-                        </Text>
-                    </Group>
+            <Group gap="xs" wrap="nowrap" className={styles.footer}>
+                <Group gap={4} wrap="nowrap">
+                    <kbd className={styles.kbd}>↑</kbd>
+                    <kbd className={styles.kbd}>↓</kbd>
+                    <Text size="xs" inherit>
+                        navigate
+                    </Text>
+                </Group>
+                <Group gap={4} wrap="nowrap">
+                    <kbd className={styles.kbd}>↵</kbd>
+                    <Text size="xs" inherit>
+                        select
+                    </Text>
+                </Group>
+                <Group gap={4} wrap="nowrap">
                     <kbd className={styles.kbd}>esc</kbd>
+                    <Text size="xs" inherit>
+                        close
+                    </Text>
                 </Group>
-            ) : (
-                <Group gap="xs" wrap="nowrap" className={styles.footer}>
-                    <Group gap={4} wrap="nowrap">
-                        <kbd className={styles.kbd}>↑</kbd>
-                        <kbd className={styles.kbd}>↓</kbd>
-                        <Text size="xs" inherit>
-                            navigate
-                        </Text>
-                    </Group>
-                    <Group gap={4} wrap="nowrap">
-                        <kbd className={styles.kbd}>↵</kbd>
-                        <Text size="xs" inherit>
-                            select
-                        </Text>
-                    </Group>
-                    <Group gap={4} wrap="nowrap">
-                        <kbd className={styles.kbd}>esc</kbd>
-                        <Text size="xs" inherit>
-                            close
-                        </Text>
-                    </Group>
-                </Group>
-            )}
+            </Group>
         </Paper>
     );
 });
