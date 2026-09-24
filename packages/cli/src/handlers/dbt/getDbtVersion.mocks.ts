@@ -75,6 +75,18 @@ export const cliMocks = {
     dbtCloud: {
         all: 'dbt Cloud CLI - 0.38.22 (1183c2abdb6003083b0fa91fcd89cd5feb25f9f7 2024-11-20T15:49:01Z)',
     } as Partial<ExecaReturnValue>,
+    dbtFusionPreview: {
+        all: 'dbt-fusion 2.0.0-preview.65',
+    } as Partial<ExecaReturnValue>,
+    dbt2_0_0: {
+        all: 'dbt 2.0.0',
+    } as Partial<ExecaReturnValue>,
+    dbt2_0_6: {
+        all: 'dbt 2.0.6\n',
+    } as Partial<ExecaReturnValue>,
+    dbt2Preview: {
+        all: 'dbt 2.0.0-preview.178',
+    } as Partial<ExecaReturnValue>,
     dbt20_1: {
         all:
             'Core:\n' +
