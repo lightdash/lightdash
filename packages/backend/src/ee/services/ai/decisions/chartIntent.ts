@@ -50,7 +50,18 @@ export type ChartPeriod =
           year: number;
           quarter: number | null;
           month: number | null;
-      };
+      }
+    /** Explicit dates: `start` inclusive and `end` exclusive, as ISO dates; either may be open. */
+    | { type: 'range'; start: string | null; end: string | null };
+
+export const NUMBER_COMPARISONS = [
+    'gt',
+    'gte',
+    'lt',
+    'lte',
+    'between',
+] as const;
+export type NumberComparison = (typeof NUMBER_COMPARISONS)[number];
 
 export type ChartIntent =
     | { kind: 'chart_type'; chartType: ChartTypeOption }
@@ -70,6 +81,12 @@ export type ChartIntent =
           kind: 'filter_period';
           fieldId: string;
           period: ChartPeriod;
+      }
+    | {
+          kind: 'filter_number';
+          fieldId: string;
+          comparison: NumberComparison;
+          values: number[];
       }
     | { kind: 'remove_filter'; fieldId: string }
     | { kind: 'add_metric'; fieldId: string }
@@ -163,6 +180,10 @@ export type ChartIntentContext = {
     metricOptions: FieldCandidate[];
     /** Other time grains of the chart's one date dimension, when it has them. */
     grain: { fromFieldId: string; options: FieldCandidate[] } | null;
+    /** Chart metrics and numeric fields a threshold can apply to. */
+    thresholdFields: FieldCandidate[];
+    /** Amounts stated in the prompt; JEV selects among them rather than generating one. */
+    amounts: number[];
     /** Each current filter as a short sentence, such as "Region is North or South". */
     filters: string[];
 };
@@ -327,6 +348,20 @@ export const extractNumberCandidates = (prompt: string): number[] => {
     return [...new Set([...digits, ...words])].filter(
         (value) => value >= 1 && value <= 5000,
     );
+};
+
+const SCALES: Record<string, number> = { k: 1_000, m: 1_000_000 };
+
+/** Amounts stated in the prompt, with decimals, thousands separators and k/m suffixes. */
+export const extractAmountCandidates = (prompt: string): number[] => {
+    const amounts = [
+        ...prompt.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?(?![a-zA-Z])/g),
+    ].map(
+        ([, digits, suffix]) =>
+            Number(digits.replaceAll(',', '')) *
+            (SCALES[suffix?.toLowerCase() ?? ''] ?? 1),
+    );
+    return [...new Set(amounts.filter(Number.isFinite))].slice(0, 12);
 };
 
 const toCandidate = (
@@ -494,6 +529,20 @@ export const buildChartIntentContext = ({
         chartDimensions: byId(query.dimensions),
         metricOptions,
         grain: grainOptions(query.dimensions, explore, usage),
+        amounts: extractAmountCandidates(prompt),
+        thresholdFields: [
+            ...byId(query.metrics),
+            ...filterableFields.filter(({ id }) => {
+                const field = exploreFields.find(
+                    (item) => getItemId(item) === id,
+                );
+                return (
+                    field !== undefined &&
+                    isDimension(field) &&
+                    getFilterTypeFromItemType(field.type) === FilterType.NUMBER
+                );
+            }),
+        ],
     };
 };
 
@@ -638,6 +687,10 @@ export const buildChartIntentQuestions = ({
                     'The previous complete calendar period such as last year, last quarter or last month',
                 calendar_period:
                     'A specific named calendar year, quarter or month such as 2023, Q1 2024 or March 2024',
+                date_range:
+                    'Dates from, until or between specific days, such as since 1 March 2024, before 2023, or 13 to 20 May',
+                number_threshold:
+                    'Keep only rows or groups where a number is above, below or between stated amounts',
                 other: 'Any other kind of filter',
             },
         },
@@ -809,6 +862,104 @@ export const buildChartIntentQuestions = ({
             },
         };
     }
+    const { amounts } = context;
+    if (numbers.length > 0) {
+        const dayOptions = Object.fromEntries(
+            numbers
+                .filter((value) => value >= 1 && value <= 31)
+                .map((value) => [String(value), `Day ${value}`]),
+        );
+        const yearOptions = Object.fromEntries(
+            numbers
+                .filter(isYear)
+                .map((value) => [String(value), `The year ${value}`]),
+        );
+        const monthOptions = Object.fromEntries(
+            MONTHS.map((name, index) => [`m${index + 1}`, name]),
+        );
+        const bound = (which: 'start' | 'end') =>
+            which === 'start'
+                ? 'first day the date range includes'
+                : 'last day of the date range';
+        (['start', 'end'] as const).forEach((which) => {
+            if (Object.keys(dayOptions).length > 0)
+                questions[`${which}Day`] = {
+                    type: 'choice',
+                    instructions: `If \`prompt\` names a date range, which day of the month is the ${bound(which)}?`,
+                    criteria: {
+                        ...dayOptions,
+                        none: 'No day of the month is stated for it',
+                    },
+                };
+            questions[`${which}Month`] = {
+                type: 'choice',
+                instructions: `If \`prompt\` names a date range, which month is the ${bound(which)} in?`,
+                criteria: {
+                    ...monthOptions,
+                    none: 'No month is stated for it',
+                },
+            };
+            if (Object.keys(yearOptions).length > 0)
+                questions[`${which}Year`] = {
+                    type: 'choice',
+                    instructions: `If \`prompt\` names a date range, which year is the ${bound(which)} in?`,
+                    criteria: {
+                        ...yearOptions,
+                        none: 'No year is stated for it',
+                    },
+                };
+        });
+        questions.rangeShape = {
+            type: 'choice',
+            instructions:
+                'If `prompt` names a date range, which bounds does it state?',
+            criteria: {
+                between: 'Both a start and an end',
+                since: 'Only a start, running to today',
+                until: 'Only an end, and the end day itself is included',
+                before: 'Only an end, and the end day itself is excluded',
+            },
+        };
+    }
+    if (amounts.length > 0 && context.thresholdFields.length > 0) {
+        const amountOptions = Object.fromEntries(
+            amounts.map((value) => [String(value), String(value)]),
+        );
+        questions.thresholdField = {
+            type: 'choice',
+            instructions:
+                'If the user wants only rows or groups above, below or between stated amounts, which number is compared?',
+            criteria: {
+                ...fieldCriteria(context.thresholdFields, {
+                    withDescriptions: false,
+                }),
+                none: 'The compared number is not in this list',
+            },
+        };
+        questions.comparison = {
+            type: 'choice',
+            instructions: 'If the user states a threshold, which comparison?',
+            criteria: {
+                gt: 'Greater than, more than, over, above',
+                gte: 'At least, greater than or equal to',
+                lt: 'Less than, under, below',
+                lte: 'At most, less than or equal to',
+                between: 'Between two amounts',
+            },
+        };
+        questions.amountLow = {
+            type: 'choice',
+            instructions:
+                'Which stated amount is the threshold, or the lower bound of a between range?',
+            criteria: { ...amountOptions, none: 'None of these' },
+        };
+        questions.amountHigh = {
+            type: 'choice',
+            instructions:
+                'If the user states a between range, which stated amount is its upper bound?',
+            criteria: { ...amountOptions, none: 'No upper bound is stated' },
+        };
+    }
     if (numbers.length > 0) {
         questions.number = {
             type: 'choice',
@@ -822,7 +973,14 @@ export const buildChartIntentQuestions = ({
             },
         };
     }
-    return questions;
+    // A choice with a single option is rejected by JEV and would fail the whole batch.
+    return Object.fromEntries(
+        Object.entries(questions).filter(
+            ([, question]) =>
+                question.type !== 'choice' ||
+                Object.keys(question.criteria).length > 1,
+        ),
+    );
 };
 
 const MAX_EVIDENCE_FIELDS = 3;
@@ -978,6 +1136,142 @@ const resolveCalendarPeriod = (
     };
 };
 
+const pickStated = (
+    answer: DecisionAnswers[string] | undefined,
+    stated: number[],
+    threshold: number,
+): number | null => {
+    const chosen = confident(answer, threshold);
+    return chosen && stated.includes(Number(chosen)) ? Number(chosen) : null;
+};
+
+type DateBound = {
+    year: number | null;
+    month: number | null;
+    day: number | null;
+};
+
+const readBound = (
+    answers: DecisionAnswers,
+    which: 'start' | 'end',
+    numbers: number[],
+    threshold: number,
+): DateBound => {
+    const month = confident(answers[`${which}Month`], threshold);
+    return {
+        year: pickStated(
+            answers[`${which}Year`],
+            numbers.filter(isYear),
+            threshold,
+        ),
+        month: month?.startsWith('m') ? Number(month.slice(1)) : null,
+        day: pickStated(
+            answers[`${which}Day`],
+            numbers.filter((value) => value >= 1 && value <= 31),
+            threshold,
+        ),
+    };
+};
+
+const utcIso = (year: number, month: number, day: number) =>
+    new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+
+/** A yearless bound falls in the latest year that does not put it in the future. */
+const inferYear = (bound: DateBound, today: Date): number => {
+    const year = today.getUTCFullYear();
+    const month = bound.month ?? 1;
+    const isFuture =
+        month > today.getUTCMonth() + 1 ||
+        (month === today.getUTCMonth() + 1 &&
+            (bound.day ?? 1) > today.getUTCDate());
+    return isFuture ? year - 1 : year;
+};
+
+/** First day the bound covers, or the first day after it; a day needs a month to anchor it. */
+const boundDate = (
+    bound: DateBound,
+    year: number,
+    edge: 'first' | 'after',
+): string | null => {
+    if (bound.month === null)
+        return bound.day === null
+            ? utcIso(edge === 'first' ? year : year + 1, 1, 1)
+            : null;
+    if (bound.day === null)
+        return utcIso(year, bound.month + (edge === 'first' ? 0 : 1), 1);
+    return utcIso(year, bound.month, bound.day + (edge === 'first' ? 0 : 1));
+};
+
+const resolveDateRange = (
+    answers: DecisionAnswers,
+    numbers: number[],
+    threshold: number,
+    today: Date = new Date(),
+): Extract<ChartPeriod, { type: 'range' }> | null => {
+    const shape = confident(answers.rangeShape, threshold);
+    if (!shape) return null;
+    const start = readBound(answers, 'start', numbers, threshold);
+    const end = readBound(answers, 'end', numbers, threshold);
+    const hasStart = shape === 'between' || shape === 'since';
+    const hasEnd = shape !== 'since';
+    const anchored = (bound: DateBound) =>
+        bound.year !== null || bound.month !== null;
+    if ((hasStart && !anchored(start)) || (hasEnd && !anchored(end)))
+        return null;
+    const startYear = start.year ?? end.year ?? inferYear(start, today);
+    const endYear = end.year ?? (hasStart ? startYear : inferYear(end, today));
+    const from = hasStart ? boundDate(start, startYear, 'first') : null;
+    const to = hasEnd
+        ? boundDate(end, endYear, shape === 'before' ? 'first' : 'after')
+        : null;
+    if ((hasStart && !from) || (hasEnd && !to)) return null;
+    if (from && to && from >= to) return null;
+    return { type: 'range', start: from, end: to };
+};
+
+const isNumberComparison = (value: string | null): value is NumberComparison =>
+    NUMBER_COMPARISONS.some((comparison) => comparison === value);
+
+const resolveThreshold = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): ChartIntentResolution => {
+    const { amounts } = context;
+    const unresolved = {
+        type: 'unresolved',
+        reason: 'filter-threshold',
+    } as const;
+    const chosen = confident(answers.thresholdField, thresholds.field);
+    const field = context.thresholdFields.find(({ id }) => id === chosen);
+    const comparison = confident(answers.comparison, thresholds.option);
+    const low = pickStated(answers.amountLow, amounts, thresholds.option);
+    if (!field || !isNumberComparison(comparison) || low === null)
+        return unresolved;
+    if (comparison !== 'between')
+        return {
+            type: 'intent',
+            intent: {
+                kind: 'filter_number',
+                fieldId: field.id,
+                comparison,
+                values: [low],
+            },
+        };
+    const high = pickStated(answers.amountHigh, amounts, thresholds.option);
+    return high !== null && high > low
+        ? {
+              type: 'intent',
+              intent: {
+                  kind: 'filter_number',
+                  fieldId: field.id,
+                  comparison,
+                  values: [low, high],
+              },
+          }
+        : unresolved;
+};
+
 const resolveFilter = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -988,11 +1282,14 @@ const resolveFilter = (
     const kind = confident(answers.filterKind, option);
     if (!kind || kind === 'other')
         return { type: 'unresolved', reason: 'filter-kind' };
+    if (kind === 'number_threshold')
+        return resolveThreshold(answers, context, thresholds);
     const chosen = confident(answers.filterField, field);
     const chosenField = context.filterableFields.find(
         ({ id }) => id === chosen,
     );
     if (
+        kind === 'date_range' ||
         kind === 'last_period' ||
         kind === 'current_period' ||
         kind === 'previous_period' ||
@@ -1008,6 +1305,19 @@ const resolveFilter = (
                 ? queryDates[0]
                 : [chosenField].find((candidate) => candidate?.isDate);
         if (!dateField) return { type: 'unresolved', reason: 'filter-period' };
+        if (kind === 'date_range') {
+            const period = resolveDateRange(answers, numbers, option);
+            return period
+                ? {
+                      type: 'intent',
+                      intent: {
+                          kind: 'filter_period',
+                          fieldId: dateField.id,
+                          period,
+                      },
+                  }
+                : { type: 'unresolved', reason: 'filter-range' };
+        }
         if (kind === 'calendar_period') {
             const period = resolveCalendarPeriod(answers, numbers, option);
             return period
@@ -1530,6 +1840,13 @@ const describePeriod = (period: ChartPeriod): string => {
             if (period.month !== null)
                 return `${MONTHS[period.month - 1]} ${period.year}`;
             return `the year ${period.year}`;
+        case 'range':
+            return [
+                period.start ? `from ${period.start}` : null,
+                period.end ? `before ${period.end}` : null,
+            ]
+                .filter(Boolean)
+                .join(' and ');
         default:
             return assertUnreachable(period, 'Unknown chart period');
     }
@@ -1560,6 +1877,16 @@ const describeStep = (
             return `Filter ${labelFor(context, intent.fieldId)} to ${describePeriod(intent.period)}`;
         case 'remove_filter':
             return `Remove the ${labelFor(context, intent.fieldId)} filter and keep the other filters`;
+        case 'filter_number':
+            return `Keep only ${labelFor(context, intent.fieldId)} ${
+                {
+                    gt: 'greater than',
+                    gte: 'at least',
+                    lt: 'less than',
+                    lte: 'at most',
+                    between: 'between',
+                }[intent.comparison]
+            } ${intent.values.join(' and ')}`;
         case 'add_metric':
             return `Add the ${labelFor(context, intent.fieldId)} metric alongside the current metrics`;
         case 'remove_metric':

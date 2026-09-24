@@ -785,6 +785,78 @@ describe('applyChartIntent', () => {
         });
     });
 
+    describe('ranges and thresholds', () => {
+        it('filters an explicit date range with an exclusive end', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_date',
+                    period: {
+                        type: 'range',
+                        start: '2026-05-13',
+                        end: '2026-05-21',
+                    },
+                },
+                artifact,
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                {
+                    fieldId: 'orders_date',
+                    operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+                    values: ['2026-05-13'],
+                },
+                {
+                    fieldId: 'orders_date',
+                    operator: FilterOperator.LESS_THAN,
+                    values: ['2026-05-21'],
+                },
+            ]);
+            expect(edit?.response).toBe(
+                'Filtered to 13 May 2026 to 20 May 2026.',
+            );
+        });
+
+        it('filters a chart metric as a group filter', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_number',
+                    fieldId: 'orders_revenue',
+                    comparison: 'gt',
+                    values: [1000],
+                },
+                artifact,
+                explore,
+            });
+            const filters = edit?.config.config.queryConfig.filters;
+            expect(
+                filters && !('type' in filters) ? filters.metrics?.rules : null,
+            ).toMatchObject([
+                {
+                    fieldId: 'orders_revenue',
+                    operator: FilterOperator.GREATER_THAN,
+                    values: [1000],
+                },
+            ]);
+            expect(edit?.response).toBe('Filtered to **Revenue** above 1,000.');
+        });
+
+        it('only applies thresholds to numbers', () => {
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'filter_number',
+                        fieldId: 'orders_region',
+                        comparison: 'gt',
+                        values: [5],
+                    },
+                    artifact,
+                    explore,
+                }),
+            ).toBeNull();
+        });
+    });
+
     describe('metric and breakdown edits', () => {
         const metric = (name: string, label: string) => ({
             name,
