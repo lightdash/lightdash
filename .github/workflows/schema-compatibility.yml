@@ -151,7 +151,7 @@ jobs:
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
       - name: Build packages
-        run: pnpm exec turbo run build --filter=@lightdash/common --filter=@lightdash/warehouses
+        run: pnpm exec turbo run build --filter=backend^...
       - name: Migrate and seed with this pull request
         run: ./scripts/n-minus-one.sh --prepare-only --database lightdash
         env:
