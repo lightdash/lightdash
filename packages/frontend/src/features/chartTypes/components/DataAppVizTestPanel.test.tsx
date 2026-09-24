@@ -535,6 +535,7 @@ describe('DataAppVizTestPanel', () => {
                 valueColors: {
                     orders_visible: { Retail: '#00ff00' },
                 },
+                conditionalFormattingColors: [],
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
@@ -559,6 +560,7 @@ describe('DataAppVizTestPanel', () => {
                 valueColors: {
                     orders_visible: { Retail: '#00ff00' },
                 },
+                conditionalFormattingColors: [],
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
@@ -592,6 +594,7 @@ describe('DataAppVizTestPanel', () => {
                 valueColors: {
                     orders_visible: { Retail: '#00ff00' },
                 },
+                conditionalFormattingColors: [],
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
@@ -616,6 +619,7 @@ describe('DataAppVizTestPanel', () => {
                 valueColors: {
                     orders_visible: { Retail: '#00ff00' },
                 },
+                conditionalFormattingColors: [],
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },

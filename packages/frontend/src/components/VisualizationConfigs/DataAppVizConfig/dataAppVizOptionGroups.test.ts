@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    CONDITIONAL_FORMATTING_LABEL,
     groupDataAppVizOptions,
     UNGROUPED_OPTIONS_LABEL,
 } from './dataAppVizOptionGroups';
@@ -18,7 +19,7 @@ const option = (name: string, group?: string): DataAppVizConfigOption => ({
 
 describe('groupDataAppVizOptions', () => {
     it('returns no groups for an empty declaration', () => {
-        expect(groupDataAppVizOptions([], null, [], {})).toEqual([]);
+        expect(groupDataAppVizOptions([], null, [], {}, null)).toEqual([]);
     });
 
     it('keeps declaration order and merges repeated groups', () => {
@@ -27,6 +28,7 @@ describe('groupDataAppVizOptions', () => {
             null,
             [],
             {},
+            null,
         );
 
         expect(groups.map((g) => g.label)).toEqual(['Style', 'Axes']);
@@ -40,6 +42,7 @@ describe('groupDataAppVizOptions', () => {
             null,
             [],
             {},
+            null,
         );
 
         expect(groups.map((g) => g.label)).toEqual([
@@ -55,6 +58,7 @@ describe('groupDataAppVizOptions', () => {
             null,
             [],
             {},
+            null,
         );
 
         expect(groups.every((g) => !g.hasPalette)).toBe(true);
@@ -66,6 +70,7 @@ describe('groupDataAppVizOptions', () => {
             { group: 'Style' },
             [],
             {},
+            null,
         );
 
         expect(groups.map((g) => g.label)).toEqual(['Style', 'Axes']);
@@ -73,7 +78,7 @@ describe('groupDataAppVizOptions', () => {
     });
 
     it('puts an ungrouped palette in the Display group', () => {
-        const groups = groupDataAppVizOptions([option('a')], {}, [], {});
+        const groups = groupDataAppVizOptions([option('a')], {}, [], {}, null);
 
         expect(groups.map((g) => g.label)).toEqual([UNGROUPED_OPTIONS_LABEL]);
         expect(groups[0].hasPalette).toBe(true);
@@ -85,6 +90,7 @@ describe('groupDataAppVizOptions', () => {
             { group: 'Colours' },
             [],
             {},
+            null,
         );
 
         expect(groups.map((g) => g.label)).toEqual(['Style', 'Colours']);
@@ -93,7 +99,13 @@ describe('groupDataAppVizOptions', () => {
     });
 
     it('gives a viz that declares only a palette a single group', () => {
-        const groups = groupDataAppVizOptions([], { group: 'Colours' }, [], {});
+        const groups = groupDataAppVizOptions(
+            [],
+            { group: 'Colours' },
+            [],
+            {},
+            null,
+        );
 
         expect(groups.map((g) => g.label)).toEqual(['Colours']);
         expect(groups[0].hasPalette).toBe(true);
@@ -112,6 +124,7 @@ describe('groupDataAppVizOptions', () => {
             null,
             [metrics],
             { metrics: ['orders_revenue'] },
+            null,
         );
 
         expect(groups.map((g) => [g.label, g.hasFieldOptions])).toEqual([
@@ -128,12 +141,43 @@ describe('groupDataAppVizOptions', () => {
             required: true,
             configOptions: [option('color', 'Series')],
         };
-        const unbound = groupDataAppVizOptions([], null, [metrics], {});
+        const unbound = groupDataAppVizOptions([], null, [metrics], {}, null);
         expect(unbound).toEqual([]);
 
-        const cleared = groupDataAppVizOptions([], null, [metrics], {
-            metrics: [],
-        });
+        const cleared = groupDataAppVizOptions(
+            [],
+            null,
+            [metrics],
+            { metrics: [] },
+            null,
+        );
         expect(cleared).toEqual([]);
+    });
+
+    it('places conditional formatting in the group it names, or its own tab', () => {
+        const grouped = groupDataAppVizOptions(
+            [option('a', 'Style')],
+            null,
+            [],
+            {},
+            { group: 'Style' },
+        );
+        expect(grouped.map((g) => g.hasConditionalFormatting)).toEqual([true]);
+
+        const ungrouped = groupDataAppVizOptions(
+            [option('a')],
+            null,
+            [],
+            {},
+            {},
+        );
+        expect(ungrouped.map((g) => g.label)).toEqual([
+            UNGROUPED_OPTIONS_LABEL,
+            CONDITIONAL_FORMATTING_LABEL,
+        ]);
+        expect(ungrouped.map((g) => g.hasConditionalFormatting)).toEqual([
+            false,
+            true,
+        ]);
     });
 });

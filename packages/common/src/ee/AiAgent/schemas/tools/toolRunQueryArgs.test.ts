@@ -265,6 +265,7 @@ const customChartTypeChartConfig = {
     },
     options: { showLegend: true },
     fieldOptions: { y: { orders_revenue: { color: '#ff0000' } } },
+    conditionalFormattings: null,
 };
 
 // The retired uuid-enriched shape the server used to write into semantic
@@ -389,6 +390,50 @@ describe('chartConfig custom chart type union', () => {
             }).success,
         ).toBe(false);
     });
+
+    const rangeRule = {
+        type: 'range',
+        fieldId: 'orders_revenue',
+        startColor: '#ffffff',
+        endColor: '#0000ff',
+        min: 'auto',
+        max: 'auto',
+    };
+    const singleRule = {
+        type: 'single',
+        fieldId: 'orders_revenue',
+        color: '#ff0000',
+        conditions: [
+            {
+                operator: FilterOperator.GREATER_THAN,
+                values: [10],
+                compareFieldId: null,
+            },
+        ],
+    };
+    const parseWithRules = (conditionalFormattings: unknown[]) =>
+        toolRunQueryArgsSchema.safeParse({
+            ...buildV2Args(),
+            chartConfig: {
+                ...customChartTypeChartConfig,
+                conditionalFormattings,
+            },
+        }).success;
+
+    it('accepts conditional formatting rules with hex colours', () => {
+        expect(parseWithRules([singleRule, rangeRule])).toBe(true);
+    });
+
+    it.each([
+        { ...singleRule, color: 'red' },
+        { ...rangeRule, startColor: 'white' },
+        { ...rangeRule, endColor: '#12345' },
+    ])(
+        'rejects a conditional formatting colour that is not hex: %j',
+        (rule) => {
+            expect(parseWithRules([rule])).toBe(false);
+        },
+    );
 
     it('advertised schema rejects a custom config missing fieldMapping', () => {
         const { fieldMapping, ...withoutMapping } = customChartTypeChartConfig;

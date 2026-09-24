@@ -48,7 +48,6 @@ import FieldSelect from '../../common/FieldSelect';
 import { filterOperatorLabel } from '../../common/Filters/FilterInputs/constants';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
@@ -66,6 +65,8 @@ type Props = {
     onRemove: () => void;
     addNewItem: (value: string) => void;
     removeItem: (value: string) => void;
+    /** Cell/text/row targeting and text styles, which only tables draw. */
+    showTableStyleControls: boolean;
 };
 
 const ConditionalFormattingRuleLabels = {
@@ -93,6 +94,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
     onRemove,
     addNewItem,
     removeItem,
+    showTableStyleControls,
 }) => {
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
     const [openConditions, setOpenConditions] = useState<string[]>(() =>
@@ -100,7 +102,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
             ? value.rules.map((_, i) => `${i}`)
             : [],
     );
-    const { itemsMap } = useVisualizationContext();
 
     const field = useMemo(
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),
@@ -124,13 +125,13 @@ export const ConditionalFormattingItem: FC<Props> = ({
             handleChange(
                 produce(config, (draft) => {
                     const currentField = draft.target?.fieldId
-                        ? itemsMap?.[draft.target?.fieldId]
+                        ? fields.find(
+                              (f) => getItemId(f) === draft.target?.fieldId,
+                          )
                         : undefined;
                     // Reset the config if the field type family changes,
                     // since operators and values are type-specific
-                    const getTypeFamily = (
-                        f: typeof newField | typeof currentField,
-                    ) => {
+                    const getTypeFamily = (f: FilterableItem | undefined) => {
                         if (isNumericItem(f)) return 'numeric';
                         if (isStringDimension(f)) return 'string';
                         if (isBooleanItem(f)) return 'boolean';
@@ -185,7 +186,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 }),
             );
         },
-        [handleChange, config, colorPalette, itemsMap],
+        [handleChange, config, colorPalette, fields],
     );
 
     const handleConfigTypeChange = useCallback(
@@ -500,72 +501,83 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             </Group>
                         ) : null}
 
-                        <Group gap="xs">
-                            <Config.Label>Apply to</Config.Label>
+                        {showTableStyleControls && (
+                            <>
+                                <Group gap="xs">
+                                    <Config.Label>Apply to</Config.Label>
 
-                            <SegmentedControl
-                                data={[
-                                    {
-                                        value: ConditionalFormattingColorApplyTo.CELL,
-                                        label: 'Cell',
-                                    },
-                                    {
-                                        value: ConditionalFormattingColorApplyTo.TEXT,
-                                        label: 'Text',
-                                    },
-                                    // Row fill only applies to single-color rules;
-                                    // color-range (gradient) rules ignore ROW, so
-                                    // don't offer a dead option for them.
-                                    ...(isConditionalFormattingConfigWithSingleColor(
-                                        config,
-                                    )
-                                        ? [
-                                              {
-                                                  value: ConditionalFormattingColorApplyTo.ROW,
-                                                  label: 'Row',
-                                              },
-                                          ]
-                                        : []),
-                                ]}
-                                value={
-                                    config.applyTo ??
-                                    ConditionalFormattingColorApplyTo.CELL
-                                }
-                                onChange={(value) =>
-                                    handleChangeApplyTo(
-                                        value as ConditionalFormattingColorApplyTo,
-                                    )
-                                }
-                            />
-                        </Group>
+                                    <SegmentedControl
+                                        data={[
+                                            {
+                                                value: ConditionalFormattingColorApplyTo.CELL,
+                                                label: 'Cell',
+                                            },
+                                            {
+                                                value: ConditionalFormattingColorApplyTo.TEXT,
+                                                label: 'Text',
+                                            },
+                                            // Row fill only applies to single-color rules;
+                                            // color-range (gradient) rules ignore ROW, so
+                                            // don't offer a dead option for them.
+                                            ...(isConditionalFormattingConfigWithSingleColor(
+                                                config,
+                                            )
+                                                ? [
+                                                      {
+                                                          value: ConditionalFormattingColorApplyTo.ROW,
+                                                          label: 'Row',
+                                                      },
+                                                  ]
+                                                : []),
+                                        ]}
+                                        value={
+                                            config.applyTo ??
+                                            ConditionalFormattingColorApplyTo.CELL
+                                        }
+                                        onChange={(value) =>
+                                            handleChangeApplyTo(
+                                                value as ConditionalFormattingColorApplyTo,
+                                            )
+                                        }
+                                    />
+                                </Group>
 
-                        <Group gap="xs">
-                            <Config.Label>Text style</Config.Label>
-                            <ActionIcon.Group>
-                                {TEXT_STYLE_TOGGLES.map(
-                                    ({ key, label, icon }) => (
-                                        <Tooltip key={key} label={label}>
-                                            <ActionIcon
-                                                variant={
-                                                    config.textStyle?.[key]
-                                                        ? 'filled'
-                                                        : 'default'
-                                                }
-                                                aria-label={label}
-                                                onClick={() =>
-                                                    handleToggleTextStyle(key)
-                                                }
-                                            >
-                                                <MantineIcon
-                                                    icon={icon}
-                                                    size="sm"
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    ),
-                                )}
-                            </ActionIcon.Group>
-                        </Group>
+                                <Group gap="xs">
+                                    <Config.Label>Text style</Config.Label>
+                                    <ActionIcon.Group>
+                                        {TEXT_STYLE_TOGGLES.map(
+                                            ({ key, label, icon }) => (
+                                                <Tooltip
+                                                    key={key}
+                                                    label={label}
+                                                >
+                                                    <ActionIcon
+                                                        variant={
+                                                            config.textStyle?.[
+                                                                key
+                                                            ]
+                                                                ? 'filled'
+                                                                : 'default'
+                                                        }
+                                                        aria-label={label}
+                                                        onClick={() =>
+                                                            handleToggleTextStyle(
+                                                                key,
+                                                            )
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={icon}
+                                                            size="sm"
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            ),
+                                        )}
+                                    </ActionIcon.Group>
+                                </Group>
+                            </>
+                        )}
 
                         {isConditionalFormattingConfigWithSingleColor(
                             config,

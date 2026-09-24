@@ -65,6 +65,7 @@ import {
 import { useSavedChartBindingPreview } from '../features/chartTypes/builder/useSavedChartBindingPreview';
 import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import { useConditionalFormattingColorRangeAdjuster } from '../features/chartTypes/hooks/useConditionalFormattingColorRangeAdjuster';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import {
@@ -74,6 +75,7 @@ import {
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { buildExplorePreviewMetricQuery } from '../features/chartTypes/utils/explorePreviewQuery';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
+import { getSampleConditionalFormattings } from '../features/chartTypes/utils/sampleConditionalFormatting';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { mapSavedChartPreviewFields } from '../features/chartTypes/utils/savedChartPreviewFieldMapping';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
@@ -464,12 +466,14 @@ const ChartTypeBuilder: FC = () => {
     // Real rows when the saved chart's query has run; the fabricated sample
     // otherwise (tuned by the version's vizPreview resource when present).
     // Rebuilt on any option or palette edit.
+    const adjustColorRange = useConditionalFormattingColorRangeAdjuster();
     const previewContext = useMemo(() => {
         if (!schema) return null;
         if (!liveRun) {
             if (savedChartUuid !== null || exploreName !== null) return null;
             return buildSampleVizContext(
                 schema,
+                adjustColorRange,
                 colorPalette,
                 panel.optionValues,
                 vizPreviewData,
@@ -485,6 +489,10 @@ const ChartTypeBuilder: FC = () => {
             colorPalette,
             optionValues: panel.optionValues,
             fieldOptionValues: panel.fieldOptionValues,
+            conditionalFormattings: getSampleConditionalFormattings(
+                colorPalette[0],
+            ),
+            adjustColorRange,
             resolvedColors,
         });
     }, [
@@ -496,6 +504,7 @@ const ChartTypeBuilder: FC = () => {
         panel.optionValues,
         panel.fieldOptionValues,
         resolvedColors,
+        adjustColorRange,
         renderedFieldMapping,
         vizPreviewData,
     ]);

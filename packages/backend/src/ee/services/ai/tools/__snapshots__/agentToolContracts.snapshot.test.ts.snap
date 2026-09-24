@@ -6809,12 +6809,149 @@ All branches of an IF must return the same type.",
           ],
         },
         "__schema140": {
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "color": {
+                    "description": "Hex colour for values that match every condition.",
+                    "type": "string",
+                  },
+                  "conditions": {
+                    "description": "Conditions that must all match.",
+                    "items": {
+                      "$ref": "#/definitions/__schema142",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "fieldId": {
+                    "description": "Numeric field id bound in fieldMapping whose values this rule colours.",
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "single",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "fieldId",
+                  "color",
+                  "conditions",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "endColor": {
+                    "description": "Hex colour at max.",
+                    "type": "string",
+                  },
+                  "fieldId": {
+                    "description": "Numeric field id bound in fieldMapping whose values this range colours.",
+                    "type": "string",
+                  },
+                  "max": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "const": "auto",
+                        "type": "string",
+                      },
+                    ],
+                    "description": "A fixed number, or 'auto' for the field's largest value.",
+                  },
+                  "min": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "const": "auto",
+                        "type": "string",
+                      },
+                    ],
+                    "description": "A fixed number, or 'auto' for the field's smallest value.",
+                  },
+                  "startColor": {
+                    "description": "Hex colour at min.",
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "range",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "fieldId",
+                  "startColor",
+                  "endColor",
+                  "min",
+                  "max",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "type": [
+            "array",
+            "null",
+          ],
+        },
+        "__schema142": {
+          "additionalProperties": false,
+          "properties": {
+            "compareFieldId": {
+              "description": "Another numeric field id bound in fieldMapping to compare against in the same row. null when comparing against values.",
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "operator": {
+              "enum": [
+                "equals",
+                "notEquals",
+                "lessThan",
+                "lessThanOrEqual",
+                "greaterThan",
+                "greaterThanOrEqual",
+                "inBetween",
+                "notInBetween",
+              ],
+              "type": "string",
+            },
+            "values": {
+              "description": "Numbers to compare against (two for inBetween and notInBetween). null when compareFieldId is set.",
+              "items": {
+                "type": "number",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+          },
+          "required": [
+            "operator",
+            "values",
+            "compareFieldId",
+          ],
+          "type": "object",
+        },
+        "__schema148": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema141",
+                "$ref": "#/definitions/__schema149",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -6822,7 +6959,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema142",
+                "$ref": "#/definitions/__schema150",
               },
               "minItems": 1,
               "type": "array",
@@ -6849,7 +6986,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema141": {
+        "__schema149": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -6897,13 +7034,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema142": {
+        "__schema150": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema143",
+                "$ref": "#/definitions/__schema151",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -6921,7 +7058,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema143": {
+        "__schema151": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -7816,6 +7953,15 @@ All branches of an IF must return the same type.",
             {
               "additionalProperties": false,
               "properties": {
+                "conditionalFormattings": {
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/__schema140",
+                    },
+                  ],
+                  "default": null,
+                  "description": "Conditional formatting rules, only for a type that supports conditional formatting. Later rules win when several match a value. null for none.",
+                },
                 "customChartTypeSlug": {
                   "description": "Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.",
                   "type": "string",
@@ -7864,7 +8010,7 @@ All branches of an IF must return the same type.",
         "mergeConfig": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema140",
+              "$ref": "#/definitions/__schema148",
             },
             {
               "type": "null",
@@ -9957,12 +10103,149 @@ All branches of an IF must return the same type.",
         ],
       },
       "__schema39": {
+        "items": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "color": {
+                  "description": "Hex colour for values that match every condition.",
+                  "type": "string",
+                },
+                "conditions": {
+                  "description": "Conditions that must all match.",
+                  "items": {
+                    "$ref": "#/definitions/__schema41",
+                  },
+                  "minItems": 1,
+                  "type": "array",
+                },
+                "fieldId": {
+                  "description": "Numeric field id bound in fieldMapping whose values this rule colours.",
+                  "type": "string",
+                },
+                "type": {
+                  "const": "single",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "fieldId",
+                "color",
+                "conditions",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "endColor": {
+                  "description": "Hex colour at max.",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": "Numeric field id bound in fieldMapping whose values this range colours.",
+                  "type": "string",
+                },
+                "max": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                    },
+                    {
+                      "const": "auto",
+                      "type": "string",
+                    },
+                  ],
+                  "description": "A fixed number, or 'auto' for the field's largest value.",
+                },
+                "min": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                    },
+                    {
+                      "const": "auto",
+                      "type": "string",
+                    },
+                  ],
+                  "description": "A fixed number, or 'auto' for the field's smallest value.",
+                },
+                "startColor": {
+                  "description": "Hex colour at min.",
+                  "type": "string",
+                },
+                "type": {
+                  "const": "range",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "fieldId",
+                "startColor",
+                "endColor",
+                "min",
+                "max",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "type": [
+          "array",
+          "null",
+        ],
+      },
+      "__schema41": {
+        "additionalProperties": false,
+        "properties": {
+          "compareFieldId": {
+            "description": "Another numeric field id bound in fieldMapping to compare against in the same row. null when comparing against values.",
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "operator": {
+            "enum": [
+              "equals",
+              "notEquals",
+              "lessThan",
+              "lessThanOrEqual",
+              "greaterThan",
+              "greaterThanOrEqual",
+              "inBetween",
+              "notInBetween",
+            ],
+            "type": "string",
+          },
+          "values": {
+            "description": "Numbers to compare against (two for inBetween and notInBetween). null when compareFieldId is set.",
+            "items": {
+              "type": "number",
+            },
+            "type": [
+              "array",
+              "null",
+            ],
+          },
+        },
+        "required": [
+          "operator",
+          "values",
+          "compareFieldId",
+        ],
+        "type": "object",
+      },
+      "__schema47": {
         "additionalProperties": false,
         "properties": {
           "additionalSources": {
             "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
             "items": {
-              "$ref": "#/definitions/__schema40",
+              "$ref": "#/definitions/__schema48",
             },
             "maxItems": 1,
             "minItems": 1,
@@ -9970,7 +10253,7 @@ All branches of an IF must return the same type.",
           },
           "joinKey": {
             "items": {
-              "$ref": "#/definitions/__schema41",
+              "$ref": "#/definitions/__schema49",
             },
             "minItems": 1,
             "type": "array",
@@ -9997,7 +10280,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema40": {
+      "__schema48": {
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -10045,13 +10328,13 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema41": {
+      "__schema49": {
         "additionalProperties": false,
         "properties": {
           "fields": {
             "description": "One selected dimension from each source. Both must represent the same grain and value type.",
             "items": {
-              "$ref": "#/definitions/__schema42",
+              "$ref": "#/definitions/__schema50",
             },
             "maxItems": 2,
             "minItems": 2,
@@ -10069,7 +10352,14 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema42": {
+      "__schema5": {
+        "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
+        "items": {
+          "$ref": "#/definitions/__schema6",
+        },
+        "type": "array",
+      },
+      "__schema50": {
         "additionalProperties": false,
         "properties": {
           "fieldId": {
@@ -10086,13 +10376,6 @@ All branches of an IF must return the same type.",
           "fieldId",
         ],
         "type": "object",
-      },
-      "__schema5": {
-        "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
-        "items": {
-          "$ref": "#/definitions/__schema6",
-        },
-        "type": "array",
       },
       "__schema6": {
         "additionalProperties": false,
@@ -10269,6 +10552,15 @@ All branches of an IF must return the same type.",
           {
             "additionalProperties": false,
             "properties": {
+              "conditionalFormattings": {
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/__schema39",
+                  },
+                ],
+                "default": null,
+                "description": "Conditional formatting rules, only for a type that supports conditional formatting. Later rules win when several match a value. null for none.",
+              },
               "customChartTypeSlug": {
                 "description": "Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.",
                 "type": "string",
@@ -10317,7 +10609,7 @@ All branches of an IF must return the same type.",
       "mergeConfig": {
         "anyOf": [
           {
-            "$ref": "#/definitions/__schema39",
+            "$ref": "#/definitions/__schema47",
           },
           {
             "type": "null",

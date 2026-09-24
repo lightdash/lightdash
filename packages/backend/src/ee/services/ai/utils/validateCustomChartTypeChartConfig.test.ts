@@ -1,6 +1,8 @@
 import {
     AiAgentValidatorError,
+    FilterOperator,
     type DataAppVizSchema,
+    type ItemsMap,
     type ToolRunQueryCustomChartTypeConfig,
 } from '@lightdash/common';
 import { validateCustomChartTypeChartConfig } from './validators';
@@ -52,21 +54,38 @@ const vizSchema: DataAppVizSchema = {
     colorPalette: null,
 };
 
+const numericItem = (type: string) =>
+    ({ fieldType: 'metric', type }) as ItemsMap[string];
+
 const selectedFields = {
     dimensions: ['orders_order_date_month', 'orders_status'],
     metrics: ['orders_revenue'],
     tableCalculations: ['revenue_running_total'],
+    itemsMap: {
+        orders_order_date_month: {
+            fieldType: 'dimension',
+            type: 'date',
+        } as ItemsMap[string],
+        orders_status: {
+            fieldType: 'dimension',
+            type: 'string',
+        } as ItemsMap[string],
+        orders_revenue: numericItem('number'),
+        revenue_running_total: numericItem('number'),
+    },
 };
 
 const buildChartConfig = (
     fieldMapping: ToolRunQueryCustomChartTypeConfig['fieldMapping'],
     options: ToolRunQueryCustomChartTypeConfig['options'] = null,
     fieldOptions: ToolRunQueryCustomChartTypeConfig['fieldOptions'] = null,
+    conditionalFormattings: ToolRunQueryCustomChartTypeConfig['conditionalFormattings'] = null,
 ): ToolRunQueryCustomChartTypeConfig => ({
     customChartTypeSlug: 'cohort-waterfall',
     fieldMapping,
     options,
     fieldOptions,
+    conditionalFormattings,
 });
 
 const validMapping = {
@@ -720,6 +739,110 @@ describe('validateCustomChartTypeChartConfig', () => {
                 expect(message).toContain('Slot "x" (dimension)');
                 expect(message).toContain('Option "maxBars" (number)');
             }
+        });
+    });
+
+    describe('conditionalFormattings', () => {
+        const formattingSchema: DataAppVizSchema = {
+            ...multiVizSchema,
+            conditionalFormatting: {},
+        };
+        const mapping = {
+            x: 'orders_order_date_month',
+            y: ['orders_revenue', 'revenue_running_total'],
+            series: 'orders_status',
+        };
+        const single = (
+            fieldId: string,
+            compareFieldId: string | null = null,
+        ) => ({
+            type: 'single' as const,
+            fieldId,
+            color: '#ff0000',
+            conditions: [
+                {
+                    operator: FilterOperator.GREATER_THAN as const,
+                    values: compareFieldId === null ? [10] : null,
+                    compareFieldId,
+                },
+            ],
+        });
+        const validate = (
+            schema: DataAppVizSchema,
+            rules: NonNullable<
+                ToolRunQueryCustomChartTypeConfig['conditionalFormattings']
+            >,
+        ) =>
+            validateCustomChartTypeChartConfig(
+                buildChartConfig(mapping, null, null, rules),
+                schema,
+                selectedFields,
+            );
+
+        it('accepts rules on bound numeric fields, including comparisons', () => {
+            expect(() =>
+                validate(formattingSchema, [
+                    single('orders_revenue', 'revenue_running_total'),
+                    {
+                        type: 'range',
+                        fieldId: 'revenue_running_total',
+                        startColor: '#ffffff',
+                        endColor: '#0000ff',
+                        min: 'auto',
+                        max: 100,
+                    },
+                ]),
+            ).not.toThrow();
+        });
+
+        it('rejects rules for a type that does not support them', () => {
+            expect(() =>
+                validate(multiVizSchema, [single('orders_revenue')]),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'does not support conditional formatting',
+                    ),
+                }),
+            );
+        });
+
+        it.each([
+            ['an unbound field', single('orders_total')],
+            ['a non-numeric field', single('orders_order_date_month')],
+            [
+                'a comparison with an unbound field',
+                single('orders_revenue', 'orders_total'),
+            ],
+        ])('rejects a rule on %s', (_case, rule) => {
+            expect(() => validate(formattingSchema, [rule])).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'must be a numeric field bound in fieldMapping outside a series slot',
+                    ),
+                }),
+            );
+        });
+
+        it.each([
+            ['a single colour', { ...single('orders_revenue'), color: 'red' }],
+            [
+                'a range colour',
+                {
+                    type: 'range' as const,
+                    fieldId: 'orders_revenue',
+                    startColor: '#ffffff',
+                    endColor: 'blue',
+                    min: 'auto' as const,
+                    max: 'auto' as const,
+                },
+            ],
+        ])('rejects %s that is not hex', (_case, rule) => {
+            expect(() => validate(formattingSchema, [rule])).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining('must be a hex colour'),
+                }),
+            );
         });
     });
 });

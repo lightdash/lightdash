@@ -10,6 +10,7 @@ import { Group, Stack, Text } from '@mantine/core';
 import {
     IconAdjustmentsHorizontal,
     IconCircle,
+    IconColorFilter,
     IconColumns,
     IconMinus,
     IconPalette,
@@ -168,6 +169,17 @@ const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
                   kind: changes.colorPalette,
                   icon: IconPalette,
                   label: 'Color palette',
+                  detail: null,
+              },
+          ]),
+    ...(changes.conditionalFormatting === 'unchanged'
+        ? []
+        : [
+              {
+                  key: 'conditional-formatting',
+                  kind: changes.conditionalFormatting,
+                  icon: IconColorFilter,
+                  label: 'Conditional formatting',
                   detail: null,
               },
           ]),

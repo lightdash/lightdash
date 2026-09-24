@@ -26,6 +26,7 @@ import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
+    type DataAppVizConditionalFormattingDeclaration,
     type DataAppVizConfigOption,
     type DataAppVizContextOptionValue,
     type DataAppVizOptionValue,
@@ -39,6 +40,7 @@ import {
 import { type DataAppVizPreview } from './preview';
 
 export type {
+    DataAppVizConditionalFormattingDeclaration,
     DataAppVizConfigOption,
     DataAppVizConfigOptionType,
     DataAppVizContextOptionValue,
@@ -898,6 +900,8 @@ export type DataAppVizSchema = {
     configOptions: DataAppVizConfigOption[];
     /** Null when the viz colours nothing from the resolved palette. */
     colorPalette: DataAppVizPaletteDeclaration | null;
+    /** Absent when the viz does not honour conditional formatting. */
+    conditionalFormatting?: DataAppVizConditionalFormattingDeclaration;
     /** Explains the row shape, ordering, and recovery needed to use this viz. */
     inputGuidance?: string;
 };
@@ -1098,6 +1102,24 @@ const vizColorPalette = z
         'Declare this when the component colours anything from `colorPalette`. It surfaces the standard Lightdash palette picker, so the viz inherits the same colours as the charts around it. Not a config option: the chosen colours arrive on `colorPalette`, never on `options`. Null when the component colours nothing.',
     );
 
+const vizConditionalFormatting = z
+    .object({
+        group: z
+            .string()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Optional tab name, matching a config option `group`. The editor gets its own tab when no option shares it.',
+            ),
+    })
+    .nullable()
+    .transform((value) => value ?? undefined)
+    .optional()
+    .describe(
+        "Declare this when the component can colour values by conditional formatting rules (e.g. a bar fill, a label or a cell). It surfaces the built-in conditional formatting editor for the numeric fields bound to the chart; the component reads each drawn value's colour with `getConditionalFormattingColor(context, rowIndex, columnName)` and decides where to apply it. Null when the component colours nothing by value.",
+    );
+
 // Read validator for persisted schemas and app manifests. Older generated
 // metadata may exceed today's authoring limits; keep those charts usable.
 // `configOptions` defaults to `[]` for declarations from before it existed.
@@ -1107,6 +1129,7 @@ export const dataAppVizSchema = z.object({
         .default([])
         .refine(uniqueNames, 'duplicate option name'),
     colorPalette: vizColorPalette.default(null),
+    conditionalFormatting: vizConditionalFormatting,
     inputGuidance: vizInputGuidance(false),
 });
 
@@ -1121,6 +1144,7 @@ export const dataAppVizGenerationSchema = z.object({
             'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
         ),
     colorPalette: vizColorPalette,
+    conditionalFormatting: vizConditionalFormatting,
     inputGuidance: vizInputGuidance(true),
 });
 
@@ -1500,6 +1524,8 @@ export type DataAppVizFieldMetadata = {
 // `fieldOptions` carries effective per-field option values (field name → field
 // id → option name → value) for every field bound to a slot that declares
 // options; a pivoted column takes the values of its `referenceField`.
+// `conditionalFormattingColors` is aligned with `rows`: column name → colour
+// for each cell a conditional formatting rule matched, empty without rules.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string | string[]>;
     fields: Record<string, DataAppVizFieldMetadata>;
@@ -1512,6 +1538,7 @@ export type DataAppVizContext = {
     colorPalette: string[];
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
+    conditionalFormattingColors: Array<Record<string, string>>;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     underlyingData: { enabled: boolean; openEnabled?: boolean };
     drillDown: { enabled: boolean };

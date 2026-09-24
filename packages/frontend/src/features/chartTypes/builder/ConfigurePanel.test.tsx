@@ -1,4 +1,7 @@
-import { type DataAppVizSchema } from '@lightdash/common';
+import {
+    type DataAppVizSchema,
+    type ConditionalFormattingColorRange,
+} from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -6,6 +9,9 @@ import { buildSampleVizContext } from '../utils/sampleVizContext';
 import ConfigurePanel from './ConfigurePanel';
 import { type ExploreSourceControls } from './exploreSource';
 import { type SavedChartSourceControls } from './savedChartSource';
+
+const keepColorRange = (colorRange: ConditionalFormattingColorRange) =>
+    colorRange;
 
 vi.mock('../../../hooks/appearance/useOrganizationAppearance', () => ({
     useColorPalettes: () => ({ data: [] }),
@@ -54,7 +60,7 @@ const renderPanel = ({
             colorPaletteUuid={null}
             onPaletteChange={vi.fn()}
             resolvedColorPalette={['#111111']}
-            previewContext={buildSampleVizContext(panelSchema)}
+            previewContext={buildSampleVizContext(panelSchema, keepColorRange)}
             isStale={false}
             {...props}
         />,
@@ -120,7 +126,11 @@ describe('ConfigurePanel', () => {
 
     it('says so when a chart type declares nothing to configure', () => {
         renderPanel({
-            schema: { fields: [], configOptions: [], colorPalette: null },
+            schema: {
+                fields: [],
+                configOptions: [],
+                colorPalette: null,
+            },
         });
 
         expect(screen.getByRole('tab', { name: 'General' })).toBeVisible();
@@ -191,11 +201,14 @@ describe('ConfigurePanel', () => {
                 colorPaletteUuid={null}
                 onPaletteChange={vi.fn()}
                 resolvedColorPalette={[]}
-                previewContext={buildSampleVizContext({
-                    fields: schemaWithFields.fields,
-                    configOptions: [],
-                    colorPalette: null,
-                })}
+                previewContext={buildSampleVizContext(
+                    {
+                        fields: schemaWithFields.fields,
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                    keepColorRange,
+                )}
                 isStale={false}
             />,
         );

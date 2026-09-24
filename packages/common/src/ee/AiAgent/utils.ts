@@ -1,4 +1,6 @@
+import { type ConditionalFormattingConfig } from '../../types/conditionalFormatting';
 import { type DataAppVizChart } from '../../types/savedCharts';
+import assertUnreachable from '../../utils/assertUnreachable';
 import { isAiComposerChartArtifactConfig } from './composerArtifact';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import type {
@@ -14,6 +16,7 @@ import {
     parsePersistedRunQueryPayload,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryExpressionResolvedArgsSchema,
+    type ToolRunQueryCustomChartTypeConditionalFormatting,
 } from './schemas';
 import { AiResultType } from './types';
 import { getValidAiQueryLimit } from './validators';
@@ -239,6 +242,47 @@ export const parseAiArtifactChartConfig = (
     return null;
 };
 
+/** AI-authored custom chart type rules as saved chart conditional formatting. */
+export const toDataAppVizConditionalFormattings = (
+    rules: ToolRunQueryCustomChartTypeConditionalFormatting[],
+): ConditionalFormattingConfig[] =>
+    rules.map((rule, ruleIndex): ConditionalFormattingConfig => {
+        switch (rule.type) {
+            case 'single':
+                return {
+                    target: { fieldId: rule.fieldId },
+                    color: rule.color,
+                    rules: rule.conditions.map((condition, conditionIndex) => {
+                        const id = `ai-${ruleIndex}-${conditionIndex}`;
+                        return condition.compareFieldId !== null
+                            ? {
+                                  id,
+                                  operator: condition.operator,
+                                  compareTarget: {
+                                      fieldId: condition.compareFieldId,
+                                  },
+                              }
+                            : {
+                                  id,
+                                  operator: condition.operator,
+                                  values: condition.values ?? [],
+                              };
+                    }),
+                };
+            case 'range':
+                return {
+                    target: { fieldId: rule.fieldId },
+                    color: { start: rule.startColor, end: rule.endColor },
+                    rule: { min: rule.min, max: rule.max },
+                };
+            default:
+                return assertUnreachable(
+                    rule,
+                    'Unknown conditional formatting rule type',
+                );
+        }
+    });
+
 // The saved-chart shape a custom chart type answer renders and saves with:
 // the server-derived uuid from the envelope plus the persisted field mapping
 // and option values.
@@ -256,6 +300,13 @@ export const getDataAppVizChartFromArtifact = (
         ...(chartConfig.options ? { optionValues: chartConfig.options } : {}),
         ...(chartConfig.fieldOptions
             ? { fieldOptionValues: chartConfig.fieldOptions }
+            : {}),
+        ...(chartConfig.conditionalFormattings
+            ? {
+                  conditionalFormattings: toDataAppVizConditionalFormattings(
+                      chartConfig.conditionalFormattings,
+                  ),
+              }
             : {}),
     };
 };

@@ -32,6 +32,7 @@ const rawCustomArgs = {
     chartConfig: {
         customChartTypeSlug: 'cohort-waterfall',
         fieldOptions: null,
+        conditionalFormattings: null,
         fieldMapping: { x: 'orders_order_date_month', y: 'orders_revenue' },
         options: null,
     },

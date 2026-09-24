@@ -34,7 +34,9 @@ time indexes in pivot metadata.
 
 `optionValues` overrides only the specified defaults. Builder option edits take
 precedence over these demo values. Per-field options have no preview values:
-previews use their declared defaults until edited in the builder. The project palette still applies, and demo
+previews use their declared defaults until edited in the builder. A chart type
+that declares `conditionalFormatting` previews with an automatic colour range
+across its numeric fields; preview data cannot set rules. The project palette still applies, and demo
 rows never enable drill-down or underlying-data actions.
 
 Either `rows` or `optionValues` can be supplied independently. Without rows,

@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
     MetricType,
     type DataAppVizSchema,
     type ItemsMap,
@@ -76,6 +77,8 @@ const build = (
         colorPalette: ['#111', '#222'],
         optionValues: {},
         fieldOptionValues: {},
+        conditionalFormattings: [],
+        adjustColorRange: (colorRange) => colorRange,
         resolvedColors: {
             seriesColors: { count_new: '#00ff00' },
             valueColors: {
@@ -86,6 +89,40 @@ const build = (
     });
 
 describe('buildExplorerVizContext', () => {
+    it('delivers conditional formatting colours only for a viz that opts in', () => {
+        const overrides = {
+            persistedFieldMapping: {
+                category: 'orders_status',
+                value: 'orders_count',
+            },
+            rows: [
+                { orders_count: { value: { raw: 4, formatted: '4' } } },
+                { orders_count: { value: { raw: 12, formatted: '12' } } },
+            ],
+            conditionalFormattings: [
+                {
+                    target: { fieldId: 'orders_count' },
+                    color: '#ff0000',
+                    rules: [
+                        {
+                            id: 'above-ten',
+                            operator: FilterOperator.GREATER_THAN,
+                            values: [10],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(build(overrides).conditionalFormattingColors).toEqual([]);
+        expect(
+            build({
+                ...overrides,
+                schema: { ...schema, conditionalFormatting: {} },
+            }).conditionalFormattingColors,
+        ).toEqual([{}, { orders_count: '#ff0000' }]);
+    });
+
     it('delivers per-field gradients with bounds from the field and chart-wide ones with null bounds', () => {
         const gradient = {
             colors: ['#000000', '#ffffff'],

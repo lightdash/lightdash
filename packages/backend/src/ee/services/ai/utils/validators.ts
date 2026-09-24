@@ -21,6 +21,7 @@ import {
     FilterType,
     formatFilterExamplesAsJsonLines,
     getCustomMetricType,
+    getDataAppVizConditionalFormattingFieldIds,
     getDataAppVizFieldIds,
     getErrorMessage,
     getExploreParameterDefinitions,
@@ -35,6 +36,7 @@ import {
     isAdditionalMetric,
     isDataAppVizGradientValue,
     isDimension,
+    isHexCodeColor,
     isMetric,
     isPeriodComparisonCustomMetric,
     isTableCalculation,
@@ -60,6 +62,7 @@ import {
     WindowFunctionType,
     withLeadingEquals,
 } from '@lightdash/common';
+import type { ItemsMap } from '@lightdash/common';
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
@@ -1601,6 +1604,83 @@ export type CustomChartTypeSelectedFields = {
     /** Explore metrics plus aggregation custom metric ids. */
     metrics: string[];
     tableCalculations: string[];
+    /** The selected fields' items, to tell which ones are numeric. */
+    itemsMap: ItemsMap;
+};
+
+const BETWEEN_OPERATORS: FilterOperator[] = [
+    FilterOperator.IN_BETWEEN,
+    FilterOperator.NOT_IN_BETWEEN,
+];
+
+const getConditionalFormattingErrors = (
+    chartConfig: ToolRunQueryCustomChartTypeConfig,
+    vizSchema: DataAppVizSchema,
+    itemsMap: ItemsMap,
+): string[] => {
+    const formattings = chartConfig.conditionalFormattings ?? [];
+    if (formattings.length === 0) return [];
+    if (!vizSchema.conditionalFormatting) {
+        return [
+            'This custom chart type does not support conditional formatting; set conditionalFormattings to null.',
+        ];
+    }
+    const eligible = getDataAppVizConditionalFormattingFieldIds(
+        vizSchema,
+        chartConfig.fieldMapping,
+        itemsMap,
+    );
+    const eligibleList =
+        eligible.length > 0 ? eligible.join(', ') : 'none in this query';
+    const checkField = (fieldId: string, role: string) =>
+        eligible.includes(fieldId)
+            ? []
+            : [
+                  `conditionalFormattings ${role} "${fieldId}" must be a numeric field bound in fieldMapping outside a series slot. Eligible: ${eligibleList}.`,
+              ];
+    const checkColor = (color: string) =>
+        isHexCodeColor(color)
+            ? []
+            : [
+                  `conditionalFormattings colour "${color}" must be a hex colour such as #1a73e8.`,
+              ];
+    return formattings.flatMap((rule) => {
+        const errors = checkField(rule.fieldId, 'targets');
+        if (rule.type === 'range') {
+            errors.push(
+                ...checkColor(rule.startColor),
+                ...checkColor(rule.endColor),
+            );
+            if (
+                rule.min !== 'auto' &&
+                rule.max !== 'auto' &&
+                rule.min > rule.max
+            ) {
+                errors.push(
+                    `conditionalFormattings range on "${rule.fieldId}" has min above max.`,
+                );
+            }
+            return errors;
+        }
+        errors.push(...checkColor(rule.color));
+        rule.conditions.forEach((condition) => {
+            if (condition.compareFieldId !== null) {
+                errors.push(
+                    ...checkField(condition.compareFieldId, 'compares against'),
+                );
+                return;
+            }
+            const expected = BETWEEN_OPERATORS.includes(condition.operator)
+                ? 2
+                : 1;
+            if ((condition.values ?? []).length !== expected) {
+                errors.push(
+                    `conditionalFormattings condition "${condition.operator}" on "${rule.fieldId}" needs ${expected} value${expected === 1 ? '' : 's'} or a compareFieldId.`,
+                );
+            }
+        });
+        return errors;
+    });
 };
 
 const getOptionValidationError = (
@@ -1872,6 +1952,14 @@ export function validateCustomChartTypeChartConfig(
                 });
             });
         },
+    );
+
+    errors.push(
+        ...getConditionalFormattingErrors(
+            chartConfig,
+            vizSchema,
+            selectedFields.itemsMap,
+        ),
     );
 
     if (errors.length > 0) {

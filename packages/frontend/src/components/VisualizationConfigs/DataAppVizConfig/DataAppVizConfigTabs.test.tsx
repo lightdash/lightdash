@@ -10,6 +10,7 @@ import {
     OrganizationMemberRole,
     type CompiledDimension,
     type CompiledMetric,
+    type ConditionalFormattingConfig,
     type CustomSqlDimension,
     type DataAppViz,
     type DataAppVizConfigOption,
@@ -333,6 +334,7 @@ describe('DataAppVizConfigTabs', () => {
     const setPivotDimensions = vi.fn();
     const upgradeDataAppVizVersion = vi.fn();
     const setFieldOption = vi.fn();
+    const setConditionalFormattings = vi.fn();
 
     const mockContext = (
         itemsMap: ItemsMap,
@@ -341,6 +343,7 @@ describe('DataAppVizConfigTabs', () => {
         fieldMapping: Record<string, string | string[]> = {},
         dataAppVizVersion?: number,
         fieldOptionValues: DataAppVizFieldOptionValues = {},
+        conditionalFormattings: ConditionalFormattingConfig[] = [],
     ) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap,
@@ -357,6 +360,7 @@ describe('DataAppVizConfigTabs', () => {
                                   fieldMapping,
                                   optionValues,
                                   fieldOptionValues,
+                                  conditionalFormattings,
                               },
                     dataAppVizUuid,
                     setDataAppVizUuid,
@@ -364,6 +368,7 @@ describe('DataAppVizConfigTabs', () => {
                     setField,
                     setOption,
                     setFieldOption,
+                    setConditionalFormattings,
                     upgradeDataAppVizVersion,
                 },
             },
@@ -383,6 +388,7 @@ describe('DataAppVizConfigTabs', () => {
         setPivotDimensions.mockClear();
         upgradeDataAppVizVersion.mockClear();
         setFieldOption.mockClear();
+        setConditionalFormattings.mockClear();
         defaultAbility.update([]);
         vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
             data: undefined,
@@ -608,7 +614,11 @@ describe('DataAppVizConfigTabs', () => {
             },
         ];
         mockSchema([], null, {
-            schema: { fields, configOptions: [], colorPalette: null },
+            schema: {
+                fields,
+                configOptions: [],
+                colorPalette: null,
+            },
         });
         mockContext(
             queryColumns,
@@ -629,6 +639,92 @@ describe('DataAppVizConfigTabs', () => {
 
         expect(setField).toHaveBeenCalledWith('breakdown', 'custom-dimension');
         expect(setPivotDimensions).toHaveBeenCalledWith(['custom-dimension']);
+    });
+
+    describe('conditional formatting', () => {
+        const rule: ConditionalFormattingConfig = {
+            target: { fieldId: 'orders_visible_metric' },
+            color: '#ff0000',
+            rules: [],
+        };
+        const boundFields = {
+            source: 'orders_visible',
+            value: 'orders_visible_metric',
+        };
+        const mockOptedIn = (optedIn: boolean) =>
+            mockSchema([], null, {
+                schema: {
+                    fields: declaredFields,
+                    configOptions: [],
+                    colorPalette: null,
+                    ...(optedIn ? { conditionalFormatting: {} } : {}),
+                },
+            });
+
+        it('is offered only by a viz that opts in', () => {
+            mockOptedIn(false);
+            mockContext(queryColumns, 'data-app-viz-uuid', {}, boundFields);
+            const { unmount } = renderWithProviders(<ConfigTabs />);
+            expect(
+                screen.queryByRole('tab', { name: 'Conditional formatting' }),
+            ).not.toBeInTheDocument();
+            unmount();
+
+            mockOptedIn(true);
+            renderWithProviders(<ConfigTabs />);
+            expect(
+                screen.getByRole('tab', { name: 'Conditional formatting' }),
+            ).toBeInTheDocument();
+        });
+
+        it('lets rules target only the numeric fields bound to the chart', async () => {
+            const user = userEvent.setup();
+            mockOptedIn(true);
+            mockContext(
+                queryColumns,
+                'data-app-viz-uuid',
+                {},
+                boundFields,
+                undefined,
+                {},
+                [rule],
+            );
+            renderWithProviders(<ConfigTabs />);
+            fieldSelectItems.length = 0;
+
+            await user.click(
+                screen.getByRole('tab', { name: 'Conditional formatting' }),
+            );
+
+            expect(fieldSelectItems.at(-1)?.map(getItemId)).toEqual([
+                'orders_visible_metric',
+            ]);
+            expect(screen.queryByText('Apply to')).not.toBeInTheDocument();
+        });
+
+        it('drops rules on a field that is unbound', () => {
+            mockOptedIn(true);
+            mockContext(
+                queryColumns,
+                'data-app-viz-uuid',
+                {},
+                boundFields,
+                undefined,
+                {},
+                [rule],
+            );
+            renderWithProviders(<ConfigTabs />);
+
+            act(() =>
+                fieldSelectProps[fieldSelectProps.length - 1].onChange(null),
+            );
+
+            expect(setField).toHaveBeenCalledWith('value', null);
+            expect(setConditionalFormattings).toHaveBeenCalledWith(
+                'data-app-viz-uuid',
+                [],
+            );
+        });
     });
 
     it('will not offer the picker before the query has columns', () => {
@@ -840,8 +936,86 @@ describe('DataAppVizConfigTabs', () => {
             { source: 'orders_visible', value: 'orders_visible_metric' },
             {},
             {},
+            [],
         );
         expect(setPivotDimensions).toHaveBeenCalled();
+    });
+
+    describe('upgrading conditional formatting', () => {
+        const itemsWithCompare: ItemsMap = {
+            ...queryColumns,
+            orders_other_metric: makeMetric('other_metric', false),
+        };
+        const compareField: DataAppVizField = {
+            name: 'compare',
+            label: 'Compare',
+            type: 'metric',
+            required: false,
+        };
+        const valueRule: ConditionalFormattingConfig = {
+            target: { fieldId: 'orders_visible_metric' },
+            color: '#ff0000',
+            rules: [],
+        };
+        const compareRule: ConditionalFormattingConfig = {
+            target: { fieldId: 'orders_other_metric' },
+            color: '#00ff00',
+            rules: [],
+        };
+        const upgradeTo = async (
+            fields: DataAppVizField[],
+            conditionalFormatting: { group?: string } | null,
+        ) => {
+            const user = userEvent.setup();
+            mockSchema([], null, {
+                schema: {
+                    fields: [...declaredFields, compareField],
+                    configOptions: [],
+                    colorPalette: null,
+                    conditionalFormatting: {},
+                },
+            });
+            mockContext(
+                itemsWithCompare,
+                'data-app-viz-uuid',
+                {},
+                {
+                    source: 'orders_visible',
+                    value: 'orders_visible_metric',
+                    compare: 'orders_other_metric',
+                },
+                3,
+                {},
+                [valueRule, compareRule],
+            );
+            vi.mocked(useDataAppVizRenderMetadata).mockReturnValue({
+                data: {
+                    state: 'ready',
+                    version: 5,
+                    schema: {
+                        fields,
+                        configOptions: [],
+                        colorPalette: null,
+                        conditionalFormatting,
+                    },
+                    latestBuildInProgress: false,
+                },
+            } as unknown as ReturnType<typeof useDataAppVizRenderMetadata>);
+
+            renderWithProviders(<ConfigTabs />);
+            await user.click(screen.getByRole('button', { name: 'upgrade' }));
+            return upgradeDataAppVizVersion.mock.calls[0][4];
+        };
+
+        it('drops every rule when the new version stops declaring it', async () => {
+            expect(
+                await upgradeTo([...declaredFields, compareField], null),
+            ).toEqual([]);
+        });
+
+        it('drops only the rules of a binding the new version removes', async () => {
+            expect(await upgradeTo(declaredFields, {})).toEqual([valueRule]);
+        });
     });
 
     it('carries per-field option values through an upgrade, pruning what no longer fits', async () => {
