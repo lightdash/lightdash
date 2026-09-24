@@ -285,7 +285,7 @@ const INTENTS = {
     remove_field:
         'Remove one breakdown listed in `chart.dimensions` and keep the rest',
     change_grain:
-        'Group the same dates by a different time unit, such as by week instead of by month, without restricting which dates are shown',
+        'Group the same dates by a different time unit (day, week, month, quarter or year) without restricting which dates are shown',
     remove_filter:
         'Stop restricting one field listed in `chart.filters` so all of its values show again, keeping the other filters',
     clear_filters: 'Remove all the filters from the current chart',
@@ -688,7 +688,7 @@ export const buildChartIntentQuestions = ({
                 calendar_period:
                     'A specific named calendar year, quarter or month such as 2023, Q1 2024 or March 2024',
                 date_range:
-                    'Dates from, until or between specific days, such as since 1 March 2024, before 2023, or 13 to 20 May',
+                    'Dates bounded by specific calendar days or months: from a start, up to an end, or between the two',
                 number_threshold:
                     'Keep only rows or groups where a number is above, below or between stated amounts',
                 other: 'Any other kind of filter',
