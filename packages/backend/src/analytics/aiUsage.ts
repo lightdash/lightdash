@@ -17,6 +17,7 @@ export type AiCallFeature =
     | 'chart-metadata'
     | 'chart-similarity'
     | 'chart-type-fields'
+    | 'chart-type-explore'
     | 'document-summary'
     | 'thread-title'
     | 'tooltip'
@@ -51,6 +52,7 @@ const AI_CALL_FEATURES = {
     'chart-metadata': true,
     'chart-similarity': true,
     'chart-type-fields': true,
+    'chart-type-explore': true,
     'document-summary': true,
     'thread-title': true,
     tooltip: true,

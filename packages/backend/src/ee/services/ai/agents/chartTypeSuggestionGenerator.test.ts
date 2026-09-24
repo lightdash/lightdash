@@ -7,9 +7,12 @@ import {
 } from '@lightdash/common';
 import { generateText, NoObjectGeneratedError } from 'ai';
 import {
+    buildChartTypeExplorePrompt,
     buildChartTypeFieldsPrompt,
+    exploreSatisfiesInputs,
     getChartTypeFieldCandidates,
     sanitizeChartTypeFieldSuggestions,
+    suggestChartTypeExplore,
     suggestChartTypeFields,
     type ChartTypeFieldsContext,
     type RawChartTypeFieldSuggestions,
@@ -337,6 +340,63 @@ describe('prompts', () => {
             ),
         ).toMatchSnapshot();
     });
+
+    it('builds the explore suggestion request', () => {
+        expect(
+            buildChartTypeExplorePrompt({
+                prompt: 'Revenue over time',
+                clarifications: [],
+                inputs: [input('value', 'metric')],
+                candidates: [
+                    {
+                        name: 'orders',
+                        label: 'Orders',
+                        description: 'One row per order',
+                        groupLabel: null,
+                        tags: ['sales'],
+                        aiHint: null,
+                        fields: [
+                            {
+                                label: 'Revenue',
+                                kind: 'metric',
+                                type: 'number',
+                            },
+                        ],
+                    },
+                    {
+                        name: 'customers',
+                        label: 'Customers',
+                        description: null,
+                        groupLabel: 'CRM',
+                        tags: [],
+                        aiHint: 'Use for customer questions',
+                        fields: null,
+                    },
+                ],
+            }),
+        ).toMatchSnapshot();
+    });
+
+    it('allows a semantic pick when large projects omit field lists', () => {
+        const prompt = buildChartTypeExplorePrompt({
+            prompt: 'Clinic visits over time',
+            clarifications: [],
+            inputs: [input('visit_date', 'dimension')],
+            candidates: [
+                {
+                    name: 'clinic_visits',
+                    label: 'Clinic visits',
+                    description: null,
+                    groupLabel: null,
+                    tags: [],
+                    aiHint: null,
+                    fields: null,
+                },
+            ],
+        });
+        expect(prompt.system).toContain('field lists are omitted');
+        expect(prompt.system).toContain('validated after your choice');
+    });
 });
 
 describe('model calls', () => {
@@ -360,6 +420,61 @@ describe('model calls', () => {
                 maxOutputTokens: 500,
             }),
         );
+    });
+
+    it('ignores an explore name that is not a candidate', async () => {
+        vi.mocked(generateText).mockResolvedValueOnce({
+            output: { exploreName: 'invented', reason: 'x' },
+            usage: {},
+        } as never);
+        expect(
+            await suggestChartTypeExplore(modelOptions, {
+                prompt: 'p',
+                clarifications: [],
+                inputs: [],
+                candidates: [
+                    {
+                        name: 'orders',
+                        label: 'Orders',
+                        description: null,
+                        groupLabel: null,
+                        tags: [],
+                        aiHint: null,
+                        fields: null,
+                    },
+                ],
+            }),
+        ).toEqual({ suggestion: null, timedOut: false });
+    });
+    it('resolves an explore answered by its label to its name', async () => {
+        vi.mocked(generateText).mockResolvedValueOnce({
+            output: { exploreName: 'Orders', reason: ' Orders has revenue. ' },
+            usage: {},
+        } as never);
+        expect(
+            await suggestChartTypeExplore(modelOptions, {
+                prompt: 'p',
+                clarifications: [],
+                inputs: [],
+                candidates: [
+                    {
+                        name: 'orders',
+                        label: 'Orders',
+                        description: null,
+                        groupLabel: null,
+                        tags: [],
+                        aiHint: null,
+                        fields: null,
+                    },
+                ],
+            }),
+        ).toEqual({
+            suggestion: {
+                exploreName: 'orders',
+                reason: 'Orders has revenue.',
+            },
+            timedOut: false,
+        });
     });
 });
 
@@ -404,5 +519,32 @@ describe('model failures', () => {
                 contextFor([input('value', 'metric')]),
             ),
         ).rejects.toThrow('invalid x-api-key');
+    });
+});
+
+describe('exploreSatisfiesInputs', () => {
+    const candidates = (explore: Explore) =>
+        getChartTypeFieldCandidates(explore);
+
+    it('needs a metric for a required metric input', () => {
+        const withoutMetrics = makeExplore(false);
+        expect(
+            exploreSatisfiesInputs(
+                [input('value', 'metric')],
+                candidates(withoutMetrics),
+            ),
+        ).toBe(false);
+        expect(
+            exploreSatisfiesInputs(
+                [input('value', 'metric', { required: false })],
+                candidates(withoutMetrics),
+            ),
+        ).toBe(true);
+        expect(
+            exploreSatisfiesInputs(
+                [input('value', 'metric'), input('x', 'series')],
+                candidates(makeExplore()),
+            ),
+        ).toBe(true);
     });
 });

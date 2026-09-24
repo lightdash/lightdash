@@ -168,3 +168,25 @@ export type ApiAiSuggestChartTypeFieldsResponse = {
     status: 'ok';
     results: SuggestedChartTypeFields;
 };
+
+/** Chart Studio: which table fits a chart type, before any preview data is attached. */
+export type SuggestChartTypeExploreRequest = {
+    prompt: string;
+    clarifications: string[];
+    fields: DataAppVizField[];
+};
+
+export type SuggestedChartTypeExplore = {
+    exploreName: string;
+    /** One line: what the table has, what the chart wants. */
+    reason: string;
+};
+
+export type SuggestedChartTypeExploreResult = {
+    suggestion: SuggestedChartTypeExplore | null;
+};
+
+export type ApiAiSuggestChartTypeExploreResponse = {
+    status: 'ok';
+    results: SuggestedChartTypeExploreResult;
+};
