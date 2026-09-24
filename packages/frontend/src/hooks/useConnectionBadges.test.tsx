@@ -92,6 +92,9 @@ describe('useConnectionBadges', () => {
         await waitFor(() =>
             expect(requestedUrls()).toContain('/projects/project-uuid'),
         );
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
         expect(result.current).toBeNull();
         expect(requestedUrls()).not.toContain(CONNECTIONS_URL);
     });
@@ -164,6 +167,9 @@ describe('useExploreConnectionName', () => {
         await waitFor(() =>
             expect(requestedUrls()).toContain('/projects/project-uuid'),
         );
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
         expect(result.current).toBeNull();
         expect(requestedUrls().some((url) => url.includes('/explores'))).toBe(
             false,

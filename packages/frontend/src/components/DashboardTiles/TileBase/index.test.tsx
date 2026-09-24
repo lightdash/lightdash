@@ -1,7 +1,7 @@
 import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import TileBase from './index';
 
@@ -113,5 +113,66 @@ describe('TileBase chart page link', () => {
         ).toBeInTheDocument();
 
         matchMedia.mockRestore();
+    });
+});
+
+describe('TileBase connection badge', () => {
+    beforeEach(() => {
+        vi.spyOn(window, 'matchMedia').mockImplementation(
+            (query) =>
+                ({
+                    matches: false,
+                    media: query,
+                    onchange: null,
+                    addEventListener: vi.fn(),
+                    removeEventListener: vi.fn(),
+                    addListener: vi.fn(),
+                    removeListener: vi.fn(),
+                    dispatchEvent: vi.fn(),
+                }) as MediaQueryList,
+        );
+    });
+
+    const renderBadgeTile = ({
+        minimal = false,
+        hideTitle = false,
+    }: {
+        minimal?: boolean;
+        hideTitle?: boolean;
+    }) =>
+        renderWithProviders(
+            <TileBase
+                tile={{
+                    ...hiddenTitleTile,
+                    properties: {
+                        ...hiddenTitleTile.properties,
+                        hideTitle,
+                    },
+                }}
+                title="Revenue"
+                titleHref={CHART_HREF}
+                connectionName="Finance"
+                isEditMode={false}
+                minimal={minimal}
+                onEdit={vi.fn()}
+                onDelete={vi.fn()}
+            >
+                <div>chart</div>
+            </TileBase>,
+        );
+
+    it('shows the connection next to a visible title', () => {
+        renderBadgeTile({});
+
+        expect(screen.getByText('Finance')).toBeInTheDocument();
+    });
+
+    it.each([
+        ['in minimal mode', { minimal: true }],
+        ['when the title is hidden', { hideTitle: true }],
+    ])('shows no connection %s', (_name, props) => {
+        renderBadgeTile(props);
+
+        expect(screen.queryByText('Finance')).toBeNull();
     });
 });
