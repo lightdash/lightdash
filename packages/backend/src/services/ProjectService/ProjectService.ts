@@ -207,6 +207,7 @@ import {
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     RequestMethod,
+    resolveDbtVersion,
     ResolvedProjectColorPalette,
     resolveMergeSorts,
     resolveParameterDefault,
@@ -352,6 +353,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import {
     WarehouseConnectionModel,
     type WarehouseConnectionProject,
@@ -362,7 +364,7 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
-import { CachedWarehouse, ProjectAdapter } from '../../types';
+import { CachedWarehouse, ProjectAdapter, TrackingParams } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
@@ -381,6 +383,11 @@ import { AdminNotificationService } from '../AdminNotificationService/AdminNotif
 import { BaseService } from '../BaseService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import {
+    MultiConnectionCompiler,
+    withConnectionWarnings,
+    type MultiConnectionCompilation,
+} from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -480,6 +487,7 @@ export type ProjectServiceArguments = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectionModel: WarehouseConnectionModel;
+    warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
     fileStorageClient: FileStorageClient;
@@ -592,6 +600,7 @@ type PreparedExploreStream = {
     projectContext: ProjectContextEntry[] | undefined;
     stagedMergedManifest?: Buffer;
     onCompiled?: (summary: ExploreCompilationSummary) => void;
+    multiConnection: MultiConnectionCompilation | null;
 };
 
 export class ProjectService extends BaseService {
@@ -634,6 +643,8 @@ export class ProjectService extends BaseService {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 
     warehouseConnectionModel: WarehouseConnectionModel;
+
+    multiConnectionCompiler: MultiConnectionCompiler;
 
     emailModel: EmailModel;
 
@@ -725,6 +736,7 @@ export class ProjectService extends BaseService {
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         warehouseConnectionModel,
+        warehouseConnectionCompileModel,
         emailModel,
         schedulerClient,
         downloadFileModel,
@@ -777,6 +789,11 @@ export class ProjectService extends BaseService {
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
+        this.multiConnectionCompiler = new MultiConnectionCompiler({
+            projectModel,
+            projectDbtSourcesModel,
+            warehouseConnectionCompileModel,
+        });
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
@@ -2807,6 +2824,7 @@ export class ProjectService extends BaseService {
         const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
+            connectionWarnings: [],
             saveExplores: async (summary) => {
                 const saved = await this.projectModel.saveExploresToCache(
                     args.projectUuid,
@@ -2821,16 +2839,59 @@ export class ProjectService extends BaseService {
         return result.indexCatalogJobUuid;
     }
 
+    async saveDeployExplores(
+        args: SaveCompiledExploresArgs & {
+            explores: (Explore | ExploreError)[];
+            projectDbtSourceUuid: string | null;
+        },
+    ): Promise<string> {
+        const { projectDbtSourceUuid, ...deploy } = args;
+        if (
+            (await this.projectModel.getConnectionRoute(args.projectUuid)) !==
+            'multi'
+        ) {
+            return this.saveExploresToCacheAndIndexCatalog(deploy);
+        }
+        if (args.complete !== true) {
+            throw new ParameterError(
+                'A deploy to a project with multiple connections must send every explore of its dbt source',
+            );
+        }
+        const { explores, ...metadata } = deploy;
+        const sourceDeploy =
+            await this.multiConnectionCompiler.prepareSourceDeploy({
+                projectUuid: args.projectUuid,
+                projectDbtSourceUuid,
+                explores,
+            });
+        const result = await this.saveExploresAndIndexCatalog({
+            ...metadata,
+            connectionWarnings: [],
+            saveExplores: async (summary) => {
+                const saved = await this.multiConnectionCompiler.save(
+                    args.projectUuid,
+                    sourceDeploy,
+                );
+                explores.forEach((explore) => summary.add(explore));
+                return saved;
+            },
+        });
+        return result.indexCatalogJobUuid;
+    }
+
     private async saveExploreStreamToCacheAndIndexCatalog(
         args: Omit<SaveCompiledExploresArgs, 'complete'> & {
             exploreStream: AsyncIterable<Explore | ExploreError>;
             onCompiled?: (summary: ExploreCompilationSummary) => void;
+            multiConnection: MultiConnectionCompilation | null;
         },
     ) {
-        const { exploreStream, onCompiled, ...metadata } = args;
+        const { exploreStream, onCompiled, multiConnection, ...metadata } =
+            args;
         return this.saveExploresAndIndexCatalog({
             ...metadata,
             complete: true,
+            connectionWarnings: multiConnection?.warnings ?? [],
             saveExplores: async (summary) => {
                 async function* observedExplores() {
                     for await (const explore of exploreStream) {
@@ -2838,6 +2899,12 @@ export class ProjectService extends BaseService {
                         yield explore;
                     }
                     onCompiled?.(summary);
+                }
+                if (multiConnection) {
+                    return this.multiConnectionCompiler.save(args.projectUuid, {
+                        ...multiConnection,
+                        exploreStream: observedExplores(),
+                    });
                 }
                 return this.projectModel.saveExploreStreamToCache(
                     args.projectUuid,
@@ -2852,12 +2919,14 @@ export class ProjectService extends BaseService {
             saveExplores: (
                 summary: ExploreCompilationSummary,
             ) => Promise<{ cachedExploreUuids: string[] }>;
+            connectionWarnings: string[];
         },
     ) {
         const {
             userUuid,
             projectUuid,
             saveExplores,
+            connectionWarnings,
             compilationSource,
             jobUuid,
             requestMethod,
@@ -2956,7 +3025,10 @@ export class ProjectService extends BaseService {
             });
         }
 
-        const compilationReport = summary.report;
+        const compilationReport = withConnectionWarnings(
+            summary.report,
+            connectionWarnings,
+        );
         const project = await this.projectModel.get(projectUuid);
 
         Logger.info('compile.case_sensitive_resolution', {
@@ -3009,6 +3081,7 @@ export class ProjectService extends BaseService {
             indexCatalogJobUuid: indexCatalogJob,
             errorCount: summary.report.errorExploresCount,
             total: summary.report.totalExploresCount,
+            ...(connectionWarnings.length > 0 ? { connectionWarnings } : {}),
         };
     }
 
@@ -3174,6 +3247,33 @@ export class ProjectService extends BaseService {
         };
     }
 
+    private async copyPreviewDbtSources({
+        upstreamProjectUuid,
+        previewProjectUuid,
+        warehouseConnectionUuidMap,
+    }: {
+        upstreamProjectUuid: string;
+        previewProjectUuid: string;
+        warehouseConnectionUuidMap: ReadonlyMap<string, string>;
+    }): Promise<void> {
+        if (
+            (await this.projectModel.getConnectionRoute(
+                upstreamProjectUuid,
+            )) === 'multi'
+        ) {
+            await this.projectDbtSourcesModel.copySourcesWithConnectionMap(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                warehouseConnectionUuidMap,
+            );
+            return;
+        }
+        await this.projectDbtSourcesModel.copySources(
+            upstreamProjectUuid,
+            previewProjectUuid,
+        );
+    }
+
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
@@ -3302,10 +3402,11 @@ export class ProjectService extends BaseService {
             createProject.type === ProjectType.PREVIEW &&
             createProject.upstreamProjectUuid
         ) {
-            await this.projectDbtSourcesModel.copySources(
-                createProject.upstreamProjectUuid,
-                projectUuid,
-            );
+            await this.copyPreviewDbtSources({
+                upstreamProjectUuid: createProject.upstreamProjectUuid,
+                previewProjectUuid: projectUuid,
+                warehouseConnectionUuidMap: new Map(),
+            });
         }
 
         const onboardingFlow = await this.getOnboardingFlow(user);
@@ -3996,7 +4097,7 @@ export class ProjectService extends BaseService {
             startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
         });
 
-        await this.saveExploresToCacheAndIndexCatalog({
+        await this.saveDeployExplores({
             userUuid: user.userUuid,
             projectUuid,
             explores: exploresWithPreAggregates,
@@ -4007,6 +4108,7 @@ export class ProjectService extends BaseService {
             cliVersion,
             complete,
             dbtModelNames,
+            projectDbtSourceUuid: null,
         });
 
         await this.schedulerClient.generateValidation({
@@ -4506,9 +4608,6 @@ export class ProjectService extends BaseService {
             ) {
                 throw new ForbiddenError();
             }
-            await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-                kind: 'original',
-            });
 
             if (updatedProject.warehouseConnection === undefined) {
                 throw new Error(
@@ -4550,33 +4649,58 @@ export class ProjectService extends BaseService {
                         // combined explore set as "Refresh dbt".
                         let compileAdapter = primaryAdapter;
                         let stagedMergedManifest: Buffer | undefined;
+                        let multiConnection: MultiConnectionCompilation | null =
+                            null;
                         try {
-                            ({ adapter: compileAdapter, stagedMergedManifest } =
-                                await this.resolveCompileAdapter({
-                                    projectUuid,
-                                    organizationUuid: user.organizationUuid,
-                                    userUuid: user.userUuid,
-                                    primary: {
-                                        adapter: primaryAdapter,
-                                        warehouseCredentials,
-                                        cachedWarehouse,
-                                        dbtVersionOption,
-                                    },
-                                    manifestFetchAdapters,
-                                }));
                             const trackingParams = {
                                 projectUuid,
                                 organizationUuid: user.organizationUuid,
                                 userUuid: user.userUuid,
                                 jobUuid: job.jobUuid,
                             };
+                            const primary = {
+                                adapter: primaryAdapter,
+                                warehouseCredentials,
+                                cachedWarehouse,
+                                dbtVersionOption,
+                            };
+                            if (
+                                (await this.projectModel.getConnectionRoute(
+                                    projectUuid,
+                                )) === 'multi'
+                            ) {
+                                multiConnection =
+                                    await this.compileMultiConnectionProject({
+                                        projectUuid,
+                                        organizationUuid: user.organizationUuid,
+                                        userUuid: user.userUuid,
+                                        primary,
+                                        manifestFetchAdapters,
+                                        trackingParams,
+                                    });
+                                manifestFetchAdapters.push(primaryAdapter);
+                                compileAdapter =
+                                    multiConnection.originalAdapter;
+                            } else {
+                                ({
+                                    adapter: compileAdapter,
+                                    stagedMergedManifest,
+                                } = await this.resolveCompileAdapter({
+                                    projectUuid,
+                                    organizationUuid: user.organizationUuid,
+                                    userUuid: user.userUuid,
+                                    primary,
+                                    manifestFetchAdapters,
+                                }));
+                            }
                             timings.compileExplores.start = performance.now();
                             const exploreStream =
-                                await compileAdapter.prepareExploreStream(
+                                multiConnection?.exploreStream ??
+                                (await compileAdapter.prepareExploreStream(
                                     trackingParams,
                                     false, // loadSources
                                     true, // allowPartialCompilation
-                                );
+                                ));
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
                             const lightdashProjectConfig =
@@ -4637,6 +4761,7 @@ export class ProjectService extends BaseService {
                                         userUuid: user.userUuid,
                                         projectUuid,
                                         exploreStream,
+                                        multiConnection,
                                         compilationSource,
                                         jobUuid: job.jobUuid,
                                         requestMethod: method,
@@ -5953,6 +6078,73 @@ export class ProjectService extends BaseService {
             ),
             stagedMergedManifest,
         };
+    }
+
+    private async compileMultiConnectionProject({
+        projectUuid,
+        organizationUuid,
+        userUuid,
+        primary,
+        manifestFetchAdapters,
+        trackingParams,
+    }: {
+        projectUuid: string;
+        organizationUuid: string | undefined;
+        userUuid: string;
+        primary: {
+            adapter: ProjectAdapter;
+            warehouseCredentials: CreateWarehouseCredentials;
+            cachedWarehouse: CachedWarehouse;
+            dbtVersionOption: DbtVersionOption;
+        };
+        manifestFetchAdapters: ProjectAdapter[];
+        trackingParams: TrackingParams;
+    }): Promise<MultiConnectionCompilation> {
+        const { enabled: includeUnboundSources } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.MultiDbtSources,
+                user: { userUuid, organizationUuid },
+            });
+        const { manifest, selectedModelIds } =
+            await primary.adapter.getDbtManifest();
+        return this.multiConnectionCompiler.compile({
+            projectUuid,
+            primary: {
+                manifest,
+                selectedModelIds,
+                dbtProjectDir: primary.adapter.dbtProjectDir,
+                warehouseCredentials: primary.warehouseCredentials,
+                cachedWarehouse: primary.cachedWarehouse,
+            },
+            dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
+            includeUnboundSources,
+            fetchSourceManifest: async (source, warehouseCredentials) => {
+                const sourceAdapter = await this.buildSourceAdapter(
+                    source.dbtConnection,
+                    source.warehouseLocation,
+                    organizationUuid,
+                    {
+                        warehouseCredentials,
+                        cachedWarehouse: primary.cachedWarehouse,
+                        dbtVersionOption: primary.dbtVersionOption,
+                    },
+                );
+                manifestFetchAdapters.push(sourceAdapter);
+                return sourceAdapter.getDbtManifest();
+            },
+            loadExtraCredentials: async (warehouseConnectionUuid) => {
+                const { userWarehouseCredentialsUuid, ...credentials } =
+                    await this.getExtraConnectionWarehouseCredentials({
+                        projectUuid,
+                        warehouseConnectionUuid,
+                        userId: userUuid,
+                        isRegisteredUser: true,
+                        purpose: 'compile',
+                    });
+                return credentials;
+            },
+            trackingParams,
+        });
     }
 
     /**
@@ -9384,6 +9576,7 @@ export class ProjectService extends BaseService {
                     defaults: upstreamProject.projectDefaults,
                 },
                 projectContext: undefined,
+                multiConnection: null,
             });
         }
 
@@ -9401,29 +9594,51 @@ export class ProjectService extends BaseService {
             // the unchanged single-source path (N=0 short-circuit / regression firewall).
             let dbtSourceCount = 1;
             let stagedMergedManifest: Buffer | undefined;
-            ({ adapter, stagedMergedManifest } =
-                await this.resolveCompileAdapter({
-                    projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    userUuid: user.userUuid,
-                    primary: buildResult,
-                    manifestFetchAdapters,
-                    onDbtSourceCount: (count) => {
-                        dbtSourceCount = count;
-                    },
-                }));
-            const packages = await adapter.getDbtPackages();
             const trackingParams = {
                 projectUuid,
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
                 jobUuid,
             };
-            const exploreStream = await adapter.prepareExploreStream(
-                trackingParams,
-                false, // loadSources
-                true, // allowPartialCompilation
-            );
+            let multiConnection: MultiConnectionCompilation | null = null;
+            if (
+                (await this.projectModel.getConnectionRoute(projectUuid)) ===
+                'multi'
+            ) {
+                multiConnection = await this.compileMultiConnectionProject({
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    userUuid: user.userUuid,
+                    primary: buildResult,
+                    manifestFetchAdapters,
+                    trackingParams,
+                });
+                manifestFetchAdapters.push(adapter);
+                adapter = multiConnection.originalAdapter;
+                dbtSourceCount =
+                    (await this.projectDbtSourcesModel.getSources(projectUuid))
+                        .length + 1;
+            } else {
+                ({ adapter, stagedMergedManifest } =
+                    await this.resolveCompileAdapter({
+                        projectUuid,
+                        organizationUuid: project.organizationUuid,
+                        userUuid: user.userUuid,
+                        primary: buildResult,
+                        manifestFetchAdapters,
+                        onDbtSourceCount: (count) => {
+                            dbtSourceCount = count;
+                        },
+                    }));
+            }
+            const packages = await adapter.getDbtPackages();
+            const exploreStream =
+                multiConnection?.exploreStream ??
+                (await adapter.prepareExploreStream(
+                    trackingParams,
+                    false, // loadSources
+                    true, // allowPartialCompilation
+                ));
             const onCompiled = (summary: ExploreCompilationSummary) => {
                 this.analytics.track({
                     event: 'project.compiled',
@@ -9457,6 +9672,7 @@ export class ProjectService extends BaseService {
                 projectContext,
                 stagedMergedManifest,
                 onCompiled,
+                multiConnection,
             });
         } catch (e) {
             if (!(e instanceof LightdashError)) {
@@ -9792,21 +10008,6 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        try {
-            await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-                kind: 'original',
-            });
-        } catch (error) {
-            await this._markJobAsFailed(jobUuid).catch((e) => {
-                this.logger.error(
-                    `Failed to mark compile job as failed: ${
-                        e instanceof Error ? e.stack : e
-                    }`,
-                );
-            });
-            throw error;
-        }
-
         const job: CreateJob = {
             jobUuid,
             jobType: JobType.COMPILE_PROJECT,
@@ -9909,6 +10110,7 @@ export class ProjectService extends BaseService {
                                 projectContext,
                                 stagedMergedManifest,
                                 onCompiled,
+                                multiConnection,
                             }) => {
                                 timings.yaml.start = performance.now();
                                 await this.replaceYamlTagsWithoutPermissionCheck(
@@ -9958,6 +10160,7 @@ export class ProjectService extends BaseService {
                                             projectUuid,
                                             exploreStream,
                                             onCompiled,
+                                            multiConnection,
                                             compilationSource: 'refresh_dbt',
                                             jobUuid: job.jobUuid,
                                             requestMethod,

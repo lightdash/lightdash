@@ -121,6 +121,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
@@ -518,6 +519,7 @@ const getMockedProjectService = (
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         warehouseConnectionModel: {} as WarehouseConnectionModel,
+        warehouseConnectionCompileModel: {} as WarehouseConnectionCompileModel,
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel:
@@ -665,28 +667,6 @@ describe('ProjectService', () => {
         };
 
         test.each([
-            {
-                entryPoint: 'testAndCompileProject',
-                guardedProjectUuid: projectUuid,
-                call: () =>
-                    service.testAndCompileProject(
-                        compileUser,
-                        projectUuid,
-                        RequestMethod.WEB_APP,
-                        'guard-job-uuid',
-                    ),
-            },
-            {
-                entryPoint: 'compileProject',
-                guardedProjectUuid: projectUuid,
-                call: () =>
-                    service.compileProject(
-                        compileUser,
-                        projectUuid,
-                        RequestMethod.WEB_APP,
-                        'guard-job-uuid',
-                    ),
-            },
             {
                 entryPoint: 'setExplores',
                 guardedProjectUuid: projectUuid,

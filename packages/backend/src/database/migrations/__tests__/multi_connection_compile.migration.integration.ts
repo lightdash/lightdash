@@ -2,34 +2,47 @@ import { Ability } from '@casl/ability';
 import {
     calculateCompilationReport,
     ExploreType,
+    JobStatusType,
+    JobStepType,
+    JobType,
     NotFoundError,
     ParameterError,
+    RequestMethod,
     SingleConnectionProjectError,
     SupportedDbtVersions,
     type CreateWarehouseCredentials,
     type DbtManifest,
+    type DbtProjectConfig,
     type Explore,
     type ExploreError,
     type PossibleAbilities,
+    type SessionUser,
 } from '@lightdash/common';
-import { ListedDatabasesPostgresWarehouseClient } from '@lightdash/warehouses';
+import {
+    ListedDatabasesPostgresWarehouseClient,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { JobModel } from '../../../models/JobModel/JobModel';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type CompilableDbtSource } from '../../../projectAdapters/CompileGroup';
+import { DbtManifestProjectAdapter } from '../../../projectAdapters/dbtManifestProjectAdapter';
 import {
     MultiConnectionCompiler,
     withConnectionWarnings,
 } from '../../../services/MultiConnectionCompiler/MultiConnectionCompiler';
+import { ProjectDbtSourcesService } from '../../../services/ProjectDbtSourcesService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -66,6 +79,20 @@ type Fixture = {
     sourceUuids: Record<string, string>;
 };
 
+type CompileCredentials = {
+    getExtraConnectionWarehouseCredentials: (args: {
+        projectUuid: string;
+        warehouseConnectionUuid: string;
+        userId: string;
+        isRegisteredUser: boolean;
+        purpose: 'compile';
+    }) => Promise<
+        CreateWarehouseCredentials & {
+            userWarehouseCredentialsUuid: string | undefined;
+        }
+    >;
+};
+
 describe('Multi-connection compile on the real schema', () => {
     let migrated: MigratedTestDatabase;
     let database: Knex;
@@ -76,6 +103,22 @@ describe('Multi-connection compile on the real schema', () => {
     let warehouseConnectionModel: WarehouseConnectionModel;
     let warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     let compiler: MultiConnectionCompiler;
+    let compileCredentials: CompileCredentials;
+
+    const loadExtraCredentials =
+        (projectUuid: string) => async (warehouseConnectionUuid: string) => {
+            const { userWarehouseCredentialsUuid, ...credentials } =
+                await compileCredentials.getExtraConnectionWarehouseCredentials(
+                    {
+                        projectUuid,
+                        warehouseConnectionUuid,
+                        userId: defaultSessionUser.userUuid,
+                        isRegisteredUser: true,
+                        purpose: 'compile',
+                    },
+                );
+            return credentials;
+        };
 
     const primaryModels: FixtureModel[] = [
         { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
@@ -242,6 +285,7 @@ describe('Multi-connection compile on the real schema', () => {
             dbtVersion: SupportedDbtVersions.V1_8,
             includeUnboundSources,
             fetchSourceManifest,
+            loadExtraCredentials: loadExtraCredentials(fixture.projectUuid),
         });
         await compiler.save(fixture.projectUuid, compilation);
         return compilation;
@@ -319,22 +363,32 @@ describe('Multi-connection compile on the real schema', () => {
             database,
             encryptionUtil,
         });
+        const organizationWarehouseCredentialsModel =
+            new OrganizationWarehouseCredentialsModel({
+                database,
+                encryptionUtil,
+            });
         warehouseConnectionModel = new WarehouseConnectionModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel:
-                new OrganizationWarehouseCredentialsModel({
-                    database,
-                    encryptionUtil,
-                }),
+            organizationWarehouseCredentialsModel,
         });
+        compileCredentials = new ProjectService({
+            lightdashConfig: lightdashConfigMock,
+            projectModel,
+            userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
+                database,
+                encryptionUtil,
+            }),
+            organizationWarehouseCredentialsModel,
+            warehouseConnectionModel,
+        } as never) as unknown as CompileCredentials;
         warehouseConnectionCompileModel = new WarehouseConnectionCompileModel({
             database,
         });
         compiler = new MultiConnectionCompiler({
             projectModel,
             projectDbtSourcesModel,
-            warehouseConnectionModel,
             warehouseConnectionCompileModel,
         });
     }, 600000);
@@ -359,76 +413,644 @@ describe('Multi-connection compile on the real schema', () => {
         vi.restoreAllMocks();
     });
 
-    describe('parity with the main save (K1)', () => {
-        const explore = (name: string, tables: string[]): Explore =>
-            ({
-                name,
-                label: name,
-                tags: [],
-                baseTable: tables[0],
-                joinedTables: [],
-                tables: Object.fromEntries(
-                    tables.map((table) => [
-                        table,
-                        {
-                            name: table,
-                            label: table,
-                            database: 'db',
-                            schema: 'public',
-                            sqlTable: `"db"."public"."${table}"`,
-                            dimensions: {},
-                            metrics: {},
-                            lineageGraph: {},
-                        },
-                    ]),
-                ),
-                targetDatabase: 'postgres',
-            }) as unknown as Explore;
-        const virtualView = {
-            ...explore('virtual_orders', ['virtual_orders']),
-            type: ExploreType.VIRTUAL,
-        } as Explore;
-        const exploreError: ExploreError = {
-            name: 'broken',
-            label: 'broken',
-            errors: [
-                { type: 'NO_DIMENSIONS_FOUND', message: 'broken' } as never,
-            ],
+    const explore = (name: string, tables: string[]): Explore =>
+        ({
+            name,
+            label: name,
+            tags: [],
+            baseTable: tables[0],
+            joinedTables: [],
+            tables: Object.fromEntries(
+                tables.map((table) => [
+                    table,
+                    {
+                        name: table,
+                        label: table,
+                        database: 'db',
+                        schema: 'public',
+                        sqlTable: `"db"."public"."${table}"`,
+                        dimensions: {},
+                        metrics: {},
+                        lineageGraph: {},
+                    },
+                ]),
+            ),
+            targetDatabase: 'postgres',
+        }) as unknown as Explore;
+    const virtualView = {
+        ...explore('virtual_orders', ['virtual_orders']),
+        type: ExploreType.VIRTUAL,
+    } as Explore;
+    const exploreError: ExploreError = {
+        name: 'broken',
+        label: 'broken',
+        errors: [{ type: 'NO_DIMENSIONS_FOUND', message: 'broken' } as never],
+    };
+
+    const seedProject = async () => {
+        const [organization] = await database('organizations')
+            .insert({ organization_name: 'Parity test' })
+            .returning('organization_id');
+        const [project] = await database('projects')
+            .insert({
+                name: 'Parity project',
+                organization_id: organization.organization_id,
+            } as never)
+            .returning('project_uuid');
+        await database('cached_explore').insert({
+            project_uuid: project.project_uuid,
+            name: virtualView.name,
+            table_names: Object.keys(virtualView.tables),
+            explore: JSON.stringify(virtualView),
+        });
+        await database('cached_explore').insert({
+            project_uuid: project.project_uuid,
+            name: 'stale',
+            table_names: ['stale'],
+            explore: JSON.stringify(explore('stale', ['stale'])),
+        });
+        return project.project_uuid as string;
+    };
+
+    const dump = async (projectUuid: string) =>
+        (await cachedExplores(projectUuid)).map((row) => ({
+            name: row.name,
+            table_names: row.table_names,
+            explore: row.explore,
+            warehouse_connection_uuid: row.warehouse_connection_uuid,
+        }));
+
+    describe('entry points', () => {
+        type PrimaryBuild = {
+            adapter: DbtManifestProjectAdapter;
+            sshTunnel: { disconnect: () => Promise<void> };
+            warehouseCredentials: CreateWarehouseCredentials;
+            cachedWarehouse: {
+                warehouseCatalog: unknown;
+                onWarehouseCatalogChange: (catalog: never) => Promise<void>;
+            };
+            dbtVersionOption: SupportedDbtVersions;
+        };
+        type CompileInternals = {
+            buildAdapter: (projectUuid: string) => Promise<PrimaryBuild>;
+            testProjectAdapter: () => Promise<PrimaryBuild>;
+            buildSourceAdapter: (
+                dbtConnection: DbtProjectConfig,
+                warehouseLocation: unknown,
+                organizationUuid: string | undefined,
+                shared: { warehouseCredentials: CreateWarehouseCredentials },
+            ) => Promise<unknown>;
+            resolveCompileAdapter: () => Promise<unknown>;
+            multiConnectionCompiler: MultiConnectionCompiler;
+            getExtraConnectionWarehouseCredentials: CompileCredentials['getExtraConnectionWarehouseCredentials'];
         };
 
-        const seedProject = async () => {
-            const [organization] = await database('organizations')
-                .insert({ organization_name: 'Parity test' })
-                .returning('organization_id');
-            const [project] = await database('projects')
-                .insert({
-                    name: 'Parity project',
-                    organization_id: organization.organization_id,
-                } as never)
-                .returning('project_uuid');
+        const primaryBuild = async (
+            projectUuid: string,
+        ): Promise<PrimaryBuild> => {
+            const warehouseCredentials = postgresWarehouse(ORIGINAL_DB);
+            const cachedWarehouse = {
+                warehouseCatalog:
+                    await projectModel.getWarehouseFromCache(projectUuid),
+                onWarehouseCatalogChange: async (catalog: never) => {
+                    await projectModel.saveWarehouseToCache(
+                        projectUuid,
+                        catalog,
+                    );
+                },
+            };
+            return {
+                adapter: new DbtManifestProjectAdapter({
+                    parsedManifest: dbtManifest('primary', primaryModels),
+                    warehouseClient:
+                        warehouseClientFromCredentials(warehouseCredentials),
+                    cachedWarehouse: cachedWarehouse as never,
+                    dbtVersion: SupportedDbtVersions.V1_8,
+                }),
+                sshTunnel: { disconnect: async () => {} },
+                warehouseCredentials,
+                cachedWarehouse,
+                dbtVersionOption: SupportedDbtVersions.V1_8,
+            };
+        };
+
+        const compileService = (projectUuid: string) => {
+            const service = new ProjectService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: { track: vi.fn() },
+                projectModel,
+                projectDbtSourcesModel,
+                warehouseConnectionModel,
+                warehouseConnectionCompileModel,
+                userWarehouseCredentialsModel:
+                    new UserWarehouseCredentialsModel({
+                        database,
+                        encryptionUtil,
+                    }),
+                organizationWarehouseCredentialsModel:
+                    new OrganizationWarehouseCredentialsModel({
+                        database,
+                        encryptionUtil,
+                    }),
+                jobModel: new JobModel({ database }),
+                projectCompileLogModel: new ProjectCompileLogModel({
+                    database,
+                }),
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: true }),
+                },
+                catalogModel: {
+                    getCatalogItemsWithTags: async () => [],
+                    getCatalogItemsWithIcons: async () => [],
+                    getAllMetricsTreeEdges: async () => [],
+                    getAllMetricsTreeNodes: async () => [],
+                },
+                schedulerClient: {
+                    indexCatalog: async () => 'index-catalog-job',
+                    generateValidation: async () => {},
+                },
+                tagsModel: {
+                    replaceYamlTags: async () => ({
+                        yamlTagsToCreateOrUpdate: [],
+                    }),
+                },
+                projectParametersModel: {
+                    replace: async () => {},
+                    find: async () => [],
+                },
+            } as never);
+            const internals = service as unknown as CompileInternals;
+            vi.spyOn(internals, 'buildAdapter').mockImplementation(() =>
+                primaryBuild(projectUuid),
+            );
+            vi.spyOn(internals, 'testProjectAdapter').mockImplementation(() =>
+                primaryBuild(projectUuid),
+            );
+            vi.spyOn(internals, 'buildSourceAdapter').mockImplementation(
+                async (dbtConnection, _location, _organization, shared) => {
+                    const name = (
+                        dbtConnection as { repository: string }
+                    ).repository.replace('org/', '');
+                    fetchedWith.push({
+                        source: name,
+                        dbname:
+                            'dbname' in shared.warehouseCredentials
+                                ? String(shared.warehouseCredentials.dbname)
+                                : '',
+                    });
+                    return {
+                        getDbtManifest: async () => ({
+                            manifest: sourceManifests[name],
+                        }),
+                        destroy: async () => {},
+                    };
+                },
+            );
+            return { service, internals };
+        };
+
+        const compilingUser = async (projectUuid: string) => {
+            const { organizationUuid } =
+                await projectModel.getSummary(projectUuid);
+            const [user] = await database('users')
+                .insert({ first_name: 'Compile', last_name: 'User' } as never)
+                .returning('user_uuid');
+            return {
+                ...defaultSessionUser,
+                userUuid: user.user_uuid as string,
+                organizationUuid,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'all', action: 'manage' },
+                ] as never),
+            } as SessionUser;
+        };
+
+        const createJob = async (projectUuid: string, userUuid: string) => {
+            const jobUuid = randomUUID();
+            await new JobModel({ database }).create(
+                {
+                    jobUuid,
+                    jobType: JobType.COMPILE_PROJECT,
+                    jobStatus: JobStatusType.STARTED,
+                    userUuid,
+                    projectUuid,
+                    steps: [{ stepType: JobStepType.COMPILING }],
+                },
+                false,
+            );
+            return jobUuid;
+        };
+
+        const runCompileProject = async (projectUuid: string) => {
+            const { service, internals } = compileService(projectUuid);
+            const user = await compilingUser(projectUuid);
+            const jobUuid = await createJob(projectUuid, user.userUuid);
+            await service.compileProject(
+                user,
+                projectUuid,
+                RequestMethod.WEB_APP,
+                jobUuid,
+            );
+            return {
+                internals,
+                job: await new JobModel({ database }).get(jobUuid),
+            };
+        };
+
+        const runTestAndCompileProject = async (projectUuid: string) => {
+            const { service, internals } = compileService(projectUuid);
+            const user = await compilingUser(projectUuid);
+            const jobUuid = randomUUID();
+            await new JobModel({ database }).create(
+                {
+                    jobUuid,
+                    jobType: JobType.COMPILE_PROJECT,
+                    jobStatus: JobStatusType.STARTED,
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    steps: [
+                        { stepType: JobStepType.TESTING_ADAPTOR },
+                        { stepType: JobStepType.COMPILING },
+                    ],
+                },
+                false,
+            );
+            await service.testAndCompileProject(
+                user,
+                projectUuid,
+                RequestMethod.WEB_APP,
+                jobUuid,
+            );
+            return {
+                internals,
+                job: await new JobModel({ database }).get(jobUuid),
+            };
+        };
+
+        const latestReport = async (projectUuid: string) =>
+            (
+                await database('project_compile_log')
+                    .select('report')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('created_at', 'desc')
+                    .first()
+            )?.report;
+
+        const killExtraWarehouse = async (fixture: Fixture) =>
+            warehouseConnectionModel.updateExtraCredentials(
+                await warehouseConnectionModel.getProject(fixture.projectUuid),
+                fixture.extraConnectionUuid,
+                {
+                    kind: 'project',
+                    credentials: postgresWarehouse(EXTRA_DB, DEAD_PORT),
+                },
+            );
+
+        test.each([
+            ['compileProject', runCompileProject],
+            ['testAndCompileProject', runTestAndCompileProject],
+        ] as const)(
+            '%s on a multi project compiles each connection with its stored credentials and saves the bindings',
+            async (_entryPoint, run) => {
+                const fixture = await createProject();
+
+                const { job } = await run(fixture.projectUuid);
+
+                expect(job.jobStatus).toBe(JobStatusType.DONE);
+                expect(job.jobResults).not.toHaveProperty('connectionWarnings');
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    campaigns: null,
+                    customers: null,
+                    orders: null,
+                    payments: fixture.extraConnectionUuid,
+                });
+                expect(fetchedWith).toContainEqual({
+                    source: 'finance',
+                    dbname: EXTRA_DB,
+                });
+                expect(
+                    await latestReport(fixture.projectUuid),
+                ).not.toHaveProperty('connectionWarnings');
+            },
+        );
+
+        test.each([
+            ['compileProject', runCompileProject],
+            ['testAndCompileProject', runTestAndCompileProject],
+        ] as const)(
+            '%s on a multi project with a dead extra warehouse keeps its explores and reports the connection in the job result and compile log',
+            async (_entryPoint, run) => {
+                const fixture = await createProject();
+                await run(fixture.projectUuid);
+                await killExtraWarehouse(fixture);
+
+                const { job } = await run(fixture.projectUuid);
+
+                expect(job.jobStatus).toBe(JobStatusType.DONE);
+                const expectedWarning = expect.stringContaining(
+                    'Connection "Finance warehouse" failed to compile, so its previous explores are kept',
+                );
+                expect(job.jobResults).toMatchObject({
+                    connectionWarnings: [expectedWarning],
+                });
+                expect(await latestReport(fixture.projectUuid)).toMatchObject({
+                    connectionWarnings: [expectedWarning],
+                });
+                expect((await bindings(fixture.projectUuid)).payments).toBe(
+                    fixture.extraConnectionUuid,
+                );
+            },
+        );
+
+        test('compileProject loads extra connection credentials through the compile purpose, never a personal credential', async () => {
+            const fixture = await createProject();
+            const { service, internals } = compileService(fixture.projectUuid);
+            const loadCredentials = vi.spyOn(
+                internals,
+                'getExtraConnectionWarehouseCredentials',
+            );
+            const user = await compilingUser(fixture.projectUuid);
+            const jobUuid = await createJob(fixture.projectUuid, user.userUuid);
+
+            await service.compileProject(
+                user,
+                fixture.projectUuid,
+                RequestMethod.WEB_APP,
+                jobUuid,
+            );
+
+            expect(loadCredentials.mock.calls).toEqual([
+                [
+                    {
+                        projectUuid: fixture.projectUuid,
+                        warehouseConnectionUuid: fixture.extraConnectionUuid,
+                        userId: user.userUuid,
+                        isRegisteredUser: true,
+                        purpose: 'compile',
+                    },
+                ],
+            ]);
+        });
+
+        test.each([
+            ['compileProject', runCompileProject],
+            ['testAndCompileProject', runTestAndCompileProject],
+        ] as const)(
+            '%s on a single project runs the main path and never the multi compiler',
+            async (_entryPoint, run) => {
+                const fixture = await createProject();
+                await database('projects')
+                    .update({ connection_mode: 'single' } as never)
+                    .where('project_uuid', fixture.projectUuid);
+                const multiCompile = vi.spyOn(
+                    MultiConnectionCompiler.prototype,
+                    'compile',
+                );
+                const multiSave = vi.spyOn(
+                    MultiConnectionCompiler.prototype,
+                    'save',
+                );
+                const mainSave = vi.spyOn(
+                    projectModel,
+                    'saveExploreStreamToCache',
+                );
+
+                const { job } = await run(fixture.projectUuid);
+
+                expect(job.jobStatus).toBe(JobStatusType.DONE);
+                expect(multiCompile).not.toHaveBeenCalled();
+                expect(multiSave).not.toHaveBeenCalled();
+                expect(mainSave).toHaveBeenCalledTimes(1);
+                expect(job.jobResults).not.toHaveProperty('connectionWarnings');
+                expect(
+                    await latestReport(fixture.projectUuid),
+                ).not.toHaveProperty('connectionWarnings');
+                expect(
+                    Object.values(await bindings(fixture.projectUuid)),
+                ).toEqual([null, null, null, null]);
+                expect(fetchedWith).toContainEqual({
+                    source: 'finance',
+                    dbname: ORIGINAL_DB,
+                });
+            },
+        );
+
+        const routeSingle = async (projectUuid: string) =>
+            database('projects')
+                .update({ connection_mode: 'single' } as never)
+                .where('project_uuid', projectUuid);
+
+        const seedCachedExplores = async (projectUuid: string) => {
             await database('cached_explore').insert({
-                project_uuid: project.project_uuid,
+                project_uuid: projectUuid,
                 name: virtualView.name,
                 table_names: Object.keys(virtualView.tables),
                 explore: JSON.stringify(virtualView),
             });
             await database('cached_explore').insert({
-                project_uuid: project.project_uuid,
+                project_uuid: projectUuid,
                 name: 'stale',
                 table_names: ['stale'],
                 explore: JSON.stringify(explore('stale', ['stale'])),
             });
-            return project.project_uuid as string;
         };
 
-        const dump = async (projectUuid: string) =>
-            (await cachedExplores(projectUuid)).map((row) => ({
-                name: row.name,
-                table_names: row.table_names,
-                explore: row.explore,
-                warehouse_connection_uuid: row.warehouse_connection_uuid,
-            }));
+        const deployInputs = (): (Explore | ExploreError)[] => [
+            explore('orders', ['orders', 'customers']),
+            explore('customers', ['customers']),
+            exploreError,
+        ];
 
+        test.each([
+            { complete: true, dbtModelNames: undefined },
+            { complete: false, dbtModelNames: ['orders'] },
+            { complete: undefined, dbtModelNames: undefined },
+        ])(
+            'setExplores on a single project writes the rows of the main deploy save (complete $complete)',
+            async ({ complete, dbtModelNames }) => {
+                const deployed = await createProject();
+                const baseline = await createProject();
+                await Promise.all(
+                    [deployed, baseline].map(async ({ projectUuid }) => {
+                        await routeSingle(projectUuid);
+                        await seedCachedExplores(projectUuid);
+                    }),
+                );
+                const user = await compilingUser(deployed.projectUuid);
+                const multiSave = vi.spyOn(
+                    MultiConnectionCompiler.prototype,
+                    'save',
+                );
+
+                await compileService(deployed.projectUuid).service.setExplores(
+                    user,
+                    deployed.projectUuid,
+                    deployInputs(),
+                    'cli-1',
+                    complete,
+                    dbtModelNames,
+                );
+                await compileService(
+                    baseline.projectUuid,
+                ).service.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid: baseline.projectUuid,
+                    explores: deployInputs(),
+                    compilationSource: 'cli_deploy',
+                    jobUuid: null,
+                    requestMethod: 'cli',
+                    cliVersion: 'cli-1',
+                    complete,
+                    dbtModelNames,
+                });
+
+                expect(await dump(deployed.projectUuid)).toEqual(
+                    await dump(baseline.projectUuid),
+                );
+                expect(multiSave).not.toHaveBeenCalled();
+            },
+        );
+
+        test('saveDeployExplores on a multi project replaces the deployed source and keeps the other sources with their bindings', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+            const user = await compilingUser(fixture.projectUuid);
+
+            await compileService(
+                fixture.projectUuid,
+            ).service.saveDeployExplores({
+                userUuid: user.userUuid,
+                projectUuid: fixture.projectUuid,
+                explores: [explore('orders', ['orders'])],
+                compilationSource: 'cli_deploy',
+                jobUuid: null,
+                requestMethod: 'cli',
+                complete: true,
+                projectDbtSourceUuid: null,
+            });
+
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+            });
+        });
+
+        test('saveDeployExplores on a multi project refuses a deploy that is not complete and saves nothing', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+            const before = await dump(fixture.projectUuid);
+            const user = await compilingUser(fixture.projectUuid);
+
+            await expect(
+                compileService(fixture.projectUuid).service.saveDeployExplores({
+                    userUuid: user.userUuid,
+                    projectUuid: fixture.projectUuid,
+                    explores: [explore('orders', ['orders'])],
+                    compilationSource: 'cli_deploy',
+                    jobUuid: null,
+                    requestMethod: 'cli',
+                    complete: false,
+                    dbtModelNames: ['orders'],
+                    projectDbtSourceUuid: null,
+                }),
+            ).rejects.toThrow(
+                'A deploy to a project with multiple connections must send every explore of its dbt source',
+            );
+            expect(await dump(fixture.projectUuid)).toEqual(before);
+        });
+
+        type PreviewCopy = {
+            copyPreviewDbtSources: (args: {
+                upstreamProjectUuid: string;
+                previewProjectUuid: string;
+                warehouseConnectionUuidMap: ReadonlyMap<string, string>;
+            }) => Promise<void>;
+        };
+
+        const emptyProject = () =>
+            createProject(
+                postgresWarehouse(EXTRA_DB),
+                { listAllDatabases: false, additionalDatabases: [] },
+                false,
+            );
+
+        const sourceRows = async (projectUuid: string) =>
+            database('project_dbt_sources')
+                .select(
+                    'name',
+                    'is_primary',
+                    'precedence',
+                    'dbt_connection_type',
+                    'dbt_connection',
+                    'warehouse_database',
+                    'warehouse_schema',
+                    'warehouse_connection_uuid',
+                )
+                .where('project_uuid', projectUuid)
+                .orderBy('precedence');
+
+        test('the preview source copy of a single upstream writes the rows of the main copy', async () => {
+            const upstream = await createProject();
+            await routeSingle(upstream.projectUuid);
+            const viaHelper = await emptyProject();
+            const viaMain = await emptyProject();
+
+            await (
+                compileService(upstream.projectUuid)
+                    .service as unknown as PreviewCopy
+            ).copyPreviewDbtSources({
+                upstreamProjectUuid: upstream.projectUuid,
+                previewProjectUuid: viaHelper.projectUuid,
+                warehouseConnectionUuidMap: new Map(),
+            });
+            await projectDbtSourcesModel.copySources(
+                upstream.projectUuid,
+                viaMain.projectUuid,
+            );
+
+            const copied = await sourceRows(viaHelper.projectUuid);
+            expect(copied).toHaveLength(2);
+            expect(copied).toEqual(await sourceRows(viaMain.projectUuid));
+        });
+
+        test('the preview source copy of a multi upstream remaps each binding through the map and refuses a missing one', async () => {
+            const upstream = await createProject();
+            const preview = await emptyProject();
+            const copy = compileService(upstream.projectUuid)
+                .service as unknown as PreviewCopy;
+
+            await expect(
+                copy.copyPreviewDbtSources({
+                    upstreamProjectUuid: upstream.projectUuid,
+                    previewProjectUuid: preview.projectUuid,
+                    warehouseConnectionUuidMap: new Map(),
+                }),
+            ).rejects.toThrow(
+                'The copy has no connection for dbt source "finance"',
+            );
+            expect(await sourceRows(preview.projectUuid)).toEqual([]);
+
+            await copy.copyPreviewDbtSources({
+                upstreamProjectUuid: upstream.projectUuid,
+                previewProjectUuid: preview.projectUuid,
+                warehouseConnectionUuidMap: new Map([
+                    [upstream.extraConnectionUuid, preview.extraConnectionUuid],
+                ]),
+            });
+            expect(
+                (await sourceRows(preview.projectUuid)).map((row) => [
+                    row.name,
+                    row.warehouse_connection_uuid,
+                ]),
+            ).toEqual([
+                ['marketing', null],
+                ['finance', preview.extraConnectionUuid],
+            ]);
+        });
+    });
+
+    describe('parity with the main save (K1)', () => {
         test('every binding NULL writes rows identical to saveExploreStreamToCache', async () => {
             const inputs: (Explore | ExploreError)[] = [
                 explore('orders', ['orders', 'customers']),
@@ -669,8 +1291,8 @@ describe('Multi-connection compile on the real schema', () => {
                 fixture.extraConnectionUuid,
             );
             const getCredentials = vi.spyOn(
-                warehouseConnectionModel,
-                'getCredentials',
+                compileCredentials,
+                'getExtraConnectionWarehouseCredentials',
             );
 
             await bind(fixture, 'finance', null);
@@ -734,7 +1356,7 @@ describe('Multi-connection compile on the real schema', () => {
                         calculateCompilationReport({
                             explores: (
                                 await cachedExplores(fixture.projectUuid)
-                            ).map(({ explore }) => explore),
+                            ).map((row) => row.explore),
                         }),
                         warnings,
                     ),
@@ -1103,6 +1725,103 @@ describe('Multi-connection compile on the real schema', () => {
                 ).find((source) => source.name === 'finance')
                     ?.warehouseConnectionUuid,
             ).toBe(first.extraConnectionUuid);
+        });
+
+        const dbtSourcesService = () =>
+            new ProjectDbtSourcesService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: { track: vi.fn() } as never,
+                projectModel,
+                projectDbtSourcesModel,
+            });
+
+        const salesConnection = {
+            ...githubDbtConnection('org/sales'),
+            personal_access_token: `ghp_${'a'.repeat(36)}`,
+        };
+
+        test('a dbt source added to a multi project is bound to the original and compiles there', async () => {
+            const fixture = await createProject();
+            sourceManifests.sales = dbtManifest('sales', [
+                { name: 'invoices', database: ORIGINAL_DB, table: 'invoices' },
+            ]);
+
+            const created = await dbtSourcesService().createProjectDbtSource(
+                await projectAdmin(fixture.projectUuid),
+                fixture.projectUuid,
+                { name: 'sales', dbtConnection: salesConnection },
+            );
+            await compile(fixture);
+
+            expect(
+                (
+                    await projectDbtSourcesModel.getSourcesWithBindings(
+                        fixture.projectUuid,
+                    )
+                ).find(
+                    (source) =>
+                        source.projectDbtSourceUuid ===
+                        created.projectDbtSourceUuid,
+                )?.warehouseConnectionUuid,
+            ).toBeNull();
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: null,
+                customers: null,
+                invoices: null,
+                orders: null,
+                payments: fixture.extraConnectionUuid,
+            });
+        });
+
+        test('updating a dbt source on a multi project keeps its binding', async () => {
+            const fixture = await createProject();
+
+            await dbtSourcesService().updateProjectDbtSource(
+                await projectAdmin(fixture.projectUuid),
+                fixture.projectUuid,
+                fixture.sourceUuids.finance,
+                { name: 'finance_renamed' },
+            );
+
+            const [renamed] = (
+                await projectDbtSourcesModel.getSourcesWithBindings(
+                    fixture.projectUuid,
+                )
+            ).filter(
+                (source) =>
+                    source.projectDbtSourceUuid === fixture.sourceUuids.finance,
+            );
+            expect(renamed).toMatchObject({
+                name: 'finance_renamed',
+                warehouseConnectionUuid: fixture.extraConnectionUuid,
+            });
+        });
+
+        test('deleting the only source of an extra connection removes its explores and the connection is not contacted', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+            expect((await bindings(fixture.projectUuid)).payments).toBe(
+                fixture.extraConnectionUuid,
+            );
+            const loadCredentials = vi.spyOn(
+                compileCredentials,
+                'getExtraConnectionWarehouseCredentials',
+            );
+
+            await dbtSourcesService().deleteProjectDbtSource(
+                await projectAdmin(fixture.projectUuid),
+                fixture.projectUuid,
+                fixture.sourceUuids.finance,
+            );
+            const compilation = await compile(fixture);
+
+            expect(compilation.warnings).toEqual([]);
+            expect(loadCredentials).not.toHaveBeenCalled();
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                campaigns: null,
+                customers: null,
+                orders: null,
+            });
         });
     });
 });

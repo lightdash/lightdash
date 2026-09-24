@@ -965,6 +965,8 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
+                    warehouseConnectionCompileModel:
+                        this.models.getWarehouseConnectionCompileModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     natsClient: this.clients.getNatsClient(),
@@ -1114,6 +1116,8 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
+                    warehouseConnectionCompileModel:
+                        this.models.getWarehouseConnectionCompileModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     natsClient: this.clients.getNatsClient(),

@@ -233,9 +233,6 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
         assertProjectDbtSourceName(data.name);
         // GitHub-only for now: additional sources are restricted to GitHub
         // connections until the other git providers are validated end-to-end.
@@ -341,9 +338,6 @@ export class ProjectDbtSourcesService extends BaseService {
         data: ApiUpdateProjectDbtSource,
     ): Promise<ProjectDbtSourceSummary> {
         await this.checkProjectAccess(account, projectUuid, 'manage');
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
         const identity =
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         if (projectDbtSourceUuid === identity.dbtSourceUuid) {
@@ -446,9 +440,6 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        await this.projectModel.requireSingleConnectionRoute(projectUuid, {
-            kind: 'original',
-        });
         const source =
             await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
         if (source.projectUuid !== projectUuid) {

@@ -105,6 +105,7 @@ import type { UserModel } from '../../models/UserModel';
 import type { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -415,6 +416,7 @@ const getMockedAsyncQueryService = (
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         warehouseConnectionModel: {} as WarehouseConnectionModel,
+        warehouseConnectionCompileModel: {} as WarehouseConnectionCompileModel,
         emailModel: {
             getPrimaryEmailStatus: () => ({
                 isVerified: true,

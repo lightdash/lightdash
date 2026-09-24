@@ -125,6 +125,10 @@ export class WarehouseConnectionRouter {
                     binding.warehouseConnectionUuid,
                 );
             case 'explore':
+                return this.resolveExploreBinding(
+                    projectUuid,
+                    binding.exploreName,
+                );
             case 'sqlChart':
                 throw new NotImplementedError(
                     'Multiple connections are not available',
@@ -132,6 +136,24 @@ export class WarehouseConnectionRouter {
             default:
                 return assertUnreachable(binding, 'Unknown connection binding');
         }
+    }
+
+    private async resolveExploreBinding(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<CredentialReadTarget> {
+        const explore = await this.database('cached_explore')
+            .select<{ warehouse_connection_uuid: string | null }[]>(
+                'warehouse_connection_uuid',
+            )
+            .where('project_uuid', projectUuid)
+            .where('name', exploreName)
+            .first();
+        if (!explore) throw new NotFoundError('Explore not found');
+        return this.resolveConnectionBinding(
+            projectUuid,
+            explore.warehouse_connection_uuid,
+        );
     }
 
     private async resolveConnectionBinding(

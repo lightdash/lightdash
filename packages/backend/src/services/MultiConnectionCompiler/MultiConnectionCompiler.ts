@@ -21,7 +21,6 @@ import {
     type ProjectModel,
 } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
-import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     ManifestCollisionError,
     mergeCompileGroupManifests,
@@ -49,6 +48,10 @@ export type FetchSourceManifest = (
     source: CompilableDbtSource,
     warehouseCredentials: CreateWarehouseCredentials,
 ) => Promise<{ manifest: DbtManifest; selectedModelIds?: string[] }>;
+
+export type LoadExtraConnectionCredentials = (
+    warehouseConnectionUuid: string,
+) => Promise<CreateWarehouseCredentials>;
 
 export type PrimaryCompileInput = {
     manifest: DbtManifest;
@@ -80,7 +83,6 @@ type CompiledExtraGroup = {
 type MultiConnectionCompilerArguments = {
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
-    warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 };
 
@@ -89,14 +91,11 @@ export class MultiConnectionCompiler {
 
     private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
 
-    private readonly warehouseConnectionModel: WarehouseConnectionModel;
-
     private readonly warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 
     constructor(args: MultiConnectionCompilerArguments) {
         this.projectModel = args.projectModel;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
-        this.warehouseConnectionModel = args.warehouseConnectionModel;
         this.warehouseConnectionCompileModel =
             args.warehouseConnectionCompileModel;
     }
@@ -156,6 +155,7 @@ export class MultiConnectionCompiler {
         plan,
         dbtVersion,
         fetchSourceManifest,
+        loadExtraCredentials,
         trackingParams,
         warnings,
     }: {
@@ -163,13 +163,11 @@ export class MultiConnectionCompiler {
         plan: CompileGroupPlan & { warehouseConnectionUuid: string };
         dbtVersion: SupportedDbtVersions;
         fetchSourceManifest: FetchSourceManifest;
+        loadExtraCredentials: LoadExtraConnectionCredentials;
         trackingParams: TrackingParams | undefined;
         warnings: string[];
     }): Promise<CompiledExtraGroup> {
-        const project =
-            await this.warehouseConnectionModel.getProject(projectUuid);
-        const credentials = await this.warehouseConnectionModel.getCredentials(
-            project,
+        const credentials = await loadExtraCredentials(
             plan.warehouseConnectionUuid,
         );
         const sshTunnel = new SshTunnel(credentials);
@@ -263,6 +261,7 @@ export class MultiConnectionCompiler {
         dbtVersion,
         includeUnboundSources,
         fetchSourceManifest,
+        loadExtraCredentials,
         trackingParams,
     }: {
         projectUuid: string;
@@ -270,6 +269,7 @@ export class MultiConnectionCompiler {
         dbtVersion: SupportedDbtVersions;
         includeUnboundSources: boolean;
         fetchSourceManifest: FetchSourceManifest;
+        loadExtraCredentials: LoadExtraConnectionCredentials;
         trackingParams?: TrackingParams;
     }): Promise<MultiConnectionCompilation> {
         const [originalPlan, ...extraPlans] = await this.planGroups(
@@ -331,6 +331,7 @@ export class MultiConnectionCompiler {
                         plan: extraPlan,
                         dbtVersion,
                         fetchSourceManifest,
+                        loadExtraCredentials,
                         trackingParams,
                         warnings,
                     }),

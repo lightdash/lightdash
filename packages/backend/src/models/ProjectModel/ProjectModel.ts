@@ -66,6 +66,7 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    type ConnectionRoute,
     type SummaryExplore,
 } from '@lightdash/common';
 import {
@@ -4422,6 +4423,10 @@ export class ProjectModel {
         binding: ConnectionBinding,
     ) {
         return this.connectionRouter.requireSingleRoute(projectUuid, binding);
+    }
+
+    async getConnectionRoute(projectUuid: string): Promise<ConnectionRoute> {
+        return this.connectionRouter.getRoute(projectUuid);
     }
 
     async resolveWarehouseCredentialRead(
