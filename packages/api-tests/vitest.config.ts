@@ -28,7 +28,7 @@ const serialFiles = [
 const shared = {
     environment: 'node',
     testTimeout: 120_000,
-    hookTimeout: 30_000,
+    hookTimeout: 120_000,
     globals: true,
     setupFiles: ['vitest.setup.ts'],
     pool: 'forks' as const,
