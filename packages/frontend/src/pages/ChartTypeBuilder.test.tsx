@@ -8,15 +8,24 @@ import {
     VizIndexType,
     type ReadyQueryResultsPage,
     type DataAppVizContext,
+    type DataAppVizField,
     type ItemsMap,
     FeatureFlags,
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
     type SdkFeature,
 } from '@lightdash/common';
-import { fireEvent, screen, within } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAmbientAiEnabled } from '../ee/features/ambientAi/hooks/useAmbientAiEnabled';
+import { suggestChartTypeFields } from '../ee/features/ambientAi/hooks/useChartTypeSuggestions';
 import {
     useAppVersionHistory,
     type AppVersionHistory,
@@ -48,6 +57,12 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
 
+vi.mock('../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
+    useAmbientAiEnabled: vi.fn(),
+}));
+vi.mock('../ee/features/ambientAi/hooks/useChartTypeSuggestions', () => ({
+    suggestChartTypeFields: vi.fn(),
+}));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
@@ -319,6 +334,7 @@ const staleUpgradeOffer: SdkUpgradeOffer = {
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useAmbientAiEnabled).mockReturnValue(false);
         vi.mocked(useAttachedExplore).mockReturnValue({
             explore: null,
             error: null,
@@ -1674,5 +1690,319 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByText(/Couldn’t reach the clarifier/),
         ).toBeInTheDocument();
+    });
+
+    describe('ambient AI field picks', () => {
+        const dimension = (
+            name: string,
+            label: string,
+            type = DimensionType.STRING,
+        ) => ({
+            fieldType: FieldType.DIMENSION as const,
+            type,
+            name,
+            label,
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: name,
+            hidden: false,
+        });
+        const metric = (name: string, label: string) => ({
+            ...dimension(name, label),
+            fieldType: FieldType.METRIC as const,
+            type: MetricType.SUM,
+        });
+        const itemsMap = {
+            orders_status: dimension('status', 'Status'),
+            orders_region: dimension('region', 'Region'),
+            orders_shipped_date: dimension(
+                'shipped_date',
+                'Shipped date',
+                DimensionType.DATE,
+            ),
+            orders_count: metric('count', 'Count'),
+            orders_total: metric('total', 'Total'),
+        } satisfies ItemsMap;
+        const groupBy = {
+            name: 'group',
+            label: 'Group by',
+            type: 'dimension' as const,
+            required: true,
+        };
+        const value = {
+            name: 'value',
+            label: 'Value',
+            type: 'metric' as const,
+            required: true,
+        };
+        const suggestions = {
+            suggestions: [
+                {
+                    fieldName: 'group',
+                    fieldIds: ['orders_region'],
+                    reason: 'Region is how the prompt splits revenue.',
+                    alternatives: [
+                        {
+                            fieldId: 'orders_shipped_date',
+                            reason: 'Splits it over time instead.',
+                        },
+                    ],
+                },
+                {
+                    fieldName: 'value',
+                    fieldIds: ['orders_total'],
+                    reason: 'Total is the revenue the prompt asks for.',
+                    alternatives: [],
+                },
+            ],
+        };
+        const deferred = <T,>() => {
+            let resolve: (value: T) => void = () => undefined;
+            let reject: (error: unknown) => void = () => undefined;
+            const promise = new Promise<T>((res, rej) => {
+                resolve = res;
+                reject = rej;
+            });
+            return { promise, resolve, reject };
+        };
+        const setSchema = (fields: DataAppVizField[]) =>
+            vi.mocked(useDataAppVisualization).mockReturnValue({
+                data: {
+                    schema: { fields, configOptions: [], colorPalette: null },
+                },
+            } as unknown as ReturnType<typeof useDataAppVisualization>);
+        const path = '/projects/p1/chart-types/viz-1?exploreName=orders';
+        const lastPreviewCall = () =>
+            vi.mocked(useExplorePreviewData).mock.lastCall![0];
+        const marks = () =>
+            screen.queryAllByRole('img', { name: /^Picked for your prompt/ });
+
+        beforeEach(() => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            setApp(appMeta());
+            vi.mocked(useAppVersionHistory).mockReturnValue(
+                historyStub(
+                    [
+                        appVersion({
+                            version: 1,
+                            prompt: 'revenue by region',
+                            resources: {
+                                clarifications: [
+                                    {
+                                        question: 'Which measure?',
+                                        answer: 'Total revenue',
+                                    },
+                                ],
+                            } as unknown as ApiAppVersionSummary['resources'],
+                        }),
+                    ],
+                    1,
+                ),
+            );
+            setSchema([groupBy, value]);
+            vi.mocked(useAttachedExplore).mockReturnValue({
+                explore: {
+                    name: 'orders',
+                    label: 'Orders',
+                    joinedTableLabels: [],
+                    fields: Object.entries(itemsMap).map(([id, item]) => ({
+                        id,
+                        item,
+                        label: item.label,
+                    })),
+                    itemsMap,
+                },
+                error: null,
+                retry: vi.fn(),
+            });
+            vi.mocked(useExplorePreviewData).mockReturnValue({
+                run: {
+                    status: 'ready',
+                    rows: [],
+                    itemsMap,
+                    columns: Object.values(itemsMap),
+                    pivotDetails: null,
+                    rowCount: 0,
+                    ranAt: new Date(),
+                },
+                isRunning: false,
+                retry: vi.fn(),
+            });
+        });
+
+        it('holds the query for the suggestion, then runs it with the suggested fields', async () => {
+            const pending = deferred<typeof suggestions>();
+            vi.mocked(suggestChartTypeFields).mockReturnValue(pending.promise);
+            renderBuilder(path);
+
+            expect(suggestChartTypeFields).toHaveBeenCalledTimes(1);
+            expect(vi.mocked(suggestChartTypeFields).mock.calls[0][1]).toEqual({
+                prompt: 'revenue by region',
+                clarifications: ['Total revenue'],
+                exploreName: 'orders',
+                fields: [groupBy, value],
+            });
+            expect(lastPreviewCall()).toMatchObject({
+                isPickingFields: true,
+                fieldMapping: {},
+            });
+            expect(
+                screen.getByRole('button', {
+                    name: 'Change preview data: Orders',
+                }),
+            ).toHaveTextContent('Table · picking fields');
+
+            await act(async () => pending.resolve(suggestions));
+
+            expect(lastPreviewCall()).toMatchObject({
+                isPickingFields: false,
+                fieldMapping: { group: 'orders_region', value: 'orders_total' },
+            });
+            expect(
+                screen.getByText(
+                    'Picked from Orders for your prompt. Changing one re-runs the query.',
+                ),
+            ).toBeInTheDocument();
+            expect(marks()).toHaveLength(2);
+        });
+
+        it('falls back to the automap and today’s hint when the suggestion fails', async () => {
+            vi.mocked(suggestChartTypeFields).mockRejectedValue(
+                new DOMException('The operation was aborted.', 'AbortError'),
+            );
+            renderBuilder(path);
+
+            await waitFor(() =>
+                expect(lastPreviewCall()).toMatchObject({
+                    isPickingFields: false,
+                    fieldMapping: {
+                        group: 'orders_status',
+                        value: 'orders_count',
+                    },
+                }),
+            );
+            expect(
+                screen.getByText(
+                    'Fields from Orders. Changing one re-runs the query.',
+                ),
+            ).toBeInTheDocument();
+            expect(marks()).toHaveLength(0);
+        });
+
+        it('does nothing new with ambient AI off', () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(false);
+            renderBuilder(path);
+
+            expect(suggestChartTypeFields).not.toHaveBeenCalled();
+            expect(lastPreviewCall()).toMatchObject({
+                isPickingFields: false,
+                fieldMapping: { group: 'orders_status', value: 'orders_count' },
+            });
+        });
+
+        it('explains a pick on hover and lists the alternatives first in its select', async () => {
+            vi.mocked(suggestChartTypeFields).mockResolvedValue(suggestions);
+            renderBuilder(path);
+            await waitFor(() => expect(marks()).toHaveLength(2));
+
+            fireEvent.mouseEnter(marks()[0]);
+            expect(
+                await screen.findByText(
+                    'Region is how the prompt splits revenue. Also fits: Shipped date.',
+                ),
+            ).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('combobox', { name: 'Group by' }));
+            const listbox = await screen.findByRole('listbox');
+            const suggestedGroup = within(listbox).getByText('Suggested');
+            const [first, second] = within(listbox).getAllByRole('option');
+            expect(suggestedGroup).toBeInTheDocument();
+            expect(first).toHaveTextContent('Region');
+            expect(second).toHaveTextContent('Shipped date');
+        });
+
+        it('clears only the mark of the input the author changes', async () => {
+            vi.mocked(suggestChartTypeFields).mockResolvedValue(suggestions);
+            renderBuilder(path);
+            await waitFor(() => expect(marks()).toHaveLength(2));
+
+            fireEvent.click(screen.getByRole('combobox', { name: 'Value' }));
+            fireEvent.click(
+                await screen.findByRole('option', { name: 'Count' }),
+            );
+
+            expect(marks()).toHaveLength(1);
+            expect(
+                screen.getByText(
+                    'Picked from Orders for your prompt. Changing one re-runs the query.',
+                ),
+            ).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('combobox', { name: 'Group by' }));
+            fireEvent.click(
+                await screen.findByRole('option', { name: 'Status' }),
+            );
+
+            expect(marks()).toHaveLength(0);
+            expect(
+                screen.getByText(
+                    'Fields from Orders. Changing one re-runs the query.',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('asks only about inputs a rebuild adds, keeping every binding', async () => {
+            vi.mocked(suggestChartTypeFields).mockResolvedValueOnce(
+                suggestions,
+            );
+            const { rerender } = renderBuilder(path);
+            await waitFor(() => expect(marks()).toHaveLength(2));
+            fireEvent.click(screen.getByRole('combobox', { name: 'Value' }));
+            fireEvent.click(
+                await screen.findByRole('option', { name: 'Count' }),
+            );
+
+            const colour = {
+                name: 'colour',
+                label: 'Colour',
+                type: 'dimension' as const,
+                required: false,
+            };
+            const pending = deferred<typeof suggestions>();
+            vi.mocked(suggestChartTypeFields).mockReturnValueOnce(
+                pending.promise,
+            );
+            setSchema([groupBy, value, colour]);
+            rerender(builderRoutes(path));
+
+            expect(suggestChartTypeFields).toHaveBeenCalledTimes(2);
+            expect(
+                vi.mocked(suggestChartTypeFields).mock.calls[1][1].fields,
+            ).toEqual([colour]);
+            expect(lastPreviewCall()).toMatchObject({ isPickingFields: true });
+
+            await act(async () =>
+                pending.resolve({
+                    suggestions: [
+                        {
+                            fieldName: 'colour',
+                            fieldIds: ['orders_status'],
+                            reason: 'Status colours each bar.',
+                            alternatives: [],
+                        },
+                    ],
+                }),
+            );
+
+            expect(lastPreviewCall()).toMatchObject({
+                isPickingFields: false,
+                fieldMapping: {
+                    group: 'orders_region',
+                    value: 'orders_count',
+                    colour: 'orders_status',
+                },
+            });
+            expect(marks()).toHaveLength(2);
+        });
     });
 });

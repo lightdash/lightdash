@@ -70,7 +70,10 @@ const exploreTile = (attached: AttachedExplore, retry: () => void) =>
         isAccent: true,
         title: attached.label,
         meta: exploreQueryMeta(attached),
-        isRunning: attached.isRunning || attached.status === 'loading',
+        isRunning:
+            attached.isRunning ||
+            attached.isPickingFields ||
+            attached.status === 'loading',
         failure:
             attached.status === 'error'
                 ? {

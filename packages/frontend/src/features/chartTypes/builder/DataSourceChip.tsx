@@ -73,7 +73,9 @@ const DataSourceChip: FC<Props> = ({
                     icon: IconTable,
                     label: exploreChipLabel(explore),
                     isRunning:
-                        explore.isRunning || explore.status === 'loading',
+                        explore.isRunning ||
+                        explore.isPickingFields ||
+                        explore.status === 'loading',
                     retry:
                         explore.status === 'error' ? exploreSource.retry : null,
                 }

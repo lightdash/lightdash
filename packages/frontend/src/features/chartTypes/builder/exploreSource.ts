@@ -31,6 +31,8 @@ export type AttachedExplore = {
     status: ExploreQueryStatus;
     /** A run is pending or in flight; a ready run keeps its rows meanwhile. */
     isRunning: boolean;
+    /** Ambient AI is choosing the inputs' fields; the query waits for it. */
+    isPickingFields: boolean;
     /** Rows the latest run returned; null until one finishes. */
     rowCount: number | null;
     ranAt: Date | null;
@@ -84,6 +86,7 @@ const queryState = (attached: AttachedExplore): string | null => {
 
 /** The composer chip: "Orders", then "Orders · 3 fields · 142 rows". */
 export const exploreChipLabel = (attached: AttachedExplore): string => {
+    if (attached.isPickingFields) return `${attached.label} · picking fields`;
     const state = queryState(attached);
     if (state === null) return attached.label;
     if (attached.status === 'error') return `${attached.label} · ${state}`;
@@ -94,6 +97,7 @@ export const exploreChipLabel = (attached: AttachedExplore): string => {
  *  "Table · 3 fields · 142 rows · ran less than a minute ago". */
 export const exploreQueryMeta = (attached: AttachedExplore): string => {
     if (attached.status === 'loading') return 'Table · loading';
+    if (attached.isPickingFields) return 'Table · picking fields';
     const state = queryState(attached);
     if (state === null) return 'Table · no fields picked yet';
     if (attached.status === 'error') return `Table · ${state}`;

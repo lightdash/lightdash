@@ -25,10 +25,12 @@ import {
 import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import { useAmbientAiEnabled } from '../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import {
+    type ChartInputAiPick,
     type ChartInputsBinding,
     type ChartTypePreviewDataSource,
 } from '../features/chartTypes/builder/ChartInputsList';
@@ -47,6 +49,10 @@ import {
     type PreviewSource,
     type SavedChartSourceControls,
 } from '../features/chartTypes/builder/savedChartSource';
+import {
+    getChartTypePromptContext,
+    useAmbientFieldSuggestions,
+} from '../features/chartTypes/builder/useAmbientFieldSuggestions';
 import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { useConfigurePanelState } from '../features/chartTypes/builder/useConfigurePanelState';
 import {
@@ -91,6 +97,8 @@ const NO_ITEMS: ItemsMap = {};
 const NO_ROWS: ResultRow[] = [];
 const NO_MAPPING: DataAppVizFieldMapping = {};
 const NO_SAMPLE_ROWS: Record<string, string>[] = [];
+const NO_AI_PICKS: Record<string, ChartInputAiPick> = {};
+const NO_FIELD_NAMES: ReadonlySet<string> = new Set();
 
 /** The saved chart a create session starts from, kept in the URL so a refresh
  *  and the `/new` → `/chart-types/:uuid` move both keep the selection. */
@@ -123,6 +131,7 @@ const ChartTypeBuilder: FC = () => {
         }
     }, [location.search]);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const isAmbientAiEnabled = useAmbientAiEnabled() === true;
     const canCreate = useCanCreateDataApp(projectUuid);
 
     // `useGetApp` accepts slugs, so the raw URL param is the right key.
@@ -257,23 +266,49 @@ const ChartTypeBuilder: FC = () => {
     // With an explore attached, the bindings are the query. They bind against
     // the explore's whole field list, never the run's columns, so the field
     // set depends only on the schema, the explore and the author's picks and
-    // cannot chase its own results. The automap stands in for bindings the
-    // model could suggest, and the field list is not yet a build reference;
-    // both are backend work.
+    // cannot chase its own results. Ambient AI's picks lead where it answered
+    // and the automap fills the rest; inputs it is still picking for stay
+    // unbound, and the query holds, until it does. The field list is not yet
+    // a build reference; that is backend work.
+    const promptContext = useMemo(
+        () =>
+            getChartTypePromptContext(
+                history.versions,
+                workspace.previewVersion,
+            ),
+        [history.versions, workspace.previewVersion],
+    );
+    const fieldSuggestions = useAmbientFieldSuggestions({
+        projectUuid,
+        enabled: isAmbientAiEnabled && canPreviewSavedChart,
+        sourceKey:
+            exploreName === null ? null : `${exploreName}:${sourceRevision}`,
+        explore: loadedExplore,
+        fields: schema?.fields ?? null,
+        context: promptContext,
+    });
+    const { pendingFieldNames, seed: suggestedMapping } = fieldSuggestions;
+    const isPickingFields = pendingFieldNames.size > 0;
     const exploreFieldMapping = useMemo(() => {
         if (!schema || !loadedExplore) return NO_MAPPING;
-        return reconcileDataAppVizFieldMapping(
-            schema.fields,
-            loadedExplore.itemsMap,
-            {
-                ...autoMapDataAppVizFields(
-                    schema.fields,
-                    loadedExplore.itemsMap,
-                ),
-                ...fieldMappingOverrides,
-            },
+        const fields = schema.fields.filter(
+            (field) => !pendingFieldNames.has(field.name),
         );
-    }, [schema, loadedExplore, fieldMappingOverrides]);
+        return reconcileDataAppVizFieldMapping(fields, loadedExplore.itemsMap, {
+            ...autoMapDataAppVizFields(
+                fields,
+                loadedExplore.itemsMap,
+                suggestedMapping,
+            ),
+            ...fieldMappingOverrides,
+        });
+    }, [
+        schema,
+        loadedExplore,
+        fieldMappingOverrides,
+        pendingFieldNames,
+        suggestedMapping,
+    ]);
     const exploreFieldIds = useMemo(
         () => [
             ...new Set(
@@ -289,6 +324,7 @@ const ChartTypeBuilder: FC = () => {
         explore: loadedExplore,
         schema,
         fieldMapping: exploreFieldMapping,
+        isPickingFields,
     });
     const exploreRun =
         explorePreview.run.status === 'ready' ? explorePreview.run : null;
@@ -457,6 +493,7 @@ const ChartTypeBuilder: FC = () => {
                     ...autoMapDataAppVizFields(
                         latestReadySchema.fields,
                         loadedExplore.itemsMap,
+                        suggestedMapping,
                     ),
                     ...fieldMappingOverrides,
                 },
@@ -480,6 +517,7 @@ const ChartTypeBuilder: FC = () => {
         loadedExplore,
         sourceRun,
         fieldMappingOverrides,
+        suggestedMapping,
         sourceChart,
         activeVizUuid,
     ]);
@@ -650,6 +688,7 @@ const ChartTypeBuilder: FC = () => {
                                 ? 'loading'
                                 : run.status,
                       isRunning: explorePreview.isRunning,
+                      isPickingFields,
                       rowCount: run.status === 'ready' ? run.rowCount : null,
                       ranAt: run.status === 'ready' ? run.ranAt : null,
                       message:
@@ -683,6 +722,7 @@ const ChartTypeBuilder: FC = () => {
         exploreFieldIds,
         explorePreview,
         exploreName,
+        isPickingFields,
         loadedExplore,
         projectUuid,
         setIncludeSampleData,
@@ -705,6 +745,57 @@ const ChartTypeBuilder: FC = () => {
     // With an explore attached, every slot lists the whole explore: the run's
     // fields first, the rest under "Add to query". Binding one of those
     // changes the query, which re-runs; nothing rebuilds.
+    // A suggestion's mark stays while the input holds exactly what was picked
+    // and the author has not chosen it themselves.
+    const aiPicks = useMemo(() => {
+        if (!schema || !loadedExplore) return NO_AI_PICKS;
+        const labelOf = (id: string) =>
+            loadedExplore.fields.find((field) => field.id === id)?.label ?? id;
+        const picks = Object.fromEntries(
+            schema.fields.flatMap((field) => {
+                const pick = fieldSuggestions.picks[field.name];
+                if (!pick || fieldMappingOverrides[field.name] !== undefined) {
+                    return [];
+                }
+                const bound = getDataAppVizFieldIds(
+                    exploreFieldMapping[field.name],
+                );
+                if (
+                    bound.length !== pick.fieldIds.length ||
+                    bound.some((id, index) => id !== pick.fieldIds[index])
+                ) {
+                    return [];
+                }
+                const alternativeIds = pick.alternatives.map(
+                    (alternative) => alternative.fieldId,
+                );
+                return [
+                    [
+                        field.name,
+                        {
+                            reason: pick.reason,
+                            alsoFits: alternativeIds.map(labelOf),
+                            suggestedItems: [
+                                ...pick.fieldIds,
+                                ...alternativeIds,
+                            ].flatMap((id) => {
+                                const item = loadedExplore.itemsMap[id];
+                                return item ? [item] : [];
+                            }),
+                        },
+                    ] as const,
+                ];
+            }),
+        );
+        return Object.keys(picks).length > 0 ? picks : NO_AI_PICKS;
+    }, [
+        schema,
+        loadedExplore,
+        fieldSuggestions.picks,
+        fieldMappingOverrides,
+        exploreFieldMapping,
+    ]);
+
     const inputsBinding = useMemo<ChartInputsBinding | null>(() => {
         if (exploreName !== null) {
             if (!loadedExplore || !schema) return null;
@@ -714,6 +805,8 @@ const ChartTypeBuilder: FC = () => {
                 itemsMap: runItems,
                 fieldMapping: exploreFieldMapping,
                 onFieldChange,
+                aiPicks,
+                pickingFieldNames: pendingFieldNames,
                 addToQuery: {
                     items: loadedExplore.fields
                         .filter((field) => !(field.id in runItems))
@@ -731,9 +824,13 @@ const ChartTypeBuilder: FC = () => {
                   fieldMapping: previewFieldMapping,
                   onFieldChange,
                   addToQuery: null,
+                  aiPicks: NO_AI_PICKS,
+                  pickingFieldNames: NO_FIELD_NAMES,
               }
             : null;
     }, [
+        aiPicks,
+        pendingFieldNames,
         exploreFieldIds,
         exploreFieldMapping,
         exploreName,

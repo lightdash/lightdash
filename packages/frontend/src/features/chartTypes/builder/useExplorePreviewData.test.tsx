@@ -129,6 +129,7 @@ describe('useExplorePreviewData', () => {
                     explore: explore(),
                     schema,
                     fieldMapping,
+                    isPickingFields: false,
                 }),
             {
                 initialProps: { fieldMapping: initialMapping },
@@ -218,6 +219,7 @@ describe('useExplorePreviewData', () => {
                     explore: explore(),
                     schema,
                     fieldMapping,
+                    isPickingFields: false,
                 }),
             {
                 initialProps: { fieldMapping: initialMapping },
@@ -245,6 +247,7 @@ describe('useExplorePreviewData', () => {
                     explore: attachedExplore,
                     schema,
                     fieldMapping: initialMapping,
+                    isPickingFields: false,
                 }),
             {
                 initialProps: { attachedExplore: explore('orders') },
@@ -272,5 +275,44 @@ describe('useExplorePreviewData', () => {
                 query: expect.objectContaining({ exploreName: 'customers' }),
             }),
         );
+    });
+
+    it('holds the query while fields are picked, then runs it once with the picks', async () => {
+        vi.mocked(
+            explorePreviewQuery.executeExplorePreviewQuery,
+        ).mockResolvedValue(result('picked'));
+        const { result: hook, rerender } = renderHook(
+            ({ fieldMapping, isPickingFields }) =>
+                useExplorePreviewData({
+                    projectUuid: 'project-1',
+                    explore: explore(),
+                    schema,
+                    fieldMapping,
+                    isPickingFields,
+                }),
+            {
+                initialProps: {
+                    fieldMapping: {} as DataAppVizFieldMapping,
+                    isPickingFields: true,
+                },
+                wrapper: createWrapper(),
+            },
+        );
+        // An automap arriving mid-pick must not run.
+        rerender({ fieldMapping: initialMapping, isPickingFields: true });
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(
+            explorePreviewQuery.executeExplorePreviewQuery,
+        ).not.toHaveBeenCalled();
+
+        rerender({ fieldMapping: swappedMapping, isPickingFields: false });
+        await act(async () => vi.advanceTimersByTimeAsync(400));
+        await vi.waitFor(() => expect(hook.current.run.status).toBe('ready'));
+        expect(
+            explorePreviewQuery.executeExplorePreviewQuery,
+        ).toHaveBeenCalledTimes(1);
+        expect(hook.current.run).toMatchObject({
+            fieldMapping: swappedMapping,
+        });
     });
 });

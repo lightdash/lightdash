@@ -5,3 +5,20 @@
 .fieldControl {
     margin-top: var(--mantine-spacing-xs);
 }
+
+.aiMark {
+    display: inline-flex;
+    align-items: center;
+    pointer-events: auto;
+    border-radius: var(--mantine-radius-sm);
+
+    &:focus-visible {
+        outline: 2px solid var(--mantine-color-indigo-4);
+        outline-offset: 1px;
+    }
+}
+
+.hintIcon {
+    flex-shrink: 0;
+    margin-top: 2px;
+}

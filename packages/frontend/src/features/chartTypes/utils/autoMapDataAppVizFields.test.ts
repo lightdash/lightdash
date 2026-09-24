@@ -200,6 +200,28 @@ describe('autoMapDataAppVizFields', () => {
         });
     });
 
+    it('keeps seeded bindings and fills only the other slots around them', () => {
+        const mapping = autoMapDataAppVizFields(
+            [
+                field('category', 'dimension'),
+                field('value', 'metric'),
+                { ...field('extras', 'metric', false), multiple: true },
+            ],
+            itemsMap(
+                dimension('status'),
+                dimension('city'),
+                metric('count'),
+                metric('total'),
+            ),
+            { category: 'orders_city', extras: ['orders_count'] },
+        );
+        expect(mapping).toEqual({
+            category: 'orders_city',
+            extras: ['orders_count'],
+            value: 'orders_total',
+        });
+    });
+
     it('skips hidden columns', () => {
         const mapping = autoMapDataAppVizFields(
             [field('category', 'dimension'), field('value', 'metric')],

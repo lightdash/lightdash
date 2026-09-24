@@ -113,16 +113,26 @@ const fillMultipleSlots = (
 export const autoMapDataAppVizFields = (
     fields: DataAppVizField[],
     itemsMap: ItemsMap,
+    /** Bindings already chosen (e.g. suggested); kept as given, their columns
+     *  taken, and only the remaining slots filled. */
+    seed: DataAppVizFieldMapping = {},
 ): DataAppVizFieldMapping => {
     const pools = poolsFor(itemsMap);
     const mapping: DataAppVizFieldMapping = {};
     const taken = new Set<string>();
+    fields.forEach((field) => {
+        const seeded = seed[field.name];
+        if (seeded === undefined) return;
+        mapping[field.name] = seeded;
+        getDataAppVizFieldIds(seeded).forEach((id) => taken.add(id));
+    });
+    const open = fields.filter((f) => seed[f.name] === undefined);
 
     fillSlots(
         mapping,
         taken,
         pools,
-        fields.filter((f) => f.required),
+        open.filter((f) => f.required),
     );
     // Required slots each get one column before a multiple slot consumes the
     // remaining compatible columns. This keeps a sparse query renderable.
@@ -130,19 +140,19 @@ export const autoMapDataAppVizFields = (
         mapping,
         taken,
         pools,
-        fields.filter((f) => f.required),
+        open.filter((f) => f.required),
     );
     fillSlots(
         mapping,
         taken,
         pools,
-        fields.filter((f) => !f.required),
+        open.filter((f) => !f.required),
     );
     fillMultipleSlots(
         mapping,
         taken,
         pools,
-        fields.filter((f) => !f.required),
+        open.filter((f) => !f.required),
     );
 
     return mapping;
