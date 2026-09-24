@@ -1745,11 +1745,12 @@ export class AiAgentMemoryService extends BaseService {
         } catch (error) {
             const retryableApiError =
                 APICallError.isInstance(error) && error.isRetryable;
-            // v6 raised NoObjectGeneratedError for both a schema failure and an
-            // empty response. v7 splits them: Output.object still throws that
-            // for parse failures, but an empty response throws
-            // NoOutputGeneratedError from the output getter. Both were retried
-            // before, so both have to be caught here.
+            // generateObject threw NoObjectGeneratedError for every failure.
+            // Output.object only parses when the turn finished with something
+            // to parse — `stop`, or any non-`tool-calls` finish with text — so
+            // a truncated or tool-call finish with no text leaves the output
+            // unset and the getter throws NoOutputGeneratedError instead. Both
+            // were retried before the switch, so both have to be caught here.
             const structuredOutputFailure =
                 NoObjectGeneratedError.isInstance(error) ||
                 NoOutputGeneratedError.isInstance(error);

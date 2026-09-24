@@ -123,8 +123,10 @@ export const generateDeepResearchReport = async (
     // This string is fed back to the model as the retry correction, so it has
     // to carry what actually failed to parse. Output.object still throws
     // NoObjectGeneratedError for schema and parse failures, with `text` intact;
-    // NoOutputGeneratedError is a different, narrower class that only fires on
-    // empty output, and catching it here would lose every recoverable case.
+    // NoOutputGeneratedError is a different class, thrown when Output.object
+    // never parsed at all (a `tool-calls` finish, or any non-`stop` finish with
+    // no text), so it carries no `text` to feed back; treating it as this case
+    // would lose every recoverable one.
     const describe = (error: unknown): string =>
         NoObjectGeneratedError.isInstance(error)
             ? `${getErrorMessage(error.cause)} | text: ${(error.text ?? '').slice(0, 2_000)}`
