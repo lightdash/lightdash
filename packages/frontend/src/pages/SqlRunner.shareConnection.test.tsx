@@ -259,6 +259,31 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
         expect(screen.getByTestId('active')).toHaveTextContent('Finance');
     });
 
+    it('COLD: share hint Finance beats navigation state original and runs once on Finance', async () => {
+        const shareGate = gate();
+        const connectionsGate = gate();
+        serve({ shareGate, connectionsGate });
+        renderPage('original-uuid');
+        await act(async () => {
+            shareGate.resolve({ params: shareParams('finance-uuid') });
+        });
+        await act(async () => {
+            connectionsGate.resolve(undefined);
+        });
+        await waitFor(() =>
+            expect(executeSqlQuery).toHaveBeenCalledWith(
+                projectUuid,
+                'select 1',
+                10,
+                {},
+                true,
+                'finance-uuid',
+            ),
+        );
+        expect(screen.getByTestId('active')).toHaveTextContent('Finance');
+        expect(vi.mocked(executeSqlQuery).mock.calls).toHaveLength(1);
+    });
+
     it('SINGLE cold: a share auto-runs once and permits a manual run', async () => {
         mode.current = 'single';
         const shareGate = gate();
