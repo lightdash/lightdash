@@ -266,6 +266,18 @@
         "no-restricted-imports": [
             "error",
             {
+                "paths": [
+                    {
+                        "name": "ai",
+                        "importNames": [
+                            "Output",
+                            "generateObject",
+                            "streamObject"
+                        ],
+                        "message": "Use strictOutput(schema) from src/ee/services/ai/utils/strictOutput for structured output: it fails on schemas OpenAI strict mode rejects. generateObject and streamObject are deprecated in AI SDK 7.",
+                        "allowTypeImports": true
+                    }
+                ],
                 "patterns": [
                     {
                         "group": [
@@ -409,6 +421,13 @@
             "files": ["src/services/**/*.ts", "src/ee/services/**/*.ts"],
             "rules": {
                 "lightdash/no-direct-ability-check": "error"
+            }
+        },
+        {
+            /* the one place allowed to call Output.object */
+            "files": ["src/ee/services/ai/utils/strictOutput.ts"],
+            "rules": {
+                "no-restricted-imports": "off"
             }
         },
         {

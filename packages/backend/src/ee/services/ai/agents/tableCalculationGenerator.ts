@@ -10,7 +10,7 @@ import {
     NumberSeparator,
     TableCalculationFieldContext,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -18,6 +18,7 @@ import {
 } from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 export const CustomFormatSchema = z.object({
     type: z
@@ -163,7 +164,7 @@ export function sanitizeCustomFormat(
     }
 }
 
-const TableCalculationSchema = z.object({
+export const TableCalculationSchema = z.object({
     sql: z
         .string()
         .min(1, 'SQL expression must not be empty')
@@ -275,7 +276,7 @@ export async function generateTableCalculation(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: Output.object({ schema: TableCalculationSchema }),
+        output: strictOutput(TableCalculationSchema),
         allowSystemInMessages: true,
         messages: [
             {

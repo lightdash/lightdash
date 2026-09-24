@@ -2,7 +2,7 @@ import {
     Explore,
     type AiAgentDocumentStructuredSummary,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -11,11 +11,12 @@ import {
 import { GeneratorModelOptions } from '../models/types';
 import { renderAvailableExplores } from '../prompts/availableExplores';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const DEFINED_TERMS_LIMIT = 30;
 const RELATED_EXPLORE_NAMES_LIMIT = 20;
 
-const DocumentSummarySchema = z.object({
+export const DocumentSummarySchema = z.object({
     description: z
         .string()
         .min(1)
@@ -95,7 +96,7 @@ export async function generateDocumentSummary(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: Output.object({ schema: DocumentSummarySchema }),
+        output: strictOutput(DocumentSummarySchema),
         allowSystemInMessages: true,
         messages: [
             {

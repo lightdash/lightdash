@@ -3,7 +3,7 @@ import {
     type CustomDimensionFieldContext,
     type GenerateCustomDimensionRequest,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -11,8 +11,9 @@ import {
 } from '../../../../analytics/aiUsage';
 import { type GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
-const CustomDimensionSchema = z.object({
+export const CustomDimensionSchema = z.object({
     sql: z
         .string()
         .min(1, 'SQL expression must not be empty')
@@ -131,7 +132,7 @@ export async function generateCustomDimension(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: Output.object({ schema: CustomDimensionSchema }),
+        output: strictOutput(CustomDimensionSchema),
         allowSystemInMessages: true,
         messages: buildCustomDimensionMessages(context),
     });

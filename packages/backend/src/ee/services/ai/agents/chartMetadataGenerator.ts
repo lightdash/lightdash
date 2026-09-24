@@ -1,5 +1,5 @@
 import { Field, Filters } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -7,11 +7,12 @@ import {
 } from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const TITLE_MAX_LENGTH_CHARS = 140;
 const DESCRIPTION_MAX_LENGTH_CHARS = 500;
 
-const ChartMetadataSchema = z.object({
+export const ChartMetadataSchema = z.object({
     title: z
         .string()
         .min(1, 'Title must not be empty')
@@ -76,7 +77,7 @@ export async function generateChartMetadata(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: Output.object({ schema: ChartMetadataSchema }),
+        output: strictOutput(ChartMetadataSchema),
         ...telemetry,
         allowSystemInMessages: true,
         messages: [

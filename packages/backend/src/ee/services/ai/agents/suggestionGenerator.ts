@@ -6,7 +6,7 @@ import {
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
@@ -16,6 +16,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an empty AI agent chat input in a business-intelligence tool.
 
@@ -287,7 +288,7 @@ export async function generateAgentSuggestions(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: Output.object({ schema: agentSuggestionsModelSchema }),
+        output: strictOutput(agentSuggestionsModelSchema),
         allowSystemInMessages: true,
         messages: [
             {

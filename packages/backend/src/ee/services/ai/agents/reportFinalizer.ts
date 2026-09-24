@@ -5,17 +5,13 @@ import {
     type AiDeepResearchEvidencePack,
     type AiDeepResearchSubmittedReport,
 } from '@lightdash/common';
-import {
-    generateText,
-    NoObjectGeneratedError,
-    Output,
-    type ModelMessage,
-} from 'ai';
+import { generateText, NoObjectGeneratedError, type ModelMessage } from 'ai';
 import Logger from '../../../../logging/logger';
 import { AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS } from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { GeneratorModelOptions } from '../models/types';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 /**
  * Bounds each attempt, not the pair: the correction attempt is a retry and has
@@ -110,9 +106,7 @@ export const generateDeepResearchReport = async (
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
                 ...telemetry,
-                output: Output.object({
-                    schema: aiDeepResearchReportInputSchema,
-                }),
+                output: strictOutput(aiDeepResearchReportInputSchema),
                 allowSystemInMessages: true,
                 messages,
             }),

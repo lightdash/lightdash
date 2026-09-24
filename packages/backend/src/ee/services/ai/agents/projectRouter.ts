@@ -1,4 +1,4 @@
-import { generateText, LanguageModel, Output } from 'ai';
+import { generateText, LanguageModel } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -13,8 +13,9 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
-const ProjectRoutingSchema = z.object({
+export const ProjectRoutingSchema = z.object({
     reasoning: z
         .string()
         .describe('One short sentence explaining the decision.'),
@@ -88,7 +89,7 @@ export async function routeProjectForSlack(
     const result = await generateText({
         model,
         ...telemetryConfig,
-        output: Output.object({ schema: ProjectRoutingSchema }),
+        output: strictOutput(ProjectRoutingSchema),
         allowSystemInMessages: true,
         messages: [
             {

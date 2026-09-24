@@ -33,7 +33,7 @@ import {
     type Explore,
     type QueryHistoryStatus,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { createHash } from 'crypto';
 import pLimit from 'p-limit';
 import {
@@ -62,6 +62,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './ai/utils/aiCallTelemetry';
+import { strictOutput } from './ai/utils/strictOutput';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
@@ -1627,9 +1628,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             // This schema is near the provider's strict-output grammar-size limit;
             // growing it breaks EVERY judge call silently ("compiled grammar is too
             // large"). Put new fields in a follow-up call like emitProjectContextEntry.
-            output: Output.object({
-                schema: aiAgentReviewClassifierJudgeCallOutputSchema,
-            }),
+            output: strictOutput(aiAgentReviewClassifierJudgeCallOutputSchema),
             allowSystemInMessages: true,
             messages: [
                 {

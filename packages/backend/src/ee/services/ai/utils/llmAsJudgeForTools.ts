@@ -3,7 +3,7 @@ import {
     isToolName,
     type ToolName,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './aiCallTelemetry';
+import { strictOutput } from './strictOutput';
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
@@ -95,7 +96,7 @@ const availableToolsDescription = availableTools
     .map((tool) => `- ${tool.name}: ${tool.description}`)
     .join('\n');
 
-const toolEvaluationSchema = z.object({
+export const toolEvaluationSchema = z.object({
     effectiveness: z
         .enum(['excellent', 'good', 'adequate', 'poor', 'failed'])
         .describe('Overall effectiveness of tool usage'),
@@ -312,7 +313,7 @@ export const evaluateToolCallSequence = async (
         ...defaultAgentOptions,
         ...callOptions,
         ...telemetry,
-        output: Output.object({ schema: toolEvaluationSchema }),
+        output: strictOutput(toolEvaluationSchema),
         prompt: `
 You are evaluating AI agent tool usage for business logic testing. Here is the data:
 [BEGIN DATA]

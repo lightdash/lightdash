@@ -2,7 +2,7 @@ import type {
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -22,6 +22,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { strictOutput } from '../ai/utils/strictOutput';
 
 const PROMPT_INPUT_REQUEST_CLASSIFIER_TIMEOUT_MS = 10_000;
 const elapsedMilliseconds = (startedAt: number) =>
@@ -143,9 +144,7 @@ export const classifyPromptInputRequest = async ({
             ...model.model.callOptions,
             providerOptions: model.model.providerOptions,
             ...telemetry,
-            output: Output.object({
-                schema: promptInputRequestClassifierOutputSchema,
-            }),
+            output: strictOutput(promptInputRequestClassifierOutputSchema),
             abortSignal: AbortSignal.timeout(
                 PROMPT_INPUT_REQUEST_CLASSIFIER_TIMEOUT_MS,
             ),

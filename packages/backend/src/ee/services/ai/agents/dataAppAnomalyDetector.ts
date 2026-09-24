@@ -1,4 +1,4 @@
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -7,6 +7,7 @@ import {
 } from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const MAX_ANOMALIES = 12;
 
@@ -144,7 +145,7 @@ export async function detectDataAppAnomalies(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: Output.object({ schema: DataAppDetectionSchema }),
+        output: strictOutput(DataAppDetectionSchema),
         ...telemetry,
         allowSystemInMessages: true,
         messages: [

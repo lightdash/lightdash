@@ -1,5 +1,5 @@
 import { AiAgentWithContext } from '@lightdash/common';
-import { generateText, LanguageModel, Output } from 'ai';
+import { generateText, LanguageModel } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -15,8 +15,9 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
-const AgentSelectionSchema = z.object({
+export const AgentSelectionSchema = z.object({
     agentUuid: z
         .string()
         .describe(
@@ -228,7 +229,7 @@ export async function selectAgent({
     const result = await generateText({
         model,
         ...telemetryConfig,
-        output: Output.object({ schema: AgentSelectionSchema }),
+        output: strictOutput(AgentSelectionSchema),
         allowSystemInMessages: true,
         messages: [
             { role: 'system', content: systemPrompt },

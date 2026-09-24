@@ -1,4 +1,4 @@
-import { generateText, ModelMessage, Output } from 'ai';
+import { generateText, ModelMessage } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -6,9 +6,10 @@ import {
 } from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const TITLE_MAX_LENGTH_CHARS = 60;
-const TitleSchema = z.object({
+export const TitleSchema = z.object({
     title: z
         .string()
         .min(1, 'Title must not be empty')
@@ -35,7 +36,7 @@ export async function generateThreadTitle(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: Output.object({ schema: TitleSchema }),
+        output: strictOutput(TitleSchema),
         allowSystemInMessages: true,
         messages: [
             {

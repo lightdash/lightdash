@@ -1,4 +1,4 @@
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -9,9 +9,10 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const QUESTION_MAX_LENGTH_CHARS = 200;
-const QuestionSchema = z.object({
+export const QuestionSchema = z.object({
     question: z
         .string()
         .min(1, 'Question must not be empty')
@@ -42,7 +43,7 @@ export async function generateArtifactQuestion(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        output: Output.object({ schema: QuestionSchema }),
+        output: strictOutput(QuestionSchema),
         allowSystemInMessages: true,
         messages: [
             {

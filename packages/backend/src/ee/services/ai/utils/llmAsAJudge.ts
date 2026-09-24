@@ -1,5 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
-import { generateText, LanguageModel, Output } from 'ai';
+import { generateText, LanguageModel } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
 import {
@@ -13,6 +13,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './aiCallTelemetry';
+import { strictOutput } from './strictOutput';
 
 export const factualityScores = {
     A: 0.4,
@@ -27,6 +28,13 @@ export type FactualityResponse = {
     rationale: string;
 };
 
+export const factualityResponseSchema = z.object({
+    answer: z.enum(['A', 'B', 'C', 'D', 'E']).describe('Your selection.'),
+    rationale: z
+        .string()
+        .describe('Why you chose this answer. Be very detailed.'),
+});
+
 export const meetsFactualityThreshold = (
     answerScore: FactualityResponse['answer'],
     requiredScore: FactualityResponse['answer'] = 'A',
@@ -38,6 +46,11 @@ export type ContextRelevancyResponse = {
     score: number;
     reason: string;
 };
+
+export const contextRelevancyResponseSchema = z.object({
+    score: z.number().min(0).max(1).describe('Relevancy score between 0 and 1'),
+    reason: z.string().describe('Explanation for the relevancy score'),
+});
 
 export type RunQueryEfficiencyResponse = {
     score: number;
@@ -201,18 +214,7 @@ export async function llmAsAJudge({
                 ...defaultAgentOptions,
                 ...callOptions,
                 ...telemetryConfig,
-                output: Output.object({
-                    schema: z.object({
-                        answer: z
-                            .enum(['A', 'B', 'C', 'D', 'E'])
-                            .describe('Your selection.'),
-                        rationale: z
-                            .string()
-                            .describe(
-                                'Why you chose this answer. Be very detailed.',
-                            ),
-                    }),
-                }),
+                output: strictOutput(factualityResponseSchema),
                 /**
                  * Prompt taken from autoevals:
                  *
@@ -294,18 +296,7 @@ ${
                 ...defaultAgentOptions,
                 ...callOptions,
                 ...telemetryConfig,
-                output: Output.object({
-                    schema: z.object({
-                        score: z
-                            .number()
-                            .min(0)
-                            .max(1)
-                            .describe('Relevancy score between 0 and 1'),
-                        reason: z
-                            .string()
-                            .describe('Explanation for the relevancy score'),
-                    }),
-                }),
+                output: strictOutput(contextRelevancyResponseSchema),
                 prompt: `
 You are evaluating the relevancy of context used to answer a query.
 

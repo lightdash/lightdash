@@ -5,7 +5,7 @@ import {
     type ExternalConnectionConfigProposal,
     type ExternalConnectionMethod,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -18,6 +18,7 @@ import {
 } from '../../ExternalConnectionService/externalConnectionConfigValidation';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const PROPOSAL_TIMEOUT_MS = 30_000;
 const MAX_PATH_PREFIXES = 20;
@@ -40,7 +41,7 @@ const NOT_CONFIDENT_MESSAGE =
 // No `.max()` on arrays (Anthropic structured output rejects maxItems) and no
 // z.record (it emits additionalProperties) — caps live in the prompt and are
 // enforced in normalizeProposal; headers travel as name/value pairs.
-const ProposalSchema = z.object({
+export const ProposalSchema = z.object({
     confident: z
         .boolean()
         .describe(
@@ -310,7 +311,7 @@ export async function generateExternalConnectionConfigProposal(
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             ...telemetry,
-            output: Output.object({ schema: ProposalSchema }),
+            output: strictOutput(ProposalSchema),
             abortSignal: AbortSignal.timeout(PROPOSAL_TIMEOUT_MS),
             system: systemPrompt,
             messages: [

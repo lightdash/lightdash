@@ -6,7 +6,7 @@ import {
     TableCalculationFieldContext,
 } from '@lightdash/common';
 import { FUNCTION_CATALOG, parse } from '@lightdash/formula';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -15,12 +15,13 @@ import {
 import Logger from '../../../../logging/logger';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 import {
     CustomFormatSchema,
     sanitizeCustomFormat,
 } from './tableCalculationGenerator';
 
-const FormulaTableCalculationSchema = z.object({
+export const FormulaTableCalculationSchema = z.object({
     formula: z
         .string()
         .min(1, 'Formula expression must not be empty')
@@ -354,7 +355,7 @@ export async function generateFormulaTableCalculation(
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             ...telemetry,
-            output: Output.object({ schema: FormulaTableCalculationSchema }),
+            output: strictOutput(FormulaTableCalculationSchema),
             allowSystemInMessages: true,
             messages: [
                 { role: 'system', content: systemPrompt },

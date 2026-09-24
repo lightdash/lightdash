@@ -2,7 +2,7 @@ import {
     projectContextEntryKinds,
     type ProjectContextEntry,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -11,6 +11,7 @@ import {
 import { defaultAgentOptions } from '../agents/agentV2';
 import type { getModel } from '../models';
 import type { getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 const proposedEntrySchema = z
     .object({
@@ -67,9 +68,7 @@ const callAuthoringLlm: MemoryProjectContextAuthoringLlmCall = async ({
         ...model.callOptions,
         providerOptions: model.providerOptions,
         ...telemetry,
-        output: Output.object({
-            schema: memoryProjectContextAuthoringResultSchema,
-        }),
+        output: strictOutput(memoryProjectContextAuthoringResultSchema),
         allowSystemInMessages: true,
         messages,
     });

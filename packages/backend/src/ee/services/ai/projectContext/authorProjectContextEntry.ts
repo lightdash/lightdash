@@ -4,7 +4,7 @@ import {
     type AiAgentReviewClassifierJudgeOutput,
     type ProjectContextEntry,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
@@ -13,6 +13,7 @@ import type { AiAgentReviewJudgeEvidencePacket } from '../../AiAgentReviewClassi
 import { defaultAgentOptions } from '../agents/agentV2';
 import type { getModel } from '../models';
 import type { getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import { strictOutput } from '../utils/strictOutput';
 
 type TurnFinding = Pick<
     Omit<AiAgentReviewClassifierJudgeOutput, 'projectContextEntry'>,
@@ -55,9 +56,9 @@ const callAuthoringLlm: ProjectContextEntryAuthoringLlmCall = async ({
         ...model.callOptions,
         providerOptions: model.providerOptions,
         ...telemetry,
-        output: Output.object({
-            schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
-        }),
+        output: strictOutput(
+            aiAgentReviewClassifierJudgeProjectContextCallSchema,
+        ),
         allowSystemInMessages: true,
         messages,
     });

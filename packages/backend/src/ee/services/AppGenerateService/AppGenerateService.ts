@@ -150,7 +150,7 @@ import {
     type UpgradeAppRequestBody,
     type UpgradeCandidateFeature,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
@@ -236,6 +236,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { strictOutput } from '../ai/utils/strictOutput';
 import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
@@ -391,6 +392,18 @@ export const buildAppMetadataSchema = (isChartType: boolean) =>
               }
             : {}),
     });
+
+// No `.max()` on the array — Anthropic's structured-output mode
+// rejects `maxItems` in the schema. The prompt already pins the
+// 1–4 cap and we slice client-side after the response.
+export const clarifySchema = z.object({
+    questions: z.array(z.string()).describe(
+        // Deliberately says "what gets built", not "the app" — this
+        // description reaches the model alongside a system prompt
+        // that may be insisting it is building a viz, not an app.
+        '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change what gets built.',
+    ),
+});
 
 /**
  * Pure helper: builds a ChartReference from a resolved chart object.
@@ -4657,7 +4670,7 @@ export class AppGenerateService extends BaseService {
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             ...telemetry,
-            output: Output.object({ schema: metadataSchema }),
+            output: strictOutput(metadataSchema),
             abortSignal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
             allowSystemInMessages: true,
             messages: [
@@ -6869,18 +6882,6 @@ export class AppGenerateService extends BaseService {
         ]);
         const fileCount = fileIds?.length ?? 0;
 
-        // No `.max()` on the array — Anthropic's structured-output mode
-        // rejects `maxItems` in the schema. The prompt already pins the
-        // 1–4 cap and we slice client-side after the response.
-        const clarifySchema = z.object({
-            questions: z.array(z.string()).describe(
-                // Deliberately says "what gets built", not "the app" — this
-                // description reaches the model alongside a system prompt
-                // that may be insisting it is building a viz, not an app.
-                '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change what gets built.',
-            ),
-        });
-
         // Cap the LLM call so a stalled provider can't pin the chat input
         // open indefinitely. The frontend disables the input while clarify
         // is in flight; on timeout we fall through to a no-questions build.
@@ -6910,7 +6911,7 @@ export class AppGenerateService extends BaseService {
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
                 ...telemetry,
-                output: Output.object({ schema: clarifySchema }),
+                output: strictOutput(clarifySchema),
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
                 allowSystemInMessages: true,
                 messages: [

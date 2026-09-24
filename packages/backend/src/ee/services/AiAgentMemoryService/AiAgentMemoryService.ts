@@ -35,7 +35,6 @@ import {
     generateText,
     NoObjectGeneratedError,
     NoOutputGeneratedError,
-    Output,
 } from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
@@ -88,6 +87,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { strictOutput } from '../ai/utils/strictOutput';
 import { canAccessAiAgentThread } from '../AiAgentService/aiAgentAccess';
 import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import {
@@ -1718,7 +1718,7 @@ export class AiAgentMemoryService extends BaseService {
                 ...model.callOptions,
                 providerOptions: model.providerOptions,
                 maxRetries: 0,
-                output: Output.object({ schema: consolidationOutputSchema }),
+                output: strictOutput(consolidationOutputSchema),
                 system,
                 abortSignal: args.abortSignal,
                 ...getAiCallTelemetry({
@@ -2033,7 +2033,7 @@ export class AiAgentMemoryService extends BaseService {
             ...model.callOptions,
             providerOptions: model.providerOptions,
             maxRetries: 0,
-            output: Output.object({ schema: distillOutputSchema }),
+            output: strictOutput(distillOutputSchema),
             system,
             abortSignal: args.abortSignal,
             ...getAiCallTelemetry({
