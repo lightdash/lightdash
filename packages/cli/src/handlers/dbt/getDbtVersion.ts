@@ -14,6 +14,7 @@ import * as styles from '../../styles';
 const DBT_CORE_VERSION_REGEX = /installed:.*/;
 const DBT_CLOUD_CLI_REGEX = /dbt Cloud CLI.*/;
 const DBT_FUSION_VERSION_REGEX = /dbt-fusion.*/;
+const DBT_V2_VERSION_REGEX = /dbt 2\.\d+\.\d+.*/;
 
 const getDbtCLIVersion = async () => {
     try {
@@ -32,6 +33,11 @@ const getDbtCLIVersion = async () => {
             return fusionVersion[0]; // eg: dbt-fusion 2.0.0-preview.65
         }
 
+        const v2Version = logs.match(DBT_V2_VERSION_REGEX);
+        if (v2Version) {
+            return v2Version[0]; // eg: dbt 2.0.6
+        }
+
         const version = logs.match(DBT_CORE_VERSION_REGEX);
         if (version === null || version.length === 0)
             throw new ParseError(`Can't locate dbt --version: ${logs}`);
@@ -46,7 +52,8 @@ const isDbtCloudCLI = (version: string): boolean =>
     version.match(DBT_CLOUD_CLI_REGEX) !== null;
 
 const isDbtFusion = (version: string): boolean =>
-    version.match(DBT_FUSION_VERSION_REGEX) !== null;
+    version.match(DBT_FUSION_VERSION_REGEX) !== null ||
+    version.match(DBT_V2_VERSION_REGEX) !== null;
 
 const getSupportedDbtVersionOption = (
     version: string,
@@ -54,6 +61,8 @@ const getSupportedDbtVersionOption = (
     if (version.match(DBT_CLOUD_CLI_REGEX))
         return DbtVersionOptionLatest.LATEST;
     if (version.match(DBT_FUSION_VERSION_REGEX))
+        return DbtVersionOptionLatest.LATEST;
+    if (version.match(DBT_V2_VERSION_REGEX))
         return DbtVersionOptionLatest.LATEST;
     if (version.startsWith('1.4.')) return SupportedDbtVersions.V1_4;
     if (version.startsWith('1.5.')) return SupportedDbtVersions.V1_5;

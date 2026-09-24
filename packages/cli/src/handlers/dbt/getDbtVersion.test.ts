@@ -72,6 +72,26 @@ describe('Get dbt version', () => {
                 DbtVersionOptionLatest.LATEST,
             );
         });
+        test('should return latest for dbt v2 and legacy dbt-fusion banners', async () => {
+            const cases = [
+                cliMocks.dbt2_0_6,
+                cliMocks.dbt2_0_0,
+                cliMocks.dbt2Preview,
+                cliMocks.dbtFusion,
+            ];
+            for (const mock of cases) {
+                GlobalState.clearPromptAnswer();
+                execaMock.mockImplementation(async () => mock);
+                const version = await getDbtVersion();
+                expect(version.verboseVersion).toEqual(mock.all);
+                expect(version.versionOption).toEqual(
+                    DbtVersionOptionLatest.LATEST,
+                );
+                expect(version.isDbtFusion).toEqual(true);
+                expect(version.isDbtCloudCLI).toEqual(false);
+            }
+            expect(promptMock).not.toHaveBeenCalled();
+        });
         test('when CI=true, should warn user about unsupported version and return fallback', async () => {
             process.env.CI = 'true';
             // Test for 1.3
