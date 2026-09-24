@@ -1,3 +1,10 @@
+# [2.333.0](https://github.com/lightdash/lightdash/compare/2.332.0...2.333.0) (2026-09-24)
+
+
+### Features
+
+* **ai-agents:** let JEV filter yes/no fields, partial text and blanks ([#29936](https://github.com/lightdash/lightdash/issues/29936)) ([428c989](https://github.com/lightdash/lightdash/commit/428c989137e01af52e519b774becb334e1b4f8c5))
+
 # [2.332.0](https://github.com/lightdash/lightdash/compare/2.331.1...2.332.0) (2026-09-24)
 
 
