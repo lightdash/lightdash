@@ -6,14 +6,12 @@ import {
     type UiStringResolver,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text } from '@mantine/core';
-import { IconBolt } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/core';
 import Mention, { type MentionOptions } from '@tiptap/extension-mention';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { ReactNodeViewRenderer, ReactRenderer } from '@tiptap/react';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
-import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import {
     SuggestionList,
@@ -27,12 +25,11 @@ import {
 } from './contentMentions';
 import { deleteMentionBeforeCaret } from './mentionBackspace';
 import { SkillMentionNodeView } from './SkillMentionNodeView';
+import { SkillMenuName } from './SkillMenuName';
 
 export const SKILL_MENTION_NAME = 'skillMention';
 const skillMentionPluginKey = new PluginKey('skillMention');
 const skillHintPluginKey = new PluginKey('skillMentionHint');
-
-const DOM_RECT_FALLBACK = new DOMRect(0, 0, 0, 0);
 
 export type SkillMentionItem = {
     id: string;
@@ -42,11 +39,6 @@ export type SkillMentionItem = {
     builtIn: boolean;
     argumentHint: string | null;
 };
-
-type SkillMentionGroup = 'custom' | 'builtIn';
-
-const groupOf = (item: SkillMentionItem): SkillMentionGroup =>
-    item.builtIn ? 'builtIn' : 'custom';
 
 /** Custom skills a user may invoke from the composer, then the built-ins. */
 export const toSkillMentionItems = (
@@ -112,18 +104,17 @@ export const isSkillMentionSuggestionActive = (editor: Editor | null) => {
 };
 
 const renderSkillMentionItem =
-    (strings: UiStringResolver) =>
+    (strings: UiStringResolver, query: string) =>
     (item: SkillMentionItem, isSelected: boolean, onClick: () => void) => (
         <PolymorphicGroupButton
             onClick={onClick}
-            className={suggestionStyles.suggestionItem}
+            className={`${suggestionStyles.suggestionItem} ${styles.skillMenuItem}`}
             data-selected={isSelected}
         >
             <Stack gap={2} miw={0}>
                 <Group gap={6} wrap="nowrap">
-                    <MantineIcon icon={IconBolt} size={12} color="indigo.6" />
-                    <Text size="sm" fw={500} ff="monospace" truncate>
-                        {item.label}
+                    <Text size="sm" ff="monospace" truncate>
+                        <SkillMenuName name={item.name} query={query} />
                     </Text>
                     {item.argumentHint ? (
                         <Text size="xs" c="dimmed" ff="monospace" truncate>
@@ -131,12 +122,10 @@ const renderSkillMentionItem =
                         </Text>
                     ) : null}
                     {item.builtIn ? (
-                        <Badge size="xs" color="yellow">
-                            {strings('skillMenu.builtIn')}
-                        </Badge>
+                        <Badge size="xs">{strings('skillMenu.builtIn')}</Badge>
                     ) : null}
                 </Group>
-                <Text size="xs" c="dimmed" lineClamp={2}>
+                <Text size="xs" c="dimmed" truncate="end">
                     {item.description}
                 </Text>
             </Stack>
@@ -192,10 +181,6 @@ const generateSkillMentionSuggestion = ({
         let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
         let dismissed = false;
-        const groupLabels: Record<SkillMentionGroup, string> = {
-            custom: strings('skillMenu.groupCustom'),
-            builtIn: strings('skillMenu.groupBuiltIn'),
-        };
         const emptyMessage = (query: string, editor: Editor) => {
             if (findSkillMention(editor)) {
                 return strings('skillMenu.onePerMessage');
@@ -205,11 +190,29 @@ const generateSkillMentionSuggestion = ({
                 : strings('skillMenu.noneAvailable');
         };
         const listProps = (query: string, editor: Editor) => ({
-            renderItem: renderSkillMentionItem(strings),
-            getGroupKey: groupOf,
-            groupLabels,
+            renderItem: renderSkillMentionItem(strings, query),
+            legend: 'compact' as const,
             emptyMessage: emptyMessage(query, editor),
         });
+        // The menu spans the composer's text column, from the line below the caret.
+        const anchorRect = (
+            editor: Editor,
+            caret: DOMRect | null | undefined,
+        ) => {
+            const composer = editor.view.dom.getBoundingClientRect();
+            const line = caret ?? composer;
+            return new DOMRect(
+                composer.left,
+                line.top,
+                composer.width,
+                line.height,
+            );
+        };
+        const fitToComposer = (editor: Editor) => {
+            if (component) {
+                component.element.style.width = `${editor.view.dom.getBoundingClientRect().width}px`;
+            }
+        };
 
         return {
             onStart: (props) => {
@@ -225,9 +228,10 @@ const generateSkillMentionSuggestion = ({
                     },
                     editor: props.editor,
                 });
+                fitToComposer(props.editor);
                 popup = tippy('body', {
                     getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
+                        anchorRect(props.editor, props.clientRect?.()),
                     appendTo: () => document.body,
                     content: component.element,
                     showOnCreate: true,
@@ -247,9 +251,10 @@ const generateSkillMentionSuggestion = ({
                     ...props,
                     ...listProps(props.query, props.editor),
                 });
+                fitToComposer(props.editor);
                 popup?.setProps({
                     getReferenceClientRect: () =>
-                        props.clientRect?.() ?? DOM_RECT_FALLBACK,
+                        anchorRect(props.editor, props.clientRect?.()),
                 });
             },
             onKeyDown: (props) => {
@@ -300,15 +305,19 @@ const argumentHintPlugin = () =>
                         ' ',
                     );
                     if (rest.trim().length === 0) {
+                        // After the space the menu inserts, so the caret sits before the hint.
+                        const hasSpace = rest.startsWith(' ');
                         decorations.push(
                             Decoration.widget(
-                                after,
+                                hasSpace ? after + 1 : after,
                                 () => {
                                     const ghost =
                                         document.createElement('span');
                                     ghost.className =
                                         styles.contentMentionGhost;
-                                    ghost.textContent = ` ${hint}`;
+                                    ghost.textContent = hasSpace
+                                        ? hint
+                                        : ` ${hint}`;
                                     return ghost;
                                 },
                                 { side: 1 },
