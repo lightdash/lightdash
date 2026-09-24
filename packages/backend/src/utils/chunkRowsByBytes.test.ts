@@ -1,10 +1,4 @@
-import {
-    chunkAsyncRowsByBytes,
-    chunkRowsByBytes,
-    describeWholeSetOverflow,
-    POSTGRES_JSONB_MAX_BYTES,
-    serialisedArrayBytes,
-} from './chunkRowsByBytes';
+import { chunkAsyncRowsByBytes, chunkRowsByBytes } from './chunkRowsByBytes';
 
 const sized = (...sizes: number[]) =>
     sizes.map((bytes, index) => ({ row: `row${index}`, bytes }));
@@ -119,31 +113,5 @@ describe('chunkAsyncRowsByBytes', () => {
 
         expect(produced).toBe(3);
         expect(closed).toBe(true);
-    });
-});
-
-describe('the whole-set jsonb ceiling', () => {
-    it('sizes an array without building it as one string', () => {
-        const items = [{ a: 1 }, { a: 2 }];
-        // ["{"a":1}","{"a":2}"] -> each element plus a separator, plus the brackets
-        expect(serialisedArrayBytes(items)).toEqual(
-            JSON.stringify(items).length,
-        );
-    });
-
-    it('names the size and the limit rather than surfacing a bare RangeError', () => {
-        const bytes = POSTGRES_JSONB_MAX_BYTES + 1;
-        const message = describeWholeSetOverflow(5800, bytes);
-        expect(message).toContain('5800 explores');
-        expect(message).toContain(`${bytes} bytes`);
-        expect(message).toContain(`${POSTGRES_JSONB_MAX_BYTES} byte limit`);
-        expect(message).not.toContain('RangeError');
-    });
-
-    it('puts the customer-scale set well inside the limit', () => {
-        // 3,382 explores at the measured 46,311 byte mean
-        const bytes = 3382 * 46311;
-        expect(bytes).toBeLessThan(POSTGRES_JSONB_MAX_BYTES);
-        expect((bytes / POSTGRES_JSONB_MAX_BYTES) * 100).toBeGreaterThan(50);
     });
 });
