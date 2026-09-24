@@ -37,6 +37,14 @@ A DuckDB node that reads only other nodes' results. Runs on the compose engine
 and never touches the warehouse. Grouped under "Transformations".
 _Avoid_: duckdb node (in user-facing copy), join node, post-processing step
 
+**Reused node**:
+A node copied into this run's pipeline from an earlier run of the thread,
+because this run read its result instead of re-running it. In the composer
+artifact and the pipeline panel it is an ordinary node, indistinguishable
+from the run's own. A read of a result no earlier run of this thread owns
+stays a placeholder named by its alias.
+_Avoid_: external reference, cached result, dependency, earlier result
+
 **Reads**:
 The references a node declares to other nodes' results. Shown to users by node
 title, never by node id.

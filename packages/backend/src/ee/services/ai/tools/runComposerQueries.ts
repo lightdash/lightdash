@@ -247,6 +247,12 @@ export const getRunComposerQueries = ({
                             queries,
                             terminalNodeId: resolvedTerminalNodeId,
                             lastQueryUuid: terminal.queryUuid,
+                            nodeResults: Object.fromEntries(
+                                submissions.map((submission) => [
+                                    submission.nodeId,
+                                    { queryUuid: submission.queryUuid },
+                                ]),
+                            ),
                         } satisfies AiComposerChartArtifactConfig,
                     });
                 }
