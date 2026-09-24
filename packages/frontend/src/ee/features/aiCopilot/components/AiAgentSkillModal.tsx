@@ -19,7 +19,7 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconBolt, IconMarkdown } from '@tabler/icons-react';
+import { IconFileText, IconMarkdown } from '@tabler/icons-react';
 import { useState } from 'react';
 import Callout from '../../../../components/common/Callout';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
@@ -167,7 +167,7 @@ const SkillForm = ({
             opened
             onClose={onClose}
             size="lg"
-            icon={IconBolt}
+            icon={IconFileText}
             title={isEditing ? `Edit /${skill.name}` : 'New skill'}
             onConfirm={() => void handleSave()}
             confirmLabel={isEditing ? 'Save new version' : 'Create skill'}
@@ -275,7 +275,7 @@ export const AiAgentSkillModal = ({ skill, ...props }: Props) => {
             <MantineModal
                 opened
                 onClose={props.onClose}
-                icon={IconBolt}
+                icon={IconFileText}
                 title={`Edit /${skill.name}`}
             >
                 {detail.isError ? (
