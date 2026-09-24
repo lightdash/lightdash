@@ -1,3 +1,10 @@
+## [2.331.1](https://github.com/lightdash/lightdash/compare/2.331.0...2.331.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agents:** remove a clearly chosen filter without asking, and credit JEV for its own clarifying question ([#29931](https://github.com/lightdash/lightdash/issues/29931)) ([bf11f76](https://github.com/lightdash/lightdash/commit/bf11f7671e30fbe209f794313a6fda0d7297299f))
+
 # [2.331.0](https://github.com/lightdash/lightdash/compare/2.330.0...2.331.0) (2026-09-24)
 
 
