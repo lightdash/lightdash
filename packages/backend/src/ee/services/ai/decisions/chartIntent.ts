@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     FilterOperator,
     FilterType,
+    getDimensions,
     getFields,
     getFilterTypeFromItemType,
     getItemId,
@@ -9,6 +10,7 @@ import {
     isCustomChartTypeSlugChartConfig,
     isDimension,
     type AiSemanticChartArtifactConfig,
+    type CompiledDimension,
     type Explore,
 } from '@lightdash/common';
 import {
@@ -70,6 +72,12 @@ export type ChartIntent =
           period: ChartPeriod;
       }
     | { kind: 'remove_filter'; fieldId: string }
+    | { kind: 'add_metric'; fieldId: string }
+    | { kind: 'remove_metric'; fieldId: string }
+    | { kind: 'swap_metric'; fromFieldId: string; toFieldId: string }
+    | { kind: 'remove_field'; fieldId: string }
+    | { kind: 'swap_field'; fromFieldId: string; toFieldId: string }
+    | { kind: 'change_grain'; fromFieldId: string; toFieldId: string }
     | { kind: 'clear_filters' }
     | {
           kind: 'sort';
@@ -149,6 +157,12 @@ export type ChartIntentContext = {
     filterableFields: FieldCandidate[];
     /** Fields the chart is currently filtered on. */
     filteredFields: FieldCandidate[];
+    chartMetrics: FieldCandidate[];
+    chartDimensions: FieldCandidate[];
+    /** Visible metrics of the chart's explore that it does not show yet. */
+    metricOptions: FieldCandidate[];
+    /** Other time grains of the chart's one date dimension, when it has them. */
+    grain: { fromFieldId: string; options: FieldCandidate[] } | null;
     /** Each current filter as a short sentence, such as "Region is North or South". */
     filters: string[];
 };
@@ -241,6 +255,16 @@ const INTENTS = {
             'this month',
         ],
     },
+    add_metric:
+        'Add another metric to the current chart alongside the metrics in `chart.metrics`, keeping its breakdowns and filters',
+    remove_metric:
+        'Remove one metric listed in `chart.metrics` and keep the others',
+    swap_metric:
+        'Show a different metric in place of one listed in `chart.metrics`, keeping the same breakdowns and filters',
+    remove_field:
+        'Remove one breakdown listed in `chart.dimensions` and keep the rest',
+    change_grain:
+        'Group the same dates by a different time unit, such as by week instead of by month, without restricting which dates are shown',
     remove_filter:
         'Stop restricting one field listed in `chart.filters` so all of its values show again, keeping the other filters',
     clear_filters: 'Remove all the filters from the current chart',
@@ -355,6 +379,38 @@ const prefilterFields = (
         .map(({ field }) => field);
 };
 
+const GRAINS = ['DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'];
+
+/** Sibling grains of the chart's only date dimension; several date dimensions stay with the agent. */
+const grainOptions = (
+    dimensionIds: string[],
+    explore: Explore,
+    usage: FieldUsage,
+): ChartIntentContext['grain'] => {
+    const dimensions = getDimensions(explore);
+    const isGrain = (field: CompiledDimension) =>
+        field.timeInterval !== undefined && GRAINS.includes(field.timeInterval);
+    const dates = dimensions.filter(
+        (field) => dimensionIds.includes(getItemId(field)) && isGrain(field),
+    );
+    if (dates.length !== 1) return null;
+    const [current] = dates;
+    const options = dimensions
+        .filter(
+            (field) =>
+                !field.hidden &&
+                isGrain(field) &&
+                field.table === current.table &&
+                field.timeIntervalBaseDimensionName ===
+                    current.timeIntervalBaseDimensionName &&
+                getItemId(field) !== getItemId(current),
+        )
+        .map((field) => toCandidate(field, explore, usage));
+    return options.length > 0
+        ? { fromFieldId: getItemId(current), options }
+        : null;
+};
+
 export const buildChartIntentContext = ({
     prompt,
     artifact,
@@ -400,6 +456,15 @@ export const buildChartIntentContext = ({
             sameExplore.slice(0, MAX_FIELD_OPTIONS * 4),
         ).slice(0, MAX_FIELD_OPTIONS - queryDimensions.length),
     ];
+    const byId = (ids: string[]) =>
+        currentFields.filter(({ id }) => ids.includes(id));
+    const metricOptions = prefilterFields(
+        prompt,
+        exploreFields
+            .filter((field) => !isDimension(field))
+            .filter((field) => !field.hidden && !selected.has(getItemId(field)))
+            .map((field) => toCandidate(field, explore, usage)),
+    );
     const filteredFields = [
         ...new Set(filterRules.map(({ fieldId }) => fieldId)),
     ].flatMap((id) => {
@@ -425,6 +490,10 @@ export const buildChartIntentContext = ({
         filterableFields,
         filteredFields,
         filters,
+        chartMetrics: byId(query.metrics),
+        chartDimensions: byId(query.dimensions),
+        metricOptions,
+        grain: grainOptions(query.dimensions, explore, usage),
     };
 };
 
@@ -501,7 +570,7 @@ export const buildChartIntentQuestions = ({
         nonEdit: {
             type: 'noul',
             instructions:
-                'Does the request ask for anything besides changing the current chart, such as a different metric, an explanation, a new or separate chart, saving, sharing or scheduling?',
+                'Does the request ask for anything besides changing the current chart, such as an explanation, a new or separate chart, saving, sharing or scheduling?',
         },
         wantsChartType: {
             type: 'noul',
@@ -665,6 +734,65 @@ export const buildChartIntentQuestions = ({
             criteria: {
                 ...fieldCriteria(valueFields, { withDescriptions: false }),
                 none: 'The values belong to a field not in this list',
+            },
+        };
+    }
+    if (context.metricOptions.length > 0) {
+        questions.metricToAdd = {
+            type: 'choice',
+            instructions:
+                'If the user wants a metric added to the chart, or shown in place of one in `chart.metrics`, which metric do they mean? When several listed metrics fit the wording, spread the probability across them.',
+            criteria: {
+                ...fieldCriteria(context.metricOptions, {
+                    withDescriptions: true,
+                }),
+                none: 'No listed metric fits what the user named',
+            },
+        };
+    }
+    if (context.chartMetrics.length > 1) {
+        questions.metricToRemove = {
+            type: 'choice',
+            instructions:
+                'If the user wants one metric in `chart.metrics` removed or replaced, which one?',
+            criteria: {
+                ...fieldCriteria(context.chartMetrics, {
+                    withDescriptions: false,
+                }),
+                none: 'The user does not mean removing or replacing one of these',
+            },
+        };
+    }
+    if (context.chartDimensions.length > 0) {
+        questions.replacesField = {
+            type: 'noul',
+            instructions:
+                'If the user wants to break the chart down by a new field, do they want it in place of a breakdown listed in `chart.dimensions` rather than alongside it?',
+        };
+    }
+    if (context.chartDimensions.length > 1) {
+        questions.fieldToRemove = {
+            type: 'choice',
+            instructions:
+                'If the user wants one breakdown in `chart.dimensions` removed or replaced, which one?',
+            criteria: {
+                ...fieldCriteria(context.chartDimensions, {
+                    withDescriptions: false,
+                }),
+                none: 'The user does not mean removing or replacing one of these',
+            },
+        };
+    }
+    if (context.grain) {
+        questions.grain = {
+            type: 'choice',
+            instructions:
+                'If the user wants the chart shown at a different time granularity, which one?',
+            criteria: {
+                ...fieldCriteria(context.grain.options, {
+                    withDescriptions: false,
+                }),
+                none: 'The user does not ask for a different time granularity',
             },
         };
     }
@@ -959,6 +1087,44 @@ const resolveFilter = (
     };
 };
 
+/** The one listed field, or JEV's confident pick among several. */
+const pickCurrent = (
+    answer: DecisionAnswers[string] | undefined,
+    fields: FieldCandidate[],
+    threshold: number,
+): FieldCandidate | null => {
+    if (fields.length === 1) return fields[0];
+    const chosen = confident(answer, threshold);
+    return fields.find(({ id }) => id === chosen) ?? null;
+};
+
+/** A new field JEV picked from `fields`, or a clarify question when it is split between two. */
+const pickNew = (
+    answer: DecisionAnswers[string] | undefined,
+    fields: FieldCandidate[],
+    thresholds: ChartIntentThresholds,
+    clarify: (label: string) => { question: string; prompt: string },
+):
+    | FieldCandidate
+    | Extract<ChartIntentResolution, { type: 'clarify' }>
+    | null => {
+    const split = resolveFieldSplit(answer, fields, thresholds);
+    if (split.type === 'clarify')
+        return {
+            type: 'clarify',
+            question: clarify(split.labels[0]).question,
+            options: split.labels.map((label) => ({
+                label,
+                prompt: clarify(label).prompt,
+            })),
+        };
+    const chosen =
+        split.type === 'pick'
+            ? split.fieldId
+            : confident(answer, thresholds.field);
+    return fields.find(({ id }) => id === chosen) ?? null;
+};
+
 const resolveAddField = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -989,10 +1155,26 @@ const resolveAddField = (
             : confident(answers.addField, thresholds.field);
     if (!fieldId || fieldId === 'none')
         return { type: 'unresolved', reason: 'add-field' };
-    return {
-        type: 'intent',
-        intent: { kind: 'add_field', fieldId, chartType },
-    };
+    if ((decisionProbability(answers.replacesField) ?? 0) < thresholds.wants)
+        return {
+            type: 'intent',
+            intent: { kind: 'add_field', fieldId, chartType },
+        };
+    const from = pickCurrent(
+        answers.fieldToRemove,
+        context.chartDimensions,
+        thresholds.field,
+    );
+    return from && chartType === null
+        ? {
+              type: 'intent',
+              intent: {
+                  kind: 'swap_field',
+                  fromFieldId: from.id,
+                  toFieldId: fieldId,
+              },
+          }
+        : { type: 'unresolved', reason: 'swap-field' };
 };
 
 const resolveRemoveFilter = (
@@ -1027,6 +1209,110 @@ const resolveRemoveFilter = (
         : { type: 'unresolved', reason: 'remove-filter' };
 };
 
+const resolveFieldEdit = (
+    intent:
+        | 'add_metric'
+        | 'remove_metric'
+        | 'swap_metric'
+        | 'remove_field'
+        | 'change_grain',
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): ChartIntentResolution => {
+    const unresolved = {
+        type: 'unresolved',
+        reason: intent.replace('_', '-'),
+    } as const;
+    switch (intent) {
+        case 'add_metric':
+        case 'swap_metric': {
+            const next = pickNew(
+                answers.metricToAdd,
+                context.metricOptions,
+                thresholds,
+                (label) => ({
+                    question: 'Which metric should I show?',
+                    prompt:
+                        intent === 'add_metric'
+                            ? `Add ${label} to the chart`
+                            : `Show ${label} instead`,
+                }),
+            );
+            if (!next) return unresolved;
+            if (!('id' in next)) return next;
+            if (intent === 'add_metric')
+                return {
+                    type: 'intent',
+                    intent: { kind: 'add_metric', fieldId: next.id },
+                };
+            const from = pickCurrent(
+                answers.metricToRemove,
+                context.chartMetrics,
+                thresholds.field,
+            );
+            return from
+                ? {
+                      type: 'intent',
+                      intent: {
+                          kind: 'swap_metric',
+                          fromFieldId: from.id,
+                          toFieldId: next.id,
+                      },
+                  }
+                : unresolved;
+        }
+        case 'remove_metric': {
+            const field =
+                context.chartMetrics.length > 1
+                    ? pickCurrent(
+                          answers.metricToRemove,
+                          context.chartMetrics,
+                          thresholds.field,
+                      )
+                    : null;
+            return field
+                ? {
+                      type: 'intent',
+                      intent: { kind: 'remove_metric', fieldId: field.id },
+                  }
+                : unresolved;
+        }
+        case 'remove_field': {
+            const field =
+                context.chartDimensions.length > 1
+                    ? pickCurrent(
+                          answers.fieldToRemove,
+                          context.chartDimensions,
+                          thresholds.field,
+                      )
+                    : null;
+            return field
+                ? {
+                      type: 'intent',
+                      intent: { kind: 'remove_field', fieldId: field.id },
+                  }
+                : unresolved;
+        }
+        case 'change_grain': {
+            const chosen = confident(answers.grain, thresholds.option);
+            const to = context.grain?.options.find(({ id }) => id === chosen);
+            return context.grain && to
+                ? {
+                      type: 'intent',
+                      intent: {
+                          kind: 'change_grain',
+                          fromFieldId: context.grain.fromFieldId,
+                          toFieldId: to.id,
+                      },
+                  }
+                : unresolved;
+        }
+        default:
+            return assertUnreachable(intent, 'Unknown field edit');
+    }
+};
+
 const toStep = (resolution: ChartIntentResolution): CompoundStep | null => {
     if (resolution.type === 'needs_values') return resolution;
     if (resolution.type === 'intent' && resolution.intent.kind !== 'undo')
@@ -1045,8 +1331,12 @@ type ComposableIntent = keyof typeof COMPOSABLE;
 const isComposable = (intent: IntentKey): intent is ComposableIntent =>
     intent in COMPOSABLE;
 
-// Removing a filter reads as filtering too; verification still catches a genuinely extra filter.
-const FILTER_REMOVALS = new Set<IntentKey>(['remove_filter', 'clear_filters']);
+// Signals an edit sets off by itself, like a breakdown swap reading as adding a field; verification still catches a real extra edit.
+const INHERENT: Partial<Record<IntentKey, ComposableIntent[]>> = {
+    remove_filter: ['filter'],
+    clear_filters: ['filter'],
+    change_grain: ['add_field', 'filter'],
+};
 
 /** Edit kinds requested beyond the primary intent; any extra makes the turn compound. */
 const extraEdits = (
@@ -1057,7 +1347,7 @@ const extraEdits = (
     (Object.keys(COMPOSABLE) as ComposableIntent[]).filter(
         (kind) =>
             kind !== primary &&
-            !(kind === 'filter' && FILTER_REMOVALS.has(primary)) &&
+            !INHERENT[primary]?.includes(kind) &&
             (decisionProbability(answers[COMPOSABLE[kind]]) ?? 0) >=
                 thresholds.wants,
     );
@@ -1127,10 +1417,18 @@ export const interpretChartIntent = ({
     context: ChartIntentContext;
     thresholds?: ChartIntentThresholds;
 }): ChartIntentResolution => {
-    const intent = confident(
+    const picked = confident(
         answers.intent,
         thresholds.intent,
     ) as IntentKey | null;
+    // split_series only reuses fields already in the chart; a confident pick of a new field means add_field.
+    const namesNewField =
+        (decisionProbability(answers.wantsAddField) ?? 0) >= thresholds.wants &&
+        context.addableFields.some(
+            ({ id }) => id === confident(answers.addField, thresholds.field),
+        );
+    const intent =
+        picked === 'split_series' && namesNewField ? 'add_field' : picked;
     if (intent === 'new_question') return { type: 'not_an_edit' };
     if (!intent || intent === 'unclear')
         return { type: 'unresolved', reason: 'intent' };
@@ -1189,6 +1487,12 @@ export const interpretChartIntent = ({
             return resolveFilter(answers, context, numbers, thresholds);
         case 'remove_filter':
             return resolveRemoveFilter(answers, context, thresholds);
+        case 'add_metric':
+        case 'remove_metric':
+        case 'swap_metric':
+        case 'remove_field':
+        case 'change_grain':
+            return resolveFieldEdit(intent, answers, context, thresholds);
         case 'clear_filters':
             return { type: 'intent', intent: { kind: 'clear_filters' } };
         case 'sort':
@@ -1208,6 +1512,8 @@ const labelFor = (context: ChartIntentContext, fieldId: string) =>
         ...context.addableFields,
         ...context.filterableFields,
         ...context.filteredFields,
+        ...context.metricOptions,
+        ...(context.grain?.options ?? []),
     ].find(({ id }) => id === fieldId)?.label ?? fieldId;
 
 const describePeriod = (period: ChartPeriod): string => {
@@ -1254,6 +1560,18 @@ const describeStep = (
             return `Filter ${labelFor(context, intent.fieldId)} to ${describePeriod(intent.period)}`;
         case 'remove_filter':
             return `Remove the ${labelFor(context, intent.fieldId)} filter and keep the other filters`;
+        case 'add_metric':
+            return `Add the ${labelFor(context, intent.fieldId)} metric alongside the current metrics`;
+        case 'remove_metric':
+            return `Remove the ${labelFor(context, intent.fieldId)} metric and keep the others`;
+        case 'swap_metric':
+            return `Show ${labelFor(context, intent.toFieldId)} instead of ${labelFor(context, intent.fromFieldId)}`;
+        case 'remove_field':
+            return `Remove the ${labelFor(context, intent.fieldId)} breakdown and keep the others`;
+        case 'swap_field':
+            return `Break the chart down by ${labelFor(context, intent.toFieldId)} instead of ${labelFor(context, intent.fromFieldId)}`;
+        case 'change_grain':
+            return `Show the chart by ${labelFor(context, intent.toFieldId)} instead of ${labelFor(context, intent.fromFieldId)}`;
         case 'clear_filters':
             return 'Remove all chart filters';
         case 'sort':
