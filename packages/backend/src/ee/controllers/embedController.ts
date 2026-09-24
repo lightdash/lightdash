@@ -768,13 +768,13 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * List chart types available while exploring in an embed.
+     * List project-scoped chart types available to an Explore-authorized embed.
      * @summary List chart types
      */
     @SuccessResponse('200', 'Success')
-    @Get('/explore/visualizations')
-    @OperationId('listEmbedExploreDataAppVisualizations')
-    async listEmbedExploreDataAppVisualizations(
+    @Get('/visualizations')
+    @OperationId('listEmbedProjectDataAppVisualizations')
+    async listEmbedProjectDataAppVisualizations(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Query() page?: number,
@@ -787,7 +787,7 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results:
-                await this.getEmbedService().listEmbedExploreDataAppVisualizations(
+                await this.getEmbedService().listEmbedProjectDataAppVisualizations(
                     req.account,
                     projectUuid,
                     page && pageSize ? { page, pageSize } : undefined,
@@ -803,13 +803,13 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * Get a chart type available while exploring in an embed.
+     * Get a project-scoped chart type for an Explore-authorized embed.
      * @summary Get chart type
      */
     @SuccessResponse('200', 'Success')
-    @Get('/explore/visualizations/{dataAppVizUuid}')
-    @OperationId('getEmbedExploreDataAppVisualization')
-    async getEmbedExploreDataAppVisualization(
+    @Get('/visualizations/{dataAppVizUuid}')
+    @OperationId('getEmbedProjectDataAppVisualization')
+    async getEmbedProjectDataAppVisualization(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() dataAppVizUuid: UUID,
@@ -819,7 +819,7 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results:
-                await this.getEmbedService().getEmbedExploreDataAppVisualization(
+                await this.getEmbedService().getEmbedProjectDataAppVisualization(
                     req.account,
                     projectUuid,
                     dataAppVizUuid,
@@ -829,13 +829,13 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * Get render metadata for an embedded Explore chart type.
+     * Get render metadata for a project-scoped embedded chart type.
      * @summary Get render metadata
      */
     @SuccessResponse('200', 'Success')
-    @Get('/explore/visualizations/{dataAppVizUuid}/render-metadata')
-    @OperationId('getEmbedExploreDataAppVizRenderMetadata')
-    async getEmbedExploreDataAppVizRenderMetadata(
+    @Get('/visualizations/{dataAppVizUuid}/render-metadata')
+    @OperationId('getEmbedProjectDataAppVizRenderMetadata')
+    async getEmbedProjectDataAppVizRenderMetadata(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() dataAppVizUuid: UUID,
@@ -845,7 +845,7 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results:
-                await this.getEmbedService().getEmbedExploreDataAppVizRenderMetadata(
+                await this.getEmbedService().getEmbedProjectDataAppVizRenderMetadata(
                     req.account,
                     projectUuid,
                     dataAppVizUuid,
@@ -855,15 +855,13 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * Get a preview token for an embedded Explore chart type.
+     * Get a preview token for a project-scoped embedded chart type.
      * @summary Get preview token
      */
     @SuccessResponse('200', 'Success')
-    @Get(
-        '/explore/visualizations/{dataAppVizUuid}/versions/{version}/preview-token',
-    )
-    @OperationId('getEmbedExploreDataAppVizPreviewToken')
-    async getEmbedExploreDataAppVizPreviewToken(
+    @Get('/visualizations/{dataAppVizUuid}/versions/{version}/preview-token')
+    @OperationId('getEmbedProjectDataAppVizPreviewToken')
+    async getEmbedProjectDataAppVizPreviewToken(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() dataAppVizUuid: UUID,
@@ -873,7 +871,7 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results: {
-                token: await this.getEmbedService().getEmbedExploreDataAppVizPreviewToken(
+                token: await this.getEmbedService().getEmbedProjectDataAppVizPreviewToken(
                     req.account,
                     projectUuid,
                     dataAppVizUuid,

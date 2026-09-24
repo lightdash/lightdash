@@ -1822,7 +1822,7 @@ export class EmbedService extends BaseService {
         };
     }
 
-    private async assertCanUseChartTypesInEmbedExplore(
+    private async assertCanUseProjectChartTypesInEmbed(
         account: AnonymousAccount,
         projectUuid: string,
     ): Promise<void> {
@@ -1865,14 +1865,14 @@ export class EmbedService extends BaseService {
         });
     }
 
-    async listEmbedExploreDataAppVisualizations(
+    async listEmbedProjectDataAppVisualizations(
         account: AnonymousAccount,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await this.assertCanUseChartTypesInEmbedExplore(account, projectUuid);
+        await this.assertCanUseProjectChartTypesInEmbed(account, projectUuid);
         const { data, pagination } =
             await this.appModel.listDataAppVisualizations(
                 projectUuid,
@@ -1883,12 +1883,12 @@ export class EmbedService extends BaseService {
         return { data: data.map(mapDataAppViz), pagination };
     }
 
-    private async getAuthorizedDataAppVizForEmbedExplore(
+    private async getAuthorizedProjectDataAppVizForEmbed(
         account: AnonymousAccount,
         projectUuid: string,
         dataAppVizUuid: string,
     ) {
-        await this.assertCanUseChartTypesInEmbedExplore(account, projectUuid);
+        await this.assertCanUseProjectChartTypesInEmbed(account, projectUuid);
         return resolveDataAppVisualizationForRender(
             this.appModel,
             projectUuid,
@@ -1896,13 +1896,13 @@ export class EmbedService extends BaseService {
         );
     }
 
-    async getEmbedExploreDataAppVisualization(
+    async getEmbedProjectDataAppVisualization(
         account: AnonymousAccount,
         projectUuid: string,
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbedExplore(
+        const dataAppViz = await this.getAuthorizedProjectDataAppVizForEmbed(
             account,
             projectUuid,
             dataAppVizUuid,
@@ -1920,13 +1920,13 @@ export class EmbedService extends BaseService {
         });
     }
 
-    async getEmbedExploreDataAppVizRenderMetadata(
+    async getEmbedProjectDataAppVizRenderMetadata(
         account: AnonymousAccount,
         projectUuid: string,
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppVizRenderMetadata> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbedExplore(
+        const dataAppViz = await this.getAuthorizedProjectDataAppVizForEmbed(
             account,
             projectUuid,
             dataAppVizUuid,
@@ -1939,13 +1939,13 @@ export class EmbedService extends BaseService {
         );
     }
 
-    async getEmbedExploreDataAppVizPreviewToken(
+    async getEmbedProjectDataAppVizPreviewToken(
         account: AnonymousAccount,
         projectUuid: string,
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbedExplore(
+        const dataAppViz = await this.getAuthorizedProjectDataAppVizForEmbed(
             account,
             projectUuid,
             dataAppVizUuid,

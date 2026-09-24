@@ -10,7 +10,7 @@ export const getDataAppVisualization = async (
     isEmbedded: boolean = false,
 ): Promise<DataAppViz> => {
     const baseUrl = isEmbedded
-        ? `/embed/${projectUuid}/explore/visualizations`
+        ? `/embed/${projectUuid}/visualizations`
         : `/ee/projects/${projectUuid}/apps/visualizations`;
     return lightdashApi<DataAppViz>({
         method: 'GET',

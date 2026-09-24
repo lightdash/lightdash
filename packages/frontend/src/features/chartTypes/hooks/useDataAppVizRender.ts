@@ -32,7 +32,7 @@ const getRenderBaseUrl = (
     if (isEmbedded) {
         return savedChartUuid
             ? `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`
-            : `/embed/${projectUuid}/explore/visualizations/${dataAppVizUuid}`;
+            : `/embed/${projectUuid}/visualizations/${dataAppVizUuid}`;
     }
     return savedChartUuid
         ? `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/charts/${savedChartUuid}`

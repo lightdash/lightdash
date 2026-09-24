@@ -260,7 +260,7 @@ describe('useDataAppVizRender', () => {
         await metadataQuery.queryFn();
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
-            url: '/embed/project-1/explore/visualizations/viz-1/render-metadata?version=2',
+            url: '/embed/project-1/visualizations/viz-1/render-metadata?version=2',
         });
 
         mocks.lightdashApi.mockResolvedValue({ token: 'token-2' });
@@ -272,7 +272,7 @@ describe('useDataAppVizRender', () => {
         await expect(tokenQuery.queryFn()).resolves.toBe('token-2');
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
-            url: '/embed/project-1/explore/visualizations/viz-1/versions/2/preview-token',
+            url: '/embed/project-1/visualizations/viz-1/versions/2/preview-token',
         });
     });
 

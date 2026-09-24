@@ -48,7 +48,7 @@ describe('useDataAppVisualization', () => {
         );
     });
 
-    it('loads the selected schema through the embedded Explore endpoint', async () => {
+    it('loads the selected schema through the embedded project endpoint', async () => {
         vi.mocked(useEmbed).mockReturnValue({
             embedToken: 'embed-token',
         } as ReturnType<typeof useEmbed>);
@@ -58,7 +58,7 @@ describe('useDataAppVisualization', () => {
         await waitFor(() => expect(result.current.data).toEqual(viz(2)));
         expect(lightdashApi).toHaveBeenCalledWith({
             method: 'GET',
-            url: '/embed/project-1/explore/visualizations/viz-1?version=2',
+            url: '/embed/project-1/visualizations/viz-1?version=2',
             body: undefined,
         });
     });

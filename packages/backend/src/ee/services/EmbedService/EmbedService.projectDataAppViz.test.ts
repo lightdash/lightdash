@@ -137,7 +137,7 @@ const buildService = ({
         },
     } as never);
 
-describe('EmbedService Explore chart types', () => {
+describe('EmbedService project chart types', () => {
     it('lists paginated project chart types for an Explore-authorized embed', async () => {
         const appModel = {
             listDataAppVisualizations: vi.fn().mockResolvedValue({
@@ -148,7 +148,7 @@ describe('EmbedService Explore chart types', () => {
         const service = buildService({ appModel });
 
         await expect(
-            service.listEmbedExploreDataAppVisualizations(
+            service.listEmbedProjectDataAppVisualizations(
                 account(),
                 PROJECT_UUID,
                 { page: 2, pageSize: 10 },
@@ -171,13 +171,13 @@ describe('EmbedService Explore chart types', () => {
             appModel: { listDataAppVisualizations: vi.fn() },
         });
         await expect(
-            service.listEmbedExploreDataAppVisualizations(
+            service.listEmbedProjectDataAppVisualizations(
                 account(false),
                 PROJECT_UUID,
             ),
         ).rejects.toThrow(ForbiddenError);
         await expect(
-            service.listEmbedExploreDataAppVisualizations(
+            service.listEmbedProjectDataAppVisualizations(
                 account(),
                 OTHER_PROJECT_UUID,
             ),
@@ -207,7 +207,7 @@ describe('EmbedService Explore chart types', () => {
                 appModel: { listDataAppVisualizations: list },
                 featureFlagModel,
             });
-            const result = service.listEmbedExploreDataAppVisualizations(
+            const result = service.listEmbedProjectDataAppVisualizations(
                 account(),
                 PROJECT_UUID,
             );
@@ -251,19 +251,19 @@ describe('EmbedService Explore chart types', () => {
             const denied = account(false);
             const requests = {
                 schema: () =>
-                    service.getEmbedExploreDataAppVisualization(
+                    service.getEmbedProjectDataAppVisualization(
                         denied,
                         PROJECT_UUID,
                         DATA_APP_VIZ_UUID,
                     ),
                 metadata: () =>
-                    service.getEmbedExploreDataAppVizRenderMetadata(
+                    service.getEmbedProjectDataAppVizRenderMetadata(
                         denied,
                         PROJECT_UUID,
                         DATA_APP_VIZ_UUID,
                     ),
                 preview: () =>
-                    service.getEmbedExploreDataAppVizPreviewToken(
+                    service.getEmbedProjectDataAppVizPreviewToken(
                         denied,
                         PROJECT_UUID,
                         DATA_APP_VIZ_UUID,
@@ -296,13 +296,13 @@ describe('EmbedService Explore chart types', () => {
                 },
             });
             await expect(
-                service.listEmbedExploreDataAppVisualizations(
+                service.listEmbedProjectDataAppVisualizations(
                     viewer,
                     PROJECT_UUID,
                 ),
             ).rejects.toThrow(ForbiddenError);
             await expect(
-                service.getEmbedExploreDataAppVizPreviewToken(
+                service.getEmbedProjectDataAppVizPreviewToken(
                     viewer,
                     PROJECT_UUID,
                     DATA_APP_VIZ_UUID,
@@ -329,13 +329,13 @@ describe('EmbedService Explore chart types', () => {
             writeActions: { spaceUuid: 'space-1', permissionsMode: 'roles' },
         } satisfies CreateEmbedJwt;
         await expect(
-            service.listEmbedExploreDataAppVisualizations(
+            service.listEmbedProjectDataAppVisualizations(
                 accountForToken(token),
                 PROJECT_UUID,
             ),
         ).rejects.toThrow(ForbiddenError);
         await expect(
-            service.listEmbedExploreDataAppVisualizations(
+            service.listEmbedProjectDataAppVisualizations(
                 accountForToken(
                     {
                         ...token,
@@ -355,7 +355,7 @@ describe('EmbedService Explore chart types', () => {
             },
         });
         await expect(
-            service.getEmbedExploreDataAppVisualization(
+            service.getEmbedProjectDataAppVisualization(
                 account(),
                 PROJECT_UUID,
                 DATA_APP_VIZ_UUID,
@@ -368,7 +368,7 @@ describe('EmbedService Explore chart types', () => {
             },
         });
         await expect(
-            missing.getEmbedExploreDataAppVisualization(
+            missing.getEmbedProjectDataAppVisualization(
                 account(),
                 PROJECT_UUID,
                 DATA_APP_VIZ_UUID,
@@ -387,13 +387,13 @@ describe('EmbedService Explore chart types', () => {
         };
         const service = buildService({ appModel });
         await expect(
-            service.getEmbedExploreDataAppVizRenderMetadata(
+            service.getEmbedProjectDataAppVizRenderMetadata(
                 account(),
                 PROJECT_UUID,
                 DATA_APP_VIZ_UUID,
             ),
         ).resolves.toMatchObject({ state: 'ready', version: 1, schema });
-        const token = await service.getEmbedExploreDataAppVizPreviewToken(
+        const token = await service.getEmbedProjectDataAppVizPreviewToken(
             account(),
             PROJECT_UUID,
             DATA_APP_VIZ_UUID,
@@ -424,7 +424,7 @@ describe('EmbedService Explore chart types', () => {
             },
         });
         await expect(
-            service.getEmbedExploreDataAppVizPreviewToken(
+            service.getEmbedProjectDataAppVizPreviewToken(
                 account(),
                 PROJECT_UUID,
                 DATA_APP_VIZ_UUID,

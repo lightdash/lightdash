@@ -28,7 +28,7 @@ const getDataAppVisualizations = async (
         params.set('search', search);
     }
     const baseUrl = isEmbedded
-        ? `/embed/${projectUuid}/explore/visualizations`
+        ? `/embed/${projectUuid}/visualizations`
         : `/ee/projects/${projectUuid}/apps/visualizations`;
     return lightdashApi<DataAppVizsPage>({
         method: 'GET',

@@ -55,7 +55,7 @@ describe('useDataAppVisualizations', () => {
             );
             await waitFor(() => expect(result.current.isSuccess).toBe(true));
             const baseUrl = isEmbedded
-                ? '/embed/project-1/explore/visualizations'
+                ? '/embed/project-1/visualizations'
                 : '/ee/projects/project-1/apps/visualizations';
             expect(lightdashApi).toHaveBeenLastCalledWith({
                 method: 'GET',

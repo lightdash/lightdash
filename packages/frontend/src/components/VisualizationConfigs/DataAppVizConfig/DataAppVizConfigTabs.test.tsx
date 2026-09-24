@@ -976,7 +976,7 @@ describe('DataAppVizConfigTabs', () => {
         expect(screen.queryByTestId('upgrade-notice')).not.toBeInTheDocument();
     });
 
-    it('checks for upgrades using the embedded Explore endpoint', () => {
+    it('checks for upgrades using the embedded project endpoint', () => {
         vi.mocked(useEmbed).mockReturnValue({
             embedToken: 'embed-token',
         } as ReturnType<typeof useEmbed>);

@@ -850,7 +850,7 @@ describe('ExplorerChartTypeGallery', () => {
             expect(screen.getByRole('button', { name: 'Table' })).toBeVisible();
             expect(lightdashApi).toHaveBeenCalledWith({
                 method: 'GET',
-                url: '/embed/project-uuid/explore/visualizations?page=1&pageSize=6&sortBy=name&sortDirection=asc',
+                url: '/embed/project-uuid/visualizations?page=1&pageSize=6&sortBy=name&sortDirection=asc',
                 body: undefined,
             });
             if (types.length > 0) {
