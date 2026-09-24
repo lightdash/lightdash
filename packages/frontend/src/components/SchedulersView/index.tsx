@@ -98,12 +98,6 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                     value={activeTab}
                     onChange={handleTabChange}
                     variant="pills"
-                    classNames={{
-                        list: classes.tabsList,
-                        tab: classes.tab,
-                        tabSection: classes.tabSection,
-                        panel: classes.panel,
-                    }}
                 >
                     <Group
                         gap="xs"

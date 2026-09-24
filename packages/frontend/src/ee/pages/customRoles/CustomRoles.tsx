@@ -80,11 +80,6 @@ export const CustomRoles = () => {
                         value={level}
                         onChange={(value) => setLevel(value as RoleLevel)}
                         variant="pills"
-                        classNames={{
-                            list: classes.tabsList,
-                            tab: classes.tab,
-                            panel: classes.panel,
-                        }}
                     >
                         <Tabs.List>
                             <Tabs.Tab
