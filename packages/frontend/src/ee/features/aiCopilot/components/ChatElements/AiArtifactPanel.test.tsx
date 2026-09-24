@@ -1,4 +1,9 @@
-import { AiResultType, type ToolRunQueryArgs } from '@lightdash/common';
+import {
+    AiResultType,
+    QuerySourceType,
+    type AiComposerChartArtifactConfig,
+    type ToolRunQueryArgs,
+} from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { fireEvent, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -208,5 +213,94 @@ describe('artifact panel recovery and navigation', () => {
         expect(
             screen.getByText('This artifact is unavailable.'),
         ).toBeInTheDocument();
+    });
+});
+
+const composerConfig: AiComposerChartArtifactConfig = {
+    source: 'composer',
+    schemaVersion: 1,
+    terminalNodeId: 'joined',
+    lastQueryUuid: 'query',
+    queries: [
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'orders',
+            title: 'Orders by status',
+            sql: 'select status, count(*) as n from orders group by 1',
+        },
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'amounts',
+            title: 'Average amount',
+            sql: 'select status, avg(amount) as avg_amount from orders group by 1',
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'joined',
+            title: 'Orders with amounts',
+            sql: 'select * from orders join amounts using (status)',
+            references: ['orders', 'amounts'],
+        },
+    ],
+};
+
+describe('composer artifact', () => {
+    const renderComposer = (chartConfig: AiComposerChartArtifactConfig) => {
+        mocks.artifact.mockReturnValue({
+            data: {
+                artifactType: 'chart',
+                title: 'Orders vs amounts',
+                chartConfig,
+            },
+            isLoading: false,
+            error: null,
+            refetch: mocks.retry,
+        });
+        mocks.rows.mockReturnValue({
+            rows: [{ status: { value: { raw: 'completed' } } }],
+            columns: { status: { reference: 'status', type: 'string' } },
+            hasFetchedAllRows: true,
+            fetchAll: true,
+            setFetchAll: vi.fn(),
+            isInitialLoading: false,
+            isFetchingFirstPage: false,
+            isFetchingRows: false,
+            error: null,
+            refetchRows: mocks.retry,
+        });
+        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+    };
+
+    it('renders the results with a collapsed pipeline bar', () => {
+        renderComposer(composerConfig);
+        expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
+        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+        expect(screen.getByText('3 steps')).toBeInTheDocument();
+        expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+    });
+
+    it('expands into grouped rows by title', () => {
+        renderComposer(composerConfig);
+        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+        expect(screen.getByText('Sources')).toBeInTheDocument();
+        expect(screen.getByText('Result')).toBeInTheDocument();
+        expect(screen.getByText('Orders by status')).toBeInTheDocument();
+        expect(
+            screen.getByText('Orders with amounts · result'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Reads Orders by status, Average amount'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('joined')).not.toBeInTheDocument();
+    });
+
+    it('falls back to node ids when titles are missing', () => {
+        renderComposer({
+            ...composerConfig,
+            queries: composerConfig.queries.map(({ title, ...query }) => query),
+        });
+        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+        expect(screen.getByText('joined · result')).toBeInTheDocument();
+        expect(screen.getByText('Reads orders, amounts')).toBeInTheDocument();
     });
 });

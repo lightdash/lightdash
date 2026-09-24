@@ -8,6 +8,7 @@ import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 type ContentProps = {
     results: InfiniteQueryResults;
     headerContent: ReactNode;
+    flush?: boolean;
 };
 
 /**
@@ -18,6 +19,7 @@ type ContentProps = {
 export const AiComposerArtifactVisualization: FC<ContentProps> = ({
     results,
     headerContent,
+    flush = false,
 }) => {
     if (results.error) {
         return (
@@ -41,6 +43,7 @@ export const AiComposerArtifactVisualization: FC<ContentProps> = ({
             results={results}
             headerContent={headerContent}
             loadingMessage="Loading composer query results..."
+            flush={flush}
         />
     );
 };

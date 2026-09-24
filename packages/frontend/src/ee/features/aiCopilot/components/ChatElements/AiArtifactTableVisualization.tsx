@@ -1,5 +1,6 @@
 import { type RawResultRow, type ResultRow } from '@lightdash/common';
 import { Center, Loader, Paper, Stack } from '@mantine/core';
+import { clsx } from 'clsx';
 import { useEffect, useMemo, type FC, type ReactNode } from 'react';
 import { ROW_HEIGHT_PX } from '../../../../../components/common/Table/constants';
 import { ChartDataTable } from '../../../../../components/DataViz/visualizations/ChartDataTable';
@@ -20,12 +21,15 @@ type Props = {
     results: InfiniteQueryResults;
     headerContent: ReactNode;
     loadingMessage: string;
+    /** Edge to edge: no radius, no side or bottom borders. */
+    flush?: boolean;
 };
 
 export const AiArtifactTableVisualization: FC<Props> = ({
     results,
     headerContent,
     loadingMessage,
+    flush = false,
 }) => {
     const columns = useMemo(
         () => Object.values(results.columns ?? {}),
@@ -69,9 +73,9 @@ export const AiArtifactTableVisualization: FC<Props> = ({
                 mah="100%"
                 mih={0}
                 pos="relative"
-                radius="md"
+                radius={flush ? 0 : 'md'}
                 bg="ldGray.0"
-                className={styles.tableContainer}
+                className={clsx(styles.tableContainer, flush && styles.flush)}
             >
                 <ChartDataTable
                     columnNames={columnNames}

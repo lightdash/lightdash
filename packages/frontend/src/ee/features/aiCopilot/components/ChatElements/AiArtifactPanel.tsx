@@ -22,6 +22,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { memo, useMemo, useState, type FC } from 'react';
 import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../../../components/common/InlineErrorState';
@@ -52,6 +53,7 @@ import {
     AiSqlArtifactVisualization,
 } from './AiSqlArtifactVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
+import { AiComposerPipelinePanel } from './composerPipeline/AiComposerPipelinePanel';
 import { ChatElementsUtils } from './utils';
 
 type ArtifactRef = {
@@ -313,7 +315,7 @@ const AiArtifactPanelContent: FC<
             const composerTitle =
                 artifactData.title ?? 'Composer query results';
             const composerHead = (
-                <Box className={styles.head}>
+                <Box className={clsx(styles.head, styles.composerHead)}>
                     <Stack gap={0} flex={1} miw={0}>
                         <TruncatedText fz="sm" fw={600} maxWidth="100%">
                             {composerTitle}
@@ -339,11 +341,22 @@ const AiArtifactPanelContent: FC<
             );
             return (
                 <Box className={styles.floatingPanel}>
-                    <Box className={styles.floatingContent}>
-                        <AiComposerArtifactVisualization
-                            results={queryResults}
-                            headerContent={composerHead}
-                        />
+                    <Box
+                        className={clsx(
+                            styles.floatingContent,
+                            styles.composerContent,
+                        )}
+                    >
+                        <AiComposerPipelinePanel
+                            queries={composerConfig.queries}
+                            terminalNodeId={composerConfig.terminalNodeId}
+                        >
+                            <AiComposerArtifactVisualization
+                                results={queryResults}
+                                headerContent={composerHead}
+                                flush
+                            />
+                        </AiComposerPipelinePanel>
                     </Box>
                 </Box>
             );

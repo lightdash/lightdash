@@ -2,3 +2,9 @@
     flex-shrink: 1;
     overflow: hidden;
 }
+
+.flush {
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+}
