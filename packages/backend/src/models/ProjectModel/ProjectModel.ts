@@ -3388,10 +3388,7 @@ export class ProjectModel {
         onLockAcquired: () => Promise<void>,
         onLockFailed?: () => Promise<void>,
     ): Promise<void> {
-        // Look up project_id outside the transaction. onLockAcquired can run for as
-        // long as a full dbt compile, and any statement against `projects` inside the
-        // transaction below would hold an AccessShareLock on that table for the same
-        // duration, blocking any migration that needs AccessExclusiveLock on it.
+        // Outside the transaction so the long-running onLockAcquired never holds an AccessShareLock on projects.
         const [project] = await this.database(ProjectTableName)
             .select('project_id')
             .where('project_uuid', projectUuid)
