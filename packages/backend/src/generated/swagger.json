@@ -24318,6 +24318,167 @@
                 "required": ["fieldsContext", "prompt"],
                 "type": "object"
             },
+            "SuggestedChartTypeFieldAlternative": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reason", "fieldId"],
+                "type": "object"
+            },
+            "SuggestedChartTypeField": {
+                "properties": {
+                    "alternatives": {
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedChartTypeFieldAlternative"
+                        },
+                        "type": "array",
+                        "description": "Up to two runners-up, shown in the select's Suggested group."
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "One line, shown on hover."
+                    },
+                    "fieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Item ids in the explore. One unless the input accepts multiple; empty when nothing of the right type exists."
+                    },
+                    "fieldName": {
+                        "type": "string",
+                        "description": "The declared input's name."
+                    }
+                },
+                "required": ["alternatives", "reason", "fieldIds", "fieldName"],
+                "type": "object"
+            },
+            "SuggestedChartTypeFields": {
+                "properties": {
+                    "suggestions": {
+                        "items": {
+                            "$ref": "#/components/schemas/SuggestedChartTypeField"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["suggestions"],
+                "type": "object"
+            },
+            "ApiAiSuggestChartTypeFieldsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SuggestedChartTypeFields"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SuggestChartTypeFieldsRequest": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppVizField"
+                        },
+                        "type": "array",
+                        "description": "The declared inputs to pick for. A rebuild sends only the new ones."
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "clarifications": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Answers to the clarifying questions, in the order they were asked."
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fields",
+                    "exploreName",
+                    "clarifications",
+                    "prompt"
+                ],
+                "type": "object",
+                "description": "Chart Studio: which fields of a table fit a chart type's declared inputs."
+            },
+            "SuggestedChartTypeExplore": {
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "One line: what the table has, what the chart wants."
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reason", "exploreName"],
+                "type": "object"
+            },
+            "SuggestedChartTypeExploreResult": {
+                "properties": {
+                    "suggestion": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SuggestedChartTypeExplore"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["suggestion"],
+                "type": "object"
+            },
+            "ApiAiSuggestChartTypeExploreResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SuggestedChartTypeExploreResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SuggestChartTypeExploreRequest": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppVizField"
+                        },
+                        "type": "array"
+                    },
+                    "clarifications": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fields", "clarifications", "prompt"],
+                "type": "object",
+                "description": "Chart Studio: which table fits a chart type, before any preview data is attached."
+            },
             "AiAgentDocumentRelevance": {
                 "type": "string",
                 "enum": ["high", "medium", "low", "none"]
@@ -65008,7 +65169,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.325.0",
+        "version": "2.326.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

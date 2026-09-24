@@ -1,3 +1,13 @@
+# [2.326.0](https://github.com/lightdash/lightdash/compare/2.325.0...2.326.0) (2026-09-24)
+
+
+### Features
+
+* **ai:** suggest a table for a chart type from a prompt ([#29864](https://github.com/lightdash/lightdash/issues/29864)) ([1c74182](https://github.com/lightdash/lightdash/commit/1c74182f7056c7cb76e9c19ea3a563a578104f21))
+* **ai:** suggest chart type fields for a prompt ([#29859](https://github.com/lightdash/lightdash/issues/29859)) ([dc48bef](https://github.com/lightdash/lightdash/commit/dc48bef6dec7b65e9ad63b12ed2e861a05914adf))
+* **chart-studio:** pick fields for the prompt when a table is attached ([#29860](https://github.com/lightdash/lightdash/issues/29860)) ([7f9e717](https://github.com/lightdash/lightdash/commit/7f9e717f9ab406f89207d5dba3e2f66315368dcc))
+* **chart-studio:** suggest a table for the chart in the picker ([#29861](https://github.com/lightdash/lightdash/issues/29861)) ([e243ffd](https://github.com/lightdash/lightdash/commit/e243ffd6f84c728ec35ea3061e12016840be9c01))
+
 # [2.325.0](https://github.com/lightdash/lightdash/compare/2.324.0...2.325.0) (2026-09-24)
 
 
