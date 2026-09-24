@@ -62,6 +62,18 @@ export type ChartTypeFieldsSuggested = BaseTrack & {
     };
 };
 
+export type ChartTypeExploreSuggested = BaseTrack & {
+    event: 'ai.chart_type_explore.suggested';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        candidateCount: number;
+        withFieldContext: boolean;
+        hasSuggestion: boolean;
+        timedOut: boolean;
+    };
+};
+
 export type GenerateTableCalculationGenerated = BaseTrack & {
     event: 'ai.table_calculation.generated';
     properties: {

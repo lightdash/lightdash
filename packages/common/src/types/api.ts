@@ -51,6 +51,7 @@ import type {
     ApiAiRouterInstructionResponse,
     ApiAiRouterResponse,
     ApiAiRouterRouteResponse,
+    ApiAiSuggestChartTypeExploreResponse,
     ApiAiSuggestChartTypeFieldsResponse,
     ApiAnnouncementResponse,
     ApiAnnouncementsResponse,
@@ -1447,6 +1448,7 @@ type ApiResults =
     | ApiDeployExploresResults
     | ApiAiGenerateChartMetadataResponse['results']
     | ApiAiSuggestChartTypeFieldsResponse['results']
+    | ApiAiSuggestChartTypeExploreResponse['results']
     | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
     | ApiAiGenerateTableCalculationResponse['results']

@@ -17,9 +17,12 @@ import {
     getErrorMessage,
     getItemId,
     isField,
+    isSummaryExploreError,
     ItemsMap,
     SessionUser,
+    SuggestChartTypeExploreRequest,
     SuggestChartTypeFieldsRequest,
+    SuggestedChartTypeExploreResult,
     SuggestedChartTypeFields,
     TableCalculationType,
     UnexpectedServerError,
@@ -38,6 +41,7 @@ import { BaseService } from '../../../services/BaseService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
+    ChartTypeExploreSuggested,
     ChartTypeFieldsSuggested,
     ConvertSqlToFormulaGenerated,
     CustomVizGenerated,
@@ -55,8 +59,11 @@ import {
     type ChartSimilarityMatch,
 } from '../ai/agents/chartSimilarity';
 import {
+    exploreSatisfiesInputs,
     getChartTypeFieldCandidates,
+    suggestChartTypeExplore as suggestChartTypeExploreFromContext,
     suggestChartTypeFields as suggestChartTypeFieldsFromContext,
+    type ChartTypeExploreCandidate,
 } from '../ai/agents/chartTypeSuggestionGenerator';
 import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
 import {
@@ -110,6 +117,10 @@ export class AiService extends BaseService {
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
+    private static readonly MAX_CHART_TYPE_EXPLORE_CANDIDATES = 200;
+
+    private static readonly MAX_CHART_TYPE_EXPLORES_WITH_FIELDS = 25;
 
     private readonly chartSimilarityCache = new NodeCache({
         stdTTL: 60,
@@ -504,6 +515,100 @@ export class AiService extends BaseService {
         });
 
         return { suggestions };
+    }
+
+    async suggestChartTypeExplore(
+        user: SessionUser,
+        projectUuid: string,
+        payload: SuggestChartTypeExploreRequest,
+    ): Promise<SuggestedChartTypeExploreResult> {
+        await this.assertCanManageExplore(user, projectUuid);
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const account = fromSession(user);
+        // Same list as the Chart Studio table picker.
+        const summaries = (
+            await this.projectService.getAllExploresSummary(
+                account,
+                projectUuid,
+                true,
+                false,
+            )
+        )
+            .filter((summary) => !isSummaryExploreError(summary))
+            .sort((a, b) => a.label.localeCompare(b.label))
+            .slice(0, AiService.MAX_CHART_TYPE_EXPLORE_CANDIDATES);
+
+        // Small projects get each table's fields in the prompt; larger ones
+        // are judged on summaries and the pick is checked afterwards.
+        const withFieldContext =
+            summaries.length <= AiService.MAX_CHART_TYPE_EXPLORES_WITH_FIELDS;
+        const loaded = withFieldContext
+            ? await this.projectService.findExplores({
+                  account,
+                  projectUuid,
+                  exploreNames: summaries.map((summary) => summary.name),
+              })
+            : {};
+        const fieldsOf = (name: string) => {
+            const explore = loaded[name];
+            return explore && !('errors' in explore)
+                ? getChartTypeFieldCandidates(explore)
+                : null;
+        };
+        const candidates: ChartTypeExploreCandidate[] = summaries.map(
+            (summary) => ({
+                name: summary.name,
+                label: summary.label,
+                description: summary.description ?? null,
+                groupLabel: summary.groupLabel ?? null,
+                tags: summary.tags ?? [],
+                aiHint: Array.isArray(summary.aiHint)
+                    ? summary.aiHint.join(' ')
+                    : (summary.aiHint ?? null),
+                fields: fieldsOf(summary.name),
+            }),
+        );
+
+        const { suggestion: picked, timedOut } =
+            await suggestChartTypeExploreFromContext(modelOptions, {
+                prompt: payload.prompt,
+                clarifications: payload.clarifications,
+                inputs: payload.fields,
+                candidates,
+            });
+
+        let suggestion = picked;
+        if (picked) {
+            const pickedFields =
+                fieldsOf(picked.exploreName) ??
+                getChartTypeFieldCandidates(
+                    await this.projectService.getExplore(
+                        account,
+                        projectUuid,
+                        picked.exploreName,
+                    ),
+                );
+            if (!exploreSatisfiesInputs(payload.fields, pickedFields)) {
+                suggestion = null;
+            }
+        }
+
+        this.analytics.track<ChartTypeExploreSuggested>({
+            userId: user.userUuid,
+            event: 'ai.chart_type_explore.suggested',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                candidateCount: candidates.length,
+                withFieldContext,
+                hasSuggestion: suggestion !== null,
+                timedOut,
+            },
+        });
+
+        return { suggestion };
     }
 
     async generateTableCalculation(

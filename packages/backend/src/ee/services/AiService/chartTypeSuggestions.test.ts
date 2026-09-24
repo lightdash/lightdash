@@ -88,6 +88,8 @@ const setup = ({ ambientEnabled = true } = {}) => {
     const projectService = {
         getProject: vi.fn().mockResolvedValue({ organizationUuid: 'org' }),
         getExplore: vi.fn(),
+        getAllExploresSummary: vi.fn(),
+        findExplores: vi.fn(),
     };
     const analytics = { track: vi.fn() };
     const service = new AiService({
@@ -237,5 +239,103 @@ describe('suggestChartTypeFields', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(generateText).not.toHaveBeenCalled();
+    });
+});
+
+describe('suggestChartTypeExplore', () => {
+    const summaries = [
+        { name: 'orders', label: 'Orders', tags: [] },
+        { name: 'broken', label: 'Broken', errors: [{ message: 'x' }] },
+    ];
+
+    it('returns null when the picked explore lacks a needed metric', async () => {
+        const { service, projectService } = setup();
+        projectService.getAllExploresSummary.mockResolvedValue(summaries);
+        projectService.findExplores.mockResolvedValue({
+            orders: makeExplore('orders', false),
+        });
+        vi.mocked(generateText).mockResolvedValue({
+            output: { exploreName: 'orders', reason: 'Orders has status.' },
+            usage: {},
+        } as never);
+
+        expect(
+            await service.suggestChartTypeExplore(makeUser(), 'project', {
+                prompt: 'Revenue by status',
+                clarifications: [],
+                fields: inputs,
+            }),
+        ).toEqual({ suggestion: null });
+        expect(projectService.getAllExploresSummary).toHaveBeenCalledWith(
+            expect.anything(),
+            'project',
+            true,
+            false,
+        );
+        expect(projectService.findExplores).toHaveBeenCalledWith(
+            expect.objectContaining({ exploreNames: ['orders'] }),
+        );
+    });
+
+    it('answers null when the model times out', async () => {
+        const { service, projectService, analytics } = setup();
+        projectService.getAllExploresSummary.mockResolvedValue(summaries);
+        projectService.findExplores.mockResolvedValue({
+            orders: makeExplore('orders', true),
+        });
+        vi.mocked(generateText).mockRejectedValueOnce(abortError());
+
+        expect(
+            await service.suggestChartTypeExplore(makeUser(), 'project', {
+                prompt: 'p',
+                clarifications: [],
+                fields: inputs,
+            }),
+        ).toEqual({ suggestion: null });
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'ai.chart_type_explore.suggested',
+                properties: expect.objectContaining({ timedOut: true }),
+            }),
+        );
+    });
+
+    it('returns the pick when the explore fits the inputs', async () => {
+        const { service, projectService } = setup();
+        projectService.getAllExploresSummary.mockResolvedValue(summaries);
+        projectService.findExplores.mockResolvedValue({
+            orders: makeExplore('orders', true),
+        });
+        vi.mocked(generateText).mockResolvedValue({
+            output: {
+                exploreName: 'orders',
+                reason: 'Orders has revenue and status: the chart wants both.',
+            },
+            usage: {},
+        } as never);
+
+        expect(
+            await service.suggestChartTypeExplore(makeUser(), 'project', {
+                prompt: 'Revenue by status',
+                clarifications: [],
+                fields: inputs,
+            }),
+        ).toEqual({
+            suggestion: {
+                exploreName: 'orders',
+                reason: 'Orders has revenue and status: the chart wants both.',
+            },
+        });
+    });
+
+    it('throws ForbiddenError when ambient AI is off', async () => {
+        const { service } = setup({ ambientEnabled: false });
+        await expect(
+            service.suggestChartTypeExplore(makeUser(), 'project', {
+                prompt: 'p',
+                clarifications: [],
+                fields: inputs,
+            }),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
