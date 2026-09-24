@@ -1,6 +1,7 @@
 import {
     ChartKind,
     PullRequestProvider,
+    QuerySourceType,
     type AgentSuggestion,
     type AiAgentMessage,
     type AiAgentThread,
@@ -184,6 +185,129 @@ const groupedActivity: LiveActivityToolGroup[] = [
         },
     },
 ];
+
+const composerCall: ToolCallSummary = {
+    toolCallId: 'composer-call',
+    toolName: 'runComposerQueries',
+    toolArgs: {
+        title: 'Unique orders vs avg payment by status',
+        description: null,
+        terminalNodeId: null,
+        queries: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'order_counts',
+                title: 'Unique order count by status',
+                description: null,
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_unique_order_count'],
+                filters: null,
+                sorts: null,
+                limit: 500,
+            },
+            {
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'payment_averages',
+                title: 'Average payment amount by status',
+                description: null,
+                sql: 'SELECT o.status AS order_status, AVG(p.amount) AS average_payment_amount FROM jaffle.payments AS p JOIN jaffle.orders AS o ON o.order_id = p.order_id GROUP BY o.status',
+                limit: 500,
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'result',
+                title: 'Orders and avg payment by status',
+                description: null,
+                sql: 'SELECT c.orders_status AS order_status, c.orders_unique_order_count AS unique_order_count, p.average_payment_amount FROM order_counts AS c LEFT JOIN payment_averages AS p ON c.orders_status = p.order_status ORDER BY unique_order_count DESC',
+                references: ['order_counts', 'payment_averages'],
+                limit: 500,
+            },
+        ],
+    },
+};
+
+const composerActivity: LiveActivityToolGroup[] = [
+    groupedActivity[0],
+    {
+        keyId: 'composer',
+        toolName: 'runComposerQueries',
+        calls: [composerCall],
+    },
+];
+
+const composerProgress = (
+    statuses: Record<string, 'in_progress' | 'complete' | 'error'>,
+) =>
+    Object.entries(statuses).map(([nodeId, progressStatus]) => ({
+        message:
+            progressStatus === 'error'
+                ? `Query "${nodeId}" failed: relation "jaffle.payments" does not exist`
+                : `Running ${nodeId}`,
+        toolName: 'runComposerQueries',
+        progressId: `composer-call:${nodeId}`,
+        progressStatus,
+    }));
+
+const composerApproval = {
+    projectUuid,
+    agentUuid: 'agent-uuid',
+    threadUuid: 'thread-uuid',
+    pendingToolCallIds: ['composer-call'],
+};
+
+const ComposerPipelineScenario = () => (
+    <Provider store={store}>
+        <StorySurface>
+            <Section
+                title="Composer pipeline · awaiting approval"
+                description="Warehouse SQL node waits on the user; approve / reject render under its SQL. Buttons post to a fake API here."
+            >
+                <LiveActivityCard
+                    toolGroups={composerActivity}
+                    isLive
+                    composerApproval={composerApproval}
+                />
+            </Section>
+            <Section
+                title="Composer pipeline · running"
+                description="Only the running node is expanded; finished nodes collapse."
+            >
+                <LiveActivityCard
+                    toolGroups={composerActivity}
+                    isLive
+                    stepProgressMessages={composerProgress({
+                        order_counts: 'complete',
+                        payment_averages: 'complete',
+                        result: 'in_progress',
+                    })}
+                />
+            </Section>
+            <Section
+                title="Composer pipeline · failed node"
+                description="Failed nodes open by default so the error is inspectable."
+            >
+                <LiveActivityCard
+                    toolGroups={composerActivity}
+                    isLive
+                    stepProgressMessages={composerProgress({
+                        order_counts: 'complete',
+                        payment_averages: 'error',
+                    })}
+                />
+            </Section>
+            <Section
+                title="Composer pipeline · done"
+                description="Collapsed once the run finishes; the artifact panel shows the pipeline."
+            >
+                <LiveActivityCard
+                    toolGroups={composerActivity}
+                    isLive={false}
+                />
+            </Section>
+        </StorySurface>
+    </Provider>
+);
 
 const suggestions: AgentSuggestion[] = [
     {
@@ -1284,6 +1408,10 @@ export const Streaming: Story = {
 
 export const ApprovalAndFailure: Story = {
     render: () => <ApprovalAndFailureScenario />,
+};
+
+export const ComposerPipeline: Story = {
+    render: () => <ComposerPipelineScenario />,
 };
 
 export const TwoTurnChatThread: Story = {

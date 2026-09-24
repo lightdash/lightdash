@@ -51,13 +51,6 @@
     }
 }
 
-.badge {
-    flex-shrink: 0;
-    font-weight: 500;
-    letter-spacing: 0;
-    text-transform: none;
-}
-
 .detail {
     min-width: 0;
     flex: 1;

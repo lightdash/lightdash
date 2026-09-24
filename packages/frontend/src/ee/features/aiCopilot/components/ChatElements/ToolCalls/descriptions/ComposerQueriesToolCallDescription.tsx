@@ -6,7 +6,6 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import {
-    Badge,
     Box,
     Collapse,
     Group,
@@ -118,14 +117,12 @@ const getNodePresentation = (
             return {
                 icon: IconSitemap,
                 badge: 'Semantic layer',
-                color: 'indigo',
                 detail: `${node.exploreName} · ${node.dimensions.length} dimension${node.dimensions.length === 1 ? '' : 's'} · ${node.metrics.length} metric${node.metrics.length === 1 ? '' : 's'}`,
             } as const;
         case QuerySourceType.SQL:
             return {
                 icon: IconDatabase,
                 badge: 'Warehouse SQL',
-                color: 'ldGray.6',
                 detail: 'Project warehouse',
             } as const;
         case QuerySourceType.EXTERNAL: {
@@ -133,7 +130,6 @@ const getNodePresentation = (
             return {
                 icon: IconFileSpreadsheet,
                 badge: 'External data',
-                color: 'cyan',
                 detail: `Reads ${tables.join(', ')}`,
             } as const;
         }
@@ -144,7 +140,6 @@ const getNodePresentation = (
             return {
                 icon: IconGitMerge,
                 badge: 'DuckDB compose',
-                color: 'violet',
                 detail: `Reads ${references.join(', ')}`,
             } as const;
         }
@@ -236,13 +231,7 @@ const ComposerQueryNode: FC<{
                     <Text size="xs" className={rowStyles.label} truncate>
                         {node.title ?? node.nodeId}
                     </Text>
-                    <Badge
-                        color={presentation.color}
-                        size="xs"
-                        className={styles.badge}
-                    >
-                        {presentation.badge}
-                    </Badge>
+                    <ToolCallChip>{presentation.badge}</ToolCallChip>
                     <Text
                         size="xs"
                         c="dimmed"
