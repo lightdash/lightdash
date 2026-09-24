@@ -1,3 +1,16 @@
+# [2.323.0](https://github.com/lightdash/lightdash/compare/2.322.0...2.323.0) (2026-09-24)
+
+
+### Bug Fixes
+
+* **ai-agent:** read final-step token usage from finalStep ([#29896](https://github.com/lightdash/lightdash/issues/29896)) ([1a631bd](https://github.com/lightdash/lightdash/commit/1a631bdba07bf4aed3f85713c62d25a0bff868a4)), closes [#29883](https://github.com/lightdash/lightdash/issues/29883) [#29889](https://github.com/lightdash/lightdash/issues/29889)
+* **ci:** retry the freeze status lookup before failing ([#29905](https://github.com/lightdash/lightdash/issues/29905)) ([0026a19](https://github.com/lightdash/lightdash/commit/0026a19de5746fc5cb3da8207e05527556525102))
+
+
+### Features
+
+* **chart-types:** collapse library update list into a compact grid ([#29879](https://github.com/lightdash/lightdash/issues/29879)) ([22582a4](https://github.com/lightdash/lightdash/commit/22582a4420819bd06cf074f42de6f3d0522d562e))
+
 # [2.322.0](https://github.com/lightdash/lightdash/compare/2.321.0...2.322.0) (2026-09-24)
 
 
