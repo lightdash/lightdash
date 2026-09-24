@@ -2,13 +2,16 @@ import { getErrorMessage } from '@lightdash/common';
 import Logger from '../logging/logger';
 import type { MigrationLeaseStatusProbe } from './MigrationLeaseProbe';
 
-const DEQUEUE_WAIT_CANCELLED_MESSAGE =
-    'Migration lease dequeue wait was cancelled';
+export class MigrationDequeueWaitCancelledError extends Error {
+    constructor() {
+        super('Migration lease dequeue wait was cancelled');
+    }
+}
 
 type SchedulerMigrationQuiesceHooks = {
     onQuiesceStateChange: (quiesced: boolean) => void;
     onFailure: (error: unknown) => void;
-    stopWorkersForRetry: (reason: string) => Promise<void>;
+    drainWorkers: (reason: string) => Promise<void>;
     startResumeWorkers: () => Promise<void>;
     finishResumeRamp: () => Promise<void>;
 };
@@ -129,7 +132,7 @@ export class SchedulerMigrationQuiesce {
     }
 
     // Only cancels the lease machinery; the caller decides how to stop
-    // the workers (drain on ordinary shutdown, park for retry mid-migration).
+    // the workers and how long to wait for active jobs.
     stop(): void {
         if (this.stopped) {
             return;
@@ -189,14 +192,14 @@ export class SchedulerMigrationQuiesce {
             }
             this.cancelDequeueWaiters();
             void this.hooks
-                .stopWorkersForRetry('Migration lease grace period expired')
+                .drainWorkers('Migration lease grace period expired')
                 .catch((error: unknown) => this.hooks.onFailure(error));
         }, this.gracePeriodMs);
         this.graceTimeout.unref();
     }
 
     private async resume(generation: number): Promise<void> {
-        await this.hooks.stopWorkersForRetry(
+        await this.hooks.drainWorkers(
             'Migration lease cleared before worker resume',
         );
         if (!this.canResume(generation)) {
@@ -242,7 +245,7 @@ export class SchedulerMigrationQuiesce {
     }
 
     private cancelDequeueWaiters(): void {
-        const error = new Error(DEQUEUE_WAIT_CANCELLED_MESSAGE);
+        const error = new MigrationDequeueWaitCancelledError();
         for (const waiter of this.dequeueWaiters) {
             waiter.reject(error);
         }

@@ -11,6 +11,8 @@ export default defineConfig({
         exclude: [
             'node_modules',
             'dist',
+            // Uses an isolated queue via vitest.config.scheduler.integration.ts.
+            'src/scheduler/SchedulerWorker.quiesce.integration.test.ts',
             'src/ee/services/ai/filterPermutations/*.integration.test.ts',
             // Opt-in live provider suites, run via vitest.autopilot.config.ts
             'src/ee/services/ManagedAgentService/*.integration.test.ts',
