@@ -139,4 +139,87 @@ describe('stacked chart hover painting', () => {
             }
         },
     );
+
+    test('keeps authored opacity when focus moves during state animation', async () => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const chart = init(container, undefined, {
+            renderer: 'svg',
+            width: 200,
+            height: 200,
+            ...CHART_POINTER_OPTIONS,
+        });
+        const opacityOf = (fill: string) =>
+            [...container.querySelectorAll(`path[fill="${fill}"]`)].map(
+                (path) => path.getAttribute('fill-opacity') ?? '1',
+            );
+        try {
+            chart.setOption({
+                animation: false,
+                grid: { left: 0, right: 0, top: 0, bottom: 0 },
+                xAxis: {
+                    type: 'category',
+                    data: ['A', 'B', 'C', 'D'],
+                    show: false,
+                },
+                yAxis: { type: 'value', min: 0, max: 100, show: false },
+                tooltip: { trigger: 'axis', showContent: false },
+                series: [
+                    {
+                        data: [20, 20, 20, 20],
+                        color: '#7950f2',
+                        itemStyle: { opacity: 0.6 },
+                    },
+                    { data: [5, 5, 5, 5], color: '#228be6' },
+                    { data: [40, 12, 35, 40], color: '#10b981' },
+                ].map((series) => ({
+                    ...series,
+                    type: 'bar',
+                    stack: 'total',
+                    barCategoryGap: '4%',
+                    emphasis: CARTESIAN_HOVER_EMPHASIS,
+                })),
+            });
+            const zr = chart.getZr();
+            // Node disables chart animation, so state transitions never attach.
+            // Browsers do, and that is what decays opacity while hovering a stack.
+            zr.storage.traverse((element) => {
+                element.stateTransition = { duration: 300, easing: 'cubicOut' };
+            });
+            for (const seriesIndex of [2, 0, 1, 2]) {
+                chart.dispatchAction({
+                    type: SERIES_FOCUS_ACTION,
+                    seriesIndex,
+                });
+                zr.flush();
+            }
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            zr.flush();
+            expect(opacityOf('#7950f2')).toEqual([
+                '0.132',
+                '0.132',
+                '0.132',
+                '0.132',
+            ]);
+            expect(opacityOf('#228be6')).toEqual([
+                '0.22',
+                '0.22',
+                '0.22',
+                '0.22',
+            ]);
+            expect(opacityOf('#10b981')).toEqual(['1', '1', '1', '1']);
+            chart.dispatchAction({
+                type: SERIES_FOCUS_ACTION,
+                seriesIndex: null,
+            });
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            zr.flush();
+            expect(opacityOf('#7950f2')).toEqual(['0.6', '0.6', '0.6', '0.6']);
+            expect(opacityOf('#228be6')).toEqual(['1', '1', '1', '1']);
+            expect(opacityOf('#10b981')).toEqual(['1', '1', '1', '1']);
+        } finally {
+            chart.dispose();
+            container.remove();
+        }
+    });
 });

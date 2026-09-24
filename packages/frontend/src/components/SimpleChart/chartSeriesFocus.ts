@@ -25,12 +25,15 @@ registerAction(
                 ]) {
                     if (!target || !('style' in target)) continue;
                     // Restore authored opacity before deriving the muted value.
-                    target.useStates(
-                        (target.currentStates ?? []).filter(
-                            (state) => state !== MUTED_STATE,
-                        ),
-                        true,
+                    // useStates([]) drops noAnimation, so the fade is sampled and compounds.
+                    const remainingStates = (target.currentStates ?? []).filter(
+                        (state) => state !== MUTED_STATE,
                     );
+                    if (remainingStates.length === 0) {
+                        target.clearStates(true);
+                    } else {
+                        target.useStates(remainingStates, true);
+                    }
                     if (muted) {
                         const style = target.style as { opacity?: number };
                         Object.assign(target.ensureState(MUTED_STATE), {
