@@ -7693,6 +7693,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
         userAttributeOverrides,
+        warehouseConnectionUuid: requestedConnectionUuid,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -7730,6 +7731,19 @@ export class AsyncQueryService extends ProjectService {
             }
         }
 
+        if (
+            requestedConnectionUuid !== undefined &&
+            requestedConnectionUuid !== null &&
+            (await this.projectModel.getConnectionRoute(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid: requestedConnectionUuid,
+            })) !== 'multi'
+        ) {
+            throw new ParameterError(
+                'A SQL query can name a connection only in a project with multiple connections',
+            );
+        }
+
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
@@ -7756,6 +7770,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             pivotConfiguration,
             userAttributeOverrides,
+            requestedConnectionUuid,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -9911,6 +9926,7 @@ export class AsyncQueryService extends ProjectService {
         chartUuid,
         dashboardUuid,
         userAttributeOverrides,
+        requestedConnectionUuid = null,
     }: {
         account: Account;
         projectUuid: string;
@@ -9927,6 +9943,7 @@ export class AsyncQueryService extends ProjectService {
         chartUuid?: string;
         dashboardUuid?: string;
         userAttributeOverrides?: UserAttributeValueMap;
+        requestedConnectionUuid?: string | null;
     }) {
         const startTime = performance.now();
 
@@ -9941,7 +9958,10 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 binding: chartUuid
                     ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
-                    : { kind: 'connection', warehouseConnectionUuid: null },
+                    : {
+                          kind: 'connection',
+                          warehouseConnectionUuid: requestedConnectionUuid,
+                      },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),

@@ -221,6 +221,7 @@ describe('Multi runtime identity wiring on the real schema', () => {
         organizationUuid: fixture.organizationUuid,
         ability: new Ability<PossibleAbilities>([
             { subject: 'CustomSql', action: 'manage' },
+            { subject: 'SqlRunner', action: 'manage' },
             { subject: 'SavedChart', action: ['create', 'update', 'view'] },
             { subject: 'Project', action: ['create', 'update', 'view'] },
             { subject: 'Job', action: ['create', 'view'] },
@@ -485,6 +486,167 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 }),
             ).rejects.toThrow(new NotFoundError('Connection not found'));
             expect(loadOriginal).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('SQL runner runs on the active connection', () => {
+        type SqlRun = {
+            executeAsyncSqlQuery: (args: {
+                account: ReturnType<typeof fromSession>;
+                projectUuid: string;
+                sql: string;
+                context: QueryExecutionContext;
+                invalidateCache: boolean;
+                warehouseConnectionUuid?: string | null;
+            }) => Promise<unknown>;
+            combineParameters: () => Promise<undefined>;
+            executeAsyncQuery: (args: {
+                warehouseConnectionUuid: string | null;
+                originalColumns: Record<string, unknown>;
+            }) => Promise<unknown>;
+        };
+
+        const runSql = async (
+            fixture: Fixture,
+            sql: string,
+            warehouseConnectionUuid?: string | null,
+        ) => {
+            const service = runtimeService() as unknown as SqlRun;
+            vi.spyOn(service, 'combineParameters').mockResolvedValue(undefined);
+            const execute = vi
+                .spyOn(service, 'executeAsyncQuery')
+                .mockResolvedValue({
+                    queryUuid: 'query-uuid',
+                    cacheMetadata: { cacheHit: false },
+                });
+            await service.executeAsyncSqlQuery({
+                account: accountFor(fixture),
+                projectUuid: fixture.projectUuid,
+                sql,
+                context: QueryExecutionContext.SQL_RUNNER,
+                invalidateCache: true,
+                ...(warehouseConnectionUuid === undefined
+                    ? {}
+                    : { warehouseConnectionUuid }),
+            });
+            const [[args]] = execute.mock.calls;
+            return {
+                warehouseConnectionUuid: args.warehouseConnectionUuid,
+                columns: Object.keys(args.originalColumns),
+            };
+        };
+
+        test('a run with the extra connection active executes on the extra warehouse and records it', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+
+            await expect(
+                runSql(
+                    fixture,
+                    'select * from refunds',
+                    fixture.extraConnectionUuid,
+                ),
+            ).resolves.toEqual({
+                warehouseConnectionUuid: fixture.extraConnectionUuid,
+                columns: ['id', 'amount'],
+            });
+        });
+
+        test.each([
+            { name: 'no connection field', field: () => undefined },
+            { name: 'NULL', field: () => null },
+            {
+                name: "the original's own uuid",
+                field: (fixture: Fixture) => fixture.originalConnectionUuid,
+            },
+        ])(
+            'a run with $name executes on the original warehouse',
+            async ({ field }) => {
+                const fixture = await createProject({ mode: 'multi' });
+
+                await expect(
+                    runSql(fixture, 'select * from orders', field(fixture)),
+                ).resolves.toEqual({
+                    warehouseConnectionUuid: null,
+                    columns: ['id', 'amount'],
+                });
+            },
+        );
+
+        test.each([
+            {
+                name: "another project's connection",
+                field: (other: Fixture) => other.extraConnectionUuid,
+            },
+            { name: 'an unknown connection', field: () => randomUUID() },
+            { name: 'a value that is not a uuid', field: () => 'finance' },
+        ])(
+            'a run naming $name is refused and never loads the original (K11)',
+            async ({ field }) => {
+                const fixture = await createProject({ mode: 'multi' });
+                const other = await createProject({ mode: 'multi' });
+                const loadOriginal = vi.spyOn(
+                    projectModel,
+                    'getWarehouseCredentialsForProject',
+                );
+
+                await expect(
+                    runSql(fixture, 'select 1', field(other)),
+                ).rejects.toThrow(new NotFoundError('Connection not found'));
+                expect(loadOriginal).not.toHaveBeenCalled();
+            },
+        );
+
+        test('a single project refuses a run that names a connection', async () => {
+            const fixture = await createProject({
+                mode: 'single',
+                withExtra: false,
+            });
+            const other = await createProject({ mode: 'multi' });
+
+            await expect(
+                runSql(fixture, 'select 1', other.extraConnectionUuid),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'A SQL query can name a connection only in a project with multiple connections',
+                ),
+            );
+        });
+
+        test('a single project run with no connection field runs on the original as main does', async () => {
+            const fixture = await createProject({
+                mode: 'single',
+                withExtra: false,
+            });
+
+            await expect(
+                runSql(fixture, 'select * from orders'),
+            ).resolves.toEqual({
+                warehouseConnectionUuid: null,
+                columns: ['id', 'amount'],
+            });
+        });
+
+        test('a saved SQL chart reads the connection of its latest version', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const onExtra = await createSqlChart(
+                fixture,
+                'select 1',
+                fixture.extraConnectionUuid,
+            );
+            const onOriginal = await createSqlChart(fixture, 'select 1', null);
+
+            await expect(
+                savedSqlModel.getByUuid(onExtra.savedSqlUuid, {
+                    projectUuid: fixture.projectUuid,
+                }),
+            ).resolves.toMatchObject({
+                warehouseConnectionUuid: fixture.extraConnectionUuid,
+            });
+            await expect(
+                savedSqlModel.getByUuid(onOriginal.savedSqlUuid, {
+                    projectUuid: fixture.projectUuid,
+                }),
+            ).resolves.toMatchObject({ warehouseConnectionUuid: null });
         });
     });
 
@@ -777,6 +939,15 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 (await savedSqlModel.getByUuid(originalChart.savedSqlUuid, {}))
                     .warehouseConnectionUuid,
             ).toBeNull();
+        });
+
+        test('a multi update with an explicit null moves a chart back to the original', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await create(fixture, fixture.extraConnectionUuid);
+
+            await update(fixture, created.savedSqlUuid, null);
+
+            expect(await latestBinding(created.savedSqlUuid)).toBeNull();
         });
 
         test('a multi update with a connection field writes it on the new version', async () => {
