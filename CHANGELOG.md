@@ -1,3 +1,10 @@
+## [2.319.6](https://github.com/lightdash/lightdash/compare/2.319.5...2.319.6) (2026-09-24)
+
+
+### Bug Fixes
+
+* **scheduler:** prevent concurrent job retries during migrations ([#29842](https://github.com/lightdash/lightdash/issues/29842)) ([db0d826](https://github.com/lightdash/lightdash/commit/db0d826ad029072cccc4241dde7b65ba4b413180))
+
 ## [2.319.5](https://github.com/lightdash/lightdash/compare/2.319.4...2.319.5) (2026-09-24)
 
 
