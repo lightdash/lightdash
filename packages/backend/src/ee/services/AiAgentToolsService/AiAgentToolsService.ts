@@ -3196,7 +3196,8 @@ export class AiAgentToolsService extends BaseService {
                             parameters: {},
                             userAttributeOverrides:
                                 context.userAttributeOverrides ?? {},
-                            invalidateCache: false,
+                            invalidateCache:
+                                context.invalidateQueryCache ?? false,
                         }));
                 } catch (error) {
                     const message =
