@@ -26,6 +26,7 @@ import {
     screen,
     waitFor,
 } from '@testing-library/react';
+import { type ComponentProps } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
@@ -378,7 +379,10 @@ const resultsData: InfiniteQueryResults = {
     error: null,
 };
 
-const renderTile = (readyQuery = dashboardChartReadyQuery) =>
+const renderTile = (
+    readyQuery = dashboardChartReadyQuery,
+    tileProps: Partial<ComponentProps<typeof GenericDashboardChartTile>> = {},
+) =>
     renderWithProviders(
         <MemoryRouter
             initialEntries={[
@@ -399,6 +403,7 @@ const renderTile = (readyQuery = dashboardChartReadyQuery) =>
                                 resultsData={resultsData}
                                 onDelete={() => {}}
                                 onEdit={() => {}}
+                                {...tileProps}
                             />
                         </ChartColorMappingContextProvider>
                     }
@@ -502,5 +507,73 @@ describe('DashboardChartTile custom image export', () => {
         expect(
             screen.queryByRole('menuitem', { name: 'Export image' }),
         ).toBeNull();
+    });
+});
+
+describe('DashboardChartTile embedded "Explore from here"', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    const filteredMetricQuery: MetricQuery = {
+        ...primaryMetricQuery,
+        filters: {
+            dimensions: {
+                id: 'group',
+                and: [
+                    {
+                        id: statusFilter('orders').id,
+                        target: { fieldId: 'orders_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['completed'],
+                    },
+                ],
+            },
+        },
+    };
+
+    const plainChartQuery: DashboardChartReadyQuery = {
+        ...dashboardChartReadyQuery,
+        chart: { ...chart, merge: undefined },
+        executeQueryResponse: {
+            ...dashboardChartReadyQuery.executeQueryResponse,
+            // The server merges the applied dashboard filters into the
+            // metric query it executed for the tile.
+            metricQuery: filteredMetricQuery,
+            appliedDashboardFilters: {
+                dimensions: [statusFilter('orders')],
+                metrics: [],
+                tableCalculations: [],
+            },
+            appliedDashboardFiltersBySourceId: undefined,
+        },
+    };
+
+    const exploreFromMinimalTile = async (
+        readyQuery: DashboardChartReadyQuery,
+    ) => {
+        const onExplore = vi.fn();
+        renderTile(readyQuery, { minimal: true, onExplore });
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Tile actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Explore from here' }),
+        );
+        expect(onExplore).toHaveBeenCalledTimes(1);
+        return onExplore.mock.calls[0][0].chart as SavedChart;
+    };
+
+    it('opens the Explore with the dashboard filters the tile ran with', async () => {
+        const explored = await exploreFromMinimalTile(plainChartQuery);
+
+        expect(explored.uuid).toBe(chart.uuid);
+        expect(explored.metricQuery).toEqual(filteredMetricQuery);
+    });
+
+    it('opens a merged chart from its own primary query', async () => {
+        const explored = await exploreFromMinimalTile(dashboardChartReadyQuery);
+
+        expect(explored).toBe(chart);
     });
 });
