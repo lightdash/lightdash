@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
+import { traceSpan } from '../../../../tracing/tracing';
 import {
     AiDecisionClient,
     confidentChoice,
@@ -28,6 +29,29 @@ const result = {
             probabilities: { a: 0.99, none: 0.01 },
         },
     },
+};
+
+vi.mock('../../../../tracing/tracing', async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import('../../../../tracing/tracing')>();
+    return { ...actual, traceSpan: vi.fn(actual.traceSpan) };
+});
+
+const spanAttributes = () => {
+    const attributes: Record<string, unknown> = {};
+    const names: string[] = [];
+    vi.mocked(traceSpan).mockImplementationOnce((options, callback) => {
+        names.push(options.name);
+        return callback({
+            setAttribute: (key: string, value: unknown) => {
+                attributes[key] = value;
+            },
+            setAttributes: (values: Record<string, unknown>) => {
+                Object.assign(attributes, values);
+            },
+        } as unknown as Parameters<typeof callback>[0]);
+    });
+    return { attributes, names };
 };
 
 afterEach(() => {
@@ -95,6 +119,41 @@ describe('AiDecisionClient', () => {
         await client.evaluate(request);
         expect(usage.serviceMs).toBe(164);
     });
+
+    it('records the evaluation as a span named by the operation', async () => {
+        const span = spanAttributes();
+        const client = new AiDecisionClient(config, async () =>
+            Response.json(result, {
+                headers: { 'x-envoy-upstream-service-time': '82' },
+            }),
+        );
+        await client.evaluate({ ...request, operation: 'chart-presentation' });
+        expect(span.names).toEqual(['ai.decision.chart-presentation']);
+        expect(span.attributes).toEqual({
+            'lightdash.decision.outcome': 'answered',
+            'lightdash.decision.serviceMs': 82,
+            'lightdash.decision.durationMs': expect.any(Number),
+        });
+    });
+
+    it.each([
+        [
+            { ...config, apiKey: null },
+            async () => Response.json(result),
+            'unavailable',
+        ],
+        [config, async () => new Response('down', { status: 503 }), 'error'],
+    ] as const)(
+        'classifies the span outcome (%#)',
+        async (clientConfig, fetcher, outcome) => {
+            const span = spanAttributes();
+            await new AiDecisionClient(clientConfig, fetcher).evaluate(request);
+            expect(span.attributes['lightdash.decision.outcome']).toBe(outcome);
+            expect(span.attributes).not.toHaveProperty(
+                'lightdash.decision.serviceMs',
+            );
+        },
+    );
 
     it.each([
         { pick: { ...result.answers.pick, choice: 'invented' } },
