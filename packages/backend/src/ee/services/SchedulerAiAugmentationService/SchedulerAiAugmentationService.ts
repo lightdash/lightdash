@@ -1,5 +1,4 @@
 import {
-    applyDimensionOverrides,
     assertUnreachable,
     ForbiddenError,
     hasAiAgentAccessToSpace,
@@ -16,7 +15,6 @@ import {
     SessionUser,
     type Account,
     type DashboardDAO,
-    type ParametersValuesMap,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -24,7 +22,6 @@ import { UserModel } from '../../../models/UserModel';
 import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
-import { getDashboardParametersValuesMap } from '../../../services/ProjectService/parameters';
 import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import { SchedulerAiAugmentationModel } from '../../models/SchedulerAiAugmentationModel';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
@@ -38,6 +35,13 @@ import {
 } from '../ai/utils/csvSections';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import type { AiService } from '../AiService/AiService';
+import {
+    getChartRuntimeOverrides,
+    getDashboardRuntimeOverrides,
+    getDeliveryDashboardFilters,
+    getDeliveryDashboardParameters,
+    getDeliverySelectedTabs,
+} from './deliveryContext';
 
 type Dependencies = {
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
@@ -152,8 +156,8 @@ export class SchedulerAiAugmentationService {
      * null when there is none. Executes as the delivery's creator so their
      * permissions apply. An unsaved "send now" carries its augmentation inline
      * on the scheduler; a persisted delivery is looked up by uuid. The fast
-     * model summarises the delivery's data (re-queried with the scheduler's
-     * filter/parameter overrides); the agent re-queries via its own tools.
+     * model and the agent both summarise the delivery's data (re-queried with
+     * the scheduler's filter/parameter overrides when not already stored).
      */
     async runForDelivery({
         scheduler,
@@ -172,42 +176,13 @@ export class SchedulerAiAugmentationService {
         if (!augmentation) return null;
 
         switch (augmentation.type) {
-            case 'agent': {
-                const { organizationUuid, projectUuid, spaceUuid } =
-                    await this.schedulerService.getSchedulerProjectContext(
-                        scheduler,
-                    );
-                const creator =
-                    await this.userModel.findSessionUserAndOrgByUuid(
-                        createdBy,
-                        organizationUuid,
-                    );
-                // Re-checked per fire (not just at write time) because the
-                // agent's space access can change after the schedule is saved,
-                // and an unsaved "send now" never goes through upsert. Failing
-                // here degrades to a partial failure on the delivery instead
-                // of a confusing "content not found" agent summary.
-                const agent = await this.aiAgentService.getAgent(
-                    creator,
-                    augmentation.agentUuid,
-                    projectUuid,
+            case 'agent':
+                return this.runAgentForDelivery(
+                    scheduler,
+                    createdBy,
+                    augmentation,
+                    deliveryQueries,
                 );
-                if (
-                    spaceUuid !== null &&
-                    !hasAiAgentAccessToSpace(agent, spaceUuid)
-                ) {
-                    throw new ForbiddenError(
-                        `AI agent "${agent.name}" does not have access to the space containing this delivery's content`,
-                    );
-                }
-                return this.aiAgentService.generateScheduledReport(creator, {
-                    agentUuid: augmentation.agentUuid,
-                    prompt: augmentation.prompt,
-                    savedChartUuid: scheduler.savedChartUuid,
-                    dashboardUuid: scheduler.dashboardUuid,
-                    sourceThreadUuid: augmentation.sourceThreadUuid,
-                });
-            }
             case 'fast_model':
                 return this.runFastModelForDelivery(
                     scheduler,
@@ -221,6 +196,71 @@ export class SchedulerAiAugmentationService {
                     'Unknown scheduler AI augmentation type',
                 );
         }
+    }
+
+    // The agent gets the same delivery data as the fast model, plus the
+    // delivery's filters/parameters pinned on the content, so its figures match
+    // what recipients see even though it can also query on its own.
+    private async runAgentForDelivery(
+        scheduler: SchedulerAndTargets | SendNowScheduler,
+        createdBy: string,
+        augmentation: Extract<SchedulerAiAugmentation, { type: 'agent' }>,
+        deliveryQueries: SchedulerDeliveryQuery[] | undefined,
+    ): Promise<string> {
+        const dashboard = scheduler.dashboardUuid
+            ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
+            : null;
+        const { organizationUuid, projectUuid, spaceUuid } =
+            await this.schedulerService.getSchedulerProjectContext(scheduler);
+        const creator = await this.userModel.findSessionUserAndOrgByUuid(
+            createdBy,
+            organizationUuid,
+        );
+        // Re-checked per fire (not just at write time) because the agent's
+        // space access can change after the schedule is saved, and an unsaved
+        // "send now" never goes through upsert. Failing here degrades to a
+        // partial failure on the delivery instead of a confusing "content not
+        // found" agent summary.
+        const agent = await this.aiAgentService.getAgent(
+            creator,
+            augmentation.agentUuid,
+            projectUuid,
+        );
+        if (spaceUuid !== null && !hasAiAgentAccessToSpace(agent, spaceUuid)) {
+            throw new ForbiddenError(
+                `AI agent "${agent.name}" does not have access to the space containing this delivery's content`,
+            );
+        }
+
+        const deliveryContent = await this.getDeliveryContent({
+            account: fromSession(creator),
+            projectUuid,
+            dashboard,
+            scheduler,
+            deliveryQueries,
+        });
+
+        return this.aiAgentService.generateScheduledReport(creator, {
+            agentUuid: augmentation.agentUuid,
+            prompt: augmentation.prompt,
+            deliveryContent,
+            chart: scheduler.savedChartUuid
+                ? {
+                      chartUuid: scheduler.savedChartUuid,
+                      runtimeOverrides: getChartRuntimeOverrides(scheduler),
+                  }
+                : null,
+            dashboard: dashboard
+                ? {
+                      dashboardUuid: dashboard.uuid,
+                      runtimeOverrides: getDashboardRuntimeOverrides(
+                          dashboard,
+                          scheduler,
+                      ),
+                  }
+                : null,
+            sourceThreadUuid: augmentation.sourceThreadUuid,
+        });
     }
 
     // The dashboard is loaded once and serves both the project/org context and
@@ -369,25 +409,12 @@ export class SchedulerAiAugmentationService {
         dashboard: DashboardDAO,
         scheduler: SchedulerAndTargets | SendNowScheduler,
     ): Promise<string> {
-        const dashboardFilters = dashboard.filters;
-        const schedulerFilters = isDashboardScheduler(scheduler)
-            ? scheduler.filters
-            : undefined;
-        if (schedulerFilters) {
-            dashboardFilters.dimensions = applyDimensionOverrides(
-                dashboard.filters,
-                schedulerFilters,
-            );
-        }
-
-        const parameters: ParametersValuesMap = {
-            ...getDashboardParametersValuesMap(dashboard),
-            ...(isDashboardScheduler(scheduler) ? scheduler.parameters : {}),
-        };
-
-        const selectedTabs = isDashboardScheduler(scheduler)
-            ? (scheduler.selectedTabs ?? null)
-            : null;
+        const dashboardFilters = getDeliveryDashboardFilters(
+            dashboard,
+            scheduler,
+        );
+        const parameters = getDeliveryDashboardParameters(dashboard, scheduler);
+        const selectedTabs = getDeliverySelectedTabs(scheduler);
         const chartTiles = dashboard.tiles
             .filter(isDashboardChartTileType)
             .filter((tile) => tile.properties.savedChartUuid)
