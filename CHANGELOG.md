@@ -1,3 +1,10 @@
+## [2.337.2](https://github.com/lightdash/lightdash/compare/2.337.1...2.337.2) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agent:** drop ' · result' suffix from composer node title ([#29918](https://github.com/lightdash/lightdash/issues/29918)) ([732fe4d](https://github.com/lightdash/lightdash/commit/732fe4dc1da226c1fea7e3b15cd5e34fc79f31cb))
+
 ## [2.337.1](https://github.com/lightdash/lightdash/compare/2.337.0...2.337.1) (2026-09-25)
 
 
