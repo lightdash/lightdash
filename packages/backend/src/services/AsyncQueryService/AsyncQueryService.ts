@@ -234,6 +234,7 @@ import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import {
     SQL_QUERY_MOCK_EXPLORER_NAME,
     SqlQueryComposer,
+    type SqlQueryColumn,
 } from '../../utils/QueryBuilder/SqlQueryComposer';
 import { TotalQueryBuilder } from '../../utils/QueryBuilder/TotalQueryBuilder';
 import {
@@ -272,6 +273,11 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { type ComposeEngineClient } from './ComposeEngineClient';
+import {
+    assertPivotColumnsExist,
+    assertPivotWithinColumnLimit,
+    getPivotColumnReferences,
+} from './composePivot';
 import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
@@ -8009,6 +8015,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         references,
         parameters,
+        pivotConfiguration,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -8058,6 +8065,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
             references,
             parameters,
+            pivotConfiguration,
             plan: {
                 columns: { mode: 'discover' },
                 engine: 'scopedToReferencedResults',
@@ -8144,6 +8152,7 @@ export class AsyncQueryService extends ProjectService {
         // fields and columns once referenced results exist.
         const resolved = await this.resolveDuckdbQueryPlan({
             plan,
+            account,
             projectUuid,
             context,
             sql,
@@ -8152,6 +8161,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
             warehouseClient,
+            queryTags,
         });
         // The statement that runs is the composed one, so it is checked too:
         // a plan's composer must not be able to reach a file the raw SQL could not
@@ -8167,6 +8177,9 @@ export class AsyncQueryService extends ProjectService {
                 sql: resolved.sql,
                 references: normalizedReferences ?? null,
                 parameters: resolved.parameters,
+                ...AsyncQueryService.getDiscoveredPivotCacheSalt(
+                    resolved.columns,
+                ),
             }),
             userUuid: null,
         });
@@ -8413,6 +8426,8 @@ export class AsyncQueryService extends ProjectService {
                           mode: 'discover',
                           limit: spec.columns.limit ?? undefined,
                           parameters: spec.columns.parameters,
+                          pivotConfiguration:
+                              query.pivotConfiguration ?? undefined,
                       }
                     : {
                           mode: 'supplied',
@@ -8442,6 +8457,7 @@ export class AsyncQueryService extends ProjectService {
      */
     private async resolveDuckdbQueryPlan({
         plan,
+        account,
         projectUuid,
         context,
         sql,
@@ -8450,8 +8466,10 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotConfiguration,
         warehouseClient,
+        queryTags,
     }: {
         plan: DuckdbQueryPlan;
+        account: Account;
         projectUuid: string;
         context: QueryExecutionContext;
         sql: string;
@@ -8460,6 +8478,7 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap | undefined;
         pivotConfiguration: PivotConfiguration | undefined;
         warehouseClient: WarehouseClient;
+        queryTags: RunQueryTags;
     }): Promise<{
         /** The statement that runs: composed for a supplied plan, raw otherwise. */
         sql: string;
@@ -8517,6 +8536,19 @@ export class AsyncQueryService extends ProjectService {
             dashboardSorts: undefined,
         });
         AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
+        if (pivotConfiguration) {
+            await this.preflightDiscoveredPivot({
+                account,
+                projectUuid,
+                sql,
+                limit,
+                references: references ?? {},
+                parameters: combinedParameters,
+                pivotConfiguration,
+                warehouseClient,
+                queryTags,
+            });
+        }
 
         const requestParameters: ExecuteAsyncComposeSqlQueryRequestParams = {
             sql,
@@ -8531,15 +8563,111 @@ export class AsyncQueryService extends ProjectService {
                 mode: 'discover',
                 limit,
                 parameters: combinedParameters,
+                pivotConfiguration,
             },
             parameters: combinedParameters,
             fields: {},
             usedParameters: placeholderComposer.getUsedParameters(),
             metricQuery: placeholderComposer.getMetricQuery(),
-            pivotConfiguration: null,
+            pivotConfiguration: pivotConfiguration ?? null,
             originalColumns: {},
             requestParameters,
         };
+    }
+
+    /**
+     * A pivot over discovered columns is composed before any row exists, as a
+     * merge's join is. When every referenced result is ready the SQL is
+     * probed so an unknown column refuses here; otherwise the run checks it
+     * once the columns exist.
+     */
+    private async preflightDiscoveredPivot({
+        account,
+        projectUuid,
+        sql,
+        limit,
+        references,
+        parameters,
+        pivotConfiguration,
+        warehouseClient,
+        queryTags,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sql: string;
+        limit: number | undefined;
+        references: Record<string, string>;
+        parameters: ParametersValuesMap;
+        pivotConfiguration: PivotConfiguration;
+        warehouseClient: WarehouseClient;
+        queryTags: RunQueryTags;
+    }): Promise<void> {
+        const columnLimit = this.lightdashConfig.pivotTable.maxColumnLimit;
+        assertPivotWithinColumnLimit(pivotConfiguration, columnLimit);
+
+        const referenced = await Promise.all(
+            Object.entries(references).map(
+                async ([tableName, queryUuid]) =>
+                    [
+                        tableName,
+                        await this.queryHistoryModel.get(
+                            queryUuid,
+                            projectUuid,
+                            account,
+                        ),
+                    ] as const,
+            ),
+        );
+        const allReady = referenced.every(
+            ([, queryHistory]) =>
+                queryHistory.status === QueryHistoryStatus.READY,
+        );
+        let columns: SqlQueryColumn[];
+        if (allReady) {
+            const bound = this.buildQueryReferenceCtes(
+                Object.fromEntries(referenced),
+            );
+            columns = await this.probeDuckdbQueryColumns({
+                sql,
+                referenceCtes: bound.referenceCtes,
+                parameters,
+                warehouseClient:
+                    this.composeEngineClient.createExecutionWarehouseClient({
+                        storage: 'results',
+                        scope: bound.resultFileUris,
+                    }),
+                queryTags,
+            });
+            assertPivotColumnsExist(
+                pivotConfiguration,
+                columns.map((column) => column.name),
+            );
+        } else {
+            columns = getPivotColumnReferences(pivotConfiguration).map(
+                (name) => ({ name, type: DimensionType.STRING }),
+            );
+        }
+
+        new SqlQueryComposer({
+            userSql: sql,
+            columns,
+            warehouseClient,
+            pivotConfiguration,
+            limit,
+            parameters,
+            dashboardFilters: undefined,
+            tileUuid: undefined,
+            dashboardSorts: undefined,
+        }).getSql({ columnLimit });
+    }
+
+    /** A discovered pivot is not in the raw SQL, so it keys the results itself. */
+    private static getDiscoveredPivotCacheSalt(columns: DuckdbQueryColumns): {
+        pivotConfiguration?: PivotConfiguration;
+    } {
+        return columns.mode === 'discover' && columns.pivotConfiguration
+            ? { pivotConfiguration: columns.pivotConfiguration }
+            : {};
     }
 
     /** Executes DuckDB SQL over versioned external tables without persisting file URIs. */
@@ -8769,6 +8897,7 @@ export class AsyncQueryService extends ProjectService {
                 mode: 'discover',
                 limit,
                 parameters: combinedParameters,
+                pivotConfiguration: undefined,
             },
             // Only persist the user SQL; resolved SQL contains private URIs.
             storedCompiledSql: sql,
@@ -8876,6 +9005,9 @@ export class AsyncQueryService extends ProjectService {
                                   columns.mode === 'discover'
                                       ? columns.parameters
                                       : (columns.usedParameters ?? {}),
+                              ...AsyncQueryService.getDiscoveredPivotCacheSalt(
+                                  columns,
+                              ),
                           }),
                           userUuid: null,
                       })
@@ -9199,6 +9331,7 @@ export class AsyncQueryService extends ProjectService {
                     referenceCtes,
                     limit: columns.limit,
                     parameters: columns.parameters,
+                    pivotConfiguration: columns.pivotConfiguration,
                     warehouseClient,
                     queryTags,
                 });
@@ -9210,23 +9343,20 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    private async discoverDuckdbQueryColumns({
+    /** Column discovery (LIMIT 1) also validates the SQL, so parameters resolve first and a missing value refuses here. */
+    private async probeDuckdbQueryColumns({
         sql,
         referenceCtes,
-        limit,
         parameters,
         warehouseClient,
         queryTags,
     }: {
         sql: string;
         referenceCtes: string[];
-        limit: number | undefined;
         parameters: ParametersValuesMap;
         warehouseClient: WarehouseClient;
         queryTags: RunQueryTags;
-    }): Promise<DuckdbQueryExecution> {
-        // Column discovery (LIMIT 1) also validates the SQL, so
-        // parameters resolve first and a missing value refuses here
+    }): Promise<SqlQueryColumn[]> {
         const { replacedSql: sqlWithParameters, missingReferences } =
             safeReplaceParametersWithSqlBuilder(
                 sql,
@@ -9240,7 +9370,7 @@ export class AsyncQueryService extends ProjectService {
                 { missingReferences: missing },
             );
         }
-        const columns: { name: string; type: DimensionType }[] = [];
+        const columns: SqlQueryColumn[] = [];
         // The limit is applied to the user's statement alone: the reference
         // CTEs name result files, and the limit strips what reads as a
         // comment even inside a string literal
@@ -9268,6 +9398,39 @@ export class AsyncQueryService extends ProjectService {
             if (e instanceof LightdashError) throw e;
             throw new WarehouseQueryError(getErrorMessage(e));
         }
+        return columns;
+    }
+
+    private async discoverDuckdbQueryColumns({
+        sql,
+        referenceCtes,
+        limit,
+        parameters,
+        pivotConfiguration,
+        warehouseClient,
+        queryTags,
+    }: {
+        sql: string;
+        referenceCtes: string[];
+        limit: number | undefined;
+        parameters: ParametersValuesMap;
+        pivotConfiguration: PivotConfiguration | undefined;
+        warehouseClient: WarehouseClient;
+        queryTags: RunQueryTags;
+    }): Promise<DuckdbQueryExecution> {
+        const columns = await this.probeDuckdbQueryColumns({
+            sql,
+            referenceCtes,
+            parameters,
+            warehouseClient,
+            queryTags,
+        });
+        if (pivotConfiguration) {
+            assertPivotColumnsExist(
+                pivotConfiguration,
+                columns.map((column) => column.name),
+            );
+        }
 
         // The composer sanitizes the statement it is given the way the SQL
         // runner does, so it sees the user's statement alone; the reference
@@ -9276,7 +9439,7 @@ export class AsyncQueryService extends ProjectService {
             userSql: sql,
             columns,
             warehouseClient,
-            pivotConfiguration: undefined,
+            pivotConfiguration,
             limit,
             parameters,
             dashboardFilters: undefined,
@@ -9306,7 +9469,7 @@ export class AsyncQueryService extends ProjectService {
             fieldsMap: composer.getFields(),
             usedParameters: composer.getUsedParameters(),
             originalColumns,
-            pivotConfiguration: undefined,
+            pivotConfiguration,
         };
     }
 
