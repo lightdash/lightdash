@@ -742,7 +742,14 @@ describe('sql artifact viz switcher', () => {
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
 
-    it('opens a date + number answer as a line chart with the same kinds as a composer result', () => {
+    const chooseSqlViz = (kind: string) =>
+        fireEvent.click(
+            screen
+                .getAllByRole('radio')
+                .find((radio) => radio.getAttribute('value') === kind)!,
+        );
+
+    it('opens a date + number answer as a table and can switch to a line chart', () => {
         renderSql(
             resultsOf(
                 {
@@ -755,8 +762,13 @@ describe('sql artifact viz switcher', () => {
                 ],
             ),
         );
-        expect(checkedViz()).toBe('line');
+        expect(checkedViz()).toBe('table');
         expect(vizRadios()).toEqual(['table', 'bar', 'horizontal', 'line']);
+        expect(
+            screen.getByRole('columnheader', { name: 'day' }),
+        ).toBeInTheDocument();
+        chooseSqlViz('line');
+        expect(checkedViz()).toBe('line');
         expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
         expect(screen.getByText('Orders per day')).toBeInTheDocument();
         expect(
@@ -764,7 +776,7 @@ describe('sql artifact viz switcher', () => {
         ).toBeInTheDocument();
     });
 
-    it('opens a string + number answer as a bar chart', () => {
+    it('opens a string + number answer as a table and can switch to a bar chart', () => {
         renderSql(
             resultsOf(
                 {
@@ -777,6 +789,8 @@ describe('sql artifact viz switcher', () => {
                 ],
             ),
         );
+        expect(checkedViz()).toBe('table');
+        chooseSqlViz('bar');
         expect(checkedViz()).toBe('bar');
         expect(
             screen.getByTestId('chart-view-vertical_bar'),
