@@ -39,7 +39,11 @@ STAGE="$8"
 [ "$(cat "$STAGE/gateway.mjs")" = gateway ]
 [ -f "$STAGE/template/.npmrc" ]
 [ -d "$STAGE/template/.claude" ]
-rg -q '^RUN useradd .* && chown -R user:user /app$' "$STAGE/Dockerfile"
+rg -q '^RUN useradd -m -s /bin/bash user$' "$STAGE/Dockerfile"
+if rg -q 'chown.*user:user.* /app' "$STAGE/Dockerfile"; then
+    echo 'Cloud Run workspace must retain root ownership' >&2
+    exit 1
+fi
 rg -q '^CMD \["node", "/gateway/gateway.mjs"\]$' "$STAGE/Dockerfile"
 touch "$TEST_DIR/docker-called"
 MOCK
