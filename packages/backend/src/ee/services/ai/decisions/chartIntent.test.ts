@@ -1150,6 +1150,93 @@ describe('date ranges and thresholds', () => {
         });
     });
 
+    describe('per-record values and chart totals of the same quantity', () => {
+        const withAmount = structuredClone(explore);
+        Object.assign(withAmount.tables.orders.dimensions, {
+            amount: dimension('amount', DimensionType.NUMBER, 'Amount'),
+        });
+        const split = {
+            type: 'choice' as const,
+            choice: 'orders_count',
+            confidence: 0.6,
+            probabilities: { orders_count: 0.6, orders_amount: 0.38 },
+        };
+        const threshold = (answers: Partial<DecisionAnswers>) =>
+            interpretChartIntent({
+                answers: {
+                    multiple: noul(0.05),
+                    nonEdit: noul(0.05),
+                    intent: choice('filter'),
+                    filterKind: choice('number_threshold'),
+                    comparison: choice('gt'),
+                    amountLow: choice('500'),
+                    ...answers,
+                } as DecisionAnswers,
+                prompt: 'over 500',
+                context: buildChartIntentContext({
+                    filterRules: [],
+                    prompt: 'over 500',
+                    artifact,
+                    explore: withAmount,
+                    usage: noUsage,
+                }),
+            });
+
+        it('filters the per-record field when the amount applies to each record', () => {
+            expect(
+                threshold({
+                    thresholdField: split,
+                    thresholdPerRecord: noul(0.85),
+                }),
+            ).toEqual({
+                type: 'intent',
+                intent: {
+                    kind: 'filter_number',
+                    fieldId: 'orders_amount',
+                    comparison: 'gt',
+                    values: [500],
+                },
+            });
+        });
+
+        it('filters the chart metric when the amount applies to each group', () => {
+            expect(
+                threshold({
+                    thresholdField: split,
+                    thresholdPerRecord: noul(0.2),
+                }),
+            ).toMatchObject({
+                type: 'intent',
+                intent: { kind: 'filter_number', fieldId: 'orders_count' },
+            });
+        });
+
+        it('leaves the filter to the agent when either reading fits', () => {
+            expect(
+                threshold({
+                    thresholdField: split,
+                    thresholdPerRecord: noul(0.55),
+                }),
+            ).toEqual({ type: 'unresolved', reason: 'filter-threshold' });
+            expect(threshold({ thresholdField: split })).toEqual({
+                type: 'unresolved',
+                reason: 'filter-threshold',
+            });
+        });
+
+        it('keeps a clear pick when no field of the other kind competes', () => {
+            expect(
+                threshold({
+                    thresholdField: choice('orders_amount'),
+                    thresholdPerRecord: noul(0.5),
+                }),
+            ).toMatchObject({
+                type: 'intent',
+                intent: { kind: 'filter_number', fieldId: 'orders_amount' },
+            });
+        });
+    });
+
     it('needs an upper bound above the lower one for between', () => {
         expect(
             ask('count between 50 and 10', {
