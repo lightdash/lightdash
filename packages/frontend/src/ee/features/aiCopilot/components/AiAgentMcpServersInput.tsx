@@ -631,6 +631,8 @@ const AttachMcpServersModal = ({
                     size="xs"
                     component="button"
                     type="button"
+                    ta="left"
+                    w="fit-content"
                     onClick={onManage}
                 >
                     Manage MCP servers
