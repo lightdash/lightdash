@@ -1,3 +1,11 @@
+# [2.337.0](https://github.com/lightdash/lightdash/compare/2.336.2...2.337.0) (2026-09-25)
+
+
+### Features
+
+* **ai-agents:** slash menu for skills and agent skill bindings in the UI ([#29813](https://github.com/lightdash/lightdash/issues/29813)) ([df0caa2](https://github.com/lightdash/lightdash/commit/df0caa2623da34e1e5779b74637f40075a520928))
+* **cli:** manage custom agent skills as code ([#29812](https://github.com/lightdash/lightdash/issues/29812)) ([de48787](https://github.com/lightdash/lightdash/commit/de487870fefa392c365a5a7fd87821665a4d1adb))
+
 ## [2.336.2](https://github.com/lightdash/lightdash/compare/2.336.1...2.336.2) (2026-09-24)
 
 

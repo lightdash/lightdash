@@ -8642,6 +8642,12 @@
                         },
                         "type": "array"
                     },
+                    "skills": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "modelConfig": {
                         "allOf": [
                             {
@@ -10798,6 +10804,21 @@
             },
             "AgentAsCodeUpsertChanges": {
                 "properties": {
+                    "failed": {
+                        "items": {
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["message", "slug"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "warnings": {
                         "items": {
                             "type": "string"
@@ -24638,6 +24659,146 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AiAgentSkillFiles": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
+            },
+            "SkillAsCode": {
+                "properties": {
+                    "files": {
+                        "$ref": "#/components/schemas/AiAgentSkillFiles"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["files", "name"],
+                "type": "object",
+                "description": "A skill folder as code: `SKILL.md` and `resources/*.md`, keyed by path."
+            },
+            "ApiSkillsAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "missingNames": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "skills": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SkillAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["missingNames", "skills"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SkillAsCodeUpsertChanges": {
+                "properties": {
+                    "warnings": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "failed": {
+                        "items": {
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["message", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "deleted": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "unchanged": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "updated": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "created": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "warnings",
+                    "failed",
+                    "deleted",
+                    "unchanged",
+                    "updated",
+                    "created"
+                ],
+                "type": "object"
+            },
+            "ApiSkillsAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SkillAsCodeUpsertChanges"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSkillsAsCodeUpsertRequest": {
+                "properties": {
+                    "deleteNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Names to unbind everywhere and soft-delete. Absence never deletes."
+                    },
+                    "skills": {
+                        "items": {
+                            "$ref": "#/components/schemas/SkillAsCode"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["skills"],
+                "type": "object"
+            },
             "AiAgentSkillMetadata": {
                 "properties": {},
                 "additionalProperties": {
@@ -24862,13 +25023,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "AiAgentSkillFiles": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
                 "type": "object"
             },
             "ApiValidateAiAgentSkill": {
@@ -66361,7 +66515,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.336.2",
+        "version": "2.337.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -72756,6 +72910,88 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiCreateAiAgentSkill"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/skills/code": {
+            "get": {
+                "operationId": "getAiAgentSkillsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSkillsAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Download skills as code: each skill's `SKILL.md` and resources, keyed\nby path. Names filter the set; missing names are reported.",
+                "summary": "Download AI agent skills as code",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "names",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "upsertAiAgentSkillsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSkillsAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upload skills as code. Creates new skills, publishes a version for\nchanged ones, reports unchanged ones, and soft-deletes only the names\nlisted in `deleteNames`.",
+                "summary": "Upload AI agent skills as code",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSkillsAsCodeUpsertRequest"
                             }
                         }
                     }
