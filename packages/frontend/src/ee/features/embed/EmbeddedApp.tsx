@@ -79,23 +79,32 @@ const EmbeddedApp: FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Set when exploring from an Explore, e.g. a drill-down, so Back still
+    // returns to the content the viewer started from.
+    const getCurrentBackUrl = () => {
+        const state = location.state as EmbedExploreLocationState | null;
+        return (
+            state?.embedBackUrl ??
+            new URLSearchParams(location.search).get(EMBED_BACK_URL_PARAM)
+        );
+    };
+
     const handleExplore = (options: EmbedExploreOptions) => {
         setSavedChart(options.chart);
         setCustomSqlProvenanceChartUuid(
             options.customSqlProvenanceChartUuid ??
                 ('uuid' in options.chart ? options.chart.uuid : undefined),
         );
+        const backUrl =
+            getCurrentBackUrl() ?? `${location.pathname}${location.search}`;
         void navigate(
             {
                 pathname: `/embed/${projectUuid}/explore/${options.chart.tableName}`,
-                search: getEmbedExploreSearch(
-                    '',
-                    `${location.pathname}${location.search}`,
-                ),
+                search: getEmbedExploreSearch('', backUrl),
             },
             {
                 state: {
-                    embedBackUrl: `${location.pathname}${location.search}`,
+                    embedBackUrl: backUrl,
                 } satisfies EmbedExploreLocationState,
             },
         );
@@ -107,16 +116,11 @@ const EmbeddedApp: FC = () => {
         if (!projectUuid) {
             return;
         }
-        const state = location.state as EmbedExploreLocationState | null;
         await navigate(
             getEmbedBackUrl({
                 projectUuid,
                 content,
-                backUrl:
-                    state?.embedBackUrl ??
-                    new URLSearchParams(location.search).get(
-                        EMBED_BACK_URL_PARAM,
-                    ),
+                backUrl: getCurrentBackUrl(),
             }),
         );
     };
