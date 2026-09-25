@@ -1,3 +1,10 @@
+# [2.346.0](https://github.com/lightdash/lightdash/compare/2.345.0...2.346.0) (2026-09-25)
+
+
+### Features
+
+* **ai-agents:** group agent settings by behaviour, knowledge, capabilities, access and connections ([#30024](https://github.com/lightdash/lightdash/issues/30024)) ([9267b7f](https://github.com/lightdash/lightdash/commit/9267b7fc661afd77fc6046f8d176ede769533b44))
+
 # [2.345.0](https://github.com/lightdash/lightdash/compare/2.344.7...2.345.0) (2026-09-25)
 
 
