@@ -89,7 +89,7 @@ describe('CustomVisConfig', () => {
         act(() => sectionProps[sectionProps.length - 1].onCreateNew?.());
 
         expect(navigate).toHaveBeenCalledWith({
-            pathname: '/projects/project-1/chart-types/new',
+            pathname: '/projects/project-1/chart-studio/new',
             search: locationSearch.current,
         });
     });

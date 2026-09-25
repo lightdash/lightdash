@@ -206,7 +206,7 @@ const renderPage = (initialEntry = '/projects/project-1/chart-studio') =>
                     element={<div>home</div>}
                 />
                 <Route
-                    path="/projects/:projectUuid/chart-types/:slug"
+                    path="/projects/:projectUuid/chart-studio/:slug"
                     element={<LocationPathname />}
                 />
                 <Route
@@ -438,7 +438,7 @@ describe('ChartTypeGallery', () => {
             screen.getByRole('link', { name: 'Edit' }).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types/radial-gauge',
+            '/projects/jaffle-shop/chart-studio/radial-gauge',
         );
         expect(screen.getByText('v3')).toBeInTheDocument();
         // Typed field breakdown, matching the library modal.
@@ -569,7 +569,7 @@ describe('ChartTypeGallery', () => {
             screen.getByLabelText('Edit Radial gauge').closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types/radial-gauge',
+            '/projects/jaffle-shop/chart-studio/radial-gauge',
         );
 
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
@@ -1070,7 +1070,7 @@ describe('ChartTypeGallery', () => {
                     expect(
                         screen.getByTestId('location-pathname'),
                     ).toHaveTextContent(
-                        '/projects/jaffle-shop/chart-types/radial-gauge-custom-2',
+                        '/projects/jaffle-shop/chart-studio/radial-gauge-custom-2',
                     ),
                 );
             },

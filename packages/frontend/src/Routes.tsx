@@ -644,6 +644,14 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         element: <LegacyChartTypesRedirect />,
     },
     {
+        path: 'chart-types/new',
+        element: <LegacyChartTypesRedirect newChartType />,
+    },
+    {
+        path: 'chart-types/:dataAppVizUuid',
+        element: <LegacyChartTypesRedirect />,
+    },
+    {
         path: 'chart-studio',
         lazy: async () => {
             const ChartTypeGallery = await loadLazyRouteDefault(
@@ -654,7 +662,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
-        path: 'chart-types/new',
+        path: 'chart-studio/new',
         handle: { hideAILauncher: true },
         lazy: async () => {
             const ChartTypeBuilder = await loadLazyRouteDefault(
@@ -665,7 +673,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
-        path: 'chart-types/:dataAppVizUuid',
+        path: 'chart-studio/:dataAppVizUuid',
         handle: { hideAILauncher: true },
         lazy: async () => {
             const ChartTypeBuilder = await loadLazyRouteDefault(
