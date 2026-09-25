@@ -240,3 +240,29 @@ describe('SchedulerClient create project job lookup', () => {
         );
     });
 });
+
+describe('SchedulerClient learn sandbox command queue', () => {
+    it('routes each sandbox command into a bounded per-project queue', async () => {
+        const client = makeClient(false, vi.fn());
+        graphileAddJob.mockClear();
+        const payload = {
+            commandUuid: 'cmd-1',
+            projectUuid: 'copy-1',
+            organizationUuid: ORG_UUID,
+            userUuid: 'user-1',
+        };
+        await client.learnSandboxCommand(payload);
+        await client.learnSandboxCommand({ ...payload, commandUuid: 'cmd-2' });
+        expect(graphileAddJob).toHaveBeenCalledTimes(2);
+        const queues = graphileAddJob.mock.calls.map(
+            (call) => (call[2] as { queueName?: string }).queueName,
+        );
+        expect(queues[0]).toMatch(/^learn-sandbox-[0-3]$/);
+        // Same project, same queue: a project's commands never run in parallel.
+        expect(queues[1]).toBe(queues[0]);
+        expect(
+            (graphileAddJob.mock.calls[0][2] as { maxAttempts?: number })
+                .maxAttempts,
+        ).toBe(1);
+    });
+});

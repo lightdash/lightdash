@@ -30,6 +30,7 @@ import Logger from '../logging/logger';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
+import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
 import type { SchedulerProjectContext } from '../services/SchedulerService/SchedulerService';
 import { MigrationLeaseProbe } from './MigrationLeaseProbe';
 import { SchedulerClient } from './SchedulerClient';
@@ -1595,6 +1596,43 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.learnSandboxCommand(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    LEARN_SANDBOX_COMMAND_TIMEOUT_MS + 30_000,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.LEARN_SANDBOX_COMMAND,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                commandUuid: payload.commandUuid,
+                            },
+                        });
+                    },
+                );
+            },
             [SCHEDULER_TASKS.REPLACE_CUSTOM_FIELDS]: async (
                 payload,
                 helpers,
@@ -1839,6 +1877,22 @@ export class SchedulerWorker extends SchedulerTask {
                         error,
                     );
                     throw error;
+                }
+
+                // The learn sandbox sweep is a separate housekeeping
+                // concern (revoking stale PATs, clearing stale
+                // workspaces): a failure here shouldn't be reported as a
+                // failure of the (already-successful) preview projects
+                // cleanup job above, nor prevent it from being marked done.
+                try {
+                    const swept = await this.learnSandboxService.sweep();
+                    Logger.info(
+                        `Learn sandbox sweep: ${swept.tokensDeleted} tokens, ${swept.workspacesRemoved} workspaces`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        `Learn sandbox sweep failed: ${getErrorMessage(error)}`,
+                    );
                 }
             },
             [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: async () => {
