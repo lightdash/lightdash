@@ -329,14 +329,16 @@ export const buildComposerVizConfig = ({
     }
 };
 
-/** Chart data straight from the fetched rows: x as the index (none for a big number), y as the value. No aggregation, no server call. */
+/** Chart data straight from the fetched rows: x as the index (none for a big number), each y as a value. No aggregation, no server call. */
 export const buildComposerChartData = ({
     rows,
     x,
     y,
 }: {
     rows: RawResultRow[];
-} & Pick<ComposerVizAxes, 'x' | 'y'>): {
+    x: ResultColumn | null;
+    y: ResultColumn[];
+}): {
     data: PivotChartData;
     layout: PivotChartLayout;
 } => {
@@ -347,33 +349,33 @@ export const buildComposerChartData = ({
         data: {
             queryUuid: undefined,
             fileUrl: undefined,
-            results: rows.map((row) => ({
-                ...(x ? { [x.reference]: row[x.reference] } : {}),
-                [y.reference]: row[y.reference],
-            })),
+            results: rows.map((row) =>
+                Object.fromEntries(
+                    [...(x ? [x] : []), ...y].map((column) => [
+                        column.reference,
+                        row[column.reference],
+                    ]),
+                ),
+            ),
             indexColumn: index,
-            valuesColumns: [
-                {
-                    referenceField: y.reference,
-                    pivotColumnName: y.reference,
-                    aggregation: VizAggregationOptions.ANY,
-                    pivotValues: [],
-                },
-            ],
-            columns: [
-                ...(x ? [{ reference: x.reference, type: x.type }] : []),
-                { reference: y.reference, type: y.type },
-            ],
-            columnCount: x ? 2 : 1,
+            valuesColumns: y.map((column) => ({
+                referenceField: column.reference,
+                pivotColumnName: column.reference,
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [],
+            })),
+            columns: [...(x ? [x] : []), ...y].map((column) => ({
+                reference: column.reference,
+                type: column.type,
+            })),
+            columnCount: (x ? 1 : 0) + y.length,
         },
         layout: {
             x: index,
-            y: [
-                {
-                    reference: y.reference,
-                    aggregation: VizAggregationOptions.ANY,
-                },
-            ],
+            y: y.map((column) => ({
+                reference: column.reference,
+                aggregation: VizAggregationOptions.ANY,
+            })),
             groupBy: [],
         },
     };
