@@ -2135,14 +2135,16 @@ describe('ChartTypeBuilder', () => {
                 }),
             );
 
-            expect(lastPreviewCall()).toMatchObject({
-                isPickingFields: false,
-                fieldMapping: {
-                    group: 'orders_region',
-                    value: 'orders_count',
-                    colour: 'orders_status',
-                },
-            });
+            await waitFor(() =>
+                expect(lastPreviewCall()).toMatchObject({
+                    isPickingFields: false,
+                    fieldMapping: {
+                        group: 'orders_region',
+                        value: 'orders_count',
+                        colour: 'orders_status',
+                    },
+                }),
+            );
             expect(marks()).toHaveLength(2);
         });
     });
