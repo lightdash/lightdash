@@ -2098,10 +2098,10 @@ export class AiAgentController extends BaseController {
     @OperationId('updateArtifactVersionVizConfig')
     async updateArtifactVersionVizConfig(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() artifactUuid: string,
-        @Path() versionUuid: string,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
         @Body() body: ApiUpdateComposerVizConfigRequest,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
