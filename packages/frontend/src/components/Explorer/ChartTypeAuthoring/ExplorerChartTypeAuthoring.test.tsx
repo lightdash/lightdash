@@ -216,6 +216,7 @@ const workspaceStub = (
     openHistory: vi.fn(),
     closeHistory: vi.fn(),
     toggleHistory: vi.fn(),
+    isLoadingExisting: false,
     isPromptBarMounted: true,
     promptSessionKey: 'viz-1',
     includeSampleData: false,

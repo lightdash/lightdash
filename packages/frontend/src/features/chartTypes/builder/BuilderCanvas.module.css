@@ -12,6 +12,24 @@
     }
 }
 
+/* No `to` frame, so it settles on whatever opacity the element has, dimmed or not. */
+@keyframes ldEnter {
+    from {
+        opacity: 0;
+    }
+}
+
+/* The build and the version it lands arrive rather than swap in. */
+.enter {
+    animation: ldEnter 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .enter {
+        animation: none;
+    }
+}
+
 .canvas {
     position: relative;
     flex: 1;

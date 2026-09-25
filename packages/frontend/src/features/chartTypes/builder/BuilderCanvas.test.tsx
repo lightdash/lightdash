@@ -25,6 +25,7 @@ const renderCanvas = (
             appUuid="app-1"
             previewVersion={1}
             isBuilding={false}
+            isLoadingExisting={false}
             failureMessage={null}
             isClarifyRoundOpen={false}
             clarifierUnavailable={false}

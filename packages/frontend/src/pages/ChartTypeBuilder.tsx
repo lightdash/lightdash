@@ -142,10 +142,14 @@ const ChartTypeBuilder: FC = () => {
         spaceUuid: appMeta?.spaceUuid ?? null,
         createdByUserUuid: appMeta?.createdByUserUuid ?? null,
     });
+    // The app this session's first build created, adopted into the URL. The
+    // create permission that built it covers it until its row loads.
+    const [claimedVizUuid, setClaimedVizUuid] = useState<string | null>(null);
     const canPreviewSavedChart =
         !dataAppsFlag.isLoading &&
         dataAppsFlag.data?.enabled === true &&
-        (urlVizUuid === undefined
+        (urlVizUuid === undefined ||
+        (urlVizUuid === claimedVizUuid && appMeta === null)
             ? canCreate
             : appMeta !== null &&
               appMeta.template === DATA_APP_VIZ_TEMPLATE &&
@@ -239,6 +243,7 @@ const ChartTypeBuilder: FC = () => {
     // a refresh mid-build lands on the in-progress version.
     useEffect(() => {
         if (!urlVizUuid && build.appUuid && projectUrlIdentifier) {
+            setClaimedVizUuid(build.appUuid);
             void navigate(
                 {
                     pathname: chartTypeBuilderPath(
@@ -1039,6 +1044,15 @@ const ChartTypeBuilder: FC = () => {
         }
     }
 
+    // An opened chart type is neither new nor editable until its row loads;
+    // the one a first build just claimed is already on screen.
+    const isResolvingApp =
+        urlVizUuid !== undefined &&
+        appMeta === null &&
+        !appQuery.error &&
+        build.appUuid === null &&
+        history.versions.length === 0;
+
     // Remounted per viz so the selected tab belongs to the declaration on screen.
     const configurePanel = schema ? (
         <ConfigurePanel
@@ -1083,6 +1097,7 @@ const ChartTypeBuilder: FC = () => {
                 hasHistory={workspace.hasHistory}
                 isHistoryOpen={isHistoryOpen}
                 isBuilding={isBuilding}
+                isCreating={isBuilding && history.latestReadyVersion === null}
                 upgrade={
                     activeVizUuid && history.latestReadyVersion !== null
                         ? { ...workspace.sdkUpgradeOffer, disabled: isBuilding }
@@ -1099,17 +1114,19 @@ const ChartTypeBuilder: FC = () => {
                     activeVizUuid ? () => setIsPreviewTableOpen(true) : null
                 }
             />
-            <ChartTypeBuilderWorkspace
-                projectUuid={projectUuid}
-                workspace={workspace}
-                previewContext={previewContext}
-                sampleRows={sampleRows}
-                currentBuildContext={currentBuildContext}
-                savedChartSource={savedChartSource}
-                exploreSource={exploreSource}
-                syncPreviewUrlState
-                configurePanel={configurePanel}
-            />
+            {!isResolvingApp && (
+                <ChartTypeBuilderWorkspace
+                    projectUuid={projectUuid}
+                    workspace={workspace}
+                    previewContext={previewContext}
+                    sampleRows={sampleRows}
+                    currentBuildContext={currentBuildContext}
+                    savedChartSource={savedChartSource}
+                    exploreSource={exploreSource}
+                    syncPreviewUrlState
+                    configurePanel={configurePanel}
+                />
+            )}
             <ChartTypeRowsModal
                 data={liveRows}
                 opened={isRowsModalOpen && liveRows !== null}
