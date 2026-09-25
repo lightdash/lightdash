@@ -1,3 +1,13 @@
+# [2.345.0](https://github.com/lightdash/lightdash/compare/2.344.7...2.345.0) (2026-09-25)
+
+
+### Features
+
+* **ai:** span per Jev decision evaluation ([#30013](https://github.com/lightdash/lightdash/issues/30013)) ([7884024](https://github.com/lightdash/lightdash/commit/78840247efa652250c536d891a2faf75c61e29b0))
+* **compose:** pivot configuration on planless duckdb nodes ([#30015](https://github.com/lightdash/lightdash/issues/30015)) ([2b03e39](https://github.com/lightdash/lightdash/commit/2b03e3940a4e92d299ea0791461123d38f0f0d23))
+* **composer:** Jev-picked viz config stored on the composer artifact ([#30016](https://github.com/lightdash/lightdash/issues/30016)) ([7bd8249](https://github.com/lightdash/lightdash/commit/7bd8249dc4287f48afeca13f82b5a9dd752c3412))
+* **composer:** series split rendered from a pivoted re-run ([#30017](https://github.com/lightdash/lightdash/issues/30017)) ([107209f](https://github.com/lightdash/lightdash/commit/107209f4aefe03fc5fed50020419b06f0bddb2e9))
+
 ## [2.344.7](https://github.com/lightdash/lightdash/compare/2.344.6...2.344.7) (2026-09-25)
 
 
