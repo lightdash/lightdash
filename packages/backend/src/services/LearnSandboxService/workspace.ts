@@ -34,6 +34,14 @@ export const validateYaml = (content: string): string | null => {
     }
 };
 
+// dbt-duckdb hands `config_options` to duckdb.connect() and runs `settings`
+// as SET statements once the connection is open. DuckDB refuses to change
+// access_mode or enable_external_access on a running database (so under
+// `settings` they would abort every command that opens a connection) and
+// refuses to set disabled_filesystems before the database has started, so
+// each option has exactly one place it works. Together they stop a dbt
+// command from writing to the shared playground database or reading and
+// writing arbitrary files on the host through read_csv, COPY TO or ATTACH.
 export const renderProfiles = (databasePath: string): string => `jaffle_shop:
   target: jaffle
   outputs:
@@ -42,8 +50,11 @@ export const renderProfiles = (databasePath: string): string => `jaffle_shop:
       path: ${databasePath}
       schema: jaffle
       threads: 1
-      settings:
+      config_options:
         access_mode: READ_ONLY
+        enable_external_access: false
+      settings:
+        disabled_filesystems: LocalFileSystem
         memory_limit: 256MB
 `;
 
