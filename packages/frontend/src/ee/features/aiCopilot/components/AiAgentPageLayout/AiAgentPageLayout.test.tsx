@@ -21,6 +21,10 @@ vi.mock('../../../../../components/common/ResizableSplitter', () => {
     return { default: ResizableSplitter };
 });
 
+vi.mock('../../hooks/useAiAgentArtifacts', () => ({
+    useAiAgentArtifact: () => ({ data: undefined }),
+}));
+
 vi.mock('../../store/hooks', () => ({
     useAiAgentStoreDispatch: () => vi.fn(),
     useAiAgentStoreSelector: () => undefined,
