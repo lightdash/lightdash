@@ -1,3 +1,12 @@
+## [2.344.5](https://github.com/lightdash/lightdash/compare/2.344.4...2.344.5) (2026-09-25)
+
+
+### Bug Fixes
+
+* **projects:** accept BigQuery oauth user keyfile on credential update ([#30008](https://github.com/lightdash/lightdash/issues/30008)) ([38408b3](https://github.com/lightdash/lightdash/commit/38408b3176de502faa43ead1ff0e3d583922521b))
+* **scheduler:** retry Google Sheets sync on network failures instead of disabling ([#30009](https://github.com/lightdash/lightdash/issues/30009)) ([06f8cc3](https://github.com/lightdash/lightdash/commit/06f8cc3d45a30f12dc5ac3813036a00dc86c9a74))
+* **warehouses:** retry Databricks Unity Scope and max capacity errors ([#30007](https://github.com/lightdash/lightdash/issues/30007)) ([6208e9c](https://github.com/lightdash/lightdash/commit/6208e9c7386aa70afe5d724f3e94bfde36771c44)), closes [#29907](https://github.com/lightdash/lightdash/issues/29907)
+
 ## [2.344.4](https://github.com/lightdash/lightdash/compare/2.344.3...2.344.4) (2026-09-25)
 
 
