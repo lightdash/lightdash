@@ -49,7 +49,7 @@ const createFakeSource = (
         })),
 ): QuerySourceClient & { submitQuery: Mock } => ({
     definition: { sourceType, label: sourceType, description: 'fake source' },
-    supportsPivot: sourceType !== QuerySourceType.DUCKDB,
+    supportsPivot: sourceType !== QuerySourceType.EXTERNAL,
     scanSchema: vi.fn().mockResolvedValue({ sourceType, tables: [] }),
     getQueryReferences: (query: SourceQuery) => {
         if (query.sourceType !== QuerySourceType.DUCKDB) return [];
@@ -390,6 +390,8 @@ describe('QuerySourceService', () => {
 
         it('refuses a pivot on a node that cannot pivot before submitting any node', async () => {
             const fakes = createRegistryWithFakes();
+            const externalSource = createFakeSource(QuerySourceType.EXTERNAL);
+            fakes.registry.register(externalSource);
             const { service } = createService(fakes.registry);
 
             await expect(
@@ -414,10 +416,10 @@ describe('QuerySourceService', () => {
                             metrics: ['payments_total'],
                         },
                         {
-                            nodeId: 'joined',
-                            sourceType: QuerySourceType.DUCKDB,
-                            sql: 'SELECT * FROM orders JOIN payments USING (status)',
-                            references: ['orders', 'payments'],
+                            nodeId: 'attachment',
+                            sourceType: QuerySourceType.EXTERNAL,
+                            sql: 'SELECT * FROM sheet',
+                            tables: ['sheet'],
                             pivotConfiguration: {
                                 indexColumn: undefined,
                                 valuesColumns: [],
@@ -430,7 +432,7 @@ describe('QuerySourceService', () => {
             ).rejects.toThrow(
                 expect.objectContaining({
                     name: ParameterError.name,
-                    message: expect.stringContaining('"joined"'),
+                    message: expect.stringContaining('"attachment"'),
                 }),
             );
 
@@ -438,7 +440,7 @@ describe('QuerySourceService', () => {
             expect(
                 fakes.semanticLayerSource.submitQuery,
             ).not.toHaveBeenCalled();
-            expect(fakes.duckdbSource.submitQuery).not.toHaveBeenCalled();
+            expect(externalSource.submitQuery).not.toHaveBeenCalled();
         });
 
         it('requires user attribute overrides on the submit contract', () => {
@@ -789,7 +791,7 @@ describe('composer pipelines return the standard results interface', () => {
         );
     });
 
-    it('hands a planned DuckDB node its pivot for the plan to compose, while a public one still refuses it', async () => {
+    it('hands a DuckDB node its pivot: a planned one for the plan to compose, a public one to the compose path', async () => {
         const { registry, asyncQueryService } = createRealSources();
         const { service } = createService(registry);
         const pivotConfiguration: PivotConfiguration = {
@@ -840,15 +842,28 @@ describe('composer pipelines return the standard results interface', () => {
             asyncQueryService.executeAsyncDuckdbSourceQuery,
         ).toHaveBeenCalledWith(expect.objectContaining({ pivotConfiguration }));
 
-        await expect(
-            service.executeSourceQueries({
-                ...executionContext,
-                account,
-                projectUuid,
-                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
-                queries: [joinNode],
+        const submitted = await service.executeSourceQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            queries: [joinNode],
+        });
+        expect(submitted.queries).toEqual([
+            {
+                nodeId: 'joined',
+                sourceType: QuerySourceType.DUCKDB,
+                queryUuid: 'compose-query-uuid',
+            },
+        ]);
+        expect(
+            asyncQueryService.executeAsyncComposeSqlQuery,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                references: { orders: '123e4567-e89b-12d3-a456-426614174000' },
+                pivotConfiguration,
             }),
-        ).rejects.toThrow(ParameterError);
+        );
     });
 
     it("resolves a supplied column's provenance from a node id to that node's queryUuid", async () => {
@@ -909,7 +924,7 @@ describe('composer pipelines return the standard results interface', () => {
         ).toEqual({ orders_total_revenue: column('orders') });
     });
 
-    it('hands a DuckDB node its parameters and cache control, and refuses a pivot on it', async () => {
+    it('hands a DuckDB node its parameters and cache control', async () => {
         const { registry, asyncQueryService } = createRealSources();
         const { service } = createService(registry);
         const duckdbNode: SourceQuery = {
@@ -934,27 +949,8 @@ describe('composer pipelines return the standard results interface', () => {
             expect.objectContaining({
                 parameters: { region: 'EU' },
                 invalidateCache: true,
+                pivotConfiguration: undefined,
             }),
         );
-
-        await expect(
-            service.executeSourceQueries({
-                ...executionContext,
-                account,
-                projectUuid,
-                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
-                queries: [
-                    {
-                        ...duckdbNode,
-                        pivotConfiguration: {
-                            indexColumn: undefined,
-                            valuesColumns: [],
-                            groupByColumns: undefined,
-                            sortBy: undefined,
-                        },
-                    },
-                ],
-            }),
-        ).rejects.toThrow(ParameterError);
     });
 });
