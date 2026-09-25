@@ -2,7 +2,11 @@
 import {
     DimensionType,
     FieldType,
+    getPivotValueColumnName,
+    hashFieldReference,
     MetricType,
+    NumberSeparator,
+    VizAggregationOptions,
     type CompiledDimension,
     type CompiledMetric,
     type EChartsSeries,
@@ -77,6 +81,85 @@ const baseClickEvent = {
 } as EchartsSeriesClickEvent;
 
 describe('getDataFromChartClick', () => {
+    describe.each(['object', 'tuple'] as const)(
+        '%s click formatting',
+        (mode) => {
+            test.each(['unpivoted', 'legacy', 'sql', 'null pivot'] as const)(
+                'preserves the metric format for %s drill-down labels',
+                (pivotMode) => {
+                    const metric: CompiledMetric = {
+                        ...countMetric,
+                        format: '#,##0.00',
+                        separator: NumberSeparator.SPACE_PERIOD,
+                    };
+                    const pivotReference =
+                        pivotMode === 'unpivoted'
+                            ? undefined
+                            : {
+                                  field: 'orders_unique_order_count',
+                                  pivotValues: [
+                                      {
+                                          field: 'orders_order_priority',
+                                          value:
+                                              pivotMode === 'null pivot'
+                                                  ? null
+                                                  : 'urgent',
+                                      },
+                                  ],
+                              };
+                    const columnName = pivotReference
+                        ? pivotMode === 'legacy'
+                            ? hashFieldReference(pivotReference)
+                            : getPivotValueColumnName(
+                                  pivotReference.field,
+                                  VizAggregationOptions.ANY,
+                                  [pivotReference.pivotValues[0].value],
+                              )
+                        : 'orders_unique_order_count';
+                    const raw = 12345.6789;
+                    const result = getDataFromChartClick(
+                        {
+                            ...baseClickEvent,
+                            dimensionNames: [
+                                'orders_order_date_week',
+                                columnName,
+                            ],
+                            ...(mode === 'tuple'
+                                ? {
+                                      value: ['2024-12-30', raw],
+                                      data: { value: ['2024-12-30', raw] },
+                                  }
+                                : {
+                                      value: raw,
+                                      data: {
+                                          orders_order_date_week: '2024-12-30',
+                                          [columnName]: raw,
+                                      },
+                                  }),
+                        },
+                        { ...itemsMap, orders_unique_order_count: metric },
+                        [{ ...series[0], pivotReference }],
+                    );
+
+                    const labelKey = pivotReference
+                        ? hashFieldReference(pivotReference)
+                        : columnName;
+                    expect(result.value).toEqual({
+                        raw,
+                        formatted: '12 345.68',
+                    });
+                    expect(result.fieldValues[labelKey]).toEqual(result.value);
+                    expect(result.fieldValues[columnName]).toEqual(
+                        result.value,
+                    );
+                    expect(result.fieldValues.orders_order_date_week.raw).toBe(
+                        '2024-12-30',
+                    );
+                },
+            );
+        },
+    );
+
     test('tuple-mode click restores non-plotted columns from the dataset row', () => {
         const result = getDataFromChartClick(
             {
