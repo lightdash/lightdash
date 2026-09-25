@@ -115,6 +115,7 @@ import { ViewingOlderVersionCard } from '../features/apps/components/ViewingOlde
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
+import { useAppSubmitState } from '../features/apps/hooks/useAppSubmitState';
 import { useAppThumbnailUpload } from '../features/apps/hooks/useAppThumbnail';
 import {
     getBuildOutcome,
@@ -177,22 +178,6 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
-
-// Run a layout-changing state update inside a native View Transition so the
-// browser cross-fades/morphs the before/after frames (used for the
-// centered-composer → split-sidebar handoff). flushSync forces React to
-// commit synchronously so the transition captures the new layout. Falls back
-// to a plain update where the API is unavailable.
-function withViewTransition(update: () => void): void {
-    const doc = document as Document & {
-        startViewTransition?: (cb: () => void) => unknown;
-    };
-    if (typeof doc.startViewTransition === 'function') {
-        doc.startViewTransition(() => flushSync(update));
-    } else {
-        update();
-    }
-}
 
 // ChatChart and ChatMessage are imported from `features/apps/utils/chatMessage`
 // alongside the merge helper, so the type and the merge logic stay collocated.
@@ -365,8 +350,8 @@ const AppGenerate: FC = () => {
     // flips true after the upload + clarify awaits resolve, leaving a
     // multi-second window where Enter / send-button re-entry would fire
     // duplicate iterations against the same app.
-    const isSubmittingRef = useRef(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const submitState = useAppSubmitState();
+    const { isSubmitting } = submitState;
     // Starter-template wizard state (only meaningful for v1 of a new app).
     // 'pick'    → show the 4 template cards (replaces the empty state)
     // 'confirm' → wizard collapses; the textarea takes over. Picking any
@@ -907,7 +892,10 @@ const AppGenerate: FC = () => {
             ? candidateTemplate
             : null;
     // New-app empty screen: arch + composer, centered, no preview/split yet.
-    const newAppLanding = isNewApp && messages.length === 0 && !isLoading;
+    // Held up while a first submit's view transition is pending so it can morph.
+    const newAppLanding =
+        submitState.isLeavingLanding ||
+        (isNewApp && messages.length === 0 && !isLoading);
 
     // `hasNextPage` reflects the server's "more pages exist" signal, but we
     // accumulate versions across fetches in `versionCacheRef` — so even if the
@@ -1622,7 +1610,7 @@ const AppGenerate: FC = () => {
         if (
             (!typed && elementPicker.refs.length === 0) ||
             isLoading ||
-            isSubmittingRef.current
+            submitState.isInFlight()
         )
             return;
         const trimmed = isVizBuilder
@@ -1649,17 +1637,10 @@ const AppGenerate: FC = () => {
               )
             : undefined;
 
-        isSubmittingRef.current = true;
         // Morph the centered composer into the split sidebar layout. Only the
         // first submit of a brand-new app crosses that layout boundary; later
         // iterations are already in the split view and just re-render in place.
-        if (newAppLanding) {
-            withViewTransition(() => {
-                setIsSubmitting(true);
-            });
-        } else {
-            setIsSubmitting(true);
-        }
+        submitState.begin({ fromLanding: newAppLanding });
 
         // Starter template selected in the picker, if any. `data_app_viz` is a
         // template like the others — it flows through the same clarify + build
@@ -1851,8 +1832,7 @@ const AppGenerate: FC = () => {
                 });
             }
         } finally {
-            isSubmittingRef.current = false;
-            setIsSubmitting(false);
+            submitState.end();
         }
     };
 
@@ -2001,9 +1981,10 @@ const AppGenerate: FC = () => {
                                         </Text>
                                     </Group>
                                 )}
-                            {messages.length === 0 &&
-                            threadDivider === null &&
-                            !isLoading ? (
+                            {newAppLanding ||
+                            (messages.length === 0 &&
+                                threadDivider === null &&
+                                !isLoading) ? (
                                 <Box className={classes.emptyChat}>
                                     {!newAppLanding && (
                                         <Text
