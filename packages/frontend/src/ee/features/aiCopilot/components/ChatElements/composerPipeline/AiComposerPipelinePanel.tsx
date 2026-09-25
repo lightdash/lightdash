@@ -53,6 +53,7 @@ import {
 } from 'react';
 import '@xyflow/react/dist/style.css';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
+import InlineErrorState from '../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
@@ -169,7 +170,7 @@ const SourceType: FC<{ query: SourceQuery }> = ({ query }) => {
     );
 };
 
-// Semantic nodes carry no SQL; the compiled query is fetched on first open.
+// Semantic nodes carry no SQL; the query is compiled once View query opens.
 const SemanticQuerySql: FC<{
     query: SemanticLayerSourceQuery;
     projectUuid: string;
@@ -178,24 +179,28 @@ const SemanticQuerySql: FC<{
         () => metricQueryOfSemanticNode(query),
         [query],
     );
-    const { data, error } = useCompiledSqlFromMetricQuery({
+    const { data, error, refetch } = useCompiledSqlFromMetricQuery({
         tableName: query.exploreName,
         projectUuid,
         metricQuery,
+        pivotConfiguration: query.pivotConfiguration,
     });
     if (data) return <CodeBlock code={formatSql(data.query)} language="sql" />;
     if (error) {
         return (
-            <Text className={styles.queryNote}>
-                Could not compile this query.
-            </Text>
+            <InlineErrorState
+                message="Could not compile this query."
+                onRetry={() => void refetch()}
+            />
         );
     }
     return (
-        <Text className={styles.queryNote}>
-            <Loader size={10} color="ldGray.5" />
-            Compiling query…
-        </Text>
+        <Group gap="xs" p="sm">
+            <Loader size="xs" color="ldGray.6" />
+            <Text fz="xs" c="dimmed">
+                Compiling query…
+            </Text>
+        </Group>
     );
 };
 
@@ -204,7 +209,6 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
     projectUuid,
 }) => {
     const [queryOpen, setQueryOpen] = useState(false);
-    const [everOpened, setEverOpened] = useState(false);
     return (
         <>
             {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
@@ -217,10 +221,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
             >
                 <UnstyledButton
                     className={styles.queryToggle}
-                    onClick={() => {
-                        setQueryOpen((value) => !value);
-                        setEverOpened(true);
-                    }}
+                    onClick={() => setQueryOpen((value) => !value)}
                     aria-expanded={queryOpen}
                 >
                     <MantineIcon
@@ -241,7 +242,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
                 >
                     <Box className={styles.code}>
                         {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
-                            everOpened && (
+                            queryOpen && (
                                 <SemanticQuerySql
                                     query={query}
                                     projectUuid={projectUuid}

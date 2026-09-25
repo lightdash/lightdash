@@ -1,4 +1,8 @@
-import { QuerySourceType, type SourceQuery } from '@lightdash/common';
+import {
+    QuerySourceType,
+    VizIndexType,
+    type SourceQuery,
+} from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
@@ -216,6 +220,17 @@ describe('AiComposerPipelinePanel query details', () => {
                     exploreName: 'orders',
                     dimensions: ['orders_status'],
                     metrics: ['orders_count'],
+                    pivotConfiguration: {
+                        indexColumn: [
+                            {
+                                reference: 'orders_status',
+                                type: VizIndexType.CATEGORY,
+                            },
+                        ],
+                        valuesColumns: [],
+                        groupByColumns: undefined,
+                        sortBy: undefined,
+                    },
                 },
                 queries[1],
                 queries[2],
@@ -235,6 +250,14 @@ describe('AiComposerPipelinePanel query details', () => {
                     dimensions: ['orders_status'],
                     metrics: ['orders_count'],
                     limit: 500,
+                }),
+                pivotConfiguration: expect.objectContaining({
+                    indexColumn: [
+                        {
+                            reference: 'orders_status',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
                 }),
             }),
         );
