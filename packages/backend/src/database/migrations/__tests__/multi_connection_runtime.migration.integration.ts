@@ -3,6 +3,7 @@ import {
     ChartKind,
     DbtProjectType,
     DimensionType,
+    DuckdbConnectionType,
     FieldType,
     JobStatusType,
     JobType,
@@ -1814,6 +1815,20 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 projectModel,
                 'copyDeepResearchForTrainingCopy',
             ).mockResolvedValue(undefined as never);
+            // A real training project is provisioned on the embedded DuckDB
+            // sample and cannot be switched to multiple connections, so this
+            // fixture is a hypothetical. makeTrainingCopy refuses copies of
+            // anything but the shipped sample (covered by the ProjectService
+            // unit tests); answer that check here so the binding remap under
+            // test still runs.
+            vi.spyOn(
+                projectModel,
+                'getWarehouseCredentialsForBinding',
+            ).mockResolvedValue({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+                dataset: 'jaffle_shop',
+            } as never);
             const afterExploreCopy = new Error('stop after the explore copy');
             vi.spyOn(projectModel, 'findExploresFromCache').mockRejectedValue(
                 afterExploreCopy,
