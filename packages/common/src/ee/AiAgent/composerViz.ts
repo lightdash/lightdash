@@ -16,10 +16,17 @@ export type ComposerVizKind = 'table' | 'bar' | 'line' | 'pie' | 'big_number';
 
 export type ComposerChartKind = Exclude<ComposerVizKind, 'table'>;
 
+/** A bar/line series split: one series per groupBy value, y aggregated per x and series. */
+export type ComposerSeriesSplit = {
+    groupBy: ResultColumn;
+    aggregation: VizAggregationOptions;
+};
+
 /** Columns a chart kind draws from; x is null for a big number. */
 export type ComposerVizAxes = {
     x: ResultColumn | null;
     y: ResultColumn;
+    seriesSplit: ComposerSeriesSplit | null;
 };
 
 export type ComposerVizPlan = {
@@ -103,8 +110,8 @@ const getColumnTypeVizPlan = (
     const axes: ComposerVizPlan['axes'] = {};
 
     if (x && y) {
-        axes.bar = { x, y };
-        axes.line = { x, y };
+        axes.bar = { x, y, seriesSplit: null };
+        axes.line = { x, y, seriesSplit: null };
     }
     const category =
         x?.type === DimensionType.STRING
@@ -121,10 +128,10 @@ const getColumnTypeVizPlan = (
         categoryValue &&
         !hasDuplicateValues(rows, category.reference)
     ) {
-        axes.pie = { x: category, y: categoryValue };
+        axes.pie = { x: category, y: categoryValue, seriesSplit: null };
     }
     if (rows.length === 1 && numerics.length >= 1) {
-        axes.big_number = { x: null, y: y ?? numerics[0] };
+        axes.big_number = { x: null, y: y ?? numerics[0], seriesSplit: null };
     }
 
     const availableKinds = KIND_ORDER.filter(
@@ -189,19 +196,41 @@ const seedFromVizConfig = (
         xReference === undefined ? null : (byReference.get(xReference) ?? null);
     if (xReference !== undefined && (!x || x.reference === y.reference))
         return null;
+    // Only bar/line split series; a split's duplicate x values are expected.
+    const isCartesian =
+        vizConfig.type === ChartKind.VERTICAL_BAR ||
+        vizConfig.type === ChartKind.LINE;
+    const groupByReference = isCartesian
+        ? layout?.groupBy?.[0]?.reference
+        : undefined;
+    const groupBy =
+        groupByReference === undefined
+            ? null
+            : (byReference.get(groupByReference) ?? null);
+    if (
+        groupByReference !== undefined &&
+        (!groupBy ||
+            groupBy.reference === x?.reference ||
+            groupBy.reference === y.reference)
+    )
+        return null;
+    const seriesSplit =
+        groupBy && layout
+            ? { groupBy, aggregation: layout.y[0].aggregation }
+            : null;
 
     const axes: ComposerVizPlan['axes'] = { ...plan.axes };
     if (x) {
-        axes.bar = { x, y };
-        axes.line = { x, y };
+        axes.bar = { x, y, seriesSplit };
+        axes.line = { x, y, seriesSplit };
         if (
             x.type === DimensionType.STRING &&
             !hasDuplicateValues(rows, x.reference)
         ) {
-            axes.pie = { x, y };
+            axes.pie = { x, y, seriesSplit: null };
         }
     }
-    if (rows.length === 1) axes.big_number = { x: null, y };
+    if (rows.length === 1) axes.big_number = { x: null, y, seriesSplit: null };
 
     const defaultKind = getComposerChartKind(vizConfig);
     if (!axes[defaultKind]) return null;
@@ -234,17 +263,29 @@ export const getComposerVizPlan = ({
     return seedFromVizConfig(plan, vizConfig, columns, rows) ?? plan;
 };
 
-/** Field config for axes: x typed by its column; y as-is, since node results are already aggregated. */
+/** Field config for axes: x typed by its column; y as-is (node results are already aggregated) unless series split. */
 export const getComposerFieldConfig = ({
     x,
     y,
+    seriesSplit,
 }: ComposerVizAxes): PivotChartLayout => ({
     x: x
         ? { reference: x.reference, type: getColumnAxisType(x.type) }
         : undefined,
-    y: [{ reference: y.reference, aggregation: VizAggregationOptions.ANY }],
-    groupBy: [],
+    y: [
+        {
+            reference: y.reference,
+            aggregation: seriesSplit?.aggregation ?? VizAggregationOptions.ANY,
+        },
+    ],
+    groupBy: seriesSplit ? [{ reference: seriesSplit.groupBy.reference }] : [],
 });
+
+/** Field config for the pivoted re-run of a series split; null without one. */
+export const getComposerSeriesSplitLayout = (
+    axes: ComposerVizAxes,
+): PivotChartLayout | null =>
+    axes.x && axes.seriesSplit ? getComposerFieldConfig(axes) : null;
 
 export const buildComposerVizConfig = ({
     kind,
@@ -295,7 +336,10 @@ export const buildComposerChartData = ({
     y,
 }: {
     rows: RawResultRow[];
-} & ComposerVizAxes): { data: PivotChartData; layout: PivotChartLayout } => {
+} & Pick<ComposerVizAxes, 'x' | 'y'>): {
+    data: PivotChartData;
+    layout: PivotChartLayout;
+} => {
     const index = x
         ? { reference: x.reference, type: getColumnAxisType(x.type) }
         : undefined;

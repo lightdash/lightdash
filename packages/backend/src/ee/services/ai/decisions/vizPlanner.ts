@@ -6,6 +6,7 @@ import {
     getComposerVizKind,
     isComposerNumericColumn,
     isVizTableConfig,
+    VizAggregationOptions,
     type AllVizChartConfig,
     type AnyType,
     type ComposerVizKind,
@@ -32,6 +33,7 @@ export const VIZ_PLANNER_THRESHOLDS = {
     kind: 0.6,
     x: 0.85,
     y: 0.85,
+    groupBy: 0.85,
     explicitStyle: 0.85,
 } as const;
 
@@ -40,6 +42,7 @@ const NONE = 'none';
 const MAX_COLUMNS = 30;
 const MAX_SAMPLES = 5;
 const MAX_SAMPLE_LENGTH = 40;
+const MAX_SERIES = 12;
 const ID_LIKE_SUFFIX = /(^|[_\s.])(id|uuid|key)$/i;
 const ID_LIKE_CAMEL_SUFFIX = /[a-z](Id|Uuid|Key)$/;
 const COMPOSER_VIZ_KINDS: ComposerVizKind[] = [
@@ -69,6 +72,8 @@ export type VizPlannerShape = {
     xCandidates: string[];
     yCandidates: string[];
     pieCandidates: string[];
+    /** Low-cardinality columns that can split bar/line into series. */
+    groupByCandidates: string[];
 };
 
 const isNumeric = isComposerNumericColumn;
@@ -192,6 +197,15 @@ const getVizPlannerShape = ({
     const hasCartesian = xCandidates.some((x) =>
         yCandidates.some((y) => y !== x),
     );
+    // Low cardinality needs row stats, so without data access nothing splits series.
+    const groupByCandidates = nonNumerics
+        .filter((column) => {
+            if (!enableDataAccess) return false;
+            const distinctCount = stats.get(column.reference)?.distinctCount;
+            return distinctCount !== undefined && distinctCount <= MAX_SERIES;
+        })
+        .map((column) => column.reference)
+        .filter((groupBy) => xCandidates.some((x) => x !== groupBy));
 
     const supportedKinds: ComposerVizKind[] = ['table'];
     if (rowCount > 0 && hasCartesian) supportedKinds.push('bar', 'line');
@@ -225,16 +239,25 @@ const getVizPlannerShape = ({
             xCandidates,
             yCandidates,
             pieCandidates,
+            groupByCandidates,
         },
         state,
     };
 };
 
-const previousAxes = (previous: AllVizChartConfig | null) => {
-    if (!previous || isVizTableConfig(previous)) return { x: null, y: null };
+type PreviousAxes = {
+    x: string | null;
+    y: string | null;
+    groupBy: string | null;
+};
+
+const previousAxes = (previous: AllVizChartConfig | null): PreviousAxes => {
+    if (!previous || isVizTableConfig(previous))
+        return { x: null, y: null, groupBy: null };
     return {
         x: previous.fieldConfig?.x?.reference ?? null,
         y: previous.fieldConfig?.y[0]?.reference ?? null,
+        groupBy: previous.fieldConfig?.groupBy?.[0]?.reference ?? null,
     };
 };
 
@@ -256,15 +279,15 @@ const resolveColumn = (
 
 const KIND_DESCRIPTIONS: Record<ComposerVizKind, string> = {
     table: 'A table of the rows: detailed records, many fields, or no chart that answers the question.',
-    bar: 'Bars comparing one measure across categories.',
-    line: 'A line of one measure over an ordered axis, usually time.',
+    bar: 'Bars comparing one measure across categories, optionally split into series by another category.',
+    line: 'A line of one measure over an ordered axis, usually time, optionally one line per category.',
     pie: 'A part-to-whole breakdown across a few nonnegative categories.',
     big_number: 'A single headline value.',
 };
 
 const getQuestions = (
     shape: VizPlannerShape,
-    previous: { x: string | null; y: string | null },
+    previous: PreviousAxes,
 ): Record<string, DecisionQuestion> => {
     const labelOf = (reference: string) =>
         shape.columns.find((column) => column.reference === reference)?.label ??
@@ -324,7 +347,63 @@ const getQuestions = (
             criteria: yCriteria,
         };
     }
+    if (shape.groupByCandidates.length > 0) {
+        questions.groupBy = {
+            type: 'choice',
+            instructions:
+                'For a bar or line chart, choose the column that splits the measure into one series per value, such as region in revenue by month by region. It must differ from the x-axis column. Choose none when the question does not ask for a breakdown or the rows have one value per x.',
+            criteria: {
+                ...Object.fromEntries(
+                    shape.groupByCandidates.map((reference) => [
+                        reference,
+                        labelOf(reference),
+                    ]),
+                ),
+                [NONE]: 'No series split',
+                ...(previous.groupBy
+                    ? { [KEEP]: `Keep ${previous.groupBy}` }
+                    : {}),
+            },
+        };
+    }
     return questions;
+};
+
+// A series split sums numeric values per x and series.
+const fieldConfig = (
+    x: ResultColumn | null,
+    y: ResultColumn,
+    groupBy: ResultColumn | null = null,
+) =>
+    getComposerFieldConfig({
+        x,
+        y,
+        seriesSplit: groupBy
+            ? {
+                  groupBy,
+                  aggregation: isNumeric(y)
+                      ? VizAggregationOptions.SUM
+                      : VizAggregationOptions.ANY,
+              }
+            : null,
+    });
+
+const resolveGroupBy = (
+    answer: DecisionAnswers[string] | undefined,
+    shape: VizPlannerShape,
+    previous: string | null,
+    columns: ResultColumns,
+    exclude: string[],
+): ResultColumn | null => {
+    if (!answer) return null;
+    const reference = resolveColumn(
+        answer,
+        shape.groupByCandidates,
+        previous,
+        VIZ_PLANNER_THRESHOLDS.groupBy,
+    );
+    if (reference === null || exclude.includes(reference)) return null;
+    return columns[reference] ?? null;
 };
 
 const tableConfig = (columns: ResultColumn[]): AllVizChartConfig => ({
@@ -385,7 +464,7 @@ export const getVizConfigFromAnswers = ({
     if (kind === 'big_number') {
         return buildComposerVizConfig({
             kind,
-            fieldConfig: getComposerFieldConfig({ x: null, y }),
+            fieldConfig: fieldConfig(null, y),
         });
     }
 
@@ -397,9 +476,20 @@ export const getVizConfigFromAnswers = ({
     );
     const x = xReference === null ? undefined : columns[xReference];
     if (!x || x.reference === y.reference) return null;
+    // Pie never stores a series split.
+    const groupBy =
+        kind === 'pie'
+            ? null
+            : resolveGroupBy(
+                  answers.groupBy,
+                  shape,
+                  previous.groupBy,
+                  columns,
+                  [x.reference, y.reference],
+              );
     return buildComposerVizConfig({
         kind,
-        fieldConfig: getComposerFieldConfig({ x, y }),
+        fieldConfig: fieldConfig(x, y, groupBy),
     });
 };
 
@@ -427,8 +517,13 @@ export const getVizConfigNote = (vizConfig: AllVizChartConfig) => {
     if (isVizTableConfig(vizConfig)) return 'Visualization: table.';
     const x = vizConfig.fieldConfig?.x?.reference;
     const y = vizConfig.fieldConfig?.y[0]?.reference;
-    const axes = axesNote(x, y);
-    return `Visualization: ${KIND_NAMES[getComposerVizKind(vizConfig)]}${axes ? `, ${axes}` : ''}.`;
+    const groupBy = vizConfig.fieldConfig?.groupBy?.[0]?.reference;
+    const parts = [
+        ...(x ? [`x = ${x}`] : []),
+        ...(y ? [`y = ${y}`] : []),
+        ...(groupBy ? [`split by ${groupBy}`] : []),
+    ].join(', ');
+    return `Visualization: ${KIND_NAMES[getComposerVizKind(vizConfig)]}${parts ? `, ${parts}` : ''}.`;
 };
 
 export const createVizPlanner =

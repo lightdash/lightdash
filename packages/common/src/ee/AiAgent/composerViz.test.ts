@@ -7,7 +7,11 @@ import {
     VizIndexType,
     type AllVizChartConfig,
 } from '../../visualizations/types';
-import { buildComposerChartData, getComposerVizPlan } from './composerViz';
+import {
+    buildComposerChartData,
+    getComposerSeriesSplitLayout,
+    getComposerVizPlan,
+} from './composerViz';
 
 const column = (reference: string, type: DimensionType): ResultColumn => ({
     reference,
@@ -183,6 +187,7 @@ describe('getComposerVizPlan', () => {
         expect(result.axes.big_number).toEqual({
             x: null,
             y: column('n', DimensionType.NUMBER),
+            seriesSplit: null,
         });
     });
 
@@ -256,13 +261,21 @@ describe('getComposerVizPlan seeded from a stored viz config', () => {
         type: ChartKind.VERTICAL_BAR | ChartKind.LINE,
         x: string,
         y: string,
+        groupBy: string | null = null,
     ): AllVizChartConfig => ({
         type,
         metadata: { version: 1 },
         fieldConfig: {
             x: { reference: x, type: VizIndexType.CATEGORY },
-            y: [{ reference: y, aggregation: VizAggregationOptions.ANY }],
-            groupBy: [],
+            y: [
+                {
+                    reference: y,
+                    aggregation: groupBy
+                        ? VizAggregationOptions.SUM
+                        : VizAggregationOptions.ANY,
+                },
+            ],
+            groupBy: groupBy ? [{ reference: groupBy }] : [],
         },
         display: undefined,
     });
@@ -313,7 +326,11 @@ describe('getComposerVizPlan seeded from a stored viz config', () => {
             [rows[0]],
         );
         expect(result.defaultKind).toBe('big_number');
-        expect(result.axes.big_number).toEqual({ x: null, y: columns[3] });
+        expect(result.axes.big_number).toEqual({
+            x: null,
+            y: columns[3],
+            seriesSplit: null,
+        });
     });
 
     test('a stored table opens as the table', () => {
@@ -343,6 +360,92 @@ describe('getComposerVizPlan seeded from a stored viz config', () => {
         expect(
             seeded(cartesian(ChartKind.VERTICAL_BAR, 'status', 'profit')),
         ).toEqual(columnTypeDefault);
+    });
+
+    describe('series split', () => {
+        const byRegion = [
+            { region: 'eu', month: '2024-01-01', revenue: 10 },
+            { region: 'us', month: '2024-01-01', revenue: 20 },
+            { region: 'eu', month: '2024-02-01', revenue: 30 },
+        ];
+        const splitColumns = [
+            column('region', DimensionType.STRING),
+            column('month', DimensionType.DATE),
+            column('revenue', DimensionType.NUMBER),
+        ];
+        const splitSeeded = (vizConfig: AllVizChartConfig) =>
+            getComposerVizPlan({
+                columns: splitColumns,
+                rows: byRegion,
+                node: null,
+                vizConfig,
+            });
+
+        test('a stored line with groupBy opens as line split by that column, despite duplicate x values', () => {
+            const result = splitSeeded(
+                cartesian(ChartKind.LINE, 'month', 'revenue', 'region'),
+            );
+            expect(result.defaultKind).toBe('line');
+            expect(result.axes.line).toEqual({
+                x: splitColumns[1],
+                y: splitColumns[2],
+                seriesSplit: {
+                    groupBy: splitColumns[0],
+                    aggregation: VizAggregationOptions.SUM,
+                },
+            });
+            expect(result.axes.bar).toEqual(result.axes.line);
+            expect(getComposerSeriesSplitLayout(result.axes.line!)).toEqual({
+                x: { reference: 'month', type: VizIndexType.TIME },
+                y: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupBy: [{ reference: 'region' }],
+            });
+        });
+
+        test('the pivot layout takes the stored y aggregation', () => {
+            const result = splitSeeded({
+                type: ChartKind.LINE,
+                metadata: { version: 1 },
+                fieldConfig: {
+                    x: { reference: 'month', type: VizIndexType.TIME },
+                    y: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.MAX,
+                        },
+                    ],
+                    groupBy: [{ reference: 'region' }],
+                },
+                display: undefined,
+            });
+            expect(getComposerSeriesSplitLayout(result.axes.line!)?.y).toEqual([
+                {
+                    reference: 'revenue',
+                    aggregation: VizAggregationOptions.MAX,
+                },
+            ]);
+        });
+
+        test('a stored groupBy whose column is gone falls back to the column-type default', () => {
+            const result = splitSeeded(
+                cartesian(ChartKind.LINE, 'month', 'revenue', 'country'),
+            );
+            expect(result).toEqual(
+                getComposerVizPlan({
+                    columns: splitColumns,
+                    rows: byRegion,
+                    node: null,
+                    vizConfig: null,
+                }),
+            );
+            expect(result.defaultKind).toBe('table');
+            expect(getComposerSeriesSplitLayout(result.axes.line!)).toBeNull();
+        });
     });
 });
 
