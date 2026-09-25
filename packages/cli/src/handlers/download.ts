@@ -146,6 +146,7 @@ import {
     uploadOrganizationContent,
 } from './organizationContent';
 import { logSelectedProject, selectProject } from './selectProject';
+import { downloadSkills, upsertSkills } from './skillsAsCode';
 import {
     assertUniqueSpacePaths,
     createSpaceAsCodeDownloadError,
@@ -183,6 +184,11 @@ export type DownloadHandlerOptions = {
     apps?: string[]; // specific app UUIDs or URLs (enterprise); absent = no explicit selection
     chartTypes?: string[]; // specific custom chart type UUIDs or URLs (enterprise); absent = no explicit selection
     includeAgents?: boolean;
+    // Custom agent skills: `--skills <names>` selects, `--include-skills`
+    // downloads the ones bound to the downloaded agents.
+    skills?: string[];
+    includeSkills?: boolean;
+    deleteSkills?: string[]; // upload only: unbind everywhere and soft-delete
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     includeChartTypes?: boolean; // download: all custom chart types, capped at --chart-types-limit; upload: all chart-type folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
@@ -277,12 +283,14 @@ const hasContentFilters = ({
     homepages,
     apps,
     chartTypes,
+    skills = [],
 }: Pick<
     DownloadHandlerOptions,
     | 'spacesOnly'
     | 'charts'
     | 'dashboards'
     | 'agents'
+    | 'skills'
     | 'alerts'
     | 'googleSheets'
     | 'scheduledDeliveries'
@@ -297,6 +305,7 @@ const hasContentFilters = ({
         charts,
         dashboards,
         agents,
+        skills,
         alerts,
         googleSheets,
         scheduledDeliveries,
@@ -1518,7 +1527,7 @@ const downloadAiAgents = async (
     ids: string[],
     implicit: boolean,
     customPath?: string,
-): Promise<number> => {
+): Promise<{ downloaded: number; agents: AgentAsCode[] }> => {
     const idQuery = ids.map((id) => ['ids', id] as [string, string]);
     let offset = 0;
     let total = 0;
@@ -1565,12 +1574,12 @@ const downloadAiAgents = async (
             GlobalState.debug(
                 `Could not download AI agents: ${getErrorMessage(error)}`,
             );
-            return 0;
+            return { downloaded: 0, agents: [] };
         }
         throw error;
     }
 
-    return downloaded;
+    return { downloaded, agents };
 };
 
 const readAiAgentFiles = async (
@@ -1645,10 +1654,15 @@ const upsertAiAgents = async (
         GlobalState.log(styles.warning(`  ⚠ ${warning}`)),
     );
 
+    (results.failed ?? []).forEach(({ slug, message }) =>
+        GlobalState.log(styles.error(`  ✖ ${slug}: ${message}`)),
+    );
+
     const counts = {
         'AI agents created': results.created.length,
         'AI agents updated': results.updated.length,
         'AI agents skipped': results.unchanged.length,
+        'AI agents failed': (results.failed ?? []).length,
     };
     Object.entries(counts).forEach(([key, value]) => {
         if (value > 0) changes[key] = (changes[key] ?? 0) + value;
@@ -1996,6 +2010,7 @@ export const downloadHandler = async (
         await downloadOrganizationContent({
             customPath: options.path,
             config,
+            skills: options.skills ?? [],
         });
         return;
     }
@@ -2337,6 +2352,7 @@ export const downloadHandler = async (
             }
         }
 
+        const downloadedAgents: AgentAsCode[] = [];
         if (!options.spacesOnly && shouldDownloadAiAgents(options)) {
             const implicit =
                 includeAllOptionalContent &&
@@ -2345,13 +2361,50 @@ export const downloadHandler = async (
             await output.runItem({
                 label: 'AI agents',
                 action: async () => {
-                    const total = await downloadAiAgents(
+                    const result = await downloadAiAgents(
                         projectId,
                         options.agents,
                         implicit,
                         options.path,
                     );
-                    counts.agentsNum = total;
+                    downloadedAgents.push(...result.agents);
+                    counts.agentsNum = result.downloaded;
+                    return result.downloaded;
+                },
+                detail: (total) => `${total} downloaded`,
+            });
+        }
+
+        const skillNames = options.skills ?? [];
+        if (
+            !options.spacesOnly &&
+            options.appsOnly !== true &&
+            (options.includeSkills === true || skillNames.length > 0)
+        ) {
+            await output.runItem({
+                label: 'Skills',
+                action: async () => {
+                    // A project checkout stays minimal: without explicit
+                    // names, only the skills bound to the agents just downloaded.
+                    const boundNames = skillNames.length
+                        ? skillNames
+                        : [
+                              ...new Set(
+                                  downloadedAgents.flatMap(
+                                      (agent) => agent.skills ?? [],
+                                  ),
+                              ),
+                          ];
+                    if (boundNames.length === 0) {
+                        counts.skillsNum = 0;
+                        return 0;
+                    }
+                    const total = await downloadSkills({
+                        names: boundNames,
+                        customPath: options.path,
+                        basePath: getDownloadFolder(options.path),
+                    });
+                    counts.skillsNum = total;
                     return total;
                 },
                 detail: (total) => `${total} downloaded`,
@@ -3720,6 +3773,8 @@ export const uploadHandler = async (
             customPath: contentPathOption,
             config,
             sendInvites: options.sendInvites,
+            skills: options.skills ?? [],
+            deleteSkills: options.deleteSkills ?? [],
         });
         return;
     }
@@ -4655,6 +4710,38 @@ export const uploadHandler = async (
                 return result.changes;
             },
         });
+
+        // Skills go before agents: an agent's `skills:` list must resolve
+        // against skills that already exist on the server.
+        {
+            const skillFilters = options.skills ?? [];
+            const deleteSkills = options.deleteSkills ?? [];
+            if (
+                hasFilters &&
+                skillFilters.length === 0 &&
+                deleteSkills.length === 0
+            ) {
+                GlobalState.log(
+                    styles.warning(`No skill filters provided, skipping`),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Skills',
+                    changes,
+                    action: () =>
+                        upsertSkills({
+                            names: skillFilters,
+                            deleteNames: deleteSkills,
+                            basePath: getDownloadFolder(contentPathOption),
+                            changes,
+                        }),
+                    onCount: (count) => {
+                        counts.skillsNum = count;
+                    },
+                });
+            }
+        }
 
         if (!options.skipAgents) {
             if (hasFilters && options.agents.length === 0) {

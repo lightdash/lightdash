@@ -103,11 +103,20 @@ const buildService = ({
     evaluations = [],
     retentionEnabled = false,
     retentionCeiling = null,
+    skillsEnabled = true,
+    boundSkills = [],
+    skillsByName = {},
 }: {
     existing?: (typeof agentRow & { threadRetentionHours?: number | null })[];
     evaluations?: (typeof existingEvaluation)[];
     retentionEnabled?: boolean;
     retentionCeiling?: number | null;
+    skillsEnabled?: boolean;
+    boundSkills?: { uuid: string; name: string }[];
+    skillsByName?: Record<
+        string,
+        { uuid: string; name: string; deletedAt: Date | null }
+    >;
 } = {}) => {
     const aiAgentModel = {
         findAgentsForCode: vi.fn(async () => existing),
@@ -117,8 +126,20 @@ const buildService = ({
         createEval: vi.fn(async () => undefined),
         updateEval: vi.fn(async () => undefined),
     };
+    const aiAgentSkillModel = {
+        findBoundToAgent: vi.fn(async () => boundSkills),
+        findByName: vi.fn(
+            async ({ name }: { name: string }) => skillsByName[name],
+        ),
+    };
+    const aiAgentSkillService = {
+        isEnabled: vi.fn(async () => skillsEnabled),
+        setAgentSkills: vi.fn(async () => ({ skills: [], builtInSkills: [] })),
+    };
     const service = new AiAgentCoderService({
         aiAgentModel: aiAgentModel as never,
+        aiAgentSkillModel: aiAgentSkillModel as never,
+        aiAgentSkillService: aiAgentSkillService as never,
         projectModel: {
             getSummary: vi.fn(async () => ({
                 projectUuid,
@@ -132,7 +153,7 @@ const buildService = ({
         } as never,
     });
 
-    return { service, aiAgentModel };
+    return { service, aiAgentModel, aiAgentSkillModel, aiAgentSkillService };
 };
 
 describe('AiAgentCoderService', () => {
@@ -146,6 +167,7 @@ describe('AiAgentCoderService', () => {
         expect(result.agents).toEqual([
             {
                 ...agentAsCode,
+                skills: [],
                 evaluations: [],
                 updatedAt: agentRow.updatedAt,
             },
@@ -609,5 +631,128 @@ describe('AiAgentCoderService', () => {
 
         expect(result.unchanged).toEqual(['revenue-agent']);
         expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+    });
+
+    describe('skills', () => {
+        const skill = {
+            uuid: 'skill-1',
+            name: 'weekly-review',
+            deletedAt: null,
+        };
+
+        it('leaves bindings untouched when the document omits skills', async () => {
+            const { service, aiAgentSkillService } = buildService({
+                boundSkills: [skill],
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                agentAsCode,
+            ]);
+            expect(aiAgentSkillService.setAgentSkills).not.toHaveBeenCalled();
+            expect(result.unchanged).toEqual(['revenue-agent']);
+        });
+
+        it('binds a declared list through the skills service', async () => {
+            const { service, aiAgentSkillService } = buildService({
+                skillsByName: { 'weekly-review': skill },
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, skills: ['weekly-review'] },
+            ]);
+            expect(
+                aiAgentSkillService.setAgentSkills,
+            ).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+                projectUuid,
+                agentUuid: agentRow.uuid,
+                skillUuids: ['skill-1'],
+            });
+            expect(result.updated).toEqual(['revenue-agent']);
+        });
+
+        it('treats an empty list as authoritative and unbinds everything', async () => {
+            const { service, aiAgentSkillService } = buildService({
+                boundSkills: [skill],
+            });
+            await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, skills: [] },
+            ]);
+            expect(
+                aiAgentSkillService.setAgentSkills,
+            ).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+                projectUuid,
+                agentUuid: agentRow.uuid,
+                skillUuids: [],
+            });
+        });
+
+        it('ignores built-in names with a warning', async () => {
+            const { service, aiAgentSkillService } = buildService();
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, skills: ['developing-in-lightdash'] },
+            ]);
+            expect(result.warnings).toEqual([
+                "AI agent 'revenue-agent': skill 'developing-in-lightdash' is built in and always on, so it was ignored",
+            ]);
+            expect(aiAgentSkillService.setAgentSkills).not.toHaveBeenCalled();
+        });
+
+        it('fails only the agent that names a missing or deleted skill', async () => {
+            const { service, aiAgentModel } = buildService({
+                existing: [],
+                skillsByName: {
+                    gone: {
+                        uuid: 'skill-2',
+                        name: 'gone',
+                        deletedAt: new Date(),
+                    },
+                },
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, slug: 'broken', skills: ['gone', 'nope'] },
+                { ...agentAsCode, slug: 'fine' },
+            ]);
+            expect(result.failed).toEqual([
+                { slug: 'broken', message: expect.stringContaining('gone') },
+            ]);
+            expect(result.created).toEqual(['fine']);
+            expect(aiAgentModel.createAgent).toHaveBeenCalledTimes(1);
+        });
+
+        it('reports a binding the caller may not make without dropping the agent', async () => {
+            const { service, aiAgentSkillService } = buildService({
+                skillsByName: { 'weekly-review': skill },
+            });
+            aiAgentSkillService.setAgentSkills.mockRejectedValueOnce(
+                new Error('You do not have permission'),
+            );
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, skills: ['weekly-review'] },
+            ]);
+            expect(result.failed).toEqual([
+                {
+                    slug: 'revenue-agent',
+                    message: expect.stringContaining('could not be bound'),
+                },
+            ]);
+        });
+
+        it('warns and ignores the skills list when the flag is off', async () => {
+            const { service, aiAgentSkillService } = buildService({
+                skillsEnabled: false,
+                skillsByName: { 'weekly-review': skill },
+            });
+            const result = await service.upsertAgents(user, projectUuid, [
+                { ...agentAsCode, skills: ['weekly-review'] },
+            ]);
+            expect(result.warnings).toEqual([
+                "AI agent 'revenue-agent': skills were ignored — custom agent skills are not enabled for this organization",
+            ]);
+            expect(aiAgentSkillService.setAgentSkills).not.toHaveBeenCalled();
+        });
+
+        it('omits the skills key from downloads when the flag is off', async () => {
+            const { service } = buildService({ skillsEnabled: false });
+            const { agents } = await service.downloadAgents(user, projectUuid);
+            expect(agents[0]).not.toHaveProperty('skills');
+        });
     });
 });

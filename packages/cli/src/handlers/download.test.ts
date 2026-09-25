@@ -1403,9 +1403,9 @@ describe('AI agent downloads', () => {
     it('skips unavailable AI agents when selected implicitly', async () => {
         vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
 
-        await expect(downloadAiAgents('project-uuid', [], true)).resolves.toBe(
-            0,
-        );
+        await expect(
+            downloadAiAgents('project-uuid', [], true),
+        ).resolves.toEqual({ downloaded: 0, agents: [] });
     });
 
     it('keeps explicit AI agent downloads strict', async () => {

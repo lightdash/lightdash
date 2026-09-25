@@ -627,6 +627,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentCoderService({
                     lightdashConfig: context.lightdashConfig,
                     aiAgentModel: models.getAiAgentModel(),
+                    aiAgentSkillService:
+                        repository.getAiAgentSkillService<AiAgentSkillService>(),
+                    aiAgentSkillModel:
+                        models.getAiAgentSkillModel<AiAgentSkillModel>(),
                     projectModel: models.getProjectModel(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),

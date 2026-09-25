@@ -7,6 +7,9 @@ import {
     ApiAiAgentSkillVersionResponse,
     ApiCreateAiAgentSkill,
     ApiErrorPayload,
+    ApiSkillsAsCodeListResponse,
+    ApiSkillsAsCodeUpsertRequest,
+    ApiSkillsAsCodeUpsertResponse,
     ApiUpdateAiAgentSkill,
     ApiValidateAiAgentSkill,
     assertRegisteredAccount,
@@ -65,6 +68,58 @@ export class AiAgentSkillController extends BaseController {
             results: await this.getService().listSkills(req.account, {
                 projectUuid: projectUuid ?? null,
                 includeDeleted: includeDeleted ?? false,
+            }),
+        };
+    }
+
+    /**
+     * Download skills as code: each skill's `SKILL.md` and resources, keyed
+     * by path. Names filter the set; missing names are reported.
+     * @summary Download AI agent skills as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/code')
+    @OperationId('getAiAgentSkillsAsCode')
+    async getSkillsAsCode(
+        @Request() req: express.Request,
+        @Query() names?: string[],
+    ): Promise<ApiSkillsAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().downloadSkills(req.account, {
+                names: names ?? [],
+            }),
+        };
+    }
+
+    /**
+     * Upload skills as code. Creates new skills, publishes a version for
+     * changed ones, reports unchanged ones, and soft-deletes only the names
+     * listed in `deleteNames`.
+     * @summary Upload AI agent skills as code
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/code')
+    @OperationId('upsertAiAgentSkillsAsCode')
+    async upsertSkillsAsCode(
+        @Request() req: express.Request,
+        @Body() body: ApiSkillsAsCodeUpsertRequest,
+    ): Promise<ApiSkillsAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().upsertSkills(req.account, {
+                skills: body.skills,
+                deleteNames: body.deleteNames ?? [],
             }),
         };
     }

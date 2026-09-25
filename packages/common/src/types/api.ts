@@ -100,6 +100,8 @@ import type {
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
     ApiResolvedHomepageResponse,
+    ApiSkillsAsCodeListResponse,
+    ApiSkillsAsCodeUpsertResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     AppExternalConnectionLink,
@@ -1499,6 +1501,8 @@ type ApiResults =
     | ApiCreateTagResponse['results']
     | ApiAgentAsCodeListResponse['results']
     | ApiAgentAsCodeUpsertResponse['results']
+    | ApiSkillsAsCodeListResponse['results']
+    | ApiSkillsAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
     | ApiOrganizationRoleSetResponse['results']

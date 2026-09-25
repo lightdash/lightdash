@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AgentSkillsListing,
     AI_AGENT_SKILL_MAX_PER_AGENT,
+    AI_AGENT_SKILLS_DISABLED_MESSAGE,
     AiAgentSkill,
     AiAgentSkillContent,
     AiAgentSkillFiles,
@@ -16,6 +17,8 @@ import {
     NotFoundError,
     ParameterError,
     RegisteredAccount,
+    SkillAsCode,
+    SkillAsCodeUpsertChanges,
     validateAiAgentSkill,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -45,6 +48,42 @@ type AiAgentSkillServiceDependencies = {
 type AuthoringSource = Extract<AiAgentSkillVersionSource, 'ui' | 'as_code'>;
 
 type SkillScope = { organizationUuid: string; projectUuid: string | null };
+
+type SkillUpload = {
+    account: RegisteredAccount;
+    organizationUuid: string;
+    reservedNames: string[];
+};
+
+const emptyChanges = (): SkillAsCodeUpsertChanges => ({
+    created: [],
+    updated: [],
+    unchanged: [],
+    deleted: [],
+    failed: [],
+    warnings: [],
+});
+
+const mergeChanges = (
+    a: SkillAsCodeUpsertChanges,
+    b: SkillAsCodeUpsertChanges,
+): SkillAsCodeUpsertChanges => ({
+    created: [...a.created, ...b.created],
+    updated: [...a.updated, ...b.updated],
+    unchanged: [...a.unchanged, ...b.unchanged],
+    deleted: [...a.deleted, ...b.deleted],
+    failed: [...a.failed, ...b.failed],
+    warnings: [...a.warnings, ...b.warnings],
+});
+
+const sequentially = <T, R>(
+    items: T[],
+    fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> =>
+    items.reduce<Promise<R[]>>(
+        async (acc, item, index) => [...(await acc), await fn(item, index)],
+        Promise.resolve([]),
+    );
 
 const organizationUuidOf = (account: RegisteredAccount): string => {
     const { organizationUuid } = account.organization;
@@ -103,7 +142,7 @@ export class AiAgentSkillService extends BaseService {
 
     private async assertEnabled(account: RegisteredAccount): Promise<void> {
         if (!(await this.isEnabled(account))) {
-            throw new ForbiddenError('Custom agent skills are not enabled');
+            throw new ForbiddenError(AI_AGENT_SKILLS_DISABLED_MESSAGE);
         }
     }
 
@@ -551,6 +590,160 @@ export class AiAgentSkillService extends BaseService {
         return skills.filter((skill) =>
             skill.parsed.frontmatter.availability.includes('mcp'),
         );
+    }
+
+    /** Every skill the caller may view, as folders, for as-code download. */
+    async downloadSkills(
+        account: RegisteredAccount,
+        args: { names: string[] },
+    ): Promise<{ skills: SkillAsCode[]; missingNames: string[] }> {
+        const summaries = await this.listSkills(account, {
+            projectUuid: null,
+            includeDeleted: false,
+        });
+        const wanted = args.names.length > 0 ? new Set(args.names) : null;
+        const selected = summaries.filter(
+            (summary) => wanted === null || wanted.has(summary.name),
+        );
+        const skills = await Promise.all(
+            selected.map(async (summary) => {
+                const skill = await this.aiAgentSkillModel.find(summary.uuid);
+                return skill
+                    ? [{ name: skill.name, files: skill.content.files }]
+                    : [];
+            }),
+        ).then((folders) => folders.flat());
+        const found = new Set(skills.map((skill) => skill.name));
+        return {
+            skills,
+            missingNames: args.names.filter((name) => !found.has(name)),
+        };
+    }
+
+    private async upsertSkillFolder(
+        upload: SkillUpload,
+        skill: SkillAsCode,
+    ): Promise<SkillAsCodeUpsertChanges> {
+        const { account, organizationUuid } = upload;
+        const validation = validateAiAgentSkill({
+            files: skill.files,
+            reservedNames: upload.reservedNames,
+            folderName: skill.name,
+        });
+        const warnings = validation.warnings.map(
+            (warning) => `${skill.name}/${warning.path}: ${warning.message}`,
+        );
+        if (!validation.valid) {
+            return {
+                ...emptyChanges(),
+                warnings,
+                failed: [
+                    {
+                        name: skill.name,
+                        message: validation.errors
+                            .map((issue) => `${issue.path}: ${issue.message}`)
+                            .join(' '),
+                    },
+                ],
+            };
+        }
+        const existing = await this.aiAgentSkillModel.findByName({
+            organizationUuid,
+            name: skill.name,
+        });
+        if (existing?.deletedAt) {
+            // Like charts as code, an upload revives a deleted name in place.
+            this.assertCanManage(account, existing);
+            await this.aiAgentSkillModel.publishVersion({
+                skillUuid: existing.uuid,
+                content: { schemaVersion: 1, files: skill.files },
+                parsed: validation.parsed,
+                source: 'as_code',
+                restoredFromVersion: null,
+                revive: true,
+                userUuid: account.user.userUuid,
+            });
+            return {
+                ...emptyChanges(),
+                warnings: [
+                    ...warnings,
+                    `Skill "${skill.name}" had been deleted and was restored by this upload.`,
+                ],
+                updated: [skill.name],
+            };
+        }
+        if (existing) {
+            const result = await this.updateSkill(account, existing.uuid, {
+                files: skill.files,
+                source: 'as_code',
+            });
+            return result.created
+                ? { ...emptyChanges(), warnings, updated: [skill.name] }
+                : { ...emptyChanges(), warnings, unchanged: [skill.name] };
+        }
+        await this.createSkill(account, {
+            files: skill.files,
+            projectUuid: null,
+            agentUuids: [],
+            source: 'as_code',
+        });
+        return { ...emptyChanges(), warnings, created: [skill.name] };
+    }
+
+    private async deleteSkillByName(
+        account: RegisteredAccount,
+        organizationUuid: string,
+        name: string,
+    ): Promise<SkillAsCodeUpsertChanges> {
+        const existing = await this.aiAgentSkillModel.findByName({
+            organizationUuid,
+            name,
+        });
+        if (!existing || existing.deletedAt) {
+            return {
+                ...emptyChanges(),
+                warnings: [
+                    `Skill "${name}" was not deleted because it does not exist.`,
+                ],
+            };
+        }
+        await this.deleteSkill(account, existing.uuid);
+        return { ...emptyChanges(), deleted: [name] };
+    }
+
+    /** As-code upload: create, republish on hash change or report unchanged, one folder at a time. Absence never deletes. */
+    async upsertSkills(
+        account: RegisteredAccount,
+        args: { skills: SkillAsCode[]; deleteNames: string[] },
+    ): Promise<SkillAsCodeUpsertChanges> {
+        const organizationUuid = organizationUuidOf(account);
+        await this.assertEnabled(account);
+        this.assertCanManage(account, { organizationUuid, projectUuid: null });
+        const upload: SkillUpload = {
+            account,
+            organizationUuid,
+            reservedNames: await this.builtInSkills.getAllNames(),
+        };
+        const firstIndexByName = new Map(
+            args.skills.map((skill, index) => [skill.name, index] as const),
+        );
+        const upserts = await sequentially(args.skills, (skill, index) =>
+            firstIndexByName.get(skill.name) === index
+                ? this.upsertSkillFolder(upload, skill)
+                : Promise.resolve({
+                      ...emptyChanges(),
+                      failed: [
+                          {
+                              name: skill.name,
+                              message: `Duplicate skill folder "${skill.name}" in upload.`,
+                          },
+                      ],
+                  }),
+        );
+        const deletes = await sequentially(args.deleteNames, (name) =>
+            this.deleteSkillByName(account, organizationUuid, name),
+        );
+        return [...upserts, ...deletes].reduce(mergeChanges, emptyChanges());
     }
 
     /** Authoritative: binds the listed skills and unbinds the rest. */

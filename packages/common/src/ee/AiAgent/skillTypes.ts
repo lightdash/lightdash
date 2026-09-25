@@ -13,6 +13,8 @@ export const AI_AGENT_SKILL_MAX_TOTAL_BYTES = 512 * 1024;
 export const AI_AGENT_SKILL_BODY_WARN_LINES = 500;
 export const AI_AGENT_SKILL_MAX_PER_AGENT = 50;
 export const AI_AGENT_SKILL_LISTING_MAX_CHARS = 1536;
+export const AI_AGENT_SKILLS_DISABLED_MESSAGE =
+    'Custom agent skills are not enabled';
 
 export type AiAgentSkillAvailability = 'agent' | 'mcp';
 
@@ -205,6 +207,37 @@ export type ApiAiAgentSkillVersionListResponse = {
 export type ApiAiAgentSkillVersionResponse = {
     status: 'ok';
     results: AiAgentSkillVersion;
+};
+
+/** A skill folder as code: `SKILL.md` and `resources/*.md`, keyed by path. */
+export type SkillAsCode = {
+    name: string;
+    files: AiAgentSkillFiles;
+};
+
+export type SkillAsCodeUpsertChanges = {
+    created: string[];
+    updated: string[];
+    unchanged: string[];
+    deleted: string[];
+    failed: { name: string; message: string }[];
+    warnings: string[];
+};
+
+export type ApiSkillsAsCodeListResponse = {
+    status: 'ok';
+    results: { skills: SkillAsCode[]; missingNames: string[] };
+};
+
+export type ApiSkillsAsCodeUpsertRequest = {
+    skills: SkillAsCode[];
+    /** Names to unbind everywhere and soft-delete. Absence never deletes. */
+    deleteNames?: string[];
+};
+
+export type ApiSkillsAsCodeUpsertResponse = {
+    status: 'ok';
+    results: SkillAsCodeUpsertChanges;
 };
 
 export type ApiAiAgentSkillValidationResponse = {

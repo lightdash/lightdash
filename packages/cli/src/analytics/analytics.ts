@@ -286,6 +286,7 @@ export type ProjectContentAsCodeCounts = {
     spacesNum?: number;
     virtualViewsNum?: number;
     agentsNum?: number;
+    skillsNum?: number;
     appsNum?: number;
     chartTypesNum?: number;
     alertsNum?: number;
