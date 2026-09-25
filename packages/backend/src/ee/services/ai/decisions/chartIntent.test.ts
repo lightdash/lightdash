@@ -847,6 +847,61 @@ describe('metric, breakdown and grain edits', () => {
         });
     });
 
+    it('asks whether to add or replace when a replacement is likely but not sure', () => {
+        expect(
+            run({
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.6),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toMatchObject({
+            type: 'clarify',
+            question: 'How should I use Region?',
+            options: [
+                { intent: { kind: 'add_field', fieldId: 'orders_region' } },
+                {
+                    intent: {
+                        kind: 'swap_field',
+                        fromFieldId: 'orders_status',
+                        toFieldId: 'orders_region',
+                    },
+                },
+            ],
+        });
+    });
+
+    it('asks which new field replaces the breakdown when two fit', () => {
+        expect(
+            run({
+                intent: choice('add_field'),
+                addField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.55,
+                    probabilities: { orders_region: 0.55, orders_city: 0.4 },
+                },
+                replacesField: noul(0.9),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toEqual({
+            type: 'clarify',
+            question: 'Which field should replace Status?',
+            options: [
+                {
+                    label: 'Region',
+                    prompt: 'Break down by Region instead of Status',
+                    intent: null,
+                },
+                {
+                    label: 'City',
+                    prompt: 'Break down by City instead of Status',
+                    intent: null,
+                },
+            ],
+        });
+    });
+
     it('adds the breakdown alongside when it does not replace one', () => {
         expect(
             run({
@@ -952,6 +1007,34 @@ describe('choices when the user names a field but not the edit', () => {
                 },
             ],
         });
+    });
+
+    it('swaps the breakdown when JEV is sure the named field replaces it', () => {
+        expect(
+            run({
+                intent: unsure(0.1),
+                metricToAdd: choice('none'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.85),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'swap_field',
+                fromFieldId: 'orders_status',
+                toFieldId: 'orders_region',
+            },
+        });
+        expect(
+            run({
+                intent: unsure(0.1),
+                metricToAdd: choice('none'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.85),
+                fieldToRemove: choice('orders_status', 0.4),
+            }),
+        ).toMatchObject({ type: 'clarify' });
     });
 
     it('asks when a new question only narrowly wins over edits', () => {
