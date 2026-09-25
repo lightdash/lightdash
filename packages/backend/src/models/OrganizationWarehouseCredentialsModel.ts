@@ -254,8 +254,9 @@ export class OrganizationWarehouseCredentialsModel {
 
     private async assertNoExtraConnectionUses(
         organizationWarehouseCredentialsUuid: string,
+        transaction: Knex.Transaction,
     ): Promise<void> {
-        const users = await this.database('warehouse_connections')
+        const users = await transaction('warehouse_connections')
             .innerJoin(
                 'projects',
                 'projects.project_uuid',
@@ -289,51 +290,51 @@ export class OrganizationWarehouseCredentialsModel {
         uuid: string,
         data: UpdateOrganizationWarehouseCredentials,
     ): Promise<OrganizationWarehouseCredentials> {
-        const existing = await this.database(
-            OrganizationWarehouseCredentialsTableName,
-        )
-            .select('*')
-            .where('organization_warehouse_credentials_uuid', uuid)
-            .first();
+        await this.database.transaction(async (transaction) => {
+            const existing = await transaction(
+                OrganizationWarehouseCredentialsTableName,
+            )
+                .select('*')
+                .where('organization_warehouse_credentials_uuid', uuid)
+                .forUpdate()
+                .first();
 
-        if (!existing) {
-            throw new NotFoundError(
-                'Organization warehouse credentials not found',
-            );
-        }
+            if (!existing) {
+                throw new NotFoundError(
+                    'Organization warehouse credentials not found',
+                );
+            }
 
-        const updateData: Partial<DbOrganizationWarehouseCredentials> = {};
+            const updateData: Partial<DbOrganizationWarehouseCredentials> = {};
 
-        if (data.name !== undefined) {
-            updateData.name = data.name;
-        }
+            if (data.name !== undefined) {
+                updateData.name = data.name;
+            }
 
-        if (data.description !== undefined) {
-            updateData.description = data.description;
-        }
+            if (data.description !== undefined) {
+                updateData.description = data.description;
+            }
 
-        if (
-            data.credentials &&
-            data.credentials.type !== existing.warehouse_type
-        ) {
-            await this.assertNoExtraConnectionUses(uuid);
-        }
+            if (
+                data.credentials &&
+                data.credentials.type !== existing.warehouse_type
+            ) {
+                await this.assertNoExtraConnectionUses(uuid, transaction);
+            }
 
-        if (data.credentials) {
-            updateData.warehouse_type = data.credentials.type;
-            updateData.warehouse_connection = this.encryptionUtil.encrypt(
-                OrganizationWarehouseCredentialsModel.stringifyCredentials(
-                    data.credentials,
-                ),
-            );
-        }
+            if (data.credentials) {
+                updateData.warehouse_type = data.credentials.type;
+                updateData.warehouse_connection = this.encryptionUtil.encrypt(
+                    OrganizationWarehouseCredentialsModel.stringifyCredentials(
+                        data.credentials,
+                    ),
+                );
+            }
 
-        const [updated] = await this.database(
-            OrganizationWarehouseCredentialsTableName,
-        )
-            .update(updateData)
-            .where('organization_warehouse_credentials_uuid', uuid)
-            .returning('*');
+            await transaction(OrganizationWarehouseCredentialsTableName)
+                .update(updateData)
+                .where('organization_warehouse_credentials_uuid', uuid);
+        });
 
         return this.getByUuid(uuid);
     }

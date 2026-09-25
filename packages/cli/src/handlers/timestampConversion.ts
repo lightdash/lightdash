@@ -54,16 +54,21 @@ export const getProjectDeploySettings = async (
                 e,
             )}`,
         );
-        return {
-            disableTimestampConversion: undefined,
-            connectionRoute: undefined,
-        };
+        throw new Error(
+            `Could not read project settings for deploy: ${getErrorMessage(e)}`,
+            { cause: e },
+        );
     }
 };
 
 export const getProjectDisableTimestampConversion = async (
     cliValue: boolean | undefined,
     projectUuid: string,
-): Promise<boolean | undefined> =>
-    (await getProjectDeploySettings(cliValue, projectUuid))
-        .disableTimestampConversion;
+): Promise<boolean | undefined> => {
+    try {
+        return (await getProjectDeploySettings(cliValue, projectUuid))
+            .disableTimestampConversion;
+    } catch {
+        return undefined;
+    }
+};

@@ -340,24 +340,52 @@ export class WarehouseConnectionModel {
         project: WarehouseConnectionProject,
         input: CreateExtraWarehouseConnection,
     ): Promise<WarehouseConnection> {
-        const [row] = await this.database<DbWarehouseConnection>(
-            WAREHOUSE_CONNECTIONS_TABLE,
-        )
-            .insert({
-                project_uuid: project.projectUuid,
-                is_original: false,
-                name: input.name,
-                warehouse_type: input.warehouseType,
-                ...this.toCredentialColumns(input.source),
-                list_all_databases: input.listAllDatabases,
-                additional_databases: input.additionalDatabases,
-                created_by_user_uuid: input.createdByUserUuid,
-            })
-            .returning('*');
-        return WarehouseConnectionModel.toWarehouseConnection(
-            row,
-            project.originalWarehouseType,
-        );
+        return this.database.transaction(async (transaction) => {
+            if (input.source.kind === 'organization') {
+                const credential = await transaction(
+                    'organization_warehouse_credentials',
+                )
+                    .select('warehouse_type', 'organization_uuid')
+                    .where(
+                        'organization_warehouse_credentials_uuid',
+                        input.source.organizationWarehouseCredentialsUuid,
+                    )
+                    .forUpdate()
+                    .first();
+                if (
+                    !credential ||
+                    credential.organization_uuid !== project.organizationUuid
+                ) {
+                    throw new NotFoundError(
+                        'Organization warehouse credentials not found',
+                    );
+                }
+                if (credential.warehouse_type !== input.warehouseType) {
+                    throw new ParameterError(
+                        'These organization warehouse credentials no longer match the connection warehouse type.',
+                    );
+                }
+            }
+
+            const [row] = await transaction<DbWarehouseConnection>(
+                WAREHOUSE_CONNECTIONS_TABLE,
+            )
+                .insert({
+                    project_uuid: project.projectUuid,
+                    is_original: false,
+                    name: input.name,
+                    warehouse_type: input.warehouseType,
+                    ...this.toCredentialColumns(input.source),
+                    list_all_databases: input.listAllDatabases,
+                    additional_databases: input.additionalDatabases,
+                    created_by_user_uuid: input.createdByUserUuid,
+                })
+                .returning('*');
+            return WarehouseConnectionModel.toWarehouseConnection(
+                row,
+                project.originalWarehouseType,
+            );
+        });
     }
 
     async updateExtraCredentials(

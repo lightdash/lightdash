@@ -76,7 +76,8 @@ export const resolveActiveConnection = ({
         : undefined;
 };
 
-const GENERATED_SELECT = /^SELECT \* FROM [`"[\]\w.]+\s*(\r?\nWHERE .*)?$/is;
+const GENERATED_SELECT =
+    /^SELECT \* FROM [`"[\]\w.]+(?: ?\r?\nWHERE [^\r\n]+ -- This table has a (?:date|range) partition on this field)?$/i;
 
 export const isReplaceableSql = (sql: string): boolean => {
     const trimmed = sql.trim();

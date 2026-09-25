@@ -181,14 +181,11 @@ describe('getProjectDeploySettings', () => {
         },
     );
 
-    it('has no connection route when the project fetch fails', async () => {
+    it('stops deploy settings when the project fetch fails', async () => {
         mockLightdashApi.mockRejectedValueOnce(new Error('network error'));
 
         await expect(
             getProjectDeploySettings(undefined, PROJECT_UUID),
-        ).resolves.toEqual({
-            disableTimestampConversion: undefined,
-            connectionRoute: undefined,
-        });
+        ).rejects.toThrow('Could not read project settings for deploy');
     });
 });
