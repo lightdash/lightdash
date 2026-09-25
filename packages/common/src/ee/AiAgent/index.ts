@@ -704,9 +704,9 @@ export type ApiRenameAiMcpServerBody = {
     name: string;
 };
 
-export type AiProjectMcpServer = AiMcpServer & {
+export interface AiProjectMcpServer extends AiMcpServer {
     attachedAgentCount: number;
-};
+}
 
 export type ApiAiMcpServerListResponse = ApiSuccess<AiMcpServer[]>;
 export type ApiAiProjectMcpServerListResponse = ApiSuccess<
