@@ -344,6 +344,7 @@ import {
 import { type ProjectGroupAccess } from './projectGroupAccess';
 import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
+import { type ApiProjectNavigationResponse } from './projectNavigation';
 import {
     DbtProjectType,
     type CreateTrainingPreviewResults,
@@ -1648,6 +1649,7 @@ type ApiResults =
     | ApiProjectCompileLogResponse['results']
     | ApiSingleValidationResponse['results']
     | ApiFavoriteItems['results']
+    | ApiProjectNavigationResponse['results']
     | ApiChartValidationResponse['results']
     | ApiDashboardValidationResponse['results']
     | ApiToggleFavorite['results']

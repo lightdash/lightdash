@@ -362,6 +362,24 @@ export class AiOrganizationSettingsService extends BaseService {
         return settings?.requireExplicitSlackChannelLinking ?? false;
     }
 
+    // Same `aiAgentsVisible` as getRuntimeSettings, without resolving model options.
+    async areAiAgentsVisible(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) return false;
+        const { isCopilotEnabled, isTrial } = await this.getAiAvailability(
+            user,
+            organizationUuid,
+        );
+        if (!isCopilotEnabled && !isTrial) return false;
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.aiAgentsVisible ?? true;
+    }
+
     async isAiAgentMemoryEnabled(
         user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<boolean> {

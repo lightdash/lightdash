@@ -4,8 +4,8 @@ import { IconHome, IconMenu2 } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
 import { LearnLink } from '../../features/learn/LearnLink';
-import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
+import { useProjectNavigation } from '../../hooks/useProjectNavigation';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
@@ -55,9 +55,11 @@ export const MainNavBarContent: FC<Props> = ({
     const homeUrl = activeProjectUuid
         ? `/projects/${projectUrlIdentifier}/home`
         : '/';
-    const { data: hasMetrics } = useHasMetricsInCatalog({
-        projectUuid: activeProjectUuid,
-    });
+    const { data: navigation, isInitialLoading: isLoadingNavigation } =
+        useProjectNavigation(activeProjectUuid);
+    // Project items wait for navigation so they appear together.
+    const isProjectNavigationReady =
+        !isLoadingActiveProject && !isLoadingNavigation;
     const { health } = useApp();
     const headwayEnabled = health.data?.headway?.enabled;
     const NavGroup = compact ? Group : Button.Group;
@@ -95,8 +97,8 @@ export const MainNavBarContent: FC<Props> = ({
                     </ActionIcon>
                 )}
 
-                {!isLoadingActiveProject && activeProjectUuid && (
-                    <>
+                {isProjectNavigationReady && activeProjectUuid && (
+                    <Suspense fallback={null}>
                         <NavGroup className={classes.buttonGroup}>
                             {compact && (
                                 <>
@@ -120,23 +122,25 @@ export const MainNavBarContent: FC<Props> = ({
                                 projectUrlIdentifier={projectUrlIdentifier}
                             />
                             <BrowseMenu projectUuid={activeProjectUuid} />
-                            {hasMetrics && (
+                            {navigation?.metrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
-                            <Suspense fallback={null}>
+                            {navigation?.askAi && (
                                 <AiAgentsButton
                                     projectUuid={activeProjectUuid}
                                 />
-                            </Suspense>
-                            <AutopilotNavButton
-                                projectUuid={activeProjectUuid}
-                                withLabel={compact}
-                            />
+                            )}
+                            {navigation?.autopilot && (
+                                <AutopilotNavButton
+                                    projectUuid={activeProjectUuid}
+                                    withLabel={compact}
+                                />
+                            )}
                         </NavGroup>
                         {!compact && (
                             <Omnibar projectUuid={activeProjectUuid} />
                         )}
-                    </>
+                    </Suspense>
                 )}
             </Group>
 
@@ -147,12 +151,14 @@ export const MainNavBarContent: FC<Props> = ({
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 
-                    {!isLoadingActiveProject && activeProjectUuid && (
+                    {isProjectNavigationReady && activeProjectUuid && (
                         <>
-                            <LearnLink
-                                projectUuid={activeProjectUuid}
-                                withLabel={compact}
-                            />
+                            {navigation?.learn && (
+                                <LearnLink
+                                    projectUuid={activeProjectUuid}
+                                    withLabel={compact}
+                                />
+                            )}
                             <NotificationsMenu
                                 projectUuid={activeProjectUuid}
                                 withLabel={compact}
@@ -163,7 +169,7 @@ export const MainNavBarContent: FC<Props> = ({
                     <HelpMenu withLabel={compact} />
 
                     {headwayEnabled &&
-                        !isLoadingActiveProject &&
+                        isProjectNavigationReady &&
                         activeProjectUuid && (
                             <HeadwayMenuItem
                                 projectUuid={activeProjectUuid}
@@ -203,17 +209,17 @@ export const MainNavBarContent: FC<Props> = ({
                     <Logo />
                 </ActionIcon>
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
-                    {activeProjectUuid && (
-                        <>
+                    {isProjectNavigationReady && activeProjectUuid && (
+                        <Suspense fallback={null}>
                             <Omnibar projectUuid={activeProjectUuid} />
-                            <Suspense fallback={null}>
+                            {navigation?.askAi && (
                                 <Box className={classes.compactAiButton}>
                                     <AiAgentsButton
                                         projectUuid={activeProjectUuid}
                                     />
                                 </Box>
-                            </Suspense>
-                        </>
+                            )}
+                        </Suspense>
                     )}
                     <ActionIcon
                         className={classes.menuButton}

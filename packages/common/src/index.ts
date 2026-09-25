@@ -147,6 +147,7 @@ export * from './types/errors';
 export * from './types/explore';
 export * from './types/externalSources';
 export * from './types/favorites';
+export * from './types/projectNavigation';
 export * from './featureFlags/previewFeatureFlags';
 export * from './types/dataRetention';
 export * from './types/featureFlags';

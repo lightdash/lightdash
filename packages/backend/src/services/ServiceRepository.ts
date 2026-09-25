@@ -73,6 +73,7 @@ import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
 import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
+import { ProjectNavigationService } from './ProjectNavigationService/ProjectNavigationService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
@@ -182,6 +183,7 @@ interface ServiceManifest {
     asyncQueryService: AsyncQueryService;
     querySourceService: QuerySourceService;
     renameService: RenameService;
+    projectNavigationService: ProjectNavigationService;
     projectParametersService: ProjectParametersService;
     projectDbtSourcesService: ProjectDbtSourcesService;
     warehouseConnectionService: WarehouseConnectionService;
@@ -2066,6 +2068,20 @@ export class ServiceRepository
         InstanceConfigurationServiceImplT,
     >(): InstanceConfigurationServiceImplT {
         return this.getService('instanceConfigurationService');
+    }
+
+    public getProjectNavigationService<
+        ProjectNavigationServiceImplT extends ProjectNavigationService,
+    >(): ProjectNavigationServiceImplT {
+        return this.getService(
+            'projectNavigationService',
+            () =>
+                new ProjectNavigationService({
+                    projectModel: this.models.getProjectModel(),
+                    catalogModel: this.models.getCatalogModel(),
+                    featureFlagService: this.getFeatureFlagService(),
+                }),
+        ) as ProjectNavigationServiceImplT;
     }
 
     public getProjectParametersService(): ProjectParametersService {
