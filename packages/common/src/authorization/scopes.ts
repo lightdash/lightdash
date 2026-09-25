@@ -1737,7 +1737,8 @@ const scopes: Scope[] = [
 
     // Organization Design Assets (shared CSS/fonts/images/instructions
     // injected into every data app generated in the org). Org-scoped
-    // resource — view is available to all members, manage to org admins.
+    // resource — view is available to org viewers and above, manage to
+    // org admins.
     {
         name: 'view:OrganizationDesign',
         description: 'View organization design assets',
