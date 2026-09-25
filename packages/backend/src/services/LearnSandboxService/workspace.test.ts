@@ -1,10 +1,12 @@
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import {
     isEditablePath,
     loadLearnBundle,
     materialiseWorkspace,
+    renderProfiles,
     validateYaml,
 } from './workspace';
 
@@ -16,6 +18,24 @@ describe('workspace helpers', () => {
         expect(isEditablePath('dbt_project.yml')).toBe(false);
         expect(isEditablePath('models/../dbt_project.yml')).toBe(false);
         expect(isEditablePath('/models/a.yml')).toBe(false);
+    });
+    it('renderProfiles locks the database at open time and the filesystem after', () => {
+        const profile = parseYaml(renderProfiles('/data/jaffle_shop.duckdb'))
+            .jaffle_shop.outputs.jaffle;
+        // dbt-duckdb passes `config_options` to duckdb.connect() and applies
+        // `settings` with SET afterwards. DuckDB only honours access_mode
+        // and enable_external_access at open time, and only accepts
+        // disabled_filesystems once the database is running, so each has
+        // exactly one place it can live.
+        expect(profile.config_options).toEqual({
+            access_mode: 'READ_ONLY',
+            enable_external_access: false,
+        });
+        expect(profile.settings).toEqual({
+            disabled_filesystems: 'LocalFileSystem',
+            memory_limit: '256MB',
+        });
+        expect(profile.path).toBe('/data/jaffle_shop.duckdb');
     });
     it('validateYaml reports a parse error', () => {
         expect(validateYaml('a: 1\n')).toBeNull();
@@ -63,7 +83,7 @@ describe('workspace helpers', () => {
             );
             expect(profiles).toContain('jaffle_shop:');
             expect(profiles).toContain('path: /data/jaffle_shop.duckdb');
-            expect(profiles).toContain('access_mode: READ_ONLY');
+            expect(profiles).toBe(renderProfiles('/data/jaffle_shop.duckdb'));
             expect(
                 (
                     await stat(path.join(dir, 'project', 'dbt_project.yml'))
