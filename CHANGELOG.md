@@ -1,3 +1,11 @@
+## [2.344.2](https://github.com/lightdash/lightdash/compare/2.344.1...2.344.2) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop battle mode charts re-animating on every tick ([#30004](https://github.com/lightdash/lightdash/issues/30004)) ([db58274](https://github.com/lightdash/lightdash/commit/db582747f917cde30cf1026735c4e8e29c79c99c))
+* **chart-types:** hide details Edit without manage access ([#30002](https://github.com/lightdash/lightdash/issues/30002)) ([c14e0f0](https://github.com/lightdash/lightdash/commit/c14e0f08739b42404d199949eb8f22e721cd7d7f))
+
 ## [2.344.1](https://github.com/lightdash/lightdash/compare/2.344.0...2.344.1) (2026-09-25)
 
 
