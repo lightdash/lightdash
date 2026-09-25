@@ -236,6 +236,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.config.selectColumn': 'Select a column to filter',
     'filters.config.searchColumnPlaceholder': 'Search column...',
     'filters.config.noMatchingFields': 'No matching fields',
+    'filters.config.moreFields.singular': '{count} more field. Type to search',
+    'filters.config.moreFields.plural': '{count} more fields. Type to search',
     'filters.config.fieldsInThisTab': 'Fields in this tab',
     'filters.config.otherAvailableFields': 'Other available fields',
     'filters.config.valueLabel': 'Value',

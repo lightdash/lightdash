@@ -2,6 +2,7 @@ import {
     getItemId,
     getItemLabel,
     getItemLabelWithoutTableName,
+    interpolateUiString,
     isCustomDimension,
     isDimension,
     isField,
@@ -19,14 +20,19 @@ import {
     Text,
     Tooltip,
     type ComboboxItem,
-    type ComboboxParsedItem,
-    type OptionsFilter,
     type SelectProps,
 } from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { FILTER_SELECT_LIMIT } from '../Filters/constants';
 import FieldIcon from '../Filters/FieldIcon';
 import classes from './FieldSelect.module.css';
+import {
+    ADD_TO_QUERY_GROUP_LABEL,
+    MORE_OPTIONS_VALUE,
+    optionsFilter,
+    SUGGESTED_GROUP_LABEL,
+} from './optionsFilter';
 
 interface FieldSelectItem extends ComboboxItem {
     item: Item;
@@ -36,42 +42,6 @@ interface FieldSelectItem extends ComboboxItem {
      *  group has no per-table headers to carry it. */
     tablePrefix?: string;
 }
-
-const ADD_TO_QUERY_GROUP_LABEL = 'Add to query';
-const SUGGESTED_GROUP_LABEL = 'Suggested';
-
-// Mantine's default filter only sees `label`, which no longer carries the
-// table name for "Add to query" options — match the prefix too, so searching
-// "orders amount" still finds them.
-const optionsFilter: OptionsFilter = ({ options, search, limit }) => {
-    const words = search.toLowerCase().trim().split(/\s+/);
-    const matches = (option: ComboboxItem) => {
-        const { label, tablePrefix } = option as FieldSelectItem;
-        const haystack = `${tablePrefix ?? ''} ${label}`.toLowerCase();
-        return words.every((word) => haystack.includes(word));
-    };
-
-    const result: ComboboxParsedItem[] = [];
-    let count = 0;
-    for (const item of options) {
-        if (count >= limit) break;
-        if ('group' in item) {
-            const kept: ComboboxItem[] = [];
-            for (const option of item.items) {
-                if (count >= limit) break;
-                if (matches(option)) {
-                    kept.push(option);
-                    count += 1;
-                }
-            }
-            if (kept.length > 0) result.push({ ...item, items: kept });
-        } else if (matches(item)) {
-            result.push(item);
-            count += 1;
-        }
-    }
-    return result;
-};
 
 type FieldSelectProps<T extends Item = Item> = Omit<
     SelectProps,
@@ -341,8 +311,25 @@ const FieldSelectComponent = <T extends Item = Item>({
         inactiveItemIds,
     ]);
 
+    const getUiString = useUiStrings();
+
     const renderOption = useCallback(
         ({ option, checked }: { option: ComboboxItem; checked?: boolean }) => {
+            if (option.value === MORE_OPTIONS_VALUE) {
+                const count = Number(option.label);
+                return (
+                    <Text span fz="xs" c="dimmed">
+                        {interpolateUiString(
+                            getUiString(
+                                count === 1
+                                    ? 'filters.config.moreFields.singular'
+                                    : 'filters.config.moreFields.plural',
+                            ),
+                            { count: count.toLocaleString() },
+                        )}
+                    </Text>
+                );
+            }
             const fieldOption = option as FieldSelectItem;
             const fieldItem = fieldOption.item;
             return (
@@ -385,7 +372,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                 </Tooltip>
             );
         },
-        [rest.size],
+        [rest.size, getUiString],
     );
 
     return (
@@ -402,6 +389,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             renderOption={renderOption}
             leftSection={item ? <FieldIcon item={item} /> : undefined}
             placeholder={rest.placeholder ?? 'Search field...'}
+            nothingFoundMessage={getUiString('filters.config.noMatchingFields')}
             allowDeselect={false}
             rightSectionPointerEvents={
                 rest.clearable || rest.rightSection ? 'all' : 'none'
