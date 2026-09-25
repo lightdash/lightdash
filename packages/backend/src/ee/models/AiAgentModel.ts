@@ -6155,15 +6155,18 @@ export class AiAgentModel {
         humanFeedback?: string | null;
         preserveHumanFeedback?: boolean;
     }) {
-        const humanFeedback =
-            data.humanScore === -1 ? (data.humanFeedback ?? null) : null;
+        const isDownvote = data.humanScore === -1;
+        const keepFeedback = isDownvote && data.preserveHumanFeedback === true;
         await this.database(AiPromptTableName)
             .update({
                 human_score: data.humanScore,
-                human_feedback:
-                    data.humanScore === -1 && data.preserveHumanFeedback
-                        ? undefined
-                        : humanFeedback,
+                ...(keepFeedback
+                    ? {}
+                    : {
+                          human_feedback: isDownvote
+                              ? (data.humanFeedback ?? null)
+                              : null,
+                      }),
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,

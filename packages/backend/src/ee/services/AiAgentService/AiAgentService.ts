@@ -16826,20 +16826,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                 const { promptUuid, score } = parsed.data;
                 if (score < 0) {
-                    // Use the short-lived trigger before saving the vote or updating the message.
-                    try {
-                        await client.views.open({
-                            trigger_id: body.trigger_id,
-                            view: AiAgentService.buildDownvoteFeedbackModalView(
-                                promptUuid,
-                            ),
-                        });
-                    } catch (error) {
-                        Logger.error(
-                            'Failed to open Slack downvote feedback modal',
-                            error,
-                        );
-                    }
+                    await AiAgentService.openDownvoteFeedbackModal(
+                        client,
+                        body.trigger_id,
+                        promptUuid,
+                    );
                 }
 
                 await this.updateHumanScoreForSlackPrompt(
@@ -16872,6 +16863,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
             },
         );
+    }
+
+    // Must run before any slow work: Slack trigger_id expires in ~3s.
+    private static async openDownvoteFeedbackModal(
+        client: WebClient,
+        triggerId: string,
+        promptUuid: string,
+    ) {
+        try {
+            await client.views.open({
+                trigger_id: triggerId,
+                view: AiAgentService.buildDownvoteFeedbackModalView(promptUuid),
+            });
+        } catch (error) {
+            Logger.error('Failed to open Slack downvote feedback modal', error);
+        }
     }
 
     public handlePromptDownvote(app: App) {
@@ -16916,20 +16923,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!promptUuid) {
                             return;
                         }
-                        // Use the short-lived trigger before saving the vote or updating the message.
-                        try {
-                            await client.views.open({
-                                trigger_id: body.trigger_id,
-                                view: AiAgentService.buildDownvoteFeedbackModalView(
-                                    promptUuid,
-                                ),
-                            });
-                        } catch (error) {
-                            Logger.error(
-                                'Failed to open Slack downvote feedback modal',
-                                error,
-                            );
-                        }
+                        await AiAgentService.openDownvoteFeedbackModal(
+                            client,
+                            body.trigger_id,
+                            promptUuid,
+                        );
 
                         await this.updateHumanScoreForSlackPrompt(
                             user.id,
