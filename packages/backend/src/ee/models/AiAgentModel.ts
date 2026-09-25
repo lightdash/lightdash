@@ -174,9 +174,10 @@ import {
     DbAiPrompt,
     DbAiPromptContext,
     DbAiPromptDecision,
+    DbAiPromptDecisionInsert,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
-    DbAiPromptTurnDecisionOutcome,
+    DbAiPromptTurnDecision,
     DbAiSlackPrompt,
     DbAiSlackThread,
     DbAiSqlApproval,
@@ -260,14 +261,23 @@ export type AiPromptResponseState = {
 };
 
 type TurnDecisionRow = Pick<
-    DbAiPromptDecision,
+    DbAiPromptTurnDecision,
     | 'ai_prompt_uuid'
+    | 'operation'
+    | 'outcome'
     | 'applied'
     | 'reason'
     | 'fallback_reason'
     | 'intent'
     | 'latency_ms'
-> & { outcome: DbAiPromptTurnDecisionOutcome };
+>;
+
+const isTurnDecisionRow = (
+    row: Pick<DbAiPromptDecision, 'operation'>,
+): row is TurnDecisionRow =>
+    AI_PROMPT_TURN_DECISION_OPERATIONS.some(
+        (operation) => operation === row.operation,
+    );
 
 const storedChoicesSchema = z.object({
     options: z.array(z.object({ label: z.string(), prompt: z.string() })),
@@ -5761,8 +5771,9 @@ export class AiAgentModel {
     ): Promise<Map<string, AiAgentJevDecision>> {
         if (promptUuids.length === 0) return new Map();
         const rows = await this.database(AiPromptDecisionTableName)
-            .select<TurnDecisionRow[]>(
+            .select(
                 'ai_prompt_uuid',
+                'operation',
                 'outcome',
                 'applied',
                 'reason',
@@ -5774,7 +5785,7 @@ export class AiAgentModel {
             .whereIn('operation', AI_PROMPT_TURN_DECISION_OPERATIONS)
             .orderBy('created_at', 'asc');
         return new Map(
-            rows.map((row) => [
+            rows.filter(isTurnDecisionRow).map((row) => [
                 row.ai_prompt_uuid,
                 {
                     outcome: row.outcome,
@@ -5859,10 +5870,7 @@ export class AiAgentModel {
     }
 
     async createPromptDecision(
-        decision: Omit<
-            DbAiPromptDecision,
-            'ai_prompt_decision_uuid' | 'created_at'
-        >,
+        decision: DbAiPromptDecisionInsert,
     ): Promise<void> {
         await this.database(AiPromptDecisionTableName).insert(decision);
     }
@@ -9139,6 +9147,7 @@ export class AiAgentModel {
             )
             .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(`${AiArtifactsTableName}.artifact_type`, 'chart')
+            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
             .orderBy(`${AiArtifactVersionsTableName}.version_number`, 'asc');
         return rows.map((row) => parseAiArtifactChartConfig(row.chart_config));
     }

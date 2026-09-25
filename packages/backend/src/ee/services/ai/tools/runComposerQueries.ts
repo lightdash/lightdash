@@ -1,6 +1,7 @@
 import {
     buildComposerArtifactPipeline,
     createToolComposerQueriesArgsSchema,
+    getComposerVizPlan,
     isSlackPrompt,
     QuerySourceType,
     runComposerQueriesToolDefinition,
@@ -14,6 +15,7 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import {
+    getDefaultVizNote,
     getVizConfigNote,
     type PlanComposerViz,
 } from '../decisions/vizPlanner';
@@ -272,7 +274,16 @@ export const getRunComposerQueries = ({
                             previousVizConfig:
                                 earlierPipelines.at(-1)?.vizConfig ?? null,
                         })) ?? null;
-                    vizNote = getVizConfigNote(vizConfig);
+                    vizNote = vizConfig
+                        ? getVizConfigNote(vizConfig)
+                        : getDefaultVizNote(
+                              getComposerVizPlan({
+                                  columns: Object.values(terminal.columns),
+                                  rows: terminal.rows,
+                                  node: terminalNode ?? null,
+                                  vizConfig: null,
+                              }),
+                          );
                     await createOrUpdateArtifact({
                         threadUuid: prompt.threadUuid,
                         promptUuid: prompt.promptUuid,

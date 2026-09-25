@@ -38,8 +38,9 @@ const KIND_ORDER: ComposerVizKind[] = [
     'big_number',
 ];
 
-const isNumeric = (column: ResultColumn) =>
+export const isComposerNumericColumn = (column: ResultColumn) =>
     column.type === DimensionType.NUMBER;
+const isNumeric = isComposerNumericColumn;
 const isTemporal = (column: ResultColumn) =>
     column.type === DimensionType.DATE ||
     column.type === DimensionType.TIMESTAMP;
@@ -138,12 +139,10 @@ const getColumnTypeVizPlan = (
     return { availableKinds, defaultKind, axes };
 };
 
-export const getComposerVizKind = (
-    vizConfig: AllVizChartConfig,
-): ComposerVizKind => {
+const getComposerChartKind = (
+    vizConfig: Exclude<AllVizChartConfig, { type: ChartKind.TABLE }>,
+): ComposerChartKind => {
     switch (vizConfig.type) {
-        case ChartKind.TABLE:
-            return 'table';
         case ChartKind.VERTICAL_BAR:
             return 'bar';
         case ChartKind.LINE:
@@ -156,6 +155,13 @@ export const getComposerVizKind = (
             return assertUnreachable(vizConfig, 'Unknown viz config type');
     }
 };
+
+export const getComposerVizKind = (
+    vizConfig: AllVizChartConfig,
+): ComposerVizKind =>
+    vizConfig.type === ChartKind.TABLE
+        ? 'table'
+        : getComposerChartKind(vizConfig);
 
 /** Stored axes drive every kind that can use them; the column-type plan fills the rest. Null when the viz config no longer fits the columns. */
 const seedFromVizConfig = (
@@ -197,8 +203,8 @@ const seedFromVizConfig = (
     }
     if (rows.length === 1) axes.big_number = { x: null, y };
 
-    const defaultKind = getComposerVizKind(vizConfig);
-    if (defaultKind === 'table' || !axes[defaultKind]) return null;
+    const defaultKind = getComposerChartKind(vizConfig);
+    if (!axes[defaultKind]) return null;
     return {
         availableKinds: KIND_ORDER.filter(
             (kind) => kind === 'table' || axes[kind] !== undefined,
@@ -226,6 +232,60 @@ export const getComposerVizPlan = ({
     const plan = getColumnTypeVizPlan(columns, rows, node);
     if (!vizConfig) return plan;
     return seedFromVizConfig(plan, vizConfig, columns, rows) ?? plan;
+};
+
+/** Field config for axes: x typed by its column; y as-is, since node results are already aggregated. */
+export const getComposerFieldConfig = ({
+    x,
+    y,
+}: ComposerVizAxes): PivotChartLayout => ({
+    x: x
+        ? { reference: x.reference, type: getColumnAxisType(x.type) }
+        : undefined,
+    y: [{ reference: y.reference, aggregation: VizAggregationOptions.ANY }],
+    groupBy: [],
+});
+
+export const buildComposerVizConfig = ({
+    kind,
+    fieldConfig,
+}: {
+    kind: ComposerChartKind;
+    fieldConfig: PivotChartLayout;
+}): AllVizChartConfig => {
+    const metadata = { version: 1 };
+    switch (kind) {
+        case 'bar':
+            return {
+                type: ChartKind.VERTICAL_BAR,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        case 'line':
+            return {
+                type: ChartKind.LINE,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        case 'pie':
+            return {
+                type: ChartKind.PIE,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        case 'big_number':
+            return {
+                type: ChartKind.BIG_NUMBER,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        default:
+            return assertUnreachable(kind, 'Unknown composer chart kind');
+    }
 };
 
 /** Chart data straight from the fetched rows: x as the index (none for a big number), y as the value. No aggregation, no server call. */

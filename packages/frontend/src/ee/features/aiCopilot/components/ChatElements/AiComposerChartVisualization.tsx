@@ -1,9 +1,8 @@
 import {
-    assertUnreachable,
-    ChartKind,
+    buildComposerVizConfig,
     ECHARTS_DEFAULT_COLORS,
-    VizAggregationOptions,
-    getColumnAxisType,
+    getComposerFieldConfig,
+    VizIndexType,
     type AllVizChartConfig,
     type ComposerChartKind,
     type ComposerVizAxes,
@@ -28,46 +27,20 @@ import {
 } from './composerChartSpec';
 import { useArtifactResultRows } from './useArtifactResultRows';
 
-const chartKindOf = (kind: ComposerChartKind): AllVizChartConfig['type'] => {
-    switch (kind) {
-        case 'bar':
-            return ChartKind.VERTICAL_BAR;
-        case 'line':
-            return ChartKind.LINE;
-        case 'pie':
-            return ChartKind.PIE;
-        case 'big_number':
-            return ChartKind.BIG_NUMBER;
-        default:
-            return assertUnreachable(kind, 'Unknown composer chart kind');
-    }
-};
-
-// ChartView only needs the kind and a complete x/y to render a spec.
+// ChartView only needs the kind and a complete x/y; row-drawn charts keep a category x.
 const chartViewConfigOf = (
     kind: ComposerChartKind,
     axes: ComposerVizAxes,
 ): AllVizChartConfig =>
-    ({
-        metadata: { version: 1 },
-        type: chartKindOf(kind),
+    buildComposerVizConfig({
+        kind,
         fieldConfig: {
+            ...getComposerFieldConfig(axes),
             x: axes.x
-                ? {
-                      reference: axes.x.reference,
-                      type: getColumnAxisType(axes.x.type),
-                  }
+                ? { reference: axes.x.reference, type: VizIndexType.CATEGORY }
                 : undefined,
-            y: [
-                {
-                    reference: axes.y.reference,
-                    aggregation: VizAggregationOptions.ANY,
-                },
-            ],
-            groupBy: [],
         },
-        display: undefined,
-    }) as AllVizChartConfig;
+    });
 
 type ChartProps = {
     projectUuid: string;

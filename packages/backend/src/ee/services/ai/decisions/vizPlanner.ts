@@ -1,17 +1,20 @@
 import {
-    assertUnreachable,
+    buildComposerVizConfig,
     ChartKind,
     DimensionType,
-    getColumnAxisType,
+    getComposerFieldConfig,
     getComposerVizKind,
+    isComposerNumericColumn,
     isVizTableConfig,
-    VizAggregationOptions,
     type AllVizChartConfig,
     type AnyType,
     type ComposerVizKind,
+    type ComposerVizPlan,
     type ResultColumn,
     type ResultColumns,
 } from '@lightdash/common';
+import Logger from '../../../../logging/logger';
+import type { DbAiPromptComposerVizDecision } from '../../../database/entities/ai';
 import type { RecordPromptDecisionFn } from '../types/aiAgentDependencies';
 import type { AgentDecisionContext } from './agentQuestion';
 import {
@@ -23,7 +26,8 @@ import {
     type DecisionQuestion,
 } from './AiDecisionClient';
 
-export const VIZ_PLANNER_OPERATION = 'composer-viz';
+export const VIZ_PLANNER_OPERATION =
+    'composer-viz' satisfies DbAiPromptComposerVizDecision['operation'];
 export const VIZ_PLANNER_THRESHOLDS = {
     kind: 0.6,
     x: 0.85,
@@ -38,6 +42,13 @@ const MAX_SAMPLES = 5;
 const MAX_SAMPLE_LENGTH = 40;
 const ID_LIKE_SUFFIX = /(^|[_\s.])(id|uuid|key)$/i;
 const ID_LIKE_CAMEL_SUFFIX = /[a-z](Id|Uuid|Key)$/;
+const COMPOSER_VIZ_KINDS: ComposerVizKind[] = [
+    'table',
+    'bar',
+    'line',
+    'pie',
+    'big_number',
+];
 
 export type PlanComposerViz = (args: {
     title: string | null;
@@ -53,14 +64,14 @@ export type PlanComposerViz = (args: {
 /** Code-gated candidates the planner may pick from; Jev only chooses among them. */
 export type VizPlannerShape = {
     columns: ResultColumn[];
-    kinds: ComposerVizKind[];
+    /** Kinds the result can render as; any other pick is unsupported. */
+    supportedKinds: ComposerVizKind[];
     xCandidates: string[];
     yCandidates: string[];
     pieCandidates: string[];
 };
 
-const isNumeric = (column: ResultColumn) =>
-    column.type === DimensionType.NUMBER;
+const isNumeric = isComposerNumericColumn;
 
 const numericValue = (value: unknown): number | null => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -182,11 +193,12 @@ const getVizPlannerShape = ({
         yCandidates.some((y) => y !== x),
     );
 
-    const kinds: ComposerVizKind[] = ['table'];
-    if (rowCount > 0 && hasCartesian) kinds.push('bar', 'line');
+    const supportedKinds: ComposerVizKind[] = ['table'];
+    if (rowCount > 0 && hasCartesian) supportedKinds.push('bar', 'line');
     if (rowCount > 0 && pieCandidates.length > 0 && yCandidates.length > 0)
-        kinds.push('pie');
-    if (rowCount === 1 && yCandidates.length > 0) kinds.push('big_number');
+        supportedKinds.push('pie');
+    if (rowCount === 1 && yCandidates.length > 0)
+        supportedKinds.push('big_number');
 
     const state = columns.map((column) => {
         const columnStats = stats.get(column.reference);
@@ -207,7 +219,13 @@ const getVizPlannerShape = ({
     });
 
     return {
-        shape: { columns, kinds, xCandidates, yCandidates, pieCandidates },
+        shape: {
+            columns,
+            supportedKinds,
+            xCandidates,
+            yCandidates,
+            pieCandidates,
+        },
         state,
     };
 };
@@ -255,10 +273,13 @@ const getQuestions = (
         kind: {
             type: 'choice',
             instructions:
-                'Choose how the final result should be visualized to answer the question, given its columns and shape. Respect explicit visualization requests and agent instructions. Do not hide requested fields to make a chart fit. Choose none if uncertain.',
+                'Choose how the final result should be visualized to answer the question, given its columns and shape. Respect explicit visualization requests and agent instructions, even for a kind outside supportedKinds. Do not hide requested fields to make a chart fit. Choose none if uncertain.',
             criteria: {
                 ...Object.fromEntries(
-                    shape.kinds.map((kind) => [kind, KIND_DESCRIPTIONS[kind]]),
+                    COMPOSER_VIZ_KINDS.map((kind) => [
+                        kind,
+                        KIND_DESCRIPTIONS[kind],
+                    ]),
                 ),
                 [NONE]: 'Unsure',
             },
@@ -306,14 +327,6 @@ const getQuestions = (
     return questions;
 };
 
-const fieldConfig = (x: ResultColumn | null, y: ResultColumn) => ({
-    x: x
-        ? { reference: x.reference, type: getColumnAxisType(x.type) }
-        : undefined,
-    y: [{ reference: y.reference, aggregation: VizAggregationOptions.ANY }],
-    groupBy: [],
-});
-
 const tableConfig = (columns: ResultColumn[]): AllVizChartConfig => ({
     type: ChartKind.TABLE,
     metadata: { version: 1 },
@@ -343,17 +356,21 @@ export const getVizConfigFromAnswers = ({
     columns: ResultColumns;
     previousVizConfig: AllVizChartConfig | null;
 }): AllVizChartConfig | null => {
+    const answeredKind =
+        answers.kind?.type === 'choice' ? answers.kind.choice : null;
+    const kind = shape.supportedKinds.find(
+        (candidate) => candidate === answeredKind,
+    );
+    if (!kind) return null;
+    // An explicit request takes a supported kind regardless of confidence.
     const explicit =
         (decisionProbability(answers.explicitStyle) ?? 0) >=
         VIZ_PLANNER_THRESHOLDS.explicitStyle;
-    const answeredKind =
-        answers.kind?.type === 'choice' ? answers.kind.choice : null;
-    // An explicit request takes the answered kind regardless of confidence.
-    const pickedKind = explicit
-        ? answeredKind
-        : confidentChoice(answers.kind, VIZ_PLANNER_THRESHOLDS.kind);
-    const kind = shape.kinds.find((candidate) => candidate === pickedKind);
-    if (!kind) return null;
+    if (
+        !explicit &&
+        confidentChoice(answers.kind, VIZ_PLANNER_THRESHOLDS.kind) !== kind
+    )
+        return null;
     if (kind === 'table') return tableConfig(Object.values(columns));
 
     const previous = previousAxes(previousVizConfig);
@@ -366,12 +383,10 @@ export const getVizConfigFromAnswers = ({
     const y = yReference === null ? undefined : columns[yReference];
     if (!y) return null;
     if (kind === 'big_number') {
-        return {
-            type: ChartKind.BIG_NUMBER,
-            metadata: { version: 1 },
-            fieldConfig: fieldConfig(null, y),
-            display: undefined,
-        };
+        return buildComposerVizConfig({
+            kind,
+            fieldConfig: getComposerFieldConfig({ x: null, y }),
+        });
     }
 
     const xReference = resolveColumn(
@@ -382,31 +397,10 @@ export const getVizConfigFromAnswers = ({
     );
     const x = xReference === null ? undefined : columns[xReference];
     if (!x || x.reference === y.reference) return null;
-    switch (kind) {
-        case 'bar':
-            return {
-                type: ChartKind.VERTICAL_BAR,
-                metadata: { version: 1 },
-                fieldConfig: fieldConfig(x, y),
-                display: undefined,
-            };
-        case 'line':
-            return {
-                type: ChartKind.LINE,
-                metadata: { version: 1 },
-                fieldConfig: fieldConfig(x, y),
-                display: undefined,
-            };
-        case 'pie':
-            return {
-                type: ChartKind.PIE,
-                metadata: { version: 1 },
-                fieldConfig: fieldConfig(x, y),
-                display: undefined,
-            };
-        default:
-            return assertUnreachable(kind, 'Unknown composer viz kind');
-    }
+    return buildComposerVizConfig({
+        kind,
+        fieldConfig: getComposerFieldConfig({ x, y }),
+    });
 };
 
 const KIND_NAMES: Record<ComposerVizKind, string> = {
@@ -417,15 +411,23 @@ const KIND_NAMES: Record<ComposerVizKind, string> = {
     big_number: 'big number',
 };
 
+const axesNote = (x: string | undefined, y: string | undefined) =>
+    [...(x ? [`x = ${x}`] : []), ...(y ? [`y = ${y}`] : [])].join(', ');
+
+/** The composer tool result line for the column-type default, when nothing was planned. */
+export const getDefaultVizNote = ({ defaultKind, axes }: ComposerVizPlan) => {
+    if (defaultKind === 'table') return 'Visualization: default table.';
+    const defaultAxes = axes[defaultKind];
+    const parts = axesNote(defaultAxes?.x?.reference, defaultAxes?.y.reference);
+    return `Visualization: default ${KIND_NAMES[defaultKind]}${parts ? `, ${parts}` : ''}.`;
+};
+
 /** The composer tool result line telling the agent what the artifact opens on. */
-export const getVizConfigNote = (vizConfig: AllVizChartConfig | null) => {
-    if (!vizConfig) return 'Visualization: default from column types.';
+export const getVizConfigNote = (vizConfig: AllVizChartConfig) => {
     if (isVizTableConfig(vizConfig)) return 'Visualization: table.';
     const x = vizConfig.fieldConfig?.x?.reference;
     const y = vizConfig.fieldConfig?.y[0]?.reference;
-    const axes = [...(x ? [`x = ${x}`] : []), ...(y ? [`y = ${y}`] : [])].join(
-        ', ',
-    );
+    const axes = axesNote(x, y);
     return `Visualization: ${KIND_NAMES[getComposerVizKind(vizConfig)]}${axes ? `, ${axes}` : ''}.`;
 };
 
@@ -454,7 +456,11 @@ export const createVizPlanner =
         enableDataAccess,
         previousVizConfig,
     }) => {
-        if (!question.trim()) return null;
+        const startedAt = performance.now();
+        const serviceMsBefore = usage?.serviceMs ?? null;
+        let answers: DecisionAnswers | null = null;
+        let vizConfig: AllVizChartConfig | null = null;
+        let outcome: DbAiPromptComposerVizDecision['outcome'] = 'unavailable';
         try {
             const { shape, state } = getVizPlannerShape({
                 columns,
@@ -462,56 +468,59 @@ export const createVizPlanner =
                 rowCount,
                 enableDataAccess,
             });
-            // Nothing to decide: the column-type default already opens the table.
-            if (shape.kinds.length === 1) return null;
-            const previous = previousAxes(previousVizConfig);
-            const startedAt = performance.now();
-            const serviceMsBefore = usage?.serviceMs ?? null;
-            const answers = await decisions.evaluate({
-                operation: VIZ_PLANNER_OPERATION,
-                state: {
-                    question,
-                    conversation,
-                    artifact: { title, description },
-                    terminalNode,
-                    previousVizConfig: previousVizConfig
-                        ? {
-                              kind: getComposerVizKind(previousVizConfig),
-                              ...previous,
-                          }
-                        : null,
-                    rowCount,
-                    columns: state,
-                },
-                questions: getQuestions(shape, previous),
-            });
-            const vizConfig = answers
-                ? getVizConfigFromAnswers({
-                      answers,
-                      shape,
-                      columns,
-                      previousVizConfig,
-                  })
-                : null;
-            const serviceMsAfter = usage?.serviceMs ?? null;
-            let outcome: 'planned' | 'unresolved' | 'unavailable' = 'planned';
-            if (!answers) outcome = 'unavailable';
-            else if (!vizConfig) outcome = 'unresolved';
-            await recordDecision?.({
-                operation: VIZ_PLANNER_OPERATION,
-                outcome,
-                intent: vizConfig ? { vizConfig } : null,
-                applied: vizConfig !== null,
-                answers,
-                thresholds: VIZ_PLANNER_THRESHOLDS,
-                latency_ms: Math.round(performance.now() - startedAt),
-                jev_service_ms:
-                    serviceMsAfter === null
-                        ? null
-                        : Math.round(serviceMsAfter - (serviceMsBefore ?? 0)),
-            }).catch(() => {});
-            return vizConfig;
-        } catch {
-            return null;
+            if (shape.supportedKinds.length === 1) {
+                // Only the table fits: nothing for Jev to decide.
+                vizConfig = tableConfig(Object.values(columns));
+                outcome = 'planned';
+            } else if (question.trim()) {
+                const previous = previousAxes(previousVizConfig);
+                answers = await decisions.evaluate({
+                    operation: VIZ_PLANNER_OPERATION,
+                    state: {
+                        question,
+                        conversation,
+                        artifact: { title, description },
+                        terminalNode,
+                        previousVizConfig: previousVizConfig
+                            ? {
+                                  kind: getComposerVizKind(previousVizConfig),
+                                  ...previous,
+                              }
+                            : null,
+                        supportedKinds: shape.supportedKinds,
+                        rowCount,
+                        columns: state,
+                    },
+                    questions: getQuestions(shape, previous),
+                });
+                vizConfig = answers
+                    ? getVizConfigFromAnswers({
+                          answers,
+                          shape,
+                          columns,
+                          previousVizConfig,
+                      })
+                    : null;
+                if (answers) outcome = vizConfig ? 'planned' : 'unresolved';
+            }
+        } catch (error) {
+            Logger.warn(`Composer viz planner failed: ${String(error)}`);
+            vizConfig = null;
+            outcome = 'unavailable';
         }
+        const serviceMsAfter = usage?.serviceMs ?? null;
+        await recordDecision?.({
+            operation: VIZ_PLANNER_OPERATION,
+            outcome,
+            intent: vizConfig ? { vizConfig } : null,
+            applied: vizConfig !== null,
+            answers,
+            thresholds: VIZ_PLANNER_THRESHOLDS,
+            latency_ms: Math.round(performance.now() - startedAt),
+            jev_service_ms:
+                serviceMsAfter === null
+                    ? null
+                    : Math.round(serviceMsAfter - (serviceMsBefore ?? 0)),
+        });
+        return vizConfig;
     };

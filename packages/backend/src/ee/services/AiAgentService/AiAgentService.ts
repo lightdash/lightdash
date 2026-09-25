@@ -292,7 +292,7 @@ import {
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
-import { type DbAiPromptDecision } from '../../database/entities/ai';
+import { type DbAiPromptTurnDecisionOutcome } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
@@ -12985,7 +12985,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         instantReply: InstantReplyKind | null;
     }): Promise<void> {
         const { chart } = turn.decision;
-        let outcome: DbAiPromptDecision['outcome'] = 'routed';
+        let outcome: DbAiPromptTurnDecisionOutcome = 'routed';
         let reason: string | null = null;
         let intent: object | null = null;
         if (turn.answers === null) outcome = 'unavailable';
