@@ -389,14 +389,7 @@ describe('composer artifact viz switcher', () => {
                 ],
             ),
         );
-        expect(vizRadios()).toEqual([
-            'table',
-            'bar',
-            'horizontal',
-            'line',
-            'pie',
-            'funnel',
-        ]);
+        expect(vizRadios()).toEqual(['table', 'bar', 'line', 'pie']);
         expect(checkedViz()).toBe('bar');
         expect(
             screen.getByTestId('chart-view-vertical_bar'),
@@ -465,7 +458,7 @@ describe('composer artifact viz switcher', () => {
             ),
         );
         expect(checkedViz()).toBe('table');
-        expect(vizRadios()).toEqual(['table', 'bar', 'horizontal', 'line']);
+        expect(vizRadios()).toEqual(['table', 'bar', 'line']);
     });
 
     it('opens a one-row, one-number result as a big number', () => {
@@ -482,10 +475,8 @@ describe('composer artifact viz switcher', () => {
         expect(vizRadios()).toEqual([
             'table',
             'bar',
-            'horizontal',
             'line',
             'pie',
-            'funnel',
             'big_number',
         ]);
         expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
@@ -763,7 +754,7 @@ describe('sql artifact viz switcher', () => {
             ),
         );
         expect(checkedViz()).toBe('table');
-        expect(vizRadios()).toEqual(['table', 'bar', 'horizontal', 'line']);
+        expect(vizRadios()).toEqual(['table', 'bar', 'line']);
         expect(
             screen.getByRole('columnheader', { name: 'day' }),
         ).toBeInTheDocument();
