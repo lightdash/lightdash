@@ -544,17 +544,27 @@ describe('DashboardService', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    test('should forward the applied parameter values when exporting content', async () => {
-        await service.scheduleExportContent(fromSession(user), dashboard.uuid, {
-            format: SchedulerFormat.IMAGE,
-            parameters: { region: 'APAC' },
-        });
+    test.each([SchedulerFormat.IMAGE, SchedulerFormat.PDF] as const)(
+        'should forward applied parameters when exporting %s',
+        async (format) => {
+            await service.scheduleExportContent(
+                fromSession(user),
+                dashboard.uuid,
+                {
+                    format,
+                    parameters: { region: 'APAC' },
+                },
+            );
 
-        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
-            SCHEDULER_TASKS.EXPORT_CONTENT,
-            expect.objectContaining({ parameters: { region: 'APAC' } }),
-        );
-    });
+            expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+                SCHEDULER_TASKS.EXPORT_CONTENT,
+                expect.objectContaining({
+                    format,
+                    parameters: { region: 'APAC' },
+                }),
+            );
+        },
+    );
 
     const embedExportAccount = () => {
         const sessionAccount = fromSession(user);
@@ -581,6 +591,23 @@ describe('DashboardService', () => {
         } as unknown as Account;
     };
 
+    test.each([SchedulerFormat.IMAGE, SchedulerFormat.PDF] as const)(
+        'should reject %s export without dashboard access',
+        async (format) => {
+            const account = fromSession({
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            });
+
+            await expect(
+                service.scheduleExportContent(account, dashboard.uuid, {
+                    format,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(schedulerClient.scheduleTask).not.toHaveBeenCalled();
+        },
+    );
+
     test('should carry the encoded JWT when an embed token exports content', async () => {
         await service.scheduleExportContent(
             embedExportAccount(),
@@ -599,17 +626,20 @@ describe('DashboardService', () => {
         );
     });
 
-    test('should reject an embed token exporting content as an image', async () => {
-        await expect(
-            service.scheduleExportContent(
-                embedExportAccount(),
-                dashboard.uuid,
-                {
-                    format: SchedulerFormat.IMAGE,
-                },
-            ),
-        ).rejects.toThrowError(ForbiddenError);
-    });
+    test.each([SchedulerFormat.IMAGE, SchedulerFormat.PDF] as const)(
+        'should reject an embed token exporting content as %s',
+        async (format) => {
+            await expect(
+                service.scheduleExportContent(
+                    embedExportAccount(),
+                    dashboard.uuid,
+                    {
+                        format,
+                    },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        },
+    );
 
     test('throws when an embed write token saves a SQL chart from outside the write space', async () => {
         const embedWriteAccount = {
