@@ -1,3 +1,10 @@
+## [2.339.2](https://github.com/lightdash/lightdash/compare/2.339.1...2.339.2) (2026-09-25)
+
+
+### Bug Fixes
+
+* **filters:** keep every table in the grouped field picker past the option limit ([#29897](https://github.com/lightdash/lightdash/issues/29897)) ([56abb1c](https://github.com/lightdash/lightdash/commit/56abb1caabdda5768637e24b607a13322b097804)), closes [#28545](https://github.com/lightdash/lightdash/issues/28545)
+
 ## [2.339.1](https://github.com/lightdash/lightdash/compare/2.339.0...2.339.1) (2026-09-25)
 
 
