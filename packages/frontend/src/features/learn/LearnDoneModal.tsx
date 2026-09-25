@@ -1,7 +1,7 @@
 import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { type FC, useMemo } from 'react';
 import MantineModal from '../../components/common/MantineModal';
-import { SCOPE_TOURS } from '../scopeTours/generated';
+import { tourFor } from '../scopeTours/tourFor';
 import { useLearnAvailability } from './availability';
 import { buildLearnCatalogue, focusModules } from './catalogue';
 import styles from './Learn.module.css';
@@ -40,7 +40,7 @@ export const LearnDoneModal: FC<Props> = ({
     // The same access the library reads, so the two pages never disagree
     // about what comes next.
     const { held } = useLearnAccess();
-    const tour = SCOPE_TOURS[scope];
+    const tour = tourFor(scope);
     const available = catalogue.filter((m) => m.available);
     // The finished module counts as complete here whatever the stored
     // progress says (a reload before it was written), so the count includes

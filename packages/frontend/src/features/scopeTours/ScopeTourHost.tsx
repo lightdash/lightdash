@@ -25,7 +25,7 @@ import { EventName } from '../../types/Events';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
 import { readLearnOrigin } from '../learn/origin';
 import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
-import { SCOPE_TOURS } from './generated';
+import { tourFor } from './tourFor';
 import {
     createTrainingPreview,
     deleteTrainingPreviews,
@@ -168,7 +168,7 @@ const ScopeTourHost: FC = () => {
     useEffect(() => {
         const stored = storedRef.current;
         if (activeScope || !projectUuid || !stored) return;
-        if (stored.projectUuid !== projectUuid || !SCOPE_TOURS[stored.scope])
+        if (stored.projectUuid !== projectUuid || !tourFor(stored.scope))
             return;
         storedRef.current = null;
         currentStepRef.current = stored.stepIndex;
@@ -235,7 +235,7 @@ const ScopeTourHost: FC = () => {
                     organizationUuid,
                     trainingProjectUuid: upstream,
                     scope: activeScope,
-                    stepCount: SCOPE_TOURS[activeScope]?.steps.length ?? 0,
+                    stepCount: tourFor(activeScope)?.steps.length ?? 0,
                     durationSeconds: secondsSince(startedAtRef.current),
                 },
             });
@@ -278,7 +278,7 @@ const ScopeTourHost: FC = () => {
                     trainingProjectUuid: upstream,
                     scope,
                     stepIndex: currentStepRef.current,
-                    stepCount: SCOPE_TOURS[scope]?.steps.length ?? 0,
+                    stepCount: tourFor(scope)?.steps.length ?? 0,
                     durationSeconds: secondsSince(startedAtRef.current),
                 },
             });
@@ -373,7 +373,7 @@ const ScopeTourHost: FC = () => {
     };
 
     useEffect(() => {
-        if (!requested || !projectUuid || !SCOPE_TOURS[requested]) return;
+        if (!requested || !projectUuid || !tourFor(requested)) return;
         if (!project || !projects) return; // wait to learn where we are
         if (project.type !== ProjectType.TRAINING && !isTrainingCopy) {
             const next = new URLSearchParams(searchParams);
@@ -467,8 +467,9 @@ const ScopeTourHost: FC = () => {
     ]);
 
     const steps = useMemo(() => {
-        if (!activeScope || !projectUuid) return [];
-        return SCOPE_TOURS[activeScope].steps.map((step) => ({
+        const tour = tourFor(activeScope);
+        if (!tour || !projectUuid) return [];
+        return tour.steps.map((step) => ({
             ...step,
             body: renderDocsText(step.body),
             route: step.route?.replace(':projectUuid', projectUuid),

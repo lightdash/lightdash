@@ -241,6 +241,21 @@ describe('ScopeTourHost analytics', () => {
         });
     });
 
+    it('ignores a link whose tour name is only an Object.prototype key', () => {
+        // SCOPE_TOURS is an object literal, so `SCOPE_TOURS['constructor']`
+        // is truthy without being a tour; a crafted link must not make a
+        // copy, record a start, or crash the page trying to read its steps.
+        searchState.current = new URLSearchParams('tour=constructor&copy=true');
+
+        expect(() => renderHost()).not.toThrow();
+
+        expect(screen.queryByText('got it')).toBeNull();
+        expect(learnEvents()).toEqual([]);
+        expect(markScopeStarted).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+        expect(sessionStorage.length).toBe(0);
+    });
+
     it('records a start for a tour opened by link, since nothing else did', () => {
         searchState.current = new URLSearchParams(`tour=${SCOPE}&copy=true`);
 
