@@ -1,7 +1,12 @@
 import { DimensionType } from '../../types/field';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import { type RawResultRow, type ResultColumn } from '../../types/results';
-import { VizIndexType } from '../../visualizations/types';
+import { ChartKind } from '../../types/savedCharts';
+import {
+    VizAggregationOptions,
+    VizIndexType,
+    type AllVizChartConfig,
+} from '../../visualizations/types';
 import { buildComposerChartData, getComposerVizPlan } from './composerViz';
 
 const column = (reference: string, type: DimensionType): ResultColumn => ({
@@ -18,7 +23,7 @@ const plan = (
     columns: ResultColumn[],
     rows: RawResultRow[] = twoRows,
     node: SourceQuery | null = null,
-) => getComposerVizPlan({ columns, rows, node });
+) => getComposerVizPlan({ columns, rows, node, vizConfig: null });
 
 const CARTESIAN = ['table', 'bar', 'line'];
 
@@ -233,6 +238,111 @@ describe('getComposerVizPlan', () => {
             expect(result.axes.bar?.x?.reference).toBe('orders_created_day');
             expect(result.axes.bar?.y.reference).toBe('orders_count');
         });
+    });
+});
+
+describe('getComposerVizPlan seeded from a stored viz config', () => {
+    const columns = [
+        column('order_id', DimensionType.NUMBER),
+        column('status', DimensionType.STRING),
+        column('month', DimensionType.DATE),
+        column('revenue', DimensionType.NUMBER),
+    ];
+    const rows = [
+        { order_id: 1, status: 'a', month: '2024-01-01', revenue: 10 },
+        { order_id: 2, status: 'b', month: '2024-02-01', revenue: 20 },
+    ];
+    const cartesian = (
+        type: ChartKind.VERTICAL_BAR | ChartKind.LINE,
+        x: string,
+        y: string,
+    ): AllVizChartConfig => ({
+        type,
+        metadata: { version: 1 },
+        fieldConfig: {
+            x: { reference: x, type: VizIndexType.CATEGORY },
+            y: [{ reference: y, aggregation: VizAggregationOptions.ANY }],
+            groupBy: [],
+        },
+        display: undefined,
+    });
+    const seeded = (vizConfig: AllVizChartConfig | null, rowsIn = rows) =>
+        getComposerVizPlan({ columns, rows: rowsIn, node: null, vizConfig });
+
+    test('opens on the stored kind and axes', () => {
+        const result = seeded(
+            cartesian(ChartKind.VERTICAL_BAR, 'status', 'revenue'),
+        );
+        expect(result.defaultKind).toBe('bar');
+        expect(result.axes.bar?.x?.reference).toBe('status');
+        expect(result.axes.bar?.y.reference).toBe('revenue');
+    });
+
+    test('switching kind keeps the stored axes where the kind can use them', () => {
+        const result = seeded(cartesian(ChartKind.LINE, 'status', 'revenue'));
+        expect(result.defaultKind).toBe('line');
+        expect(result.axes.bar).toEqual(result.axes.line);
+        expect(result.axes.pie?.x?.reference).toBe('status');
+        expect(result.axes.pie?.y.reference).toBe('revenue');
+    });
+
+    test('the column-type default fills kinds the stored axes cannot serve', () => {
+        const result = seeded(cartesian(ChartKind.LINE, 'month', 'revenue'));
+        expect(result.axes.line?.x?.reference).toBe('month');
+        expect(result.axes.pie?.x?.reference).toBe('status');
+        expect(result.axes.pie?.y.reference).toBe('order_id');
+    });
+
+    test('a stored big number uses the stored value', () => {
+        const result = seeded(
+            {
+                type: ChartKind.BIG_NUMBER,
+                metadata: { version: 1 },
+                fieldConfig: {
+                    x: undefined,
+                    y: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupBy: [],
+                },
+                display: undefined,
+            },
+            [rows[0]],
+        );
+        expect(result.defaultKind).toBe('big_number');
+        expect(result.axes.big_number).toEqual({ x: null, y: columns[3] });
+    });
+
+    test('a stored table opens as the table', () => {
+        const result = seeded({
+            type: ChartKind.TABLE,
+            metadata: { version: 1 },
+            columns: {
+                status: {
+                    visible: true,
+                    reference: 'status',
+                    label: 'status',
+                    frozen: false,
+                },
+            },
+            display: undefined,
+        });
+        expect(result.defaultKind).toBe('table');
+        expect(result.availableKinds).toContain('bar');
+    });
+
+    test('falls back to the column-type default when null or its columns are gone', () => {
+        const columnTypeDefault = seeded(null);
+        expect(columnTypeDefault.defaultKind).toBe('line');
+        expect(
+            seeded(cartesian(ChartKind.VERTICAL_BAR, 'region', 'revenue')),
+        ).toEqual(columnTypeDefault);
+        expect(
+            seeded(cartesian(ChartKind.VERTICAL_BAR, 'status', 'profit')),
+        ).toEqual(columnTypeDefault);
     });
 });
 

@@ -127,7 +127,7 @@ export const parseAiArtifactChartConfig = (
             : {};
 
     if (isAiComposerChartArtifactConfig(config)) {
-        return config;
+        return { ...config, vizConfig: config.vizConfig ?? null };
     }
 
     if (

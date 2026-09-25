@@ -212,21 +212,26 @@ export const AiPromptTableName = 'ai_prompt';
 
 export const AiPromptDecisionTableName = 'ai_prompt_decision';
 
-export type DbAiPromptDecision = {
+export const AI_PROMPT_TURN_DECISION_OPERATIONS = [
+    'chart-intent',
+    'model-routing',
+] as const;
+
+export type DbAiPromptTurnDecisionOutcome =
+    | 'intent'
+    | 'compound'
+    | 'needs_values'
+    | 'clarify'
+    | 'not_an_edit'
+    | 'unresolved'
+    | 'unavailable'
+    | 'routed'
+    | 'instant_reply';
+
+type DbAiPromptDecisionFields = {
     ai_prompt_decision_uuid: string;
     ai_prompt_uuid: string;
     created_at: Date;
-    operation: 'chart-intent' | 'model-routing';
-    outcome:
-        | 'intent'
-        | 'compound'
-        | 'needs_values'
-        | 'clarify'
-        | 'not_an_edit'
-        | 'unresolved'
-        | 'unavailable'
-        | 'routed'
-        | 'instant_reply';
     reason: string | null;
     intent: object | null;
     applied: boolean;
@@ -239,9 +244,29 @@ export type DbAiPromptDecision = {
     jev_model: string;
 };
 
+export type DbAiPromptTurnDecision = DbAiPromptDecisionFields & {
+    operation: (typeof AI_PROMPT_TURN_DECISION_OPERATIONS)[number];
+    outcome: DbAiPromptTurnDecisionOutcome;
+};
+
+export type DbAiPromptComposerVizDecision = DbAiPromptDecisionFields & {
+    operation: 'composer-viz';
+    outcome: 'planned' | 'unresolved' | 'unavailable';
+};
+
+export type DbAiPromptDecision =
+    | DbAiPromptTurnDecision
+    | DbAiPromptComposerVizDecision;
+
+type DbAiPromptDecisionGenerated = 'ai_prompt_decision_uuid' | 'created_at';
+
+export type DbAiPromptDecisionInsert =
+    | Omit<DbAiPromptTurnDecision, DbAiPromptDecisionGenerated>
+    | Omit<DbAiPromptComposerVizDecision, DbAiPromptDecisionGenerated>;
+
 export type AiPromptDecisionTable = Knex.CompositeTableType<
     DbAiPromptDecision,
-    Omit<DbAiPromptDecision, 'ai_prompt_decision_uuid' | 'created_at'>,
+    DbAiPromptDecisionInsert,
     never
 >;
 

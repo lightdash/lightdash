@@ -69,10 +69,19 @@ run resets it to the new terminal node.
 _Avoid_: selected node (selection is a graph-mode concept), active node,
 focused node
 
+**Viz config**:
+How the terminal node's result is visualized: chart kind, axes and display
+options, in the same vocabulary as a SQL runner chart. Picked for each run
+from the question and the result, stored with the composer artifact, and the
+starting point of the viz switcher and of any later configuration. Other
+node results have no viz config and start from their column types.
+_Avoid_: viz plan, presentation, chart config (the classic vocabulary)
+
 **Viz switcher**:
 The control on a displayed node result that picks how it renders: table or a
-chart kind. The choice is per node, ephemeral, and starts from a default
-picked from the result's column types.
+chart kind. The choice is per node and ephemeral. It starts from the viz
+config on the terminal node, else from a default picked from the result's
+column types.
 _Avoid_: chart type selector, visualization toggle, view mode
 
 **Composer artifact**:

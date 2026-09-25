@@ -59,9 +59,18 @@ export const AiComposerArtifactPanel: FC<Props> = ({
 
     const results = useInfiniteQueryResults(projectUuid, queryUuid);
     const { columns, rows } = useArtifactResultRows(results);
+    const storedVizConfig = isTerminalDisplayed
+        ? (config.vizConfig ?? null)
+        : null;
     const plan = useMemo(
-        () => getComposerVizPlan({ columns, rows, node: displayedNode }),
-        [columns, rows, displayedNode],
+        () =>
+            getComposerVizPlan({
+                columns,
+                rows,
+                node: displayedNode,
+                vizConfig: storedVizConfig,
+            }),
+        [columns, rows, displayedNode, storedVizConfig],
     );
     // Chosen kind per node, remembered while this version is open.
     const [chosenKinds, setChosenKinds] = useState<
