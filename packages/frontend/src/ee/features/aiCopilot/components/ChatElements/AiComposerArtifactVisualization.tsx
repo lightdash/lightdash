@@ -4,28 +4,28 @@ import { IconClockOff } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
-import { AiComposerChartVisualization } from './AiComposerChartVisualization';
+import { AiVizSwitchedResult } from './AiVizSwitchedResult';
 
 const LOADING_MESSAGE = 'Loading composer query results...';
 
 type ContentProps = {
     projectUuid: string;
     results: InfiniteQueryResults;
-    /** How the displayed node result renders; the plan says which kinds fit. */
-    kind: ComposerVizKind;
     plan: ComposerVizPlan;
+    kind: ComposerVizKind;
+    onKindChange: (kind: ComposerVizKind) => void;
     headerContent: ReactNode;
     flush?: boolean;
 };
 
-// A displayed node result: table or a chart from the same rows. Results
-// expire, so a failed fetch is an empty state rather than an error card.
+// A displayed node result with its viz switcher. Results expire, so a failed
+// fetch is an empty state rather than an error card.
 export const AiComposerArtifactVisualization: FC<ContentProps> = ({
     projectUuid,
     results,
-    kind,
     plan,
+    kind,
+    onKindChange,
     headerContent,
     flush = false,
 }) => {
@@ -46,23 +46,13 @@ export const AiComposerArtifactVisualization: FC<ContentProps> = ({
         );
     }
 
-    const axes = kind === 'table' ? undefined : plan.axes[kind];
-    if (kind !== 'table' && axes) {
-        return (
-            <AiComposerChartVisualization
-                projectUuid={projectUuid}
-                results={results}
-                kind={kind}
-                axes={axes}
-                headerContent={headerContent}
-                loadingMessage={LOADING_MESSAGE}
-            />
-        );
-    }
-
     return (
-        <AiArtifactTableVisualization
+        <AiVizSwitchedResult
+            projectUuid={projectUuid}
             results={results}
+            plan={plan}
+            kind={kind}
+            onKindChange={onKindChange}
             headerContent={headerContent}
             loadingMessage={LOADING_MESSAGE}
             flush={flush}

@@ -28,7 +28,18 @@ vi.mock('../../hooks/useAiAgentArtifacts', () => ({
 vi.mock('../../hooks/useProjectAiAgents', () => ({
     useAiAgentThread: mocks.thread,
     useAiAgentArtifactVizQuery: mocks.query,
+    useUpdateArtifactVersionSavedSql: () => ({ mutateAsync: vi.fn() }),
 }));
+vi.mock('../../../../../hooks/user/useCreateInAnySpaceAccess', () => ({
+    default: () => false,
+}));
+vi.mock('./AiSqlArtifactDownloadModal', () => ({
+    AiSqlArtifactDownloadModal: () => null,
+}));
+vi.mock(
+    '../../../../../features/sqlRunner/components/SaveSqlChartModal',
+    () => ({ SaveSqlChartModalContent: () => null }),
+);
 vi.mock('../../../../../hooks/useQueryResults', () => ({
     useInfiniteQueryResults: mocks.rows,
 }));
@@ -699,5 +710,82 @@ describe('composer per-node viz switcher', () => {
         expect(checkedViz()).toBe('line');
         fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
         expect(checkedViz()).toBe('table');
+    });
+});
+
+describe('sql artifact viz switcher', () => {
+    const renderSql = (results: ReturnType<typeof resultsOf>) => {
+        mocks.artifact.mockReturnValue({
+            data: {
+                artifactType: 'chart',
+                chartConfig: { source: 'sql', sql: 'select 1', limit: 500 },
+                savedSqlUuid: null,
+            },
+            isLoading: false,
+            error: null,
+            refetch: mocks.retry,
+        });
+        mocks.query.mockReturnValue({
+            data: {
+                source: 'sql',
+                type: AiResultType.TABLE_RESULT,
+                metadata: { title: 'Orders per day' },
+                query: { queryUuid: 'sql-query' },
+                sql: 'select 1',
+                limit: 500,
+            },
+            isLoading: false,
+            error: null,
+            refetch: mocks.retry,
+        });
+        mocks.rows.mockReturnValue(results);
+        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+    };
+
+    it('opens a date + number answer as a line chart with the same kinds as a composer result', () => {
+        renderSql(
+            resultsOf(
+                {
+                    day: { reference: 'day', type: 'date' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [
+                    { day: '2024-01-01', n: 3 },
+                    { day: '2024-01-02', n: 1 },
+                ],
+            ),
+        );
+        expect(checkedViz()).toBe('line');
+        expect(vizRadios()).toEqual(['table', 'bar', 'horizontal', 'line']);
+        expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
+        expect(screen.getByText('Orders per day')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'SQL artifact actions' }),
+        ).toBeInTheDocument();
+    });
+
+    it('opens a string + number answer as a bar chart', () => {
+        renderSql(
+            resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [
+                    { status: 'a', n: 3 },
+                    { status: 'b', n: 1 },
+                ],
+            ),
+        );
+        expect(checkedViz()).toBe('bar');
+        expect(
+            screen.getByTestId('chart-view-vertical_bar'),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps a table-only answer as a table without a switcher', () => {
+        renderSql(statusResults);
+        expect(vizRadios()).toHaveLength(0);
+        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
     });
 });

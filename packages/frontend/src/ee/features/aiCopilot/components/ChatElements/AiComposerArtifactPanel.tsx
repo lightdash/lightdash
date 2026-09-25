@@ -10,9 +10,9 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import styles from './AiArtifactPanel.module.css';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
+import { pickVizKind } from './AiVizSwitchedResult.utils';
 import { AiComposerPipelinePanel } from './composerPipeline/AiComposerPipelinePanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
 
@@ -67,14 +67,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const [chosenKinds, setChosenKinds] = useState<
         Record<string, ComposerVizKind>
     >({});
-    const chosenKind = chosenKinds[displayedNodeId];
-    const kind =
-        chosenKind && plan.availableKinds.includes(chosenKind)
-            ? chosenKind
-            : plan.defaultKind;
+    const kind = pickVizKind(plan, chosenKinds[displayedNodeId]);
     const chooseKind = (next: ComposerVizKind) =>
         setChosenKinds((current) => ({ ...current, [displayedNodeId]: next }));
-    const showPill = !results.error && plan.availableKinds.length > 1;
 
     const displayedTitle = isTerminalDisplayed
         ? title
@@ -128,33 +123,15 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     displayableNodeIds={displayableNodeIds}
                     onDisplayNode={setDisplayedNodeId}
                 >
-                    <Box className={styles.displayedResult}>
-                        <Box
-                            className={clsx(
-                                styles.displayedResultBody,
-                                showPill && styles.withPillClearance,
-                            )}
-                        >
-                            <AiComposerArtifactVisualization
-                                projectUuid={projectUuid}
-                                results={results}
-                                kind={kind}
-                                plan={plan}
-                                headerContent={head}
-                                flush
-                            />
-                        </Box>
-                        {showPill && (
-                            <Box className={styles.floatingPill}>
-                                <AgentVisualizationChartTypeSwitcher
-                                    availableChartTypes={plan.availableKinds}
-                                    selectedChartType={kind}
-                                    onChartTypeChange={chooseKind}
-                                    variant="pill"
-                                />
-                            </Box>
-                        )}
-                    </Box>
+                    <AiComposerArtifactVisualization
+                        projectUuid={projectUuid}
+                        results={results}
+                        plan={plan}
+                        kind={kind}
+                        onKindChange={chooseKind}
+                        headerContent={head}
+                        flush
+                    />
                 </AiComposerPipelinePanel>
             </Box>
         </Box>

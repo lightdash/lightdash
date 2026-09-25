@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { type ResultColumn } from '@lightdash/common';
+import {
+    getComposerVizPlan,
+    type ComposerVizKind,
+    type ResultColumn,
+} from '@lightdash/common';
 import { ActionIcon, Menu } from '@mantine/core';
 import {
     IconDeviceFloppy,
@@ -7,7 +11,7 @@ import {
     IconDownload,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SaveSqlChartModalContent } from '../../../../../features/sqlRunner/components/SaveSqlChartModal';
@@ -21,11 +25,16 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../../providers/App/useApp';
 import { useUpdateArtifactVersionSavedSql } from '../../hooks/useProjectAiAgents';
-import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
 import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
 import { AiSqlArtifactDownloadModal } from './AiSqlArtifactDownloadModal';
+import { AiVizSwitchedResult } from './AiVizSwitchedResult';
+import { pickVizKind } from './AiVizSwitchedResult.utils';
+import { useArtifactResultRows } from './useArtifactResultRows';
+
+const LOADING_MESSAGE = 'Loading SQL results...';
 
 type ContentProps = {
+    projectUuid: string;
     results: InfiniteQueryResults;
     headerContent: ReactNode;
     flush?: boolean;
@@ -152,17 +161,31 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
     );
 };
 
+// A SQL answer renders like a composer node result: same default-viz rule,
+// same switcher, charts from the fetched rows.
 export const AiSqlArtifactVisualization: FC<ContentProps> = ({
+    projectUuid,
     results,
     headerContent,
     flush = false,
 }) => {
+    const { columns, rows } = useArtifactResultRows(results);
+    const plan = useMemo(
+        () => getComposerVizPlan({ columns, rows, node: null }),
+        [columns, rows],
+    );
+    const [chosenKind, setChosenKind] = useState<ComposerVizKind>();
+
     return (
-        <AiArtifactTableVisualization
+        <AiVizSwitchedResult
+            projectUuid={projectUuid}
             results={results}
+            plan={plan}
+            kind={pickVizKind(plan, chosenKind)}
+            onKindChange={setChosenKind}
             headerContent={headerContent}
+            loadingMessage={LOADING_MESSAGE}
             flush={flush}
-            loadingMessage="Loading SQL results..."
         />
     );
 };
