@@ -1,7 +1,7 @@
 import { ActionIcon, Box, Button, Drawer, Group, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconHome, IconMenu2 } from '@tabler/icons-react';
-import { lazy, Suspense, useEffect, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
 import { LearnLink } from '../../features/learn/LearnLink';
 import Omnibar from '../../features/omnibar';
@@ -9,6 +9,7 @@ import { useProjectNavigation } from '../../hooks/useProjectNavigation';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
+import type { AiAgentsButton as AiAgentsButtonComponent } from './AiAgentsButton';
 import { AutopilotNavButton } from './AutopilotNavButton';
 import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
@@ -25,14 +26,43 @@ import { NotificationsMenu } from './NotificationsMenu';
 import ProjectCredentialsSwitcher from './ProjectCredentialsSwitcher';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
+import { useBoundedHold } from './useBoundedHold';
 import { useCompactNavigation } from './useCompactNavigation';
 import UserMenu from './UserMenu';
 
-const AiAgentsButton = lazy(() =>
-    import('./AiAgentsButton').then((module) => ({
-        default: module.AiAgentsButton,
-    })),
-);
+// Long enough for a typical navigation answer and chunk, short enough to go unnoticed.
+const PROJECT_ITEMS_MAX_HOLD_MS = 300;
+
+type AiAgentsButtonModule =
+    | { status: 'loaded'; component: typeof AiAgentsButtonComponent }
+    | { status: 'failed'; error: unknown };
+
+// Loaded by hand instead of React.lazy, which suspends a render even once the chunk is ready.
+const useAiAgentsButton = (shouldLoad: boolean) => {
+    const [module, setModule] = useState<AiAgentsButtonModule | null>(null);
+    useEffect(() => {
+        if (!shouldLoad) return undefined;
+        let isActive = true;
+        import('./AiAgentsButton').then(
+            (loaded) => {
+                if (isActive)
+                    setModule({
+                        status: 'loaded',
+                        component: loaded.AiAgentsButton,
+                    });
+            },
+            (error: unknown) => {
+                if (isActive) setModule({ status: 'failed', error });
+            },
+        );
+        return () => {
+            isActive = false;
+        };
+    }, [shouldLoad]);
+    // Rethrow so the error boundary's stale-chunk reload still applies.
+    if (module?.status === 'failed') throw module.error;
+    return module?.status === 'loaded' ? module.component : null;
+};
 
 type Props = {
     activeProjectUuid: string | undefined;
@@ -55,9 +85,22 @@ export const MainNavBarContent: FC<Props> = ({
     const homeUrl = activeProjectUuid
         ? `/projects/${projectUrlIdentifier}/home`
         : '/';
+    const { user, health } = useApp();
     // Optional items share one answer so they appear together.
-    const { data: navigation } = useProjectNavigation(activeProjectUuid);
-    const { health } = useApp();
+    const navigationQuery = useProjectNavigation({
+        projectUuid: activeProjectUuid,
+        userUuid: user.data?.userUuid,
+    });
+    const navigation = navigationQuery.data;
+    const AiAgentsButton = useAiAgentsButton(!!navigation?.askAi);
+    // Briefly hold project items so a first visit renders them in one frame.
+    const isHoldingProjectItems = useBoundedHold(
+        navigationQuery.isInitialLoading ||
+            (!!navigation?.askAi && AiAgentsButton === null),
+        activeProjectUuid,
+        PROJECT_ITEMS_MAX_HOLD_MS,
+    );
+    const showProjectItems = !isLoadingActiveProject && !isHoldingProjectItems;
     const headwayEnabled = health.data?.headway?.enabled;
     const NavGroup = compact ? Group : Button.Group;
 
@@ -94,7 +137,7 @@ export const MainNavBarContent: FC<Props> = ({
                     </ActionIcon>
                 )}
 
-                {!isLoadingActiveProject && activeProjectUuid && (
+                {showProjectItems && activeProjectUuid && (
                     <>
                         <NavGroup className={classes.buttonGroup}>
                             {compact && (
@@ -119,24 +162,20 @@ export const MainNavBarContent: FC<Props> = ({
                                 projectUrlIdentifier={projectUrlIdentifier}
                             />
                             <BrowseMenu projectUuid={activeProjectUuid} />
-                            <Suspense fallback={null}>
-                                {navigation?.metrics && (
-                                    <MetricsLink
-                                        projectUuid={activeProjectUuid}
-                                    />
-                                )}
-                                {navigation?.askAi && (
-                                    <AiAgentsButton
-                                        projectUuid={activeProjectUuid}
-                                    />
-                                )}
-                                {navigation?.autopilot && (
-                                    <AutopilotNavButton
-                                        projectUuid={activeProjectUuid}
-                                        withLabel={compact}
-                                    />
-                                )}
-                            </Suspense>
+                            {navigation?.metrics && (
+                                <MetricsLink projectUuid={activeProjectUuid} />
+                            )}
+                            {navigation?.askAi && AiAgentsButton && (
+                                <AiAgentsButton
+                                    projectUuid={activeProjectUuid}
+                                />
+                            )}
+                            {navigation?.autopilot && (
+                                <AutopilotNavButton
+                                    projectUuid={activeProjectUuid}
+                                    withLabel={compact}
+                                />
+                            )}
                         </NavGroup>
                         {!compact && (
                             <Omnibar projectUuid={activeProjectUuid} />
@@ -152,7 +191,7 @@ export const MainNavBarContent: FC<Props> = ({
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 
-                    {!isLoadingActiveProject && activeProjectUuid && (
+                    {showProjectItems && activeProjectUuid && (
                         <>
                             {navigation?.learn && (
                                 <LearnLink
@@ -170,7 +209,7 @@ export const MainNavBarContent: FC<Props> = ({
                     <HelpMenu withLabel={compact} />
 
                     {headwayEnabled &&
-                        !isLoadingActiveProject &&
+                        showProjectItems &&
                         activeProjectUuid && (
                             <HeadwayMenuItem
                                 projectUuid={activeProjectUuid}
@@ -210,18 +249,16 @@ export const MainNavBarContent: FC<Props> = ({
                     <Logo />
                 </ActionIcon>
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
-                    {activeProjectUuid && (
+                    {!isHoldingProjectItems && activeProjectUuid && (
                         <>
                             <Omnibar projectUuid={activeProjectUuid} />
-                            <Suspense fallback={null}>
-                                {navigation?.askAi && (
-                                    <Box className={classes.compactAiButton}>
-                                        <AiAgentsButton
-                                            projectUuid={activeProjectUuid}
-                                        />
-                                    </Box>
-                                )}
-                            </Suspense>
+                            {navigation?.askAi && AiAgentsButton && (
+                                <Box className={classes.compactAiButton}>
+                                    <AiAgentsButton
+                                        projectUuid={activeProjectUuid}
+                                    />
+                                </Box>
+                            )}
                         </>
                     )}
                     <ActionIcon

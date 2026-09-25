@@ -21,7 +21,10 @@ vi.mock('../../hooks/useProjectRoute', () => ({
 }));
 
 vi.mock('../../providers/App/useApp', () => ({
-    default: () => ({ health: { data: { headway: { enabled: false } } } }),
+    default: () => ({
+        user: { data: { userUuid: 'user-1' } },
+        health: { data: { headway: { enabled: false } } },
+    }),
 }));
 
 vi.mock('../../features/omnibar', () => ({
@@ -101,10 +104,10 @@ describe('MainNavBarContent compact navigation', () => {
             </MantineProvider>,
         );
 
-        expect(screen.getByRole('button', { name: 'Search' })).toBeVisible();
         expect(
-            await screen.findByRole('button', { name: 'Ask AI' }),
+            await screen.findByRole('button', { name: 'Search' }),
         ).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Ask AI' })).toBeVisible();
         expect(
             screen.queryByRole('button', { name: 'Switch project' }),
         ).toBeNull();
@@ -122,19 +125,31 @@ describe('MainNavBarContent compact navigation', () => {
 });
 
 describe('MainNavBarContent project navigation', () => {
-    it('renders always-on items without waiting for navigation', () => {
+    it('renders every project item in the same frame once navigation is known', async () => {
+        renderNavBar();
+
+        expect(
+            await screen.findByRole('button', { name: 'Search' }),
+        ).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Ask AI' })).toBeVisible();
+    });
+
+    it('holds project items only briefly while navigation is still loading', async () => {
         mocks.useProjectNavigation.mockReturnValue({
             data: undefined,
             isInitialLoading: true,
         });
         renderNavBar();
+
+        expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
+        expect(
+            await screen.findByRole('button', { name: 'Search' }),
+        ).toBeVisible();
         fireEvent.click(
             screen.getByRole('button', { name: 'Open navigation' }),
         );
-
-        expect(screen.getByRole('button', { name: 'Search' })).toBeVisible();
         expect(
-            screen.getByRole('button', { name: 'Notifications' }),
+            await screen.findByRole('button', { name: 'Notifications' }),
         ).toBeVisible();
         for (const name of ['Metrics', 'Ask AI', 'Autopilot', 'Learn']) {
             expect(screen.queryByRole('button', { name })).toBeNull();
