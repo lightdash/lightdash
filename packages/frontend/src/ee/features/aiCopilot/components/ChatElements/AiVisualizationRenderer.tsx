@@ -229,6 +229,23 @@ export const AiVisualizationRenderer: FC<Props> = ({
             ? 'table'
             : (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table');
 
+    const columnOrder = useMemo(
+        () => [
+            ...metricQuery.dimensions,
+            ...metricQuery.metrics,
+            ...metricQuery.tableCalculations.map((tc) => tc.name),
+        ],
+        [metricQuery],
+    );
+
+    const handleSeriesContextMenu = useCallback(
+        (event: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
+            setEchartsClickEvent(event);
+            setEchartsSeries(series);
+        },
+        [],
+    );
+
     const handleChartConfigChange = useCallback(
         (newConfig: ChartConfig) => {
             setExpandedChartConfig({
@@ -275,23 +292,13 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 resultsData={resultsData}
                 chartConfig={providerChartConfig}
                 parameters={vizQueryData.query.usedParametersValues}
-                columnOrder={[
-                    ...metricQuery.dimensions,
-                    ...metricQuery.metrics,
-                    ...metricQuery.tableCalculations.map((tc) => tc.name),
-                ]}
+                columnOrder={columnOrder}
                 initialPivotDimensions={groupByDimensions}
                 colorPalette={colorPalette}
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={
                     allowsAnalyticalInteraction
-                        ? (
-                              event: EchartsSeriesClickEvent,
-                              series: EChartsSeries[],
-                          ) => {
-                              setEchartsClickEvent(event);
-                              setEchartsSeries(series);
-                          }
+                        ? handleSeriesContextMenu
                         : undefined
                 }
                 onChartConfigChange={handleChartConfigChange}
