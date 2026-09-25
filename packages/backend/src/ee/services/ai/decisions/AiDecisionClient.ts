@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import {
     APIError,
     APITimeoutError,
@@ -9,6 +10,7 @@ import { Agent, type Dispatcher } from 'undici';
 import { z } from 'zod';
 import type { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
+import { traceSpan, type TraceSpan } from '../../../../tracing/tracing';
 
 export type DecisionQuestion =
     | { type: 'noul'; instructions: string }
@@ -100,6 +102,37 @@ type DecisionConfig = LightdashConfig['ai']['decisions'];
 
 class DecisionResponseTooLarge extends Error {}
 
+type DecisionOutcome =
+    | 'skipped'
+    | 'request-failed'
+    | 'state-too-large'
+    | 'invalid-response'
+    | 'provider-http-error'
+    | 'cancelled'
+    | 'timeout'
+    | 'success';
+
+const spanOutcome = (
+    outcome: DecisionOutcome,
+): 'answered' | 'unavailable' | 'timeout' | 'error' => {
+    switch (outcome) {
+        case 'success':
+            return 'answered';
+        case 'skipped':
+        case 'state-too-large':
+        case 'cancelled':
+            return 'unavailable';
+        case 'timeout':
+            return 'timeout';
+        case 'request-failed':
+        case 'invalid-response':
+        case 'provider-http-error':
+            return 'error';
+        default:
+            return assertUnreachable(outcome, 'Unknown decision outcome');
+    }
+};
+
 /** SDK transport: our keep-alive pool, and a size cap since the SDK buffers whole bodies. */
 const createSdk = (config: DecisionConfig, request: typeof fetch) =>
     new TypeSafeClient({
@@ -128,6 +161,14 @@ const createSdk = (config: DecisionConfig, request: typeof fetch) =>
             return response;
         },
     });
+type EvaluateArgs = {
+    operation: string;
+    state: unknown;
+    questions: Record<string, DecisionQuestion>;
+    signal?: AbortSignal;
+    /** Per-call budget for larger batched requests; capped at the client maximum. */
+    timeoutMs?: number;
+};
 type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
 export class AiDecisionClient {
@@ -160,20 +201,27 @@ export class AiDecisionClient {
         return this.config.model;
     }
 
-    async evaluate({
-        operation,
-        state,
-        questions,
-        signal,
-        timeoutMs,
-    }: {
-        operation: string;
-        state: unknown;
-        questions: Record<string, DecisionQuestion>;
-        signal?: AbortSignal;
-        /** Per-call budget for larger batched requests; capped at the client maximum. */
-        timeoutMs?: number;
-    }): Promise<DecisionAnswers | null> {
+    async evaluate(args: EvaluateArgs): Promise<DecisionAnswers | null> {
+        // Provider errors and request options can contain credentials or
+        // user data. Only allowlisted operations and local outcomes are logged.
+        const loggedOperation = LOGGED_OPERATIONS.has(args.operation)
+            ? args.operation
+            : 'unknown';
+        return traceSpan(
+            {
+                op: 'ai.decision',
+                name: `ai.decision.${loggedOperation}`,
+                attributes: { 'lightdash.decision.operation': loggedOperation },
+            },
+            (span) => this.evaluateInSpan(args, loggedOperation, span),
+        );
+    }
+
+    private async evaluateInSpan(
+        { state, questions, signal, timeoutMs }: EvaluateArgs,
+        loggedOperation: string,
+        span: TraceSpan,
+    ): Promise<DecisionAnswers | null> {
         if (
             !this.config.apiKey ||
             signal?.aborted ||
@@ -188,11 +236,15 @@ export class AiDecisionClient {
                             Object.keys(q.criteria).length > 255)),
             )
         ) {
+            span.setAttributes({
+                'lightdash.decision.outcome': spanOutcome('skipped'),
+                'lightdash.decision.durationMs': 0,
+            });
             return null;
         }
 
         const startedAt = performance.now();
-        let outcome = 'request-failed';
+        let outcome: DecisionOutcome = 'request-failed';
         let retryableFailure = true;
         try {
             const body = JSON.stringify({
@@ -223,8 +275,12 @@ export class AiDecisionClient {
             const serviceMs = Number(
                 response.headers.get(SERVICE_TIME_HEADER) ?? Number.NaN,
             );
-            if (Number.isFinite(serviceMs) && this.usage)
-                this.usage.serviceMs = (this.usage.serviceMs ?? 0) + serviceMs;
+            if (Number.isFinite(serviceMs)) {
+                span.setAttribute('lightdash.decision.serviceMs', serviceMs);
+                if (this.usage)
+                    this.usage.serviceMs =
+                        (this.usage.serviceMs ?? 0) + serviceMs;
+            }
             outcome = 'invalid-response';
             retryableFailure = false;
             const rawResponse: unknown = data;
@@ -315,13 +371,13 @@ export class AiDecisionClient {
             }
             return null;
         } finally {
-            // Provider errors and request options can contain credentials or
-            // user data. Only allowlisted operations and local outcomes are logged.
-            const loggedOperation = LOGGED_OPERATIONS.has(operation)
-                ? operation
-                : 'unknown';
+            const durationMs = Math.round(performance.now() - startedAt);
+            span.setAttributes({
+                'lightdash.decision.outcome': spanOutcome(outcome),
+                'lightdash.decision.durationMs': durationMs,
+            });
             Logger.debug(
-                `AI agent decision: ${loggedOperation}, outcome=${outcome}, durationMs=${Math.round(performance.now() - startedAt)}`,
+                `AI agent decision: ${loggedOperation}, outcome=${outcome}, durationMs=${durationMs}`,
             );
         }
     }
