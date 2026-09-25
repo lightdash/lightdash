@@ -1,5 +1,6 @@
 // PROTOTYPE — throwaway. Three variants of the composer viz config panel (ZAP-1136), one story each. All state in memory.
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -57,7 +58,7 @@ const useConfig = (initial: VizConfig = INITIAL_CONFIG) => {
 
 /* ---------------- Bar ---------------- */
 
-type BarTab = 'chart' | 'data' | 'display';
+type BarTab = 'data' | 'display';
 
 // Disabled controls say why on hover.
 const DisabledReason: FC<{ reason: string | null; children: ReactNode }> = ({
@@ -75,51 +76,23 @@ const TabNote: FC<{ children: ReactNode }> = ({ children }) => (
     </Text>
 );
 
-const TabIntro: FC<{ title: string; description: string }> = ({
-    title,
-    description,
-}) => (
-    <Stack gap={2}>
-        <Title order={6} c="ldGray.7" size="sm" fw={500}>
-            {title}
-        </Title>
-        <Text size="xs" c="dimmed">
-            {description}
-        </Text>
-    </Stack>
-);
-
-const ChartTab: FC<ConfigProps> = (p) => (
-    <Stack gap="md">
-        <TabIntro title="Chart type" description="How the result is drawn." />
-        <SimpleGrid cols={5} spacing="xs">
-            {KINDS.map(({ kind, chartKind, label }) => (
-                <UnstyledButton
-                    key={kind}
-                    className={styles.kindTile}
-                    data-selected={p.config.kind === kind}
+const KindIcons: FC<ConfigProps> = (p) => (
+    <Group gap={2} wrap="nowrap" role="group" aria-label="Chart type">
+        {KINDS.map(({ kind, chartKind, label }) => (
+            <Tooltip key={kind} label={label} withinPortal>
+                <ActionIcon
+                    size="md"
+                    variant={p.config.kind === kind ? 'light' : 'subtle'}
+                    color="gray"
+                    aria-label={label}
                     aria-pressed={p.config.kind === kind}
                     onClick={() => p.onChange({ kind })}
                 >
-                    <MantineIcon icon={getChartIcon(chartKind)} size={20} />
-                    <Text component="span" fz="xs">
-                        {label}
-                    </Text>
-                </UnstyledButton>
-            ))}
-        </SimpleGrid>
-        {applies(p.config.kind).stack && (
-            <>
-                <Divider />
-                <ConfigSwitch
-                    {...p}
-                    field="stack"
-                    label="Stack series"
-                    description="Pile split series on top of each other."
-                />
-            </>
-        )}
-    </Stack>
+                    <MantineIcon icon={getChartIcon(chartKind)} size={16} />
+                </ActionIcon>
+            </Tooltip>
+        ))}
+    </Group>
 );
 
 const DataTab: FC<ConfigProps> = (p) => {
@@ -162,7 +135,8 @@ const DataTab: FC<ConfigProps> = (p) => {
 const DisplayTab: FC<ConfigProps> = (p) =>
     applies(p.config.kind).display ? (
         <SimpleGrid cols={2} spacing="md" verticalSpacing="sm">
-            <Stack gap="sm" pt={4}>
+            <Stack gap="sm" pt="xxs">
+                <ConfigSwitch {...p} field="stack" label="Stack series" />
                 <ConfigSwitch {...p} field="legend" label="Legend" />
                 <ConfigSwitch {...p} field="valueLabels" label="Value labels" />
             </Stack>
@@ -175,10 +149,11 @@ const DisplayTab: FC<ConfigProps> = (p) =>
         <TabNote>Display options apply to bar and line charts.</TabNote>
     );
 
-const BarVariant: FC<{ defaultOpen?: boolean; defaultTab?: BarTab }> = ({
-    defaultOpen = false,
-    defaultTab = 'chart',
-}) => {
+const BarVariant: FC<{
+    defaultOpen?: boolean;
+    defaultTab?: BarTab;
+    withTabs?: boolean;
+}> = ({ defaultOpen = false, defaultTab = 'data', withTabs = true }) => {
     const { config, onChange } = useConfig();
     const [open, setOpen] = useState(defaultOpen);
     const [queriesOpen, setQueriesOpen] = useState(false);
@@ -234,32 +209,46 @@ const BarVariant: FC<{ defaultOpen?: boolean; defaultTab?: BarTab }> = ({
                 </Text>
             </UnstyledButton>
             <Collapse expanded={open}>
-                <Tabs
-                    value={tab}
-                    onChange={(v) =>
-                        setTab(v === 'data' || v === 'display' ? v : 'chart')
-                    }
-                    classNames={{ list: styles.tabList }}
-                >
-                    <Tabs.List>
-                        <Tabs.Tab value="chart">Chart</Tabs.Tab>
-                        <Tabs.Tab value="data">Data</Tabs.Tab>
-                        <Tabs.Tab value="display">Display</Tabs.Tab>
-                    </Tabs.List>
-                    <ScrollArea.Autosize mah="45cqh" type="auto">
+                {withTabs ? (
+                    <Tabs
+                        value={tab}
+                        onChange={(v) =>
+                            setTab(v === 'display' ? 'display' : 'data')
+                        }
+                        classNames={{ list: styles.tabList }}
+                    >
+                        <Tabs.List>
+                            <Box className={styles.kindSlot}>
+                                <KindIcons {...p} />
+                                <Divider orientation="vertical" my="xs" />
+                            </Box>
+                            <Tabs.Tab value="data">Data</Tabs.Tab>
+                            <Tabs.Tab value="display">Display</Tabs.Tab>
+                        </Tabs.List>
+                        <ScrollArea.Autosize mah="40cqh" type="auto">
+                            <Box p="md">
+                                <Tabs.Panel value="data">
+                                    <DataTab {...p} />
+                                </Tabs.Panel>
+                                <Tabs.Panel value="display">
+                                    <DisplayTab {...p} />
+                                </Tabs.Panel>
+                            </Box>
+                        </ScrollArea.Autosize>
+                    </Tabs>
+                ) : (
+                    <ScrollArea.Autosize mah="40cqh" type="auto">
+                        <Group gap="xs" px="md" pt="sm">
+                            <KindIcons {...p} />
+                            <Text fz="xs" c="dimmed">
+                                {kind.label}
+                            </Text>
+                        </Group>
                         <Box p="md">
-                            <Tabs.Panel value="chart">
-                                <ChartTab {...p} />
-                            </Tabs.Panel>
-                            <Tabs.Panel value="data">
-                                <DataTab {...p} />
-                            </Tabs.Panel>
-                            <Tabs.Panel value="display">
-                                <DisplayTab {...p} />
-                            </Tabs.Panel>
+                            <DataTab {...p} />
                         </Box>
                     </ScrollArea.Autosize>
-                </Tabs>
+                )}
             </Collapse>
         </Frame>
     );
@@ -570,5 +559,8 @@ export default meta;
 type Story = StoryObj;
 
 export const Bar: Story = { render: () => <BarVariant /> };
+export const BarDataOnly: Story = {
+    render: () => <BarVariant withTabs={false} />,
+};
 export const Toolbar: Story = { render: () => <ToolbarVariant /> };
 export const Drawer: Story = { render: () => <DrawerVariant /> };
