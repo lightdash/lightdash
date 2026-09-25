@@ -322,7 +322,7 @@ const checkedViz = () =>
 
 const kindButtons = () =>
     screen
-        .queryAllByRole('group', { name: 'Chart type' })
+        .queryAllByRole('group', { name: 'Chart kind' })
         .flatMap((group) => within(group).getAllByRole('button'));
 const offeredKinds = () =>
     kindButtons()
@@ -334,13 +334,15 @@ const selectedKind = () =>
         ?.getAttribute('data-kind');
 const chooseKind = (kind: string) =>
     fireEvent.click(
-        kindButtons().find((button) => button.getAttribute('data-kind') === kind)!,
+        kindButtons().find(
+            (button) => button.getAttribute('data-kind') === kind,
+        )!,
     );
 const chartBar = () => screen.getByRole('button', { name: /^chart/i });
 // The section animates open, so wait for its kind switcher.
 const openChart = async () => {
     fireEvent.click(chartBar());
-    await screen.findByRole('group', { name: 'Chart type' });
+    await screen.findByRole('group', { name: 'Chart kind' });
 };
 const xAxisSelect = () => screen.getByRole('combobox', { name: 'X axis' });
 
@@ -537,9 +539,7 @@ describe('composer viz config panel', () => {
         });
         expect(chartBar()).toHaveTextContent('Line · status × n');
         await openChart();
-        await waitFor(() =>
-            expect(xAxisSelect()).toBeEnabled(),
-        );
+        await waitFor(() => expect(xAxisSelect()).toBeEnabled());
         chooseKind('bar');
         expect(chartBar()).toHaveTextContent('Bar · status × n');
         unmount();
@@ -548,7 +548,7 @@ describe('composer viz config panel', () => {
         );
     });
 
-    it('keeps a read-only viewer\'s kind switch on screen without writing it', async () => {
+    it("keeps a read-only viewer's kind switch on screen without writing it", async () => {
         mocks.thread.mockReturnValue({
             data: {
                 user: { uuid: 'someone-else' },
@@ -565,6 +565,43 @@ describe('composer viz config panel', () => {
         expect(chartBar()).toHaveTextContent('Line · status × n');
         unmount();
         expect(mocks.saveVizConfig).not.toHaveBeenCalled();
+    });
+
+    it("shows an expired result's stored viz config with every control disabled", async () => {
+        renderComposer(
+            {
+                ...statusCounts,
+                rows: [],
+                columns: undefined,
+                error: { error: { message: 'Gone' } },
+            } as unknown as ReturnType<typeof resultsOf>,
+            {
+                ...composerConfig,
+                vizConfig: {
+                    type: ChartKind.VERTICAL_BAR,
+                    metadata: { version: 1 },
+                    fieldConfig: {
+                        x: { reference: 'status', type: VizIndexType.CATEGORY },
+                        y: [
+                            {
+                                reference: 'n',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupBy: [],
+                    },
+                    display: undefined,
+                },
+            },
+        );
+        expect(
+            screen.getByText(/These results have expired/),
+        ).toBeInTheDocument();
+        expect(chartBar()).toHaveTextContent('Bar · status × sum n');
+        await openChart();
+        expect(offeredKinds()).toEqual([]);
+        expect(selectedKind()).toBe('bar');
+        expect(xAxisSelect()).toBeDisabled();
     });
 
     it('keeps only one of Chart and Queries open', async () => {

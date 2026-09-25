@@ -19,10 +19,10 @@
 .summary {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--mantine-spacing-xs);
     min-width: 0;
     font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-dimmed);
 }
 
 .summaryText {
@@ -42,4 +42,16 @@
 .body {
     border-top: 1px solid var(--mantine-color-default-border);
     background: var(--ld-color-page);
+}
+
+.sortPillWide {
+    width: 96px;
+}
+
+.sortPillNarrow {
+    width: 68px;
+}
+
+.emptySelect input {
+    border-style: dashed;
 }

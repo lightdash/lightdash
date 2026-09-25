@@ -64,7 +64,7 @@ const Summary: FC<{ value: AllVizChartConfig; columns: ResultColumn[] }> = ({
             <MantineIcon
                 icon={getComposerVizKindIcon(kind)}
                 size={14}
-                color="ldGray.5"
+                color="dimmed"
                 className={styles.summaryIcon}
             />
             <Text component="span" fz="xs" className={styles.summaryText}>

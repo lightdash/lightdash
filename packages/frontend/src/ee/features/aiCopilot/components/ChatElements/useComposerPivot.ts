@@ -83,25 +83,28 @@ const executeComposerPivot = async (
     };
 };
 
-/** The pivoted re-run of a node result; the previous chart's data stays while an edit re-runs. */
+/** The pivoted re-run of a node result; idle without a stored result or a layout to pivot. */
 export const useComposerPivot = ({
     projectUuid,
     queryUuid,
     layout,
 }: {
     projectUuid: string;
-    queryUuid: string;
-    layout: PivotChartLayout;
+    queryUuid: string | null;
+    layout: PivotChartLayout | null;
 }) =>
     useQuery<ComposerPivotResult, Error>({
         queryKey: [
             'composerPivot',
             projectUuid,
             queryUuid,
-            toPivotConfiguration(layout),
+            layout ? toPivotConfiguration(layout) : null,
         ],
-        queryFn: () => executeComposerPivot(projectUuid, queryUuid, layout),
+        queryFn: () =>
+            queryUuid && layout
+                ? executeComposerPivot(projectUuid, queryUuid, layout)
+                : Promise.reject(new Error('Nothing to pivot')),
+        enabled: queryUuid !== null && layout !== null,
         staleTime: Infinity,
         retry: false,
-        keepPreviousData: true,
     });
