@@ -11,6 +11,8 @@ import { AiComposerChartVisualization } from './AiComposerChartVisualization';
 type Props = {
     projectUuid: string;
     results: InfiniteQueryResults;
+    /** Stored result a series split re-reads; null when there is none. */
+    seriesSplitQueryUuid: string | null;
     plan: ComposerVizPlan;
     kind: ComposerVizKind;
     onKindChange: (kind: ComposerVizKind) => void;
@@ -24,6 +26,7 @@ type Props = {
 export const AiVizSwitchedResult: FC<Props> = ({
     projectUuid,
     results,
+    seriesSplitQueryUuid,
     plan,
     kind,
     onKindChange,
@@ -46,6 +49,7 @@ export const AiVizSwitchedResult: FC<Props> = ({
                     <AiComposerChartVisualization
                         projectUuid={projectUuid}
                         results={results}
+                        seriesSplitQueryUuid={seriesSplitQueryUuid}
                         kind={kind}
                         axes={axes}
                         headerContent={headerContent}

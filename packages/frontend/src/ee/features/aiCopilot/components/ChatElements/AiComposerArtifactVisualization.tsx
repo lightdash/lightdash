@@ -1,9 +1,7 @@
 import { type ComposerVizKind, type ComposerVizPlan } from '@lightdash/common';
-import { Center, Stack, Text } from '@mantine/core';
-import { IconClockOff } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { AiComposerResultsExpired } from './AiComposerResultsExpired';
 import { AiVizSwitchedResult } from './AiVizSwitchedResult';
 
 const LOADING_MESSAGE = 'Loading composer query results...';
@@ -11,6 +9,8 @@ const LOADING_MESSAGE = 'Loading composer query results...';
 type ContentProps = {
     projectUuid: string;
     results: InfiniteQueryResults;
+    /** The displayed node's stored result; null when the artifact has none. */
+    queryUuid: string | null;
     plan: ComposerVizPlan;
     kind: ComposerVizKind;
     onKindChange: (kind: ComposerVizKind) => void;
@@ -18,11 +18,11 @@ type ContentProps = {
     flush?: boolean;
 };
 
-// A displayed node result with its viz switcher. Results expire, so a failed
-// fetch is an empty state rather than an error card.
+// A displayed node result with its viz switcher.
 export const AiComposerArtifactVisualization: FC<ContentProps> = ({
     projectUuid,
     results,
+    queryUuid,
     plan,
     kind,
     onKindChange,
@@ -30,26 +30,14 @@ export const AiComposerArtifactVisualization: FC<ContentProps> = ({
     flush = false,
 }) => {
     if (results.error) {
-        return (
-            <Stack gap="md" h="100%" mih={300}>
-                {headerContent}
-                <Center flex={1}>
-                    <Stack gap="xs" align="center" justify="center">
-                        <MantineIcon icon={IconClockOff} color="gray" />
-                        <Text size="xs" c="dimmed" ta="center">
-                            These results have expired — ask the agent to re-run
-                            this query
-                        </Text>
-                    </Stack>
-                </Center>
-            </Stack>
-        );
+        return <AiComposerResultsExpired headerContent={headerContent} />;
     }
 
     return (
         <AiVizSwitchedResult
             projectUuid={projectUuid}
             results={results}
+            seriesSplitQueryUuid={queryUuid}
             plan={plan}
             kind={kind}
             onKindChange={onKindChange}
