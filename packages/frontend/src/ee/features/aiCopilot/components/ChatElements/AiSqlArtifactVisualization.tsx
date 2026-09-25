@@ -171,7 +171,8 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
 }) => {
     const { columns, rows } = useArtifactResultRows(results);
     const plan = useMemo(
-        () => getComposerVizPlan({ columns, rows, node: null }),
+        () =>
+            getComposerVizPlan({ columns, rows, node: null, vizConfig: null }),
         [columns, rows],
     );
     const [chosenKind, setChosenKind] = useState<ComposerVizKind>();

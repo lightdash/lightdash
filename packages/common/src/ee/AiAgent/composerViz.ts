@@ -1,9 +1,12 @@
 import { DimensionType } from '../../types/field';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import { type RawResultRow, type ResultColumn } from '../../types/results';
+import { ChartKind } from '../../types/savedCharts';
+import assertUnreachable from '../../utils/assertUnreachable';
 import {
     getColumnAxisType,
     VizAggregationOptions,
+    type AllVizChartConfig,
     type PivotChartData,
     type PivotChartLayout,
 } from '../../visualizations/types';
@@ -87,16 +90,11 @@ const hasDuplicateValues = (rows: RawResultRow[], reference: string) => {
     });
 };
 
-/** Kinds a node result can render as and the one it opens with, from column types and row shape alone. */
-export const getComposerVizPlan = ({
-    columns,
-    rows,
-    node,
-}: {
-    columns: ResultColumn[];
-    rows: RawResultRow[];
-    node: SourceQuery | null;
-}): ComposerVizPlan => {
+const getColumnTypeVizPlan = (
+    columns: ResultColumn[],
+    rows: RawResultRow[],
+    node: SourceQuery | null,
+): ComposerVizPlan => {
     const semantic = pickSemanticAxes(columns, node);
     const x = semantic?.x ?? pickX(columns);
     const y = semantic?.y ?? pickY(columns, x);
@@ -138,6 +136,96 @@ export const getComposerVizPlan = ({
     })();
 
     return { availableKinds, defaultKind, axes };
+};
+
+export const getComposerVizKind = (
+    vizConfig: AllVizChartConfig,
+): ComposerVizKind => {
+    switch (vizConfig.type) {
+        case ChartKind.TABLE:
+            return 'table';
+        case ChartKind.VERTICAL_BAR:
+            return 'bar';
+        case ChartKind.LINE:
+            return 'line';
+        case ChartKind.PIE:
+            return 'pie';
+        case ChartKind.BIG_NUMBER:
+            return 'big_number';
+        default:
+            return assertUnreachable(vizConfig, 'Unknown viz config type');
+    }
+};
+
+/** Stored axes drive every kind that can use them; the column-type plan fills the rest. Null when the viz config no longer fits the columns. */
+const seedFromVizConfig = (
+    plan: ComposerVizPlan,
+    vizConfig: AllVizChartConfig,
+    columns: ResultColumn[],
+    rows: RawResultRow[],
+): ComposerVizPlan | null => {
+    const byReference = new Map(
+        columns.map((column) => [column.reference, column]),
+    );
+    if (vizConfig.type === ChartKind.TABLE) {
+        const known = Object.keys(vizConfig.columns).every((reference) =>
+            byReference.has(reference),
+        );
+        return known ? { ...plan, defaultKind: 'table' } : null;
+    }
+    const layout = vizConfig.fieldConfig;
+    const yReference = layout?.y[0]?.reference;
+    const y =
+        yReference === undefined ? undefined : byReference.get(yReference);
+    if (!y || !isNumeric(y)) return null;
+    const xReference = layout?.x?.reference;
+    const x =
+        xReference === undefined ? null : (byReference.get(xReference) ?? null);
+    if (xReference !== undefined && (!x || x.reference === y.reference))
+        return null;
+
+    const axes: ComposerVizPlan['axes'] = { ...plan.axes };
+    if (x) {
+        axes.bar = { x, y };
+        axes.line = { x, y };
+        if (
+            x.type === DimensionType.STRING &&
+            !hasDuplicateValues(rows, x.reference)
+        ) {
+            axes.pie = { x, y };
+        }
+    }
+    if (rows.length === 1) axes.big_number = { x: null, y };
+
+    const defaultKind = getComposerVizKind(vizConfig);
+    if (defaultKind === 'table' || !axes[defaultKind]) return null;
+    return {
+        availableKinds: KIND_ORDER.filter(
+            (kind) => kind === 'table' || axes[kind] !== undefined,
+        ),
+        defaultKind,
+        axes,
+    };
+};
+
+/**
+ * Kinds a node result can render as and the one it opens with: seeded from
+ * the stored viz config when it still fits, else from column types and row shape.
+ */
+export const getComposerVizPlan = ({
+    columns,
+    rows,
+    node,
+    vizConfig,
+}: {
+    columns: ResultColumn[];
+    rows: RawResultRow[];
+    node: SourceQuery | null;
+    vizConfig: AllVizChartConfig | null;
+}): ComposerVizPlan => {
+    const plan = getColumnTypeVizPlan(columns, rows, node);
+    if (!vizConfig) return plan;
+    return seedFromVizConfig(plan, vizConfig, columns, rows) ?? plan;
 };
 
 /** Chart data straight from the fetched rows: x as the index (none for a big number), y as the value. No aggregation, no server call. */

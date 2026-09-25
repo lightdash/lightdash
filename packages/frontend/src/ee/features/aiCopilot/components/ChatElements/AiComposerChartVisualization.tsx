@@ -3,7 +3,7 @@ import {
     ChartKind,
     ECHARTS_DEFAULT_COLORS,
     VizAggregationOptions,
-    VizIndexType,
+    getColumnAxisType,
     type AllVizChartConfig,
     type ComposerChartKind,
     type ComposerVizAxes,
@@ -53,7 +53,10 @@ const chartViewConfigOf = (
         type: chartKindOf(kind),
         fieldConfig: {
             x: axes.x
-                ? { reference: axes.x.reference, type: VizIndexType.CATEGORY }
+                ? {
+                      reference: axes.x.reference,
+                      type: getColumnAxisType(axes.x.type),
+                  }
                 : undefined,
             y: [
                 {
