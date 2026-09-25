@@ -1,5 +1,5 @@
 import Fuse from 'fuse.js';
-import { SCOPE_TOURS } from '../scopeTours/generated';
+import { tourFor } from '../scopeTours/tourFor';
 import { type LearnModule } from './catalogue';
 
 const STOP_WORDS = new Set(
@@ -31,7 +31,7 @@ export const createLearnSearch = (
 ): ((query: string) => LearnModule[]) => {
     const index = new Fuse(
         modules.map((module) => {
-            const steps = SCOPE_TOURS[module.scope]?.steps ?? [];
+            const steps = tourFor(module.scope)?.steps ?? [];
             return {
                 module,
                 title: normalize(module.title),
