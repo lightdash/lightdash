@@ -21,6 +21,7 @@ import { useExplore } from '../../../../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { useEmbedExploreKey } from '../useEmbedExploreKey';
 
 const EmbedExploreView: FC<{
     exploreId: string;
@@ -217,6 +218,11 @@ const EmbedExplore: FC<Props> = ({
 }) => {
     const { projectUuid } = useEmbed();
     const { error: exploreError } = useExplore(exploreId);
+    const contentKey = useEmbedExploreKey({
+        exploreId,
+        savedChart,
+        allowChartUpdate,
+    });
 
     if (!projectUuid) {
         return (
@@ -245,9 +251,7 @@ const EmbedExplore: FC<Props> = ({
     return (
         <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
             <EmbedExploreContent
-                key={`embed-${exploreId}-${
-                    savedChart && 'uuid' in savedChart ? savedChart.uuid : ''
-                }-${allowChartUpdate ? 'update' : 'create'}`}
+                key={contentKey}
                 exploreId={exploreId}
                 savedChart={savedChart}
                 onExploreSelect={onExploreSelect}

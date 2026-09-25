@@ -124,6 +124,25 @@ describe('embedded Explore back navigation', () => {
         },
     );
 
+    it('keeps the original return URL when drilling from an Explore', async () => {
+        const router = renderEmbed(
+            { type: 'aiAgent', agentUuid: 'agent' },
+            `?${new URLSearchParams({ embedBackUrl: conversation })}`,
+        );
+        fireEvent.click(screen.getByText('Explore'));
+        await waitFor(() =>
+            expect(
+                new URLSearchParams(router.state.location.search).get(
+                    'embedBackUrl',
+                ),
+            ).toBe(conversation),
+        );
+        fireEvent.click(screen.getByText('Back'));
+        await waitFor(() =>
+            expect(router.state.location.pathname).toBe(conversation),
+        );
+    });
+
     it('returns to a saved dashboard opened from the conversation', async () => {
         const dashboard = `${base}/ai-agents/agent/dashboards/dashboard`;
         const router = renderEmbed(
