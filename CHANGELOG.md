@@ -1,3 +1,12 @@
+## [2.342.1](https://github.com/lightdash/lightdash/compare/2.342.0...2.342.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agent:** keep the chat rendering when a decision has no choices ([#29981](https://github.com/lightdash/lightdash/issues/29981)) ([701947c](https://github.com/lightdash/lightdash/commit/701947c7f33f003df0565d0ae92b5a50a37be8d3))
+* **data-apps:** unstick Send button after a new app's first build ([#29976](https://github.com/lightdash/lightdash/issues/29976)) ([eb70f6d](https://github.com/lightdash/lightdash/commit/eb70f6d9ce39a62e91efa0a7d26075d87a910a9e))
+* **filters:** keep cascading filters for join-alias fields in autocomplete ([#29964](https://github.com/lightdash/lightdash/issues/29964)) ([e4b09a2](https://github.com/lightdash/lightdash/commit/e4b09a247b1bea69cd5faec325ab681ba3d34e34))
+
 # [2.342.0](https://github.com/lightdash/lightdash/compare/2.341.0...2.342.0) (2026-09-25)
 
 
