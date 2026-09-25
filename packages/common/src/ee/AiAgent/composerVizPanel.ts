@@ -112,9 +112,10 @@ export const composerVizConfigFitsColumns = (
     return (layout.sortBy ?? []).every((s) => known.has(s.reference));
 };
 
-/** Table always; chart kinds need a numeric column; bar/line/pie also need a second column for x. */
+/** Table always; chart kinds need a numeric column; bar/line/pie also need a second column for x; a big number needs a single row. */
 export const getAvailableComposerVizKinds = (
     columns: ResultColumn[],
+    rows: RawResultRow[],
 ): ComposerVizKind[] => {
     const hasNumeric = columns.some(isNumeric);
     return COMPOSER_VIZ_KINDS.filter((kind) => {
@@ -122,7 +123,7 @@ export const getAvailableComposerVizKinds = (
             case 'table':
                 return true;
             case 'big_number':
-                return hasNumeric;
+                return hasNumeric && rows.length === 1;
             case 'bar':
             case 'line':
             case 'pie':
@@ -207,12 +208,13 @@ export type ComposerVizPanelOptions = {
 export const getComposerVizPanelOptions = (
     value: AllVizChartConfig,
     columns: ResultColumn[],
+    rows: RawResultRow[],
 ): ComposerVizPanelOptions => {
     const xReference = layoutOf(value)?.x?.reference;
     const numeric = columns.filter(isNumeric);
     const other = columns.filter((column) => !isNumeric(column));
     return {
-        kinds: getAvailableComposerVizKinds(columns),
+        kinds: getAvailableComposerVizKinds(columns, rows),
         x: [...other, ...numeric],
         y: numeric,
         groupBy: other.filter((column) => column.reference !== xReference),
