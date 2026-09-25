@@ -865,6 +865,14 @@ const AppGenerate: FC = () => {
         [allVersions],
     );
 
+    // A new server version proves the submit request completed. Reset the
+    // mutations so a detached observer (effects re-run mid-request) cannot pin
+    // `isLoading` and leave the composer spinning after the build finishes.
+    useEffect(() => {
+        resetGenerate();
+        resetIterate();
+    }, [maxHistoryVersion, resetGenerate, resetIterate]);
+
     // Merge history with the optimistic queue, dropping any local user bubble
     // whose `submittedAtVersion` is older than `maxHistoryVersion` — see
     // `mergeChatMessages` for the dedup contract.
