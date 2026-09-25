@@ -27,6 +27,7 @@ import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import styles from './AiComposerVizConfig.prototype.module.css';
+import { MetricsStyleDataTab } from './vizConfigMetricsStyle';
 import {
     AggSelect,
     AxisLabelInput,
@@ -153,7 +154,14 @@ const BarVariant: FC<{
     defaultOpen?: boolean;
     defaultTab?: BarTab;
     withTabs?: boolean;
-}> = ({ defaultOpen = false, defaultTab = 'data', withTabs = true }) => {
+    metricsStyle?: boolean;
+}> = ({
+    defaultOpen = false,
+    defaultTab = 'data',
+    withTabs = true,
+    metricsStyle = false,
+}) => {
+    const Data = metricsStyle ? MetricsStyleDataTab : DataTab;
     const { config, onChange } = useConfig();
     const [open, setOpen] = useState(defaultOpen);
     const [queriesOpen, setQueriesOpen] = useState(false);
@@ -228,7 +236,7 @@ const BarVariant: FC<{
                         <ScrollArea.Autosize mah="40cqh" type="auto">
                             <Box p="md">
                                 <Tabs.Panel value="data">
-                                    <DataTab {...p} />
+                                    <Data {...p} />
                                 </Tabs.Panel>
                                 <Tabs.Panel value="display">
                                     <DisplayTab {...p} />
@@ -245,7 +253,7 @@ const BarVariant: FC<{
                             </Text>
                         </Group>
                         <Box p="md">
-                            <DataTab {...p} />
+                            <Data {...p} />
                         </Box>
                     </ScrollArea.Autosize>
                 )}
@@ -561,6 +569,9 @@ type Story = StoryObj;
 export const Bar: Story = { render: () => <BarVariant /> };
 export const BarDataOnly: Story = {
     render: () => <BarVariant withTabs={false} />,
+};
+export const BarMetricsStyle: Story = {
+    render: () => <BarVariant metricsStyle />,
 };
 export const Toolbar: Story = { render: () => <ToolbarVariant /> };
 export const Drawer: Story = { render: () => <DrawerVariant /> };
