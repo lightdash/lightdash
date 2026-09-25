@@ -97,6 +97,8 @@ export type ChartTypeBuilderWorkspaceState = {
     openHistory: () => void;
     closeHistory: () => void;
     toggleHistory: () => void;
+    /** An opened viz whose history has not loaded: neither new nor ready. */
+    isLoadingExisting: boolean;
     isPromptBarMounted: boolean;
     promptSessionKey: string;
     /** Whether the next prompt carries the run's rows: the composer's
@@ -319,9 +321,15 @@ export const useChartTypeBuilderWorkspace = ({
 
     const hasHistory = dataAppVizUuid !== null && history.versions.length > 0;
 
+    // An opened viz waits for its history before showing anything; a viz this
+    // session's first build claimed is already on screen.
+    const isLoadingExisting =
+        dataAppVizUuid !== null &&
+        history.isLoading &&
+        build.appUuid !== dataAppVizUuid;
     // The composer captures its placeholder at mount, so wait for history
     // before choosing create vs revise wording.
-    const isPromptBarMounted = !(dataAppVizUuid && history.isLoading);
+    const isPromptBarMounted = !isLoadingExisting;
 
     return {
         dataAppVizUuid,
@@ -348,6 +356,7 @@ export const useChartTypeBuilderWorkspace = ({
         openHistory,
         closeHistory,
         toggleHistory,
+        isLoadingExisting,
         isPromptBarMounted,
         promptSessionKey,
         includeSampleData,

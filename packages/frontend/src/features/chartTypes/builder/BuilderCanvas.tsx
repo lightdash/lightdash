@@ -22,6 +22,9 @@ type Props = {
     /** The version the preview renders; null when nothing is renderable. */
     previewVersion: number | null;
     isBuilding: boolean;
+    /** An existing viz is still loading, so neither the start page nor a
+     *  preview belongs on screen yet. */
+    isLoadingExisting: boolean;
     /** Why the latest build failed, when there is nothing renderable. */
     failureMessage: string | null;
     /** A round is waiting or on screen, so the starter prompts recede. */
@@ -97,6 +100,7 @@ const BuilderCanvas: FC<Props> = ({
     appUuid,
     previewVersion,
     isBuilding,
+    isLoadingExisting,
     failureMessage,
     isClarifyRoundOpen,
     clarifierUnavailable,
@@ -189,7 +193,7 @@ const BuilderCanvas: FC<Props> = ({
                         )}
                     </Stack>
                 </Stack>
-            ) : failureMessage !== null ? (
+            ) : isLoadingExisting ? null : failureMessage !== null ? (
                 <Stack gap="xs" align="center">
                     <Text size="md" fw={600} c="ldGray.8">
                         The build failed

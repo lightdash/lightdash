@@ -1039,6 +1039,15 @@ const ChartTypeBuilder: FC = () => {
         }
     }
 
+    // An opened chart type is neither new nor editable until its row loads;
+    // the one a first build just claimed is already on screen.
+    const isResolvingApp =
+        urlVizUuid !== undefined &&
+        appMeta === null &&
+        !appQuery.error &&
+        build.appUuid === null &&
+        history.versions.length === 0;
+
     // Remounted per viz so the selected tab belongs to the declaration on screen.
     const configurePanel = schema ? (
         <ConfigurePanel
@@ -1099,17 +1108,19 @@ const ChartTypeBuilder: FC = () => {
                     activeVizUuid ? () => setIsPreviewTableOpen(true) : null
                 }
             />
-            <ChartTypeBuilderWorkspace
-                projectUuid={projectUuid}
-                workspace={workspace}
-                previewContext={previewContext}
-                sampleRows={sampleRows}
-                currentBuildContext={currentBuildContext}
-                savedChartSource={savedChartSource}
-                exploreSource={exploreSource}
-                syncPreviewUrlState
-                configurePanel={configurePanel}
-            />
+            {!isResolvingApp && (
+                <ChartTypeBuilderWorkspace
+                    projectUuid={projectUuid}
+                    workspace={workspace}
+                    previewContext={previewContext}
+                    sampleRows={sampleRows}
+                    currentBuildContext={currentBuildContext}
+                    savedChartSource={savedChartSource}
+                    exploreSource={exploreSource}
+                    syncPreviewUrlState
+                    configurePanel={configurePanel}
+                />
+            )}
             <ChartTypeRowsModal
                 data={liveRows}
                 opened={isRowsModalOpen && liveRows !== null}

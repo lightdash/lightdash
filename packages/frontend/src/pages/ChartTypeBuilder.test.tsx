@@ -470,6 +470,80 @@ describe('ChartTypeBuilder', () => {
         ).toBeInTheDocument();
     });
 
+    it.each([
+        {
+            name: 'its row is loading by slug',
+            path: '/projects/p1/chart-types/stream-graph',
+            prepare: () => undefined,
+        },
+        {
+            name: 'its row is loading by uuid',
+            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            prepare: () => undefined,
+        },
+        {
+            name: 'its history is loading',
+            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            prepare: () => {
+                setApp(
+                    appMeta({
+                        appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                    }),
+                );
+                vi.mocked(useAppVersionHistory).mockReturnValue({
+                    ...historyStub([], null),
+                    isLoading: true,
+                });
+            },
+        },
+    ])(
+        'shows no start page for an opened chart type while $name',
+        ({ path, prepare }) => {
+            prepare();
+            renderBuilder(path);
+
+            expect(
+                screen.queryByRole('heading', {
+                    name: 'Create with Chart Studio',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Use a saved chart'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByPlaceholderText('Describe a new chart type…'),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it('keeps the composer while the adopted app’s history loads', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000009';
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: dataAppVizUuid,
+                claimedVersion: 1,
+                pendingPrompt: 'a stream graph of category share',
+            }),
+        );
+        vi.mocked(useAppVersionHistory).mockReturnValue({
+            ...historyStub([], null),
+            isLoading: true,
+        });
+
+        renderBuilder('/projects/p1/chart-types/new');
+
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            dataAppVizUuid,
+        );
+        expect(
+            screen.getByText('Building your chart type…'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByPlaceholderText('Ask for another change…'),
+        ).toBeInTheDocument();
+    });
+
     it.each(['', '   '])(
         'omits an unnamed chart type from the header (%j)',
         (name) => {

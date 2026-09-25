@@ -73,6 +73,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
         hasHistory,
         isHistoryOpen,
         closeHistory,
+        isLoadingExisting,
         isPromptBarMounted,
         promptSessionKey,
         includeSampleData,
@@ -137,6 +138,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 appUuid={dataAppVizUuid}
                                 previewVersion={previewVersion}
                                 isBuilding={isBuilding}
+                                isLoadingExisting={isLoadingExisting}
                                 failureMessage={failureMessage}
                                 isClarifyRoundOpen={isClarifyRoundOpen}
                                 clarifierUnavailable={clarification.fellThrough}
