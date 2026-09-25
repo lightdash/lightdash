@@ -744,6 +744,63 @@ describe('getRunQuery', () => {
         );
     });
 
+    it('charts a multi-row fast data answer and summarises it in one line', async () => {
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [
+                { a_dim1: 'one', a_met1: 3 },
+                { a_dim1: 'two', a_met1: 5 },
+                { a_dim1: 'three', a_met1: 1 },
+            ],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+        const queryTool = getRunQuery({
+            purpose: 'answer',
+            enableFastResponse: true,
+            agentContext: new AgentContext([validExplore]),
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: false,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+
+        const output = await queryTool.execute!(toolInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            context: {},
+        });
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+
+        expect(
+            createOrUpdateArtifact.mock.calls[0][0].vizConfig.config
+                .chartConfig,
+        ).toMatchObject({
+            defaultVizType: 'bar',
+            xAxisDimension: 'a_dim1',
+            yAxisMetrics: ['a_met1'],
+        });
+        expect(output.metadata).toMatchObject({
+            fastResponse:
+                '**a_met1** by a_dim1, 3 rows. Highest: two at **5**. Lowest: three at **1**.',
+        });
+    });
+
     it('resolves filter expressions before execution and persists replay args', async () => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
