@@ -86,14 +86,3 @@ export const convertCustomBinDimensionToDbt = ({
             );
     }
 };
-
-export const previewConvertCustomDimensionToDbt = (
-    field: CustomDimension,
-): DbtColumnLightdashAdditionalDimension => {
-    if (isCustomBinDimension(field)) {
-        throw new NotImplementedError(
-            'Custom bin previews require the project warehouse and dbt model SQL',
-        );
-    }
-    return convertCustomSqlDimensionToDbt(field);
-};
