@@ -6153,14 +6153,17 @@ export class AiAgentModel {
         promptUuid: string;
         humanScore: number | null;
         humanFeedback?: string | null;
+        preserveHumanFeedback?: boolean;
     }) {
+        const humanFeedback =
+            data.humanScore === -1 ? (data.humanFeedback ?? null) : null;
         await this.database(AiPromptTableName)
             .update({
                 human_score: data.humanScore,
                 human_feedback:
-                    data.humanScore === -1
-                        ? (data.humanFeedback ?? null)
-                        : null,
+                    data.humanScore === -1 && data.preserveHumanFeedback
+                        ? undefined
+                        : humanFeedback,
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,

@@ -14580,6 +14580,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             promptUuid,
             humanScore,
             humanFeedback,
+            // The modal can submit before this vote finishes saving.
+            preserveHumanFeedback:
+                humanScore === -1 && humanFeedback === undefined,
         });
 
         const promptContext =
@@ -16822,6 +16825,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }
 
                 const { promptUuid, score } = parsed.data;
+                if (score < 0) {
+                    // Use the short-lived trigger before saving the vote or updating the message.
+                    try {
+                        await client.views.open({
+                            trigger_id: body.trigger_id,
+                            view: AiAgentService.buildDownvoteFeedbackModalView(
+                                promptUuid,
+                            ),
+                        });
+                    } catch (error) {
+                        Logger.error(
+                            'Failed to open Slack downvote feedback modal',
+                            error,
+                        );
+                    }
+                }
+
                 await this.updateHumanScoreForSlackPrompt(
                     body.user.id,
                     organizationUuid,
@@ -16850,15 +16870,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         newBlock,
                     ),
                 });
-
-                if (score < 0) {
-                    await client.views.open({
-                        trigger_id: body.trigger_id,
-                        view: AiAgentService.buildDownvoteFeedbackModalView(
-                            promptUuid,
-                        ),
-                    });
-                }
             },
         );
     }
@@ -16905,6 +16916,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!promptUuid) {
                             return;
                         }
+                        // Use the short-lived trigger before saving the vote or updating the message.
+                        try {
+                            await client.views.open({
+                                trigger_id: body.trigger_id,
+                                view: AiAgentService.buildDownvoteFeedbackModalView(
+                                    promptUuid,
+                                ),
+                            });
+                        } catch (error) {
+                            Logger.error(
+                                'Failed to open Slack downvote feedback modal',
+                                error,
+                            );
+                        }
+
                         await this.updateHumanScoreForSlackPrompt(
                             user.id,
                             organizationUuid,
@@ -16925,13 +16951,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 ),
                             });
                         }
-
-                        await client.views.open({
-                            trigger_id: body.trigger_id,
-                            view: AiAgentService.buildDownvoteFeedbackModalView(
-                                promptUuid,
-                            ),
-                        });
                     }
                 }
             },
