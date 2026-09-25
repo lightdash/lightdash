@@ -61395,6 +61395,20 @@
             "SemanticChartAsCode": {
                 "$ref": "#/components/schemas/Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
+            "DocumentSemanticChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/SemanticChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["semantic"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "MergeChartAsCode": {
                 "allOf": [
                     {
@@ -61411,35 +61425,27 @@
                     }
                 ]
             },
+            "DocumentMergeChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/MergeChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["merge"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "DocumentChartContent": {
                 "anyOf": [
                     {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/SemanticChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["semantic"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DocumentSemanticChartContent"
                     },
                     {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/MergeChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["merge"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DocumentMergeChartContent"
                     }
                 ]
             },
@@ -66833,7 +66839,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.344.2",
+        "version": "2.344.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

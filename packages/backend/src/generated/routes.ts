@@ -61302,6 +61302,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentSemanticChartContent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chart: { ref: 'SemanticChartAsCode', required: true },
+                source: {
+                    dataType: 'enum',
+                    enums: ['semantic'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MergeChartAsCode: {
         dataType: 'refAlias',
         type: {
@@ -61319,33 +61335,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentMergeChartContent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chart: { ref: 'MergeChartAsCode', required: true },
+                source: { dataType: 'enum', enums: ['merge'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DocumentChartContent: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
             subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        chart: { ref: 'SemanticChartAsCode', required: true },
-                        source: {
-                            dataType: 'enum',
-                            enums: ['semantic'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        chart: { ref: 'MergeChartAsCode', required: true },
-                        source: {
-                            dataType: 'enum',
-                            enums: ['merge'],
-                            required: true,
-                        },
-                    },
-                },
+                { ref: 'DocumentSemanticChartContent' },
+                { ref: 'DocumentMergeChartContent' },
             ],
             validators: {},
         },

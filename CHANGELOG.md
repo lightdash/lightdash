@@ -1,3 +1,11 @@
+## [2.344.3](https://github.com/lightdash/lightdash/compare/2.344.2...2.344.3) (2026-09-25)
+
+
+### Bug Fixes
+
+* **chart-studio:** smooth loading and first-build transitions ([#30005](https://github.com/lightdash/lightdash/issues/30005)) ([7be1342](https://github.com/lightdash/lightdash/commit/7be1342f95b4907795d421e908fcac9e39f60a1c))
+* name document chart content variants in the API schema ([#30003](https://github.com/lightdash/lightdash/issues/30003)) ([b8be549](https://github.com/lightdash/lightdash/commit/b8be5494b1c715855fdd4f9901ed12e917bb3942))
+
 ## [2.344.2](https://github.com/lightdash/lightdash/compare/2.344.1...2.344.2) (2026-09-25)
 
 
