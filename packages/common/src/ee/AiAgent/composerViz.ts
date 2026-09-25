@@ -7,10 +7,9 @@ import {
     type PivotChartData,
     type PivotChartLayout,
 } from '../../visualizations/types';
-import { type AiAgentChartTypeOption } from './chartConfig/web/types';
 
 /** How a displayed node result renders: the table or a chart kind. */
-export type ComposerVizKind = AiAgentChartTypeOption | 'big_number';
+export type ComposerVizKind = 'table' | 'bar' | 'line' | 'pie' | 'big_number';
 
 export type ComposerChartKind = Exclude<ComposerVizKind, 'table'>;
 
@@ -31,11 +30,8 @@ export type ComposerVizPlan = {
 const KIND_ORDER: ComposerVizKind[] = [
     'table',
     'bar',
-    'horizontal',
     'line',
-    'scatter',
     'pie',
-    'funnel',
     'big_number',
 ];
 
@@ -109,17 +105,13 @@ export const getComposerVizPlan = ({
 
     if (x && y) {
         axes.bar = { x, y };
-        axes.horizontal = { x, y };
         axes.line = { x, y };
-    }
-    if (numerics.length >= 2) {
-        axes.scatter = { x: numerics[0], y: numerics[1] };
     }
     const category =
         x?.type === DimensionType.STRING
             ? x
             : firstOfType(columns, DimensionType.STRING);
-    // Pie and funnel slice the string column; y stays unless it is that column.
+    // Pie slices the string column; y stays unless it is that column.
     const categoryValue = ((): ResultColumn | undefined => {
         if (!category) return undefined;
         if (y && y.reference !== category.reference) return y;
@@ -131,7 +123,6 @@ export const getComposerVizPlan = ({
         !hasDuplicateValues(rows, category.reference)
     ) {
         axes.pie = { x: category, y: categoryValue };
-        axes.funnel = { x: category, y: categoryValue };
     }
     if (rows.length === 1 && numerics.length >= 1) {
         axes.big_number = { x: null, y: y ?? numerics[0] };

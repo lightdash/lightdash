@@ -28,16 +28,11 @@ import {
 } from './composerChartSpec';
 import { useArtifactResultRows } from './useArtifactResultRows';
 
-// DataViz has no funnel config; ChartView renders that spec without one.
-const chartKindOf = (
-    kind: Exclude<ComposerChartKind, 'funnel'>,
-): AllVizChartConfig['type'] => {
+const chartKindOf = (kind: ComposerChartKind): AllVizChartConfig['type'] => {
     switch (kind) {
         case 'bar':
-        case 'horizontal':
             return ChartKind.VERTICAL_BAR;
         case 'line':
-        case 'scatter':
             return ChartKind.LINE;
         case 'pie':
             return ChartKind.PIE;
@@ -52,29 +47,24 @@ const chartKindOf = (
 const chartViewConfigOf = (
     kind: ComposerChartKind,
     axes: ComposerVizAxes,
-): AllVizChartConfig | undefined =>
-    kind === 'funnel'
-        ? undefined
-        : ({
-              metadata: { version: 1 },
-              type: chartKindOf(kind),
-              fieldConfig: {
-                  x: axes.x
-                      ? {
-                            reference: axes.x.reference,
-                            type: VizIndexType.CATEGORY,
-                        }
-                      : undefined,
-                  y: [
-                      {
-                          reference: axes.y.reference,
-                          aggregation: VizAggregationOptions.ANY,
-                      },
-                  ],
-                  groupBy: [],
-              },
-              display: undefined,
-          } as AllVizChartConfig);
+): AllVizChartConfig =>
+    ({
+        metadata: { version: 1 },
+        type: chartKindOf(kind),
+        fieldConfig: {
+            x: axes.x
+                ? { reference: axes.x.reference, type: VizIndexType.CATEGORY }
+                : undefined,
+            y: [
+                {
+                    reference: axes.y.reference,
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            groupBy: [],
+        },
+        display: undefined,
+    }) as AllVizChartConfig;
 
 type ChartProps = {
     projectUuid: string;

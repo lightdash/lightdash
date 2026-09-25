@@ -20,7 +20,7 @@ const plan = (
     node: SourceQuery | null = null,
 ) => getComposerVizPlan({ columns, rows, node });
 
-const CARTESIAN = ['table', 'bar', 'horizontal', 'line'];
+const CARTESIAN = ['table', 'bar', 'line'];
 
 describe('getComposerVizPlan', () => {
     test.each<{
@@ -51,14 +51,14 @@ describe('getComposerVizPlan', () => {
             kinds: CARTESIAN,
         },
         {
-            name: 'string + number opens as bar and offers pie and funnel',
+            name: 'string + number opens as bar and offers pie',
             columns: [
                 column('status', DimensionType.STRING),
                 column('n', DimensionType.NUMBER),
             ],
             defaultKind: 'bar',
             x: 'status',
-            kinds: [...CARTESIAN, 'pie', 'funnel'],
+            kinds: [...CARTESIAN, 'pie'],
         },
         {
             name: 'boolean + number opens as bar',
@@ -79,7 +79,7 @@ describe('getComposerVizPlan', () => {
             ],
             defaultKind: 'line',
             x: 'day',
-            kinds: [...CARTESIAN, 'pie', 'funnel'],
+            kinds: [...CARTESIAN, 'pie'],
         },
         {
             name: 'string wins over boolean for x',
@@ -90,7 +90,7 @@ describe('getComposerVizPlan', () => {
             ],
             defaultKind: 'bar',
             x: 'status',
-            kinds: [...CARTESIAN, 'pie', 'funnel'],
+            kinds: [...CARTESIAN, 'pie'],
         },
     ])('$name', ({ columns, defaultKind, x, kinds }) => {
         const result = plan(columns);
@@ -98,7 +98,6 @@ describe('getComposerVizPlan', () => {
         expect(result.availableKinds).toEqual(kinds);
         expect(result.axes.bar?.x?.reference).toBe(x);
         expect(result.axes.bar?.y.reference).toBe('n');
-        expect(result.axes.horizontal).toEqual(result.axes.bar);
         expect(result.axes.line).toEqual(result.axes.bar);
     });
 
@@ -111,6 +110,13 @@ describe('getComposerVizPlan', () => {
                 column('day', DimensionType.DATE),
             ],
         },
+        {
+            name: 'only numeric columns',
+            columns: [
+                column('a', DimensionType.NUMBER),
+                column('b', DimensionType.NUMBER),
+            ],
+        },
     ])('$name offers table only', ({ columns }) => {
         expect(plan(columns)).toEqual({
             availableKinds: ['table'],
@@ -119,40 +125,7 @@ describe('getComposerVizPlan', () => {
         });
     });
 
-    test('only numeric columns offer scatter over the first two, table by default', () => {
-        const result = plan([
-            column('a', DimensionType.NUMBER),
-            column('b', DimensionType.NUMBER),
-            column('c', DimensionType.NUMBER),
-        ]);
-        expect(result.availableKinds).toEqual(['table', 'scatter']);
-        expect(result.defaultKind).toBe('table');
-        expect(result.axes.scatter).toEqual({
-            x: column('a', DimensionType.NUMBER),
-            y: column('b', DimensionType.NUMBER),
-        });
-    });
-
-    test('scatter needs two numeric columns', () => {
-        expect(
-            plan([
-                column('status', DimensionType.STRING),
-                column('n', DimensionType.NUMBER),
-            ]).axes.scatter,
-        ).toBeUndefined();
-        expect(
-            plan([
-                column('status', DimensionType.STRING),
-                column('n', DimensionType.NUMBER),
-                column('m', DimensionType.NUMBER),
-            ]).axes.scatter,
-        ).toEqual({
-            x: column('n', DimensionType.NUMBER),
-            y: column('m', DimensionType.NUMBER),
-        });
-    });
-
-    test('duplicate x values default to table, keep bar and line, and drop pie and funnel', () => {
+    test('duplicate x values default to table, keep bar and line, and drop pie', () => {
         const result = plan(
             [
                 column('status', DimensionType.STRING),
@@ -167,7 +140,7 @@ describe('getComposerVizPlan', () => {
         expect(result.availableKinds).toEqual(CARTESIAN);
     });
 
-    test('pie and funnel follow the string column, not a date x', () => {
+    test('pie follows the string column, not a date x', () => {
         const columns = [
             column('day', DimensionType.DATE),
             column('status', DimensionType.STRING),
@@ -200,7 +173,6 @@ describe('getComposerVizPlan', () => {
         expect(result.availableKinds).toEqual([
             ...CARTESIAN,
             'pie',
-            'funnel',
             'big_number',
         ]);
         expect(result.axes.big_number).toEqual({
