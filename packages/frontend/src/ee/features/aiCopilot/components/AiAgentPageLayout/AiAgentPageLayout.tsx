@@ -1,4 +1,9 @@
-import { assertUnreachable } from '@lightdash/common';
+import {
+    assertUnreachable,
+    isAiComposerChartArtifactConfig,
+    type AiArtifact,
+    type ApiError,
+} from '@lightdash/common';
 import { Box, Drawer, Flex, Group, Text } from '@mantine/core';
 import {
     useDisclosure,
@@ -9,6 +14,7 @@ import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import {
     useCallback,
     useEffect,
@@ -22,6 +28,10 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import {
+    AI_AGENT_ARTIFACT_KEY,
+    aiAgentArtifactVersionQuery,
+} from '../../hooks/useAiAgentArtifacts';
+import {
     clearPreview,
     selectPreviewForThreads,
     type AiPreview,
@@ -34,6 +44,11 @@ import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
+import {
+    PREVIEW_PANE_MAX,
+    PREVIEW_PANE_MIN,
+    previewPaneOf,
+} from './previewPane';
 import { SidebarButton } from './SidebarButton';
 
 const renderPreviewPanel = (preview: AiPreview) => {
@@ -84,6 +99,23 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         [threadUuid, threadUuidA, threadUuidB],
     );
     const preview = useAiAgentStoreSelector(selectOnScreenPreview);
+    // Same key as the artifact panel's fetch, so this adds no request; the
+    // panel owns error handling.
+    const artifactQuery =
+        preview?.type === 'artifact'
+            ? aiAgentArtifactVersionQuery(preview)
+            : null;
+    const { data: previewArtifact } = useQuery<AiArtifact, ApiError>({
+        queryKey: artifactQuery?.queryKey ?? [AI_AGENT_ARTIFACT_KEY, 'none'],
+        queryFn: artifactQuery?.queryFn,
+        enabled: artifactQuery !== null,
+    });
+    const previewPane = preview
+        ? previewPaneOf(
+              preview.type,
+              isAiComposerChartArtifactConfig(previewArtifact?.chartConfig),
+          )
+        : null;
     // Resolved on first render so the sidebar never flashes open on mobile
     const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
         getInitialValueInEffect: false,
@@ -191,11 +223,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     defaultSize={
                         100 -
                         (Sidebar && !isMobile ? 20 : 0) -
-                        (!isMobile && preview
-                            ? preview.type === 'dataApp'
-                                ? 60
-                                : 46
-                            : 0)
+                        (!isMobile && previewPane ? previewPane.defaultSize : 0)
                     }
                     min={25}
                 >
@@ -233,22 +261,14 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     </ErrorBoundary>
                 </ResizableSplitter.Pane>
 
-                {!isMobile && preview && (
+                {!isMobile && preview && previewPane && (
                     <ResizableSplitter.Pane
-                        key={
-                            preview.type === 'dataApp'
-                                ? 'data-app'
-                                : 'chart-artifact'
-                        }
+                        key={previewPane.id}
                         className={styles.floatingArtifactRegion}
-                        defaultSize={preview.type === 'dataApp' ? 60 : 46}
-                        id={
-                            preview.type === 'dataApp'
-                                ? 'data-app'
-                                : 'chart-artifact'
-                        }
-                        min={32}
-                        max={64}
+                        defaultSize={previewPane.defaultSize}
+                        id={previewPane.id}
+                        min={PREVIEW_PANE_MIN}
+                        max={PREVIEW_PANE_MAX}
                     >
                         <ErrorBoundary>
                             <Box className={styles.floatingArtifactWrap}>

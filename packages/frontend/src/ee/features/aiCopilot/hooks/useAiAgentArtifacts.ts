@@ -13,6 +13,13 @@ import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 
 export const AI_AGENT_ARTIFACT_KEY = 'aiAgentArtifact';
 
+export type AiAgentArtifactVersionRef = {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+};
+
 const getAiAgentArtifact = async (
     projectUuid: string,
     agentUuid: string,
@@ -44,6 +51,30 @@ const getAiAgentArtifactVersion = async (
     });
 };
 
+/** Key and fetcher shared by every observer of one artifact version. */
+export const aiAgentArtifactVersionQuery = ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+}: AiAgentArtifactVersionRef) => ({
+    queryKey: [
+        AI_AGENT_ARTIFACT_KEY,
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        'version',
+        versionUuid,
+    ],
+    queryFn: () =>
+        getAiAgentArtifactVersion(
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        ),
+});
+
 type UseAiAgentArtifactProps = {
     projectUuid: string;
     agentUuid: string;
@@ -62,26 +93,24 @@ export const useAiAgentArtifact = ({
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
-    const queryKey = versionUuid
-        ? [
-              AI_AGENT_ARTIFACT_KEY,
-              projectUuid,
-              agentUuid,
-              artifactUuid,
-              'version',
-              versionUuid,
-          ]
-        : [AI_AGENT_ARTIFACT_KEY, projectUuid, agentUuid, artifactUuid];
-
-    const queryFn = versionUuid
-        ? () =>
-              getAiAgentArtifactVersion(
+    const { queryKey, queryFn } =
+        versionUuid && artifactUuid
+            ? aiAgentArtifactVersionQuery({
                   projectUuid,
                   agentUuid,
-                  artifactUuid!,
+                  artifactUuid,
                   versionUuid,
-              )
-        : () => getAiAgentArtifact(projectUuid, agentUuid, artifactUuid!);
+              })
+            : {
+                  queryKey: [
+                      AI_AGENT_ARTIFACT_KEY,
+                      projectUuid,
+                      agentUuid,
+                      artifactUuid,
+                  ],
+                  queryFn: () =>
+                      getAiAgentArtifact(projectUuid, agentUuid, artifactUuid!),
+              };
 
     return useQuery<AiArtifact, ApiError>({
         queryKey,
