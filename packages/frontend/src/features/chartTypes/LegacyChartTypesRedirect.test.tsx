@@ -1,9 +1,9 @@
 import { act, render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import LegacyChartTypeGalleryRedirect from './LegacyChartTypeGalleryRedirect';
+import LegacyChartTypesRedirect from './LegacyChartTypesRedirect';
 
-describe('LegacyChartTypeGalleryRedirect', () => {
+describe('LegacyChartTypesRedirect', () => {
     it.each(['3675b69e-8324-4110-bdca-059031aa8da3', 'jaffle-shop'])(
         'preserves the project, query and hash and replaces the legacy entry for %s',
         async (projectId) => {
@@ -15,12 +15,12 @@ describe('LegacyChartTypeGalleryRedirect', () => {
                         children: [
                             { path: 'home', element: <div>Project home</div> },
                             {
-                                path: 'gallery',
-                                element: <LegacyChartTypeGalleryRedirect />,
+                                path: 'chart-types',
+                                element: <LegacyChartTypesRedirect />,
                             },
                             {
-                                path: 'chart-types',
-                                element: <div>Chart types</div>,
+                                path: 'chart-studio',
+                                element: <div>Chart Studio</div>,
                             },
                         ],
                     },
@@ -28,16 +28,16 @@ describe('LegacyChartTypeGalleryRedirect', () => {
                 {
                     initialEntries: [
                         `${projectPath}/home`,
-                        `${projectPath}/gallery?tab=chart-library#installed`,
+                        `${projectPath}/chart-types?tab=chart-library#installed`,
                     ],
                     initialIndex: 1,
                 },
             );
             render(<RouterProvider router={router} />);
 
-            expect(await screen.findByText('Chart types')).toBeInTheDocument();
+            expect(await screen.findByText('Chart Studio')).toBeInTheDocument();
             expect(router.state.location).toMatchObject({
-                pathname: `${projectPath}/chart-types`,
+                pathname: `${projectPath}/chart-studio`,
                 search: '?tab=chart-library',
                 hash: '#installed',
             });

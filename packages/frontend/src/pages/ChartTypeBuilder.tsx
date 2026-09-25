@@ -986,7 +986,7 @@ const ChartTypeBuilder: FC = () => {
     if (isCreateFlow && !canCreate) {
         return (
             <Navigate
-                to={`/projects/${projectUrlIdentifier}/chart-types`}
+                to={`/projects/${projectUrlIdentifier}/chart-studio`}
                 replace
             />
         );
@@ -1002,7 +1002,7 @@ const ChartTypeBuilder: FC = () => {
                         action={
                             <Button
                                 component={Link}
-                                to={`/projects/${projectUrlIdentifier}/chart-types`}
+                                to={`/projects/${projectUrlIdentifier}/chart-studio`}
                                 variant="default"
                             >
                                 Back to Chart Studio
@@ -1027,7 +1027,7 @@ const ChartTypeBuilder: FC = () => {
         if (!canEdit) {
             return (
                 <Navigate
-                    to={`/projects/${projectUrlIdentifier}/chart-types`}
+                    to={`/projects/${projectUrlIdentifier}/chart-studio`}
                     replace
                 />
             );
@@ -1037,7 +1037,7 @@ const ChartTypeBuilder: FC = () => {
         if (appMeta.registrySlug !== null) {
             return (
                 <Navigate
-                    to={`/projects/${projectUrlIdentifier}/chart-types`}
+                    to={`/projects/${projectUrlIdentifier}/chart-studio`}
                     replace
                 />
             );
@@ -1082,7 +1082,7 @@ const ChartTypeBuilder: FC = () => {
           }
         : {
               label: 'Chart Studio',
-              to: `/projects/${projectUrlIdentifier}/chart-types`,
+              to: `/projects/${projectUrlIdentifier}/chart-studio`,
           };
 
     return (

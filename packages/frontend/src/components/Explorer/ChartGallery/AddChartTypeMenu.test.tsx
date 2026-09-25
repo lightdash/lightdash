@@ -202,7 +202,7 @@ describe('AddChartTypeMenu', () => {
             }),
         ).toHaveAttribute(
             'href',
-            '/projects/project-uuid/chart-types?tab=chart-library',
+            '/projects/project-uuid/chart-studio?tab=chart-library',
         );
     });
 
