@@ -457,7 +457,7 @@ describe('ChartTypeBuilder', () => {
 
         expect(screen.getByText('Chart type not found')).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Back to Chart Studio' }),
+            screen.getByRole('link', { name: 'Back to all chart types' }),
         ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
@@ -469,8 +469,11 @@ describe('ChartTypeBuilder', () => {
         expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
         expect(screen.getByText('Stream graph')).toBeInTheDocument();
         expect(
-            screen.getAllByText('Chart Studio', { exact: true }),
-        ).toHaveLength(2);
+            screen.getByText('Chart Studio', { exact: true }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
     it.each([
@@ -595,8 +598,11 @@ describe('ChartTypeBuilder', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
         expect(
-            screen.getAllByText('Chart Studio', { exact: true }),
-        ).toHaveLength(1);
+            screen.queryByText('Chart Studio', { exact: true }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
         expect(
             screen.getByText(
                 'Describe the chart you’ve always wanted, or start from an example.',
@@ -1275,7 +1281,7 @@ describe('ChartTypeBuilder', () => {
         fireEvent.click(screen.getByLabelText('Show grid'));
 
         expect(
-            screen.getByRole('link', { name: 'Chart Studio' }),
+            screen.getByRole('link', { name: 'All chart types' }),
         ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
         fireEvent.click(
             screen.getByRole('button', { name: 'Preview in explorer' }),
@@ -1320,7 +1326,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         expect(
-            screen.getByRole('link', { name: 'Chart Studio' }),
+            screen.getByRole('link', { name: 'All chart types' }),
         ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
@@ -1755,8 +1761,11 @@ describe('ChartTypeBuilder', () => {
         const view = renderBuilder('/projects/p1/chart-types/new');
 
         expect(
-            screen.getAllByText('Chart Studio', { exact: true }),
-        ).toHaveLength(2);
+            screen.getByText('Chart Studio', { exact: true }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
         const history = screen.getByRole('button', { name: 'History' });
         expect(history).toHaveAttribute('inert');
         expect(
