@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     formatSql,
     friendlyName,
+    metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
     type SemanticLayerSourceQuery,
@@ -12,6 +13,7 @@ import {
     Box,
     Collapse,
     Group,
+    Loader,
     Paper,
     SegmentedControl,
     Text,
@@ -55,6 +57,7 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEdge';
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
+import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
@@ -106,10 +109,10 @@ const sourceIcon = (query: SourceQuery) => {
     }
 };
 
-const formattedSqlOf = (query: SourceQuery) => {
+const formattedSqlOf = (
+    query: Exclude<SourceQuery, SemanticLayerSourceQuery>,
+) => {
     switch (query.sourceType) {
-        case QuerySourceType.SEMANTIC_LAYER:
-            return null;
         case QuerySourceType.SQL:
             return formatSql(query.sql);
         case QuerySourceType.DUCKDB:
@@ -166,47 +169,93 @@ const SourceType: FC<{ query: SourceQuery }> = ({ query }) => {
     );
 };
 
-const QueryDetails: FC<{ query: SourceQuery }> = ({ query }) => {
-    const sql = useMemo(() => formattedSqlOf(query), [query]);
+// Semantic nodes carry no SQL; the compiled query is fetched on first open.
+const SemanticQuerySql: FC<{
+    query: SemanticLayerSourceQuery;
+    projectUuid: string;
+}> = ({ query, projectUuid }) => {
+    const metricQuery = useMemo(
+        () => metricQueryOfSemanticNode(query),
+        [query],
+    );
+    const { data, error } = useCompiledSqlFromMetricQuery({
+        tableName: query.exploreName,
+        projectUuid,
+        metricQuery,
+    });
+    if (data) return <CodeBlock code={formatSql(data.query)} language="sql" />;
+    if (error) {
+        return (
+            <Text className={styles.queryNote}>
+                Could not compile this query.
+            </Text>
+        );
+    }
+    return (
+        <Text className={styles.queryNote}>
+            <Loader size={10} color="ldGray.5" />
+            Compiling query…
+        </Text>
+    );
+};
+
+const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
+    query,
+    projectUuid,
+}) => {
     const [queryOpen, setQueryOpen] = useState(false);
+    const [everOpened, setEverOpened] = useState(false);
     return (
         <>
             {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
                 <SemanticFields query={query} />
             )}
-            {sql && (
-                // Reading or copying the query must not display the node.
-                <Box
-                    className={styles.details}
-                    onClick={(event) => event.stopPropagation()}
+            {/* Reading or copying the query must not display the node. */}
+            <Box
+                className={styles.details}
+                onClick={(event) => event.stopPropagation()}
+            >
+                <UnstyledButton
+                    className={styles.queryToggle}
+                    onClick={() => {
+                        setQueryOpen((value) => !value);
+                        setEverOpened(true);
+                    }}
+                    aria-expanded={queryOpen}
                 >
-                    <UnstyledButton
-                        className={styles.queryToggle}
-                        onClick={() => setQueryOpen((value) => !value)}
-                        aria-expanded={queryOpen}
-                    >
-                        <MantineIcon
-                            icon={IconChevronRight}
-                            size={11}
-                            stroke={1.6}
-                            className={clsx(
-                                styles.chevron,
-                                queryOpen && styles.chevronOpen,
-                            )}
-                        />
-                        {queryOpen ? 'Hide query' : 'View query'}
-                    </UnstyledButton>
-                    <Collapse
-                        expanded={queryOpen}
-                        transitionDuration={240}
-                        transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
-                    >
-                        <Box className={styles.code}>
-                            <CodeBlock code={sql} language="sql" />
-                        </Box>
-                    </Collapse>
-                </Box>
-            )}
+                    <MantineIcon
+                        icon={IconChevronRight}
+                        size={11}
+                        stroke={1.6}
+                        className={clsx(
+                            styles.chevron,
+                            queryOpen && styles.chevronOpen,
+                        )}
+                    />
+                    {queryOpen ? 'Hide query' : 'View query'}
+                </UnstyledButton>
+                <Collapse
+                    expanded={queryOpen}
+                    transitionDuration={240}
+                    transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
+                >
+                    <Box className={styles.code}>
+                        {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
+                            everOpened && (
+                                <SemanticQuerySql
+                                    query={query}
+                                    projectUuid={projectUuid}
+                                />
+                            )
+                        ) : (
+                            <CodeBlock
+                                code={formattedSqlOf(query)}
+                                language="sql"
+                            />
+                        )}
+                    </Box>
+                </Collapse>
+            </Box>
         </>
     );
 };
@@ -218,8 +267,11 @@ type NodeDisplay = {
     onDisplayNode: (nodeId: string) => void;
 };
 
-const PipelineNodeRow: FC<{ node: PipelineNode } & NodeDisplay> = ({
+const PipelineNodeRow: FC<
+    { node: PipelineNode; projectUuid: string } & NodeDisplay
+> = ({
     node,
+    projectUuid,
     displayedNodeId,
     displayableNodeIds,
     onDisplayNode,
@@ -276,15 +328,16 @@ const PipelineNodeRow: FC<{ node: PipelineNode } & NodeDisplay> = ({
                     Reads {node.reads.join(', ')}
                 </Text>
             )}
-            {node.kind === 'query' && <QueryDetails query={node.query} />}
+            {node.kind === 'query' && (
+                <QueryDetails query={node.query} projectUuid={projectUuid} />
+            )}
         </Box>
     );
 };
 
-const PipelineList: FC<{ layers: PipelineLayer[] } & NodeDisplay> = ({
-    layers,
-    ...display
-}) => (
+const PipelineList: FC<
+    { layers: PipelineLayer[]; projectUuid: string } & NodeDisplay
+> = ({ layers, projectUuid, ...display }) => (
     <Box className={styles.body}>
         {layers.map((layer) => (
             <Box key={layer.depth} className={styles.layer}>
@@ -312,6 +365,7 @@ const PipelineList: FC<{ layers: PipelineLayer[] } & NodeDisplay> = ({
                 </Group>
                 {layer.nodes.map((node) => (
                     <PipelineNodeRow
+                        projectUuid={projectUuid}
                         key={node.nodeId}
                         node={node}
                         {...display}
@@ -500,6 +554,7 @@ const PipelineBar: FC<{
 );
 
 type Props = NodeDisplay & {
+    projectUuid: string;
     queries: SourceQuery[];
     terminalNodeId: string;
     /** The displayed node result shown above the panel. */
@@ -511,6 +566,7 @@ type Props = NodeDisplay & {
 // The displayed node result on top, the pipeline underneath: a bar when
 // collapsed, a draggable splitter when expanded. Clicking a node displays it.
 export const AiComposerPipelinePanel: FC<Props> = ({
+    projectUuid,
     queries,
     terminalNodeId,
     displayedNodeId,
@@ -564,7 +620,11 @@ export const AiComposerPipelinePanel: FC<Props> = ({
                     {mode === 'graph' ? (
                         <PipelineGraph layers={layers} {...display} />
                     ) : (
-                        <PipelineList layers={layers} {...display} />
+                        <PipelineList
+                            layers={layers}
+                            projectUuid={projectUuid}
+                            {...display}
+                        />
                     )}
                 </Box>
             </ResizableSplitter.Pane>

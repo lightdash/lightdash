@@ -256,6 +256,15 @@
     overflow: hidden;
 }
 
+.queryNote {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-ldGray-6);
+}
+
 .code :global(.mantine-CodeHighlight-code) {
     max-height: 420px;
     overflow: auto;
