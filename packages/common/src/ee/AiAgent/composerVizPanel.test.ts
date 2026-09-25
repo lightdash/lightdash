@@ -150,23 +150,24 @@ describe('composerVizConfigFitsColumns', () => {
 });
 
 describe('options', () => {
-    test('kinds need a numeric column and a second column for an axis', () => {
-        expect(getAvailableComposerVizKinds(columns)).toEqual([
+    test('kinds need a numeric column, a second column for an axis, and one row for a big number', () => {
+        expect(getAvailableComposerVizKinds(columns, rows)).toEqual([
             'table',
             'bar',
             'line',
             'pie',
-            'big_number',
         ]);
-        expect(getAvailableComposerVizKinds([revenue])).toEqual([
+        expect(getAvailableComposerVizKinds(columns, rows.slice(0, 1))).toEqual(
+            ['table', 'bar', 'line', 'pie', 'big_number'],
+        );
+        expect(getAvailableComposerVizKinds([revenue], rows)).toEqual([
             'table',
-            'big_number',
         ]);
-        expect(getAvailableComposerVizKinds([region])).toEqual(['table']);
+        expect(getAvailableComposerVizKinds([region], rows)).toEqual(['table']);
     });
 
     test('x offers every column non-numeric first, y numerics, split excludes x', () => {
-        const options = getComposerVizPanelOptions(line(), columns);
+        const options = getComposerVizPanelOptions(line(), columns, rows);
         expect(options.x.map((c) => c.reference)).toEqual([
             'month',
             'region',
