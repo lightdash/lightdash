@@ -16,6 +16,8 @@ import {
     extractTextCandidates,
     interpretChartIntent,
     isChartEditAttempt,
+    matchChartChoice,
+    parseStoredChoices,
     selectFilterValues,
     type ChartFilterRule,
     type ChartIntentResolution,
@@ -471,10 +473,12 @@ describe('interpretChartIntent', () => {
                 {
                     label: 'Region',
                     prompt: 'Add Region to the chart as a line chart',
+                    intent: null,
                 },
                 {
                     label: 'City',
                     prompt: 'Add City to the chart as a line chart',
+                    intent: null,
                 },
             ],
         });
@@ -683,8 +687,16 @@ describe('interpretChartIntent', () => {
             type: 'clarify',
             question: 'Which filter should I remove?',
             options: [
-                { label: 'Region', prompt: 'Remove the Region filter' },
-                { label: 'Date', prompt: 'Remove the Date filter' },
+                {
+                    label: 'Region',
+                    prompt: 'Remove the Region filter',
+                    intent: null,
+                },
+                {
+                    label: 'Date',
+                    prompt: 'Remove the Date filter',
+                    intent: null,
+                },
             ],
         });
     });
@@ -850,6 +862,152 @@ describe('metric, breakdown and grain edits', () => {
                 chartType: null,
             },
         });
+    });
+});
+
+describe('choices when the user names a field but not the edit', () => {
+    const withRevenue = structuredClone(explore);
+    Object.assign(withRevenue.tables.orders.metrics, {
+        revenue: {
+            name: 'revenue',
+            table: 'orders',
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            label: 'Revenue',
+        },
+    });
+    const unsure = (newQuestion: number) => ({
+        type: 'choice' as const,
+        choice: 'unclear',
+        confidence: 0.5,
+        probabilities: {
+            unclear: 0.6 - newQuestion,
+            new_question: newQuestion,
+            swap_metric: 0.4,
+        },
+    });
+    const run = (answers: Partial<DecisionAnswers>) =>
+        interpretChartIntent({
+            answers: {
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                ...answers,
+            } as DecisionAnswers,
+            prompt: 'revenue',
+            context: buildChartIntentContext({
+                filterRules: [],
+                prompt: 'revenue',
+                artifact,
+                explore: withRevenue,
+                usage: noUsage,
+            }),
+        });
+
+    it('offers adding or swapping in the metric JEV is sure about', () => {
+        expect(
+            run({ intent: unsure(0.1), metricToAdd: choice('orders_revenue') }),
+        ).toEqual({
+            type: 'clarify',
+            question: 'What should I do with Revenue?',
+            options: [
+                {
+                    label: 'Add Revenue',
+                    prompt: 'Add Revenue to the chart',
+                    intent: { kind: 'add_metric', fieldId: 'orders_revenue' },
+                },
+                {
+                    label: 'Replace Count',
+                    prompt: 'Show Revenue instead of Count',
+                    intent: {
+                        kind: 'swap_metric',
+                        fromFieldId: 'orders_count',
+                        toFieldId: 'orders_revenue',
+                    },
+                },
+            ],
+        });
+    });
+
+    it('offers adding or replacing a breakdown', () => {
+        expect(
+            run({
+                intent: unsure(0.1),
+                metricToAdd: choice('none'),
+                addField: choice('orders_region'),
+            }),
+        ).toMatchObject({
+            type: 'clarify',
+            options: [
+                {
+                    label: 'Add Region',
+                    intent: { kind: 'add_field', fieldId: 'orders_region' },
+                },
+                {
+                    label: 'Replace Status',
+                    intent: {
+                        kind: 'swap_field',
+                        fromFieldId: 'orders_status',
+                        toFieldId: 'orders_region',
+                    },
+                },
+            ],
+        });
+    });
+
+    it('asks when a new question only narrowly wins over edits', () => {
+        const narrow = {
+            type: 'choice' as const,
+            choice: 'new_question',
+            confidence: 0.47,
+            probabilities: {
+                new_question: 0.47,
+                swap_metric: 0.3,
+                add_metric: 0.15,
+                unclear: 0.08,
+            },
+        };
+        expect(
+            run({ intent: narrow, metricToAdd: choice('orders_revenue') }),
+        ).toMatchObject({ type: 'clarify' });
+        expect(
+            run({
+                intent: narrow,
+                nonEdit: noul(0.8),
+                metricToAdd: choice('orders_revenue'),
+            }),
+        ).toEqual({ type: 'not_an_edit' });
+    });
+
+    it('leaves questions and unsure field picks to the agent', () => {
+        expect(
+            run({ intent: unsure(0.6), metricToAdd: choice('orders_revenue') }),
+        ).toEqual({ type: 'unresolved', reason: 'intent' });
+        expect(
+            run({
+                intent: unsure(0.1),
+                metricToAdd: choice('orders_revenue', 0.45),
+                addField: choice('orders_region'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'intent' });
+    });
+
+    it('applies a stored choice only when its exact text comes back', () => {
+        const choices = parseStoredChoices({
+            question: 'What should I do with Revenue?',
+            options: [
+                {
+                    label: 'Add Revenue',
+                    prompt: 'Add Revenue to the chart',
+                    intent: { kind: 'add_metric', fieldId: 'orders_revenue' },
+                },
+            ],
+        });
+        expect(matchChartChoice(choices, ' Add Revenue to the chart ')).toEqual(
+            { kind: 'add_metric', fieldId: 'orders_revenue' },
+        );
+        expect(matchChartChoice(choices, 'add revenue')).toBeNull();
+        expect(parseStoredChoices({ options: [{ label: 'x' }] })).toEqual([]);
+        expect(parseStoredChoices(null)).toEqual([]);
     });
 });
 

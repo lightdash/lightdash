@@ -105,6 +105,11 @@ const AiAgentBattlePage: FC = () => {
         [enqueueA, enqueueB, threadA, threadB],
     );
 
+    const handleChoiceSelect = useCallback(
+        (prompt: string) => handleSubmit({ message: prompt, toolHints: [] }),
+        [handleSubmit],
+    );
+
     const battleMessageContext = useMemo(
         () => ({
             winnerMessageUuids:
@@ -141,6 +146,7 @@ const AiAgentBattlePage: FC = () => {
                             agentName={agent.name}
                             thread={threadA}
                             queuedCount={queueA.queuedCount}
+                            onChoiceSelect={handleChoiceSelect}
                         />
                     </Box>
                     <Divider orientation="vertical" />
@@ -156,6 +162,7 @@ const AiAgentBattlePage: FC = () => {
                             agentName={agent.name}
                             thread={threadB}
                             queuedCount={queueB.queuedCount}
+                            onChoiceSelect={handleChoiceSelect}
                         />
                     </Box>
                 </Flex>

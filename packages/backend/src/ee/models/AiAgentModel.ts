@@ -100,6 +100,7 @@ import {
     type AgentAsCodeEvaluation,
     type AiAgent,
     type AiAgentIntegration,
+    type AiAgentJevChoice,
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
@@ -109,6 +110,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
+import { z } from 'zod';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import {
@@ -254,6 +256,10 @@ export type AiPromptResponseState = {
     response: string | null;
     errorMessage: string | null;
 };
+
+const storedChoicesSchema = z.object({
+    options: z.array(z.object({ label: z.string(), prompt: z.string() })),
+});
 
 const wherePromptResponseState = (
     query: Knex.QueryBuilder,
@@ -5775,9 +5781,23 @@ export class AiAgentModel {
                     fallbackReason: row.fallback_reason,
                     editKind: AiAgentModel.decisionEditKind(row),
                     latencyMs: row.latency_ms,
+                    choices: AiAgentModel.decisionChoices(row),
                 },
             ]),
         );
+    }
+
+    private static decisionChoices(
+        row: Pick<DbAiPromptDecision, 'outcome' | 'intent'>,
+    ): AiAgentJevChoice[] {
+        if (row.outcome !== 'clarify') return [];
+        const parsed = storedChoicesSchema.safeParse(row.intent);
+        return parsed.success
+            ? parsed.data.options.map(({ label, prompt }) => ({
+                  label,
+                  prompt,
+              }))
+            : [];
     }
 
     private static decisionEditKind(
@@ -5807,6 +5827,33 @@ export class AiAgentModel {
                     'Unknown decision outcome',
                 );
         }
+    }
+
+    /** The clarify options JEV offered on the turn right before `promptUuid`, as stored. */
+    async findPreviousClarifyChoices(
+        threadUuid: string,
+        promptUuid: string,
+    ): Promise<object | null> {
+        const previous = await this.database(AiPromptTableName)
+            .select<Pick<DbAiPrompt, 'ai_prompt_uuid'>[]>('ai_prompt_uuid')
+            .where('ai_thread_uuid', threadUuid)
+            .where(
+                'created_at',
+                '<',
+                this.database(AiPromptTableName)
+                    .select('created_at')
+                    .where('ai_prompt_uuid', promptUuid),
+            )
+            .orderBy('created_at', 'desc')
+            .first();
+        if (!previous) return null;
+        const decision = await this.database(AiPromptDecisionTableName)
+            .select<Pick<DbAiPromptDecision, 'intent'>[]>('intent')
+            .where('ai_prompt_uuid', previous.ai_prompt_uuid)
+            .where('outcome', 'clarify')
+            .orderBy('created_at', 'desc')
+            .first();
+        return decision?.intent ?? null;
     }
 
     async createPromptDecision(

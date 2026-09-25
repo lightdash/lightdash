@@ -318,6 +318,13 @@ export type AiAgentJevDecision = {
     /** The resolved edit kind, e.g. filter_values or chart_type. */
     editKind: string | null;
     latencyMs: number;
+    /** Options offered when JEV asked a clarifying question; sending `prompt` picks one. */
+    choices: AiAgentJevChoice[];
+};
+
+export type AiAgentJevChoice = {
+    label: string;
+    prompt: string;
 };
 
 export type AiAgentMessageAssistant = {

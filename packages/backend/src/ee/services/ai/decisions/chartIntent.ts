@@ -13,6 +13,7 @@ import {
     type CompiledDimension,
     type Explore,
 } from '@lightdash/common';
+import { z } from 'zod';
 import {
     decisionProbability,
     type AiDecisionClient,
@@ -127,6 +128,13 @@ export type ChartIntent =
     | { kind: 'clear_sort' }
     | { kind: 'undo' };
 
+/** A clarifying option; `intent` is the edit a click applies directly, when it is already resolved. */
+export type ChartChoice = {
+    label: string;
+    prompt: string;
+    intent: ChartIntent | null;
+};
+
 /** A filter whose values still need warehouse candidates before it can be applied. */
 export type PendingValueFilter = {
     fieldId: string;
@@ -146,7 +154,7 @@ export type ChartIntentResolution =
     | {
           type: 'clarify';
           question: string;
-          options: { label: string; prompt: string }[];
+          options: ChartChoice[];
       }
     | { type: 'not_an_edit' }
     | { type: 'unresolved'; reason: string };
@@ -268,6 +276,10 @@ export const CHART_INTENT_THRESHOLDS = {
     clarifyPair: 0.75,
     clarifyRunnerUp: 0.2,
     clarifyBelow: 0.8,
+    choiceNewQuestion: 0.35,
+    choiceNewQuestionWin: 0.55,
+    choiceEditWeight: 0.3,
+    choiceNonEdit: 0.7,
     fieldEvidence: 0.15,
     clearLead: 0.3,
     verifiedTieMargin: 0.15,
@@ -1184,6 +1196,9 @@ const resolveFieldSplit = (
         verifiedOnly.length === 1
     )
         return { type: 'pick', fieldId: verifiedOnly[0].id };
+    // Identical names give the user nothing to choose between; keep JEV's pick.
+    if (a.label === b.label && a.table === b.table)
+        return { type: 'pick', fieldId: a.id };
     const [top, next] = [a, b].sort(byUsage);
     return {
         type: 'clarify',
@@ -1243,6 +1258,7 @@ const resolveSort = (
             options: split.labels.map((label) => ({
                 label,
                 prompt: `Sort by ${label}, ${order}${rows}`,
+                intent: null,
             })),
         };
     }
@@ -1646,6 +1662,7 @@ const pickNew = (
             options: split.labels.map((label) => ({
                 label,
                 prompt: clarify(label).prompt,
+                intent: null,
             })),
         };
     const chosen =
@@ -1676,6 +1693,7 @@ const resolveAddField = (
             options: split.labels.map((label) => ({
                 label,
                 prompt: `Add ${label} to the chart${presentation}`,
+                intent: null,
             })),
         };
     }
@@ -1748,6 +1766,7 @@ const resolveRemoveFilter = (
             options: split.labels.map((label) => ({
                 label,
                 prompt: `Remove the ${label} filter`,
+                intent: null,
             })),
         };
     const chosen =
@@ -1960,6 +1979,134 @@ const resolveCompound = (
     };
 };
 
+const MAX_CHOICES = 3;
+
+/** When the user names a field but not what to do with it, the edits that field allows. */
+const resolveFieldChoices = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): Extract<ChartIntentResolution, { type: 'clarify' }> | null => {
+    const { intent } = answers;
+    if (intent?.type !== 'choice') return null;
+    const newQuestion = intent.probabilities.new_question ?? 1;
+    const unclear = intent.probabilities.unclear ?? 0;
+    // A narrow "new question" win still asks when real weight sits on edits.
+    const nearEdit =
+        newQuestion < thresholds.choiceNewQuestionWin &&
+        1 - newQuestion - unclear >= thresholds.choiceEditWeight;
+    if (
+        (newQuestion >= thresholds.choiceNewQuestion && !nearEdit) ||
+        (decisionProbability(answers.nonEdit) ?? 1) >= thresholds.choiceNonEdit
+    )
+        return null;
+    const metricAnswer = answers.metricToAdd;
+    const metricId = confident(metricAnswer, thresholds.field);
+    const metric = context.metricOptions.find(({ id }) => id === metricId);
+    if (metric) {
+        const options: ChartChoice[] = [
+            {
+                label: `Add ${metric.label}`,
+                prompt: `Add ${metric.label} to the chart`,
+                intent: { kind: 'add_metric' as const, fieldId: metric.id },
+            },
+            ...context.chartMetrics.map((current) => ({
+                label: `Replace ${current.label}`,
+                prompt: `Show ${metric.label} instead of ${current.label}`,
+                intent: {
+                    kind: 'swap_metric' as const,
+                    fromFieldId: current.id,
+                    toFieldId: metric.id,
+                },
+            })),
+        ].slice(0, MAX_CHOICES);
+        return options.length > 1
+            ? {
+                  type: 'clarify',
+                  question: `What should I do with ${metric.label}?`,
+                  options,
+              }
+            : null;
+    }
+    // A metric the user may mean rules out offering it as a breakdown.
+    if (
+        metricAnswer?.type === 'choice' &&
+        (metricAnswer.probabilities.none ?? 0) < thresholds.field
+    )
+        return null;
+    const fieldId = confident(answers.addField, thresholds.field);
+    const field = context.addableFields.find(({ id }) => id === fieldId);
+    const breakdowns = context.chartDimensions.filter(({ isDate }) => !isDate);
+    if (!field || breakdowns.length === 0) return null;
+    const options: ChartChoice[] = [
+        {
+            label: `Add ${field.label}`,
+            prompt: `Also break down by ${field.label}`,
+            intent: {
+                kind: 'add_field' as const,
+                fieldId: field.id,
+                chartType: null,
+            },
+        },
+        ...breakdowns.map((current) => ({
+            label: `Replace ${current.label}`,
+            prompt: `Break down by ${field.label} instead of ${current.label}`,
+            intent: {
+                kind: 'swap_field' as const,
+                fromFieldId: current.id,
+                toFieldId: field.id,
+            },
+        })),
+    ].slice(0, MAX_CHOICES);
+    return {
+        type: 'clarify',
+        question: `How should I use ${field.label}?`,
+        options,
+    };
+};
+
+const storedChoiceIntentSchema = z.union([
+    z.object({ kind: z.literal('add_metric'), fieldId: z.string() }),
+    z.object({
+        kind: z.literal('swap_metric'),
+        fromFieldId: z.string(),
+        toFieldId: z.string(),
+    }),
+    z.object({
+        kind: z.literal('add_field'),
+        fieldId: z.string(),
+        chartType: z.null(),
+    }),
+    z.object({
+        kind: z.literal('swap_field'),
+        fromFieldId: z.string(),
+        toFieldId: z.string(),
+    }),
+]);
+
+const storedChoicesSchema = z.object({
+    options: z.array(
+        z.object({
+            label: z.string(),
+            prompt: z.string(),
+            intent: storedChoiceIntentSchema.nullable(),
+        }),
+    ),
+});
+
+/** Choices recorded with a clarify decision; anything unrecognised reads as none. */
+export const parseStoredChoices = (raw: unknown): ChartChoice[] => {
+    const parsed = storedChoicesSchema.safeParse(raw);
+    return parsed.success ? parsed.data.options : [];
+};
+
+/** The stored choice whose text the user sent, so a click applies its edit without asking JEV again. */
+export const matchChartChoice = (
+    choices: ChartChoice[],
+    prompt: string,
+): ChartIntent | null =>
+    choices.find((choice) => choice.prompt === prompt.trim())?.intent ?? null;
+
 export const interpretChartIntent = ({
     answers,
     prompt,
@@ -1983,9 +2130,19 @@ export const interpretChartIntent = ({
         );
     const intent =
         picked === 'split_series' && namesNewField ? 'add_field' : picked;
-    if (intent === 'new_question') return { type: 'not_an_edit' };
+    if (intent === 'new_question')
+        return (
+            resolveFieldChoices(answers, context, thresholds) ?? {
+                type: 'not_an_edit',
+            }
+        );
     if (!intent || intent === 'unclear')
-        return { type: 'unresolved', reason: 'intent' };
+        return (
+            resolveFieldChoices(answers, context, thresholds) ?? {
+                type: 'unresolved',
+                reason: 'intent',
+            }
+        );
     if ((decisionProbability(answers.nonEdit) ?? 1) >= thresholds.nonEdit)
         return { type: 'unresolved', reason: 'non-edit' };
     const numbers = extractNumberCandidates(prompt);

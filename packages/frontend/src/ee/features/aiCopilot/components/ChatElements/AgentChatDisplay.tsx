@@ -26,6 +26,7 @@ import { DeepResearchThreadRuns } from '../DeepResearch/DeepResearchThreadRuns';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
+import { JevChoiceChips } from './JevChoiceChips';
 import ThreadScrollToBottom from './ScrollToBottom';
 import { ChatElementsUtils } from './utils';
 
@@ -47,6 +48,8 @@ type Props = {
     onRunDeepResearchAgain?: (
         registration: DeepResearchRunRegistration,
     ) => void;
+    /** Sends a clarifying option as the next message; choices render only when set. */
+    onChoiceSelect?: (prompt: string) => void;
 };
 
 const CompactionDivider = () => (
@@ -106,6 +109,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     onDashboardLinkClick,
     canRetryDeepResearch = false,
     onRunDeepResearchAgain,
+    onChoiceSelect,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
     const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
@@ -260,6 +264,20 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                 }
                                             />
                                         )}
+                                        {onChoiceSelect &&
+                                            i === xs.length - 1 &&
+                                            message.status === 'idle' &&
+                                            message.jevDecision &&
+                                            message.jevDecision.choices.length >
+                                                0 && (
+                                                <JevChoiceChips
+                                                    choices={
+                                                        message.jevDecision
+                                                            .choices
+                                                    }
+                                                    onSelect={onChoiceSelect}
+                                                />
+                                            )}
                                     </ErrorBoundary>
                                 )}
 
