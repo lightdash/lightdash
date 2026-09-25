@@ -82,7 +82,13 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
     extra?: Record<string, string | number | boolean | null | undefined>;
 };
 
-const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
+/**
+ * `satisfies` rejects a name that is not a field, but not a list that is
+ * missing one — a new attribution field left out here would silently never
+ * reach telemetry or `ai.usage`. Exported so `aiCallTelemetry.test.ts` can
+ * assert exhaustiveness at the typecheck, naming the field that was forgotten.
+ */
+export const ATTRIBUTION_KEYS = [
     'organizationUuid',
     'projectUuid',
     'agentUuid',
@@ -93,7 +99,7 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
     'model',
     'provider',
     'keyManagement',
-];
+] as const satisfies readonly (keyof AiCallAttribution)[];
 
 /**
  * Attribution dimensions that may be sent to telemetry providers.

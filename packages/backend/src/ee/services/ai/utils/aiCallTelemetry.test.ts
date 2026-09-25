@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { getAiCallTelemetry } from './aiCallTelemetry';
+import {
+    ATTRIBUTION_KEYS,
+    getAiCallTelemetry,
+    type AiCallAttribution,
+} from './aiCallTelemetry';
+
+/**
+ * Compile-time, not runtime: fails the typecheck if a field is added to
+ * `AiCallAttribution` and not listed in `ATTRIBUTION_KEYS`, which would leave
+ * that dimension out of every span and every `ai.usage` row. The error names
+ * the field, e.g. `Type '"tenantUuid"' does not satisfy the constraint
+ * 'never'`.
+ */
+type AssertNever<T extends never> = T;
+export type AttributionKeysAreExhaustive = AssertNever<
+    Exclude<keyof AiCallAttribution, (typeof ATTRIBUTION_KEYS)[number]>
+>;
 
 describe('getAiCallTelemetry', () => {
     it('reports only allow-listed dimensions to telemetry providers', () => {
