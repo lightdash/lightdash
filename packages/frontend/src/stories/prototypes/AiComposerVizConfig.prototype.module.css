@@ -88,19 +88,6 @@
     white-space: nowrap;
 }
 
-.tabList {
-    align-items: center;
-    padding: 0 var(--mantine-spacing-md);
-}
-
-.kindSlot {
-    display: flex;
-    align-items: center;
-    align-self: stretch;
-    gap: var(--mantine-spacing-xs);
-    margin-right: var(--mantine-spacing-xs);
-}
-
 /* ---------- Toolbar variant ---------- */
 
 .toolbar {
@@ -196,45 +183,50 @@
     }
 }
 
-/* ---------- Metrics Explorer style selects (copied from selectStyles) ---------- */
+/* ---------- Grouped controls (copied from FieldReferenceSelect + PillSelect) ---------- */
 
-.msWrapper {
-    --input-padding: var(--mantine-spacing-sm);
-}
-
-.msInput {
-    font-weight: 500;
-    font-size: var(--mantine-font-size-sm);
+.fieldInput {
     height: 32px;
+    font-weight: 500;
     border-color: var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-md);
     box-shadow: var(--mantine-shadow-subtle);
-    color: var(--mantine-color-ldDark-7);
 }
 
-.msInput:hover {
-    background-color: var(--mantine-color-ldGray-0);
-}
-
-.msInput[value=''] {
+.fieldInput[value=''] {
     border: 1px dashed var(--mantine-color-ldGray-4);
     box-shadow: none;
 }
 
-.msOption[data-combobox-selected] {
+.fieldOption[data-combobox-selected] {
     color: var(--mantine-color-ldGray-7);
     font-weight: 500;
-    background-color: var(--mantine-color-ldGray-0);
+    background-color: var(--mantine-color-ldGray-2);
 }
 
-.msSection {
-    pointer-events: none;
-}
-
-.msClear:hover {
+.pillInput {
+    height: 24px;
+    min-height: 24px;
+    padding: 0 var(--mantine-spacing-xs);
+    margin-right: var(--mantine-spacing-xxs);
+    text-align: center;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    border: 0;
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-ldGray-7);
     background-color: var(--mantine-color-ldGray-1);
+    cursor: pointer;
 }
 
-.hidden {
-    visibility: hidden;
+.pillInput:hover {
+    background-color: var(--mantine-color-ldGray-2);
+}
+
+.pillSection[data-position='right'] {
+    display: none;
+}
+
+.pillDropdown {
+    min-width: fit-content;
 }

@@ -26,7 +26,7 @@ export type VizConfig = {
     x: string | null;
     y: { reference: string; aggregation: VizAggregationOptions }[];
     groupBy: string | null;
-    sort: 'none' | 'value_desc';
+    sort: 'none' | 'value_desc' | 'value_asc';
     stack: boolean;
     legend: boolean;
     valueLabels: boolean;
@@ -151,13 +151,14 @@ const pivot = (
         );
         return row;
     });
-    if (config.sort === 'value_desc') {
+    if (config.sort !== 'none') {
+        const dir = config.sort === 'value_desc' ? 1 : -1;
         const total = (row: RawResultRow) =>
             valuesColumns.reduce(
                 (sum, c) => sum + Number(row[c.pivotColumnName] ?? 0),
                 0,
             );
-        results = [...results].sort((a, b) => total(b) - total(a));
+        results = [...results].sort((a, b) => dir * (total(b) - total(a)));
     }
     const indexColumn = {
         reference: x,
@@ -250,7 +251,12 @@ export const buildPrototypeSpec = async (
         };
     }
 
-    const { data, layout } = pivot(config, config.x, config.groupBy);
+    // With a split only the first value is charted.
+    const { data, layout } = pivot(
+        config.groupBy ? { ...config, y: [y] } : config,
+        config.x,
+        config.groupBy,
+    );
     const model = new CartesianChartDataModel({
         resultsRunner: runnerFor(data),
         fieldConfig: layout,

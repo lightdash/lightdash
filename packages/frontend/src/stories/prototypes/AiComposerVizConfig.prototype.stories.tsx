@@ -8,8 +8,6 @@ import {
     Divider,
     Group,
     Popover,
-    SimpleGrid,
-    Tabs,
     UnstyledButton,
     ScrollArea,
     Stack,
@@ -27,7 +25,7 @@ import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import styles from './AiComposerVizConfig.prototype.module.css';
-import { MetricsStyleDataTab } from './vizConfigMetricsStyle';
+import { GroupedDataTab } from './vizConfigGrouped';
 import {
     AggSelect,
     AxisLabelInput,
@@ -59,24 +57,6 @@ const useConfig = (initial: VizConfig = INITIAL_CONFIG) => {
 
 /* ---------------- Bar ---------------- */
 
-type BarTab = 'data' | 'display';
-
-// Disabled controls say why on hover.
-const DisabledReason: FC<{ reason: string | null; children: ReactNode }> = ({
-    reason,
-    children,
-}) => (
-    <Tooltip label={reason} disabled={!reason} withinPortal>
-        <Box>{children}</Box>
-    </Tooltip>
-);
-
-const TabNote: FC<{ children: ReactNode }> = ({ children }) => (
-    <Text size="xs" c="dimmed">
-        {children}
-    </Text>
-);
-
 const KindIcons: FC<ConfigProps> = (p) => (
     <Group gap={2} wrap="nowrap" role="group" aria-label="Chart type">
         {KINDS.map(({ kind, chartKind, label }) => (
@@ -96,72 +76,7 @@ const KindIcons: FC<ConfigProps> = (p) => (
     </Group>
 );
 
-const DataTab: FC<ConfigProps> = (p) => {
-    const { kind } = p.config;
-    if (kind === 'table') {
-        return <TabNote>Tables show every column of the result.</TabNote>;
-    }
-    const value = (
-        <Group gap="xs" grow wrap="nowrap" align="flex-start">
-            <YSelect {...p} label="Value" />
-            <AggSelect {...p} label="Aggregation" />
-        </Group>
-    );
-    if (kind === 'big_number') {
-        return (
-            <Stack gap="sm">
-                <TabNote>A big value shows one number over all rows.</TabNote>
-                <SimpleGrid cols={2} spacing="md">
-                    {value}
-                </SimpleGrid>
-            </Stack>
-        );
-    }
-    return (
-        <SimpleGrid cols={2} spacing="md" verticalSpacing="sm">
-            <XSelect {...p} label={kind === 'pie' ? 'Slices' : 'X axis'} />
-            {value}
-            <DisabledReason
-                reason={
-                    applies(kind).split ? null : 'Pie charts have one series'
-                }
-            >
-                <SplitSelect {...p} label="Split series by" />
-            </DisabledReason>
-            <SortSelect {...p} label="Sort" />
-        </SimpleGrid>
-    );
-};
-
-const DisplayTab: FC<ConfigProps> = (p) =>
-    applies(p.config.kind).display ? (
-        <SimpleGrid cols={2} spacing="md" verticalSpacing="sm">
-            <Stack gap="sm" pt="xxs">
-                <ConfigSwitch {...p} field="stack" label="Stack series" />
-                <ConfigSwitch {...p} field="legend" label="Legend" />
-                <ConfigSwitch {...p} field="valueLabels" label="Value labels" />
-            </Stack>
-            <Stack gap="sm">
-                <AxisLabelInput {...p} field="xLabel" label="X axis label" />
-                <AxisLabelInput {...p} field="yLabel" label="Y axis label" />
-            </Stack>
-        </SimpleGrid>
-    ) : (
-        <TabNote>Display options apply to bar and line charts.</TabNote>
-    );
-
-const BarVariant: FC<{
-    defaultOpen?: boolean;
-    defaultTab?: BarTab;
-    withTabs?: boolean;
-    metricsStyle?: boolean;
-}> = ({
-    defaultOpen = false,
-    defaultTab = 'data',
-    withTabs = true,
-    metricsStyle = false,
-}) => {
-    const Data = metricsStyle ? MetricsStyleDataTab : DataTab;
+const BarVariant: FC<{ defaultOpen?: boolean }> = ({ defaultOpen = false }) => {
     const { config, onChange } = useConfig();
     const [open, setOpen] = useState(defaultOpen);
     const [queriesOpen, setQueriesOpen] = useState(false);
@@ -173,7 +88,6 @@ const BarVariant: FC<{
         }
         setOpen(!open);
     };
-    const [tab, setTab] = useState<BarTab>(defaultTab);
     const p = { config, onChange };
     const kind = KINDS.find((k) => k.kind === config.kind)!;
     return (
@@ -217,46 +131,14 @@ const BarVariant: FC<{
                 </Text>
             </UnstyledButton>
             <Collapse expanded={open}>
-                {withTabs ? (
-                    <Tabs
-                        value={tab}
-                        onChange={(v) =>
-                            setTab(v === 'display' ? 'display' : 'data')
-                        }
-                        classNames={{ list: styles.tabList }}
-                    >
-                        <Tabs.List>
-                            <Box className={styles.kindSlot}>
-                                <KindIcons {...p} />
-                                <Divider orientation="vertical" my="xs" />
-                            </Box>
-                            <Tabs.Tab value="data">Data</Tabs.Tab>
-                            <Tabs.Tab value="display">Display</Tabs.Tab>
-                        </Tabs.List>
-                        <ScrollArea.Autosize mah="40cqh" type="auto">
-                            <Box p="md">
-                                <Tabs.Panel value="data">
-                                    <Data {...p} />
-                                </Tabs.Panel>
-                                <Tabs.Panel value="display">
-                                    <DisplayTab {...p} />
-                                </Tabs.Panel>
-                            </Box>
-                        </ScrollArea.Autosize>
-                    </Tabs>
-                ) : (
-                    <ScrollArea.Autosize mah="40cqh" type="auto">
-                        <Group gap="xs" px="md" pt="sm">
-                            <KindIcons {...p} />
-                            <Text fz="xs" c="dimmed">
-                                {kind.label}
-                            </Text>
-                        </Group>
-                        <Box p="md">
-                            <Data {...p} />
-                        </Box>
-                    </ScrollArea.Autosize>
-                )}
+                <Group px="md" pt="sm">
+                    <KindIcons {...p} />
+                </Group>
+                <ScrollArea.Autosize mah="40cqh" type="auto">
+                    <Box p="md">
+                        <GroupedDataTab {...p} />
+                    </Box>
+                </ScrollArea.Autosize>
             </Collapse>
         </Frame>
     );
@@ -567,11 +449,5 @@ export default meta;
 type Story = StoryObj;
 
 export const Bar: Story = { render: () => <BarVariant /> };
-export const BarDataOnly: Story = {
-    render: () => <BarVariant withTabs={false} />,
-};
-export const BarMetricsStyle: Story = {
-    render: () => <BarVariant metricsStyle />,
-};
 export const Toolbar: Story = { render: () => <ToolbarVariant /> };
 export const Drawer: Story = { render: () => <DrawerVariant /> };
