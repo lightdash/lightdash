@@ -1,21 +1,14 @@
-import { type RawResultRow, type ResultRow } from '@lightdash/common';
 import { Center, Loader, Paper, Stack } from '@mantine/core';
 import { clsx } from 'clsx';
-import { useEffect, useMemo, type FC, type ReactNode } from 'react';
+import { useMemo, type FC, type ReactNode } from 'react';
 import { ROW_HEIGHT_PX } from '../../../../../components/common/Table/constants';
 import { ChartDataTable } from '../../../../../components/DataViz/visualizations/ChartDataTable';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import styles from './AiArtifactTableVisualization.module.css';
 import { getAiArtifactTableConfig } from './AiArtifactTableVisualization.utils';
+import { useArtifactResultRows } from './useArtifactResultRows';
 
 const TABLE_HEADER_HEIGHT_PX = 34;
-
-const unwrapRows = (rows: ResultRow[]): RawResultRow[] =>
-    rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([key, value]) => [key, value.value.raw]),
-        ),
-    );
 
 type Props = {
     results: InfiniteQueryResults;
@@ -31,27 +24,13 @@ export const AiArtifactTableVisualization: FC<Props> = ({
     loadingMessage,
     flush = false,
 }) => {
-    const columns = useMemo(
-        () => Object.values(results.columns ?? {}),
-        [results.columns],
-    );
+    const { columns, rows, isLoading } = useArtifactResultRows(results);
     const columnNames = useMemo(
         () => columns.map((column) => column.reference),
         [columns],
     );
-    const rows = useMemo(() => unwrapRows(results.rows), [results.rows]);
 
-    useEffect(() => {
-        if (!results.hasFetchedAllRows && !results.fetchAll) {
-            results.setFetchAll(true);
-        }
-    }, [results]);
-
-    if (
-        results.isInitialLoading ||
-        results.isFetchingFirstPage ||
-        columns.length === 0
-    ) {
+    if (isLoading) {
         return (
             <Center h={300}>
                 <Loader

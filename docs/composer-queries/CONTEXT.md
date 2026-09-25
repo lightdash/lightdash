@@ -51,14 +51,34 @@ title, never by node id.
 _Avoid_: depends on, inputs, references (in user-facing copy)
 
 **Terminal node**:
-The node whose result the artifact shows and the tool returns. The unique sink
-by default, or chosen explicitly. Suffixed "result" in the pipeline panel.
+The node whose result the tool returns and the artifact displays by default.
+The unique sink by default, or chosen explicitly. Suffixed "result" in the
+pipeline panel.
 _Avoid_: output node, final node, sink (in user-facing copy)
 
+**Node result**:
+The result table of any one node of a run, terminal or not. Every node result
+can be displayed and visualized the same way. Results are creator-scoped and
+expire.
+_Avoid_: intermediate result, step output, preview
+
+**Displayed node**:
+The node whose result is on screen in the composer artifact. The terminal
+node by default; picking a node in the pipeline panel displays it, and a new
+run resets it to the new terminal node.
+_Avoid_: selected node (selection is a graph-mode concept), active node,
+focused node
+
+**Viz switcher**:
+The control on a displayed node result that picks how it renders: table or a
+chart kind. The choice is per node, ephemeral, and starts from a default
+picked from the result's column types.
+_Avoid_: chart type selector, visualization toggle, view mode
+
 **Composer artifact**:
-The chart artifact a successful composer query creates: the terminal node's
-result table plus the pipeline that produced it. One per thread, one version
-per run.
+The chart artifact a successful composer query creates: the displayed node's
+result plus the pipeline that produced it. One per thread, one version per
+run.
 _Avoid_: composer chart, result artifact
 
 **Pipeline panel**:

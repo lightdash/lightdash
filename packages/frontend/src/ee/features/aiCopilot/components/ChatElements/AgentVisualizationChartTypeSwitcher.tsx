@@ -1,8 +1,4 @@
-import {
-    getAvailableChartTypes,
-    type AiAgentChartTypeOption,
-    type MetricQuery,
-} from '@lightdash/common';
+import { type ComposerVizKind } from '@lightdash/common';
 import { SegmentedControl } from '@mantine/core';
 import {
     IconChartBar,
@@ -12,19 +8,18 @@ import {
     IconFilter,
     IconTable,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import classes from './AgentVisualizationChartTypeSwitcher.module.css';
 
-type Props = {
-    metricQuery: MetricQuery;
-    selectedChartType: AiAgentChartTypeOption;
-    onChartTypeChange: (chartType: AiAgentChartTypeOption) => void;
-    hasGroupByDimensions: boolean;
+type Props<T extends ComposerVizKind> = {
+    /** Kinds this result supports; the switcher hides itself with fewer than two. */
+    availableChartTypes: T[];
+    selectedChartType: T;
+    onChartTypeChange: (chartType: T) => void;
     variant?: 'default' | 'pill';
 };
 
-const CHART_TYPE_ICONS: Record<AiAgentChartTypeOption, typeof IconTable> = {
+const CHART_TYPE_ICONS: Record<ComposerVizKind, typeof IconTable> = {
     table: IconTable,
     bar: IconChartBar,
     horizontal: IconChartBar,
@@ -34,17 +29,13 @@ const CHART_TYPE_ICONS: Record<AiAgentChartTypeOption, typeof IconTable> = {
     funnel: IconFilter,
 };
 
-export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
-    metricQuery,
+export const AgentVisualizationChartTypeSwitcher = <T extends ComposerVizKind>({
+    availableChartTypes,
     selectedChartType,
     onChartTypeChange,
-    hasGroupByDimensions,
     variant = 'default',
-}) => {
-    const availableChartTypes = getAvailableChartTypes(metricQuery);
-
+}: Props<T>) => {
     if (availableChartTypes.length <= 1) {
-        // Don't show switcher if only one chart type is available
         return null;
     }
 
@@ -53,36 +44,21 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
     return (
         <SegmentedControl
             value={selectedChartType}
-            onChange={(value) =>
-                onChartTypeChange(value as AiAgentChartTypeOption)
-            }
-            data={availableChartTypes
-                .filter((chartType) => {
-                    // Pie and funnel charts are not supported with group by dimensions, they're meant to be used with a single dimension
-                    if (
-                        hasGroupByDimensions &&
-                        (chartType === 'pie' || chartType === 'funnel')
-                    ) {
-                        return false;
-                    }
-                    return true;
-                })
-                .map((chartType) => ({
-                    value: chartType,
-                    label: (
-                        <MantineIcon
-                            icon={CHART_TYPE_ICONS[chartType]}
-                            size="sm"
-                            stroke={1.3}
-                            style={{
-                                rotate:
-                                    chartType === 'horizontal'
-                                        ? '90deg'
-                                        : '0deg',
-                            }}
-                        />
-                    ),
-                }))}
+            onChange={(value) => onChartTypeChange(value as T)}
+            data={availableChartTypes.map((chartType) => ({
+                value: chartType,
+                label: (
+                    <MantineIcon
+                        icon={CHART_TYPE_ICONS[chartType]}
+                        size="sm"
+                        stroke={1.3}
+                        style={{
+                            rotate:
+                                chartType === 'horizontal' ? '90deg' : '0deg',
+                        }}
+                    />
+                ),
+            }))}
             color={isPill ? undefined : 'indigo'}
             size="xs"
             classNames={

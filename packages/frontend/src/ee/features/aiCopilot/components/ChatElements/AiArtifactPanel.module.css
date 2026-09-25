@@ -129,3 +129,15 @@
         animation: none;
     }
 }
+
+/* Displayed node result above the pipeline panel; hosts its own pill. */
+.displayedResult {
+    position: relative;
+    height: 100%;
+    min-height: 0;
+}
+
+.displayedResultBody {
+    height: 100%;
+    min-height: 0;
+}

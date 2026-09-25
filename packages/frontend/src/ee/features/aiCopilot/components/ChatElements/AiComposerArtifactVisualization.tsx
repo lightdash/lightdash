@@ -1,23 +1,31 @@
+import { type ComposerVizKind, type ComposerVizPlan } from '@lightdash/common';
 import { Center, Stack, Text } from '@mantine/core';
 import { IconClockOff } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { AiArtifactTableVisualization } from './AiArtifactTableVisualization';
+import { AiComposerChartVisualization } from './AiComposerChartVisualization';
+
+const LOADING_MESSAGE = 'Loading composer query results...';
 
 type ContentProps = {
+    projectUuid: string;
     results: InfiniteQueryResults;
+    /** How the displayed node result renders; the plan says which kinds fit. */
+    kind: ComposerVizKind;
+    plan: ComposerVizPlan;
     headerContent: ReactNode;
     flush?: boolean;
 };
 
-/**
- * v0 composer artifact rendering: a table straight from the stored
- * lastQueryUuid. Results are creator-scoped and expire, so a failed fetch is
- * an intentional empty state rather than an error card.
- */
+// A displayed node result: table or a chart from the same rows. Results
+// expire, so a failed fetch is an empty state rather than an error card.
 export const AiComposerArtifactVisualization: FC<ContentProps> = ({
+    projectUuid,
     results,
+    kind,
+    plan,
     headerContent,
     flush = false,
 }) => {
@@ -38,11 +46,25 @@ export const AiComposerArtifactVisualization: FC<ContentProps> = ({
         );
     }
 
+    if (kind !== 'table' && plan.x && plan.y) {
+        return (
+            <AiComposerChartVisualization
+                projectUuid={projectUuid}
+                results={results}
+                kind={kind}
+                x={plan.x}
+                y={plan.y}
+                headerContent={headerContent}
+                loadingMessage={LOADING_MESSAGE}
+            />
+        );
+    }
+
     return (
         <AiArtifactTableVisualization
             results={results}
             headerContent={headerContent}
-            loadingMessage="Loading composer query results..."
+            loadingMessage={LOADING_MESSAGE}
             flush={flush}
         />
     );
