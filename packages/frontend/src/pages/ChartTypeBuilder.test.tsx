@@ -1742,6 +1742,43 @@ describe('ChartTypeBuilder', () => {
         expect(screen.queryByText('History')).toBeNull();
     });
 
+    it('holds the header’s place from the first build until the details land', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000009';
+        let currentBuild = buildStub({
+            isBuilding: true,
+            pendingPrompt: 'a stream graph of category share',
+        });
+        vi.mocked(useDataAppVizBuild).mockImplementation(() => currentBuild);
+        const view = renderBuilder('/projects/p1/chart-types/new');
+
+        expect(
+            screen.getByText('Chart Studio', { exact: true }),
+        ).toBeInTheDocument();
+        const history = screen.getByRole('button', { name: 'History' });
+        expect(history).toHaveAttribute('inert');
+        expect(
+            screen.queryByRole('heading', { level: 6 }),
+        ).not.toBeInTheDocument();
+
+        currentBuild = buildStub({
+            isBuilding: true,
+            appUuid: dataAppVizUuid,
+            claimedVersion: 1,
+            pendingPrompt: 'a stream graph of category share',
+        });
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1, status: 'building' })], null),
+        );
+        view.rerender(builderRoutes('/projects/p1/chart-types/new'));
+
+        expect(
+            screen.getByRole('heading', { level: 6, name: 'Stream graph' }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'History' })).toBe(history);
+        expect(history).not.toHaveAttribute('inert');
+    });
+
     it('explains a failed first build and keeps the prompt open', () => {
         setApp(appMeta({ latestReadyVersion: null }));
         vi.mocked(useAppVersionHistory).mockReturnValue(
