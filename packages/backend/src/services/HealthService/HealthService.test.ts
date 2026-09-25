@@ -165,6 +165,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            learnSandboxService: learnSandboxServiceMock,
         });
 
         expect(
