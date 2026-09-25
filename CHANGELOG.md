@@ -1,3 +1,10 @@
+## [2.337.3](https://github.com/lightdash/lightdash/compare/2.337.2...2.337.3) (2026-09-25)
+
+
+### Bug Fixes
+
+* preserve writable Cloud Run sandbox workspace ownership ([#29954](https://github.com/lightdash/lightdash/issues/29954)) ([040dbf9](https://github.com/lightdash/lightdash/commit/040dbf93da39a99e185131ee6c672d2e3a220ebc))
+
 ## [2.337.2](https://github.com/lightdash/lightdash/compare/2.337.1...2.337.2) (2026-09-25)
 
 
