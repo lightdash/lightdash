@@ -135,6 +135,9 @@ const INPUT_SETTLE_MS = 900;
 /** Used until the card has been measured. */
 const CARD_FALLBACK_HEIGHT = 220;
 
+const isDisabled = (el: Element) =>
+    el.matches(':disabled, [aria-disabled="true"], [data-disabled]');
+
 const clips = (style: CSSStyleDeclaration) =>
     /(auto|scroll|hidden)/.test(style.overflowY) ||
     /(auto|scroll|hidden)/.test(style.overflowX);
@@ -254,11 +257,12 @@ type Resolved = {
 };
 
 /**
- * Which selector to spotlight right now: the step's target when it is on the
- * page, else a `detour` control that is (the way to the target on this
- * instance), else the deepest `via` control that is (later controls only
+ * Which selector to spotlight right now: the step's target when it is ready,
+ * else a `detour` control that is on the page (the way to the target on this
+ * instance), else the deepest enabled `via` control (later controls only
  * exist once earlier ones were clicked, and earlier ones such as a nav
- * button stay on the page), else nothing.
+ * button stay on the page), else nothing. A control the learner cannot press
+ * is never spotlit.
  */
 const useResolvedSelector = (
     step: GuidedTourStep | undefined,
@@ -267,6 +271,8 @@ const useResolvedSelector = (
     const target = active ? (step?.target ?? null) : null;
     const via = active ? step?.via : undefined;
     const detour = active ? step?.detour : undefined;
+    const requiresEnabledTarget =
+        !!step?.advanceOnTargetClick || !!step?.advanceOnTargetInput;
     const [resolved, setResolved] = useState<Resolved>({
         selector: target,
         detourTitle: null,
@@ -279,22 +285,28 @@ const useResolvedSelector = (
             setResolved({ selector: target, detourTitle: null });
             return undefined;
         }
-        // Fallbacks are for a menu the learner closed by accident, not for a
+        // Fallbacks let learners reopen a menu or retry a failed action, not a
         // control that is still loading after their click (a page, a list the
         // server fills in): until the target has been seen once, wait for it
         // as long as patience allows; once seen and gone, give it a moment
         // before dropping back to an earlier control on the path. A detour
         // is different: the product says that control leads here, so it is
-        // taken the moment it is on the page.
+        // taken the moment it is on the page and can be pressed.
         const since = Date.now();
         let seen = false;
         const tick = () => {
-            if (document.querySelector(target)) {
+            const targetElement = document.querySelector(target);
+            if (targetElement) {
                 seen = true;
-                setResolved({ selector: target, detourTitle: null });
-                return;
+                if (!requiresEnabledTarget || !isDisabled(targetElement)) {
+                    setResolved({ selector: target, detourTitle: null });
+                    return;
+                }
             }
-            const hop = detour?.find((d) => document.querySelector(d.target));
+            const hop = detour?.find((d) => {
+                const el = document.querySelector(d.target);
+                return el && !isDisabled(el);
+            });
             if (hop) {
                 setResolved({ selector: hop.target, detourTitle: hop.title });
                 return;
@@ -306,17 +318,17 @@ const useResolvedSelector = (
             }
             setResolved({
                 selector:
-                    [...(via ?? [])]
-                        .reverse()
-                        .find((selector) => document.querySelector(selector)) ??
-                    null,
+                    [...(via ?? [])].reverse().find((selector) => {
+                        const el = document.querySelector(selector);
+                        return el && !isDisabled(el);
+                    }) ?? null,
                 detourTitle: null,
             });
         };
         tick();
         const poll = window.setInterval(tick, 150);
         return () => window.clearInterval(poll);
-    }, [target, via, detour]);
+    }, [target, via, detour, requiresEnabledTarget]);
 
     return resolved;
 };
@@ -823,6 +835,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
         if (!advanceSelector) return undefined;
         let el: Element | null = null;
         const onClick = () => {
+            if (!el || isDisabled(el)) return;
             advanceByClickRef.current = true;
             const at = el?.getBoundingClientRect();
             clickPointRef.current = at
