@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import { toolNameFor } from './discoveryToolNames';
 
 export const TOOL_FIND_FIELDS_DESCRIPTION = ({
@@ -112,12 +113,19 @@ export const findFieldsResultSchema = z.object({
     ),
 });
 
+export const toolFindFieldsMetadataSchema = baseOutputMetadataSchema.extend({
+    ranking: findFieldsRankingMetadataSchema.optional(),
+});
+
 export const toolFindFieldsOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema.extend({
-        ranking: findFieldsRankingMetadataSchema.optional(),
-    }),
+    metadata: toolFindFieldsMetadataSchema,
 });
+
+export const isToolFindFieldsResult = makeBuiltInToolResultGuard(
+    'findFields',
+    toolFindFieldsMetadataSchema,
+);
 
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
 export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;

@@ -44,6 +44,7 @@ import {
     getErrorMessage,
     getReviewItemProjectContextEntry,
     isHiddenAiAgentReviewRootCause,
+    isToolEditDbtProjectResult,
     isValidRetentionWindowHours,
     JobStatusType,
     KnexPaginateArgs,
@@ -60,7 +61,6 @@ import {
     PullRequestSource,
     RequestMethod,
     RETENTION_WINDOW_HOURS_ERROR,
-    toolEditDbtProjectOutputSchema,
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
     UpdateAiReviewJiraDestination,
@@ -2647,17 +2647,13 @@ export class AiAgentAdminService extends BaseService {
         if (!latestWritebackResult) {
             return { type: 'not_started' };
         }
-        const parsed = toolEditDbtProjectOutputSchema.safeParse({
-            result: latestWritebackResult.result,
-            metadata: latestWritebackResult.metadata,
-        });
-        if (!parsed.success) {
+        if (!isToolEditDbtProjectResult(latestWritebackResult)) {
             return {
                 type: 'action_required',
                 message: 'Writeback did not produce a terminal edit result',
             };
         }
-        if (parsed.data.metadata.status === 'pending') {
+        if (latestWritebackResult.metadata.status === 'pending') {
             const promptCreatedAt = new Date(latestPrompt.created_at).getTime();
             if (
                 !Number.isFinite(promptCreatedAt) ||
@@ -2672,21 +2668,21 @@ export class AiAgentAdminService extends BaseService {
             }
             return { type: 'pending' };
         }
-        if (parsed.data.metadata.status === 'error') {
+        if (latestWritebackResult.metadata.status === 'error') {
             return {
                 type: 'action_required',
-                message: parsed.data.result,
+                message: latestWritebackResult.result,
             };
         }
-        if (parsed.data.metadata.needsDbtSourceSelection) {
+        if (latestWritebackResult.metadata.needsDbtSourceSelection) {
             return {
                 type: 'action_required',
-                message: parsed.data.result,
+                message: latestWritebackResult.result,
             };
         }
         return {
             type: 'success',
-            prUrl: parsed.data.metadata.prUrl,
+            prUrl: latestWritebackResult.metadata.prUrl,
         };
     }
 
