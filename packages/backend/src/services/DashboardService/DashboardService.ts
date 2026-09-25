@@ -262,6 +262,7 @@ export class DashboardService
         if (
             ![
                 SchedulerFormat.IMAGE,
+                SchedulerFormat.PDF,
                 SchedulerFormat.CSV,
                 SchedulerFormat.XLSX,
             ].includes(data.format)
@@ -270,8 +271,11 @@ export class DashboardService
         }
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (data.format === SchedulerFormat.IMAGE) {
-            // Image export renders the dashboard in a headless browser using a
+        if (
+            data.format === SchedulerFormat.IMAGE ||
+            data.format === SchedulerFormat.PDF
+        ) {
+            // Image/PDF export renders the dashboard in a headless browser using a
             // real session, so it is not available to embed/JWT callers.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
