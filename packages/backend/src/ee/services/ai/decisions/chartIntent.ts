@@ -845,7 +845,7 @@ export const buildChartIntentQuestions = ({
         questions.sortField = {
             type: 'choice',
             instructions:
-                'If the user wants the chart sorted or limited, which field does the order use?',
+                "If the user wants the chart sorted or limited, which field's values decide the order? When rows are ranked by an amount, pick the field holding that amount, not the field that names the rows.",
             criteria: {
                 ...fieldCriteria(context.currentFields, {
                     withDescriptions: false,
@@ -1228,6 +1228,18 @@ const CHART_TYPE_NAMES: Record<ChartTypeOption, string> = {
     table: 'a table',
 };
 
+/** The top or bottom N row count the user states, if any. */
+const statedRowLimit = (
+    answers: DecisionAnswers,
+    numbers: number[],
+    thresholds: ChartIntentThresholds,
+): number | null => {
+    const stated = confident(answers.number, thresholds.option);
+    return stated && stated !== 'none' && numbers.includes(Number(stated))
+        ? Number(stated)
+        : null;
+};
+
 const resolveSort = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -1247,11 +1259,13 @@ const resolveSort = (
     let sortField: string | null = null;
     if (split.type === 'pick') sortField = split.fieldId;
     else if (named) sortField = confident(answers.sortField, field);
-    const stated = confident(answers.number, option);
-    const limit =
-        stated && stated !== 'none' && numbers.includes(Number(stated))
-            ? Number(stated)
-            : null;
+    const limit = statedRowLimit(answers, numbers, thresholds);
+    // With several dimensions a row limit keeps N combinations, not the top N of one of them.
+    if (
+        limit !== null &&
+        context.artifact.config.queryConfig.dimensions.length > 1
+    )
+        return { type: 'unresolved', reason: 'sort-limit' };
     if (direction && split.type === 'clarify') {
         const order =
             direction === 'descending' ? 'highest first' : 'lowest first';
@@ -2235,7 +2249,13 @@ export const interpretChartIntent = ({
     if ((decisionProbability(answers.nonEdit) ?? 1) >= thresholds.nonEdit)
         return { type: 'unresolved', reason: 'non-edit' };
     const numbers = extractNumberCandidates(prompt);
-    const extras = extraEdits(answers, intent, thresholds);
+    const requested = extraEdits(answers, intent, thresholds);
+    // Keeping only the top or bottom N rows also reads as restricting the chart.
+    const extras =
+        [intent, ...requested].includes('sort') &&
+        statedRowLimit(answers, numbers, thresholds) !== null
+            ? requested.filter((kind) => kind !== 'filter')
+            : requested;
     const multiple =
         (decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple;
     if (extras.length > 0 || multiple) {
