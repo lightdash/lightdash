@@ -48,6 +48,12 @@ vi.mock('../../../../../components/DataViz/visualizations/ChartView', () => ({
         <Box data-testid={`chart-view-${config.type}`} />
     ),
 }));
+vi.mock(
+    '../../../../../components/DataViz/visualizations/BigNumberView',
+    () => ({
+        default: () => <Box data-testid="chart-view-big_number" />,
+    }),
+);
 vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
 }));
@@ -372,7 +378,14 @@ describe('composer artifact viz switcher', () => {
                 ],
             ),
         );
-        expect(vizRadios()).toEqual(['table', 'bar', 'line']);
+        expect(vizRadios()).toEqual([
+            'table',
+            'bar',
+            'horizontal',
+            'line',
+            'pie',
+            'funnel',
+        ]);
         expect(checkedViz()).toBe('bar');
         expect(
             screen.getByTestId('chart-view-vertical_bar'),
@@ -441,7 +454,30 @@ describe('composer artifact viz switcher', () => {
             ),
         );
         expect(checkedViz()).toBe('table');
-        expect(vizRadios()).toEqual(['table', 'bar', 'line']);
+        expect(vizRadios()).toEqual(['table', 'bar', 'horizontal', 'line']);
+    });
+
+    it('opens a one-row, one-number result as a big number', () => {
+        renderComposer(
+            resultsOf(
+                {
+                    status: { reference: 'status', type: 'string' },
+                    n: { reference: 'n', type: 'number' },
+                },
+                [{ status: 'completed', n: 3 }],
+            ),
+        );
+        expect(checkedViz()).toBe('big_number');
+        expect(vizRadios()).toEqual([
+            'table',
+            'bar',
+            'horizontal',
+            'line',
+            'pie',
+            'funnel',
+            'big_number',
+        ]);
+        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
     });
 
     it('shows no switcher when only the table fits', () => {
@@ -509,9 +545,8 @@ describe('composer displayed node', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Display Average amount' }),
         );
-        expect(
-            screen.getByRole('columnheader', { name: 'avg_amount' }),
-        ).toBeInTheDocument();
+        // A one-row, one-number node result opens as a big number.
+        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
         // Header and pipeline row both name the node.
         expect(screen.getAllByText('Average amount')).toHaveLength(2);
         expect(screen.queryByText('Orders vs amounts')).not.toBeInTheDocument();
@@ -534,10 +569,8 @@ describe('composer displayed node', () => {
         expandPipeline();
         fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
         fireEvent.click(screen.getByLabelText('Display Orders by status'));
-        // A string + number node result charts on its own merits.
-        expect(
-            screen.getByTestId('chart-view-vertical_bar'),
-        ).toBeInTheDocument();
+        // A one-row node result charts on its own merits.
+        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
         expect(
             screen.getByLabelText('Display Orders by status'),
         ).toHaveAttribute('data-displayed', 'true');
