@@ -2,8 +2,9 @@ const AGENT_SETTINGS_SECTION_IDS = [
     'identity',
     'behaviour',
     'knowledge-and-data',
-    'permissions',
-    'integrations',
+    'capabilities',
+    'access-and-privacy',
+    'connections',
     'danger-zone',
 ] as const;
 
@@ -21,8 +22,9 @@ const SECTIONS: AgentSettingsSectionMeta[] = [
     { id: 'identity', label: 'Identity', editOnly: false },
     { id: 'behaviour', label: 'Behaviour', editOnly: false },
     { id: 'knowledge-and-data', label: 'Knowledge & data', editOnly: false },
-    { id: 'permissions', label: 'Permissions', editOnly: false },
-    { id: 'integrations', label: 'Integrations', editOnly: false },
+    { id: 'capabilities', label: 'Capabilities', editOnly: false },
+    { id: 'access-and-privacy', label: 'Access & privacy', editOnly: false },
+    { id: 'connections', label: 'Connections', editOnly: false },
     { id: 'danger-zone', label: 'Danger zone', editOnly: true },
 ];
 
