@@ -9,6 +9,7 @@ import {
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
+    ParameterError,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -1580,6 +1581,24 @@ describe('Extra connection credentials on the real schema', () => {
     });
 
     describe('an organisation credential used by an extra connection keeps its warehouse type', () => {
+        const waitForQuery = (matches: (sql: string) => boolean) =>
+            new Promise<void>((resolve, reject) => {
+                const state: { timeout?: ReturnType<typeof setTimeout> } = {};
+                const onQuery = ({ sql }: { sql: string }) => {
+                    if (!matches(sql)) return;
+                    clearTimeout(state.timeout);
+                    database.off('query', onQuery);
+                    resolve();
+                };
+                state.timeout = setTimeout(() => {
+                    database.off('query', onQuery);
+                    reject(
+                        new Error('Timed out waiting for the credential query'),
+                    );
+                }, 5000);
+                database.on('query', onQuery);
+            });
+
         const organizationModel = () =>
             (
                 service as unknown as {
@@ -1662,6 +1681,135 @@ describe('Extra connection credentials on the real schema', () => {
             expect(await storedType(usedByOriginal)).toBe(
                 WarehouseTypes.SNOWFLAKE,
             );
+        });
+
+        test('rejects a type change when an extra connection is created while the credential is locked', async () => {
+            const organization = await createOrganization();
+            const organizationCredential = await createOrganizationCredential(
+                organization,
+                postgres,
+            );
+            const project = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            const transaction = await database.transaction();
+            let committed = false;
+            try {
+                await transaction('organization_warehouse_credentials')
+                    .where(
+                        'organization_warehouse_credentials_uuid',
+                        organizationCredential,
+                    )
+                    .forUpdate()
+                    .first();
+                const reachedLock = waitForQuery(
+                    (sql) =>
+                        sql.includes('"organization_warehouse_credentials"') &&
+                        (/for update/i.test(sql) || /^update /i.test(sql)),
+                );
+                const update = organizationModel()
+                    .update(organizationCredential, { credentials: snowflake })
+                    .then(
+                        () => null,
+                        (error: Error) => error,
+                    );
+                await reachedLock;
+                await transaction('warehouse_connections').insert({
+                    project_uuid: project,
+                    is_original: false,
+                    name: 'Finance',
+                    warehouse_type: WarehouseTypes.POSTGRES,
+                    encrypted_credentials: null,
+                    organization_warehouse_credentials_uuid:
+                        organizationCredential,
+                });
+                await transaction.commit();
+                committed = true;
+
+                expect(await update).toBeInstanceOf(ConflictError);
+                expect(await storedType(organizationCredential)).toBe(
+                    WarehouseTypes.POSTGRES,
+                );
+            } finally {
+                if (!committed) await transaction.rollback();
+            }
+        });
+
+        test('rejects an extra connection when its credential type changes before create', async () => {
+            const organization = await createOrganization();
+            const organizationCredential = await createOrganizationCredential(
+                organization,
+                postgres,
+            );
+            const project = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            const connectionModel = new WarehouseConnectionModel({
+                database,
+                encryptionUtil,
+                organizationWarehouseCredentialsModel: organizationModel(),
+            });
+            const transaction = await database.transaction();
+            let committed = false;
+            try {
+                await transaction('organization_warehouse_credentials')
+                    .where(
+                        'organization_warehouse_credentials_uuid',
+                        organizationCredential,
+                    )
+                    .forUpdate()
+                    .first();
+                const reachedLock = waitForQuery(
+                    (sql) =>
+                        (sql.includes('"organization_warehouse_credentials"') &&
+                            /for update/i.test(sql)) ||
+                        /^insert into "warehouse_connections"/i.test(sql),
+                );
+                const create = connectionModel
+                    .transaction(async (model) => {
+                        await model.lockProject(project);
+                        const lockedProject = await model.getProject(project);
+                        return model.createExtra(lockedProject, {
+                            name: 'Finance',
+                            warehouseType: WarehouseTypes.POSTGRES,
+                            source: {
+                                kind: 'organization',
+                                organizationWarehouseCredentialsUuid:
+                                    organizationCredential,
+                            },
+                            listAllDatabases: false,
+                            additionalDatabases: [],
+                            createdByUserUuid: organization.userUuid,
+                        });
+                    })
+                    .then(
+                        () => null,
+                        (error: Error) => error,
+                    );
+                await reachedLock;
+                await transaction('organization_warehouse_credentials')
+                    .where(
+                        'organization_warehouse_credentials_uuid',
+                        organizationCredential,
+                    )
+                    .update({
+                        warehouse_type: WarehouseTypes.SNOWFLAKE,
+                        warehouse_connection: encrypt(snowflake),
+                    });
+                await transaction.commit();
+                committed = true;
+
+                expect(await create).toBeInstanceOf(ParameterError);
+                const [count] = await database('warehouse_connections')
+                    .where('project_uuid', project)
+                    .where('is_original', false)
+                    .count<{ count: bigint }[]>({ count: '*' });
+                expect(Number(count.count)).toBe(0);
+            } finally {
+                if (!committed) await transaction.rollback();
+            }
         });
     });
 
