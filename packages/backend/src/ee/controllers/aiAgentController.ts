@@ -51,6 +51,7 @@ import {
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
     ApiAiMcpServerToolListResponse,
+    ApiAiProjectMcpServerListResponse,
     ApiAppendEvaluationRequest,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -65,6 +66,7 @@ import {
     ApiCreateEvaluationResponse,
     ApiErrorPayload,
     ApiGetUserAgentPreferencesResponse,
+    ApiRenameAiMcpServerBody,
     ApiStartAiMcpOAuthResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
@@ -223,7 +225,7 @@ export class AiAgentController extends BaseController {
     async listMcpServers(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-    ): Promise<ApiAiMcpServerListResponse> {
+    ): Promise<ApiAiProjectMcpServerListResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
@@ -285,6 +287,59 @@ export class AiAgentController extends BaseController {
                     mcpServerUuid,
                     body,
                 ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/mcpServers/{mcpServerUuid}')
+    @OperationId('renameMcpServer')
+    async renameMcpServer(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() mcpServerUuid: UUID,
+        @Body() body: ApiRenameAiMcpServerBody,
+    ): Promise<ApiAiMcpServerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().renameMcpServer(
+                toSessionUser(req.account),
+                projectUuid,
+                mcpServerUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/mcpServers/{mcpServerUuid}')
+    @OperationId('deleteMcpServer')
+    async deleteMcpServer(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() mcpServerUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getAiAgentService().deleteMcpServer(
+            toSessionUser(req.account),
+            projectUuid,
+            mcpServerUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

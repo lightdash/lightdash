@@ -57,6 +57,7 @@ import {
     ApiCreateAiAgent,
     ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
+    ApiRenameAiMcpServerBody,
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
     ApiUpdateAiMcpServerCredentialBody,
@@ -5070,6 +5071,41 @@ export class AiAgentService extends BaseService {
             user,
             await this.aiAgentModel.listMcpServers(projectUuid, user.userUuid),
         );
+    }
+
+    public async renameMcpServer(
+        user: SessionUser,
+        projectUuid: string,
+        mcpServerUuid: string,
+        body: ApiRenameAiMcpServerBody,
+    ): Promise<AiMcpServer> {
+        await this.assertCanManageMcpServers(user, projectUuid);
+        const name = body.name.trim();
+        if (name.length === 0) {
+            throw new ParameterError('MCP server name cannot be empty');
+        }
+        await this.getProjectMcpServerOrThrow(projectUuid, mcpServerUuid);
+
+        return this.aiAgentModel.renameMcpServer({
+            projectUuid,
+            serverUuid: mcpServerUuid,
+            name,
+            userUuid: user.userUuid,
+        });
+    }
+
+    public async deleteMcpServer(
+        user: SessionUser,
+        projectUuid: string,
+        mcpServerUuid: string,
+    ): Promise<void> {
+        await this.assertCanManageMcpServers(user, projectUuid);
+        await this.getProjectMcpServerOrThrow(projectUuid, mcpServerUuid);
+
+        await this.aiAgentModel.deleteMcpServer({
+            projectUuid,
+            serverUuid: mcpServerUuid,
+        });
     }
 
     public async listMcpServerTools(

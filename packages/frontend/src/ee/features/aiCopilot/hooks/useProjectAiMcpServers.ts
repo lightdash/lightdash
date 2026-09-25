@@ -5,6 +5,9 @@ import type {
     ApiAiAgentMcpServerToolListResponse,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
+    ApiAiProjectMcpServerListResponse,
+    ApiRenameAiMcpServerBody,
+    ApiSuccessEmpty,
     ApiConnectGithubMcpServerBody,
     ApiAiMcpServerToolListResponse,
     ApiCreateAiMcpServer,
@@ -29,11 +32,34 @@ const AGENT_AI_MCP_SERVER_TOOLS_KEY = 'agentAiMcpServerTools';
 
 const listProjectAiMcpServers = async (
     projectUuid: string,
-): Promise<ApiAiMcpServerListResponse['results']> =>
-    lightdashApi<ApiAiMcpServerListResponse['results']>({
+): Promise<ApiAiProjectMcpServerListResponse['results']> =>
+    lightdashApi<ApiAiProjectMcpServerListResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/mcpServers`,
         method: 'GET',
+        body: undefined,
+    });
+
+const renameProjectAiMcpServer = async (
+    projectUuid: string,
+    mcpServerUuid: string,
+    data: ApiRenameAiMcpServerBody,
+): Promise<ApiAiMcpServerResponse['results']> =>
+    lightdashApi<ApiAiMcpServerResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+const deleteProjectAiMcpServer = async (
+    projectUuid: string,
+    mcpServerUuid: string,
+): Promise<ApiSuccessEmpty['results']> =>
+    lightdashApi<ApiSuccessEmpty['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}`,
+        method: 'DELETE',
         body: undefined,
     });
 
@@ -262,11 +288,14 @@ const openOAuthPopup = async ({
 
 export const useProjectAiMcpServers = (
     projectUuid: string | undefined,
-    options?: UseQueryOptions<ApiAiMcpServerListResponse['results'], ApiError>,
+    options?: UseQueryOptions<
+        ApiAiProjectMcpServerListResponse['results'],
+        ApiError
+    >,
 ) => {
     const { showToastApiError } = useToaster();
 
-    return useQuery<ApiAiMcpServerListResponse['results'], ApiError>({
+    return useQuery<ApiAiProjectMcpServerListResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
         queryFn: () => listProjectAiMcpServers(projectUuid!),
         ...options,
@@ -412,6 +441,62 @@ export const useUpdateAiMcpServerCredentialMutation = (projectUuid: string) => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update token',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const invalidateMcpServerLists = (
+    queryClient: ReturnType<typeof useQueryClient>,
+    projectUuid: string,
+) =>
+    Promise.all([
+        queryClient.invalidateQueries({
+            queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+        }),
+        queryClient.invalidateQueries({
+            queryKey: [AGENT_AI_MCP_SERVERS_KEY, projectUuid],
+        }),
+    ]);
+
+export const useRenameAiMcpServerMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiMcpServerResponse['results'],
+        ApiError,
+        { mcpServerUuid: string; name: string }
+    >({
+        mutationFn: ({ mcpServerUuid, name }) =>
+            renameProjectAiMcpServer(projectUuid, mcpServerUuid, { name }),
+        onSuccess: async () => {
+            await invalidateMcpServerLists(queryClient, projectUuid);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to rename MCP server',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useDeleteAiMcpServerMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<ApiSuccessEmpty['results'], ApiError, string>({
+        mutationFn: (mcpServerUuid) =>
+            deleteProjectAiMcpServer(projectUuid, mcpServerUuid),
+        onSuccess: async () => {
+            showToastSuccess({ title: 'MCP server deleted' });
+            await invalidateMcpServerLists(queryClient, projectUuid);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to delete MCP server',
                 apiError: error,
             });
         },

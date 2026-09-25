@@ -700,7 +700,18 @@ export type ApiAiMcpOAuthCredentialRequest = {
     credentialScope?: AiMcpCredentialScope;
 };
 
+export type ApiRenameAiMcpServerBody = {
+    name: string;
+};
+
+export type AiProjectMcpServer = AiMcpServer & {
+    attachedAgentCount: number;
+};
+
 export type ApiAiMcpServerListResponse = ApiSuccess<AiMcpServer[]>;
+export type ApiAiProjectMcpServerListResponse = ApiSuccess<
+    AiProjectMcpServer[]
+>;
 export type ApiAiMcpServerResponse = ApiSuccess<AiMcpServer>;
 export type ApiAiMcpServerToolListResponse = ApiSuccess<AiMcpServerTool[]>;
 export type ApiAiAgentMcpServerToolListResponse = ApiSuccess<

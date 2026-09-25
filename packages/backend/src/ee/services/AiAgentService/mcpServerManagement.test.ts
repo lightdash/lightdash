@@ -1,4 +1,9 @@
-import { ForbiddenError, type SessionUser } from '@lightdash/common';
+import {
+    ForbiddenError,
+    NotFoundError,
+    ParameterError,
+    type SessionUser,
+} from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
 
 const ORGANIZATION_UUID = 'org-uuid';
@@ -6,6 +11,7 @@ const OTHER_ORGANIZATION_UUID = 'other-org-uuid';
 const PROJECT_UUID = 'project-uuid';
 const FOREIGN_PROJECT_UUID = 'foreign-project-uuid';
 const USER_UUID = 'user-uuid';
+const SERVER_UUID = 'server-uuid';
 
 const user = {
     userUuid: USER_UUID,
@@ -16,6 +22,15 @@ const user = {
 const buildService = () => {
     const aiAgentModel = {
         listMcpServers: vi.fn().mockResolvedValue([]),
+        getMcpServer: vi.fn().mockResolvedValue({
+            uuid: SERVER_UUID,
+            projectUuid: PROJECT_UUID,
+        }),
+        renameMcpServer: vi.fn().mockResolvedValue({
+            uuid: SERVER_UUID,
+            name: 'Renamed',
+        }),
+        deleteMcpServer: vi.fn().mockResolvedValue(undefined),
     };
     const projectModel = {
         getSummary: vi.fn().mockImplementation((projectUuid: string) =>
@@ -71,5 +86,68 @@ describe('MCP server management authorization', () => {
         ).rejects.toBeInstanceOf(ForbiddenError);
 
         expect(aiAgentModel.listMcpServers).not.toHaveBeenCalled();
+    });
+
+    it('renames a server in the user organization with a trimmed name', async () => {
+        const { service, aiAgentModel } = buildService();
+
+        await service.renameMcpServer(user, PROJECT_UUID, SERVER_UUID, {
+            name: '  Renamed  ',
+        });
+
+        expect(aiAgentModel.renameMcpServer).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            serverUuid: SERVER_UUID,
+            name: 'Renamed',
+            userUuid: USER_UUID,
+        });
+    });
+
+    it('rejects an empty name', async () => {
+        const { service, aiAgentModel } = buildService();
+
+        await expect(
+            service.renameMcpServer(user, PROJECT_UUID, SERVER_UUID, {
+                name: '   ',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+
+        expect(aiAgentModel.renameMcpServer).not.toHaveBeenCalled();
+    });
+
+    it('rejects renaming a server from another organization', async () => {
+        const { service, aiAgentModel } = buildService();
+
+        await expect(
+            service.renameMcpServer(user, FOREIGN_PROJECT_UUID, SERVER_UUID, {
+                name: 'Renamed',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+
+        expect(aiAgentModel.renameMcpServer).not.toHaveBeenCalled();
+    });
+
+    it('rejects deleting a server from another organization', async () => {
+        const { service, aiAgentModel } = buildService();
+
+        await expect(
+            service.deleteMcpServer(user, FOREIGN_PROJECT_UUID, SERVER_UUID),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+
+        expect(aiAgentModel.deleteMcpServer).not.toHaveBeenCalled();
+    });
+
+    it('rejects deleting a server that belongs to another project', async () => {
+        const { service, aiAgentModel } = buildService();
+        aiAgentModel.getMcpServer.mockResolvedValueOnce({
+            uuid: SERVER_UUID,
+            projectUuid: 'some-other-project',
+        });
+
+        await expect(
+            service.deleteMcpServer(user, PROJECT_UUID, SERVER_UUID),
+        ).rejects.toBeInstanceOf(NotFoundError);
+
+        expect(aiAgentModel.deleteMcpServer).not.toHaveBeenCalled();
     });
 });
