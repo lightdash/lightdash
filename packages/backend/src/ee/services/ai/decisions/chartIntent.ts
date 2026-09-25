@@ -1028,6 +1028,11 @@ export const buildChartIntentQuestions = ({
                 none: 'The compared number is not in this list',
             },
         };
+        questions.thresholdPerRecord = {
+            type: 'noul',
+            instructions:
+                'If the user wants only rows or groups above, below or between stated amounts, is the amount compared with the value of each individual underlying record, rather than with a total, average or count that the chart shows for each of its groups?',
+        };
         questions.comparison = {
             type: 'choice',
             instructions: 'If the user states a threshold, which comparison?',
@@ -1391,6 +1396,40 @@ const resolveDateRange = (
 const isNumberComparison = (value: string | null): value is NumberComparison =>
     NUMBER_COMPARISONS.some((comparison) => comparison === value);
 
+const isChartMetric = (context: ChartIntentContext, fieldId: string) =>
+    context.chartMetrics.some(({ id }) => id === fieldId);
+
+/** The compared field; when a per-record value and a chart total both fit, the per-record reading decides or the agent does. */
+const pickThresholdField = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): FieldCandidate | null => {
+    const answer = answers.thresholdField;
+    const chosen = confident(answer, thresholds.field);
+    const picked = context.thresholdFields.find(({ id }) => id === chosen);
+    if (!picked || answer?.type !== 'choice') return null;
+    const pickedIsMetric = isChartMetric(context, picked.id);
+    const [rival] = Object.entries(answer.probabilities)
+        .filter(
+            ([id, probability]) =>
+                probability >= thresholds.clarifyRunnerUp &&
+                id !== picked.id &&
+                context.thresholdFields.some((field) => field.id === id) &&
+                isChartMetric(context, id) !== pickedIsMetric,
+        )
+        .sort(([, a], [, b]) => b - a)
+        .map(([id]) =>
+            context.thresholdFields.find((field) => field.id === id),
+        );
+    if (!rival) return picked;
+    const perRecord = decisionProbability(answers.thresholdPerRecord) ?? 0.5;
+    if (perRecord >= thresholds.wants) return pickedIsMetric ? rival : picked;
+    if (perRecord <= 1 - thresholds.wants)
+        return pickedIsMetric ? picked : rival;
+    return null;
+};
+
 const resolveThreshold = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -1401,8 +1440,7 @@ const resolveThreshold = (
         type: 'unresolved',
         reason: 'filter-threshold',
     } as const;
-    const chosen = confident(answers.thresholdField, thresholds.field);
-    const field = context.thresholdFields.find(({ id }) => id === chosen);
+    const field = pickThresholdField(answers, context, thresholds);
     const comparison = confident(answers.comparison, thresholds.option);
     const low = pickStated(answers.amountLow, amounts, thresholds.option);
     if (!field || !isNumberComparison(comparison) || low === null)
