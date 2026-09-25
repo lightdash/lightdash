@@ -7487,6 +7487,99 @@ describe('ProjectService', () => {
                 ),
             ).not.toThrowError();
         });
+
+        const projectWithBigqueryKeyfile = (
+            keyfileContents: { [key: string]: string },
+            authenticationType?: BigqueryAuthenticationType,
+        ): UpdateProject => ({
+            name: 'test-project',
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DefaultSupportedDbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'test-gcp-project',
+                dataset: 'test-dataset',
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+                keyfileContents,
+                authenticationType,
+            },
+        });
+
+        const serviceAccountKeyfile = {
+            type: 'service_account',
+            client_email: 'sa@example.com',
+            private_key: 'test-private-key',
+        };
+        // What the CLI sends for a dbt `method: oauth` gcloud user login
+        const authorizedUserKeyfile = {
+            type: 'authorized_user',
+            client_id: 'oauth-client',
+            client_secret: 'oauth-secret',
+            refresh_token: 'user-refresh-token',
+        };
+
+        it.each([undefined, BigqueryAuthenticationType.PRIVATE_KEY])(
+            'allows a service account keyfile with %s authentication type',
+            (authenticationType) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(
+                            serviceAccountKeyfile,
+                            authenticationType,
+                        ),
+                    ),
+                ).not.toThrowError();
+            },
+        );
+
+        it.each([undefined, BigqueryAuthenticationType.PRIVATE_KEY])(
+            'allows an authorized_user keyfile with %s authentication type',
+            (authenticationType) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(
+                            authorizedUserKeyfile,
+                            authenticationType,
+                        ),
+                    ),
+                ).not.toThrowError();
+            },
+        );
+
+        it.each<{ [key: string]: string }>([
+            {},
+            { type: 'service_account', client_email: 'sa@example.com' },
+            { type: 'authorized_user', client_id: 'oauth-client' },
+            { refresh_token: 'user-refresh-token' },
+        ])(
+            'rejects a keyfile without a private key or user refresh token: %o',
+            (keyfileContents) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(keyfileContents),
+                    ),
+                ).toThrowError(
+                    'Bigquery key file is required for private key authentication',
+                );
+            },
+        );
+
+        it('still requires a refresh token for SSO authentication', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile(
+                        serviceAccountKeyfile,
+                        BigqueryAuthenticationType.SSO,
+                    ),
+                ),
+            ).toThrowError(
+                'Bigquery refresh token is required for SSO authentication',
+            );
+        });
     });
 
     describe('compileMergeQuery', () => {

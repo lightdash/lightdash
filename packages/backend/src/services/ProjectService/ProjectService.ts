@@ -4476,7 +4476,14 @@ export class ProjectService extends BaseService {
                 switch (authenticationType) {
                     case undefined: // Default, for backwards compatibility
                     case BigqueryAuthenticationType.PRIVATE_KEY:
-                        if (keyFileContents?.private_key === undefined) {
+                        // The CLI sends gcloud user logins (dbt `method: oauth`) as an
+                        // authorized_user keyfile without an authentication type.
+                        const hasPrivateKey =
+                            keyFileContents?.private_key !== undefined;
+                        const hasUserRefreshToken =
+                            keyFileContents?.type === 'authorized_user' &&
+                            keyFileContents.refresh_token !== undefined;
+                        if (!hasPrivateKey && !hasUserRefreshToken) {
                             throw new ParameterError(
                                 'Bigquery key file is required for private key authentication',
                             );
