@@ -30333,8 +30333,27 @@
                 "required": ["finishedAt", "firstTokenAt", "startedAt"],
                 "type": "object"
             },
+            "AiAgentJevChoice": {
+                "properties": {
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt", "label"],
+                "type": "object"
+            },
             "AiAgentJevDecision": {
                 "properties": {
+                    "choices": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentJevChoice"
+                        },
+                        "type": "array",
+                        "description": "Options offered when JEV asked a clarifying question; sending `prompt` picks one."
+                    },
                     "latencyMs": {
                         "type": "number",
                         "format": "double"
@@ -30374,6 +30393,7 @@
                     }
                 },
                 "required": [
+                    "choices",
                     "latencyMs",
                     "editKind",
                     "fallbackReason",
@@ -66628,7 +66648,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.339.2",
+        "version": "2.340.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,18 @@
+# [2.340.0](https://github.com/lightdash/lightdash/compare/2.339.2...2.340.0) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agent:** chart multi-row fast data answers and summarise them in one line ([#29968](https://github.com/lightdash/lightdash/issues/29968)) ([94f4403](https://github.com/lightdash/lightdash/commit/94f440361318ed2bf2df657ef784d42afabd16b0))
+* **compose:** keep referenced result file names out of the comment stripper ([#29509](https://github.com/lightdash/lightdash/issues/29509)) ([6bcdff1](https://github.com/lightdash/lightdash/commit/6bcdff1ad7485a059782e457f730b07063f8db83))
+* **query:** apply project start of week to DATE-base week grains at query time ([#29963](https://github.com/lightdash/lightdash/issues/29963)) ([3079e30](https://github.com/lightdash/lightdash/commit/3079e3059ff833865d282e614f7ac9ffade2e78f))
+
+
+### Features
+
+* **ai-agent:** offer clickable choices when JEV knows the field but not the edit ([#29965](https://github.com/lightdash/lightdash/issues/29965)) ([6e313ee](https://github.com/lightdash/lightdash/commit/6e313ee9f2178f4ab72db917caa1c4bf40759be1))
+* **cli:** accept a local DuckDB file inside PLAYGROUND_DATA_DIR ([#29117](https://github.com/lightdash/lightdash/issues/29117)) ([b688361](https://github.com/lightdash/lightdash/commit/b68836182800d6019d303248668b1eee444753c6))
+
 ## [2.339.2](https://github.com/lightdash/lightdash/compare/2.339.1...2.339.2) (2026-09-25)
 
 
