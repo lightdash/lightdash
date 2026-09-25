@@ -69,6 +69,7 @@ export enum PageName {
     FUNNEL_BUILDER = 'funnel_builder',
     ROADMAP = 'roadmap',
     LEARN = 'learn',
+    LEARN_WORKSPACE = 'learn_workspace',
 }
 
 export enum CategoryName {

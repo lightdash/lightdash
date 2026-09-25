@@ -2,7 +2,6 @@ import { lightdashDbtYamlSchema, modelAsCodeSchema } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine/core';
 import { IconFileOff } from '@tabler/icons-react';
 import type { editor } from 'monaco-editor';
-import { configureMonacoYaml } from 'monaco-yaml';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import Editor, {
@@ -11,6 +10,7 @@ import Editor, {
     type OnMount,
 } from '../../../../components/MonacoEditor';
 import { useEditorTheme } from '../../../../hooks/useEditorTheme';
+import { configureLightdashYaml } from '../../../../utils/monacoYaml';
 import {
     getLightdashMonacoTheme,
     MONACO_DEFAULT_OPTIONS,
@@ -20,14 +20,13 @@ import { detectLanguage } from '../../utils/fileLanguageDetection';
 import styles from './CodeEditorPane.module.css';
 import EditorToolbar from './EditorToolbar';
 
-let yamlConfiguration: ReturnType<typeof configureMonacoYaml> | undefined;
 const configureYamlSchema = (
     monaco: Monaco,
     semanticLayer: 'dbt' | 'lightdash',
     filePath: string | null,
 ) => {
     const isNative = semanticLayer === 'lightdash';
-    const options = {
+    configureLightdashYaml(monaco, {
         enableSchemaRequest: false,
         schemas:
             isNative && !/(^|\/)models\//.test(filePath ?? '')
@@ -46,12 +45,7 @@ const configureYamlSchema = (
                           >,
                       },
                   ],
-    };
-    if (yamlConfiguration) {
-        void yamlConfiguration.update(options);
-    } else {
-        yamlConfiguration = configureMonacoYaml(monaco, options);
-    }
+    });
 };
 
 type CodeEditorPaneProps = {

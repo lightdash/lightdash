@@ -547,6 +547,16 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'learn/workspace',
+        lazy: async () => {
+            const LearnWorkspace = await loadLazyRouteDefault(
+                './pages/LearnWorkspace',
+                () => import('./pages/LearnWorkspace'),
+            );
+            return { Component: LearnWorkspace };
+        },
+    },
+    {
         path: 'home',
         lazy: async () => {
             const Home = await loadLazyRouteDefault(
