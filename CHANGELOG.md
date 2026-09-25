@@ -1,3 +1,10 @@
+## [2.337.4](https://github.com/lightdash/lightdash/compare/2.337.3...2.337.4) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agents:** scheduled agent summaries respect the delivery's filters ([#29955](https://github.com/lightdash/lightdash/issues/29955)) ([68578a3](https://github.com/lightdash/lightdash/commit/68578a301697f60bf818ffd73da7fbd93e171ced))
+
 ## [2.337.3](https://github.com/lightdash/lightdash/compare/2.337.2...2.337.3) (2026-09-25)
 
 
