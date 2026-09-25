@@ -145,6 +145,7 @@ import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
+    AI_PROMPT_TURN_DECISION_OPERATIONS,
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
@@ -175,6 +176,7 @@ import {
     DbAiPromptDecision,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
+    DbAiPromptTurnDecisionOutcome,
     DbAiSlackPrompt,
     DbAiSlackThread,
     DbAiSqlApproval,
@@ -256,6 +258,16 @@ export type AiPromptResponseState = {
     response: string | null;
     errorMessage: string | null;
 };
+
+type TurnDecisionRow = Pick<
+    DbAiPromptDecision,
+    | 'ai_prompt_uuid'
+    | 'applied'
+    | 'reason'
+    | 'fallback_reason'
+    | 'intent'
+    | 'latency_ms'
+> & { outcome: DbAiPromptTurnDecisionOutcome };
 
 const storedChoicesSchema = z.object({
     options: z.array(z.object({ label: z.string(), prompt: z.string() })),
@@ -5743,24 +5755,13 @@ export class AiAgentModel {
         return rows.length > 0;
     }
 
-    /** The latest fast-decision record per prompt, shaped for the thread UI. */
+    /** The latest turn decision per prompt, shaped for the thread UI. */
     async findPromptDecisions(
         promptUuids: string[],
     ): Promise<Map<string, AiAgentJevDecision>> {
         if (promptUuids.length === 0) return new Map();
         const rows = await this.database(AiPromptDecisionTableName)
-            .select<
-                Pick<
-                    DbAiPromptDecision,
-                    | 'ai_prompt_uuid'
-                    | 'outcome'
-                    | 'applied'
-                    | 'reason'
-                    | 'fallback_reason'
-                    | 'intent'
-                    | 'latency_ms'
-                >[]
-            >(
+            .select<TurnDecisionRow[]>(
                 'ai_prompt_uuid',
                 'outcome',
                 'applied',
@@ -5770,6 +5771,7 @@ export class AiAgentModel {
                 'latency_ms',
             )
             .whereIn('ai_prompt_uuid', promptUuids)
+            .whereIn('operation', AI_PROMPT_TURN_DECISION_OPERATIONS)
             .orderBy('created_at', 'asc');
         return new Map(
             rows.map((row) => [
@@ -5788,7 +5790,7 @@ export class AiAgentModel {
     }
 
     private static decisionChoices(
-        row: Pick<DbAiPromptDecision, 'outcome' | 'intent'>,
+        row: Pick<TurnDecisionRow, 'outcome' | 'intent'>,
     ): AiAgentJevChoice[] {
         if (row.outcome !== 'clarify') return [];
         const parsed = storedChoicesSchema.safeParse(row.intent);
@@ -5801,7 +5803,7 @@ export class AiAgentModel {
     }
 
     private static decisionEditKind(
-        row: Pick<DbAiPromptDecision, 'outcome' | 'intent'>,
+        row: Pick<TurnDecisionRow, 'outcome' | 'intent'>,
     ): string | null {
         switch (row.outcome) {
             case 'needs_values':

@@ -212,21 +212,31 @@ export const AiPromptTableName = 'ai_prompt';
 
 export const AiPromptDecisionTableName = 'ai_prompt_decision';
 
+export const AI_PROMPT_TURN_DECISION_OPERATIONS = [
+    'chart-intent',
+    'model-routing',
+] as const;
+
+export type DbAiPromptTurnDecisionOutcome =
+    | 'intent'
+    | 'compound'
+    | 'needs_values'
+    | 'clarify'
+    | 'not_an_edit'
+    | 'unresolved'
+    | 'unavailable'
+    | 'routed'
+    | 'instant_reply';
+
 export type DbAiPromptDecision = {
     ai_prompt_decision_uuid: string;
     ai_prompt_uuid: string;
     created_at: Date;
-    operation: 'chart-intent' | 'model-routing';
-    outcome:
-        | 'intent'
-        | 'compound'
-        | 'needs_values'
-        | 'clarify'
-        | 'not_an_edit'
-        | 'unresolved'
-        | 'unavailable'
-        | 'routed'
-        | 'instant_reply';
+    operation:
+        | (typeof AI_PROMPT_TURN_DECISION_OPERATIONS)[number]
+        | 'composer-viz';
+    /** Turn operations use the turn outcomes; composer-viz uses planned, unresolved or unavailable. */
+    outcome: DbAiPromptTurnDecisionOutcome | 'planned';
     reason: string | null;
     intent: object | null;
     applied: boolean;

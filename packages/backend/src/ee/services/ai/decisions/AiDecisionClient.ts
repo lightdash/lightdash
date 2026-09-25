@@ -62,6 +62,7 @@ const LOGGED_OPERATIONS = new Set([
     'chart-presentation',
     'chart-reuse',
     'chart-title',
+    'composer-viz',
     'content-relevance',
     'context-preload',
     'correction-pick',

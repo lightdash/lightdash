@@ -62,6 +62,7 @@ import {
     AiAgentToolCallFailedEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import type { DbAiPromptDecision } from '../../../database/entities/ai';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import { AiAgentSkill } from '../skills/types';
@@ -627,6 +628,21 @@ export type CreateOrUpdateArtifactFn = (data: {
 export type ListThreadComposerPipelinesFn = (
     threadUuid: string,
 ) => Promise<AiComposerChartArtifactConfig[]>;
+
+/** Records a fast decision for the current prompt; failures are logged, never thrown. */
+export type RecordPromptDecisionFn = (
+    decision: Pick<
+        DbAiPromptDecision,
+        | 'operation'
+        | 'outcome'
+        | 'intent'
+        | 'applied'
+        | 'answers'
+        | 'thresholds'
+        | 'latency_ms'
+        | 'jev_service_ms'
+    >,
+) => Promise<void>;
 
 export type CheckUserPermissionFn = (args: {
     userId: string;

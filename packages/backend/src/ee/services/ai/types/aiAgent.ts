@@ -81,6 +81,7 @@ import {
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordMcpToolCallFn,
+    RecordPromptDecisionFn,
     RecordSqlApprovalFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
@@ -210,6 +211,7 @@ export type AiAgentDeepResearchRunContext = {
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
     decisionUsage?: AiDecisionUsage;
+    recordPromptDecision?: RecordPromptDecisionFn;
     /** Finish a high-confidence simple data answer from validated query rows. */
     enableDataAnswerFastResponse: boolean;
     /** A chart-edit preflight found an active chart but could not safely apply it. */

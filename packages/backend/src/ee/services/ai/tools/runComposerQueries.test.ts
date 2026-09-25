@@ -1,5 +1,8 @@
 import {
+    ChartKind,
     QuerySourceType,
+    VizAggregationOptions,
+    VizIndexType,
     type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
     type SemanticLayerSourceQuery,
@@ -7,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
+import type { PlanComposerViz } from '../decisions/vizPlanner';
 import { getRunComposerQueries } from './runComposerQueries';
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
@@ -102,6 +106,7 @@ const executeTool = (
 
 const makeTool = ({
     reviewQuery,
+    planViz,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     canRunSql = true,
@@ -109,6 +114,7 @@ const makeTool = ({
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
 }: {
     reviewQuery?: QueryReviewer;
+    planViz?: PlanComposerViz;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
@@ -117,6 +123,7 @@ const makeTool = ({
 } = {}) => {
     const dependencies = {
         reviewQuery,
+        planViz,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runComposerQueries: vi.fn().mockResolvedValue({
             submissions: [
@@ -854,5 +861,39 @@ describe('composer query review', () => {
         const output = await executeTool(tool, makeArgs());
         expect(output.result).toContain('Preserve the user’s scope');
         expect(output.result).toContain('check conditions');
+    });
+});
+
+describe('composer viz config', () => {
+    it('stores the planned viz config on the artifact and names it in the result', async () => {
+        const vizConfig = {
+            type: ChartKind.VERTICAL_BAR,
+            metadata: { version: 1 },
+            fieldConfig: {
+                x: { reference: 'month', type: VizIndexType.CATEGORY },
+                y: [
+                    {
+                        reference: 'signups',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupBy: [],
+            },
+            display: undefined,
+        } as const;
+        const planViz = vi.fn().mockResolvedValue(vizConfig);
+        const { tool, dependencies } = makeTool({ planViz });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(
+            dependencies.createOrUpdateArtifact.mock.calls[0][0].vizConfig
+                .vizConfig,
+        ).toEqual(vizConfig);
+        expect(
+            output.result.endsWith(
+                'Visualization: bar chart, x = month, y = signups.',
+            ),
+        ).toBe(true);
     });
 });

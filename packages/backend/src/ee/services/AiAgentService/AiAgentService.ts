@@ -441,6 +441,7 @@ import {
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
     RecordMcpToolCallFn,
+    RecordPromptDecisionFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
@@ -12938,6 +12939,31 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private async recordPromptDecision({
+        promptUuid,
+        decisions,
+        decision,
+    }: {
+        promptUuid: string;
+        decisions: AiDecisionClient;
+        decision: Parameters<RecordPromptDecisionFn>[0];
+    }): Promise<void> {
+        try {
+            await this.aiAgentModel.createPromptDecision({
+                ...decision,
+                ai_prompt_uuid: promptUuid,
+                reason: null,
+                fallback_reason: null,
+                simple_data_answer: false,
+                jev_model: decisions.modelName,
+            });
+        } catch (error) {
+            Logger.warn(
+                `Unable to record AI ${decision.operation} decision: ${String(error)}`,
+            );
+        }
+    }
+
     private async recordTurnDecision({
         promptUuid,
         decisions,
@@ -13970,6 +13996,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const args: AiAgentArgs = {
             decisions,
             decisionUsage,
+            recordPromptDecision: decisions
+                ? (decision) =>
+                      this.recordPromptDecision({
+                          promptUuid: prompt.promptUuid,
+                          decisions,
+                          decision,
+                      })
+                : undefined,
             toolCallModel,
             enableDataAnswerFastResponse,
             forceChartMutationRouting,

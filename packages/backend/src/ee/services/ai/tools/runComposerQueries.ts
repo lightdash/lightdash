@@ -13,6 +13,10 @@ import {
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
+import {
+    getVizConfigNote,
+    type PlanComposerViz,
+} from '../decisions/vizPlanner';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
@@ -28,6 +32,7 @@ import { validateSelectOnly } from './runSql';
 
 type Dependencies = {
     reviewQuery?: QueryReviewer;
+    planViz?: PlanComposerViz;
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
@@ -91,6 +96,7 @@ export const resolveTerminalNodeId = (
 
 export const getRunComposerQueries = ({
     reviewQuery,
+    planViz,
     updateProgress,
     runComposerQueries,
     getPrompt,
@@ -238,14 +244,35 @@ export const getRunComposerQueries = ({
                 const prompt = await getPrompt();
                 // v0 surface is web chat only; keep Slack (if ever assembled
                 // there) to the text result without an artifact.
+                let vizNote: string | null = null;
                 if (!isSlackPrompt(prompt)) {
+                    const earlierPipelines = await listThreadComposerPipelines(
+                        prompt.threadUuid,
+                    );
                     const pipeline = buildComposerArtifactPipeline({
                         queries,
                         submissions,
-                        earlierPipelines: await listThreadComposerPipelines(
-                            prompt.threadUuid,
-                        ),
+                        earlierPipelines,
                     });
+                    const terminalNode = queries.find(
+                        (query) => query.nodeId === resolvedTerminalNodeId,
+                    );
+                    const vizConfig =
+                        (await planViz?.({
+                            title: title ?? null,
+                            description: description ?? null,
+                            terminalNode: {
+                                title: terminalNode?.title ?? null,
+                                description: terminalNode?.description ?? null,
+                            },
+                            columns: terminal.columns,
+                            rows: terminal.rows,
+                            rowCount: terminal.rowCount,
+                            enableDataAccess,
+                            previousVizConfig:
+                                earlierPipelines.at(-1)?.vizConfig ?? null,
+                        })) ?? null;
+                    vizNote = getVizConfigNote(vizConfig);
                     await createOrUpdateArtifact({
                         threadUuid: prompt.threadUuid,
                         promptUuid: prompt.promptUuid,
@@ -259,6 +286,7 @@ export const getRunComposerQueries = ({
                             terminalNodeId: resolvedTerminalNodeId,
                             lastQueryUuid: terminal.queryUuid,
                             nodeResults: pipeline.nodeResults,
+                            vizConfig,
                         } satisfies AiComposerChartArtifactConfig,
                     });
                 }
@@ -294,9 +322,10 @@ export const getRunComposerQueries = ({
                         : []),
                 ].join('\n');
 
+                const vizLine = vizNote ? `\n${vizNote}` : '';
                 if (!enableDataAccess || terminal.rowCount === 0) {
                     return {
-                        result: resultSummary,
+                        result: `${resultSummary}${vizLine}`,
                         metadata: { status: 'success' as const },
                     };
                 }
@@ -323,7 +352,7 @@ export const getRunComposerQueries = ({
                     result: `${resultSummary}${truncatedNote}\n${serializeData(
                         previewCsv,
                         'csv',
-                    )}`,
+                    )}${vizLine}`,
                     metadata: { status: 'success' as const },
                 };
             } catch (e) {
