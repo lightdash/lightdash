@@ -1,10 +1,25 @@
-import { Navigate, useLocation } from 'react-router';
+import { Navigate, useLocation, useParams } from 'react-router';
 
-const LegacyChartTypesRedirect = () => {
+const LegacyChartTypesRedirect = ({
+    newChartType = false,
+}: {
+    newChartType?: boolean;
+}) => {
     const { search, hash } = useLocation();
+    const { dataAppVizUuid } = useParams();
+    const suffix = newChartType ? 'new' : dataAppVizUuid;
 
     return (
-        <Navigate to={{ pathname: '../chart-studio', search, hash }} replace />
+        <Navigate
+            to={{
+                pathname: suffix
+                    ? `../chart-studio/${suffix}`
+                    : '../chart-studio',
+                search,
+                hash,
+            }}
+            replace
+        />
     );
 };
 

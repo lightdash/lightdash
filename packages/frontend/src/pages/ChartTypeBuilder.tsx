@@ -102,7 +102,7 @@ const NO_AI_PICKS: Record<string, ChartInputAiPick> = {};
 const NO_FIELD_NAMES: ReadonlySet<string> = new Set();
 
 /** The saved chart a create session starts from, kept in the URL so a refresh
- *  and the `/new` → `/chart-types/:uuid` move both keep the selection. */
+ *  and the `/new` → `/chart-studio/:uuid` move both keep the selection. */
 const SAVED_CHART_PARAM = 'savedChartUuid';
 /** The explore a create session binds its inputs to. Only the name: the
  *  bindings decide the query, so a refresh re-derives it. Never set
@@ -110,8 +110,8 @@ const SAVED_CHART_PARAM = 'savedChartUuid';
 const EXPLORE_PARAM = 'exploreName';
 
 /**
- * The dedicated chart type builder. Mounted at both `chart-types/new`
- * (create) and `chart-types/:dataAppVizUuid` (edit); the create flow
+ * The dedicated chart type builder. Mounted at both `chart-studio/new`
+ * (create) and `chart-studio/:dataAppVizUuid` (edit); the create flow
  * adopts the new uuid into the URL once the first build is accepted.
  */
 const ChartTypeBuilder: FC = () => {

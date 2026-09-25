@@ -126,7 +126,7 @@ export function useRestoreDeletedContent(projectUuid: string) {
                                     onClick: () =>
                                         navigate(
                                             item.isChartType
-                                                ? `/projects/${projectUuid}/chart-types/${item.uuid}`
+                                                ? `/projects/${projectUuid}/chart-studio/${item.uuid}`
                                                 : `/projects/${projectUuid}/apps/${item.uuid}`,
                                         ),
                                 }

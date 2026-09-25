@@ -216,7 +216,7 @@ export const DataAppActivityTable: FC = () => {
                                     component={Link}
                                     to={
                                         isChartType
-                                            ? `/projects/${row.original.projectUuid}/chart-types/${row.original.appUuid}`
+                                            ? `/projects/${row.original.projectUuid}/chart-studio/${row.original.appUuid}`
                                             : `/projects/${row.original.projectUuid}/apps/${row.original.appUuid}`
                                     }
                                     fz="sm"

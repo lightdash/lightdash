@@ -45,7 +45,7 @@ const UsageRow: FC<{
     const isDataApp = item.kind === 'data_app';
     const path = isDataApp
         ? `/projects/${projectUuid}/apps/${item.appUuid}`
-        : `/projects/${projectUuid}/chart-types/${item.appUuid}`;
+        : `/projects/${projectUuid}/chart-studio/${item.appUuid}`;
     const displayName = getAppDisplayName(item.name, item.appUuid);
 
     return (

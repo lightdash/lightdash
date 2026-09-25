@@ -657,7 +657,7 @@ describe('DataAppVizConfigTabs', () => {
         // `findBy`: the gate reads false until the user query settles.
         expect(
             (await screen.findByText('builder')).closest('a'),
-        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types/new');
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio/new');
     });
 
     it('keeps the Explorer query in builder links', async () => {
@@ -675,11 +675,11 @@ describe('DataAppVizConfigTabs', () => {
             (await screen.findByText('builder')).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types/new?create_saved_chart_version=serialized-query&fromSpace=space-1',
+            '/projects/jaffle-shop/chart-studio/new?create_saved_chart_version=serialized-query&fromSpace=space-1',
         );
         act(() => pickerProps[pickerProps.length - 1].onCreateNew?.());
         expect(navigate).toHaveBeenCalledWith({
-            pathname: '/projects/jaffle-shop/chart-types/new',
+            pathname: '/projects/jaffle-shop/chart-studio/new',
             search: locationSearch.current,
         });
     });
@@ -762,7 +762,7 @@ describe('DataAppVizConfigTabs', () => {
             (await screen.findByText('Edit ↗')).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types/radial-gauge?fromDashboard=dashboard-1',
+            '/projects/jaffle-shop/chart-studio/radial-gauge?fromDashboard=dashboard-1',
         );
     });
 
