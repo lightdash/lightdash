@@ -1,3 +1,10 @@
+## [2.344.7](https://github.com/lightdash/lightdash/compare/2.344.6...2.344.7) (2026-09-25)
+
+
+### Bug Fixes
+
+* open Slack downvote feedback before saving votes ([#30006](https://github.com/lightdash/lightdash/issues/30006)) ([4796b3d](https://github.com/lightdash/lightdash/commit/4796b3dbfcbe43b9885ade7860bcde56d72655ef))
+
 ## [2.344.6](https://github.com/lightdash/lightdash/compare/2.344.5...2.344.6) (2026-09-25)
 
 
