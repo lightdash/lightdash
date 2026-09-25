@@ -830,6 +830,12 @@ const normalizeMcpError = (
         : new McpRuntimeError(error);
 };
 
+const hasCompletedOAuthCredential = (
+    mcpServer: Pick<AiAgentMcpServer, 'resolvedCredential'>,
+): boolean =>
+    mcpServer.resolvedCredential?.type === 'oauth' &&
+    !!mcpServer.resolvedCredential.tokens?.accessToken;
+
 const getUnavailableMcpStatus = (
     mcpServer: AiAgentMcpServer,
     error: Error,
@@ -843,9 +849,14 @@ const getUnavailableMcpStatus = (
         return 'not_connected';
     }
 
+    // A transport failure (timeout, reset, 403 from a gateway) can surface
+    // before the server ever answers 401. A user without a completed OAuth
+    // credential still needs to sign in, so keep that signal separate from
+    // the transport error.
     if (
         mcpServer.authType === 'oauth' &&
-        error instanceof McpAuthorizationRequiredError
+        (isMcpAuthorizationError(error) ||
+            !hasCompletedOAuthCredential(mcpServer))
     ) {
         if (mcpServer.connectionStatus === 'connecting') {
             return 'connecting';

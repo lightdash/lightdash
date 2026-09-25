@@ -1,5 +1,8 @@
 import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
+/* eslint-disable import/extensions */
+import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
+/* eslint-enable import/extensions */
 import { asSchema, jsonSchema } from 'ai';
 import dns from 'node:dns';
 import type { LightdashConfig } from '../../../config/parseConfig';
@@ -321,6 +324,13 @@ const getMcpServer = (
     resolvedCredentialScope: null,
     ...overrides,
 });
+
+const connectedOAuthCredential: AiAgentMcpServer['resolvedCredential'] = {
+    type: 'oauth',
+    credentialScope: 'user',
+    connectionStatus: 'connected',
+    tokens: { accessToken: 'access-token', tokenType: 'Bearer' },
+};
 
 describe('getMcpOAuthCallbackUrl', () => {
     it('returns the static MCP OAuth callback URL', () => {
@@ -652,6 +662,8 @@ describe('resolveMcpTools', () => {
                 name: 'OAuth MCP',
                 authType: 'oauth',
                 connectionStatus: 'connected',
+                resolvedCredential: connectedOAuthCredential,
+                resolvedCredentialScope: 'user',
             });
             const close = vi.fn().mockResolvedValue(undefined);
             const tools = vi.fn().mockRejectedValue(new Error(message));
@@ -707,6 +719,8 @@ describe('resolveMcpTools', () => {
             name: 'OAuth MCP',
             authType: 'oauth',
             connectionStatus: 'connected',
+            resolvedCredential: connectedOAuthCredential,
+            resolvedCredentialScope: 'user',
         });
         vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
             new Error(
@@ -887,6 +901,133 @@ describe('resolveMcpTools', () => {
             credentialScope: 'user',
             userUuid: 'user-uuid',
         });
+    });
+
+    it('marks an unconnected OAuth server not_connected when the transport fails', async () => {
+        const oauthServer = getMcpServer({
+            uuid: 'oauth-server-unconnected',
+            name: 'Confluence',
+            authType: 'oauth',
+            connectionStatus: 'not_connected',
+            resolvedCredential: null,
+            resolvedCredentialScope: null,
+        });
+
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+            new Error('fetch failed'),
+        );
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [oauthServer],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.unavailableMcpServers).toEqual([
+            {
+                serverUuid: 'oauth-server-unconnected',
+                serverName: 'Confluence',
+                message: MCP_CONNECTION_MESSAGE,
+                status: 'not_connected',
+            },
+        ]);
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith({
+            serverUuid: 'oauth-server-unconnected',
+            connectionStatus: 'not_connected',
+            error: MCP_CONNECTION_MESSAGE,
+            credentialScope: 'user',
+            userUuid: 'user-uuid',
+        });
+    });
+
+    it('marks an unconnected OAuth server not_connected on a 403 with structured errors', async () => {
+        const oauthServer = getMcpServer({
+            uuid: 'oauth-server-forbidden',
+            name: 'Confluence',
+            authType: 'oauth',
+            connectionStatus: 'not_connected',
+            resolvedCredential: null,
+            resolvedCredentialScope: null,
+        });
+
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+            new Error(
+                'MCP HTTP Transport Error: POSTing to endpoint (HTTP 403): Forbidden',
+            ),
+        );
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [oauthServer],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+            decisions: new AiDecisionClient({
+                apiKey: null,
+                model: 'test',
+                timeoutMs: 100,
+            }),
+        });
+
+        expect(result.unavailableMcpServers).toEqual([
+            expect.objectContaining({
+                status: 'not_connected',
+                message: MCP_PERMISSION_MESSAGE,
+            }),
+        ]);
+    });
+
+    it('keeps error for a connected OAuth server when the transport fails', async () => {
+        const oauthServer = getMcpServer({
+            uuid: 'oauth-server-connected',
+            name: 'Confluence',
+            authType: 'oauth',
+            connectionStatus: 'connected',
+            resolvedCredential: connectedOAuthCredential,
+            resolvedCredentialScope: 'user',
+        });
+
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+            new Error('fetch failed'),
+        );
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [oauthServer],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.unavailableMcpServers).toEqual([
+            expect.objectContaining({
+                status: 'error',
+                message: MCP_CONNECTION_MESSAGE,
+            }),
+        ]);
+    });
+
+    it('marks a connected OAuth server not_connected when tool discovery is rejected as unauthorized', async () => {
+        const oauthServer = getMcpServer({
+            uuid: 'oauth-server-rejected',
+            name: 'Confluence',
+            authType: 'oauth',
+            connectionStatus: 'connected',
+            resolvedCredential: connectedOAuthCredential,
+            resolvedCredentialScope: 'user',
+        });
+        const close = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            tools: vi.fn().mockRejectedValue(new UnauthorizedError()),
+            close,
+        } as unknown as MCPClient);
+
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [oauthServer],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+        });
+
+        expect(result.unavailableMcpServers).toEqual([
+            expect.objectContaining({ status: 'not_connected' }),
+        ]);
+        expect(close).toHaveBeenCalledOnce();
     });
 
     it('marks a server unavailable when the connection times out', async () => {
