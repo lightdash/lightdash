@@ -14,6 +14,7 @@ import {
 } from '../../visualizations/types';
 import {
     buildComposerVizConfig,
+    getComposerChartKind,
     getComposerFieldConfig,
     getComposerVizPlan,
     isComposerNumericColumn,
@@ -50,34 +51,12 @@ type ResultShape = {
     node: SourceQuery | null;
 };
 
-const isNumeric = isComposerNumericColumn;
-
 const tableConfig = (): VizTableConfig => ({
     type: ChartKind.TABLE,
     metadata: { version: 1 },
     columns: {},
     display: undefined,
 });
-
-const chartKindOfType = (
-    type: ComposerChartConfig['type'],
-): ComposerChartKind => {
-    switch (type) {
-        case ChartKind.VERTICAL_BAR:
-            return 'bar';
-        case ChartKind.LINE:
-            return 'line';
-        case ChartKind.PIE:
-            return 'pie';
-        case ChartKind.BIG_NUMBER:
-            return 'big_number';
-        default:
-            return assertUnreachable(type, 'Unknown composer chart type');
-    }
-};
-
-const chartKindOf = (config: ComposerChartConfig): ComposerChartKind =>
-    chartKindOfType(config.type);
 
 const columnsByReference = (columns: ResultColumn[]) =>
     new Map(columns.map((column) => [column.reference, column]));
@@ -101,7 +80,7 @@ export const composerVizConfigFitsColumns = (
     if (
         layout.y.some((y) => {
             const column = known.get(y.reference);
-            return !column || !isNumeric(column);
+            return !column || !isComposerNumericColumn(column);
         })
     )
         return false;
@@ -117,7 +96,7 @@ export const getAvailableComposerVizKinds = (
     columns: ResultColumn[],
     rows: RawResultRow[],
 ): ComposerVizKind[] => {
-    const hasNumeric = columns.some(isNumeric);
+    const hasNumeric = columns.some(isComposerNumericColumn);
     return COMPOSER_VIZ_KINDS.filter((kind) => {
         switch (kind) {
             case 'table':
@@ -146,7 +125,7 @@ const pickDefaultX = (
 ): ResultColumn | undefined => {
     const used = new Set(layout.y.map((y) => y.reference));
     return (
-        columns.find((column) => !isNumeric(column)) ??
+        columns.find((column) => !isComposerNumericColumn(column)) ??
         columns.find((column) => !used.has(column.reference))
     );
 };
@@ -159,7 +138,7 @@ const defaultLayoutFor = (
     const plan = getComposerVizPlan({ columns, rows, node, vizConfig: null });
     const axes = plan.axes[kind];
     if (axes) return getComposerFieldConfig(axes);
-    const y = columns.find(isNumeric);
+    const y = columns.find(isComposerNumericColumn);
     if (!y) return null;
     const layout: PivotChartLayout = {
         x: undefined,
@@ -211,8 +190,8 @@ export const getComposerVizPanelOptions = (
     rows: RawResultRow[],
 ): ComposerVizPanelOptions => {
     const xReference = layoutOf(value)?.x?.reference;
-    const numeric = columns.filter(isNumeric);
-    const other = columns.filter((column) => !isNumeric(column));
+    const numeric = columns.filter(isComposerNumericColumn);
+    const other = columns.filter((column) => !isComposerNumericColumn(column));
     return {
         kinds: getAvailableComposerVizKinds(columns, rows),
         x: [...other, ...numeric],
@@ -244,7 +223,7 @@ const editLayout = (
     edit: (layout: PivotChartLayout) => PivotChartLayout,
 ): AllVizChartConfig => {
     if (value.type === ChartKind.TABLE || !value.fieldConfig) return value;
-    return withLayout(chartKindOf(value), edit(value.fieldConfig));
+    return withLayout(getComposerChartKind(value), edit(value.fieldConfig));
 };
 
 /** bar/line keep everything; pie drops the split and extra y; big number keeps only the first y. */
@@ -339,7 +318,8 @@ export const addComposerVizY = (
     editLayout(value, (layout) => {
         const used = new Set(layout.y.map((y) => y.reference));
         const next = columns.find(
-            (column) => isNumeric(column) && !used.has(column.reference),
+            (column) =>
+                isComposerNumericColumn(column) && !used.has(column.reference),
         );
         if (!next) return layout;
         return {
@@ -438,7 +418,7 @@ export const summarizeComposerVizConfig = (
 ): string => {
     if (value.type === ChartKind.TABLE) return 'Table';
     const layout = value.fieldConfig;
-    if (!layout) return getComposerVizKindLabel(chartKindOf(value));
+    if (!layout) return getComposerVizKindLabel(getComposerChartKind(value));
     const known = columnsByReference(columns);
     const name = (reference: string) =>
         known.get(reference)?.label ?? reference;
@@ -594,6 +574,6 @@ export const parseComposerVizConfig = (
     };
     return {
         ok: true,
-        vizConfig: withLayout(chartKindOfType(data.type), layout),
+        vizConfig: withLayout(getComposerChartKind(data), layout),
     };
 };
