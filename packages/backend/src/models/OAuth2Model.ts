@@ -1,6 +1,7 @@
 /* eslint-disable class-methods-use-this */
 import {
     AuthTokenPrefix,
+    MOBILE_SETUP_CODE_GRANT_TYPE,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
     type OAuthClientSummary,
@@ -50,13 +51,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
         redirectUris: string[] | string | null | undefined,
     ): string[] {
         const existing = grants ?? [];
-        if (
-            !isMobileOAuthClient(redirectUris) ||
-            existing.includes(TOKEN_EXCHANGE_GRANT_TYPE)
-        ) {
-            return existing;
-        }
-        return [...existing, TOKEN_EXCHANGE_GRANT_TYPE];
+        if (!isMobileOAuthClient(redirectUris)) return existing;
+        return [
+            ...new Set([
+                ...existing,
+                TOKEN_EXCHANGE_GRANT_TYPE,
+                MOBILE_SETUP_CODE_GRANT_TYPE,
+            ]),
+        ];
     }
 
     private getRotationGraceMs(): number {
@@ -85,6 +87,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         return {
+            isPublicClient: client.organization_uuid === null,
             clientId: client.client_id,
             id: client.client_id,
             redirectUris: client.redirect_uris,
@@ -206,8 +209,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
         token: Token,
         client: Client,
         user: UserWithOrganizationUuid,
+        { trx = this.database }: { trx?: Knex } = {},
     ): Promise<Token> {
-        await this.database('oauth2_access_tokens').insert({
+        await trx('oauth2_access_tokens').insert({
             access_token: token.accessToken,
             expires_at: token.accessTokenExpiresAt,
             scope: Array.isArray(token.scope)
@@ -219,7 +223,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         });
 
         if (token.refreshToken) {
-            await this.database('oauth2_refresh_tokens').insert({
+            await trx('oauth2_refresh_tokens').insert({
                 refresh_token: token.refreshToken,
                 expires_at: token.refreshTokenExpiresAt,
                 scope: Array.isArray(token.scope)
@@ -230,15 +234,15 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 organization_uuid: user.organizationUuid,
             });
 
-            await this.database('oauth2_refresh_tokens')
+            await trx('oauth2_refresh_tokens')
                 .where('user_id', user.userId)
                 .where((query) =>
                     query
-                        .where('expires_at', '<', this.database.fn.now())
+                        .where('expires_at', '<', trx.fn.now())
                         .orWhere(
                             'revoked_at',
                             '<',
-                            this.database.raw("now() - interval '1 day'"),
+                            trx.raw("now() - interval '1 day'"),
                         ),
                 )
                 .del();

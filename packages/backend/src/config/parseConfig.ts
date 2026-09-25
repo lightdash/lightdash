@@ -1605,6 +1605,7 @@ export type LightdashConfig = {
     rudder: RudderConfig;
     mode: LightdashMode;
     mobile: HealthState['mobile'];
+    mobileApp: Omit<HealthState['mobileApp'], 'enabled'>;
     mobilePushNotifications: MobilePushNotificationsConfig;
     mobileAppAssociation: MobileAppAssociationConfig;
     license: {
@@ -3154,6 +3155,14 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
                 ),
             },
+        },
+        mobileApp: {
+            setupLinkBaseUrl:
+                process.env.MOBILE_SETUP_LINK_BASE_URL ||
+                `${siteUrl.replace(/\/$/, '')}/mobile-setup`,
+            appStoreUrl: process.env.MOBILE_APP_STORE_URL || null,
+            playStoreUrl:
+                'https://play.google.com/store/apps/details?id=com.lightdash.mobile',
         },
         mobileAppAssociation: {
             appleTeamId: process.env.MOBILE_APPLE_TEAM_ID ?? 'AF5SF5H727',

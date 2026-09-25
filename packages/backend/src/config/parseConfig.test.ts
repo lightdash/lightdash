@@ -2683,3 +2683,24 @@ describe('autopilot run limits', () => {
         expect(() => parseConfig()).toThrow(name);
     });
 });
+describe('mobile app setup links', () => {
+    it('defaults to the instance landing page with no App Store listing', () => {
+        process.env.SITE_URL = 'https://instance.example/';
+        expect(parseConfig().mobileApp).toEqual({
+            setupLinkBaseUrl: 'https://instance.example/mobile-setup',
+            appStoreUrl: null,
+            playStoreUrl:
+                'https://play.google.com/store/apps/details?id=com.lightdash.mobile',
+        });
+    });
+
+    it('accepts configured setup and App Store links', () => {
+        process.env.MOBILE_SETUP_LINK_BASE_URL = 'https://mobile.example/setup';
+        process.env.MOBILE_APP_STORE_URL =
+            'https://apps.apple.com/app/example/id123';
+        expect(parseConfig().mobileApp).toMatchObject({
+            setupLinkBaseUrl: 'https://mobile.example/setup',
+            appStoreUrl: 'https://apps.apple.com/app/example/id123',
+        });
+    });
+});

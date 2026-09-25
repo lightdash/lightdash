@@ -882,3 +882,45 @@ describe('FeatureFlagModel', () => {
         });
     });
 });
+
+describe('mobile app setup rollout', () => {
+    it.each([
+        [undefined, false, false, false],
+        [true, false, false, true],
+        [false, false, false, false],
+        [undefined, true, false, true],
+        [true, false, true, false],
+        [false, true, true, true],
+    ])(
+        'resolves organization override %s with enable=%s disable=%s',
+        async (override, enable, disable, expected) => {
+            const model = buildModel(
+                {
+                    previewFeatureFlags: { enabled: false },
+                    enabledFeatureFlags: new Set(
+                        enable ? [FeatureFlags.MobileAppSetup] : [],
+                    ),
+                    disabledFeatureFlags: new Set(
+                        disable ? [FeatureFlags.MobileAppSetup] : [],
+                    ),
+                },
+                buildFakeDatabase({
+                    flag: { default_enabled: null },
+                    orgOverride:
+                        override === undefined
+                            ? undefined
+                            : { enabled: override },
+                }),
+            );
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.MobileAppSetup,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.MobileAppSetup,
+                enabled: expected,
+            });
+        },
+    );
+});
