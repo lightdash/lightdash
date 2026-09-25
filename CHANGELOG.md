@@ -1,3 +1,17 @@
+# [2.343.0](https://github.com/lightdash/lightdash/compare/2.342.4...2.343.0) (2026-09-25)
+
+
+### Bug Fixes
+
+* **learn:** lock the training project's warehouse connection (CS-316) ([#29992](https://github.com/lightdash/lightdash/issues/29992)) ([1ee222a](https://github.com/lightdash/lightdash/commit/1ee222a224a9a5c4eb674d8396af3f53d8f76490))
+* **learn:** look tours up by own property, not by truthiness (CS-317) ([#29993](https://github.com/lightdash/lightdash/issues/29993)) ([8d3c12f](https://github.com/lightdash/lightdash/commit/8d3c12f30fcc2787ee42199d1744b2e200e3939f))
+* **learn:** open the sandbox DuckDB read-only with file access disabled (CS-315) ([#29991](https://github.com/lightdash/lightdash/issues/29991)) ([f5766c8](https://github.com/lightdash/lightdash/commit/f5766c883ab07d7b970e8ec8191f24485489a566))
+
+
+### Features
+
+* attribute Google Sheets add-on queries ([#29990](https://github.com/lightdash/lightdash/issues/29990)) ([ba2ab53](https://github.com/lightdash/lightdash/commit/ba2ab5337996ac9f40f74653189b39db9803cf20))
+
 ## [2.342.4](https://github.com/lightdash/lightdash/compare/2.342.3...2.342.4) (2026-09-25)
 
 

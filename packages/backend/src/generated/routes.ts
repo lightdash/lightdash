@@ -62616,6 +62616,7 @@ const models: TsoaRoute.Models = {
             'scheduledDelivery',
             'csvDownload',
             'gsheets',
+            'gsheetsAddon',
             'scheduledGsheetsChart',
             'scheduledGsheetsDashboard',
             'scheduledGsheetsSqlChart',

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.342.4",
-  "previousVersion": "2.342.3",
-  "releaseDate": "2026-09-25T13:08:05.090Z",
+  "version": "2.343.0",
+  "previousVersion": "2.342.4",
+  "releaseDate": "2026-09-25T13:34:20.225Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,21 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncComposeSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartBySlugRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartRequestParams]/anyOf[#/components/schemas/ExecuteAsyncDashboardSqlChartByUuidRequestParams]/allOf[#/components/schemas/ExecuteAsyncDashboardSqlChartCommonParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMergeQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncMetricQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSavedChartRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncSqlQueryRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/query/history — added the new `gsheetsAddon` enum value to the `results/data/items/requestParameters/allOf[subschema #1]/anyOf[#/components/schemas/ExecuteAsyncUnderlyingDataRequestParams]/allOf[#/components/schemas/CommonExecuteQueryRequestParams]/context` response property for the response status `200`"
+      ],
+      "advisoryCount": 12
     },
     "mcp": {
       "checked": true,
