@@ -55,11 +55,8 @@ export const MainNavBarContent: FC<Props> = ({
     const homeUrl = activeProjectUuid
         ? `/projects/${projectUrlIdentifier}/home`
         : '/';
-    const { data: navigation, isInitialLoading: isLoadingNavigation } =
-        useProjectNavigation(activeProjectUuid);
-    // Project items wait for navigation so they appear together.
-    const isProjectNavigationReady =
-        !isLoadingActiveProject && !isLoadingNavigation;
+    // Optional items share one answer so they appear together.
+    const { data: navigation } = useProjectNavigation(activeProjectUuid);
     const { health } = useApp();
     const headwayEnabled = health.data?.headway?.enabled;
     const NavGroup = compact ? Group : Button.Group;
@@ -97,8 +94,8 @@ export const MainNavBarContent: FC<Props> = ({
                     </ActionIcon>
                 )}
 
-                {isProjectNavigationReady && activeProjectUuid && (
-                    <Suspense fallback={null}>
+                {!isLoadingActiveProject && activeProjectUuid && (
+                    <>
                         <NavGroup className={classes.buttonGroup}>
                             {compact && (
                                 <>
@@ -122,25 +119,29 @@ export const MainNavBarContent: FC<Props> = ({
                                 projectUrlIdentifier={projectUrlIdentifier}
                             />
                             <BrowseMenu projectUuid={activeProjectUuid} />
-                            {navigation?.metrics && (
-                                <MetricsLink projectUuid={activeProjectUuid} />
-                            )}
-                            {navigation?.askAi && (
-                                <AiAgentsButton
-                                    projectUuid={activeProjectUuid}
-                                />
-                            )}
-                            {navigation?.autopilot && (
-                                <AutopilotNavButton
-                                    projectUuid={activeProjectUuid}
-                                    withLabel={compact}
-                                />
-                            )}
+                            <Suspense fallback={null}>
+                                {navigation?.metrics && (
+                                    <MetricsLink
+                                        projectUuid={activeProjectUuid}
+                                    />
+                                )}
+                                {navigation?.askAi && (
+                                    <AiAgentsButton
+                                        projectUuid={activeProjectUuid}
+                                    />
+                                )}
+                                {navigation?.autopilot && (
+                                    <AutopilotNavButton
+                                        projectUuid={activeProjectUuid}
+                                        withLabel={compact}
+                                    />
+                                )}
+                            </Suspense>
                         </NavGroup>
                         {!compact && (
                             <Omnibar projectUuid={activeProjectUuid} />
                         )}
-                    </Suspense>
+                    </>
                 )}
             </Group>
 
@@ -151,7 +152,7 @@ export const MainNavBarContent: FC<Props> = ({
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 
-                    {isProjectNavigationReady && activeProjectUuid && (
+                    {!isLoadingActiveProject && activeProjectUuid && (
                         <>
                             {navigation?.learn && (
                                 <LearnLink
@@ -169,7 +170,7 @@ export const MainNavBarContent: FC<Props> = ({
                     <HelpMenu withLabel={compact} />
 
                     {headwayEnabled &&
-                        isProjectNavigationReady &&
+                        !isLoadingActiveProject &&
                         activeProjectUuid && (
                             <HeadwayMenuItem
                                 projectUuid={activeProjectUuid}
@@ -209,17 +210,19 @@ export const MainNavBarContent: FC<Props> = ({
                     <Logo />
                 </ActionIcon>
                 <Group className={classes.compactActions} gap={0} wrap="nowrap">
-                    {isProjectNavigationReady && activeProjectUuid && (
-                        <Suspense fallback={null}>
+                    {activeProjectUuid && (
+                        <>
                             <Omnibar projectUuid={activeProjectUuid} />
-                            {navigation?.askAi && (
-                                <Box className={classes.compactAiButton}>
-                                    <AiAgentsButton
-                                        projectUuid={activeProjectUuid}
-                                    />
-                                </Box>
-                            )}
-                        </Suspense>
+                            <Suspense fallback={null}>
+                                {navigation?.askAi && (
+                                    <Box className={classes.compactAiButton}>
+                                        <AiAgentsButton
+                                            projectUuid={activeProjectUuid}
+                                        />
+                                    </Box>
+                                )}
+                            </Suspense>
+                        </>
                     )}
                     <ActionIcon
                         className={classes.menuButton}

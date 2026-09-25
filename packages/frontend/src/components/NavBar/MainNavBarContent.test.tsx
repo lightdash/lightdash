@@ -101,10 +101,10 @@ describe('MainNavBarContent compact navigation', () => {
             </MantineProvider>,
         );
 
+        expect(screen.getByRole('button', { name: 'Search' })).toBeVisible();
         expect(
-            await screen.findByRole('button', { name: 'Search' }),
+            await screen.findByRole('button', { name: 'Ask AI' }),
         ).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Ask AI' })).toBeVisible();
         expect(
             screen.queryByRole('button', { name: 'Switch project' }),
         ).toBeNull();
@@ -122,21 +122,26 @@ describe('MainNavBarContent compact navigation', () => {
 });
 
 describe('MainNavBarContent project navigation', () => {
-    it('renders no project items while navigation is loading', () => {
+    it('renders always-on items without waiting for navigation', () => {
         mocks.useProjectNavigation.mockReturnValue({
             data: undefined,
             isInitialLoading: true,
         });
         renderNavBar();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Open navigation' }),
+        );
 
-        expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Ask AI' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Search' })).toBeVisible();
         expect(
-            screen.queryByRole('button', { name: 'Notifications' }),
-        ).toBeNull();
+            screen.getByRole('button', { name: 'Notifications' }),
+        ).toBeVisible();
+        for (const name of ['Metrics', 'Ask AI', 'Autopilot', 'Learn']) {
+            expect(screen.queryByRole('button', { name })).toBeNull();
+        }
     });
 
-    it('renders the items navigation allows together', async () => {
+    it('renders the optional items navigation allows', async () => {
         mocks.useProjectNavigation.mockReturnValue({
             data: { ...allItems, askAi: false, learn: false },
             isInitialLoading: false,

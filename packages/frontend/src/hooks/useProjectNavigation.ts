@@ -16,4 +16,6 @@ export const useProjectNavigation = (projectUuid: string | undefined) =>
         queryKey: [PROJECT_NAVIGATION_QUERY_KEY, projectUuid],
         queryFn: () => getProjectNavigation(projectUuid!),
         enabled: !!projectUuid,
+        // Keeps the previous project's items while switching, instead of hiding them.
+        keepPreviousData: true,
     });
