@@ -20,7 +20,9 @@ tar -xzf "$STAGE/computesdk-cloud-run-0.1.8.tgz" \
     -C "$STAGE" package/dist/gateway.mjs
 mv "$STAGE/package/dist/gateway.mjs" "$STAGE/gateway.mjs"
 
-sed 's|^RUN chown -R user:user /app|RUN useradd -m -s /bin/bash user \&\& chown -R user:user /app|' \
+# Cloud Run projects the gateway user's files as writable inside the sandbox.
+# Keep /app owned by root, matching the gateway, instead of E2B's user.
+sed 's|^RUN chown -R user:user /app|RUN useradd -m -s /bin/bash user|' \
     e2b.Dockerfile > "$STAGE/Dockerfile"
 cat >> "$STAGE/Dockerfile" <<'EOF'
 
