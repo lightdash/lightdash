@@ -84,3 +84,23 @@ one. A skill reaches the model two ways: the agent loads it when a request
 matches its description, or a user invokes it directly with a slash command
 and optional arguments.
 _Avoid_: command (for the unit), prompt template, action, macro
+
+## MCP servers
+
+**MCP server**:
+A project-scoped record of an external tool server the AI agent can call:
+name, URL, auth type, credentials, and the tool list found on it. Shared by
+every agent in the project. Not the MCP server Lightdash itself exposes so
+external clients can reach Lightdash; that is inbound, this is outbound.
+_Avoid_: MCP, integration, connection, tool server
+
+**Attach**:
+Linking an MCP server to one agent so that agent can call its tools. Detach
+undoes the link and drops that agent's tool permissions, leaving the server
+in the project.
+_Avoid_: add (in prose), enable, connect (that is the credential step)
+
+**Delete**:
+Removing an MCP server from the project. Detaches it from every agent and
+drops its shared and personal credentials.
+_Avoid_: remove (ambiguous with detach), disable

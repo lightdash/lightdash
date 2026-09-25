@@ -2,7 +2,7 @@ import {
     isGithubMcpServerUrl,
     type AiMcpCredentialScope,
     type AiMcpServer,
-    type AiMcpServerAuthType,
+    type AiProjectMcpServer,
     type AiMcpServerConnectionStatus,
 } from '@lightdash/common';
 import {
@@ -73,6 +73,13 @@ import classes from './AiAgentMcpServersInput.module.css';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
 import { GithubMcpConnectModal } from './GithubMcpConnectModal';
+import { ManageMcpServersModal } from './ManageMcpServersModal';
+import {
+    getMcpAuthTypeLabel,
+    getMcpConnectionStatusColor,
+    getMcpConnectionStatusLabel,
+    getMcpServerIconColor,
+} from './mcpServerLabels';
 import tokenStyles from './McpToolTokenEstimate.module.css';
 
 const CREATE_NEW_MCP_OPTION_VALUE = '__create_new_mcp__';
@@ -134,49 +141,6 @@ const createMcpServerFormSchema = z
             });
         }
     });
-
-const getMcpAuthTypeLabel = (authType: AiMcpServerAuthType) => {
-    switch (authType) {
-        case 'oauth':
-            return 'OAuth';
-        case 'bearer':
-            return 'Bearer';
-        default:
-            return 'No auth';
-    }
-};
-
-const getMcpConnectionStatusLabel = (
-    mcpServer: Pick<AiMcpServer, 'authType' | 'connectionStatus'>,
-) => {
-    switch (mcpServer.connectionStatus) {
-        case 'connected':
-            return 'Connected';
-        case 'connecting':
-            return 'Connecting';
-        case 'error':
-            return 'Reconnect required';
-        case 'not_connected':
-        default:
-            return 'Not connected';
-    }
-};
-
-const getMcpConnectionStatusColor = (
-    connectionStatus: AiMcpServerConnectionStatus | null,
-) => {
-    switch (connectionStatus) {
-        case 'connected':
-            return 'green';
-        case 'connecting':
-            return 'blue';
-        case 'error':
-            return 'red';
-        case 'not_connected':
-        default:
-            return 'gray';
-    }
-};
 
 const getMcpOAuthSharingPolicyLabel = (
     mcpServer: Pick<AiMcpServer, 'authType' | 'allowOAuthCredentialSharing'>,
@@ -249,22 +213,6 @@ const shouldShowMcpRetestConnection = (
     mcpServer.authType !== 'oauth' ||
     connectionStatus === 'connected' ||
     connectionStatus === 'error';
-
-const getMcpServerIconColor = (
-    connectionStatus: AiMcpServerConnectionStatus | null,
-) => {
-    switch (connectionStatus) {
-        case 'connected':
-            return 'green';
-        case 'connecting':
-            return 'blue';
-        case 'error':
-            return 'red';
-        case 'not_connected':
-        default:
-            return 'gray';
-    }
-};
 
 const CreateMcpServerModal = ({
     opened,
@@ -609,6 +557,7 @@ const AttachMcpServersModal = ({
     onChange,
     onClose,
     onSubmit,
+    onManage,
 }: {
     opened: boolean;
     isLoading: boolean;
@@ -617,6 +566,7 @@ const AttachMcpServersModal = ({
     onChange: (value: string[]) => void;
     onClose: () => void;
     onSubmit: () => void;
+    onManage: () => void;
 }) => {
     const hasAttachableOptions = options.some(
         (option) => option.value !== CREATE_NEW_MCP_OPTION_VALUE,
@@ -677,6 +627,16 @@ const AttachMcpServersModal = ({
                         No existing MCP servers available yet.
                     </Text>
                 )}
+                <Anchor
+                    size="xs"
+                    component="button"
+                    type="button"
+                    ta="left"
+                    w="fit-content"
+                    onClick={onManage}
+                >
+                    Manage MCP servers
+                </Anchor>
             </Stack>
         </MantineModal>
     );
@@ -778,6 +738,8 @@ export const AiAgentMcpServersInput = ({
         useDisclosure(false);
     const [isAttachMcpServersModalOpen, attachMcpServersModalHandlers] =
         useDisclosure(false);
+    const [isManageMcpServersModalOpen, manageMcpServersModalHandlers] =
+        useDisclosure(false);
     const [isGithubConfirmModalOpen, githubConfirmModalHandlers] =
         useDisclosure(false);
     const [isGithubNudgeModalOpen, githubNudgeModalHandlers] =
@@ -867,7 +829,9 @@ export const AiAgentMcpServersInput = ({
                 .map((uuid) =>
                     mcpServers?.find((mcpServer) => mcpServer.uuid === uuid),
                 )
-                .filter((mcpServer): mcpServer is AiMcpServer => !!mcpServer),
+                .filter(
+                    (mcpServer): mcpServer is AiProjectMcpServer => !!mcpServer,
+                ),
         [value, mcpServers],
     );
     const handleTokenEstimateChange = useCallback(
@@ -932,6 +896,27 @@ export const AiAgentMcpServersInput = ({
         setAttachSelection([]);
         attachMcpServersModalHandlers.open();
     }, [attachMcpServersModalHandlers]);
+
+    const openManageMcpServersModal = useCallback(() => {
+        setAttachSelection([]);
+        attachMcpServersModalHandlers.close();
+        manageMcpServersModalHandlers.open();
+    }, [attachMcpServersModalHandlers, manageMcpServersModalHandlers]);
+
+    const handleMcpServerDeleted = useCallback(
+        (mcpServerUuid: string) => {
+            if (!value.includes(mcpServerUuid)) {
+                return;
+            }
+            const nextValue = value.filter((uuid) => uuid !== mcpServerUuid);
+            onChange(nextValue);
+            onPersistedChange?.(nextValue);
+            setExpandedMcpServers((current) =>
+                current.filter((uuid) => uuid !== mcpServerUuid),
+            );
+        },
+        [onChange, onPersistedChange, value],
+    );
 
     const handleAttachSelectionChange = useCallback(
         (nextValue: string[]) => {
@@ -1469,6 +1454,14 @@ export const AiAgentMcpServersInput = ({
                             <Button
                                 variant="default"
                                 size="compact-xs"
+                                onClick={openManageMcpServersModal}
+                                disabled={isPersistingSelection}
+                            >
+                                Manage MCPs
+                            </Button>
+                            <Button
+                                variant="default"
+                                size="compact-xs"
                                 onClick={openAttachMcpServersModal}
                                 disabled={isPersistingSelection}
                             >
@@ -1488,6 +1481,17 @@ export const AiAgentMcpServersInput = ({
                                 <Group gap="xs">
                                     {showGithubConnectButton &&
                                         renderGithubConnectButton('xs')}
+                                    <Button
+                                        variant="default"
+                                        size="xs"
+                                        disabled={
+                                            isLoadingMcpServers ||
+                                            isPersistingSelection
+                                        }
+                                        onClick={openManageMcpServersModal}
+                                    >
+                                        Manage MCPs
+                                    </Button>
                                     <Button
                                         variant="default"
                                         size="xs"
@@ -1811,6 +1815,13 @@ export const AiAgentMcpServersInput = ({
                 options={availableMcpServerOptions}
                 value={attachSelection}
                 onChange={handleAttachSelectionChange}
+                onManage={openManageMcpServersModal}
+            />
+            <ManageMcpServersModal
+                opened={isManageMcpServersModalOpen}
+                onClose={manageMcpServersModalHandlers.close}
+                projectUuid={projectUuid}
+                onDeleted={handleMcpServerDeleted}
             />
             <GithubMcpConnectModal
                 opened={isGithubConfirmModalOpen}

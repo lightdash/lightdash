@@ -41,6 +41,7 @@ import {
     AiMcpServerConnectionStatus,
     AiMcpServerTool,
     AiMcpServerToolInput,
+    AiProjectMcpServer,
     AiPromptContext,
     AiPromptContextInput,
     AiPromptContextItem,
@@ -1349,10 +1350,18 @@ export class AiAgentModel {
     async listMcpServers(
         projectUuid: string,
         userUuid?: string,
-    ): Promise<AiMcpServer[]> {
+    ): Promise<AiProjectMcpServer[]> {
         const rows = await this.database(AiMcpServerTableName)
-            .select<DbAiMcpServer[]>(
+            .select<(DbAiMcpServer & { attached_agent_count: string })[]>(
                 AiAgentModel.getMcpServerSelect(this.database),
+                this.database.raw(
+                    `(SELECT COUNT(*) FROM ?? WHERE ??.ai_mcp_server_uuid = ??.ai_mcp_server_uuid) AS attached_agent_count`,
+                    [
+                        AiAgentMcpServerTableName,
+                        AiAgentMcpServerTableName,
+                        AiMcpServerTableName,
+                    ],
+                ),
             )
             .where('project_uuid', projectUuid)
             .orderBy('created_at', 'asc');
@@ -1371,12 +1380,50 @@ export class AiAgentModel {
 
         const credentialMap = new Map(credentials);
 
-        return rows.map((row) =>
-            AiAgentModel.toAiMcpServer(
+        return rows.map((row) => ({
+            ...AiAgentModel.toAiMcpServer(
                 row,
                 credentialMap.get(row.ai_mcp_server_uuid) ?? null,
             ),
-        );
+            attachedAgentCount: Number(row.attached_agent_count),
+        }));
+    }
+
+    async renameMcpServer(args: {
+        projectUuid: string;
+        serverUuid: string;
+        name: string;
+        userUuid: string;
+    }): Promise<AiMcpServer> {
+        const [row] = await this.database(AiMcpServerTableName)
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .where('project_uuid', args.projectUuid)
+            .update({ name: args.name, updated_at: this.database.fn.now() })
+            .returning('*');
+
+        if (!row) {
+            throw new NotFoundError('MCP server not found');
+        }
+
+        const credential = await this.getMcpServerStatusCredential(row, {
+            userUuid: args.userUuid,
+        });
+        return AiAgentModel.toAiMcpServer(row, credential ?? null);
+    }
+
+    // Credentials, tools, attachments and tool settings go via FK cascade.
+    async deleteMcpServer(args: {
+        projectUuid: string;
+        serverUuid: string;
+    }): Promise<void> {
+        const deleted = await this.database(AiMcpServerTableName)
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .where('project_uuid', args.projectUuid)
+            .delete();
+
+        if (deleted === 0) {
+            throw new NotFoundError('MCP server not found');
+        }
     }
 
     async getMcpServer(
