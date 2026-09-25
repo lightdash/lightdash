@@ -34,6 +34,7 @@ import {
     AiAgentUserPreferences,
     AiArtifact,
     AiClonedThreadCreatedFrom,
+    AiComposerChartArtifactConfig,
     AiDuplicateSlackPromptError,
     AiEvalRunResultAssessment,
     AiMcpCredentialScope,
@@ -6242,7 +6243,7 @@ export class AiAgentModel {
 
     async updateArtifactVersionChartConfig(
         artifactVersionUuid: string,
-        chartConfig: Record<string, unknown>,
+        chartConfig: AiComposerChartArtifactConfig,
     ): Promise<void> {
         await this.database(AiArtifactVersionsTableName)
             .update({
