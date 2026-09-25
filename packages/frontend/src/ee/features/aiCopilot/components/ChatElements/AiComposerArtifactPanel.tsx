@@ -136,6 +136,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     <AiComposerArtifactVisualization
                         projectUuid={projectUuid}
                         results={results}
+                        queryUuid={queryUuid ?? null}
                         plan={plan}
                         kind={kind}
                         onKindChange={chooseKind}

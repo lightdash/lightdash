@@ -181,6 +181,7 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
         <AiVizSwitchedResult
             projectUuid={projectUuid}
             results={results}
+            seriesSplitQueryUuid={null}
             plan={plan}
             kind={pickVizKind(plan, chosenKind ?? 'table')}
             onKindChange={setChosenKind}

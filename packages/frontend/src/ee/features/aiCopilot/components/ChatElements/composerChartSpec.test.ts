@@ -1,6 +1,14 @@
-import { DimensionType, type ResultColumn } from '@lightdash/common';
+import {
+    DimensionType,
+    VizAggregationOptions,
+    VizIndexType,
+    type ResultColumn,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { buildComposerChartSpec } from './composerChartSpec';
+import {
+    buildComposerChartSpec,
+    buildComposerSeriesSplitSpec,
+} from './composerChartSpec';
 
 const column = (reference: string, type: DimensionType): ResultColumn => ({
     reference,
@@ -71,5 +79,69 @@ describe('buildComposerChartSpec', () => {
             kind: 'big_number',
             spec: expect.objectContaining({ value: 3, label: 'n' }),
         });
+    });
+});
+
+describe('buildComposerSeriesSplitSpec', () => {
+    it('draws one line per groupBy value from the pivoted result', async () => {
+        const valuesColumn = (region: string) => ({
+            referenceField: 'revenue',
+            pivotColumnName: `revenue_sum_region_${region}`,
+            aggregation: VizAggregationOptions.SUM,
+            pivotValues: [{ referenceField: 'region', value: region }],
+        });
+        const option = await buildComposerSeriesSplitSpec({
+            kind: 'line',
+            result: {
+                pivotChartData: {
+                    queryUuid: 'q',
+                    fileUrl: undefined,
+                    results: [
+                        {
+                            month: '2024-01-01',
+                            revenue_sum_region_eu: 10,
+                            revenue_sum_region_us: 20,
+                        },
+                        {
+                            month: '2024-02-01',
+                            revenue_sum_region_eu: 30,
+                            revenue_sum_region_us: null,
+                        },
+                    ],
+                    indexColumn: {
+                        reference: 'month',
+                        type: VizIndexType.TIME,
+                    },
+                    valuesColumns: [valuesColumn('eu'), valuesColumn('us')],
+                    columns: [
+                        { reference: 'month' },
+                        { reference: 'revenue_sum_region_eu' },
+                        { reference: 'revenue_sum_region_us' },
+                    ],
+                    columnCount: 3,
+                },
+                originalColumns: {
+                    month: column('month', DimensionType.DATE),
+                    region: column('region', DimensionType.STRING),
+                    revenue: column('revenue', DimensionType.NUMBER),
+                },
+            },
+            layout: {
+                x: { reference: 'month', type: VizIndexType.TIME },
+                y: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupBy: [{ reference: 'region' }],
+            },
+            colors,
+        });
+        expect(option.series.map((s: { type: string }) => s.type)).toEqual([
+            'line',
+            'line',
+        ]);
+        expect(option.dataset.source).toHaveLength(2);
     });
 });
