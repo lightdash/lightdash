@@ -29,6 +29,18 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 
+const NETWORK_ERROR_CODES = new Set([
+    'ECONNRESET',
+    'ECONNREFUSED',
+    'ECONNABORTED',
+    'ETIMEDOUT',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'EPIPE',
+]);
+
 type GoogleDriveClientArguments = {
     lightdashConfig: LightdashConfig;
 };
@@ -188,8 +200,25 @@ export class GoogleDriveClient {
                 });
             }
 
+            if (GoogleDriveClient.isNetworkError(err)) {
+                throw new GoogleSheetsTransientError(getErrorMessage(err));
+            }
+
             throw new UnexpectedGoogleSheetsError(getErrorMessage(err));
         }
+    }
+
+    // No HTTP response (DNS, reset, refused, timeout — incl. token refresh) is a
+    // transport failure, not a Google verdict: retry it instead of disabling.
+    private static isNetworkError(err: AnyType): boolean {
+        if (err?.response !== undefined) {
+            return false;
+        }
+        return (
+            err?.name === 'FetchError' ||
+            err?.name === 'AbortError' ||
+            NETWORK_ERROR_CODES.has(err?.code)
+        );
     }
 
     // Google doesn't always set Retry-After on quota errors, but honor it
