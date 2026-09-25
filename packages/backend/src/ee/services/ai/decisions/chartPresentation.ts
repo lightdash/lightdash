@@ -174,6 +174,30 @@ const defaultChart = (shape: ReturnType<typeof getChartResultShape>) => {
     );
 };
 
+/** A chart for a multi-row data answer when the rows form a readable series; null keeps the table. */
+export const getDataAnswerChart = ({
+    query,
+    explore,
+    rows,
+    resultFields,
+}: {
+    query: ToolRunQueryArgsTransformed;
+    explore: Explore;
+    rows: Record<string, unknown>[];
+    resultFields: ItemsMap;
+}): ToolRunQueryBuiltinChartConfig | null => {
+    if (
+        rows.length < 2 ||
+        rows.length > 10_000 ||
+        isCustomChartTypeSlugChartConfig(query.chartConfig)
+    )
+        return null;
+    const config = defaultChart(
+        getChartResultShape(query, explore, rows, resultFields),
+    );
+    return config && config.defaultVizType !== 'table' ? config : null;
+};
+
 export const resolveChartPresentation = async ({
     decisions,
     question,

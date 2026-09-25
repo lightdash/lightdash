@@ -44,6 +44,7 @@ import type { AgentDecisionContext } from '../decisions/agentQuestion';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import {
     getChartPresentationNote,
+    getDataAnswerChart,
     resolveChartPresentation,
 } from '../decisions/chartPresentation';
 import { chartQualityHints } from '../decisions/chartQuality';
@@ -86,6 +87,7 @@ import {
 import {
     convertQueryResultsToCsv,
     convertQueryResultsToMarkdown,
+    summarizeChartedResults,
 } from '../utils/convertQueryResultsToCsv';
 import {
     formatFilterExpressionError,
@@ -544,6 +546,14 @@ const registerChartExport = ({
     }
 };
 
+/** A charted answer reads as one factual line; anything else stays a table. */
+const getFastAnswerText = (
+    queryResults: { rows: Record<string, unknown>[]; fields: ItemsMap },
+    chart: ToolRunQueryBuiltinChartConfig | null,
+): string | null =>
+    (chart ? summarizeChartedResults(queryResults, chart) : null) ??
+    convertQueryResultsToMarkdown(queryResults);
+
 export const getRunQuery = ({
     purpose = 'visualization',
     enableFastResponse = false,
@@ -573,6 +583,7 @@ export const getRunQuery = ({
     enableChartExport = false,
     searchFieldValues,
 }: Dependencies) => {
+    const fastAnswer = enableFastResponse && purpose === 'answer';
     const toolView = (() => {
         if (enableFilterExpressions) {
             return enableMergeQueries
@@ -908,7 +919,29 @@ export const getRunQuery = ({
                                   rows: queryResults.rows,
                                   resultFields: queryResults.fields,
                               })
-                            : { config: null, advice: [] };
+                            : {
+                                  config: fastAnswer
+                                      ? getDataAnswerChart({
+                                            query: {
+                                                ...queryTool,
+                                                queryConfig: {
+                                                    ...queryTool.queryConfig,
+                                                    dimensions:
+                                                        queryResults.metricQuery
+                                                            .dimensions,
+                                                    metrics:
+                                                        queryResults.metricQuery
+                                                            .metrics,
+                                                    tableCalculations: null,
+                                                },
+                                            },
+                                            explore,
+                                            rows: queryResults.rows,
+                                            resultFields: queryResults.fields,
+                                        })
+                                      : null,
+                                  advice: [],
+                              };
                     if (presentation.config)
                         queryTool = {
                             ...queryTool,
@@ -984,11 +1017,10 @@ export const getRunQuery = ({
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
                             fastResponse:
-                                enableFastResponse &&
-                                purpose === 'answer' &&
-                                enableDataAccess
-                                    ? (convertQueryResultsToMarkdown(
+                                fastAnswer && enableDataAccess
+                                    ? (getFastAnswerText(
                                           queryResults,
+                                          presentation.config,
                                       ) ?? undefined)
                                     : undefined,
                         }),
@@ -1273,7 +1305,17 @@ export const getRunQuery = ({
                               rows: queryResults.rows,
                               resultFields: queryResults.fields,
                           })
-                        : { config: null, advice: [] };
+                        : {
+                              config: fastAnswer
+                                  ? getDataAnswerChart({
+                                        query: queryTool,
+                                        explore,
+                                        rows: queryResults.rows,
+                                        resultFields: queryResults.fields,
+                                    })
+                                  : null,
+                              advice: [],
+                          };
                 let defaultChart = presentation.config;
                 if (defaultChart) {
                     const presentedQuery = {
@@ -1392,12 +1434,12 @@ export const getRunQuery = ({
                         chartImageUrl,
                         artifact,
                         deferredSlack: !!deferSlackVisualization,
-                        fastResponse:
-                            enableFastResponse && purpose === 'answer'
-                                ? (convertQueryResultsToMarkdown(
-                                      queryResults,
-                                  ) ?? undefined)
-                                : undefined,
+                        fastResponse: fastAnswer
+                            ? (getFastAnswerText(
+                                  queryResults,
+                                  presentation.config,
+                              ) ?? undefined)
+                            : undefined,
                     }),
                 };
             } catch (e) {

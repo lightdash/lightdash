@@ -1,4 +1,8 @@
-import { getItemLabelWithoutTableName, type ItemsMap } from '@lightdash/common';
+import {
+    formatItemValue,
+    getItemLabelWithoutTableName,
+    type ItemsMap,
+} from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 
@@ -93,4 +97,51 @@ export const convertQueryResultsToMarkdown = (
         );
     }
     return table.join('\n');
+};
+
+/** One factual line for a charted answer: what it shows and where the first metric is highest and lowest. */
+export const summarizeChartedResults = (
+    queryResults: {
+        rows: Record<string, unknown>[];
+        fields: ItemsMap;
+    },
+    chart: {
+        xAxisDimension: string | null;
+        yAxisMetrics: string[] | null;
+        groupBy: string[] | null;
+    },
+): string | null => {
+    const x = chart.xAxisDimension;
+    const metric = chart.yAxisMetrics?.[0];
+    if (!x || !metric) return null;
+    const labelOf = (fieldId: string) => {
+        const item = queryResults.fields[fieldId];
+        return item ? getItemLabelWithoutTableName(item) : fieldId;
+    };
+    const pointIds = [x, ...(chart.groupBy ?? [])];
+    const points = queryResults.rows.flatMap((row) => {
+        const value = Number(row[metric]);
+        if (row[metric] === null || !Number.isFinite(value)) return [];
+        const cells = [...pointIds, metric].map((fieldId) => {
+            const item = queryResults.fields[fieldId];
+            return escapeMarkdownCell(
+                item ? formatItemValue(item, row[fieldId]) : row[fieldId],
+            );
+        });
+        return [
+            {
+                value,
+                where: cells.slice(0, pointIds.length).join(' · '),
+                formatted: cells[pointIds.length],
+            },
+        ];
+    });
+    if (points.length < 2) return null;
+    const sorted = [...points].sort((left, right) => right.value - left.value);
+    const highest = sorted[0];
+    const lowest = sorted[sorted.length - 1];
+    return [
+        `**${escapeMarkdownCell(labelOf(metric))}** by ${escapeMarkdownCell(pointIds.map(labelOf).join(' and '))}, ${queryResults.rows.length} rows.`,
+        `Highest: ${highest.where} at **${highest.formatted}**. Lowest: ${lowest.where} at **${lowest.formatted}**.`,
+    ].join(' ');
 };
