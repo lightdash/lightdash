@@ -49236,7 +49236,8 @@
                     "compactUsageEvents",
                     "pollEmailWhitelabelVerification",
                     "cleanWarehouseConnectCodes",
-                    "backfillDefaultUserSpaces"
+                    "backfillDefaultUserSpaces",
+                    "learnSandboxCommand"
                 ]
             },
             "BaseSchedulerLog": {
@@ -60975,6 +60976,186 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "LearnWorkspaceFileSummary": {
+                "properties": {
+                    "editable": {
+                        "type": "boolean"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["editable", "path"],
+                "type": "object"
+            },
+            "ApiLearnWorkspaceFilesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/LearnWorkspaceFileSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "LearnWorkspaceFile": {
+                "properties": {
+                    "editable": {
+                        "type": "boolean"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["editable", "content", "path"],
+                "type": "object"
+            },
+            "ApiLearnWorkspaceFileResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LearnWorkspaceFile"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiLearnCommandCreatedResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "commandUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["commandUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "LearnSandboxTool": {
+                "type": "string",
+                "enum": ["lightdash", "dbt"]
+            },
+            "LearnSandboxCommandRequest": {
+                "properties": {
+                    "args": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "subcommand": {
+                        "type": "string"
+                    },
+                    "tool": {
+                        "$ref": "#/components/schemas/LearnSandboxTool"
+                    }
+                },
+                "required": ["args", "subcommand", "tool"],
+                "type": "object"
+            },
+            "LearnCommandStatus": {
+                "type": "string",
+                "enum": ["queued", "running", "done", "error", "timeout"]
+            },
+            "LearnCommandOutputChunk": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "stream": {
+                        "type": "string",
+                        "enum": ["stdout", "stderr"]
+                    },
+                    "seq": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["text", "stream", "seq"],
+                "type": "object"
+            },
+            "LearnCommandOutput": {
+                "properties": {
+                    "finishedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chunks": {
+                        "items": {
+                            "$ref": "#/components/schemas/LearnCommandOutputChunk"
+                        },
+                        "type": "array"
+                    },
+                    "argv": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "exitCode": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/LearnCommandStatus"
+                    },
+                    "commandUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "finishedAt",
+                    "startedAt",
+                    "chunks",
+                    "argv",
+                    "exitCode",
+                    "status",
+                    "commandUuid"
+                ],
+                "type": "object"
+            },
+            "ApiLearnCommandOutputResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LearnCommandOutput"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
                 "properties": {
                     "results": {
@@ -66648,7 +66829,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.341.0",
+        "version": "2.342.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -103561,6 +103742,268 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/learn/workspace/files": {
+            "get": {
+                "operationId": "ListLearnWorkspaceFiles",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnWorkspaceFilesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the files in the learner's sandbox workspace",
+                "summary": "List workspace files",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/learn/workspace/files/{path}": {
+            "get": {
+                "operationId": "GetLearnWorkspaceFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnWorkspaceFileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the content of a single file in the learner's sandbox workspace.\nThe path is URL-encoded (e.g. `models%2Forders.yml`); tsoa/Express\ndecode it (including any encoded slashes) before it reaches this\nhandler, so `path` already holds the plain file path.",
+                "summary": "Get workspace file",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "SaveLearnWorkspaceFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Save the content of a single file in the learner's sandbox workspace.\nThe path is URL-encoded (e.g. `models%2Forders.yml`); tsoa/Express\ndecode it (including any encoded slashes) before it reaches this\nhandler, so `path` already holds the plain file path.",
+                "summary": "Save workspace file",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "content": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["content"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/learn/workspace/commands": {
+            "post": {
+                "operationId": "RunLearnWorkspaceCommand",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnCommandCreatedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Queue a lightdash or dbt command to run in the learner's sandbox\nworkspace",
+                "summary": "Run workspace command",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LearnSandboxCommandRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/learn/workspace/commands/{commandUuid}": {
+            "get": {
+                "operationId": "GetLearnWorkspaceCommandOutput",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnCommandOutputResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the status and output of a previously queued sandbox command.\nPass `after` (the highest `seq` already received) to page through\noutput as it streams in.",
+                "summary": "Get workspace command output",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "commandUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "after",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellIndex}/query": {

@@ -1,3 +1,21 @@
+# [2.342.0](https://github.com/lightdash/lightdash/compare/2.341.0...2.342.0) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agent:** render knowledge document summaries in listKnowledgeDocuments ([#29978](https://github.com/lightdash/lightdash/issues/29978)) ([2f5a450](https://github.com/lightdash/lightdash/commit/2f5a45038f4083e7044bca1eedc47c24c83853f0))
+* **ai-agents:** prompt MCP OAuth login when unconnected server fails ([#29967](https://github.com/lightdash/lightdash/issues/29967)) ([e61a7d4](https://github.com/lightdash/lightdash/commit/e61a7d4845bf5f01b1f704224906929406137d6c))
+* **ai:** derive AiCallFeature from its runtime list ([#29966](https://github.com/lightdash/lightdash/issues/29966)) ([d75e91e](https://github.com/lightdash/lightdash/commit/d75e91e31274e81970d18646edd69dccb6a4e36e))
+* **ai:** make the attribution key list exhaustive ([#29974](https://github.com/lightdash/lightdash/issues/29974)) ([ebe0263](https://github.com/lightdash/lightdash/commit/ebe026321a3896f57f4abeb61913fc01026499f7))
+* **chart-types:** allow creating a chart type without theme access ([#29977](https://github.com/lightdash/lightdash/issues/29977)) ([2f8121f](https://github.com/lightdash/lightdash/commit/2f8121f651afae5cec7d70628a7bdc47eb1468b3))
+* **connections:** four small fixes for multiple connections ([#29969](https://github.com/lightdash/lightdash/issues/29969)) ([b1fa169](https://github.com/lightdash/lightdash/commit/b1fa1699df93e180b6b0e43d1c1567648ff71c26))
+
+
+### Features
+
+* **learn:** developer sandbox backend (workspace, commands, streaming, scopes) ([#29121](https://github.com/lightdash/lightdash/issues/29121)) ([83241cb](https://github.com/lightdash/lightdash/commit/83241cbc4a591d99d50a56fc8fab454b6f356827))
+* **learn:** developer sandbox workspace page (file tree, YAML editor, guided terminal) ([#29200](https://github.com/lightdash/lightdash/issues/29200)) ([2a868b2](https://github.com/lightdash/lightdash/commit/2a868b27e1afff3cdcd9acdd3ec10a70299600b9)), closes [#29121](https://github.com/lightdash/lightdash/issues/29121)
+
 # [2.341.0](https://github.com/lightdash/lightdash/compare/2.340.0...2.341.0) (2026-09-25)
 
 
