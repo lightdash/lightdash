@@ -66,6 +66,7 @@ import {
     SortField,
     sqlAggregationWrapsReferences,
     sqlContainsAggregation,
+    startOfWeekDependentTimeFrames,
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
     timeFrameConfigs,
@@ -827,11 +828,31 @@ export class MetricQueryBuilder {
               this.exploreDimensions[baseDimensionId])
             : undefined;
 
-        // DATE base: no time component to shift, so the wrap would drift at midnight.
+        if (!baseDimension?.compiledSql) {
+            return { sql: dimension.compiledSql, lhsMode: 'legacy' };
+        }
+
+        // DATE base: no time component to shift, so the wrap would drift at
+        // midnight. Week grains are still rebuilt so the project's start of
+        // week wins over the one baked in at deploy time, as it does for
+        // TIMESTAMP bases below.
         if (
-            !baseDimension?.compiledSql ||
-            baseDimension.type !== DimensionType.TIMESTAMP
+            baseDimension.type === DimensionType.DATE &&
+            startOfWeekDependentTimeFrames.has(dimension.timeInterval)
         ) {
+            return {
+                sql: timeFrameConfigs[dimension.timeInterval].getSql(
+                    adapterType,
+                    dimension.timeInterval,
+                    baseDimension.compiledSql,
+                    baseDimension.type,
+                    startOfWeek,
+                ),
+                lhsMode: 'legacy',
+            };
+        }
+
+        if (baseDimension.type !== DimensionType.TIMESTAMP) {
             return { sql: dimension.compiledSql, lhsMode: 'legacy' };
         }
 
