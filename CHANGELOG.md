@@ -1,3 +1,10 @@
+## [2.337.1](https://github.com/lightdash/lightdash/compare/2.337.0...2.337.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **docker:** install versioned Perl backport packages ([#29868](https://github.com/lightdash/lightdash/issues/29868)) ([8637e11](https://github.com/lightdash/lightdash/commit/8637e1100d339c0f82117998afb965ff2896d68f))
+
 # [2.337.0](https://github.com/lightdash/lightdash/compare/2.336.2...2.337.0) (2026-09-25)
 
 
