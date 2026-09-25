@@ -172,12 +172,8 @@ export type DuckdbSourceQuery = {
         | QueryNodeId[]
         | Record<QuerySourceTableName, QueryResultReference>;
     /**
-     * Pivots this node's result the way a pivoted chart does, over the
-     * columns the SQL returns: {"indexColumn": {"reference": "month", "type":
-     * "time"}, "valuesColumns": [{"reference": "revenue", "aggregation":
-     * "sum"}], "groupByColumns": [{"reference": "status"}]}. Checked at submission: a reference to a column the SQL
-     * does not return, or more value columns than the column limit, is
-     * refused. Results carry pivotDetails. Omit for an unpivoted result.
+     * Pivots this node's result over the columns its SQL returns; checked at
+     * submission. Results carry pivotDetails. Omit for an unpivoted result.
      */
     pivotConfiguration?: PivotConfiguration;
 };

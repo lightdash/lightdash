@@ -8576,10 +8576,8 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * A pivot over discovered columns is composed before any row exists, as a
-     * merge's join is. When every referenced result is ready the SQL is
-     * probed so an unknown column refuses here; otherwise the run checks it
-     * once the columns exist.
+     * Probes a discovered-columns pivot at submission when every reference is
+     * ready; otherwise the run checks it once columns exist.
      */
     private async preflightDiscoveredPivot({
         account,
