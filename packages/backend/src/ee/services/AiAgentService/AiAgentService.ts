@@ -159,7 +159,9 @@ import {
     type AiAgentModelConfig,
     type AiAgentSkill,
     type AiArtifact,
+    type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
+    type AiDashboardRuntimeOverrides,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEvidencePack,
@@ -4329,32 +4331,60 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             prompt,
-            savedChartUuid,
-            dashboardUuid,
+            deliveryContent,
+            chart,
+            dashboard,
             sourceThreadUuid,
         }: {
             agentUuid: string;
             prompt: string;
-            savedChartUuid: string | null;
-            dashboardUuid: string | null;
+            deliveryContent: string;
+            chart: {
+                chartUuid: string;
+                runtimeOverrides: AiChartRuntimeOverrides | null;
+            } | null;
+            dashboard: {
+                dashboardUuid: string;
+                runtimeOverrides: AiDashboardRuntimeOverrides | null;
+            } | null;
             sourceThreadUuid: string | null;
         },
     ): Promise<string> {
         const context: AiPromptContextInput = [];
-        if (savedChartUuid) {
-            context.push({ type: 'chart', chartUuid: savedChartUuid });
+        if (chart) {
+            context.push({
+                type: 'chart',
+                chartUuid: chart.chartUuid,
+                runtimeOverrides: chart.runtimeOverrides ?? undefined,
+            });
         }
-        if (dashboardUuid) {
-            context.push({ type: 'dashboard', dashboardUuid });
+        if (dashboard) {
+            context.push({
+                type: 'dashboard',
+                dashboardUuid: dashboard.dashboardUuid,
+                runtimeOverrides: dashboard.runtimeOverrides ?? undefined,
+            });
         }
         if (sourceThreadUuid) {
             context.push({ type: 'thread', threadUuid: sourceThreadUuid });
         }
 
+        const reportPrompt =
+            deliveryContent.length > 0
+                ? [
+                      prompt,
+                      `The data below is exactly what this delivery sends its recipients, with the delivery's filters and parameters applied. Base the figures in your report on it, and apply the same filters and parameters to any query you run for more detail.`,
+                      `Delivery data:\n${deliveryContent}`,
+                  ].join('\n\n')
+                : prompt;
+
         const thread = await this.createAgentThread(
             user,
             agentUuid,
-            { prompt, context: context.length > 0 ? context : undefined },
+            {
+                prompt: reportPrompt,
+                context: context.length > 0 ? context : undefined,
+            },
             'scheduler',
         );
         if (!thread) {
