@@ -117,6 +117,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         <Box className={styles.floatingPanel}>
             <Box className={clsx(styles.floatingContent, styles.flushContent)}>
                 <AiComposerPipelinePanel
+                    projectUuid={projectUuid}
                     queries={config.queries}
                     terminalNodeId={config.terminalNodeId}
                     displayedNodeId={displayedNodeId}

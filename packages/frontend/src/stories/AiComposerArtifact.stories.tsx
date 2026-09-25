@@ -120,6 +120,7 @@ const ComposerArtifact = ({
                 )}
             >
                 <AiComposerPipelinePanel
+                    projectUuid="story"
                     queries={queries}
                     terminalNodeId={terminalNodeId}
                     displayedNodeId={terminalNodeId}

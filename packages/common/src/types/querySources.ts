@@ -10,6 +10,7 @@ import {
     type AdditionalMetric,
     type DimensionOverrides,
     type MetricOverrides,
+    type MetricQuery,
     type MetricQueryRequest,
     type SortField,
 } from './metricQuery';
@@ -298,3 +299,23 @@ export type ApiListQuerySourcesResults = {
 };
 
 export type ApiScanQuerySourceSchemaResults = QuerySourceSchema;
+
+export const DEFAULT_SOURCE_QUERY_LIMIT = 500;
+
+/** The metric query a semanticLayer node runs; unset fields take the empty-query defaults. */
+export const metricQueryOfSemanticNode = (
+    query: SemanticLayerSourceQuery,
+): MetricQuery => ({
+    exploreName: query.exploreName,
+    dimensions: query.dimensions,
+    metrics: query.metrics,
+    filters: query.filters ?? {},
+    sorts: query.sorts ?? [],
+    limit: query.limit ?? DEFAULT_SOURCE_QUERY_LIMIT,
+    tableCalculations: query.tableCalculations ?? [],
+    additionalMetrics: query.additionalMetrics,
+    customDimensions: query.customDimensions,
+    metricOverrides: query.metricOverrides,
+    dimensionOverrides: query.dimensionOverrides,
+    timezone: query.timezone,
+});

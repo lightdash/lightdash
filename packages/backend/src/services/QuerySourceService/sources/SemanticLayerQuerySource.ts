@@ -4,9 +4,9 @@ import {
     getItemId,
     getMetrics,
     isExploreError,
+    metricQueryOfSemanticNode,
     ParameterError,
     QuerySourceType,
-    type MetricQuery,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaColumn,
@@ -25,8 +25,6 @@ type SemanticLayerQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
     projectService: ProjectService;
 };
-
-const DEFAULT_SOURCE_QUERY_LIMIT = 500;
 
 /**
  * The project's semantic layer as a query source: explores are the tables,
@@ -145,22 +143,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
     }> {
         const sourceQuery = SemanticLayerQuerySource.assertSourceQuery(query);
 
-        // Only exploreName/dimensions/metrics are required on the wire; the
-        // rest defaults to the empty metric query here
-        const metricQuery: MetricQuery = {
-            exploreName: sourceQuery.exploreName,
-            dimensions: sourceQuery.dimensions,
-            metrics: sourceQuery.metrics,
-            filters: sourceQuery.filters ?? {},
-            sorts: sourceQuery.sorts ?? [],
-            limit: sourceQuery.limit ?? DEFAULT_SOURCE_QUERY_LIMIT,
-            tableCalculations: sourceQuery.tableCalculations ?? [],
-            additionalMetrics: sourceQuery.additionalMetrics,
-            customDimensions: sourceQuery.customDimensions,
-            metricOverrides: sourceQuery.metricOverrides,
-            dimensionOverrides: sourceQuery.dimensionOverrides,
-            timezone: sourceQuery.timezone,
-        };
+        const metricQuery = metricQueryOfSemanticNode(sourceQuery);
 
         const results = await this.asyncQueryService.executeAsyncMetricQuery({
             ...(documentQueryContext ? { documentQueryContext } : {}),

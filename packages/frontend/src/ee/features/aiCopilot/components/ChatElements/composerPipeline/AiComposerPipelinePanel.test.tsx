@@ -1,8 +1,18 @@
-import { QuerySourceType, type SourceQuery } from '@lightdash/common';
+import {
+    QuerySourceType,
+    VizIndexType,
+    type SourceQuery,
+} from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { AiComposerPipelinePanel } from './AiComposerPipelinePanel';
+
+vi.mock('../../../../../../hooks/useCompiledSql', () => ({
+    useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),
+}));
+const compiledSql = vi.mocked(useCompiledSqlFromMetricQuery);
 
 const queries: SourceQuery[] = [
     {
@@ -27,6 +37,7 @@ const queries: SourceQuery[] = [
 ];
 
 const renderPanel = (props: {
+    queries?: SourceQuery[];
     defaultExpanded?: boolean;
     defaultMode?: 'list' | 'graph';
     displayedNodeId?: string;
@@ -35,6 +46,7 @@ const renderPanel = (props: {
 }) =>
     renderWithProviders(
         <AiComposerPipelinePanel
+            projectUuid="project"
             queries={queries}
             terminalNodeId="joined"
             displayedNodeId="joined"
@@ -140,6 +152,7 @@ describe('AiComposerPipelinePanel earlier result placeholder', () => {
         const uuid = 'bcf89bb4-c964-4c1e-9a55-0d6a3f1a2b3c';
         renderWithProviders(
             <AiComposerPipelinePanel
+                projectUuid="project"
                 queries={[
                     {
                         sourceType: QuerySourceType.DUCKDB,
@@ -191,5 +204,65 @@ describe('AiComposerPipelinePanel query details', () => {
             { key: 'Enter' },
         );
         expect(onDisplayNode).toHaveBeenCalledWith('amounts');
+    });
+
+    it('compiles a semantic node query only once View query is opened', () => {
+        compiledSql.mockReturnValue({
+            data: { query: 'SELECT status FROM orders' },
+        } as unknown as ReturnType<typeof useCompiledSqlFromMetricQuery>);
+        renderPanel({
+            defaultExpanded: true,
+            queries: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'orders',
+                    title: 'Orders by status',
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_count'],
+                    pivotConfiguration: {
+                        indexColumn: [
+                            {
+                                reference: 'orders_status',
+                                type: VizIndexType.CATEGORY,
+                            },
+                        ],
+                        valuesColumns: [],
+                        groupByColumns: undefined,
+                        sortBy: undefined,
+                    },
+                },
+                queries[1],
+                queries[2],
+            ],
+        });
+        const row = document.getElementById('composer-pipeline-node-orders')!;
+        expect(compiledSql).not.toHaveBeenCalled();
+        fireEvent.click(
+            within(row).getByRole('button', { name: 'View query' }),
+        );
+        expect(compiledSql).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tableName: 'orders',
+                projectUuid: 'project',
+                metricQuery: expect.objectContaining({
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_count'],
+                    limit: 500,
+                }),
+                pivotConfiguration: expect.objectContaining({
+                    indexColumn: [
+                        {
+                            reference: 'orders_status',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
+                }),
+            }),
+        );
+        expect(row.querySelector('code')).toHaveTextContent(
+            /select\s+status\s+from\s+orders/i,
+        );
     });
 });
