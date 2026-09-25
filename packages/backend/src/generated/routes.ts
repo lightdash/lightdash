@@ -65026,6 +65026,7 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { ref: 'SchedulerFormat.IMAGE' },
+                { ref: 'SchedulerFormat.PDF' },
                 { ref: 'SchedulerFormat.CSV' },
                 { ref: 'SchedulerFormat.XLSX' },
             ],

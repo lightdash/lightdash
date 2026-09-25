@@ -1,3 +1,10 @@
+# [2.344.0](https://github.com/lightdash/lightdash/compare/2.343.0...2.344.0) (2026-09-25)
+
+
+### Features
+
+* add PDF dashboard exports ([#29980](https://github.com/lightdash/lightdash/issues/29980)) ([e8092b8](https://github.com/lightdash/lightdash/commit/e8092b80134aafb31a290a52204477fe984a5d77))
+
 # [2.343.0](https://github.com/lightdash/lightdash/compare/2.342.4...2.343.0) (2026-09-25)
 
 
