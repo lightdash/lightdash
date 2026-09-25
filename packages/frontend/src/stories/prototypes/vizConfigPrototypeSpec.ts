@@ -339,3 +339,15 @@ export const applies = (kind: Kind) => ({
     display: kind === 'bar' || kind === 'line',
     stack: kind === 'bar' || kind === 'line',
 });
+
+export const KINDS: { kind: Kind; chartKind: ChartKind; label: string }[] = [
+    { kind: 'table', chartKind: ChartKind.TABLE, label: 'Table' },
+    { kind: 'bar', chartKind: ChartKind.VERTICAL_BAR, label: 'Bar' },
+    { kind: 'line', chartKind: ChartKind.LINE, label: 'Line' },
+    { kind: 'pie', chartKind: ChartKind.PIE, label: 'Pie' },
+    {
+        kind: 'big_number',
+        chartKind: ChartKind.BIG_NUMBER,
+        label: 'Big value',
+    },
+];

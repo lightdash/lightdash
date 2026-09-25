@@ -5,6 +5,7 @@ import {
     VizAggregationOptions,
     VizIndexType,
     type AllVizChartConfig,
+    type AnyType,
     type SourceQuery,
 } from '@lightdash/common';
 import {
@@ -21,6 +22,7 @@ import {
     TextInput,
     Tooltip,
     type SelectProps,
+    useComputedColorScheme,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
@@ -34,6 +36,7 @@ import { AiComposerPipelinePanel } from '../../ee/features/aiCopilot/components/
 import styles from './AiComposerVizConfig.prototype.module.css';
 import {
     AGG_LABELS,
+    KINDS,
     applies,
     buildPrototypeSpec,
     COLUMNS,
@@ -81,11 +84,27 @@ const queries: SourceQuery[] = [
 ];
 
 /** Real floating panel chrome + real pipeline panel; children fill the results area. */
-export const Frame: FC<{ headRight?: ReactNode; children: ReactNode }> = ({
-    headRight,
-    children,
-}) => (
-    <Box w={760} h={900}>
+export const Frame: FC<{
+    headRight?: ReactNode;
+    children: ReactNode;
+    // Remount key to force the pipeline closed; it only takes defaultExpanded.
+    pipelineKey?: number;
+    onQueriesToggle?: (opening: boolean) => void;
+}> = ({ headRight, children, pipelineKey, onQueriesToggle }) => (
+    <Box
+        w={760}
+        h={900}
+        onClickCapture={(e) => {
+            const toggle = (e.target as HTMLElement).closest(
+                'button[aria-expanded]',
+            );
+            if (toggle?.textContent?.trim() === 'Queries') {
+                onQueriesToggle?.(
+                    toggle.getAttribute('aria-expanded') !== 'true',
+                );
+            }
+        }}
+    >
         <Box className={panelStyles.floatingPanel}>
             <Box
                 className={clsx(
@@ -94,6 +113,7 @@ export const Frame: FC<{ headRight?: ReactNode; children: ReactNode }> = ({
                 )}
             >
                 <AiComposerPipelinePanel
+                    key={pipelineKey}
                     projectUuid="story"
                     queries={queries}
                     terminalNodeId="revenue_vs_target"
@@ -133,18 +153,6 @@ export const Frame: FC<{ headRight?: ReactNode; children: ReactNode }> = ({
     </Box>
 );
 
-const KINDS: { kind: Kind; chartKind: ChartKind; label: string }[] = [
-    { kind: 'table', chartKind: ChartKind.TABLE, label: 'Table' },
-    { kind: 'bar', chartKind: ChartKind.VERTICAL_BAR, label: 'Bar' },
-    { kind: 'line', chartKind: ChartKind.LINE, label: 'Line' },
-    { kind: 'pie', chartKind: ChartKind.PIE, label: 'Pie' },
-    {
-        kind: 'big_number',
-        chartKind: ChartKind.BIG_NUMBER,
-        label: 'Big number',
-    },
-];
-
 export const KindSwitcher: FC<ConfigProps> = ({ config, onChange }) => (
     <Group gap={2} wrap="nowrap" onClick={(e) => e.stopPropagation()}>
         {KINDS.map(({ kind, chartKind, label }) => (
@@ -152,7 +160,6 @@ export const KindSwitcher: FC<ConfigProps> = ({ config, onChange }) => (
                 <ActionIcon
                     size="sm"
                     variant={config.kind === kind ? 'light' : 'subtle'}
-                    color={config.kind === kind ? 'indigo' : undefined}
                     aria-label={label}
                     aria-pressed={config.kind === kind}
                     onClick={() => onChange({ kind })}
@@ -163,6 +170,28 @@ export const KindSwitcher: FC<ConfigProps> = ({ config, onChange }) => (
         ))}
     </Group>
 );
+
+// Prototype-only dark axes: ldGray 2/3/6 of the dark ramp.
+const darkAxis = (axis: Record<string, AnyType>) => ({
+    ...axis,
+    axisLabel: { ...axis.axisLabel, color: '#9a9aa3' },
+    nameTextStyle: { ...axis.nameTextStyle, color: '#9a9aa3' },
+    axisLine: {
+        ...axis.axisLine,
+        lineStyle: { ...axis.axisLine?.lineStyle, color: '#3d3d42' },
+    },
+    splitLine: {
+        ...axis.splitLine,
+        lineStyle: { ...axis.splitLine?.lineStyle, color: '#303034' },
+    },
+});
+const mapAxes = (axes: AnyType) =>
+    Array.isArray(axes) ? axes.map(darkAxis) : axes ? darkAxis(axes) : axes;
+const darkenAxes = (option: Record<string, AnyType>) => ({
+    ...option,
+    xAxis: mapAxes(option.xAxis),
+    yAxis: mapAxes(option.yAxis),
+});
 
 const chartType = (kind: Kind): AllVizChartConfig['type'] =>
     kind === 'bar'
@@ -187,6 +216,7 @@ export const ChartPreview: FC<{ config: VizConfig }> = ({ config }) => {
         };
     }, [config]);
     const spec = built?.config === config ? built.spec : null;
+    const isDark = useComputedColorScheme('light') === 'dark';
 
     if (config.kind === 'table') {
         return (
@@ -273,7 +303,13 @@ export const ChartPreview: FC<{ config: VizConfig }> = ({ config }) => {
                     display: undefined,
                 } as AllVizChartConfig
             }
-            spec={spec?.kind === 'echarts' ? spec.option : undefined}
+            spec={
+                spec?.kind === 'echarts'
+                    ? isDark
+                        ? darkenAxes(spec.option)
+                        : spec.option
+                    : undefined
+            }
             isLoading={spec === null}
             style={{ height: '100%', width: '100%' }}
         />
@@ -386,11 +422,12 @@ export const SortSelect: FC<FieldProps> = (p) => (
 type ToggleKey = 'stack' | 'legend' | 'valueLabels';
 
 export const ConfigSwitch: FC<
-    ConfigProps & { field: ToggleKey; label?: string }
-> = ({ config, onChange, field, label }) => (
+    ConfigProps & { field: ToggleKey; label?: string; description?: string }
+> = ({ config, onChange, field, label, description }) => (
     <Switch
         size="xs"
         label={label}
+        description={description}
         disabled={
             field === 'stack'
                 ? !applies(config.kind).stack

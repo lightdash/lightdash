@@ -7,10 +7,14 @@ import {
     Divider,
     Group,
     Popover,
+    SimpleGrid,
+    Tabs,
+    UnstyledButton,
     ScrollArea,
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import {
@@ -20,6 +24,7 @@ import {
 import { clsx } from 'clsx';
 import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import styles from './AiComposerVizConfig.prototype.module.css';
 import {
     AggSelect,
@@ -38,6 +43,7 @@ import {
     AGG_SYMBOL,
     applies,
     INITIAL_CONFIG,
+    KINDS,
     summarize,
     type VizConfig,
 } from './vizConfigPrototypeSpec';
@@ -51,98 +57,157 @@ const useConfig = (initial: VizConfig = INITIAL_CONFIG) => {
 
 /* ---------------- Bar ---------------- */
 
-const railInput = { input: styles.railInput };
+type BarTab = 'chart' | 'data' | 'display';
 
-const RailRow: FC<{
-    label: string;
-    disabled?: boolean;
-    children: ReactNode;
-}> = ({ label, disabled, children }) => (
-    <Box className={styles.railRow} data-disabled={disabled}>
-        <Text component="span" className={styles.railLabel}>
-            {label}
-        </Text>
-        <Box className={styles.railControl}>{children}</Box>
-    </Box>
+// Disabled controls say why on hover.
+const DisabledReason: FC<{ reason: string | null; children: ReactNode }> = ({
+    reason,
+    children,
+}) => (
+    <Tooltip label={reason} disabled={!reason} withinPortal>
+        <Box>{children}</Box>
+    </Tooltip>
 );
 
-const BarBody: FC<ConfigProps> = (p) => {
-    const a = applies(p.config.kind);
+const TabNote: FC<{ children: ReactNode }> = ({ children }) => (
+    <Text size="xs" c="dimmed">
+        {children}
+    </Text>
+);
+
+const TabIntro: FC<{ title: string; description: string }> = ({
+    title,
+    description,
+}) => (
+    <Stack gap={2}>
+        <Title order={6} c="ldGray.7" size="sm" fw={500}>
+            {title}
+        </Title>
+        <Text size="xs" c="dimmed">
+            {description}
+        </Text>
+    </Stack>
+);
+
+const ChartTab: FC<ConfigProps> = (p) => (
+    <Stack gap="md">
+        <TabIntro title="Chart type" description="How the result is drawn." />
+        <SimpleGrid cols={5} spacing="xs">
+            {KINDS.map(({ kind, chartKind, label }) => (
+                <UnstyledButton
+                    key={kind}
+                    className={styles.kindTile}
+                    data-selected={p.config.kind === kind}
+                    aria-pressed={p.config.kind === kind}
+                    onClick={() => p.onChange({ kind })}
+                >
+                    <MantineIcon icon={getChartIcon(chartKind)} size={20} />
+                    <Text component="span" fz="xs">
+                        {label}
+                    </Text>
+                </UnstyledButton>
+            ))}
+        </SimpleGrid>
+        {applies(p.config.kind).stack && (
+            <>
+                <Divider />
+                <ConfigSwitch
+                    {...p}
+                    field="stack"
+                    label="Stack series"
+                    description="Pile split series on top of each other."
+                />
+            </>
+        )}
+    </Stack>
+);
+
+const DataTab: FC<ConfigProps> = (p) => {
+    const { kind } = p.config;
+    if (kind === 'table') {
+        return <TabNote>Tables show every column of the result.</TabNote>;
+    }
+    const value = (
+        <Group gap="xs" grow wrap="nowrap" align="flex-start">
+            <YSelect {...p} label="Value" />
+            <AggSelect {...p} label="Aggregation" />
+        </Group>
+    );
+    if (kind === 'big_number') {
+        return (
+            <Stack gap="sm">
+                <TabNote>A big value shows one number over all rows.</TabNote>
+                <SimpleGrid cols={2} spacing="md">
+                    {value}
+                </SimpleGrid>
+            </Stack>
+        );
+    }
     return (
-        <Box className={styles.columns}>
-            <Box className={styles.column}>
-                <Text className={styles.eyebrow}>Data</Text>
-                <RailRow label="X axis" disabled={!a.x}>
-                    <XSelect {...p} variant="unstyled" classNames={railInput} />
-                </RailRow>
-                <RailRow label="Y value" disabled={!a.y}>
-                    <YSelect {...p} variant="unstyled" classNames={railInput} />
-                    <AggSelect
-                        {...p}
-                        variant="unstyled"
-                        classNames={railInput}
-                    />
-                </RailRow>
-                <RailRow label="Split by" disabled={!a.split}>
-                    <SplitSelect
-                        {...p}
-                        variant="unstyled"
-                        classNames={railInput}
-                    />
-                </RailRow>
-                <RailRow label="Sort" disabled={!a.sort}>
-                    <SortSelect
-                        {...p}
-                        variant="unstyled"
-                        classNames={railInput}
-                    />
-                </RailRow>
-            </Box>
-            <Box className={styles.column}>
-                <Text className={styles.eyebrow}>Display</Text>
-                <RailRow label="Stack" disabled={!a.stack}>
-                    <ConfigSwitch {...p} field="stack" />
-                </RailRow>
-                <RailRow label="Legend" disabled={!a.display}>
-                    <ConfigSwitch {...p} field="legend" />
-                </RailRow>
-                <RailRow label="Values" disabled={!a.display}>
-                    <ConfigSwitch {...p} field="valueLabels" />
-                </RailRow>
-                <RailRow label="X label" disabled={!a.display}>
-                    <AxisLabelInput
-                        {...p}
-                        field="xLabel"
-                        variant="unstyled"
-                        className={styles.railInput}
-                    />
-                </RailRow>
-                <RailRow label="Y label" disabled={!a.display}>
-                    <AxisLabelInput
-                        {...p}
-                        field="yLabel"
-                        variant="unstyled"
-                        className={styles.railInput}
-                    />
-                </RailRow>
-            </Box>
-        </Box>
+        <SimpleGrid cols={2} spacing="md" verticalSpacing="sm">
+            <XSelect {...p} label={kind === 'pie' ? 'Slices' : 'X axis'} />
+            {value}
+            <DisabledReason
+                reason={
+                    applies(kind).split ? null : 'Pie charts have one series'
+                }
+            >
+                <SplitSelect {...p} label="Split series by" />
+            </DisabledReason>
+            <SortSelect {...p} label="Sort" />
+        </SimpleGrid>
     );
 };
 
-const BarVariant: FC<{ defaultOpen?: boolean }> = ({ defaultOpen = false }) => {
+const DisplayTab: FC<ConfigProps> = (p) =>
+    applies(p.config.kind).display ? (
+        <SimpleGrid cols={2} spacing="md" verticalSpacing="sm">
+            <Stack gap="sm" pt={4}>
+                <ConfigSwitch {...p} field="legend" label="Legend" />
+                <ConfigSwitch {...p} field="valueLabels" label="Value labels" />
+            </Stack>
+            <Stack gap="sm">
+                <AxisLabelInput {...p} field="xLabel" label="X axis label" />
+                <AxisLabelInput {...p} field="yLabel" label="Y axis label" />
+            </Stack>
+        </SimpleGrid>
+    ) : (
+        <TabNote>Display options apply to bar and line charts.</TabNote>
+    );
+
+const BarVariant: FC<{ defaultOpen?: boolean; defaultTab?: BarTab }> = ({
+    defaultOpen = false,
+    defaultTab = 'chart',
+}) => {
     const { config, onChange } = useConfig();
     const [open, setOpen] = useState(defaultOpen);
+    const [queriesOpen, setQueriesOpen] = useState(false);
+    const [pipelineKey, setPipelineKey] = useState(0);
+    const toggleChart = () => {
+        if (!open && queriesOpen) {
+            setQueriesOpen(false);
+            setPipelineKey((k) => k + 1);
+        }
+        setOpen(!open);
+    };
+    const [tab, setTab] = useState<BarTab>(defaultTab);
+    const p = { config, onChange };
+    const kind = KINDS.find((k) => k.kind === config.kind)!;
     return (
-        <Frame>
+        <Frame
+            pipelineKey={pipelineKey}
+            onQueriesToggle={(opening) => {
+                setQueriesOpen(opening);
+                if (opening) setOpen(false);
+            }}
+        >
             <Box className={styles.chartArea}>
                 <ChartPreview config={config} />
             </Box>
-            <Box
+            <UnstyledButton
                 className={styles.bar}
-                role="button"
                 aria-expanded={open}
-                onClick={() => setOpen((o) => !o)}
+                onClick={toggleChart}
             >
                 <Box className={styles.barToggle}>
                     <MantineIcon
@@ -158,20 +223,43 @@ const BarVariant: FC<{ defaultOpen?: boolean }> = ({ defaultOpen = false }) => {
                         Chart
                     </Text>
                 </Box>
-                <KindSwitcher config={config} onChange={onChange} />
                 <Box className={styles.spacer} />
+                <MantineIcon
+                    icon={getChartIcon(kind.chartKind)}
+                    size={14}
+                    color="dimmed"
+                />
                 <Text component="span" className={styles.meta}>
-                    {summarize(config)}
+                    {kind.label} · {summarize(config)}
                 </Text>
-            </Box>
-            <Collapse
-                expanded={open}
-                transitionDuration={220}
-                transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
-            >
-                <Box className={styles.barBody}>
-                    <BarBody config={config} onChange={onChange} />
-                </Box>
+            </UnstyledButton>
+            <Collapse expanded={open}>
+                <Tabs
+                    value={tab}
+                    onChange={(v) =>
+                        setTab(v === 'data' || v === 'display' ? v : 'chart')
+                    }
+                    classNames={{ list: styles.tabList }}
+                >
+                    <Tabs.List>
+                        <Tabs.Tab value="chart">Chart</Tabs.Tab>
+                        <Tabs.Tab value="data">Data</Tabs.Tab>
+                        <Tabs.Tab value="display">Display</Tabs.Tab>
+                    </Tabs.List>
+                    <ScrollArea.Autosize mah="45cqh" type="auto">
+                        <Box p="md">
+                            <Tabs.Panel value="chart">
+                                <ChartTab {...p} />
+                            </Tabs.Panel>
+                            <Tabs.Panel value="data">
+                                <DataTab {...p} />
+                            </Tabs.Panel>
+                            <Tabs.Panel value="display">
+                                <DisplayTab {...p} />
+                            </Tabs.Panel>
+                        </Box>
+                    </ScrollArea.Autosize>
+                </Tabs>
             </Collapse>
         </Frame>
     );

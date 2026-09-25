@@ -88,68 +88,32 @@
     white-space: nowrap;
 }
 
-.barBody {
-    max-height: 45cqh;
-    overflow: auto;
-    padding: 2px var(--mantine-spacing-md) var(--mantine-spacing-md);
-    background: var(--ld-color-page);
+.tabList {
+    padding: 0 var(--mantine-spacing-md);
 }
 
-.columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: var(--mantine-spacing-xl);
-}
-
-.column {
+/* Chart type tiles: icon over label; selected is a neutral fill, no accent. */
+.kindTile {
     display: flex;
     flex-direction: column;
-}
-
-.eyebrow {
-    padding: 8px 0 6px;
-}
-
-.railRow {
-    display: flex;
     align-items: center;
-    gap: var(--mantine-spacing-xs);
-    min-height: 28px;
+    gap: var(--mantine-spacing-xxs);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xxs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    color: var(--mantine-color-dimmed);
 }
 
-.railLabel {
-    width: 66px;
-    flex-shrink: 0;
-    font-size: 11.5px;
-    color: var(--mantine-color-ldGray-6);
+.kindTile:hover {
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
 }
 
-.railControl {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
-}
-
-.railRow[data-disabled='true'] {
-    opacity: 0.4;
-}
-
-/* Boxless inputs: text until hovered. */
-.railInput {
-    height: 26px;
-    min-height: 26px;
-    padding-left: 6px;
-    border-radius: var(--mantine-radius-sm);
-    font-size: 12.5px;
-    color: var(--mantine-color-ldGray-9);
-    transition: background-color 120ms ease;
-}
-
-.railInput:hover:not(:disabled),
-.railInput:focus {
-    background: var(--mantine-color-ldGray-0);
+.kindTile[data-selected='true'] {
+    border-color: var(--mantine-color-ldGray-4);
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+    font-weight: 500;
 }
 
 /* ---------- Toolbar variant ---------- */
@@ -245,11 +209,4 @@
         transition: none;
         animation: none;
     }
-}
-
-/* Row opacity already dims; keep disabled inputs boxless. */
-.railInput:disabled,
-.railInput[data-disabled] {
-    background: transparent;
-    opacity: 1;
 }
