@@ -10,6 +10,7 @@ import {
 import {
     ActionIcon,
     Box,
+    Collapse,
     Group,
     Paper,
     SegmentedControl,
@@ -40,12 +41,12 @@ import {
 } from '@xyflow/react';
 import { clsx } from 'clsx';
 import {
-    useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
     type FC,
+    type KeyboardEvent,
     type ReactNode,
 } from 'react';
 import '@xyflow/react/dist/style.css';
@@ -167,53 +168,123 @@ const SourceType: FC<{ query: SourceQuery }> = ({ query }) => {
 
 const QueryDetails: FC<{ query: SourceQuery }> = ({ query }) => {
     const sql = useMemo(() => formattedSqlOf(query), [query]);
+    const [queryOpen, setQueryOpen] = useState(false);
     return (
         <>
             {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
                 <SemanticFields query={query} />
             )}
             {sql && (
-                <Box className={styles.code}>
-                    <CodeBlock code={sql} language="sql" />
+                // Reading or copying the query must not display the node.
+                <Box
+                    className={styles.details}
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    <UnstyledButton
+                        className={styles.queryToggle}
+                        onClick={() => setQueryOpen((value) => !value)}
+                        aria-expanded={queryOpen}
+                    >
+                        <MantineIcon
+                            icon={IconChevronRight}
+                            size={11}
+                            stroke={1.6}
+                            className={clsx(
+                                styles.chevron,
+                                queryOpen && styles.chevronOpen,
+                            )}
+                        />
+                        {queryOpen ? 'Hide query' : 'View query'}
+                    </UnstyledButton>
+                    <Collapse
+                        expanded={queryOpen}
+                        transitionDuration={240}
+                        transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
+                    >
+                        <Box className={styles.code}>
+                            <CodeBlock code={sql} language="sql" />
+                        </Box>
+                    </Collapse>
                 </Box>
             )}
         </>
     );
 };
 
-const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
+type NodeDisplay = {
+    displayedNodeId: string;
+    /** Nodes with a stored result; the rest are inert. */
+    displayableNodeIds: ReadonlySet<string>;
+    onDisplayNode: (nodeId: string) => void;
+};
+
+const PipelineNodeRow: FC<{ node: PipelineNode } & NodeDisplay> = ({
     node,
-    selected,
-}) => (
-    <Box
-        className={clsx(styles.node, selected && styles.selected)}
-        id={pipelineNodeRowId(node.nodeId)}
-        data-node-id={node.nodeId}
-        data-selected={selected}
-    >
-        <Box className={styles.nodeHead}>
+    displayedNodeId,
+    displayableNodeIds,
+    onDisplayNode,
+}) => {
+    const displayed = node.nodeId === displayedNodeId;
+    const displayable = displayableNodeIds.has(node.nodeId);
+    const head = (
+        <>
             <Box className={styles.dot} />
             <Text component="span" className={styles.nodeTitle}>
                 {node.title}
             </Text>
             {node.kind === 'query' && <SourceType query={node.query} />}
+        </>
+    );
+    // The whole card is the click target; it holds other controls, so it is
+    // a div with a button role rather than a native button.
+    const clickable = displayable
+        ? {
+              role: 'button',
+              tabIndex: 0,
+              onClick: () => onDisplayNode(node.nodeId),
+              onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onDisplayNode(node.nodeId);
+                  }
+              },
+              'aria-pressed': displayed,
+              'aria-label': `Display ${node.title}`,
+          }
+        : {};
+    return (
+        <Box
+            className={clsx(
+                styles.node,
+                displayable && styles.clickable,
+                displayed && styles.displayed,
+            )}
+            id={pipelineNodeRowId(node.nodeId)}
+            data-node-id={node.nodeId}
+            data-displayed={displayed}
+            {...clickable}
+        >
+            <Box className={styles.nodeHead}>{head}</Box>
+            {node.description && (
+                <Text className={styles.nodeDescription}>
+                    {node.description}
+                </Text>
+            )}
+            {node.reads.length > 0 && (
+                <Text className={styles.nodeReads}>
+                    Reads {node.reads.join(', ')}
+                </Text>
+            )}
+            {node.kind === 'query' && <QueryDetails query={node.query} />}
         </Box>
-        {node.description && (
-            <Text className={styles.nodeDescription}>{node.description}</Text>
-        )}
-        {node.reads.length > 0 && (
-            <Text className={styles.nodeReads}>
-                Reads {node.reads.join(', ')}
-            </Text>
-        )}
-        {node.kind === 'query' && <QueryDetails query={node.query} />}
-    </Box>
-);
+    );
+};
 
-const PipelineList: FC<{
-    layers: PipelineLayer[];
-    selectedNodeId: string | null;
-}> = ({ layers, selectedNodeId }) => (
+const PipelineList: FC<{ layers: PipelineLayer[] } & NodeDisplay> = ({
+    layers,
+    ...display
+}) => (
     <Box className={styles.body}>
         {layers.map((layer) => (
             <Box key={layer.depth} className={styles.layer}>
@@ -243,7 +314,7 @@ const PipelineList: FC<{
                     <PipelineNodeRow
                         key={node.nodeId}
                         node={node}
-                        selected={node.nodeId === selectedNodeId}
+                        {...display}
                     />
                 ))}
             </Box>
@@ -257,7 +328,10 @@ const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
         type="button"
         className={styles.graphNode}
         data-terminal={data.isTerminal}
-        aria-label={`Go to ${data.title}`}
+        data-displayed={data.isDisplayed}
+        aria-disabled={!data.isDisplayable}
+        aria-pressed={data.isDisplayed}
+        aria-label={`Display ${data.title}`}
         title={data.title}
     >
         <Handle
@@ -288,12 +362,30 @@ const nodeTypes: NodeTypes = { pipeline: PipelineFlowNodeView };
 const edgeTypes: EdgeTypes = { pipeline: DefaultEdge };
 const FIT_VIEW_OPTIONS = { padding: 0.1, maxZoom: 1 };
 
-const PipelineFlow: FC<{
-    layers: PipelineLayer[];
-    onSelect: (nodeId: string) => void;
-}> = ({ layers, onSelect }) => {
-    const flow = useMemo(() => toPipelineFlow(layers), [layers]);
+const PipelineFlow: FC<{ layers: PipelineLayer[] } & NodeDisplay> = ({
+    layers,
+    displayedNodeId,
+    displayableNodeIds,
+    onDisplayNode,
+}) => {
+    const flow = useMemo(
+        () => toPipelineFlow(layers, { displayedNodeId, displayableNodeIds }),
+        [layers, displayedNodeId, displayableNodeIds],
+    );
     const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
+
+    // Node data is copied into React Flow's store; keep the marks current.
+    useEffect(() => {
+        const dataById = new Map(
+            flow.nodes.map((node) => [node.id, node.data]),
+        );
+        setNodes((current) =>
+            current.map((node) => ({
+                ...node,
+                data: dataById.get(node.id) ?? node.data,
+            })),
+        );
+    }, [flow.nodes, setNodes]);
     const laidOut = useRef(false);
     const initialized = useNodesInitialized();
     const { fitView } = useReactFlow();
@@ -321,7 +413,9 @@ const PipelineFlow: FC<{
                 nodes={nodes}
                 edges={flow.edges}
                 onNodesChange={onNodesChange}
-                onNodeClick={(_, node) => onSelect(node.id)}
+                onNodeClick={(_, node) => {
+                    if (displayableNodeIds.has(node.id)) onDisplayNode(node.id);
+                }}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
                 fitView
@@ -353,13 +447,13 @@ const pipelineKey = (layers: PipelineLayer[]) =>
         .join('|');
 
 /** Nodes as boxes, reads as edges, laid out left to right. */
-const PipelineGraph: FC<{
-    layers: PipelineLayer[];
-    onSelect: (nodeId: string) => void;
-}> = ({ layers, onSelect }) =>
+const PipelineGraph: FC<{ layers: PipelineLayer[] } & NodeDisplay> = ({
+    layers,
+    ...display
+}) =>
     layers.length === 0 ? null : (
         <ReactFlowProvider key={pipelineKey(layers)}>
-            <PipelineFlow layers={layers} onSelect={onSelect} />
+            <PipelineFlow layers={layers} {...display} />
         </ReactFlowProvider>
     );
 
@@ -405,29 +499,34 @@ const PipelineBar: FC<{
     </Box>
 );
 
-type Props = {
+type Props = NodeDisplay & {
     queries: SourceQuery[];
     terminalNodeId: string;
-    /** The results shown above the panel. */
+    /** The displayed node result shown above the panel. */
     children: ReactNode;
     defaultExpanded?: boolean;
     defaultMode?: PipelineMode;
 };
 
-/**
- * Pipeline panel: results on top, the pipeline underneath. Collapsed it is a
- * single bar; expanded it becomes a vertical splitter the user can drag.
- */
+// The displayed node result on top, the pipeline underneath: a bar when
+// collapsed, a draggable splitter when expanded. Clicking a node displays it.
 export const AiComposerPipelinePanel: FC<Props> = ({
     queries,
     terminalNodeId,
+    displayedNodeId,
+    displayableNodeIds,
+    onDisplayNode,
     children,
     defaultExpanded = false,
     defaultMode = 'list',
 }) => {
     const [expanded, setExpanded] = useState(defaultExpanded);
     const [mode, setMode] = useState<PipelineMode>(defaultMode);
-    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const display: NodeDisplay = {
+        displayedNodeId,
+        displayableNodeIds,
+        onDisplayNode,
+    };
     const layers = useMemo(
         () => groupPipeline(queries, terminalNodeId),
         [queries, terminalNodeId],
@@ -441,17 +540,6 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             onModeChange={setMode}
         />
     );
-    const selectNode = useCallback((nodeId: string) => {
-        setSelectedNodeId(nodeId);
-        setMode('list');
-        // The list mounts on the next render; centre the chosen row then.
-        requestAnimationFrame(() =>
-            document
-                .getElementById(pipelineNodeRowId(nodeId))
-                ?.scrollIntoView?.({ block: 'center' }),
-        );
-    }, []);
-
     if (!expanded) {
         return (
             <Box className={styles.root}>
@@ -474,12 +562,9 @@ export const AiComposerPipelinePanel: FC<Props> = ({
                 <Box className={styles.root}>
                     {bar}
                     {mode === 'graph' ? (
-                        <PipelineGraph layers={layers} onSelect={selectNode} />
+                        <PipelineGraph layers={layers} {...display} />
                     ) : (
-                        <PipelineList
-                            layers={layers}
-                            selectedNodeId={selectedNodeId}
-                        />
+                        <PipelineList layers={layers} {...display} />
                     )}
                 </Box>
             </ResizableSplitter.Pane>

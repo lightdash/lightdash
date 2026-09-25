@@ -122,6 +122,9 @@ const ComposerArtifact = ({
                 <AiComposerPipelinePanel
                     queries={queries}
                     terminalNodeId={terminalNodeId}
+                    displayedNodeId={terminalNodeId}
+                    displayableNodeIds={new Set(queries.map((q) => q.nodeId!))}
+                    onDisplayNode={() => {}}
                     defaultExpanded={defaultExpanded}
                     defaultMode={defaultMode}
                 >

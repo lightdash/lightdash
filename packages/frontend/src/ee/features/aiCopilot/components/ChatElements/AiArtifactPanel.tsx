@@ -131,8 +131,6 @@ const AiArtifactPanelContent: FC<
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
-        // Composer artifacts skip the viz-query round trip in v0: the stored
-        // lastQueryUuid feeds the standard results endpoint directly.
         const artifactChartConfig = artifactData?.chartConfig;
         const composerConfig = isAiComposerChartArtifactConfig(
             artifactChartConfig,
@@ -167,11 +165,13 @@ const AiArtifactPanelContent: FC<
             isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
                 ? queryExecutionHandle.data
                 : undefined;
-        const queryUuid = composerConfig
-            ? composerConfig.lastQueryUuid
-            : queryExecutionHandle.data && 'query' in queryExecutionHandle.data
-              ? queryExecutionHandle.data.query.queryUuid
-              : undefined;
+        // Composer artifacts read their own per-node results.
+        const queryUuid =
+            !composerConfig &&
+            queryExecutionHandle.data &&
+            'query' in queryExecutionHandle.data
+                ? queryExecutionHandle.data.query.queryUuid
+                : undefined;
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
@@ -311,11 +311,11 @@ const AiArtifactPanelContent: FC<
         if (composerConfig) {
             return (
                 <AiComposerArtifactPanel
+                    key={artifact.versionUuid}
                     projectUuid={artifact.projectUuid}
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}
                     config={composerConfig}
-                    results={queryResults}
                     onClose={
                         showCloseButton ? () => dispatch(clearPreview()) : null
                     }

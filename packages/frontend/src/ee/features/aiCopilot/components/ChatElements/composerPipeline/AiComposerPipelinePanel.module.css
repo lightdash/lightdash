@@ -60,9 +60,9 @@
 .layerHeading {
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--mantine-color-dimmed);
+    color: var(--mantine-color-ldGray-6);
 }
 
 .heading {
@@ -109,14 +109,33 @@
 .node {
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-    padding: var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-sm);
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: var(--mantine-radius-md);
+    transition: background-color 120ms ease;
 }
 
-.node:hover,
-.node.selected {
+.node.clickable {
+    cursor: pointer;
+}
+
+.node.clickable:hover,
+.node.clickable:focus-visible {
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.node.clickable:focus-visible {
+    outline: 2px solid var(--mantine-color-ldGray-4);
+    outline-offset: -2px;
+}
+
+.node.displayed,
+.node.displayed:hover {
     background-color: var(--mantine-color-default-hover);
+}
+
+.node.displayed .nodeTitle {
+    font-weight: 500;
 }
 
 .nodeHead {
@@ -137,8 +156,10 @@
 .nodeTitle {
     flex: 1;
     min-width: 0;
-    font-size: var(--mantine-font-size-sm);
-    color: var(--mantine-color-text);
+    font-size: 13px;
+    line-height: 1.45;
+    letter-spacing: -0.005em;
+    color: var(--mantine-color-ldGray-9);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -158,13 +179,15 @@
 
 .nodeDescription {
     font-size: var(--mantine-font-size-xs);
+    line-height: 1.4;
     color: var(--mantine-color-ldGray-6);
     padding-left: var(--node-indent);
 }
 
 .nodeReads {
     padding-left: var(--node-indent);
-    font-size: var(--mantine-font-size-xs);
+    font-size: 11.5px;
+    line-height: 1.4;
     color: var(--mantine-color-ldGray-5);
 }
 
@@ -189,8 +212,45 @@
     white-space: nowrap;
 }
 
-.code {
+.details {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     margin-left: var(--node-indent);
+    cursor: default;
+}
+
+/* Same quiet disclosure as the chat's tool-call rows. */
+.queryToggle {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 5px;
+    margin-left: -6px;
+    padding: 3px 6px;
+    border-radius: var(--mantine-radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-5);
+    transition: color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.queryToggle:hover,
+.queryToggle[aria-expanded='true'] {
+    color: var(--mantine-color-ldGray-9);
+}
+
+.queryToggle:hover .chevron,
+.queryToggle[aria-expanded='true'] .chevron {
+    opacity: 1;
+}
+
+.queryToggle + * .code {
+    margin-top: 4px;
+}
+
+.code {
+    width: 100%;
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-sm);
     overflow: hidden;
@@ -232,6 +292,24 @@
 
 .graphNode[data-terminal='true'] {
     border-color: var(--mantine-color-blue-5);
+}
+
+.graphNode[data-displayed='true'] {
+    background: var(--mantine-color-default-hover);
+    border-color: var(--mantine-color-ldGray-5);
+}
+
+.graphNode[data-displayed='true'] .graphNodeTitle {
+    font-weight: 500;
+}
+
+.graphNode[aria-disabled='true'] {
+    cursor: default;
+    color: var(--mantine-color-dimmed);
+}
+
+.graphNode[aria-disabled='true']:hover {
+    background: var(--mantine-color-body);
 }
 
 .graphNodeText {
