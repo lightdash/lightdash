@@ -146,7 +146,7 @@ const getColumnTypeVizPlan = (
     return { availableKinds, defaultKind, axes };
 };
 
-const getComposerChartKind = (
+export const getComposerChartKind = (
     vizConfig: Exclude<AllVizChartConfig, { type: ChartKind.TABLE }>,
 ): ComposerChartKind => {
     switch (vizConfig.type) {
