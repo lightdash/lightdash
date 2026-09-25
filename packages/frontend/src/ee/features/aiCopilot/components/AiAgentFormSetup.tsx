@@ -528,8 +528,7 @@ export const AiAgentFormSetup = ({
                     >
                         <AgentSettingsSubsection
                             title="Instructions"
-                            hint="Always applied"
-                            description="Guidance for the agent's role, behaviour, priorities, and response style."
+                            description="Always applied. Guidance for the agent's role, behaviour, priorities, and response style."
                         >
                             <CommitOnBlurTextarea
                                 key={`instruction-${
@@ -682,8 +681,7 @@ export const AiAgentFormSetup = ({
                     >
                         <AgentSettingsSubsection
                             title="Reference documents"
-                            hint="Consulted when relevant"
-                            description="Business context and source material the agent can retrieve, or include on every request. A short summary is generated for each file."
+                            description="Consulted when relevant. Business context and source material the agent can retrieve, or include on every request. A short summary is generated for each file."
                         >
                             {agentUuid ? (
                                 <AiAgentKnowledgeFilesSection
@@ -1078,7 +1076,6 @@ export const AiAgentFormSetup = ({
                     >
                         <AgentSettingsSubsection
                             title="Slack"
-                            hint="User channel"
                             description="Channels where people can talk to this agent."
                             action={
                                 <Group

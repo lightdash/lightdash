@@ -410,8 +410,7 @@ export const AiAgentSkillsSection = ({
     return (
         <AgentSettingsSubsection
             title="Skills"
-            hint="Used for matching tasks"
-            description="Reusable workflows the agent loads when relevant or users invoke with /."
+            description="Used for matching tasks. Reusable workflows the agent loads when relevant or users invoke with /."
             action={showAction ? addSkillMenu('library') : null}
         >
             {body}

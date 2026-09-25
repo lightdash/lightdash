@@ -1407,7 +1407,6 @@ export const AiAgentMcpServersInput = ({
         <>
             <AgentSettingsSubsection
                 title="MCP servers"
-                hint="External tools"
                 description="External tool servers this agent can call. Adding or removing one applies immediately, without saving the page."
                 badge={<BetaBadge />}
                 action={
