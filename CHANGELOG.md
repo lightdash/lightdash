@@ -1,3 +1,14 @@
+# [2.338.0](https://github.com/lightdash/lightdash/compare/2.337.4...2.338.0) (2026-09-25)
+
+
+### Features
+
+* **ai-agent:** SQL artifacts get the composer viz switcher ([#29915](https://github.com/lightdash/lightdash/issues/29915)) ([10b1b3f](https://github.com/lightdash/lightdash/commit/10b1b3f73ab11d1822da224ae5c05bdc92b150d6))
+* **composer:** any node result displayable from the pipeline panel ([#29912](https://github.com/lightdash/lightdash/issues/29912)) ([3f06c68](https://github.com/lightdash/lightdash/commit/3f06c68ce45fb0ddd1fb6255c571ea29f31fcdb9))
+* **composer:** big number, horizontal bar, scatter, pie and funnel kinds ([#29914](https://github.com/lightdash/lightdash/issues/29914)) ([bb4b751](https://github.com/lightdash/lightdash/commit/bb4b751079dd6984afa21ff9a5d5bbe9a37fba02))
+* **composer:** every displayed node has its own viz switcher and remembers its kind ([#29913](https://github.com/lightdash/lightdash/issues/29913)) ([86c43a2](https://github.com/lightdash/lightdash/commit/86c43a203baa23f7c6845ac87325b90d7c3915ac))
+* **composer:** terminal result opens as bar or line with a viz switcher ([#29911](https://github.com/lightdash/lightdash/issues/29911)) ([5f47f83](https://github.com/lightdash/lightdash/commit/5f47f83bcbdc5b94da3248987b723d33db971b4e))
+
 ## [2.337.4](https://github.com/lightdash/lightdash/compare/2.337.3...2.337.4) (2026-09-25)
 
 
