@@ -29,9 +29,12 @@ import InlineErrorState from '../../../../../components/common/InlineErrorState'
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import useHealth from '../../../../../hooks/health/useHealth';
+import useApp from '../../../../../providers/App/useApp';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
     getAiArtifactChartSource,
     useAiArtifactCompiledSql,
@@ -131,6 +134,16 @@ const AiArtifactPanelContent: FC<
         const isSqlArtifact = isAiSqlChartArtifactConfig(
             artifactData?.chartConfig,
         );
+        const { user } = useApp();
+        const canManageAgent = useAiAgentPermission({
+            action: 'manage',
+            projectUuid: artifact.projectUuid,
+        });
+        // Mirrors the thread mutation rule: the thread owner or an agent manager, never an embed.
+        const canEditThread =
+            !isEmbedAiAgentRoute() &&
+            !!thread &&
+            (thread.user.uuid === user.data?.userUuid || !!canManageAgent);
         const artifactChartConfig = artifactData?.chartConfig;
         const composerConfig = isAiComposerChartArtifactConfig(
             artifactChartConfig,
@@ -313,6 +326,10 @@ const AiArtifactPanelContent: FC<
                 <AiComposerArtifactPanel
                     key={artifact.versionUuid}
                     projectUuid={artifact.projectUuid}
+                    agentUuid={artifact.agentUuid}
+                    artifactUuid={artifact.artifactUuid}
+                    versionUuid={artifact.versionUuid}
+                    canEdit={canEditThread}
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}
                     config={composerConfig}

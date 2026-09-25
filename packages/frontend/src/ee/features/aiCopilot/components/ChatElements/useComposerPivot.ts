@@ -16,13 +16,13 @@ import {
     readPivotQueryResults,
 } from '../../../../../features/queryRunner/executeQuery';
 
-export type ComposerSeriesSplitResult = {
+export type ComposerPivotResult = {
     pivotChartData: PivotChartData;
     originalColumns: ResultColumns;
 };
 
 /** The referenced node result is gone; any other failure is a chart error. */
-export class ComposerSeriesSplitExpiredError extends Error {}
+export class ComposerPivotExpiredError extends Error {}
 
 const toPivotConfiguration = (
     layout: PivotChartLayout,
@@ -30,20 +30,20 @@ const toPivotConfiguration = (
     indexColumn: layout.x,
     valuesColumns: layout.y,
     groupByColumns: layout.groupBy,
-    sortBy: undefined,
+    sortBy: layout.sortBy,
 });
 
 /** Pivots a stored node result on the compose engine: one DuckDB node reading it by query id. No warehouse query. */
-const executeComposerSeriesSplit = async (
+const executeComposerPivot = async (
     projectUuid: string,
     queryUuid: string,
     layout: PivotChartLayout,
-): Promise<ComposerSeriesSplitResult> => {
+): Promise<ComposerPivotResult> => {
     const body = {
         queries: [
             {
                 sourceType: QuerySourceType.DUCKDB,
-                nodeId: 'series_split',
+                nodeId: 'viz_pivot',
                 sql: 'SELECT * FROM src',
                 references: { src: queryUuid },
                 pivotConfiguration: toPivotConfiguration(layout),
@@ -59,17 +59,15 @@ const executeComposerSeriesSplit = async (
         if (!isApiError(error)) throw error;
         // The referenced result expired or its file is gone.
         if (error.error.statusCode === 404)
-            throw new ComposerSeriesSplitExpiredError(error.error.message);
+            throw new ComposerPivotExpiredError(error.error.message);
         throw new Error(error.error.message);
     });
     const submission = queries[0];
-    if (!submission) throw new Error('Series split was not submitted');
+    if (!submission) throw new Error('Pivot query was not submitted');
 
     const query = await pollForResults(projectUuid, submission.queryUuid);
     if (query.status === QueryHistoryStatus.EXPIRED)
-        throw new ComposerSeriesSplitExpiredError(
-            query.error ?? 'Results expired',
-        );
+        throw new ComposerPivotExpiredError(query.error ?? 'Results expired');
     const { originalColumns, ...pivotResults } = await readPivotQueryResults(
         projectUuid,
         query,
@@ -85,7 +83,8 @@ const executeComposerSeriesSplit = async (
     };
 };
 
-export const useComposerSeriesSplit = ({
+/** The pivoted re-run of a node result; the previous chart's data stays while an edit re-runs. */
+export const useComposerPivot = ({
     projectUuid,
     queryUuid,
     layout,
@@ -94,15 +93,15 @@ export const useComposerSeriesSplit = ({
     queryUuid: string;
     layout: PivotChartLayout;
 }) =>
-    useQuery<ComposerSeriesSplitResult, Error>({
+    useQuery<ComposerPivotResult, Error>({
         queryKey: [
-            'composerSeriesSplit',
+            'composerPivot',
             projectUuid,
             queryUuid,
             toPivotConfiguration(layout),
         ],
-        queryFn: () =>
-            executeComposerSeriesSplit(projectUuid, queryUuid, layout),
+        queryFn: () => executeComposerPivot(projectUuid, queryUuid, layout),
         staleTime: Infinity,
         retry: false,
+        keepPreviousData: true,
     });

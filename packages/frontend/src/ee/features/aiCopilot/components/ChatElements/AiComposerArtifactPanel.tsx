@@ -1,38 +1,60 @@
 import {
-    getComposerVizPlan,
+    ChartKind,
+    getComposerVizPanelOptions,
+    getComposerVizPanelValue,
+    switchComposerVizKind,
     type AiComposerChartArtifactConfig,
+    type AllVizChartConfig,
     type ComposerVizKind,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { IconArrowLeft, IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useUpdateComposerVizConfig } from '../../hooks/useAiAgentArtifacts';
 import styles from './AiArtifactPanel.module.css';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
-import { pickVizKind } from './AiVizSwitchedResult.utils';
 import { AiComposerPipelinePanel } from './composerPipeline/AiComposerPipelinePanel';
+import {
+    AiComposerVizConfigPanel,
+    type AiComposerVizConfigPanelMode,
+} from './composerVizConfig/AiComposerVizConfigPanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
+
+const SAVE_DELAY_MS = 400;
+const READ_ONLY_REASON =
+    'Only the thread owner or an agent admin can change this chart';
 
 type Props = {
     projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
     title: string;
     description: string | null;
     config: AiComposerChartArtifactConfig;
+    /** Whether edits on the terminal node are written to the artifact version. */
+    canEdit: boolean;
     onClose: (() => void) | null;
 };
 
 const EMPTY_NODE_RESULTS = new Set<string>();
 
-// Composer artifact: the displayed node result and its viz switcher on top,
-// the pipeline panel underneath. Keyed per version so a new run resets it.
+// Composer artifact: the displayed node result, the viz config panel under it,
+// the pipeline panel at the bottom. Keyed per version so a new run resets it.
 export const AiComposerArtifactPanel: FC<Props> = ({
     projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
     title,
     description,
     config,
+    canEdit,
     onClose,
 }) => {
     const [displayedNodeId, setDisplayedNodeId] = useState(
@@ -58,13 +80,13 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         : config.nodeResults?.[displayedNodeId]?.queryUuid;
 
     const results = useInfiniteQueryResults(projectUuid, queryUuid);
-    const { columns, rows } = useArtifactResultRows(results);
+    const { columns, rows, isLoading } = useArtifactResultRows(results);
     const storedVizConfig = isTerminalDisplayed
         ? (config.vizConfig ?? null)
         : null;
-    const plan = useMemo(
+    const derivedValue = useMemo(
         () =>
-            getComposerVizPlan({
+            getComposerVizPanelValue({
                 columns,
                 rows,
                 node: displayedNode,
@@ -72,13 +94,67 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             }),
         [columns, rows, displayedNode, storedVizConfig],
     );
-    // Chosen kind per node, remembered while this version is open.
-    const [chosenKinds, setChosenKinds] = useState<
-        Record<string, ComposerVizKind>
+
+    // Edits on screen: the terminal node's are written back, other nodes' are ephemeral.
+    const [editedValues, setEditedValues] = useState<
+        Record<string, AllVizChartConfig>
     >({});
-    const kind = pickVizKind(plan, chosenKinds[displayedNodeId]);
-    const chooseKind = (next: ComposerVizKind) =>
-        setChosenKinds((current) => ({ ...current, [displayedNodeId]: next }));
+    // The last chart config per node, restored when leaving the table.
+    const [rememberedCharts, setRememberedCharts] = useState<
+        Record<string, AllVizChartConfig>
+    >({});
+    const isResultReady = !isLoading && !results.error;
+    const value = isResultReady
+        ? (editedValues[displayedNodeId] ?? derivedValue)
+        : (editedValues[displayedNodeId] ?? storedVizConfig ?? derivedValue);
+    const options = useMemo(
+        () => getComposerVizPanelOptions(value, columns, rows),
+        [value, columns, rows],
+    );
+
+    const { mutate: saveVizConfig } = useUpdateComposerVizConfig({
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        versionUuid,
+    });
+    const saveSoon = useDebouncedCallback(saveVizConfig, {
+        delay: SAVE_DELAY_MS,
+        flushOnUnmount: true,
+    });
+    const isWritable = isTerminalDisplayed && canEdit;
+    const setValue = (next: AllVizChartConfig) => {
+        setEditedValues((current) => ({
+            ...current,
+            [displayedNodeId]: next,
+        }));
+        if (isWritable) saveSoon(next);
+    };
+    const changeKind = (kind: ComposerVizKind) => {
+        const remembered = rememberedCharts[displayedNodeId] ?? null;
+        if (value.type !== ChartKind.TABLE) {
+            setRememberedCharts((current) => ({
+                ...current,
+                [displayedNodeId]: value,
+            }));
+        }
+        setValue(
+            switchComposerVizKind(value, kind, {
+                columns,
+                rows,
+                node: displayedNode,
+                remembered,
+            }),
+        );
+    };
+
+    const panelMode = ((): AiComposerVizConfigPanelMode => {
+        if (!isResultReady || options.kinds.length <= 1) return 'static';
+        return isTerminalDisplayed ? 'expandable' : 'switcher';
+    })();
+    // Only one of Chart and Queries is open at a time.
+    const [isChartOpen, setIsChartOpen] = useState(false);
+    const [isPipelineOpen, setIsPipelineOpen] = useState(false);
 
     const displayedTitle = isTerminalDisplayed
         ? title
@@ -132,17 +208,37 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     displayedNodeId={displayedNodeId}
                     displayableNodeIds={displayableNodeIds}
                     onDisplayNode={setDisplayedNodeId}
+                    expanded={isPipelineOpen}
+                    onExpandedChange={(open) => {
+                        setIsPipelineOpen(open);
+                        if (open) setIsChartOpen(false);
+                    }}
                 >
-                    <AiComposerArtifactVisualization
-                        projectUuid={projectUuid}
-                        results={results}
-                        queryUuid={queryUuid ?? null}
-                        plan={plan}
-                        kind={kind}
-                        onKindChange={chooseKind}
-                        headerContent={head}
-                        flush
-                    />
+                    <AiComposerVizConfigPanel
+                        value={value}
+                        columns={columns}
+                        options={options}
+                        onChange={setValue}
+                        onKindChange={changeKind}
+                        mode={panelMode}
+                        expanded={isChartOpen}
+                        onExpandedChange={(open) => {
+                            setIsChartOpen(open);
+                            if (open) setIsPipelineOpen(false);
+                        }}
+                        fieldsDisabledReason={
+                            isWritable ? null : READ_ONLY_REASON
+                        }
+                    >
+                        <AiComposerArtifactVisualization
+                            projectUuid={projectUuid}
+                            results={results}
+                            queryUuid={queryUuid ?? null}
+                            vizConfig={value}
+                            headerContent={head}
+                            flush
+                        />
+                    </AiComposerVizConfigPanel>
                 </AiComposerPipelinePanel>
             </Box>
         </Box>
