@@ -1,7 +1,12 @@
 import { CallSettings } from 'ai';
 import { ProviderOptionsMap } from './types';
 
-export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
+export type ModelPresetProvider =
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'bedrock'
+    | 'vertex';
 export type SelectableModelProvider = ModelPresetProvider | 'openrouter';
 
 export type ReasoningStyle = 'budget' | 'adaptive';
@@ -31,7 +36,7 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     providerOptions: ProviderOptionsMap[P] | undefined;
 } & (
     | { custom?: false; contextWindowTokens: number }
-    // Pass-through gateway models are the only ones whose window is unknown
+    // Instance-configured models may have an unknown context window.
     | { custom: true; contextWindowTokens: null }
 );
 
@@ -39,6 +44,7 @@ export const MODEL_PRESETS: {
     openai: ModelPreset<'openai'>[];
     anthropic: ModelPreset<'anthropic'>[];
     google: ModelPreset<'google'>[];
+    vertex: ModelPreset<'vertex'>[];
     bedrock: ModelPreset<'bedrock'>[];
 } = {
     openai: [
@@ -346,6 +352,33 @@ export const MODEL_PRESETS: {
             providerOptions: undefined,
         },
     ],
+    vertex: [
+        {
+            name: 'gemini-3.8-flash',
+            provider: 'vertex',
+            modelId: 'gemini-3.8-flash',
+            displayName: 'Gemini 3.8 Flash (Vertex AI)',
+            description: 'Fast agentic model served through Google Vertex AI',
+            groupLabel: 'Google Vertex AI',
+            contextWindowTokens: 400_000,
+            // Vertex currently leaves thinking settings at the model defaults.
+            supportsReasoning: false,
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
+            name: 'gemini-3.5-flash-lite',
+            provider: 'vertex',
+            modelId: 'gemini-3.5-flash-lite',
+            displayName: 'Gemini 3.5 Flash-Lite (Vertex AI)',
+            description: 'Lightweight model served through Google Vertex AI',
+            groupLabel: 'Google Vertex AI',
+            contextWindowTokens: 400_000,
+            supportsReasoning: false,
+            callOptions: {},
+            providerOptions: undefined,
+        },
+    ],
     bedrock: [
         {
             name: 'claude-opus-4-7',
@@ -561,6 +594,27 @@ export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
         modelId: modelName,
         displayName: modelName,
         description: 'Model served through OpenRouter',
+        custom: true,
+        contextWindowTokens: null,
+        supportsReasoning: false,
+        callOptions: {},
+        providerOptions: undefined,
+    };
+}
+
+export function vertexPreset(modelName: string): ModelPreset<'vertex'> {
+    const vertexModelPreset = MODEL_PRESETS.vertex.find(
+        (preset) => preset.modelId === modelName,
+    );
+    if (vertexModelPreset) return vertexModelPreset;
+
+    return {
+        name: modelName,
+        provider: 'vertex',
+        modelId: modelName,
+        displayName: `${modelName} (Vertex AI)`,
+        description: 'Model served through Google Vertex AI',
+        groupLabel: 'Google Vertex AI',
         custom: true,
         contextWindowTokens: null,
         supportsReasoning: false,

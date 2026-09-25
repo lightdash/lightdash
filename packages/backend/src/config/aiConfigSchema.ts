@@ -6,6 +6,7 @@ export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-6-luna';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-5';
 export const DEFAULT_GOOGLE_MODEL_NAME = 'gemini-3.8-flash';
 export const DEFAULT_GOOGLE_FAST_MODEL_NAME = 'gemini-3.5-flash-lite';
+export const DEFAULT_VERTEX_MODEL_NAME = 'gemini-3.8-flash';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
@@ -32,6 +33,7 @@ export const AI_PROVIDER_KEYS = [
     'azure',
     'anthropic',
     'google',
+    'vertex',
     'openrouter',
     'bedrock',
 ] as const;
@@ -99,6 +101,27 @@ export const aiCopilotConfigSchema = z
                     modelName: z.string().default(DEFAULT_GOOGLE_MODEL_NAME),
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
+                    supportsStreaming: supportsStreamingSchema,
+                })
+                .optional(),
+            vertex: z
+                .object({
+                    auth: z.discriminatedUnion('type', [
+                        z.object({
+                            type: z.literal('api-key'),
+                            apiKey: z.string().min(1),
+                        }),
+                        z.object({
+                            type: z.literal('adc'),
+                            project: z.string().min(1),
+                            location: z.string().min(1).default('global'),
+                        }),
+                    ]),
+                    modelName: z
+                        .string()
+                        .min(1)
+                        .default(DEFAULT_VERTEX_MODEL_NAME),
+                    fastModelName: z.string().min(1).optional(),
                     supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),

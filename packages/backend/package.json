@@ -58,6 +58,7 @@
         "@ai-sdk/anthropic": "4.0.57",
         "@ai-sdk/azure": "4.0.74",
         "@ai-sdk/google": "4.0.75",
+        "@ai-sdk/google-vertex": "5.0.87",
         "@ai-sdk/mcp": "2.0.53",
         "@ai-sdk/openai": "4.0.70",
         "@ai-sdk/otel": "1.0.106",
