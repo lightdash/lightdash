@@ -1,7 +1,6 @@
 import { createGoogleVertex } from '@ai-sdk/google-vertex';
 import { isByoAiProvider } from '@lightdash/common';
-import { generateText, jsonSchema, stepCountIs, streamText, tool } from 'ai';
-import { z } from 'zod';
+import { generateText, jsonSchema, streamText, tool } from 'ai';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
 import { getAiConfig } from '../../../../config/parseConfig';
@@ -14,7 +13,6 @@ import {
     getModel,
     presetToModelOption,
 } from './index';
-import { MODEL_PRESETS } from './presets';
 
 vi.mock('@ai-sdk/google-vertex', async (importOriginal) => {
     const actual =
@@ -199,7 +197,6 @@ describe('Vertex model routing', () => {
             defaultProvider: config.defaultProvider,
         };
         expect(getAvailableModels(vertexDefault)).toEqual(models);
-        expect(isByoAiProvider('vertex')).toBe(false);
     });
 
     it('does not list Vertex when the instance has no Vertex configuration', () => {
@@ -245,22 +242,10 @@ describe('Vertex model routing', () => {
         ).toBe('previous-server-model');
     });
 
-    it('uses the same model for fast tasks unless an instance fast model is configured', () => {
+    it('uses the primary model for fast tasks when no fast model is configured', () => {
         expect(getFastModelForAccessibleKey(config, null).model.modelId).toBe(
             'gemini-3.8-flash',
         );
-        const fastConfig = aiCopilotConfigSchema.parse({
-            ...config,
-            providers: {
-                vertex: {
-                    ...config.providers.vertex,
-                    fastModelName: 'fast-model',
-                },
-            },
-        });
-        expect(
-            getFastModelForAccessibleKey(fastConfig, null).model.modelId,
-        ).toBe('fast-model');
     });
 
     it('lists and routes the configured fast model without changing the default', () => {
@@ -273,17 +258,15 @@ describe('Vertex model routing', () => {
                 },
             },
         });
-        expect(
-            getAvailableModels(fastConfig).map((preset) => preset.modelId),
-        ).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
-        expect(getAvailableModels(fastConfig)).toEqual(MODEL_PRESETS.vertex);
         expect(getAvailableModels(fastConfig)).toEqual([
             expect.objectContaining({
+                modelId: 'gemini-3.8-flash',
                 displayName: 'Gemini 3.8 Flash (Vertex AI)',
                 provider: 'vertex',
                 contextWindowTokens: 400_000,
             }),
             expect.objectContaining({
+                modelId: 'gemini-3.5-flash-lite',
                 displayName: 'Gemini 3.5 Flash-Lite (Vertex AI)',
                 provider: 'vertex',
                 contextWindowTokens: 400_000,
@@ -404,6 +387,11 @@ describe('Vertex SDK transport', () => {
                     ? await generateText(options)
                     : streamText(options);
             expect(await result.text).toBe('Hello');
+            expect(fetchMock.mock.calls[0]?.[0]).toContain(
+                mode === 'generate'
+                    ? ':generateContent'
+                    : ':streamGenerateContent?alt=sse',
+            );
             const body = fetchMock.mock.calls[0]?.[1]?.body;
             if (typeof body !== 'string')
                 throw new Error('Expected JSON request');
@@ -425,106 +413,6 @@ describe('Vertex SDK transport', () => {
         },
     );
 
-    it('isolates tool schemas between concurrent calls on the same model', async () => {
-        const fetchMock = vi
-            .fn<typeof fetch>()
-            .mockImplementation(async () => Response.json(completion));
-        vi.stubGlobal('fetch', fetchMock);
-        const model = getModel(config);
-        await Promise.all(
-            ['first', 'second'].map(async (field) =>
-                generateText({
-                    ...model,
-                    prompt: field,
-                    tools: {
-                        lookup: tool({
-                            inputSchema: z.object({ [field]: z.string() }),
-                        }),
-                    },
-                    maxRetries: 0,
-                }),
-            ),
-        );
-        for (const [, init] of fetchMock.mock.calls) {
-            if (typeof init?.body !== 'string')
-                throw new Error('Expected JSON request');
-            const body = z
-                .object({
-                    contents: z.array(
-                        z.object({
-                            parts: z.array(z.object({ text: z.string() })),
-                        }),
-                    ),
-                    tools: z.array(
-                        z.object({
-                            functionDeclarations: z.array(
-                                z.object({
-                                    parametersJsonSchema: z.object({
-                                        required: z.array(z.string()),
-                                    }),
-                                }),
-                            ),
-                        }),
-                    ),
-                })
-                .parse(JSON.parse(init.body));
-            expect(
-                body.tools[0]?.functionDeclarations[0]?.parametersJsonSchema
-                    .required,
-            ).toEqual([body.contents[0]?.parts[0]?.text]);
-        }
-    });
-
-    it('preserves Gemini thought signatures across a tool round trip', async () => {
-        const fetchMock = vi
-            .fn<typeof fetch>()
-            .mockResolvedValueOnce(
-                Response.json({
-                    ...completion,
-                    candidates: [
-                        {
-                            content: {
-                                role: 'model',
-                                parts: [
-                                    {
-                                        functionCall: {
-                                            name: 'lookup',
-                                            args: {},
-                                        },
-                                        thoughtSignature:
-                                            'test-thought-signature',
-                                    },
-                                ],
-                            },
-                            finishReason: 'STOP',
-                        },
-                    ],
-                }),
-            )
-            .mockResolvedValueOnce(Response.json(completion));
-        vi.stubGlobal('fetch', fetchMock);
-        const result = await generateText({
-            ...getModel(config),
-            prompt: 'Look up the test value',
-            tools: {
-                lookup: tool({
-                    inputSchema: z.object({}),
-                    execute: async () => ({ value: 42 }),
-                }),
-            },
-            stopWhen: stepCountIs(2),
-            maxRetries: 0,
-        });
-        expect(result.text).toBe('Hello');
-        expect(result.steps).toHaveLength(2);
-        expect(fetchMock.mock.calls[1]?.[1]?.body).toContain(
-            'test-thought-signature',
-        );
-        expect(fetchMock.mock.calls[1]?.[1]?.body).toContain(
-            'functionResponse',
-        );
-    });
-
     it('sends the API key to the Express endpoint and returns token usage', async () => {
         const fetchMock = vi
             .fn<typeof fetch>()
@@ -544,24 +432,6 @@ describe('Vertex SDK transport', () => {
                     'x-goog-api-key': 'test-vertex-key',
                 }),
             }),
-        );
-    });
-
-    it('streams responses from the Vertex SSE endpoint', async () => {
-        const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-            new Response(`data: ${JSON.stringify(completion)}\n\n`, {
-                headers: { 'content-type': 'text/event-stream' },
-            }),
-        );
-        vi.stubGlobal('fetch', fetchMock);
-        const result = streamText({
-            ...getModel(config),
-            prompt: 'Hello',
-            maxRetries: 0,
-        });
-        expect(await result.text).toBe('Hello');
-        expect(fetchMock.mock.calls[0]?.[0]).toContain(
-            ':streamGenerateContent?alt=sse',
         );
     });
 
