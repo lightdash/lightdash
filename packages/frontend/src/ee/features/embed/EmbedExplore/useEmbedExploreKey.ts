@@ -2,7 +2,7 @@ import {
     type CreateSavedChartVersion,
     type SavedChart,
 } from '@lightdash/common';
-import { useState } from 'react';
+import { useRef } from 'react';
 
 type EmbedExploreChart = SavedChart | CreateSavedChartVersion;
 
@@ -20,15 +20,17 @@ export const useEmbedExploreKey = ({
     savedChart: EmbedExploreChart | undefined;
     allowChartUpdate: boolean | undefined;
 }): string => {
-    const [seen, setSeen] = useState({ chart: savedChart, version: 0 });
-    if (seen.chart !== savedChart) {
-        setSeen({ chart: savedChart, version: seen.version + 1 });
+    const seenChartRef = useRef(savedChart);
+    const versionRef = useRef(0);
+    if (seenChartRef.current !== savedChart) {
+        seenChartRef.current = savedChart;
+        versionRef.current += 1;
     }
 
     const chartKey =
         savedChart && 'uuid' in savedChart
             ? savedChart.uuid
-            : `v${seen.version}`;
+            : `v${versionRef.current}`;
     return `embed-${exploreId}-${chartKey}-${
         allowChartUpdate ? 'update' : 'create'
     }`;
