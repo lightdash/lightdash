@@ -21,8 +21,8 @@ vi.mock('../../../../../components/common/ResizableSplitter', () => {
     return { default: ResizableSplitter };
 });
 
-vi.mock('../../hooks/useAiAgentArtifacts', () => ({
-    useAiAgentArtifact: () => ({ data: undefined }),
+vi.mock('@tanstack/react-query', () => ({
+    useQuery: () => ({ data: undefined }),
 }));
 
 vi.mock('../../store/hooks', () => ({

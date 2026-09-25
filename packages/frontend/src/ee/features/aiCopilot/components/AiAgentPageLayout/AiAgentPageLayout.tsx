@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
     isAiComposerChartArtifactConfig,
+    type AiArtifact,
+    type ApiError,
 } from '@lightdash/common';
 import { Box, Drawer, Flex, Group, Text } from '@mantine/core';
 import {
@@ -12,6 +14,7 @@ import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import {
     useCallback,
     useEffect,
@@ -24,7 +27,10 @@ import { useLocation, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import {
+    AI_AGENT_ARTIFACT_KEY,
+    aiAgentArtifactVersionQuery,
+} from '../../hooks/useAiAgentArtifacts';
 import {
     clearPreview,
     selectPreviewForThreads,
@@ -93,14 +99,16 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         [threadUuid, threadUuidA, threadUuidB],
     );
     const preview = useAiAgentStoreSelector(selectOnScreenPreview);
-    // Same query the artifact panel makes, so this costs no extra request.
-    const artifactPreview = preview?.type === 'artifact' ? preview : null;
-    const { data: previewArtifact } = useAiAgentArtifact({
-        projectUuid: artifactPreview?.projectUuid ?? '',
-        agentUuid: artifactPreview?.agentUuid ?? '',
-        artifactUuid: artifactPreview?.artifactUuid,
-        versionUuid: artifactPreview?.versionUuid,
-        options: { enabled: artifactPreview !== null },
+    // Same key as the artifact panel's fetch, so this adds no request; the
+    // panel owns error handling.
+    const artifactQuery =
+        preview?.type === 'artifact'
+            ? aiAgentArtifactVersionQuery(preview)
+            : null;
+    const { data: previewArtifact } = useQuery<AiArtifact, ApiError>({
+        queryKey: artifactQuery?.queryKey ?? [AI_AGENT_ARTIFACT_KEY, 'none'],
+        queryFn: artifactQuery?.queryFn,
+        enabled: artifactQuery !== null,
     });
     const previewPane = preview
         ? previewPaneOf(
