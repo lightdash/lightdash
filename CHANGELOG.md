@@ -1,3 +1,10 @@
+# [2.341.0](https://github.com/lightdash/lightdash/compare/2.340.0...2.341.0) (2026-09-25)
+
+
+### Features
+
+* **playground:** ship the jaffle dbt project as a learn bundle asset ([#29120](https://github.com/lightdash/lightdash/issues/29120)) ([2b7a827](https://github.com/lightdash/lightdash/commit/2b7a8272ee46355ff7af2cd90209d1409412a85b)), closes [#29118](https://github.com/lightdash/lightdash/issues/29118) [#29117](https://github.com/lightdash/lightdash/issues/29117)
+
 # [2.340.0](https://github.com/lightdash/lightdash/compare/2.339.2...2.340.0) (2026-09-25)
 
 
