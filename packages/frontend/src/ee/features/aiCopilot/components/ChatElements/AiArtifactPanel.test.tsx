@@ -277,11 +277,18 @@ const statusResults = resultsOf(
     [{ status: 'completed' }],
 );
 
-const vizRadios = () =>
-    screen.getAllByRole('radio').map((radio) => radio.getAttribute('value'));
-const checkedViz = () =>
+// The pipeline bar's List / Graph switch is a SegmentedControl too.
+const PIPELINE_MODES = ['list', 'graph'];
+const vizRadioElements = () =>
     screen
-        .getAllByRole('radio')
+        .queryAllByRole('radio')
+        .filter(
+            (radio) => !PIPELINE_MODES.includes(radio.getAttribute('value')!),
+        );
+const vizRadios = () =>
+    vizRadioElements().map((radio) => radio.getAttribute('value'));
+const checkedViz = () =>
+    vizRadioElements()
         .find((radio) => (radio as HTMLInputElement).checked)
         ?.getAttribute('value');
 
@@ -527,8 +534,9 @@ describe('composer displayed node', () => {
         expandPipeline();
         fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
         fireEvent.click(screen.getByLabelText('Display Orders by status'));
+        // A string + number node result charts on its own merits.
         expect(
-            screen.getByRole('columnheader', { name: 'n' }),
+            screen.getByTestId('chart-view-vertical_bar'),
         ).toBeInTheDocument();
         expect(
             screen.getByLabelText('Display Orders by status'),
@@ -580,5 +588,83 @@ describe('composer displayed node', () => {
         expect(
             screen.getByRole('button', { name: 'Back to result' }),
         ).toBeInTheDocument();
+    });
+});
+
+describe('composer per-node viz switcher', () => {
+    const ordersResults = resultsOf(
+        {
+            status: { reference: 'status', type: 'string' },
+            n: { reference: 'n', type: 'number' },
+        },
+        [
+            { status: 'completed', n: 3 },
+            { status: 'returned', n: 1 },
+        ],
+    );
+    const joinedResults = resultsOf(
+        {
+            day: { reference: 'day', type: 'date' },
+            total: { reference: 'total', type: 'number' },
+        },
+        [
+            { day: '2024-01-01', total: 3 },
+            { day: '2024-01-02', total: 1 },
+        ],
+    );
+    const resultsByQuery: Record<string, ReturnType<typeof resultsOf>> = {
+        query: joinedResults,
+        'orders-query': ordersResults,
+        'amounts-query': statusResults,
+    };
+
+    const renderComposer = () => {
+        mocks.artifact.mockReturnValue({
+            data: {
+                artifactType: 'chart',
+                title: 'Orders vs amounts',
+                chartConfig: composerConfigWithNodeResults,
+            },
+            isLoading: false,
+            error: null,
+            refetch: mocks.retry,
+        });
+        mocks.rows.mockImplementation(
+            (_project: string, queryUuid: string | undefined) =>
+                queryUuid === undefined
+                    ? { ...statusResults, rows: [], columns: undefined }
+                    : resultsByQuery[queryUuid],
+        );
+        return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
+    };
+    const display = (title: string) =>
+        fireEvent.click(
+            screen.getByRole('button', { name: `Display ${title}` }),
+        );
+    const choose = (kind: string) =>
+        fireEvent.click(
+            screen
+                .getAllByRole('radio')
+                .find((radio) => radio.getAttribute('value') === kind)!,
+        );
+
+    it('gives a displayed node its own default and remembers each choice', () => {
+        renderComposer();
+        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+        expect(checkedViz()).toBe('line');
+        choose('table');
+
+        display('Orders by status');
+        expect(checkedViz()).toBe('bar');
+        choose('line');
+        expect(checkedViz()).toBe('line');
+
+        display('Average amount');
+        expect(vizRadios()).toHaveLength(0);
+
+        display('Orders by status');
+        expect(checkedViz()).toBe('line');
+        fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
+        expect(checkedViz()).toBe('table');
     });
 });
