@@ -6,6 +6,7 @@ import type {
     ApiAgentAsCodeUpsertResponse,
     ApiAgentOnboardingFileResponse,
     ApiAgentOnboardingRunResponse,
+    ApiAgentSkillsListingResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentAdminEvalPromptsResponse,
@@ -24,6 +25,10 @@ import type {
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
+    ApiAiAgentSkillResponse,
+    ApiAiAgentSkillSummaryListResponse,
+    ApiAiAgentSkillValidationResponse,
+    ApiAiAgentSkillVersionListResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadDumpResponse,
     ApiAiAgentThreadGenerateTitleResponse,
@@ -1502,6 +1507,11 @@ type ApiResults =
     | ApiAgentAsCodeListResponse['results']
     | ApiAgentAsCodeUpsertResponse['results']
     | ApiSkillsAsCodeListResponse['results']
+    | ApiAgentSkillsListingResponse['results']
+    | ApiAiAgentSkillValidationResponse['results']
+    | ApiAiAgentSkillResponse['results']
+    | ApiAiAgentSkillSummaryListResponse['results']
+    | ApiAiAgentSkillVersionListResponse['results']
     | ApiSkillsAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']

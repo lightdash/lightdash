@@ -5,6 +5,7 @@ import {
     AI_AGENT_SKILL_RESOURCE_MAX_BYTES,
 } from './skillTypes';
 import {
+    buildAiAgentSkillMarkdown,
     describeAiAgentSkillPlaceholders,
     getAiAgentSkillListingText,
     substituteAiAgentSkillArguments,
@@ -422,6 +423,26 @@ describe('describeAiAgentSkillPlaceholders', () => {
         ).toBe(
             "Do the user's request as written above for the region argument of the user's request in argument 1 of the user's request ($5, argument 2 of the user's request)",
         );
+    });
+});
+
+describe('buildAiAgentSkillMarkdown', () => {
+    it('round-trips through the validator and keeps extra frontmatter', () => {
+        const markdown = buildAiAgentSkillMarkdown(
+            {
+                name: 'weekly-review',
+                description: 'Summarise the week.',
+                'argument-hint': '[region]',
+            },
+            'Do $ARGUMENTS.',
+        );
+        const result = validateAiAgentSkill({
+            files: { 'SKILL.md': markdown },
+        });
+        expect(result.valid).toBe(true);
+        if (!result.valid) return;
+        expect(result.parsed.frontmatter.argumentHint).toBe('[region]');
+        expect(result.parsed.body.trim()).toBe('Do $ARGUMENTS.');
     });
 });
 

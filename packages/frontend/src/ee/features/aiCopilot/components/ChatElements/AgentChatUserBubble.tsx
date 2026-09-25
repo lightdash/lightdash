@@ -228,7 +228,9 @@ export const UserBubble: FC<Props> = ({
                                             : undefined
                                     }
                                 >
-                                    {segment.label}
+                                    {segment.item.type === 'skill'
+                                        ? segment.item.name
+                                        : segment.label}
                                 </ContentReferenceLink>
                             );
                         })}

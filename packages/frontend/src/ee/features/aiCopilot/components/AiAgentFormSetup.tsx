@@ -74,6 +74,7 @@ import AiAgentAsCodeModal from './AiAgentAsCodeModal';
 import classes from './AiAgentFormSetup.module.css';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
+import { AiAgentSkillsSection } from './AiAgentSkillsSection';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 import { ThreadRetentionSelect } from './ThreadRetentionSelect';
@@ -266,6 +267,9 @@ export const AiAgentFormSetup = ({
         FeatureFlags.UserGroupsEnabled,
     );
 
+    const customSkillsFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiAgentCustomSkills,
+    );
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
@@ -666,6 +670,20 @@ export const AiAgentFormSetup = ({
                                 </Paper>
                             )}
                         </AgentSettingsSubsection>
+
+                        {customSkillsFlagQuery.data?.enabled &&
+                        user.data?.organizationUuid ? (
+                            <>
+                                <Divider />
+                                <AiAgentSkillsSection
+                                    agentUuid={agentUuid ?? null}
+                                    projectUuid={projectUuid}
+                                    organizationUuid={
+                                        user.data.organizationUuid
+                                    }
+                                />
+                            </>
+                        ) : null}
 
                         <Divider />
 

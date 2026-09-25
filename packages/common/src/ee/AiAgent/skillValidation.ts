@@ -110,6 +110,13 @@ export const splitAiAgentSkillFrontmatter = (
     return { data: data as Record<string, unknown>, body };
 };
 
+/** Writes a skill markdown file from frontmatter and body; the inverse of the splitter. */
+export const buildAiAgentSkillMarkdown = (
+    data: Record<string, unknown>,
+    body: string,
+): string =>
+    `---\n${yaml.dump(data, { lineWidth: -1 })}---\n${body.endsWith('\n') ? body : `${body}\n`}`;
+
 const asString = (value: unknown): string | null =>
     typeof value === 'string' ? value : null;
 

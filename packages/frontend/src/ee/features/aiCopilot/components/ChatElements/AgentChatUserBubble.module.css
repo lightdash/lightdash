@@ -82,6 +82,12 @@
     display: inline;
 }
 
+/* The markdown renderer's clearfix is a table box, which breaks the line after a chip. */
+.inlineMarkdown::before,
+.inlineMarkdown::after {
+    display: none;
+}
+
 .inlineMarkdown :global(p) {
     display: inline;
     margin: 0;
