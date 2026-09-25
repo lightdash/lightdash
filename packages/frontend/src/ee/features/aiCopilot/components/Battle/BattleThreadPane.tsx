@@ -34,14 +34,13 @@ const useTicking = (active: boolean) => {
     return now;
 };
 
-export const BattleThreadPane: FC<Props> = ({
+// The ticker and stream updates stay here so they never re-render the chat.
+const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
     label,
     projectUuid,
     agentUuid,
-    agentName,
     thread,
     queuedCount,
-    onChoiceSelect,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -106,87 +105,97 @@ export const BattleThreadPane: FC<Props> = ({
             : null;
 
     return (
-        <Stack h="100%" gap={0} miw={0}>
-            <Group
-                justify="space-between"
-                px="sm"
-                py={6}
-                wrap="nowrap"
-                style={{
-                    borderBottom:
-                        '1px solid var(--mantine-color-default-border)',
-                }}
-            >
-                <Group gap="xs" wrap="nowrap" miw={0}>
-                    <Badge
-                        size="sm"
-                        flex="none"
-                        variant="light"
-                        color={
-                            thread.battleProfile === 'fast' ? 'violet' : 'gray'
-                        }
-                    >
-                        {label}
-                    </Badge>
-                    <Text size="sm" fw={600} truncate>
-                        {modelDisplayName ?? 'Default model'}
+        <Group
+            justify="space-between"
+            px="sm"
+            py={6}
+            wrap="nowrap"
+            style={{
+                borderBottom: '1px solid var(--mantine-color-default-border)',
+            }}
+        >
+            <Group gap="xs" wrap="nowrap" miw={0}>
+                <Badge
+                    size="sm"
+                    flex="none"
+                    variant="light"
+                    color={thread.battleProfile === 'fast' ? 'violet' : 'gray'}
+                >
+                    {label}
+                </Badge>
+                <Text size="sm" fw={600} truncate>
+                    {modelDisplayName ?? 'Default model'}
+                </Text>
+                {(status || queuedCount > 0) && (
+                    <Text size="xs" c="dimmed">
+                        {[
+                            status,
+                            queuedCount > 0 ? `${queuedCount} queued` : null,
+                        ]
+                            .filter(Boolean)
+                            .join(' · ')}
                     </Text>
-                    {(status || queuedCount > 0) && (
-                        <Text size="xs" c="dimmed">
-                            {[
-                                status,
-                                queuedCount > 0
-                                    ? `${queuedCount} queued`
-                                    : null,
-                            ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                        </Text>
-                    )}
-                </Group>
-                <Group gap="sm" wrap="nowrap">
-                    {liveTtftMs !== undefined && (
-                        <Text size="xs" c="dimmed">
-                            first token{' '}
-                            {liveTtftMs === null
-                                ? '…'
-                                : formatDurationMs(liveTtftMs)}
-                        </Text>
-                    )}
-                    {sessionMs > 0 && (
-                        <Text size="xs" c="dimmed">
-                            <Text span fz="xs" fw={600} c="text">
-                                {formatDurationMs(sessionMs)}
-                            </Text>
-                            {' · '}
-                            {formatTokenCount(
-                                totals.agentTokens,
-                                totals.jevTokens,
-                            )}
-                        </Text>
-                    )}
-                    <Anchor
-                        component={Link}
-                        to={`${getAiAgentPageBase(
-                            projectUuid,
-                        )}/${agentUuid}/threads/${thread.uuid}`}
-                        size="xs"
-                    >
-                        Open
-                    </Anchor>
-                </Group>
+                )}
             </Group>
-            <Box flex={1} mih={0}>
-                <AgentChatDisplay
-                    thread={thread}
-                    agentName={agentName}
-                    enableAutoScroll
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    renderArtifactsInline
-                    onChoiceSelect={onChoiceSelect}
-                />
-            </Box>
-        </Stack>
+            <Group gap="sm" wrap="nowrap">
+                {liveTtftMs !== undefined && (
+                    <Text size="xs" c="dimmed">
+                        first token{' '}
+                        {liveTtftMs === null
+                            ? '…'
+                            : formatDurationMs(liveTtftMs)}
+                    </Text>
+                )}
+                {sessionMs > 0 && (
+                    <Text size="xs" c="dimmed">
+                        <Text span fz="xs" fw={600} c="text">
+                            {formatDurationMs(sessionMs)}
+                        </Text>
+                        {' · '}
+                        {formatTokenCount(totals.agentTokens, totals.jevTokens)}
+                    </Text>
+                )}
+                <Anchor
+                    component={Link}
+                    to={`${getAiAgentPageBase(
+                        projectUuid,
+                    )}/${agentUuid}/threads/${thread.uuid}`}
+                    size="xs"
+                >
+                    Open
+                </Anchor>
+            </Group>
+        </Group>
     );
 };
+
+export const BattleThreadPane: FC<Props> = ({
+    label,
+    projectUuid,
+    agentUuid,
+    agentName,
+    thread,
+    queuedCount,
+    onChoiceSelect,
+}) => (
+    <Stack h="100%" gap={0} miw={0}>
+        <BattlePaneHeader
+            label={label}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            thread={thread}
+            queuedCount={queuedCount}
+        />
+        <Box flex={1} mih={0}>
+            <AgentChatDisplay
+                thread={thread}
+                agentName={agentName}
+                enableAutoScroll
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                renderArtifactsInline
+                onChoiceSelect={onChoiceSelect}
+            />
+        </Box>
+    </Stack>
+);
