@@ -457,7 +457,7 @@ describe('buildComposerChartData', () => {
                 { day: '2024-01-02', n: 5, extra: 'y' },
             ],
             x: column('day', DimensionType.DATE),
-            y: column('n', DimensionType.NUMBER),
+            y: [column('n', DimensionType.NUMBER)],
         });
         expect(data.results).toEqual([
             { day: '2024-01-01', n: 3 },
@@ -476,11 +476,29 @@ describe('buildComposerChartData', () => {
         const { data, layout } = buildComposerChartData({
             rows: [{ n: 3, status: 'a' }],
             x: null,
-            y: column('n', DimensionType.NUMBER),
+            y: [column('n', DimensionType.NUMBER)],
         });
         expect(data.results).toEqual([{ n: 3 }]);
         expect(data.indexColumn).toBeUndefined();
         expect(layout.x).toBeUndefined();
         expect(layout.y.map((y) => y.reference)).toEqual(['n']);
+    });
+
+    test('several y columns become one value column each', () => {
+        const { data, layout } = buildComposerChartData({
+            rows: [{ status: 'a', n: 3, m: 4, extra: 'x' }],
+            x: column('status', DimensionType.STRING),
+            y: [
+                column('n', DimensionType.NUMBER),
+                column('m', DimensionType.NUMBER),
+            ],
+        });
+        expect(data.results).toEqual([{ status: 'a', n: 3, m: 4 }]);
+        expect(data.valuesColumns.map((c) => c.pivotColumnName)).toEqual([
+            'n',
+            'm',
+        ]);
+        expect(data.columnCount).toBe(3);
+        expect(layout.y.map((y) => y.reference)).toEqual(['n', 'm']);
     });
 });

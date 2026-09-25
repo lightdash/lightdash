@@ -70,7 +70,11 @@ export const buildComposerChartSpec = async ({
     axes: Pick<ComposerVizAxes, 'x' | 'y'>;
     colors: string[];
 }): Promise<ComposerChartSpec> => {
-    const { data, layout } = buildComposerChartData({ rows, ...axes });
+    const { data, layout } = buildComposerChartData({
+        rows,
+        x: axes.x,
+        y: [axes.y],
+    });
     const resultsRunner = new SqlChartResultsRunner({
         pivotChartData: data,
         originalColumns: Object.fromEntries(
