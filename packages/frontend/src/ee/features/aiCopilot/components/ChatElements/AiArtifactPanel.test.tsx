@@ -285,9 +285,7 @@ describe('composer artifact', () => {
         expect(screen.getByText('Sources')).toBeInTheDocument();
         expect(screen.getByText('Result')).toBeInTheDocument();
         expect(screen.getByText('Orders by status')).toBeInTheDocument();
-        expect(
-            screen.getByText('Orders with amounts · result'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Orders with amounts')).toBeInTheDocument();
         expect(
             screen.getByText('Reads Orders by status, Average amount'),
         ).toBeInTheDocument();
@@ -300,7 +298,7 @@ describe('composer artifact', () => {
             queries: composerConfig.queries.map(({ title, ...query }) => query),
         });
         fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-        expect(screen.getByText('joined · result')).toBeInTheDocument();
+        expect(screen.getByText('joined')).toBeInTheDocument();
         expect(screen.getByText('Reads orders, amounts')).toBeInTheDocument();
     });
 });
