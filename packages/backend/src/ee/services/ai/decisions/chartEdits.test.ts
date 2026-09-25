@@ -14,6 +14,7 @@ import {
     applyChartIntent,
     calendarRange,
     getFilterFieldIds,
+    getValueSearchScope,
 } from './chartEdits';
 
 const artifact: AiSemanticChartArtifactConfig = {
@@ -1248,5 +1249,56 @@ describe('applyChartIntent', () => {
             });
             expect(edit?.config.config.queryConfig.sorts).toEqual([]);
         });
+    });
+});
+
+describe('getValueSearchScope', () => {
+    const rule = (fieldId: string, value: string) => ({
+        fieldId,
+        fieldType: DimensionType.STRING as const,
+        fieldFilterType: FilterType.STRING as const,
+        operator: FilterOperator.EQUALS as const,
+        values: [value],
+    });
+    const withDimensionRules = (
+        connector: 'and' | 'or',
+        rules: ReturnType<typeof rule>[],
+    ) =>
+        withQuery({
+            filters: {
+                dimensions: { connector, rules },
+                metrics: null,
+                tableCalculations: null,
+            },
+        });
+    const scopedFieldIds = (scope: ReturnType<typeof getValueSearchScope>) =>
+        scope?.and.map((item) =>
+            'target' in item ? item.target.fieldId : 'group',
+        );
+
+    it('keeps the chart filters on other fields', () => {
+        const scope = getValueSearchScope(
+            withDimensionRules('and', [
+                rule('orders_region', 'EU'),
+                rule('orders_status', 'paid'),
+            ]),
+            'orders_status',
+        );
+        expect(scopedFieldIds(scope)).toEqual(['orders_region']);
+    });
+
+    it('drops an OR group that touches the searched field', () => {
+        const orOnField = withDimensionRules('or', [
+            rule('orders_region', 'EU'),
+            rule('orders_status', 'paid'),
+        ]);
+        expect(getValueSearchScope(orOnField, 'orders_status')).toBeUndefined();
+        expect(
+            scopedFieldIds(getValueSearchScope(orOnField, 'orders_date')),
+        ).toEqual(['group']);
+    });
+
+    it('is unscoped when the chart has no filters', () => {
+        expect(getValueSearchScope(artifact, 'orders_status')).toBeUndefined();
     });
 });
