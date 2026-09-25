@@ -334,6 +334,8 @@ const projectModel = {
         async () => ({ cacheTtlSeconds: null }),
     ),
     updateResultsCacheSettings: vi.fn(async () => undefined),
+    getAgentSqlScope: vi.fn<ProjectModel['getAgentSqlScope']>(async () => null),
+    updateAgentSqlScope: vi.fn<ProjectModel['updateAgentSqlScope']>(),
     getEffectiveResultsCacheTtlSeconds: vi.fn(async () => 86400),
     deleteMergedManifest: vi.fn<ProjectModel['deleteMergedManifest']>(
         async () => undefined,
@@ -1489,6 +1491,62 @@ describe('ProjectService', () => {
                 instanceDefaultTtlSeconds:
                     lightdashConfigMock.results.cacheStateTimeSeconds,
             });
+        });
+    });
+
+    describe('updateAgentSqlScope', () => {
+        const scope = { schemas: ['jaffle'] };
+
+        beforeEach(() => {
+            projectModel.getAgentSqlScope.mockClear();
+            projectModel.updateAgentSqlScope.mockClear();
+        });
+
+        test('rejects a project that has no scope already', async () => {
+            projectModel.getAgentSqlScope.mockResolvedValueOnce(null);
+
+            await expect(
+                service.updateAgentSqlScope(developerAccount, projectUuid, {
+                    agentSqlScope: scope,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.updateAgentSqlScope).not.toHaveBeenCalled();
+        });
+
+        test('updates a project that already has a scope', async () => {
+            projectModel.getAgentSqlScope.mockResolvedValueOnce(scope);
+
+            await service.updateAgentSqlScope(developerAccount, projectUuid, {
+                agentSqlScope: { schemas: ['jaffle', 'marts'] },
+            });
+
+            expect(projectModel.updateAgentSqlScope).toHaveBeenCalledWith(
+                projectUuid,
+                { schemas: ['jaffle', 'marts'] },
+            );
+        });
+
+        test('allows clearing an existing scope', async () => {
+            projectModel.getAgentSqlScope.mockResolvedValueOnce(scope);
+
+            await service.updateAgentSqlScope(developerAccount, projectUuid, {
+                agentSqlScope: null,
+            });
+
+            expect(projectModel.updateAgentSqlScope).toHaveBeenCalledWith(
+                projectUuid,
+                null,
+            );
+        });
+
+        test('rejects a user without project update permission', async () => {
+            await expect(
+                service.updateAgentSqlScope(viewerAccount, projectUuid, {
+                    agentSqlScope: scope,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.getAgentSqlScope).not.toHaveBeenCalled();
+            expect(projectModel.updateAgentSqlScope).not.toHaveBeenCalled();
         });
     });
 

@@ -678,9 +678,10 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
-                // Only meaningful when the instance has AI agents at all —
-                // same gate as the org-level AI agents section.
-                ...(isAiCopilotEnabledOrTrial
+                // Only meaningful when the instance has AI agents at all and
+                // this project already has a scope — the page edits an
+                // existing scope, it no longer creates one.
+                ...(isAiCopilotEnabledOrTrial && !!project.agentSqlScope
                     ? [
                           {
                               label: 'Agent data scope',
