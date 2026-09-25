@@ -1,3 +1,10 @@
+## [2.342.3](https://github.com/lightdash/lightdash/compare/2.342.2...2.342.3) (2026-09-25)
+
+
+### Bug Fixes
+
+* **data-apps:** reset submit mutations once a server version lands ([#29988](https://github.com/lightdash/lightdash/issues/29988)) ([a1dd901](https://github.com/lightdash/lightdash/commit/a1dd90139646a9051a7a790e13ccdef5635cd2f6))
+
 ## [2.342.2](https://github.com/lightdash/lightdash/compare/2.342.1...2.342.2) (2026-09-25)
 
 
