@@ -281,7 +281,7 @@ const ChartTypeGallery = () => {
 
     return (
         <Page
-            title="Chart types"
+            title="Chart Studio"
             withCenteredRoot
             withCenteredContent
             withXLargePaddedContent
@@ -291,7 +291,7 @@ const ChartTypeGallery = () => {
                 <PageBreadcrumbs
                     items={[
                         { title: 'Home', to: '/home' },
-                        { title: 'Chart types', active: true },
+                        { title: 'Chart Studio', active: true },
                     ]}
                 />
 

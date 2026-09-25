@@ -456,6 +456,9 @@ describe('ChartTypeBuilder', () => {
         );
 
         expect(screen.getByText('Chart type not found')).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Back to Chart Studio' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
     });
 
     it('resolves an edit route by slug', () => {
@@ -466,8 +469,8 @@ describe('ChartTypeBuilder', () => {
         expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
         expect(screen.getByText('Stream graph')).toBeInTheDocument();
         expect(
-            screen.getByText('Chart Studio', { exact: true }),
-        ).toBeInTheDocument();
+            screen.getAllByText('Chart Studio', { exact: true }),
+        ).toHaveLength(2);
     });
 
     it.each([
@@ -592,8 +595,8 @@ describe('ChartTypeBuilder', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
         expect(
-            screen.queryByText('Chart Studio', { exact: true }),
-        ).not.toBeInTheDocument();
+            screen.getAllByText('Chart Studio', { exact: true }),
+        ).toHaveLength(1);
         expect(
             screen.getByText(
                 'Describe the chart you’ve always wanted, or start from an example.',
@@ -1272,7 +1275,7 @@ describe('ChartTypeBuilder', () => {
         fireEvent.click(screen.getByLabelText('Show grid'));
 
         expect(
-            screen.getByRole('link', { name: 'Chart types' }),
+            screen.getByRole('link', { name: 'Chart Studio' }),
         ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
         fireEvent.click(
             screen.getByRole('button', { name: 'Preview in explorer' }),
@@ -1317,7 +1320,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         expect(
-            screen.getByRole('link', { name: 'Chart types' }),
+            screen.getByRole('link', { name: 'Chart Studio' }),
         ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
     });
 
@@ -1752,8 +1755,8 @@ describe('ChartTypeBuilder', () => {
         const view = renderBuilder('/projects/p1/chart-types/new');
 
         expect(
-            screen.getByText('Chart Studio', { exact: true }),
-        ).toBeInTheDocument();
+            screen.getAllByText('Chart Studio', { exact: true }),
+        ).toHaveLength(2);
         const history = screen.getByRole('button', { name: 'History' });
         expect(history).toHaveAttribute('inert');
         expect(
