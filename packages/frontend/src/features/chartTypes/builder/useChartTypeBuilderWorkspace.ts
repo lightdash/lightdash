@@ -327,8 +327,7 @@ export const useChartTypeBuilderWorkspace = ({
         dataAppVizUuid !== null &&
         history.isLoading &&
         build.appUuid !== dataAppVizUuid;
-    // The composer captures its placeholder at mount, so wait for history
-    // before choosing create vs revise wording.
+    // Wait for history so the composer never opens with create wording.
     const isPromptBarMounted = !isLoadingExisting;
 
     return {

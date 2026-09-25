@@ -77,3 +77,58 @@ describe('PromptComposer keyboard handling', () => {
         expect(editor.getText({ blockSeparator: '\n' })).toBe('queued draft');
     });
 });
+
+describe('PromptComposer placeholder', () => {
+    const placeholderOf = () =>
+        document
+            .querySelector('[data-placeholder]')
+            ?.getAttribute('data-placeholder');
+
+    it('repaints a new placeholder in the same editor, keeping the draft', () => {
+        const ref = createRef<PromptComposerHandle>();
+        const { rerender } = renderWithProviders(
+            <PromptComposer
+                ref={ref}
+                onSubmit={vi.fn()}
+                placeholder="Describe a new chart type…"
+            />,
+        );
+        expect(placeholderOf()).toBe('Describe a new chart type…');
+        const editor = ref.current?.editor as Editor;
+        editor.commands.setContent('make the bars thinner');
+
+        rerender(
+            <PromptComposer
+                ref={ref}
+                onSubmit={vi.fn()}
+                placeholder="Ask for a change…"
+            />,
+        );
+
+        expect(ref.current?.editor).toBe(editor);
+        expect(editor.getText()).toBe('make the bars thinner');
+        editor.commands.clearContent();
+        expect(placeholderOf()).toBe('Ask for a change…');
+    });
+
+    it('shows a new placeholder on an empty composer without a keystroke', () => {
+        const ref = createRef<PromptComposerHandle>();
+        const { rerender } = renderWithProviders(
+            <PromptComposer
+                ref={ref}
+                onSubmit={vi.fn()}
+                placeholder="Describe a new chart type…"
+            />,
+        );
+
+        rerender(
+            <PromptComposer
+                ref={ref}
+                onSubmit={vi.fn()}
+                placeholder="Ask for a change…"
+            />,
+        );
+
+        expect(placeholderOf()).toBe('Ask for a change…');
+    });
+});

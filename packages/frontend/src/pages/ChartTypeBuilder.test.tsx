@@ -1347,6 +1347,37 @@ describe('ChartTypeBuilder', () => {
         ).toHaveValue('make the target markers red');
     });
 
+    it('rewords the same composer once the first version lands, keeping the draft', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000009';
+        let currentBuild = buildStub({
+            isBuilding: true,
+            appUuid: dataAppVizUuid,
+            claimedVersion: 1,
+            pendingPrompt: 'a stream graph of category share',
+        });
+        vi.mocked(useDataAppVizBuild).mockImplementation(() => currentBuild);
+        const view = renderBuilder('/projects/p1/chart-types/new');
+        const composer = screen.getByPlaceholderText('Ask for another change…');
+        fireEvent.change(composer, {
+            target: { value: 'make the target markers red' },
+        });
+
+        currentBuild = buildStub();
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        view.rerender(
+            builderRoutes(
+                `/projects/jaffle-shop/chart-types/${dataAppVizUuid}`,
+            ),
+        );
+
+        const reworded = screen.getByPlaceholderText('Ask for a change…');
+        expect(reworded).toBe(composer);
+        expect(reworded).toHaveValue('make the target markers red');
+    });
+
     it('keeps the previous version dimmed under the pill while rebuilding', () => {
         setApp(appMeta());
         vi.mocked(useAppVersionHistory).mockReturnValue(
