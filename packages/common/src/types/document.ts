@@ -31,9 +31,20 @@ export type MergeChartAsCode = SemanticChartAsCode & {
     merge: SavedMergeQuery;
 };
 
+// Named so API diffs can match each variant instead of anonymous anyOf members.
+export type DocumentSemanticChartContent = {
+    source: 'semantic';
+    chart: SemanticChartAsCode;
+};
+
+export type DocumentMergeChartContent = {
+    source: 'merge';
+    chart: MergeChartAsCode;
+};
+
 type DocumentChartContent =
-    | { source: 'semantic'; chart: SemanticChartAsCode }
-    | { source: 'merge'; chart: MergeChartAsCode };
+    | DocumentSemanticChartContent
+    | DocumentMergeChartContent;
 
 export type DocumentCell =
     | { type: 'markdown'; content: { markdown: string } }
