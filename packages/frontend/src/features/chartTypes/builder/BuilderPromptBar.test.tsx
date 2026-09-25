@@ -16,7 +16,7 @@ import {
 } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
 import { type UseElementPickerResult } from '../../apps/hooks/useElementPicker';
@@ -74,18 +74,23 @@ vi.mock(
     }),
 );
 
+const themeList = vi.hoisted(() => [
+    { designUuid: 'brand', name: 'Brand', isDefault: true },
+    { designUuid: 'nvidia', name: 'Fake NVIDIA', isDefault: false },
+]);
 const themeQuery = vi.hoisted(() => ({
     data: [
         { designUuid: 'brand', name: 'Brand', isDefault: true },
         { designUuid: 'nvidia', name: 'Fake NVIDIA', isDefault: false },
-    ],
-    isLoading: false,
+    ] as typeof themeList | undefined,
+    isInitialLoading: false,
     isError: false,
     isSuccess: true,
     refetch: vi.fn(),
 }));
+const useOrganizationDesigns = vi.hoisted(() => vi.fn(() => themeQuery));
 vi.mock('../../organizationDesigns/hooks/useOrganizationDesigns', () => ({
-    useOrganizationDesigns: () => themeQuery,
+    useOrganizationDesigns,
 }));
 const themedVersion = (designUuid: string | null = 'brand') =>
     appVersion({
@@ -96,6 +101,17 @@ const themedVersion = (designUuid: string | null = 'brand') =>
                     : { designUuid, name: 'Saved brand', fileCount: 1 },
         } as AppVersionResources,
     });
+
+// The default mock user cannot view themes; grant it so the picker renders.
+const themeViewer: Parameters<typeof renderWithAppProviders>[1] = {
+    user: {
+        abilityRules: [{ action: 'view', subject: 'OrganizationDesign' }],
+    },
+};
+const renderWithProviders = (
+    ui: Parameters<typeof renderWithAppProviders>[0],
+    appMocks?: Parameters<typeof renderWithAppProviders>[1],
+) => renderWithAppProviders(ui, { ...themeViewer, ...appMocks });
 
 // The real composer is TipTap; a text input carries the same handle contract.
 vi.mock('../../../components/common/PromptComposer/PromptComposer', () => ({
@@ -330,9 +346,11 @@ describe('BuilderPromptBar', () => {
         showToastError.mockClear();
         connections.linked = [];
         connections.unlink.mockClear();
-        themeQuery.isLoading = false;
+        themeQuery.data = themeList;
+        themeQuery.isInitialLoading = false;
         themeQuery.isError = false;
         themeQuery.isSuccess = true;
+        useOrganizationDesigns.mockClear();
     });
 
     it('stages a captured render as a screenshot', async () => {
@@ -711,11 +729,8 @@ describe('BuilderPromptBar', () => {
                 clarification: clarificationStub({ send }),
             }),
         );
-        expect(
-            screen.getByRole('button', { name: 'Theme: Brand' }),
-        ).toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('button', { name: 'Theme: Brand' }),
+            await screen.findByRole('button', { name: 'Theme: Brand' }),
         );
         await userEvent.click(
             screen.getByRole('menuitem', { name: 'Fake NVIDIA' }),
@@ -740,7 +755,7 @@ describe('BuilderPromptBar', () => {
             promptBar({ hasVersions: false, build: buildState({ send }) }),
         );
         await userEvent.click(
-            screen.getByRole('button', { name: 'Theme: Brand' }),
+            await screen.findByRole('button', { name: 'Theme: Brand' }),
         );
         await userEvent.click(
             screen.getByRole('menuitem', { name: /^No theme/ }),
@@ -830,19 +845,43 @@ describe('BuilderPromptBar', () => {
         );
     });
 
-    it('disables theme changes during builds and while themes load', () => {
+    it('disables theme changes during builds and while themes load', async () => {
         const { rerender } = renderWithProviders(
             promptBar({ isBuilding: true, latestVersion: themedVersion() }),
         );
         expect(
             screen.getByRole('button', { name: 'Theme: Brand' }),
         ).toBeDisabled();
-        themeQuery.isLoading = true;
+        themeQuery.isInitialLoading = true;
         themeQuery.isSuccess = false;
         rerender(promptBar({ hasVersions: false }));
         expect(
-            screen.getByRole('button', { name: 'Theme: Loading themes…' }),
+            await screen.findByRole('button', {
+                name: 'Theme: Loading themes…',
+            }),
         ).toBeDisabled();
+    });
+
+    it('waits for the first theme fetch before a first build', async () => {
+        themeQuery.isInitialLoading = true;
+        themeQuery.isSuccess = false;
+        const send = vi.fn();
+        const { rerender } = renderWithProviders(
+            promptBar({ hasVersions: false, build: buildState({ send }) }),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Describe a new chart type…'),
+            'A bar chart',
+        );
+        expect(screen.getByLabelText('Send')).toBeDisabled();
+        expect(send).not.toHaveBeenCalled();
+
+        themeQuery.isInitialLoading = false;
+        themeQuery.isSuccess = true;
+        rerender(
+            promptBar({ hasVersions: false, build: buildState({ send }) }),
+        );
+        expect(screen.getByLabelText('Send')).toBeEnabled();
     });
 
     it('keeps the saved theme name when it no longer exists in the organization list', () => {
@@ -905,17 +944,20 @@ describe('BuilderPromptBar', () => {
             screen.getByRole('button', { name: 'Theme: Brand' }),
         ).toBeDisabled();
         await userEvent.click(
-            screen.getByRole('button', { name: 'Retry themes' }),
+            await screen.findByRole('button', { name: 'Retry themes' }),
         );
         expect(themeQuery.refetch).toHaveBeenCalled();
     });
 
-    it('blocks a first build when the theme list could not be loaded', async () => {
+    it('still allows a first build when the theme list could not be loaded', async () => {
         themeQuery.isError = true;
         themeQuery.isSuccess = false;
         const send = vi.fn();
         renderWithProviders(
-            promptBar({ hasVersions: false, build: buildState({ send }) }),
+            promptBar({
+                hasVersions: false,
+                clarification: clarificationStub({ send }),
+            }),
         );
         await userEvent.type(
             screen.getByPlaceholderText('Describe a new chart type…'),
@@ -924,8 +966,48 @@ describe('BuilderPromptBar', () => {
         expect(
             screen.getByRole('button', { name: 'Theme: Themes unavailable' }),
         ).toBeDisabled();
-        expect(screen.getByLabelText('Send')).toBeDisabled();
-        expect(send).not.toHaveBeenCalled();
+        expect(
+            screen.getByRole('button', { name: 'Retry themes' }),
+        ).toBeInTheDocument();
+        expect(screen.getByLabelText('Send')).toBeEnabled();
+        await userEvent.click(screen.getByLabelText('Send'));
+        expect(send).toHaveBeenCalledWith(
+            expect.objectContaining({ description: 'A bar chart' }),
+        );
+        expect(send.mock.calls[0][0]).not.toHaveProperty('designUuid');
+    });
+
+    it('lets a project editor without organization theme access create a chart type', async () => {
+        // The listing is not requested, so the query never settles.
+        themeQuery.data = undefined;
+        themeQuery.isSuccess = false;
+        const send = vi.fn();
+        renderWithProviders(
+            promptBar({
+                hasVersions: false,
+                clarification: clarificationStub({ send }),
+            }),
+            { user: { abilityRules: [] } },
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Describe a new chart type…'),
+            'A bar chart',
+        );
+        expect(useOrganizationDesigns).toHaveBeenCalledWith({
+            enabled: false,
+        });
+        expect(
+            screen.queryByRole('button', { name: /^Theme:/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Retry themes' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Send')).toBeEnabled();
+        await userEvent.click(screen.getByLabelText('Send'));
+        expect(send).toHaveBeenCalledWith(
+            expect.objectContaining({ description: 'A bar chart' }),
+        );
+        expect(send.mock.calls[0][0]).not.toHaveProperty('designUuid');
     });
 
     it('does not rebuild when selecting the current theme', async () => {

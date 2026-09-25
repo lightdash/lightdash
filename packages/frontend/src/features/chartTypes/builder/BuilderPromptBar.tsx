@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { getErrorMessage, type ApiAppVersionSummary } from '@lightdash/common';
 import {
     ActionIcon,
@@ -233,7 +234,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [isCapturingScreenshot, setIsCapturingScreenshot] =
             useState(false);
         const queryClient = useQueryClient();
-        const { health } = useApp();
+        const { health, user } = useApp();
         const canIncludeSampleData =
             health.data?.dataApps.sampleDataEnabled !== false &&
             Boolean(buildContext?.sampleRows?.length);
@@ -261,7 +262,16 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     (connection) => connection.externalConnectionUuid !== uuid,
                 ),
             );
-        const themesQuery = useOrganizationDesigns();
+        // Org members without theme access get a 403 from the listing.
+        const canViewThemes = Boolean(
+            user.data?.ability.can(
+                'view',
+                subject('OrganizationDesign', {
+                    organizationUuid: user.data.organizationUuid,
+                }),
+            ),
+        );
+        const themesQuery = useOrganizationDesigns({ enabled: canViewThemes });
         const themes = themesQuery.data ?? [];
         const [newThemeUuid, setNewThemeUuid] = useState<
             string | null | undefined
@@ -277,7 +287,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const themeName =
             themesQuery.isError && isNewChart
                 ? 'Themes unavailable'
-                : themesQuery.isLoading && isNewChart
+                : themesQuery.isInitialLoading && isNewChart
                   ? 'Loading themes…'
                   : selectedThemeUuid === null
                     ? 'No theme'
@@ -314,8 +324,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             },
         }));
 
+        // Themes are optional; only wait for the first fetch so the default
+        // theme can be attached.
         const canSubmit =
-            !attachments.isUploading && (!isNewChart || themesQuery.isSuccess);
+            !attachments.isUploading &&
+            !(isNewChart && themesQuery.isInitialLoading);
         const sendBuild = build.send;
         const buildError = build.error;
         const cancelActiveBuild = interruptNext
@@ -842,34 +855,36 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 role="group"
                                 aria-label="Selected chart context"
                             >
-                                <ThemePicker
-                                    compact
-                                    value={
-                                        isNewChart && !themesQuery.isSuccess
-                                            ? null
-                                            : selectedThemeUuid
-                                    }
-                                    fallbackLabel={
-                                        selectedThemeUuid !== null ||
-                                        !themesQuery.isSuccess
-                                            ? themeName
-                                            : undefined
-                                    }
-                                    disabled={themePickerDisabled}
-                                    opened={composerPanel === 'theme'}
-                                    onOpenedChange={(opened) =>
-                                        setComposerPanel(
-                                            opened ? 'theme' : null,
-                                        )
-                                    }
-                                    onChange={handleThemeChange}
-                                    selectionHint={
-                                        isNewChart
-                                            ? undefined
-                                            : 'Selecting a theme rebuilds this chart type.'
-                                    }
-                                />
-                                {themesQuery.isError && (
+                                {(!isNewChart || canViewThemes) && (
+                                    <ThemePicker
+                                        compact
+                                        value={
+                                            isNewChart && !themesQuery.isSuccess
+                                                ? null
+                                                : selectedThemeUuid
+                                        }
+                                        fallbackLabel={
+                                            selectedThemeUuid !== null ||
+                                            !themesQuery.isSuccess
+                                                ? themeName
+                                                : undefined
+                                        }
+                                        disabled={themePickerDisabled}
+                                        opened={composerPanel === 'theme'}
+                                        onOpenedChange={(opened) =>
+                                            setComposerPanel(
+                                                opened ? 'theme' : null,
+                                            )
+                                        }
+                                        onChange={handleThemeChange}
+                                        selectionHint={
+                                            isNewChart
+                                                ? undefined
+                                                : 'Selecting a theme rebuilds this chart type.'
+                                        }
+                                    />
+                                )}
+                                {canViewThemes && themesQuery.isError && (
                                     <Button
                                         size="compact-xs"
                                         variant="subtle"
