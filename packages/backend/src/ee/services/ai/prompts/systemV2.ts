@@ -13,6 +13,7 @@ import {
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
 } from '../types/aiAgent';
+import { renderKnowledgeDocumentSummary } from '../utils/renderKnowledgeDocumentSummary';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
@@ -219,37 +220,7 @@ export const getSystemPromptV2 = (args: {
 
     const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
         const { summary } = doc;
-        const children: string[] = [
-            xmlBuilder('description', null, escapeXmlText(summary.description)),
-        ];
-        if (summary.definedTerms.length > 0) {
-            children.push(
-                xmlBuilder(
-                    'defines',
-                    null,
-                    escapeXmlText(summary.definedTerms.join(', ')),
-                ),
-            );
-        }
-        if (summary.relatedExploreNames.length > 0) {
-            children.push(
-                xmlBuilder(
-                    'applies_to_explores',
-                    null,
-                    escapeXmlText(summary.relatedExploreNames.join(', ')),
-                ),
-            );
-        }
-        if (summary.useWhen) {
-            children.push(
-                xmlBuilder('use_when', null, escapeXmlText(summary.useWhen)),
-            );
-        }
-        if (summary.warning) {
-            children.push(
-                xmlBuilder('warning', null, escapeXmlText(summary.warning)),
-            );
-        }
+        const children = renderKnowledgeDocumentSummary(summary);
         const fullContent = doc.content ?? '';
         const hasFullContent =
             doc.alwaysIncludeInContext && fullContent.length > 0;

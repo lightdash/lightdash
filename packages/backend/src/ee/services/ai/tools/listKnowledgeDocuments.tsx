@@ -4,8 +4,9 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListKnowledgeDocumentsFn } from '../types/aiAgentDependencies';
+import { renderKnowledgeDocumentSummary } from '../utils/renderKnowledgeDocumentSummary';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
@@ -14,9 +15,13 @@ type Dependencies = {
 const toolDefinition = listKnowledgeDocumentsToolDefinition.for('agent');
 
 const renderDocument = (doc: AiAgentDocumentSummary) => (
-    <document uuid={doc.uuid} sizeBytes={doc.contentSizeBytes}>
-        <name>{doc.name}</name>
-        <summary>{doc.summary}</summary>
+    <document
+        uuid={doc.uuid}
+        sizeBytes={doc.contentSizeBytes}
+        relevance={doc.summary.relevance}
+    >
+        <name>{escapeXmlText(doc.name)}</name>
+        {renderKnowledgeDocumentSummary(doc.summary)}
     </document>
 );
 
