@@ -361,6 +361,8 @@ import {
     CHART_INTENT_THRESHOLDS,
     decideTurn,
     isChartEditAttempt,
+    matchChartChoice,
+    parseStoredChoices,
     plannedSteps,
     selectFilterValues,
     verifyChartPlan,
@@ -12928,6 +12930,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             outcome = 'compound';
             // pg writes a bare JS array as a Postgres array, which jsonb rejects.
             intent = { steps: chart.steps };
+        } else if (chart?.type === 'clarify') {
+            outcome = 'clarify';
+            intent = { question: chart.question, options: chart.options };
         } else if (chart) outcome = chart.type;
         try {
             await this.aiAgentModel.createPromptDecision({
@@ -13130,15 +13135,43 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   }).catch(() => null)
                 : null;
         const decisionStartedAt = performance.now();
-        const turn = decisions
-            ? await decideTurn({
-                  decisions,
-                  prompt: prompt.prompt,
-                  instructions: agentSettings.instruction,
-                  conversation: decisionHistory.slice(-3),
-                  context: chartTurn?.intentContext ?? null,
-              })
+        // A click on a choice from the previous turn applies its stored edit without asking JEV again.
+        const chosenIntent =
+            decisions && chartTurn
+                ? matchChartChoice(
+                      parseStoredChoices(
+                          await this.aiAgentModel
+                              .findPreviousClarifyChoices(
+                                  prompt.threadUuid,
+                                  prompt.promptUuid,
+                              )
+                              .catch(() => null),
+                      ),
+                      prompt.prompt,
+                  )
+                : null;
+        const choiceTurn = chosenIntent
+            ? {
+                  decision: {
+                      simpleDataAnswer: false,
+                      chart: { type: 'intent' as const, intent: chosenIntent },
+                      instantReply: null,
+                      correction: null,
+                  },
+                  answers: {},
+              }
             : null;
+        const turn =
+            choiceTurn ??
+            (decisions
+                ? await decideTurn({
+                      decisions,
+                      prompt: prompt.prompt,
+                      instructions: agentSettings.instruction,
+                      conversation: decisionHistory.slice(-3),
+                      context: chartTurn?.intentContext ?? null,
+                  })
+                : null);
         const decisionLatencyMs = performance.now() - decisionStartedAt;
         const decisionServiceMs = decisionUsage?.serviceMs ?? null;
         const turnDecision = turn?.decision ?? null;

@@ -21,6 +21,7 @@ interface Props {
     agentName: string;
     thread: AiAgentThread;
     queuedCount: number;
+    onChoiceSelect: (prompt: string) => void;
 }
 
 const useTicking = (active: boolean) => {
@@ -40,6 +41,7 @@ export const BattleThreadPane: FC<Props> = ({
     agentName,
     thread,
     queuedCount,
+    onChoiceSelect,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -182,6 +184,7 @@ export const BattleThreadPane: FC<Props> = ({
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     renderArtifactsInline
+                    onChoiceSelect={onChoiceSelect}
                 />
             </Box>
         </Stack>

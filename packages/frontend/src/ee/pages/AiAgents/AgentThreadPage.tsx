@@ -399,6 +399,15 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     agentUuid={agentUuid}
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    onChoiceSelect={
+                        inputDisabled || isBusy
+                            ? undefined
+                            : (choice) =>
+                                  handleSubmit({
+                                      message: choice,
+                                      toolHints: [],
+                                  })
+                    }
                     canRetryDeepResearch={
                         canStartDeepResearch && !inputDisabled && !isBusy
                     }
