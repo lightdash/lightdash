@@ -266,6 +266,7 @@ export const CHART_INTENT_THRESHOLDS = {
     intent: 0.45,
     multiple: 0.7,
     wants: 0.7,
+    replacesUnsure: 0.5,
     nonEdit: 0.5,
     field: 0.5,
     option: 0.5,
@@ -1672,6 +1673,56 @@ const pickNew = (
     return fields.find(({ id }) => id === chosen) ?? null;
 };
 
+const MAX_CHOICES = 3;
+
+/** The breakdown a new field goes in place of, when JEV is sure the user wants a swap. */
+const replacedBreakdown = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): FieldCandidate | null =>
+    (decisionProbability(answers.replacesField) ?? 0) >= thresholds.wants
+        ? pickCurrent(
+              answers.fieldToRemove,
+              context.chartDimensions,
+              thresholds.field,
+          )
+        : null;
+
+/** Adding the field or putting it in place of each non-date breakdown, as clickable choices. */
+const breakdownChoices = (
+    field: FieldCandidate,
+    context: ChartIntentContext,
+): Extract<ChartIntentResolution, { type: 'clarify' }> | null => {
+    const breakdowns = context.chartDimensions.filter(({ isDate }) => !isDate);
+    if (breakdowns.length === 0) return null;
+    const options: ChartChoice[] = [
+        {
+            label: `Add ${field.label}`,
+            prompt: `Also break down by ${field.label}`,
+            intent: {
+                kind: 'add_field' as const,
+                fieldId: field.id,
+                chartType: null,
+            },
+        },
+        ...breakdowns.map((current) => ({
+            label: `Replace ${current.label}`,
+            prompt: `Break down by ${field.label} instead of ${current.label}`,
+            intent: {
+                kind: 'swap_field' as const,
+                fromFieldId: current.id,
+                toFieldId: field.id,
+            },
+        })),
+    ].slice(0, MAX_CHOICES);
+    return {
+        type: 'clarify',
+        question: `How should I use ${field.label}?`,
+        options,
+    };
+};
+
 const resolveAddField = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -1684,15 +1735,23 @@ const resolveAddField = (
         thresholds,
     );
     if (split.type === 'clarify') {
+        const replaced =
+            chartType === null
+                ? replacedBreakdown(answers, context, thresholds)
+                : null;
         const presentation = chartType
             ? ` as ${CHART_TYPE_NAMES[chartType]}`
             : '';
         return {
             type: 'clarify',
-            question: 'Which field should I add?',
+            question: replaced
+                ? `Which field should replace ${replaced.label}?`
+                : 'Which field should I add?',
             options: split.labels.map((label) => ({
                 label,
-                prompt: `Add ${label} to the chart${presentation}`,
+                prompt: replaced
+                    ? `Break down by ${label} instead of ${replaced.label}`
+                    : `Add ${label} to the chart${presentation}`,
                 intent: null,
             })),
         };
@@ -1701,25 +1760,30 @@ const resolveAddField = (
         split.type === 'pick'
             ? split.fieldId
             : confident(answers.addField, thresholds.field);
-    if (!fieldId || fieldId === 'none')
-        return { type: 'unresolved', reason: 'add-field' };
-    if ((decisionProbability(answers.replacesField) ?? 0) < thresholds.wants)
+    const field = context.addableFields.find(({ id }) => id === fieldId);
+    if (!field) return { type: 'unresolved', reason: 'add-field' };
+    const replaces = decisionProbability(answers.replacesField) ?? 0;
+    if (replaces < thresholds.replacesUnsure)
         return {
             type: 'intent',
-            intent: { kind: 'add_field', fieldId, chartType },
+            intent: { kind: 'add_field', fieldId: field.id, chartType },
         };
-    const from = pickCurrent(
-        answers.fieldToRemove,
-        context.chartDimensions,
-        thresholds.field,
-    );
+    // Leaning towards a replacement without being sure: ask rather than add.
+    if (replaces < thresholds.wants)
+        return (
+            (chartType === null ? breakdownChoices(field, context) : null) ?? {
+                type: 'unresolved',
+                reason: 'swap-field',
+            }
+        );
+    const from = replacedBreakdown(answers, context, thresholds);
     return from && chartType === null
         ? {
               type: 'intent',
               intent: {
                   kind: 'swap_field',
                   fromFieldId: from.id,
-                  toFieldId: fieldId,
+                  toFieldId: field.id,
               },
           }
         : { type: 'unresolved', reason: 'swap-field' };
@@ -1979,14 +2043,12 @@ const resolveCompound = (
     };
 };
 
-const MAX_CHOICES = 3;
-
 /** When the user names a field but not what to do with it, the edits that field allows. */
 const resolveFieldChoices = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
     thresholds: ChartIntentThresholds,
-): Extract<ChartIntentResolution, { type: 'clarify' }> | null => {
+): ChartIntentResolution | null => {
     const { intent } = answers;
     if (intent?.type !== 'choice') return null;
     const newQuestion = intent.probabilities.new_question ?? 1;
@@ -2036,33 +2098,22 @@ const resolveFieldChoices = (
         return null;
     const fieldId = confident(answers.addField, thresholds.field);
     const field = context.addableFields.find(({ id }) => id === fieldId);
-    const breakdowns = context.chartDimensions.filter(({ isDate }) => !isDate);
-    if (!field || breakdowns.length === 0) return null;
-    const options: ChartChoice[] = [
-        {
-            label: `Add ${field.label}`,
-            prompt: `Also break down by ${field.label}`,
-            intent: {
-                kind: 'add_field' as const,
-                fieldId: field.id,
-                chartType: null,
-            },
-        },
-        ...breakdowns.map((current) => ({
-            label: `Replace ${current.label}`,
-            prompt: `Break down by ${field.label} instead of ${current.label}`,
-            intent: {
-                kind: 'swap_field' as const,
-                fromFieldId: current.id,
-                toFieldId: field.id,
-            },
-        })),
-    ].slice(0, MAX_CHOICES);
-    return {
-        type: 'clarify',
-        question: `How should I use ${field.label}?`,
-        options,
-    };
+    if (!field) return null;
+    const choices = breakdownChoices(field, context);
+    // The replacement question already settles which of the choices the user means.
+    const replaced = choices
+        ? replacedBreakdown(answers, context, thresholds)
+        : null;
+    return replaced
+        ? {
+              type: 'intent',
+              intent: {
+                  kind: 'swap_field',
+                  fromFieldId: replaced.id,
+                  toFieldId: field.id,
+              },
+          }
+        : choices;
 };
 
 const storedChoiceIntentSchema = z.union([
