@@ -1541,6 +1541,13 @@ export const extractableTimeFrames: ReadonlySet<TimeFrames> = new Set([
     TimeFrames.QUARTER_NAME,
 ]);
 
+/** Time frames whose SQL depends on the project's start of week. */
+export const startOfWeekDependentTimeFrames: ReadonlySet<TimeFrames> = new Set([
+    TimeFrames.WEEK,
+    TimeFrames.WEEK_NUM,
+    TimeFrames.DAY_OF_WEEK_INDEX,
+]);
+
 export const isTimeInterval = (value: string): value is TimeFrames =>
     Object.keys(timeFrameConfigs).includes(value);
 

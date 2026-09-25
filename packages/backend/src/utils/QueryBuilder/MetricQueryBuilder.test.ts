@@ -9483,3 +9483,306 @@ describe('Known-naive domains survive PoP and fanout metric paths', () => {
         expect(query).not.toMatch(/MAX\("customers"\.created_at\)/);
     });
 });
+
+// PROD-11481: with timezone support on, TIMESTAMP-base week grains are rebuilt
+// at query time from the project's warehouse-credential start of week, but
+// DATE-base grains kept whatever the deploy compiled. The credential must
+// govern every week-relative grain regardless of base type.
+describe('Project start of week governs DATE-base week grains (PROD-11481)', () => {
+    const dateDim = (
+        name: string,
+        timeInterval: TimeFrames,
+        type: DimensionType,
+        compiledSql: string,
+    ): CompiledDimension => ({
+        type,
+        name,
+        label: name,
+        table: 'events',
+        tableLabel: 'events',
+        fieldType: FieldType.DIMENSION,
+        sql: compiledSql.replace('"events"', '${TABLE}'),
+        compiledSql,
+        tablesReferences: ['events'],
+        hidden: false,
+        timeInterval,
+        timeIntervalBaseDimensionName: 'occurred_at',
+        timeIntervalBaseDimensionType: DimensionType.DATE,
+    });
+
+    // Compiled with no start of week (`lightdash deploy` without the flag).
+    const buildDateWeekExplore = (
+        adapter: SupportedDbtAdapter = SupportedDbtAdapter.POSTGRES,
+        compiled: Record<string, string> = {
+            occurred_at_week: `DATE_TRUNC('WEEK', "events".occurred_at)`,
+            occurred_at_week_num: `DATE_PART('WEEK', "events".occurred_at)`,
+            occurred_at_day_of_week_index: `DATE_PART('DOW', "events".occurred_at)`,
+            occurred_at_month: `DATE_TRUNC('MONTH', "events".occurred_at)`,
+            occurred_at_day_of_week_name: `TO_CHAR("events".occurred_at, 'FMDay')`,
+        },
+    ): Explore => ({
+        targetDatabase: adapter,
+        name: 'events',
+        label: 'events',
+        baseTable: 'events',
+        tags: [],
+        joinedTables: [],
+        tables: {
+            events: {
+                name: 'events',
+                label: 'events',
+                database: 'db',
+                schema: 's',
+                sqlTable: '"events"',
+                primaryKey: ['id'],
+                dimensions: {
+                    id: {
+                        type: DimensionType.NUMBER,
+                        name: 'id',
+                        label: 'id',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.id',
+                        compiledSql: '"events".id',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                    occurred_at: {
+                        type: DimensionType.DATE,
+                        name: 'occurred_at',
+                        label: 'occurred_at',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.occurred_at',
+                        compiledSql: '"events".occurred_at',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                    occurred_at_week: dateDim(
+                        'occurred_at_week',
+                        TimeFrames.WEEK,
+                        DimensionType.DATE,
+                        compiled.occurred_at_week,
+                    ),
+                    occurred_at_week_num: dateDim(
+                        'occurred_at_week_num',
+                        TimeFrames.WEEK_NUM,
+                        DimensionType.NUMBER,
+                        compiled.occurred_at_week_num,
+                    ),
+                    occurred_at_day_of_week_index: dateDim(
+                        'occurred_at_day_of_week_index',
+                        TimeFrames.DAY_OF_WEEK_INDEX,
+                        DimensionType.NUMBER,
+                        compiled.occurred_at_day_of_week_index,
+                    ),
+                    occurred_at_month: dateDim(
+                        'occurred_at_month',
+                        TimeFrames.MONTH,
+                        DimensionType.DATE,
+                        compiled.occurred_at_month,
+                    ),
+                    occurred_at_day_of_week_name: dateDim(
+                        'occurred_at_day_of_week_name',
+                        TimeFrames.DAY_OF_WEEK_NAME,
+                        DimensionType.STRING,
+                        compiled.occurred_at_day_of_week_name,
+                    ),
+                },
+                metrics: {
+                    event_count: {
+                        type: MetricType.COUNT,
+                        fieldType: FieldType.METRIC,
+                        table: 'events',
+                        tableLabel: 'events',
+                        name: 'event_count',
+                        label: 'event_count',
+                        sql: '${TABLE}.id',
+                        compiledSql: 'COUNT("events".id)',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+    });
+
+    const query = (
+        dimensions: string[],
+        filters: CompiledMetricQuery['filters'] = {},
+    ): CompiledMetricQuery => ({
+        exploreName: 'events',
+        dimensions,
+        metrics: ['events_event_count'],
+        filters,
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    });
+
+    const sundayClient = {
+        ...warehouseClientMock,
+        getStartOfWeek: () => WeekDay.SUNDAY,
+    };
+
+    const SUNDAY_WEEK = `(DATE_TRUNC('WEEK', ("events".occurred_at - interval '6 days')) + interval '6 days')`;
+
+    test('WEEK over a DATE base follows the credential start of week (Postgres)', () => {
+        const { query: sql } = buildQuery({
+            explore: buildDateWeekExplore(),
+            compiledMetricQuery: query(['events_occurred_at_week']),
+            warehouseSqlBuilder: sundayClient,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(sql).toContain(`${SUNDAY_WEEK} AS "events_occurred_at_week"`);
+        expect(sql).toContain(`GROUP BY 1`);
+        // DATE base: no timezone wrap, no DATE cast — byte-identical to a
+        // deploy compiled with the same start of week.
+        expect(sql).not.toContain('AT TIME ZONE');
+        expect(sql).not.toContain('CAST(');
+    });
+
+    test('WEEK_NUM and DAY_OF_WEEK_INDEX over a DATE base follow the credential start of week (Postgres)', () => {
+        const { query: sql } = buildQuery({
+            explore: buildDateWeekExplore(),
+            compiledMetricQuery: query([
+                'events_occurred_at_week_num',
+                'events_occurred_at_day_of_week_index',
+            ]),
+            warehouseSqlBuilder: sundayClient,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(sql).toContain(
+            `DATE_PART('WEEK', ("events".occurred_at - interval '6 days')) AS "events_occurred_at_week_num"`,
+        );
+        expect(sql).toContain(
+            `MOD(CAST(DATE_PART('DOW', "events".occurred_at) AS INT) - 0 + 7, 7) + 1 AS "events_occurred_at_day_of_week_index"`,
+        );
+    });
+
+    test('non-week grains over a DATE base keep their compiled SQL', () => {
+        const { query: sql } = buildQuery({
+            explore: buildDateWeekExplore(),
+            compiledMetricQuery: query([
+                'events_occurred_at_month',
+                'events_occurred_at_day_of_week_name',
+            ]),
+            warehouseSqlBuilder: sundayClient,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(sql).toContain(
+            `DATE_TRUNC('MONTH', "events".occurred_at) AS "events_occurred_at_month"`,
+        );
+        expect(sql).toContain(
+            `TO_CHAR("events".occurred_at, 'FMDay') AS "events_occurred_at_day_of_week_name"`,
+        );
+    });
+
+    test('flag off keeps the compiled SQL for DATE-base week grains', () => {
+        const { query: sql } = buildQuery({
+            explore: buildDateWeekExplore(),
+            compiledMetricQuery: query(['events_occurred_at_week']),
+            warehouseSqlBuilder: sundayClient,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: false,
+        });
+        expect(sql).toContain(
+            `DATE_TRUNC('WEEK', "events".occurred_at) AS "events_occurred_at_week"`,
+        );
+        expect(sql).not.toContain(`interval '6 days'`);
+    });
+
+    test('an unset credential start of week discards the deploy-time value, matching TIMESTAMP bases', () => {
+        const { query: sql } = buildQuery({
+            explore: buildDateWeekExplore(SupportedDbtAdapter.POSTGRES, {
+                // Deployed with `--start-of-week=0` (Monday)
+                occurred_at_week: `(DATE_TRUNC('WEEK', ("events".occurred_at - interval '0 days')) + interval '0 days')`,
+                occurred_at_week_num: `DATE_PART('WEEK', ("events".occurred_at - interval '0 days'))`,
+                occurred_at_day_of_week_index: `MOD(CAST(DATE_PART('DOW', "events".occurred_at) AS INT) - 1 + 7, 7) + 1`,
+                occurred_at_month: `DATE_TRUNC('MONTH', "events".occurred_at)`,
+                occurred_at_day_of_week_name: `TO_CHAR("events".occurred_at, 'FMDay')`,
+            }),
+            compiledMetricQuery: query(['events_occurred_at_week']),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(sql).toContain(
+            `DATE_TRUNC('WEEK', "events".occurred_at) AS "events_occurred_at_week"`,
+        );
+        expect(sql).not.toContain(`interval '0 days'`);
+    });
+
+    test('a filter on a DATE-base WEEK grain uses the rebuilt LHS with a bare date literal', () => {
+        const { query: sql } = buildQuery({
+            explore: buildDateWeekExplore(),
+            compiledMetricQuery: query(['events_occurred_at_week'], {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'f1',
+                            target: { fieldId: 'events_occurred_at_week' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['2024-01-14'],
+                        },
+                    ],
+                },
+            }),
+            warehouseSqlBuilder: sundayClient,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        const whereClause = sql.slice(sql.indexOf('WHERE'));
+        expect(whereClause).toContain(SUNDAY_WEEK);
+        expect(whereClause).not.toContain(
+            `DATE_TRUNC('WEEK', "events".occurred_at)`,
+        );
+        expect(whereClause).not.toContain('::timestamp');
+        expect(whereClause).not.toContain('AT TIME ZONE');
+    });
+
+    test('BigQuery DATE column: WEEK picks up the credential start of week like the TIMESTAMP path', () => {
+        const { query: sql } = buildQuery({
+            explore: buildDateWeekExplore(SupportedDbtAdapter.BIGQUERY, {
+                occurred_at_week: `DATE_TRUNC("events".occurred_at, WEEK)`,
+                occurred_at_week_num: `EXTRACT(WEEK FROM "events".occurred_at)`,
+                occurred_at_day_of_week_index: `EXTRACT(DAYOFWEEK FROM "events".occurred_at)`,
+                occurred_at_month: `DATE_TRUNC("events".occurred_at, MONTH)`,
+                occurred_at_day_of_week_name: `FORMAT_DATE('%A', "events".occurred_at)`,
+            }),
+            compiledMetricQuery: query([
+                'events_occurred_at_week',
+                'events_occurred_at_month',
+            ]),
+            warehouseSqlBuilder: {
+                ...bigqueryClientMock,
+                getStartOfWeek: () => WeekDay.MONDAY,
+            },
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(sql).toContain(
+            `DATE_TRUNC("events".occurred_at, WEEK(MONDAY)) AS \`events_occurred_at_week\``,
+        );
+        expect(sql).toContain(
+            `DATE_TRUNC("events".occurred_at, MONTH) AS \`events_occurred_at_month\``,
+        );
+    });
+});
