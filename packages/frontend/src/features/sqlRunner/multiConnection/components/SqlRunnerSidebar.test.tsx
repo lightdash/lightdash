@@ -3,7 +3,7 @@ import {
     WarehouseTypes,
     type SqlRunnerWarehouseConnection,
 } from '@lightdash/common';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import {
@@ -107,7 +107,7 @@ const serveApi = (connectionRoute: 'single' | 'multi') =>
             url ===
             `${connectionsUrl}/finance-uuid/fields?databaseName=finance&schemaName=public&tableName=ledger`
         ) {
-            return { amount: 'number' };
+            return { amount: 'number', remark: 'string' };
         }
         throw new Error(`Unexpected request ${url}`);
     });
@@ -237,5 +237,29 @@ describe('SqlRunnerSidebar', () => {
                 `lightdash.sqlRunner.lastConnection.${projectUuid}`,
             ),
         ).toBe('finance-uuid');
+    });
+
+    it('highlights fields only when the matching filter takes effect', async () => {
+        serveApi('multi');
+        const user = renderSidebar();
+
+        await user.click(
+            await screen.findByRole('combobox', { name: 'Active connection' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: 'Finance' }),
+        );
+        await user.click(await screen.findByText('public'));
+        await user.click(await screen.findByText('ledger'));
+        const search = await screen.findByPlaceholderText('Search fields');
+        await screen.findByText('amount');
+
+        fireEvent.change(search, { target: { value: 'amo' } });
+        expect(document.body).toHaveTextContent('amount');
+        expect(screen.getByText('remark')).toBeInTheDocument();
+        expect(document.querySelectorAll('mark')).toHaveLength(0);
+
+        await waitFor(() => expect(screen.queryByText('remark')).toBeNull());
+        expect(screen.getByText('amo')).toHaveProperty('tagName', 'MARK');
     });
 });

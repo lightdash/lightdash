@@ -165,7 +165,7 @@ export const MultiConnectionTableFields: FC = () => {
                                 key={field.name}
                                 activeTable={activeTable.table}
                                 field={field}
-                                search={search}
+                                search={effectiveSearch}
                             />
                         ))}
                     </Stack>
