@@ -133,6 +133,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     ParametersValuesMap,
+    parseComposerVizConfig,
     parsePersistedRunQueryPayload,
     parseVizConfig,
     PersistentDownloadFileAccessMode,
@@ -8919,6 +8920,92 @@ export class AiAgentService extends BaseService {
         }
 
         await this.aiAgentModel.updateArtifactVersion(versionUuid, update);
+    }
+
+    /** Writes the terminal node's viz config on a composer artifact version. */
+    async updateComposerArtifactVizConfig(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            vizConfig,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            vizConfig: unknown;
+        },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        // getArtifact filters by version only when a versionUuid is given
+        if (!artifact || artifact.artifactUuid !== artifactUuid) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
+
+        const artifactThread = await this.aiAgentModel.findThread(
+            artifact.threadUuid,
+        );
+        if (
+            !artifactThread ||
+            artifactThread.organizationUuid !== organizationUuid ||
+            artifactThread.projectUuid !== agent.projectUuid ||
+            artifactThread.agentUuid !== agent.uuid
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to update this artifact',
+            );
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid: agent.uuid,
+            threadUuid: artifact.threadUuid,
+        });
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to update this artifact',
+            );
+        }
+
+        if (!isAiComposerChartArtifactConfig(artifact.chartConfig)) {
+            throw new ParameterError(
+                'Viz config can only be updated on composer artifacts',
+            );
+        }
+
+        const parsed = parseComposerVizConfig(vizConfig);
+        if (!parsed.ok) {
+            throw new ParameterError(`Invalid viz config: ${parsed.error}`);
+        }
+
+        await this.aiAgentModel.updateArtifactVersionChartConfig(versionUuid, {
+            ...artifact.chartConfig,
+            vizConfig: parsed.vizConfig,
+        });
     }
 
     async getVerifiedSavedArtifactContent(

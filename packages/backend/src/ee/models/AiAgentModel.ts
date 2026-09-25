@@ -6240,6 +6240,17 @@ export class AiAgentModel {
             .where({ ai_artifact_version_uuid: artifactVersionUuid });
     }
 
+    async updateArtifactVersionChartConfig(
+        artifactVersionUuid: string,
+        chartConfig: Record<string, unknown>,
+    ): Promise<void> {
+        await this.database(AiArtifactVersionsTableName)
+            .update({
+                chart_config: chartConfig,
+            } satisfies Partial<DbAiArtifactVersion>)
+            .where({ ai_artifact_version_uuid: artifactVersionUuid });
+    }
+
     async isSavedSqlInProject(
         savedSqlUuid: string,
         projectUuid: string,
