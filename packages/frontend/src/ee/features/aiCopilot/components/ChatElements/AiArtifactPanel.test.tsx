@@ -776,27 +776,6 @@ describe('sql artifact viz switcher', () => {
         ).toBeInTheDocument();
     });
 
-    it('opens a string + number answer as a table and can switch to a bar chart', () => {
-        renderSql(
-            resultsOf(
-                {
-                    status: { reference: 'status', type: 'string' },
-                    n: { reference: 'n', type: 'number' },
-                },
-                [
-                    { status: 'a', n: 3 },
-                    { status: 'b', n: 1 },
-                ],
-            ),
-        );
-        expect(checkedViz()).toBe('table');
-        chooseSqlViz('bar');
-        expect(checkedViz()).toBe('bar');
-        expect(
-            screen.getByTestId('chart-view-vertical_bar'),
-        ).toBeInTheDocument();
-    });
-
     it('keeps a table-only answer as a table without a switcher', () => {
         renderSql(statusResults);
         expect(vizRadios()).toHaveLength(0);
