@@ -13,7 +13,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import { getDataFromChartClick } from './utils';
+import { getDataFromChartClick, getUnderlyingDataColumnOrder } from './utils';
 
 const weekDimension: CompiledDimension = {
     fieldType: FieldType.DIMENSION,
@@ -257,5 +257,64 @@ describe('getDataFromChartClick', () => {
 
         expect(result.fieldValues.orders_order_priority?.raw).toBe('urgent');
         expect(result.value.raw).toBe(4);
+    });
+});
+
+describe('getUnderlyingDataColumnOrder', () => {
+    const customerNameDimension: CompiledDimension = {
+        ...priorityDimension,
+        name: 'first_name',
+        table: 'customers',
+    };
+    const allFields = [
+        weekDimension,
+        priorityDimension,
+        countMetric,
+        customerNameDimension,
+    ];
+    const fieldIds = [
+        'orders_order_date_week',
+        'customers_first_name',
+        'orders_order_priority',
+    ];
+
+    it('keeps the result order when show_underlying_values is not set', () => {
+        expect(
+            getUnderlyingDataColumnOrder(fieldIds, undefined, allFields),
+        ).toEqual(fieldIds);
+    });
+
+    it('orders fields by show_underlying_values, matching joined fields by table-qualified name', () => {
+        expect(
+            getUnderlyingDataColumnOrder(
+                fieldIds,
+                ['order_priority', 'order_date_week', 'customers.first_name'],
+                allFields,
+            ),
+        ).toEqual([
+            'orders_order_priority',
+            'orders_order_date_week',
+            'customers_first_name',
+        ]);
+    });
+
+    it('puts fields missing from show_underlying_values first', () => {
+        expect(
+            getUnderlyingDataColumnOrder(
+                fieldIds,
+                ['order_priority', 'order_date_week'],
+                allFields,
+            ),
+        ).toEqual([
+            'customers_first_name',
+            'orders_order_priority',
+            'orders_order_date_week',
+        ]);
+    });
+
+    it('does not mutate the input', () => {
+        const input = [...fieldIds];
+        getUnderlyingDataColumnOrder(input, ['order_priority'], allFields);
+        expect(input).toEqual(fieldIds);
     });
 });

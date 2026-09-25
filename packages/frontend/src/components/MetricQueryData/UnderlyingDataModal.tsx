@@ -33,7 +33,6 @@ import { convertDateFilters } from '../../utils/dateFilter';
 import ErrorState from '../common/ErrorState';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
-import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
 import UnderlyingDataFilterBadges from './UnderlyingDataFilterBadges';
 import {
@@ -42,6 +41,7 @@ import {
 } from './underlyingDataFilters';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
+import { getUnderlyingDataColumnOrder } from './utils';
 
 const UnderlyingDataModalContent: FC = () => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -125,31 +125,6 @@ const UnderlyingDataModalContent: FC = () => {
         return explore?.tables[explore.baseTable]?.defaultShowUnderlyingValues;
     }, [underlyingDataConfig?.item, explore]);
 
-    const sortByUnderlyingValues = useCallback(
-        (columnA: TableColumn, columnB: TableColumn) => {
-            if (showUnderlyingValues === undefined) return 0;
-
-            const indexOfUnderlyingValue = (column: TableColumn): number => {
-                const columnDimension = allFields.find(
-                    (dimension) => getItemId(dimension) === column.id,
-                );
-                if (columnDimension === undefined) return -1;
-                return showUnderlyingValues?.indexOf(columnDimension.name) !==
-                    -1
-                    ? showUnderlyingValues?.indexOf(columnDimension.name)
-                    : showUnderlyingValues?.indexOf(
-                          `${columnDimension.table}.${columnDimension.name}`,
-                      );
-            };
-
-            return (
-                indexOfUnderlyingValue(columnA) -
-                indexOfUnderlyingValue(columnB)
-            );
-        },
-        [showUnderlyingValues, allFields],
-    );
-
     // Flat rules scoping the results to the clicked chart segment/cell, kept
     // separate from the grouped explore filters so they can be surfaced in the
     // header filter summary
@@ -192,6 +167,16 @@ const UnderlyingDataModalContent: FC = () => {
         underlyingDataConfig?.dateZoom,
         parameters,
         sorts,
+    );
+
+    const columnOrder = useMemo(
+        () =>
+            getUnderlyingDataColumnOrder(
+                Object.values(resultsData?.fields ?? {}).map(getItemId),
+                showUnderlyingValues,
+                allFields,
+            ),
+        [resultsData?.fields, showUnderlyingValues, allFields],
     );
 
     const exploreFromHereUrl = useMemo(() => {
@@ -326,6 +311,7 @@ const UnderlyingDataModalContent: FC = () => {
                                 showTableNames
                                 totalResults={resultsData?.rows.length}
                                 getDownloadQueryUuid={getDownloadQueryUuid}
+                                columnOrder={columnOrder}
                                 forceShowLimitSelection
                             />
                         )}
@@ -385,7 +371,7 @@ const UnderlyingDataModalContent: FC = () => {
                         resultsData={resultsData}
                         fieldsMap={resultsData?.fields || {}}
                         hasJoins={joinedTables.length > 0}
-                        sortByUnderlyingValues={sortByUnderlyingValues}
+                        columnOrder={columnOrder}
                         sorts={sorts}
                         onSortChange={setSorts}
                     />
