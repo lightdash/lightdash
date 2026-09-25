@@ -282,7 +282,7 @@ const builderRoutes = (path: string) => (
                     element={<ChartTypeBuilder />}
                 />
                 <Route
-                    path="/projects/:projectUuid/chart-types"
+                    path="/projects/:projectUuid/chart-studio"
                     element={<div>gallery</div>}
                 />
                 <Route
@@ -458,7 +458,7 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByText('Chart type not found')).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Back to Chart Studio' }),
-        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
     it('resolves an edit route by slug', () => {
@@ -1276,7 +1276,7 @@ describe('ChartTypeBuilder', () => {
 
         expect(
             screen.getByRole('link', { name: 'Chart Studio' }),
-        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
         fireEvent.click(
             screen.getByRole('button', { name: 'Preview in explorer' }),
         );
@@ -1321,7 +1321,7 @@ describe('ChartTypeBuilder', () => {
 
         expect(
             screen.getByRole('link', { name: 'Chart Studio' }),
-        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
     it('keeps a drafted follow-up when the create route adopts the app', () => {

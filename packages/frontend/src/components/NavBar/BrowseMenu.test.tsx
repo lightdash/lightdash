@@ -94,7 +94,7 @@ describe('BrowseMenu', () => {
         const item = await screen.findByText('Chart Studio');
         expect(item.closest('a')).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types',
+            '/projects/jaffle-shop/chart-studio',
         );
     });
 
