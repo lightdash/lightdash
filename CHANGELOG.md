@@ -1,3 +1,12 @@
+## [2.342.2](https://github.com/lightdash/lightdash/compare/2.342.1...2.342.2) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agent:** apply breakdown swaps JEV is sure about in fast chart edits ([#29983](https://github.com/lightdash/lightdash/issues/29983)) ([db3fd95](https://github.com/lightdash/lightdash/commit/db3fd9588ed40737b72cba1bbd80921aa7d80d31))
+* **ai-agent:** apply top and bottom N edits on single-breakdown charts ([#29985](https://github.com/lightdash/lightdash/issues/29985)) ([1847670](https://github.com/lightdash/lightdash/commit/1847670b1f8d29a9215b1f1e6977480614f39061))
+* **ai-agent:** leave number filters to the agent when a record value and a chart total both fit ([#29984](https://github.com/lightdash/lightdash/issues/29984)) ([57dfd17](https://github.com/lightdash/lightdash/commit/57dfd172a9ed488003e3655f4d1ea09722916c07))
+
 ## [2.342.1](https://github.com/lightdash/lightdash/compare/2.342.0...2.342.1) (2026-09-25)
 
 
