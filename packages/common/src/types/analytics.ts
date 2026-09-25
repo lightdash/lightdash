@@ -140,6 +140,7 @@ export enum QueryExecutionContext {
     SCHEDULED_DELIVERY = 'scheduledDelivery',
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
+    GSHEETS_ADDON = 'gsheetsAddon',
     SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
     SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
     SCHEDULED_GSHEETS_SQL_CHART = 'scheduledGsheetsSqlChart',

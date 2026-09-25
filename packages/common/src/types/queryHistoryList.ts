@@ -37,6 +37,7 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     // api/cli/ai/mcp are executed by the user, just through another door.
     [QueryExecutionContext.API]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CLI]: QueryTrigger.INTERACTIVE,
+    [QueryExecutionContext.GSHEETS_ADDON]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.AI]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_RUN_METRIC_QUERY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_RUN_SQL]: QueryTrigger.INTERACTIVE,
