@@ -42,6 +42,7 @@ import {
     AiWritebackAttribution,
     AiWritebackRunResult,
     AlreadyExistsError,
+    AndFilterGroup,
     AnonymousAccount,
     AnyType,
     ApiAiAgentArtifactVizQuery,
@@ -354,6 +355,7 @@ import {
     applyChartIntent,
     getFilterFieldIds,
     getFilterRules,
+    getValueSearchScope,
     type ChartEdit,
 } from '../ai/decisions/chartEdits';
 import {
@@ -12202,12 +12204,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
         exploreName,
         fieldId,
         prompt,
+        scope,
     }: {
         user: SessionUser;
         projectUuid: string;
         exploreName: string;
         fieldId: string;
         prompt: string;
+        scope: AndFilterGroup | undefined;
     }): Promise<string[]> {
         const search = (term: string, limit: number) =>
             this.projectService
@@ -12218,7 +12222,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     fieldId,
                     term,
                     limit,
-                    undefined,
+                    scope,
                     false,
                     undefined,
                     undefined,
@@ -12230,7 +12234,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             typeof value === 'string',
                     ),
                 )
-                .catch(() => [] as string[]);
+                .catch((error) => {
+                    Logger.warn(
+                        `AI agent value search failed for ${fieldId}: ${getErrorMessage(error)}`,
+                    );
+                    return [] as string[];
+                });
         const terms = [
             ...new Set(
                 prompt
@@ -12365,6 +12374,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 exploreName: explore.name,
                                 fieldId: candidateFieldId,
                                 prompt: prompt.prompt,
+                                scope: getValueSearchScope(
+                                    artifact,
+                                    candidateFieldId,
+                                ),
                             });
                         const selected = await selectFilterValues({
                             decisions,

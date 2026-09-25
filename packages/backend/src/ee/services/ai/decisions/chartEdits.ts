@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     filterExpressionResolvedFiltersSchema,
+    filterExpressionResolvedFiltersSchemaTransformed,
     FilterOperator,
     FilterType,
     getFields,
@@ -13,10 +14,13 @@ import {
     isFilterRule,
     parseAiArtifactChartConfig,
     type AiSemanticChartArtifactConfig,
+    type AndFilterGroup,
     type Explore,
     type FilterExpressionResolvedFiltersV2,
+    type FilterGroupItem,
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
+import { v4 as uuidv4 } from 'uuid';
 import { resolveSearchFieldValuesFilterExpression } from '../utils/filterExpressions';
 import type {
     ChartIntent,
@@ -1139,4 +1143,28 @@ export const getFilterFieldIds = (
     return [filters.dimensions, filters.metrics, filters.tableCalculations]
         .flatMap((group) => group?.rules ?? [])
         .map(({ fieldId }) => fieldId);
+};
+
+const mentionsField = (item: FilterGroupItem, fieldId: string): boolean => {
+    if (isFilterRule(item))
+        return 'fieldId' in item.target && item.target.fieldId === fieldId;
+    return (isAndFilterGroup(item) ? item.and : item.or).some((child) =>
+        mentionsField(child, fieldId),
+    );
+};
+
+/** The chart's dimension filters minus those on `fieldId`, so a value search scans no more than the chart does. */
+export const getValueSearchScope = (
+    artifact: AiSemanticChartArtifactConfig,
+    fieldId: string,
+): AndFilterGroup | undefined => {
+    const parsed = filterExpressionResolvedFiltersSchemaTransformed.safeParse(
+        artifact.config.queryConfig.filters,
+    );
+    const group = parsed.success ? parsed.data.dimensions : undefined;
+    if (!group) return undefined;
+    const kept = (isAndFilterGroup(group) ? group.and : [group]).filter(
+        (item) => !mentionsField(item, fieldId),
+    );
+    return kept.length > 0 ? { id: uuidv4(), and: kept } : undefined;
 };
