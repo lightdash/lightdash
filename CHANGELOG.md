@@ -1,3 +1,10 @@
+## [2.344.4](https://github.com/lightdash/lightdash/compare/2.344.3...2.344.4) (2026-09-25)
+
+
+### Bug Fixes
+
+* **embed:** drill into stays inside embedded Explore and AI agent ([#29982](https://github.com/lightdash/lightdash/issues/29982)) ([7722ee9](https://github.com/lightdash/lightdash/commit/7722ee97060d566d32821b7fce0b30ceb0fd5eba))
+
 ## [2.344.3](https://github.com/lightdash/lightdash/compare/2.344.2...2.344.3) (2026-09-25)
 
 
