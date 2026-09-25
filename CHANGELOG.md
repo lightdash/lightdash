@@ -1,3 +1,10 @@
+## [2.344.1](https://github.com/lightdash/lightdash/compare/2.344.0...2.344.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agent:** open SQL artifacts as a table by default ([#29996](https://github.com/lightdash/lightdash/issues/29996)) ([f2afa44](https://github.com/lightdash/lightdash/commit/f2afa446445369e4b66b8f26df941a38023c40ed))
+
 # [2.344.0](https://github.com/lightdash/lightdash/compare/2.343.0...2.344.0) (2026-09-25)
 
 
