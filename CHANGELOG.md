@@ -1,3 +1,10 @@
+## [2.344.6](https://github.com/lightdash/lightdash/compare/2.344.5...2.344.6) (2026-09-25)
+
+
+### Bug Fixes
+
+* **frontend:** match underlying data export column order to the modal ([#30012](https://github.com/lightdash/lightdash/issues/30012)) ([b48e857](https://github.com/lightdash/lightdash/commit/b48e857b846ad8cb06ddf4415e0d868a63742b00))
+
 ## [2.344.5](https://github.com/lightdash/lightdash/compare/2.344.4...2.344.5) (2026-09-25)
 
 
