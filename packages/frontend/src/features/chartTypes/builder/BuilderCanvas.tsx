@@ -149,7 +149,7 @@ const BuilderCanvas: FC<Props> = ({
         <Box className={classes.canvas}>
             {hasPreview ? (
                 <Box
-                    className={classes.card}
+                    className={`${classes.card} ${classes.enter}`}
                     data-dimmed={isBuilding}
                     inert={isBuilding}
                 >
@@ -179,7 +179,7 @@ const BuilderCanvas: FC<Props> = ({
                     )}
                 </Box>
             ) : isFirstBuild ? (
-                <Stack gap="xl" align="center">
+                <Stack gap="xl" align="center" className={classes.enter}>
                     <SkeletonBars projectUuid={projectUuid} />
                     <Stack gap={4} align="center">
                         <Text size="md" fw={600} c="ldGray.8">
