@@ -146,10 +146,13 @@ const getColumnTypeVizPlan = (
     return { availableKinds, defaultKind, axes };
 };
 
-export const getComposerChartKind = (
-    vizConfig: Exclude<AllVizChartConfig, { type: ChartKind.TABLE }>,
-): ComposerChartKind => {
-    switch (vizConfig.type) {
+/** The chart kind of a chart viz config; only its type is read. */
+export const getComposerChartKind = ({
+    type,
+}: {
+    type: Exclude<AllVizChartConfig, { type: ChartKind.TABLE }>['type'];
+}): ComposerChartKind => {
+    switch (type) {
         case ChartKind.VERTICAL_BAR:
             return 'bar';
         case ChartKind.LINE:
@@ -159,7 +162,7 @@ export const getComposerChartKind = (
         case ChartKind.BIG_NUMBER:
             return 'big_number';
         default:
-            return assertUnreachable(vizConfig, 'Unknown viz config type');
+            return assertUnreachable(type, 'Unknown viz config type');
     }
 };
 
