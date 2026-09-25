@@ -1,0 +1,255 @@
+/* PROTOTYPE — throwaway styles for the composer viz config stories. */
+
+.results {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    container-type: size;
+}
+
+.chartArea {
+    flex: 1;
+    min-height: 0;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-md);
+}
+
+/* ---------- Bar variant: mirrors the pipeline bar ---------- */
+
+.bar {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    height: 38px;
+    flex-shrink: 0;
+    padding: 0 var(--mantine-spacing-md) 0 0;
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+    cursor: pointer;
+}
+
+.bar:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.barToggle {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    height: 100%;
+    padding: 0 var(--mantine-spacing-xs) 0 var(--mantine-spacing-md);
+    flex-shrink: 0;
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+    opacity: 0.6;
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bar:hover .chevron {
+    opacity: 1;
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.heading,
+.eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.divider {
+    width: 1px;
+    height: 16px;
+    background: var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.meta {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-ldGray-5);
+    white-space: nowrap;
+}
+
+.barBody {
+    max-height: 45cqh;
+    overflow: auto;
+    padding: 2px var(--mantine-spacing-md) var(--mantine-spacing-md);
+    background: var(--ld-color-page);
+}
+
+.columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--mantine-spacing-xl);
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+}
+
+.eyebrow {
+    padding: 8px 0 6px;
+}
+
+.railRow {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-height: 28px;
+}
+
+.railLabel {
+    width: 66px;
+    flex-shrink: 0;
+    font-size: 11.5px;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.railControl {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.railRow[data-disabled='true'] {
+    opacity: 0.4;
+}
+
+/* Boxless inputs: text until hovered. */
+.railInput {
+    height: 26px;
+    min-height: 26px;
+    padding-left: 6px;
+    border-radius: var(--mantine-radius-sm);
+    font-size: 12.5px;
+    color: var(--mantine-color-ldGray-9);
+    transition: background-color 120ms ease;
+}
+
+.railInput:hover:not(:disabled),
+.railInput:focus {
+    background: var(--mantine-color-ldGray-0);
+}
+
+/* ---------- Toolbar variant ---------- */
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) 0;
+    flex-wrap: wrap;
+}
+
+.chip {
+    cursor: pointer;
+    transition: background-color 120ms ease;
+}
+
+.chip:hover,
+.chip[data-open='true'] {
+    background: var(--mantine-color-ldGray-2);
+}
+
+.chip[data-disabled='true'] {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.chipKey {
+    color: var(--mantine-color-ldGray-5);
+    margin-right: 4px;
+}
+
+/* ---------- Drawer variant ---------- */
+
+.drawerBody {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+.drawerChart {
+    flex: 1;
+    min-width: 0;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-md);
+}
+
+.drawer {
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--mantine-color-ldGray-2);
+    animation: drawerIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawerScroll {
+    flex: 1;
+    min-height: 0;
+}
+
+.drawerFooter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    background: var(--mantine-color-body);
+}
+
+.dirtyDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-color-orange-5);
+    flex-shrink: 0;
+}
+
+@keyframes drawerIn {
+    from {
+        opacity: 0;
+        transform: translateX(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chevron,
+    .drawer {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* Row opacity already dims; keep disabled inputs boxless. */
+.railInput:disabled,
+.railInput[data-disabled] {
+    background: transparent;
+    opacity: 1;
+}
