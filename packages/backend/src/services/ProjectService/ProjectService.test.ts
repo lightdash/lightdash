@@ -367,6 +367,10 @@ const onboardingModel = {
             callback: (transaction: object) => Promise<unknown>,
         ) => callback({}),
     ),
+    runInTrainingCopyLock: vi.fn(
+        async (_userUuid: string, callback: () => Promise<unknown>) =>
+            callback(),
+    ),
 };
 const savedChartModel = {
     getInfoForAvailableFilters: vi.fn(),
@@ -2545,6 +2549,153 @@ describe('ProjectService', () => {
                     expect(
                         schedulerClient.compileProject,
                     ).not.toHaveBeenCalled();
+                }
+            },
+        );
+    });
+
+    describe('training project connection lock', () => {
+        const trainingProject = {
+            ...projectWithSensitiveFields,
+            type: ProjectType.TRAINING,
+            provisioningSource: 'training',
+        };
+        const snowflakeConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'snowflake-account',
+            user: 'snowflake-user',
+            password: 'snowflake-password',
+            database: 'analytics',
+            warehouse: 'transforming',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+        };
+        const embeddedConnection = {
+            type: WarehouseTypes.DUCKDB as const,
+            connectionType: DuckdbConnectionType.EMBEDDED as const,
+            dataset: 'jaffle_shop',
+        };
+        const learner: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.VIEWER,
+            organizationUuid: trainingProject.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: defineUserAbility(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: trainingProject.organizationUuid,
+                    role: OrganizationMemberRole.VIEWER,
+                },
+                [],
+            ),
+        };
+        const managedMessage =
+            'The training project keeps the sample data it shipped with';
+
+        beforeEach(() => {
+            projectModel.update.mockClear();
+            jobModel.create.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+        });
+
+        test('refuses a warehouse credential update on the training project', async () => {
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                trainingProject,
+            );
+            await expect(
+                service.updateWarehouseCredentials(
+                    trainingProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection: snowflakeConnection },
+                ),
+            ).rejects.toThrow(managedMessage);
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('refuses an update-and-compile on the training project', async () => {
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                trainingProject,
+            );
+            await expect(
+                service.updateAndScheduleAsyncWork(
+                    trainingProject.projectUuid,
+                    developerAccount,
+                    {
+                        name: trainingProject.name,
+                        dbtConnection: trainingProject.dbtConnection,
+                        dbtVersion: trainingProject.dbtVersion,
+                        warehouseConnection: snowflakeConnection,
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(managedMessage);
+            expect(jobModel.create).not.toHaveBeenCalled();
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('refuses a connection write through the shared policy check', () => {
+            expect(() =>
+                service.assertCanWriteWarehouseConnection(
+                    developerAccount,
+                    {
+                        organizationUuid: trainingProject.organizationUuid,
+                        provisioningSource: 'training',
+                    },
+                    { warehouseConnection: snowflakeConnection },
+                ),
+            ).toThrow(managedMessage);
+        });
+
+        test.each([
+            {
+                reason: 'the upstream connection is not the shipped sample data',
+                credentials: snowflakeConnection,
+                organizationWarehouseCredentialsUuid: undefined,
+            },
+            {
+                reason: 'the upstream is bound to organization credentials',
+                credentials: embeddedConnection,
+                organizationWarehouseCredentialsUuid: 'org-creds-uuid',
+            },
+        ])(
+            'refuses a training copy when $reason',
+            async ({ credentials, organizationWarehouseCredentialsUuid }) => {
+                const learnService = getMockedProjectService(
+                    lightdashConfigMock,
+                    {
+                        featureFlagModel: {
+                            get: vi.fn(async () => ({
+                                id: FeatureFlags.EnableLearn,
+                                enabled: true,
+                            })),
+                        } as unknown as FeatureFlagModel,
+                    },
+                );
+                projectModel.get.mockResolvedValueOnce({
+                    ...trainingProject,
+                    organizationWarehouseCredentialsUuid,
+                });
+                projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+                projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                    credentials,
+                );
+                const deletePreviews = vi
+                    .spyOn(learnService, 'deleteTrainingPreviews')
+                    .mockResolvedValue({ deleted: 0 });
+                try {
+                    await expect(
+                        learnService.createTrainingPreview(
+                            learner,
+                            trainingProject.projectUuid,
+                        ),
+                    ).rejects.toThrow(managedMessage);
+                    expect(deletePreviews).not.toHaveBeenCalled();
+                    expect(
+                        projectModel.createWithOptionalCredentials,
+                    ).not.toHaveBeenCalled();
+                } finally {
+                    deletePreviews.mockRestore();
                 }
             },
         );

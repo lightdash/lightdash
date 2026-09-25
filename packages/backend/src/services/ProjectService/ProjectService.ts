@@ -2289,10 +2289,7 @@ export class ProjectService extends BaseService {
             organizationWarehouseCredentialsUuid?: string;
         },
     ): void {
-        if (project.provisioningSource === 'analytics')
-            throw new ForbiddenError(
-                'Internal analytics configuration is managed by the backend',
-            );
+        ProjectService.assertConnectionIsNotManagedInternally(project);
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
@@ -4370,6 +4367,30 @@ export class ProjectService extends BaseService {
      * public API must never create one, because every org member is granted
      * the trainee scope set on a project of that type.
      */
+    /**
+     * Analytics and training projects are provisioned with a connection the
+     * backend owns. For the training project the point is that every org
+     * member, viewers included, gets SQL runner, custom SQL and CSV export on
+     * their own copy of it, and each copy inherits the training project's
+     * connection. Re-pointing it at a real warehouse would hand that access
+     * to everyone, so the connection cannot be changed once provisioned.
+     */
+    private static assertConnectionIsNotManagedInternally(
+        project: Pick<ProjectSummary, 'provisioningSource'>,
+    ): void {
+        if (project.provisioningSource === 'analytics')
+            throw new ForbiddenError(
+                'Internal analytics configuration is managed by the backend',
+            );
+        if (project.provisioningSource === 'training')
+            throw new ForbiddenError(
+                ProjectService.TRAINING_CONNECTION_MANAGED_MESSAGE,
+            );
+    }
+
+    private static readonly TRAINING_CONNECTION_MANAGED_MESSAGE =
+        'The training project keeps the sample data it shipped with; its connection cannot be changed';
+
     private static assertTrainingTypeIsInternal(
         type: ProjectType | undefined,
         internalProvisioning?: InternalProvisioning,
@@ -4520,10 +4541,7 @@ export class ProjectService extends BaseService {
         );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
-        if (savedProject.provisioningSource === 'analytics')
-            throw new ForbiddenError(
-                'Internal analytics configuration is managed by the backend',
-            );
+        ProjectService.assertConnectionIsNotManagedInternally(savedProject);
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -4678,10 +4696,7 @@ export class ProjectService extends BaseService {
         );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
-        if (savedProject.provisioningSource === 'analytics')
-            throw new ForbiddenError(
-                'Internal analytics configuration is managed by the backend',
-            );
+        ProjectService.assertConnectionIsNotManagedInternally(savedProject);
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -12783,6 +12798,27 @@ export class ProjectService extends BaseService {
         training: Awaited<ReturnType<ProjectModel['get']>>,
     ): Promise<CreateTrainingPreviewResults> {
         const trainingProjectUuid = training.projectUuid;
+        // The copy inherits the training project's connection and grants
+        // the learner SQL runner and export on it, so the copy is only safe
+        // while that connection is the shipped sample data. Fail closed
+        // rather than fall back to anything else.
+        const upstreamCredentials =
+            await this.projectModel.getWarehouseCredentialsForBinding(
+                trainingProjectUuid,
+                { kind: 'original' },
+            );
+        const isShippedSampleData =
+            upstreamCredentials.type === WarehouseTypes.DUCKDB &&
+            upstreamCredentials.connectionType ===
+                DuckdbConnectionType.EMBEDDED;
+        if (
+            !isShippedSampleData ||
+            training.organizationWarehouseCredentialsUuid
+        ) {
+            throw new ForbiddenError(
+                ProjectService.TRAINING_CONNECTION_MANAGED_MESSAGE,
+            );
+        }
         await this.deleteTrainingPreviews(user, trainingProjectUuid);
 
         const creation = await this.createWithoutCompile(
