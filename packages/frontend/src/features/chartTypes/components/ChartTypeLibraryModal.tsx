@@ -36,7 +36,7 @@ const ChartTypeLibraryModal: FC<Props> = ({
                 to={`/projects/${projectUuid}/chart-types?tab=chart-library`}
                 fz="xs"
             >
-                Open the full library page
+                Open Chart Studio
             </Anchor>
         }
         bodyScrollAreaMaxHeight="calc(100vh - 200px)"

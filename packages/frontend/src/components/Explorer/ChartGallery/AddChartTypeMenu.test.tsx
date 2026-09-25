@@ -198,7 +198,7 @@ describe('AddChartTypeMenu', () => {
         const dialog = await expectLibraryDialog();
         expect(
             within(dialog).getByRole('link', {
-                name: 'Open the full library page',
+                name: 'Open Chart Studio',
             }),
         ).toHaveAttribute(
             'href',

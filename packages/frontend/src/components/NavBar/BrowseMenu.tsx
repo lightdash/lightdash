@@ -235,7 +235,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         to={`/projects/${projectUrlIdentifier}/chart-types`}
                         leftSection={<MantineIcon icon={IconPuzzle} />}
                     >
-                        Chart types
+                        Chart Studio
                     </Menu.Item>
                 )}
 

@@ -1005,7 +1005,7 @@ const ChartTypeBuilder: FC = () => {
                                 to={`/projects/${projectUrlIdentifier}/chart-types`}
                                 variant="default"
                             >
-                                Back to chart types
+                                Back to Chart Studio
                             </Button>
                         }
                     />
@@ -1081,7 +1081,7 @@ const ChartTypeBuilder: FC = () => {
               },
           }
         : {
-              label: 'Chart types',
+              label: 'Chart Studio',
               to: `/projects/${projectUrlIdentifier}/chart-types`,
           };
 
