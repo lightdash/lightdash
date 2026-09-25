@@ -45,7 +45,6 @@ import {
     useGetSlack,
     useSlackChannels,
 } from '../../../../../hooks/slack/useSlack';
-import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useProjects } from '../../../../../hooks/useProjects';
 import useSearchParams from '../../../../../hooks/useSearchParams';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
@@ -302,8 +301,6 @@ const AiAgentAdminAgentsTable = () => {
                 Cell: ({ row }) => {
                     const agent = row.original;
 
-                    const isTruncated = useIsTruncated<HTMLDivElement>();
-
                     if (agent.integrations.length === 0) {
                         return (
                             <Text c="ldGray.5" fz="xs" fs="italic">
@@ -326,21 +323,18 @@ const AiAgentAdminAgentsTable = () => {
                                     const isResolved = !!resolvedChannel;
 
                                     return (
-                                        <Box key={idx}>
+                                        <Box key={idx} maw="100%">
                                             <Tooltip
                                                 label={
                                                     isResolved
                                                         ? channelName
                                                         : 'Channel not cached yet. If this is a private channel, add the integration to the channel manually'
                                                 }
-                                                disabled={
-                                                    isResolved &&
-                                                    !isTruncated.isTruncated
-                                                }
                                                 maw={300}
                                             >
                                                 <Paper
                                                     w="fit-content"
+                                                    maw="100%"
                                                     style={(t) =>
                                                         isResolved
                                                             ? undefined
@@ -365,9 +359,6 @@ const AiAgentAdminAgentsTable = () => {
                                                             c="ldGray.7"
                                                             fw={500}
                                                             truncate
-                                                            ref={
-                                                                isTruncated.ref
-                                                            }
                                                         >
                                                             {channelName}
                                                         </Text>
