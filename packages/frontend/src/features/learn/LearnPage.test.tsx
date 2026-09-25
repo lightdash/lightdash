@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
+import { SANDBOX_LESSONS } from './sandboxLessons';
 
 const {
     track,
@@ -21,7 +22,9 @@ const {
     track: vi.fn(),
     projectState: { current: [] as unknown[] },
     learnFlagState: { current: { enabled: true }, isLoading: false },
-    availabilityState: { current: { isSettled: true } },
+    availabilityState: {
+        current: { isSettled: true, closed: [] as string[] },
+    },
     // Everything the learner can do, anywhere.
     accessState: { current: [] as string[] },
     // What the instance holds for the learner.
@@ -94,7 +97,9 @@ vi.mock('../../hooks/useProjectRoute', () => ({
 // tests decide whether the gates have answered yet.
 vi.mock('./availability', () => ({
     useLearnAvailability: () => ({
-        isOpen: () => true,
+        isOpen: (module: { gate: string | null }) =>
+            module.gate === null ||
+            !availabilityState.current.closed.includes(module.gate),
         isSettled: availabilityState.current.isSettled,
     }),
 }));
@@ -143,7 +148,7 @@ describe('LearnPage analytics', () => {
         track.mockClear();
         learnFlagState.current = { enabled: true };
         learnFlagState.isLoading = false;
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
@@ -225,7 +230,7 @@ describe('LearnPage analytics', () => {
         const { container } = renderPage();
         const { moduleCount, startedCount, completedCount } =
             viewEvents()[0].properties;
-        expect(moduleCount).toBe(41);
+        expect(moduleCount).toBe(43);
         expect(startedCount).toBe(1);
         expect(completedCount).toBe(1);
         expect(
@@ -249,11 +254,11 @@ describe('LearnPage analytics', () => {
     });
 
     it('waits for the catalogue gates to answer before counting', () => {
-        availabilityState.current = { isSettled: false };
+        availabilityState.current = { isSettled: false, closed: [] };
         const { rerender } = renderPage();
         expect(viewEvents()).toEqual([]);
 
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         rerender(
             <MemoryRouter>
                 <MantineProvider env="test">
@@ -277,6 +282,10 @@ describe('LearnPage analytics', () => {
 
 describe('LearnPage access', () => {
     const catalogueScopes = catalogue.map((module) => module.scope);
+    /** Docs lessons need no scope, so every learner is shown them. */
+    const lessons = SANDBOX_LESSONS.map((lesson) => lesson.id);
+    const sorted = (scopes: (string | null)[]) =>
+        [...scopes].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
 
     beforeEach(() => {
         progressState.current = {
@@ -286,7 +295,7 @@ describe('LearnPage access', () => {
         };
         track.mockClear();
         learnFlagState.current = { enabled: true };
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
@@ -307,12 +316,8 @@ describe('LearnPage access', () => {
     it('shows what the learner can do, and nothing else', () => {
         const { container } = renderPage();
 
-        expect(
-            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
-        ).toEqual(
-            ['manage:Validation', 'view:Dashboard'].sort((a, b) =>
-                a.localeCompare(b),
-            ),
+        expect(sorted(shown(container))).toEqual(
+            sorted(['manage:Validation', 'view:Dashboard', ...lessons]),
         );
     });
 
@@ -350,6 +355,37 @@ describe('LearnPage access', () => {
         expect(screen.getByText('Every module')).toBeTruthy();
     });
 
+    it('lists the Metrics lesson under Developer for a learner who holds no scope', () => {
+        accessState.current = [];
+
+        const { container } = renderPage();
+
+        const card = container.querySelector(
+            '[data-learn-module="docs:semantic-layer/metrics"]',
+        );
+        expect(card).not.toBeNull();
+        expect(card!.textContent).toContain('Metrics');
+        expect(card!.textContent).toContain('12 steps');
+        expect(
+            container.querySelector('[data-learn-group="developer"]'),
+        ).not.toBeNull();
+    });
+
+    it('hides the Developer section while the sandbox gate is closed', () => {
+        availabilityState.current.closed = ['sandbox'];
+
+        const { container } = renderPage();
+
+        expect(
+            container.querySelector(
+                '[data-learn-module="docs:semantic-layer/metrics"]',
+            ),
+        ).toBeNull();
+        expect(
+            container.querySelector('[data-learn-group="developer"]'),
+        ).toBeNull();
+    });
+
     it('keeps the access filter when searching and clearing', async () => {
         const { container } = renderPage();
         const input = screen.getByRole('textbox', {
@@ -358,9 +394,9 @@ describe('LearnPage access', () => {
         await userEvent.type(input, 'dashboard');
         expect(shown(container)).toEqual(['view:Dashboard']);
         await userEvent.clear(input);
-        expect(
-            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
-        ).toEqual(['manage:Validation', 'view:Dashboard']);
+        expect(sorted(shown(container))).toEqual(
+            sorted(['manage:Validation', 'view:Dashboard', ...lessons]),
+        );
     });
 });
 
@@ -374,7 +410,7 @@ describe('LearnPage unsupported modules', () => {
         track.mockClear();
         learnFlagState.current = { enabled: true };
         learnFlagState.isLoading = false;
-        availabilityState.current = { isSettled: true };
+        availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },

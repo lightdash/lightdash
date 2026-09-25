@@ -13,6 +13,10 @@
     flex-direction: column;
 }
 
+.tourInsert {
+    background: color-mix(in srgb, var(--lu-accent) 18%, transparent);
+}
+
 .workspaceHeader {
     flex-shrink: 0;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);

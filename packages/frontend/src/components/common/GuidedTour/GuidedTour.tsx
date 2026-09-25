@@ -1,4 +1,13 @@
-import { Box, Button, Group, Paper, Portal, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Code,
+    Group,
+    Paper,
+    Portal,
+    Stack,
+    Text,
+} from '@mantine/core';
 import { clsx } from 'clsx';
 import type React from 'react';
 import {
@@ -43,6 +52,11 @@ export type GuidedTourStep = {
      */
     suggestion?: string;
     /**
+     * How many leading lines of a block suggestion are already in the file:
+     * shown faded, as where the rest goes, and never typed.
+     */
+    suggestionContextLines?: number;
+    /**
      * The click path to `target` (nav button, menu item, trigger, ...). While
      * `target` is not on the page, the spotlight sits on the deepest `via`
      * control that is, so it follows the learner along the path.
@@ -63,6 +77,17 @@ export type GuidedTourStep = {
      * that moves on is held until the work is done.
      */
     busy?: string;
+    /**
+     * For a typed step on an editor that can check: the facts its Check
+     * button tests the editor against (a lesson's model, column, key, field).
+     */
+    expect?: Record<string, string>;
+    /**
+     * For a step with `busy`: where Try again sends the learner when the
+     * page marks the work as failed (`data-tour-failed`), instead of letting
+     * them move on to look for a result that is not there.
+     */
+    retryStep?: number;
 };
 
 export type TourPoint = { x: number; y: number };
@@ -132,6 +157,11 @@ const CARD_RETURN_MS = 4000;
 /** A typed-input step counts as done after this many characters and a pause. */
 const MIN_INPUT_CHARS = 3;
 const INPUT_SETTLE_MS = 900;
+/**
+ * How long a click on a control still counts for a click-to-continue step on
+ * it that opens afterwards: long enough to cover a typed step settling.
+ */
+const EARLY_CLICK_MS = 2500;
 /** Used until the card has been measured. */
 const CARD_FALLBACK_HEIGHT = 220;
 
@@ -328,23 +358,38 @@ const useResolvedSelector = (
 const useBusy = (
     selector: string | undefined,
     active: boolean,
-): { busy: boolean; status: string } => {
-    const [state, setState] = useState({ busy: false, status: '' });
+): { busy: boolean; status: string; failed: boolean } => {
+    const [state, setState] = useState({
+        busy: false,
+        status: '',
+        failed: false,
+    });
     useEffect(() => {
         if (!selector || !active) {
-            setState({ busy: false, status: '' });
+            setState({ busy: false, status: '', failed: false });
             return undefined;
         }
         const tick = () => {
             const el = document.querySelector(selector);
-            const statuses = el?.querySelectorAll('[data-tour-status]');
+            // Once the work has stopped, the page may say it failed; its
+            // status words are read from that surface instead.
+            const failedEl =
+                el === null
+                    ? document.querySelector('[data-tour-failed]')
+                    : null;
+            const statuses = (el ?? failedEl)?.querySelectorAll(
+                '[data-tour-status]',
+            );
             const last = statuses?.[statuses.length - 1];
             const next = {
                 busy: el !== null,
                 status: last?.textContent?.trim() ?? '',
+                failed: failedEl !== null,
             };
             setState((previous) =>
-                previous.busy === next.busy && previous.status === next.status
+                previous.busy === next.busy &&
+                previous.status === next.status &&
+                previous.failed === next.failed
                     ? previous
                     : next,
             );
@@ -354,6 +399,64 @@ const useBusy = (
         return () => window.clearInterval(poll);
     }, [selector, active]);
     return state;
+};
+
+/**
+ * What the page says is wrong with a typed step's field: the words in its
+ * `data-tour-invalid`, or null. The step holds while it is set, and the card
+ * shows the words so the learner knows what to put right.
+ */
+const useTargetInvalid = (
+    selector: string | null,
+    active: boolean,
+): {
+    invalidMessage: string | null;
+    canCheck: boolean;
+    editorBusy: boolean;
+    /** Look at the page now, not at the next poll. */
+    refresh: () => void;
+} => {
+    const [state, setState] = useState<{
+        invalidMessage: string | null;
+        canCheck: boolean;
+        editorBusy: boolean;
+    }>({ invalidMessage: null, canCheck: false, editorBusy: false });
+    const tickRef = useRef<() => void>(() => {});
+    useEffect(() => {
+        if (!selector || !active) {
+            setState({
+                invalidMessage: null,
+                canCheck: false,
+                editorBusy: false,
+            });
+            tickRef.current = () => {};
+            return undefined;
+        }
+        const tick = () => {
+            const el = document.querySelector<HTMLElement & TourEditable>(
+                selector,
+            );
+            const next = {
+                invalidMessage: el?.getAttribute('data-tour-invalid') ?? null,
+                // The editor mounts late, so whether it can check is watched.
+                canCheck: typeof el?.tourEditor?.check === 'function',
+                editorBusy: el?.tourEditor?.isBusy?.() ?? false,
+            };
+            setState((previous) =>
+                previous.invalidMessage === next.invalidMessage &&
+                previous.canCheck === next.canCheck &&
+                previous.editorBusy === next.editorBusy
+                    ? previous
+                    : next,
+            );
+        };
+        tickRef.current = tick;
+        tick();
+        const poll = window.setInterval(tick, 150);
+        return () => window.clearInterval(poll);
+    }, [selector, active]);
+    const refresh = useCallback(() => tickRef.current(), []);
+    return { ...state, refresh };
 };
 
 /**
@@ -369,7 +472,29 @@ const useBusy = (
  * anchor, which is what advances the step.
  */
 export type TourEditable = {
-    tourEditor?: { getValue: () => string; setValue: (value: string) => void };
+    tourEditor?: {
+        getValue: () => string;
+        setValue: (value: string) => void;
+        /**
+         * Whether the editor holds what the step asked for: null when it
+         * does, else one line saying what is missing. An editor that can
+         * check gets a Check button on its step, and the step moves on only
+         * when that passes, never on a pause in the typing: an editor over a
+         * whole file always holds "enough" text, and a pause is not a claim
+         * to be done.
+         */
+        check?: (
+            suggestion: string,
+            expect: Record<string, string> | undefined,
+        ) => string | null;
+        /**
+         * Whether the editor is still at work on the last `setValue`: one
+         * that types the text in is not done when `setValue` returns. The
+         * card holds Use it and Check until it is, so a half-typed file is
+         * never checked and a second Use it cannot start over the first.
+         */
+        isBusy?: () => boolean;
+    };
 };
 
 type AceLike = {
@@ -563,7 +688,19 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     );
     // While the page is still working on this step, the ring sits on that
     // work rather than on the finished surface.
-    const { busy, status } = useBusy(step?.busy, opened);
+    const { busy, status, failed } = useBusy(step?.busy, opened);
+    const {
+        invalidMessage,
+        canCheck,
+        editorBusy,
+        refresh: refreshTarget,
+    } = useTargetInvalid(
+        step?.advanceOnTargetInput ? (step.target ?? null) : null,
+        opened,
+    );
+    // What the last press of Check found wrong; cleared with the step.
+    const [checkMessage, setCheckMessage] = useState<string | null>(null);
+    useEffect(() => setCheckMessage(null), [stepIndex]);
     const spotlightSelector = busy && step?.busy ? step.busy : resolvedSelector;
     const rect = useTargetRect(spotlightSelector, opened);
     // How the last step change happened: Next glides the ring from the old
@@ -819,9 +956,36 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // target may render late (e.g. a menu item), so keep looking for it.
     const advanceSelector =
         opened && step?.advanceOnTargetClick ? step.target : null;
+    // A learner can be a step ahead: at a terminal they type the command and
+    // press Enter in one go, which runs it while the tour is still settling
+    // the typing step. Remember the last click that did not itself move the
+    // tour on, so the step that asks for that click knows it has happened.
+    const advanceSelectorRef = useRef(advanceSelector);
+    advanceSelectorRef.current = advanceSelector;
+    const earlyClickRef = useRef<{ target: Element; at: number } | null>(null);
+    useEffect(() => {
+        if (!opened) return undefined;
+        const onAnyClick = (event: MouseEvent) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            if (target.closest('[data-tour-card]')) return;
+            const current = advanceSelectorRef.current;
+            if (current && target.closest(current)) return;
+            earlyClickRef.current = { target, at: Date.now() };
+        };
+        document.addEventListener('click', onAnyClick, true);
+        return () => document.removeEventListener('click', onAnyClick, true);
+    }, [opened]);
     useEffect(() => {
         if (!advanceSelector) return undefined;
         let el: Element | null = null;
+        const early = earlyClickRef.current;
+        earlyClickRef.current = null;
+        const clickedAlready = (found: Element) =>
+            early !== null &&
+            Date.now() - early.at <= EARLY_CLICK_MS &&
+            found.contains(early.target);
+        let done = false;
         const onClick = () => {
             advanceByClickRef.current = true;
             const at = el?.getBoundingClientRect();
@@ -838,6 +1002,12 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             if (!el) {
                 el = document.querySelector(advanceSelector);
                 el?.addEventListener('click', onClick);
+                // Not `onClick`: no click is happening now, so there is no
+                // point on the page for the ring to travel from.
+                if (el && !done && clickedAlready(el)) {
+                    done = true;
+                    handleNext();
+                }
             }
         };
         tick();
@@ -852,6 +1022,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // pauses; the field may render late (a dialog), so keep looking for it.
     const inputSelector =
         opened && step?.advanceOnTargetInput ? step.target : null;
+    // A field marked data-tour-exact (a command box) advances only when it
+    // holds the suggested text itself; anything else is a typo the next
+    // step would build on.
+    const exactSuggestion = step?.suggestion ?? null;
     useEffect(() => {
         if (!inputSelector) return undefined;
         let el: HTMLElement | null = null;
@@ -870,9 +1044,28 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 : el.querySelector<HTMLElement>('[contenteditable="true"]');
             return editable?.innerText ?? '';
         };
+        const holdsEnough = () => {
+            // An editor that can check moves on from its Check button only.
+            const own = (el as (HTMLElement & TourEditable) | null)?.tourEditor;
+            if (own?.check) return false;
+            const text = typed().trim();
+            if (text.length < MIN_INPUT_CHARS) return false;
+            if (
+                exactSuggestion !== null &&
+                el?.hasAttribute('data-tour-exact') &&
+                text !== exactSuggestion.trim()
+            )
+                return false;
+            return true;
+        };
+        // What the page says about the field (data-tour-invalid) is only read
+        // once the input has settled: at the moment of the keystroke that
+        // fixes a mistake, the page has not yet re-rendered to say so.
+        const settled = () =>
+            holdsEnough() && !el?.hasAttribute('data-tour-invalid');
         const onInput = () => {
             window.clearTimeout(debounce);
-            if (typed().trim().length < MIN_INPUT_CHARS) return;
+            if (!holdsEnough()) return;
             const inputAtEvent = el;
             debounce = window.setTimeout(() => {
                 // A form can reset or remount while the input settles. Only
@@ -881,7 +1074,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                     !inputAtEvent?.isConnected ||
                     document.querySelector(inputSelector) !== inputAtEvent ||
                     el !== inputAtEvent ||
-                    typed().trim().length < MIN_INPUT_CHARS
+                    !settled()
                 )
                     return;
                 handleNext();
@@ -904,7 +1097,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             window.clearTimeout(debounce);
             el?.removeEventListener('input', onInput);
         };
-    }, [inputSelector, handleNext]);
+    }, [inputSelector, exactSuggestion, handleNext]);
 
     // A hands-on look: the learner may use the highlighted surface (drag a
     // tile, resize it) and moves on with the button. Nothing is blocked,
@@ -962,6 +1155,61 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             step.advanceOnTargetClick ||
             step.advanceOnTargetInput);
 
+    // A suggestion of more than one line (a block of YAML) cannot be read
+    // inside the sentence that offers it: it is printed as code instead.
+    const suggestionIsBlock = !!shownStep.suggestion?.includes('\n');
+    // Printed without the indent the lines share, so a snippet from deep in
+    // a YAML file reads from the left edge; the lines already in the file
+    // are faded and the ones to add stand out.
+    const suggestionLines = (shownStep.suggestion ?? '').split('\n');
+    const sharedIndent = Math.min(
+        ...suggestionLines
+            .filter((line) => line.trim() !== '')
+            .map((line) => /^ */.exec(line)![0].length),
+    );
+    const contextLines = shownStep.suggestionContextLines ?? 0;
+    const suggestionButton = (
+        <Button
+            size="compact-xs"
+            variant="default"
+            className={styles.buttonPulse}
+            disabled={editorBusy}
+            onClick={() => {
+                setCheckMessage(null);
+                if (shownStep.target)
+                    fillTarget(shownStep.target, shownStep.suggestion!);
+                // The editor may now be typing: hold the buttons from this
+                // click, not from the next poll of the page.
+                refreshTarget();
+            }}
+        >
+            Use it
+        </Button>
+    );
+
+    // The way forward on a step whose editor can check its own contents.
+    const checkButton = canCheck ? (
+        <Button
+            size="compact-xs"
+            data-tour-check
+            disabled={editorBusy}
+            onClick={() => {
+                if (!shownStep.target || !shownStep.suggestion) return;
+                const own = document.querySelector<HTMLElement & TourEditable>(
+                    shownStep.target,
+                )?.tourEditor;
+                if (own?.isBusy?.()) return;
+                const problem =
+                    own?.check?.(shownStep.suggestion, shownStep.expect) ??
+                    null;
+                setCheckMessage(problem);
+                if (problem === null) handleNext();
+            }}
+        >
+            Check
+        </Button>
+    ) : null;
+
     const cardBody = (
         <Paper
             ref={cardRef}
@@ -1003,17 +1251,36 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                         fz="md"
                         lh={1.3}
                         data-tour-card-status={
-                            busy && status !== '' ? status : undefined
+                            (busy || failed) && status !== ''
+                                ? status
+                                : undefined
                         }
                     >
-                        {busy && status !== '' ? status : shownTitle}
+                        {(busy || failed) && status !== ''
+                            ? status
+                            : shownTitle}
                     </Text>
+                    {invalidMessage !== null && (
+                        <Text fz="sm" c="red.7" data-tour-card-invalid>
+                            {invalidMessage}
+                        </Text>
+                    )}
+                    {invalidMessage === null && checkMessage !== null && (
+                        <Text fz="sm" c="red.7" data-tour-card-check>
+                            {checkMessage}
+                        </Text>
+                    )}
+                    {failed && (
+                        <Text fz="sm" c="dimmed" data-tour-card-failed>
+                            That did not work. Check the output, then try again
+                        </Text>
+                    )}
                     {busy && status !== '' && (
                         <Text fz="xs" c="dimmed">
                             {shownTitle}
                         </Text>
                     )}
-                    {shownStep.body !== '' && (
+                    {shownStep.body !== '' && !failed && (
                         <Box fz="sm" c="dimmed">
                             {shownStep.body}
                         </Box>
@@ -1065,36 +1332,80 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             shownStep.advanceOnTargetInput &&
                             spotlightSelector === shownStep.target &&
                             shownStep.suggestion ? (
-                                <Group gap="xs" wrap="nowrap">
-                                    <Text fz="xs" c="dimmed">
-                                        Type here, or use{' '}
-                                        <Text
-                                            component="span"
+                                suggestionIsBlock ? (
+                                    <Stack gap={4} align="flex-start">
+                                        {/* A block with faded context lines
+                                            explains itself: the step's own
+                                            words say which lines to add. */}
+                                        {contextLines === 0 && (
+                                            <Text fz="xs" c="dimmed">
+                                                Type here, or use:
+                                            </Text>
+                                        )}
+                                        <Code
+                                            block
                                             fz="xs"
-                                            fw={600}
-                                            c="inherit"
+                                            className={styles.suggestionBlock}
                                             data-tour-suggestion={
                                                 shownStep.suggestion
                                             }
                                         >
-                                            {shownStep.suggestion}
+                                            {suggestionLines.map(
+                                                (line, index) => (
+                                                    <span
+                                                        // eslint-disable-next-line react/no-array-index-key
+                                                        key={index}
+                                                        className={
+                                                            index < contextLines
+                                                                ? styles.suggestionContext
+                                                                : contextLines >
+                                                                    0
+                                                                  ? styles.suggestionInput
+                                                                  : undefined
+                                                        }
+                                                        data-tour-suggestion-line={
+                                                            index < contextLines
+                                                                ? 'context'
+                                                                : 'input'
+                                                        }
+                                                    >
+                                                        {line.slice(
+                                                            sharedIndent,
+                                                        )}
+                                                        {index <
+                                                        suggestionLines.length -
+                                                            1
+                                                            ? '\n'
+                                                            : ''}
+                                                    </span>
+                                                ),
+                                            )}
+                                        </Code>
+                                        <Group gap="xs">
+                                            {suggestionButton}
+                                            {checkButton}
+                                        </Group>
+                                    </Stack>
+                                ) : (
+                                    <Group gap="xs" wrap="nowrap">
+                                        <Text fz="xs" c="dimmed">
+                                            Type here, or use{' '}
+                                            <Text
+                                                component="span"
+                                                fz="xs"
+                                                fw={600}
+                                                c="inherit"
+                                                data-tour-suggestion={
+                                                    shownStep.suggestion
+                                                }
+                                            >
+                                                {shownStep.suggestion}
+                                            </Text>
                                         </Text>
-                                    </Text>
-                                    <Button
-                                        size="compact-xs"
-                                        variant="default"
-                                        className={styles.buttonPulse}
-                                        onClick={() =>
-                                            shownStep.target &&
-                                            fillTarget(
-                                                shownStep.target,
-                                                shownStep.suggestion!,
-                                            )
-                                        }
-                                    >
-                                        Use it
-                                    </Button>
-                                </Group>
+                                        {suggestionButton}
+                                        {checkButton}
+                                    </Group>
+                                )
                             ) : (
                                 <Text fz="xs" c="dimmed">
                                     {shownStep.advanceOnTargetInput &&
@@ -1108,7 +1419,21 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             // same pulse a highlighted control would.
                             <Button
                                 size="compact-sm"
-                                onClick={handleNext}
+                                // A failed run goes back to where it can be
+                                // put right rather than on to a result that
+                                // is not there.
+                                onClick={
+                                    failed
+                                        ? () =>
+                                              goToStep(
+                                                  shownStep.retryStep ??
+                                                      Math.max(
+                                                          0,
+                                                          stepIndex - 1,
+                                                      ),
+                                              )
+                                        : handleNext
+                                }
                                 // Held, with a loader, while the page is
                                 // still working on this step.
                                 loading={busy}
@@ -1116,7 +1441,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                     busy ? undefined : styles.buttonPulse
                                 }
                             >
-                                {shownIsLast ? 'Got it' : 'Next'}
+                                {failed
+                                    ? 'Try again'
+                                    : shownIsLast
+                                      ? 'Got it'
+                                      : 'Next'}
                             </Button>
                         )}
                     </Group>

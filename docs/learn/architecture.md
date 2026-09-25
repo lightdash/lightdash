@@ -120,16 +120,31 @@ answering with an error. The page is three panes over the copy (the file tree, a
 under a strip carrying the copy's name and a `Back to library` link. Tours drive it through
 `data-tour-anchor="workspace-file"`, `"workspace-editor"`, `"terminal-command"` and `"terminal-run"`, and wait on
 the output pane, which carries `data-tour-busy` and `data-tour-status` while a command runs and, for that same
-duration, the anchor `data-tour-anchor="terminal-running"`; `data-learn-workspace`, `data-learn-file`,
+duration, the anchor `data-tour-anchor="terminal-running"`. A run that ends in an error or a timeout marks the pane `data-tour-failed`, and the tour's result
+step then offers Try again, back at the editor step, instead of Next, so a learner cannot walk on to look for a
+field a failed deploy never created; `data-learn-workspace`, `data-learn-file`,
 `data-learn-editable`, `data-learn-terminal-output` and `data-learn-back-to-library` are there for tests and
 walkthrough verification.
+
+A file that does not parse as YAML is never sent: the page applies the rule the server applies on save
+(`validateLearnWorkspaceYaml` in `@lightdash/common`), names the line in the editor's header, and marks the editor
+`data-tour-invalid`, so a walkthrough's editor step holds and says which line to fix instead of moving on. That
+step does not guess when the learner is done from a pause in their typing. Its card has a Check button, which
+tests the file against the lesson's facts (`checkLearnLessonEntry` in `@lightdash/common`): the model has the
+column, or the column has the entry under the named key, in `meta` or `config.meta`. The file is parsed, not
+searched, so where the entry sits in its list, its quoting, spacing, key order and flow style all pass, and the
+right entry under the wrong model or column does not; the card then says where it ended up. A compile was
+measured for this and rejected: `dbt parse` (about 2 s) and `lightdash compile` (about 6 s) both pass a file
+whose entry is in the wrong place, because it still builds. The deploy step that follows compiles anyway.
 
 Edits are held per file in the page and autosaved rather than saved by a button: on editor blur, and again
 before every run, so a command never runs against a file the learner has changed on screen but not on disk. A
 save that fails leaves the edit in the editor, reports the reason in a toast, and blocks the run that triggered
 it. The terminal parses the typed
-command in the browser before asking for anything, so an input that is not `lightdash` or `dbt` never becomes a
-request. A run the server refuses because a command is already in flight is not an error: the reply names the
+command in the browser before asking for anything, against the same subcommand list the server enforces
+(`LEARN_TERMINAL_SUBCOMMANDS` in `@lightdash/common`), so a mistyped command never becomes a request: Run stays
+off and names the refusal. The command box also carries `data-tour-exact`, so a walkthrough's typed step advances
+only when the box holds the suggested command, not on the first three characters of a typo. A run the server refuses because a command is already in flight is not an error: the reply names the
 running command, and the pane attaches to its output and streams it to the end.
 
 Two knobs exist for that PATH and for where the child sends its API calls. `LEARN_SANDBOX_PATH_PREFIX` is a
@@ -145,6 +160,34 @@ spread over that many scheduler queues by project, each queue runs serially, so 
 worker never hosts more dbt processes than the cap. `PLAYGROUND_DATA_DIR` continues to name the directory holding
 `jaffle_shop.duckdb`, and the sandbox passes it through to the child, since the CLI accepts a local DuckDB
 profile only when the file sits directly inside it.
+
+#### Lessons
+
+A lesson teaches one docs page by having the learner change the project and then look at what changed. Each is
+declared in `features/learn/sandboxLessons.ts`, one entry per page, naming the file to open, the column the snippet
+extends, the snippet to add, the command to run, and the explore and field the learner ends on. Every
+sentence the learner reads is either a cited docs sentence (a step may cite several, read in order) or one of
+two fixed task sentences the template fills from the entry (which metric to add and which column's metrics
+it goes under, and which metric the learner ends on), so the snippet and the entry's facts are
+the only parts written by hand. The library lists each lesson as a module of kind
+`docs` in the Developer group, gated on the sandbox rather than on a permission, so every learner holds it. The
+generated teaching order (`curriculum.ts`) covers permissions and does not name lessons at all, so the library
+sorts them after every walkthrough. Start makes a copy the way a walkthrough does and opens
+`/projects/<copy>/learn/workspace?tour=<id>`.
+
+The tour itself is not authored. `buildLessonTours` in `scripts/scope-tours/lib.ts` turns each entry into the
+same twelve steps: read the page's introduction on a card with nothing spotlit, open the file, add the snippet, type the command, run it, watch the
+output to the end, then New, Chart, search for the table, open it, search for the field, and look at the field
+that now exists. The two searches are not decoration: both lists in Explore are virtualised, so neither the
+table nor the field is on the page until it has been searched for, and they are two different controls, because
+opening a table replaces the table list with the field tree. The snippet starts with the key it extends (`columns:` for a new dimension, a column's `metrics:` for a
+metric), and Use it types the lines after it directly under the last line in the file that is that key, so the
+entry appears where a developer would write it and the card shows the path it takes; the build checks that key
+belongs to the column or model the cards name. `pnpm test:learn-lessons` compiles every snippet against the shipped bundle,
+so that mistake fails a build rather than a learner. Use it types the snippet into the editor one character at a time, scrolls
+it into view and highlights the added lines for a moment, so the learner sees what changed and where before the
+tour moves on. A deploy that finishes invalidates the explore list in the
+browser, because the learner walks straight to the new field and a cached list would not have it.
 
 ### Walkthroughs
 
@@ -177,6 +220,9 @@ profile only when the file sits directly inside it.
   Search runs entirely in the browser, using bundled content, with no API key, model download, outbound request,
   or query telemetry. It is lexical search: paraphrases with no matching words still need better walkthrough
   wording or a future synonym layer.
+- **Lessons.** A developer lesson's tour sits in `SCOPE_TOURS` under its `docs:` id like any other, so the host,
+  progress, library search and the completion dialog handle it with no special case. `curriculum.ts` covers
+  permissions and does not name lessons, so the library sorts them after every walkthrough.
 
 ## Boundaries and invariants
 

@@ -44,6 +44,7 @@ import {
     isUserAvatarColorValue,
     isUserWithOrg,
     isValidTimezone,
+    LEARN_LESSON_IDS,
     LearnProgress,
     LightdashMode,
     LightdashUser,
@@ -2010,10 +2011,15 @@ export class UserService extends BaseService {
         return this.userLearnProgressModel.get(account.user.userUuid);
     }
 
+    /**
+     * What Learn keeps progress for: every registry scope, and the developer
+     * lessons, which are docs pages rather than scopes.
+     */
     private static learnScopeNames(): Set<string> {
-        return new Set(
-            getScopes({ isEnterprise: true }).map((scope) => scope.name),
-        );
+        return new Set([
+            ...getScopes({ isEnterprise: true }).map((scope) => scope.name),
+            ...LEARN_LESSON_IDS,
+        ]);
     }
 
     private static assertLearnScope(scope: string): void {

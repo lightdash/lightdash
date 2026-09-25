@@ -1,12 +1,16 @@
 import { Button, Popover, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import MantineModal from '../MantineModal';
-import { GuidedTour, type GuidedTourStep } from './GuidedTour';
+import {
+    GuidedTour,
+    type GuidedTourStep,
+    type TourEditable,
+} from './GuidedTour';
 
 const steps: GuidedTourStep[] = [
     { target: null, title: 'Step one', body: 'first body' },
@@ -83,6 +87,49 @@ describe('GuidedTour', () => {
         expect(
             screen.getByRole('button', { name: 'Create dashboard' }),
         ).toBeEnabled();
+    });
+
+    // A YAML block cannot be read inside the "Type here, or use ..."
+    // sentence, and the newlines would be lost in it.
+    it('prints a suggestion of more than one line as a code block', async () => {
+        const suggestion = 'a:\n  b: 1';
+        const user = userEvent.setup();
+        const Form = () => (
+            <>
+                <textarea aria-label="Model file" data-model-file />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-model-file]',
+                            title: 'Add the metric',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetInput: true,
+                            suggestion,
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>
+        );
+        // The card is portalled to the body, so the query starts there.
+        const { baseElement } = renderWithProviders(<Form />);
+
+        const block = baseElement.querySelector(
+            'pre[data-tour-suggestion], code[data-tour-suggestion]',
+        );
+        expect(block).not.toBeNull();
+        // Exact, not normalised: the newline is the point.
+        expect(block?.textContent).toBe(suggestion);
+        expect(
+            block?.querySelector('[data-tour-suggestion-line="context"]'),
+        ).toBeNull();
+
+        await user.click(screen.getByRole('button', { name: 'Use it' }));
+        expect(screen.getByRole('textbox', { name: 'Model file' })).toHaveValue(
+            suggestion,
+        );
     });
 
     it('does not advance a typed step when its field resets before settling', async () => {
@@ -195,6 +242,405 @@ describe('GuidedTour', () => {
         await user.click(screen.getByRole('button', { name: 'Next' }));
         await user.click(screen.getByRole('button', { name: 'Got it' }));
         expect(calls).toEqual(['finish', 'close']);
+    });
+
+    it('fades the lines already in the file and drops the indent they share', () => {
+        const suggestion =
+            '    columns:\n      - name: floors\n        description: x';
+        renderWithProviders(
+            <>
+                <div data-block-field />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-block-field]',
+                            title: 'Edit the file',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetInput: true,
+                            suggestion,
+                            suggestionContextLines: 1,
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+        const block = document.querySelector('[data-tour-suggestion]');
+        expect(block?.getAttribute('data-tour-suggestion')).toBe(suggestion);
+        expect(block?.textContent).toBe(
+            'columns:\n  - name: floors\n    description: x',
+        );
+        const lines = block?.querySelectorAll('[data-tour-suggestion-line]');
+        expect(
+            [...(lines ?? [])].map((line) =>
+                line.getAttribute('data-tour-suggestion-line'),
+            ),
+        ).toEqual(['context', 'input', 'input']);
+        // The faded line speaks for itself: no lead-in above the block.
+        expect(
+            screen.queryByText('Type here, or use:'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers Try again, back at the retry step, when the page says the work failed', async () => {
+        const user = userEvent.setup();
+        const retrySteps: GuidedTourStep[] = [
+            { target: null, title: 'Fix the file', body: 'edit here' },
+            { target: null, title: 'Run it', body: '' },
+            {
+                target: '[data-pane]',
+                title: 'See the result',
+                body: 'it worked',
+                busy: '[data-running]',
+                retryStep: 0,
+            },
+            { target: null, title: 'After', body: '' },
+        ];
+        renderWithProviders(
+            <>
+                <div data-pane data-tour-failed="true">
+                    <span data-tour-status="true">Failed (exit 1)</span>
+                </div>
+                <GuidedTour
+                    steps={retrySteps}
+                    opened
+                    onClose={vi.fn()}
+                    initialStepIndex={2}
+                />
+            </>,
+        );
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Try again' }),
+            ).toBeInTheDocument(),
+        );
+        expect(
+            document.querySelector('[data-tour-card-status]')?.textContent,
+        ).toBe('Failed (exit 1)');
+        expect(
+            document.querySelector('[data-tour-card-failed]'),
+        ).not.toBeNull();
+        expect(screen.queryByText('it worked')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Next' }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Try again' }));
+        await waitFor(() =>
+            expect(screen.getByText('Fix the file')).toBeInTheDocument(),
+        );
+    });
+
+    it('gives an editor that can check a Check button, and moves on only when the check passes', async () => {
+        const user = userEvent.setup();
+        const checkSteps: GuidedTourStep[] = [
+            {
+                target: '[data-code]',
+                title: 'Edit the file',
+                body: '',
+                interactive: true,
+                advanceOnTargetInput: true,
+                suggestion: 'columns:\n  - name: floors',
+                expect: {
+                    model: 'buildings',
+                    under: 'columns',
+                    field: 'floors',
+                },
+            },
+            { target: null, title: 'Step two', body: '' },
+        ];
+        const seen: unknown[] = [];
+        let value = 'a long file that already holds plenty of text';
+        const onClose = vi.fn();
+        const Code: FC = () => (
+            <>
+                <div
+                    data-code
+                    ref={(node) => {
+                        if (!node) return;
+                        (node as HTMLDivElement & TourEditable).tourEditor = {
+                            getValue: () => value,
+                            setValue: () => {},
+                            check: (suggestion, expect) => {
+                                seen.push([suggestion, expect]);
+                                return value.includes('floors')
+                                    ? null
+                                    : 'Add floors to the buildings model';
+                            },
+                        };
+                    }}
+                />
+                <GuidedTour steps={checkSteps} opened onClose={onClose} />
+            </>
+        );
+        renderWithProviders(<Code />);
+        const check = await screen.findByRole('button', { name: 'Check' });
+
+        // Typing, and pausing, is not a claim to be done.
+        value += ' and a lot more typing';
+        document
+            .querySelector('[data-code]')!
+            .dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 1200);
+        });
+        expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+
+        await user.click(check);
+        expect(
+            document.querySelector('[data-tour-card-check]'),
+        ).toHaveTextContent('Add floors to the buildings model');
+        expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+        // The editor is handed the step's suggestion and its expected facts.
+        expect(seen[0]).toEqual([
+            'columns:\n  - name: floors',
+            { model: 'buildings', under: 'columns', field: 'floors' },
+        ]);
+
+        value += '\n  - name: floors';
+        await user.click(screen.getByRole('button', { name: 'Check' }));
+        await waitFor(() =>
+            expect(screen.getByText('Step two')).toBeInTheDocument(),
+        );
+    });
+
+    it('holds Check and Use it while the editor is still typing the suggestion in', async () => {
+        const typedSteps: GuidedTourStep[] = [
+            {
+                target: '[data-code]',
+                title: 'Edit the file',
+                body: '',
+                interactive: true,
+                advanceOnTargetInput: true,
+                suggestion: 'columns:\n  - name: floors',
+            },
+            { target: null, title: 'Step two', body: '' },
+        ];
+        let typing = false;
+        const Code: FC = () => (
+            <>
+                <div
+                    data-code
+                    ref={(node) => {
+                        if (!node) return;
+                        (node as HTMLDivElement & TourEditable).tourEditor = {
+                            getValue: () => '',
+                            // Use it starts the editor typing; it is not done
+                            // when this returns.
+                            setValue: () => {
+                                typing = true;
+                            },
+                            isBusy: () => typing,
+                            check: () => null,
+                        };
+                    }}
+                />
+                <GuidedTour steps={typedSteps} opened onClose={vi.fn()} />
+            </>
+        );
+        renderWithProviders(<Code />);
+        const check = await screen.findByRole('button', { name: 'Check' });
+        const useIt = screen.getByRole('button', { name: 'Use it' });
+        expect(check).toBeEnabled();
+
+        fireEvent.click(useIt);
+        // At once, not at the next look at the page: a fast second click
+        // would otherwise check a half-typed file.
+        expect(check).toBeDisabled();
+        expect(useIt).toBeDisabled();
+        fireEvent.click(check);
+        expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+
+        typing = false;
+        await waitFor(() => expect(check).toBeEnabled());
+        expect(useIt).toBeEnabled();
+        fireEvent.click(check);
+        await waitFor(() =>
+            expect(screen.getByText('Step two')).toBeInTheDocument(),
+        );
+    });
+
+    it('offers no Check on a plain typed field', () => {
+        renderWithProviders(
+            <>
+                <input aria-label="Name" data-plain />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-plain]',
+                            title: 'Name it',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetInput: true,
+                            suggestion: 'Orders overview',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Check' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('holds a typed step while the page marks the field invalid, and says why', async () => {
+        vi.useFakeTimers({
+            toFake: [
+                'setTimeout',
+                'clearTimeout',
+                'setInterval',
+                'clearInterval',
+                'requestAnimationFrame',
+                'cancelAnimationFrame',
+                'Date',
+            ],
+        });
+        try {
+            const invalidSteps: GuidedTourStep[] = [
+                {
+                    target: '[data-yaml]',
+                    title: 'Edit the file',
+                    body: '',
+                    interactive: true,
+                    advanceOnTargetInput: true,
+                    suggestion: 'a: 1',
+                },
+                { target: null, title: 'Step two', body: '' },
+            ];
+            const onClose = vi.fn();
+            const Field: FC = () => {
+                const [value, setValue] = useState('');
+                return (
+                    <>
+                        <input
+                            aria-label="File"
+                            data-yaml
+                            data-tour-invalid={
+                                value.includes('oops')
+                                    ? 'Fix the YAML error on line 3 to continue'
+                                    : undefined
+                            }
+                            value={value}
+                            onChange={(event) =>
+                                setValue(event.currentTarget.value)
+                            }
+                        />
+                        <GuidedTour
+                            steps={invalidSteps}
+                            opened
+                            onClose={onClose}
+                        />
+                    </>
+                );
+            };
+            renderWithProviders(<Field />);
+            const input = screen.getByLabelText('File') as HTMLInputElement;
+            const type = (text: string) => {
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    'value',
+                )!.set!;
+                setter.call(input, text);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            await act(async () => {
+                type('name: x oops');
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.getByText('Edit the file')).toBeInTheDocument();
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+            expect(
+                document.querySelector('[data-tour-card-invalid]'),
+            ).toHaveTextContent('Fix the YAML error on line 3 to continue');
+            // The keystroke that puts it right moves the tour on.
+            await act(async () => {
+                type('name: x');
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.getByText('Step two')).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('advances an exact typed field only when it holds the suggested text', async () => {
+        // The card follows the ring on an animation frame, so frames are
+        // faked along with the debounce timers.
+        vi.useFakeTimers({
+            toFake: [
+                'setTimeout',
+                'clearTimeout',
+                'setInterval',
+                'clearInterval',
+                'requestAnimationFrame',
+                'cancelAnimationFrame',
+                'Date',
+            ],
+        });
+        try {
+            const exactSteps: GuidedTourStep[] = [
+                {
+                    target: '[data-command]',
+                    title: 'Type the command',
+                    body: '',
+                    interactive: true,
+                    advanceOnTargetInput: true,
+                    suggestion: 'lightdash deploy',
+                },
+                { target: null, title: 'Step two', body: '' },
+            ];
+            // Stable, as the host's is: a fresh callback on every keystroke
+            // would re-arm the tour's input listener and drop its settle timer.
+            const onClose = vi.fn();
+            const Field: FC = () => {
+                const [value, setValue] = useState('');
+                return (
+                    <>
+                        <input
+                            aria-label="Command"
+                            data-command
+                            data-tour-exact="true"
+                            value={value}
+                            onChange={(event) =>
+                                setValue(event.currentTarget.value)
+                            }
+                        />
+                        <GuidedTour
+                            steps={exactSteps}
+                            opened
+                            onClose={onClose}
+                        />
+                    </>
+                );
+            };
+            renderWithProviders(<Field />);
+            const input = screen.getByLabelText('Command') as HTMLInputElement;
+            const type = (text: string) => {
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    'value',
+                )!.set!;
+                setter.call(input, text);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            await act(async () => {
+                type('lightdash depl');
+                await vi.advanceTimersByTimeAsync(1_500);
+            });
+            expect(screen.getByText('Type the command')).toBeInTheDocument();
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+            // The debounce (900 ms) then the card's glide to the next step.
+            await act(async () => {
+                type('lightdash deploy');
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.getByText('Step two')).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     // A control the instance never shows (a screen behind a config the tour
@@ -522,5 +968,90 @@ describe('GuidedTour and the menus a step opens', () => {
         );
         expect(closeDialog).not.toHaveBeenCalled();
         expect(screen.getByText('Chart name')).toBeInTheDocument();
+    });
+
+    // A learner at a terminal types the command and presses Enter in one go,
+    // which runs it (a click on Run) while the tour is still on the typing
+    // step. The Run step that opens next has already had its click.
+    describe('a click that came just before its step', () => {
+        const steps: GuidedTourStep[] = [
+            {
+                target: '[data-x="command"]',
+                title: 'Type the command',
+                body: '',
+                interactive: true,
+                advanceOnTargetInput: true,
+            },
+            {
+                target: '[data-x="run"]',
+                title: 'Run the command',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+            },
+            { target: null, title: 'See the result', body: '' },
+        ];
+        beforeEach(() => {
+            document.elementsFromPoint = () => [];
+            Element.prototype.scrollIntoView = () => {};
+        });
+        const mount = () => {
+            const host = document.createElement('div');
+            host.innerHTML =
+                '<input data-x="command" /><button data-x="run">Run</button>';
+            document.body.appendChild(host);
+            return host;
+        };
+
+        it('counts it, and moves past the step', async () => {
+            const host = mount();
+            try {
+                renderWithProviders(
+                    <GuidedTour steps={steps} opened onClose={vi.fn()} />,
+                );
+                await screen.findByText('Type the command');
+                // Typed, then Enter at once: the page clicks Run for them.
+                fireEvent.input(host.querySelector('[data-x="command"]')!, {
+                    target: { value: 'lightdash deploy' },
+                });
+                fireEvent.click(host.querySelector('[data-x="run"]')!);
+                await waitFor(
+                    () =>
+                        expect(
+                            screen.getByText('See the result'),
+                        ).toBeVisible(),
+                    { timeout: 4000 },
+                );
+            } finally {
+                host.remove();
+            }
+        });
+
+        it('does not count a click from long before', async () => {
+            const host = mount();
+            try {
+                renderWithProviders(
+                    <GuidedTour steps={steps} opened onClose={vi.fn()} />,
+                );
+                await screen.findByText('Type the command');
+                const now = Date.now();
+                const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+                fireEvent.click(host.querySelector('[data-x="run"]')!);
+                clock.mockReturnValue(now + 10_000);
+                fireEvent.input(host.querySelector('[data-x="command"]')!, {
+                    target: { value: 'lightdash deploy' },
+                });
+                await screen.findByText(
+                    'Run the command',
+                    {},
+                    { timeout: 4000 },
+                );
+                await new Promise((r) => setTimeout(r, 400));
+                expect(screen.getByText('Run the command')).toBeVisible();
+                clock.mockRestore();
+            } finally {
+                host.remove();
+            }
+        });
     });
 });

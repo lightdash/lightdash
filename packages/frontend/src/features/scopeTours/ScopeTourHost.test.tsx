@@ -13,6 +13,7 @@ const {
     navigate,
     mutate,
     searchState,
+    locationState,
     markScopeStarted,
     markScopeCompleted,
     progressState,
@@ -21,6 +22,7 @@ const {
     navigate: vi.fn().mockResolvedValue(undefined),
     mutate: vi.fn(),
     searchState: { current: new URLSearchParams() },
+    locationState: { pathname: '/projects/copy-1/home' },
     markScopeStarted: vi.fn(),
     markScopeCompleted: vi.fn(),
     progressState: { completed: [] as string[] },
@@ -39,6 +41,7 @@ vi.mock('../learn/progress', () => ({
 
 vi.mock('react-router', () => ({
     useNavigate: () => navigate,
+    useLocation: () => ({ pathname: locationState.pathname }),
     useParams: () => ({ projectUuid: 'copy-1' }),
     useSearchParams: () => [
         searchState.current,
@@ -67,11 +70,13 @@ vi.mock('../../hooks/useProjectRoute', () => ({
 
 vi.mock('../../hooks/useProject', () => ({
     useProject: () => ({
-        data: {
-            projectUuid: 'copy-1',
-            type: ProjectType.PREVIEW,
-            upstreamProjectUuid: 'training-1',
-        },
+        data: locationState.pathname.startsWith('/projects/training-1')
+            ? { projectUuid: 'training-1', type: ProjectType.TRAINING }
+            : {
+                  projectUuid: 'copy-1',
+                  type: ProjectType.PREVIEW,
+                  upstreamProjectUuid: 'training-1',
+              },
     }),
 }));
 
@@ -181,6 +186,7 @@ describe('ScopeTourHost analytics', () => {
         searchState.current = new URLSearchParams(
             `tour=${SCOPE}&copy=true&from=learn`,
         );
+        locationState.pathname = '/projects/copy-1/home';
     });
 
     it('records a completion, and no dismissal, when the tour is finished', () => {
@@ -277,5 +283,38 @@ describe('ScopeTourHost analytics', () => {
         fireEvent.click(screen.getByText('next module'));
 
         expect(learnEvents()[1].properties).toMatchObject({ isRestart: true });
+    });
+
+    it('ends the tour as a dismissal when the learner goes back to the library', () => {
+        const { rerender } = renderHost();
+        fireEvent.click(screen.getByText('advance'));
+        expect(screen.getByText('skip')).toBeInTheDocument();
+
+        // A link on the page (the workspace's Back to library), or the
+        // browser's back button: the host is told nothing, the page changes.
+        locationState.pathname = '/projects/training-1/learn';
+        rerender(
+            <MantineProvider env="test">
+                <ScopeTourHost />
+            </MantineProvider>,
+        );
+
+        expect(screen.queryByText('skip')).not.toBeInTheDocument();
+        expect(learnEvents().map((event) => event.name)).toEqual([
+            EventName.LEARN_WALKTHROUGH_DISMISSED,
+        ]);
+        expect(learnEvents()[0].properties.stepIndex).toBe(2);
+        // The copy they walked away from is put away, as Skip does, and
+        // they are left where they chose to go.
+        expect(mutate).toHaveBeenCalledWith({
+            trainingProjectUuid: 'training-1',
+        });
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('keeps the tour on the workspace, whose address starts like the library', () => {
+        locationState.pathname = '/projects/copy-1/learn/workspace';
+        renderHost();
+        expect(screen.getByText('skip')).toBeInTheDocument();
     });
 });

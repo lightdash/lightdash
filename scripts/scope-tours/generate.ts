@@ -37,6 +37,12 @@
  *                                          a typed step must have one
  *   data-tour-input="true"                 on an anchor: a text field; its step
  *                                          advances once the learner has typed
+ *   data-tour-invalid="<words>"            on a typed anchor, while what it holds
+ *                                          is wrong (YAML that does not parse):
+ *                                          the step holds and shows the words
+ *   data-tour-exact="true"                 on a typed anchor: the step advances
+ *                                          only when the field holds the
+ *                                          suggestion itself (a command box)
  *   data-tour-look="1"                     a surface worth a look on the way,
  *   data-tour-after='<sel>'                taken right after the path click
  *                                          `after` names (a tile while the
@@ -57,6 +63,10 @@
  *                                          step follows it, shows its
  *                                          `[data-tour-status]` words and
  *                                          holds Got it until it is gone
+ *   data-tour-failed="true"                on a page surface: the work a busy
+ *                                          step waited on did not succeed; the
+ *                                          card offers Try again (back to the
+ *                                          step's retryStep) instead of Next
  *   data-tour-result-docs="file#anchor:n"  on the step-1 (result) marker: the
  *                                          docs sentence shown on the closing
  *                                          step; no sentence means no body
@@ -79,6 +89,15 @@
  *                                          `data-tour-hint`. The tour never
  *                                          navigates for the learner.
  *
+ * Developer lessons (one per semantic-layer docs page) are not markers. They
+ * are declared in packages/frontend/src/features/learn/sandboxLessons.ts and
+ * become tours under their `docs:<page>` id from a fixed template: read the
+ * page's intro, open `file` in the workspace, append `snippet` (cited), type
+ * `command` (cited), run it and watch the output (cited), then open the
+ * `result.explore` explore, search for the field and look at it (cited).
+ * Titles come from the anchors' hints and the docs page; nothing else is
+ * authored. The lesson compile test proves each snippet compiles.
+ *
  * Titles come from the scope registry in @lightdash/common; explanatory text
  * comes from the docs page the marker cites. Nothing is invented at build time.
  * The recipe for adding a walkthrough is the repo skill
@@ -88,10 +107,11 @@
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { SANDBOX_LESSONS } from '../../packages/frontend/src/features/learn/sandboxLessons';
 import { buildTours, outputPath, root } from './lib';
 
 const main = () => {
-    const { tours, markers } = buildTours();
+    const { tours, markers } = buildTours(undefined, SANDBOX_LESSONS);
     const body = tours
         .map(
             (tour) =>
@@ -110,7 +130,8 @@ const main = () => {
 // \`pnpm scope-tours:generate\`.
 
 export type ScopeTourStepDefinition = {
-    target: string;
+    /** CSS selector of the spotlit control; null renders a centered explainer. */
+    target: string | null;
     route?: string;
     title: string;
     body: string;
@@ -126,8 +147,17 @@ export type ScopeTourStepDefinition = {
     detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
+    /** With busy: the step Try again returns to when the page marks the work failed. */
+    retryStep?: number;
+    /** On an editor's typed step: the facts its Check button tests the file against. */
+    expect?: Record<string, string>;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
+    /**
+     * How many leading lines of a block suggestion are already in the file:
+     * shown faded, as where the rest goes, and never typed.
+     */
+    suggestionContextLines?: number;
 };
 
 export type ScopeTourDefinition = {

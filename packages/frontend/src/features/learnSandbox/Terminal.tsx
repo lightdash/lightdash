@@ -14,6 +14,7 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 // eslint-disable-next-line css-modules/no-unused-class -- classes shared across learnSandbox files
 import styles from './LearnWorkspace.module.css';
+import { parseCommand } from './parseCommand';
 
 const BOTTOM_THRESHOLD_PX = 32;
 
@@ -75,7 +76,12 @@ type TerminalProps = {
     value: string;
     onValueChange: (value: string) => void;
     onRun: () => void;
-    running: boolean;
+    /**
+     * A command is on its way, running, or the save in front of it is still
+     * in flight: the terminal is not ready for another run, and a
+     * walkthrough waiting on this step must keep waiting.
+     */
+    busy: boolean;
     disabled: boolean;
     output: TerminalOutput;
 };
@@ -91,11 +97,12 @@ const Terminal: FC<TerminalProps> = ({
     value,
     onValueChange,
     onRun,
-    running,
+    busy,
     disabled,
     output,
 }) => {
     const viewportRef = useRef<HTMLDivElement>(null);
+    const runButtonRef = useRef<HTMLButtonElement>(null);
     const shouldFollowRef = useRef(true);
 
     useEffect(() => {
@@ -115,13 +122,20 @@ const Terminal: FC<TerminalProps> = ({
     };
 
     const isValueEmpty = value.trim().length === 0;
-    const runDisabled = disabled || running || isValueEmpty;
+    // A command the server would refuse is refused here first: Run stays
+    // off and says why, so a mistyped command cannot start (or, in a
+    // walkthrough, advance past) a run that would only print a rejection.
+    const parsed = parseCommand(value);
+    const refusal = !isValueEmpty && 'error' in parsed ? parsed.error : null;
+    const runDisabled = disabled || busy || isValueEmpty || refusal !== null;
 
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
         if (runDisabled) return;
-        onRun();
+        // Through the button, not around it: a walkthrough step waiting on
+        // Run listens for its click, and Enter is how a terminal is used.
+        runButtonRef.current?.click();
     };
 
     const handleRun = () => {
@@ -140,6 +154,13 @@ const Terminal: FC<TerminalProps> = ({
             : statusLabel;
     const isEmpty =
         output.chunks.length === 0 && output.status === null && !output.error;
+    // For a walkthrough: the last run did not succeed, so the step that
+    // looks at its result offers to try again instead of moving on.
+    const failed =
+        !busy &&
+        (output.status === 'error' ||
+            output.status === 'timeout' ||
+            !!output.error);
 
     return (
         <Box className={styles.terminalPane}>
@@ -156,12 +177,15 @@ const Terminal: FC<TerminalProps> = ({
                     data-tour-anchor="terminal-command"
                     data-tour-hint="Type the command"
                     data-tour-input="true"
+                    data-tour-exact="true"
                     data-tour-suggest="dbt parse"
                 />
                 <Button
+                    ref={runButtonRef}
                     data-tour-anchor="terminal-run"
                     data-tour-hint="Run the command"
                     disabled={runDisabled}
+                    title={refusal ?? undefined}
                     onClick={handleRun}
                     leftSection={<MantineIcon icon={IconPlayerPlay} />}
                 >
@@ -174,7 +198,7 @@ const Terminal: FC<TerminalProps> = ({
                         key={command}
                         variant="default"
                         size="compact-xs"
-                        disabled={disabled || running}
+                        disabled={disabled || busy}
                         onClick={() => onValueChange(command)}
                     >
                         {command}
@@ -184,10 +208,11 @@ const Terminal: FC<TerminalProps> = ({
             <Box
                 className={styles.terminalOutput}
                 data-learn-terminal-output
-                data-tour-busy={running ? 'true' : undefined}
-                data-tour-anchor={running ? 'terminal-running' : undefined}
+                data-tour-busy={busy ? 'true' : undefined}
+                data-tour-failed={failed ? 'true' : undefined}
+                data-tour-anchor={busy ? 'terminal-running' : undefined}
                 data-tour-hint={
-                    running ? 'Wait for the command to finish' : undefined
+                    busy ? 'Wait for the command to finish' : undefined
                 }
             >
                 <ScrollArea
