@@ -12,6 +12,8 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
 # -----------------------------
 FROM node:24-bookworm-slim AS pnpm-base
 
+RUN --mount=type=bind,source=docker/security/perl-bookworm,target=/tmp/perl-backport bash /tmp/perl-backport/install.sh
+
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
@@ -392,9 +394,8 @@ RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout
 # Stage 5: runtime base
 # -----------------------------
 
-# Everything here is invalidated only by this file: system packages, the dbt
-# virtualenvs and their symlinks. It is deliberately independent of the build
-# context so a release version bump never rebuilds it.
+# This stage depends only on system packages, security backports and dbt, so a
+# release version bump never rebuilds it.
 FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
