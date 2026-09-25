@@ -96,7 +96,7 @@ describe('getComposerVizPlan', () => {
         const result = plan(columns);
         expect(result.defaultKind).toBe(defaultKind);
         expect(result.availableKinds).toEqual(kinds);
-        expect(result.axes.bar?.x.reference).toBe(x);
+        expect(result.axes.bar?.x?.reference).toBe(x);
         expect(result.axes.bar?.y.reference).toBe('n');
         expect(result.axes.horizontal).toEqual(result.axes.bar);
         expect(result.axes.line).toEqual(result.axes.bar);
@@ -178,7 +178,7 @@ describe('getComposerVizPlan', () => {
             { day: '2024-01-01', status: 'b', n: 2 },
         ]);
         expect(uniqueStatus.defaultKind).toBe('table');
-        expect(uniqueStatus.axes.pie?.x.reference).toBe('status');
+        expect(uniqueStatus.axes.pie?.x?.reference).toBe('status');
 
         const duplicateStatus = plan(columns, [
             { day: '2024-01-01', status: 'a', n: 1 },
@@ -221,7 +221,7 @@ describe('getComposerVizPlan', () => {
             column('status', DimensionType.STRING),
             column('n2', DimensionType.NUMBER),
         ]);
-        expect(result.axes.bar?.x.reference).toBe('status');
+        expect(result.axes.bar?.x?.reference).toBe('status');
         expect(result.axes.bar?.y.reference).toBe('n1');
     });
 
@@ -246,7 +246,7 @@ describe('getComposerVizPlan', () => {
 
         test('puts its declared dimension on x and metric on y', () => {
             const result = plan(columns, rows, node);
-            expect(result.axes.bar?.x.reference).toBe('orders_status');
+            expect(result.axes.bar?.x?.reference).toBe('orders_status');
             expect(result.axes.bar?.y.reference).toBe('orders_total');
             expect(result.axes.pie?.y.reference).toBe('orders_total');
             expect(result.defaultKind).toBe('bar');
@@ -258,7 +258,7 @@ describe('getComposerVizPlan', () => {
                 dimensions: ['missing'],
                 metrics: ['missing_too'],
             });
-            expect(result.axes.bar?.x.reference).toBe('orders_created_day');
+            expect(result.axes.bar?.x?.reference).toBe('orders_created_day');
             expect(result.axes.bar?.y.reference).toBe('orders_count');
         });
     });
