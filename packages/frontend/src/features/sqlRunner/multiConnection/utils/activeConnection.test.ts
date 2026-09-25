@@ -131,6 +131,16 @@ describe('isReplaceableSql', () => {
     it('never replaces SQL the user wrote', () => {
         expect(isReplaceableSql('SELECT id FROM orders')).toBe(false);
         expect(
+            isReplaceableSql(
+                'SELECT * FROM "raw"."public"."orders"\nWHERE status = \'paid\'',
+            ),
+        ).toBe(false);
+        expect(
+            isReplaceableSql(
+                'SELECT * FROM "raw"."public"."events"\nWHERE day = \'2026-09-17\' -- This table has a date partition on this field\nAND status = \'paid\'',
+            ),
+        ).toBe(false);
+        expect(
             isReplaceableSql('SELECT * FROM orders JOIN customers USING (id)'),
         ).toBe(false);
         expect(
@@ -174,6 +184,11 @@ describe('tableClickOutcome', () => {
         );
         expect(
             onOtherConnection('SELECT * FROM orders JOIN customers USING (id)'),
+        ).toBe('prompt');
+        expect(
+            onOtherConnection(
+                'SELECT * FROM "raw"."public"."orders"\nWHERE status = \'paid\'',
+            ),
         ).toBe('prompt');
     });
 
