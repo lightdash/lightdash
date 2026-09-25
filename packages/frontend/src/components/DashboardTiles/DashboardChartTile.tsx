@@ -2108,11 +2108,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         RefObject<EChartsReact | null> | undefined
     >();
 
+    // Explore what the tile ran: the server merged the applied dashboard
+    // filters into this metric query. A merged result is not a query the
+    // Explorer can open, so a merged chart reopens from its own primary query.
     const handleExploreFromHere = useCallback(() => {
-        if (onExplore) {
-            onExplore({ chart });
-        }
-    }, [onExplore, chart]);
+        if (!onExplore) return;
+        onExplore({ chart: chart.merge ? chart : { ...chart, metricQuery } });
+    }, [onExplore, chart, metricQuery]);
 
     const canExplore = canViewExploreOverride ?? canViewExplore;
 
