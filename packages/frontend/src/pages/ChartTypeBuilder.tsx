@@ -142,10 +142,14 @@ const ChartTypeBuilder: FC = () => {
         spaceUuid: appMeta?.spaceUuid ?? null,
         createdByUserUuid: appMeta?.createdByUserUuid ?? null,
     });
+    // The app this session's first build created, adopted into the URL. The
+    // create permission that built it covers it until its row loads.
+    const [claimedVizUuid, setClaimedVizUuid] = useState<string | null>(null);
     const canPreviewSavedChart =
         !dataAppsFlag.isLoading &&
         dataAppsFlag.data?.enabled === true &&
-        (urlVizUuid === undefined
+        (urlVizUuid === undefined ||
+        (urlVizUuid === claimedVizUuid && appMeta === null)
             ? canCreate
             : appMeta !== null &&
               appMeta.template === DATA_APP_VIZ_TEMPLATE &&
@@ -239,6 +243,7 @@ const ChartTypeBuilder: FC = () => {
     // a refresh mid-build lands on the in-progress version.
     useEffect(() => {
         if (!urlVizUuid && build.appUuid && projectUrlIdentifier) {
+            setClaimedVizUuid(build.appUuid);
             void navigate(
                 {
                     pathname: chartTypeBuilderPath(

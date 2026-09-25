@@ -753,7 +753,7 @@ describe('ChartTypeBuilder', () => {
         );
     });
 
-    it('pauses and resumes the saved chart query while create adopts its uuid', () => {
+    it('keeps the saved chart query running while create adopts its uuid', () => {
         const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
         const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000009';
         vi.mocked(useDataAppVizBuild).mockReturnValue(
@@ -769,12 +769,10 @@ describe('ChartTypeBuilder', () => {
             `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
         );
 
-        expect(useSavedChartPreviewData).toHaveBeenCalledWith({
-            projectUuid: 'p1',
-            savedChartUuid,
-            enabled: true,
-        });
-        expect(useSavedChartPreviewData).toHaveBeenLastCalledWith({
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            dataAppVizUuid,
+        );
+        expect(useSavedChartPreviewData).not.toHaveBeenCalledWith({
             projectUuid: 'p1',
             savedChartUuid,
             enabled: false,
