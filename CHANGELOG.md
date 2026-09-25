@@ -1,3 +1,19 @@
+# [2.339.0](https://github.com/lightdash/lightdash/compare/2.338.0...2.339.0) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai-agent:** scope fast-decision value search to the chart's filters ([#29960](https://github.com/lightdash/lightdash/issues/29960)) ([a0a25af](https://github.com/lightdash/lightdash/commit/a0a25afad899e0aba554f1441dc10d585ef71095))
+* constrain agent integration chips to their table column ([#29956](https://github.com/lightdash/lightdash/issues/29956)) ([6b2a7fc](https://github.com/lightdash/lightdash/commit/6b2a7fc706d305355989108d0eb9b75dfed175b5))
+* **embed:** carry dashboard filters into "Explore from here" ([#29959](https://github.com/lightdash/lightdash/issues/29959)) ([d3dd0bc](https://github.com/lightdash/lightdash/commit/d3dd0bcd737a86a908e43479d5014ea7bf01b546))
+
+
+### Features
+
+* **ai-agent:** rename and delete MCP servers at project level ([#29957](https://github.com/lightdash/lightdash/issues/29957)) ([dc97367](https://github.com/lightdash/lightdash/commit/dc97367ba8614c04e7001a5be55670163fb525ea))
+* **composer:** artifact panel opens at the maximum width for composer results ([#29962](https://github.com/lightdash/lightdash/issues/29962)) ([fcdc7d7](https://github.com/lightdash/lightdash/commit/fcdc7d7255c120bfd265d9ae43463a62c9a7b5af))
+* **composer:** View query on semantic nodes shows the compiled SQL ([#29961](https://github.com/lightdash/lightdash/issues/29961)) ([c0c9086](https://github.com/lightdash/lightdash/commit/c0c90864406b2a1bf5caacb51fbe66a8991ff093))
+
 # [2.338.0](https://github.com/lightdash/lightdash/compare/2.337.4...2.338.0) (2026-09-25)
 
 

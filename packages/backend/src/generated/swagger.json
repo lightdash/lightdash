@@ -25822,6 +25822,110 @@
                 "type": "string",
                 "enum": ["not_connected", "connecting", "connected", "error"]
             },
+            "AiProjectMcpServer": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "connectedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "connectionStatus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiMcpServerConnectionStatus"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "credentialScope": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiMcpCredentialScope"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "hasCredentials": {
+                        "type": "boolean"
+                    },
+                    "allowOAuthCredentialSharing": {
+                        "type": "boolean"
+                    },
+                    "authType": {
+                        "$ref": "#/components/schemas/AiMcpServerAuthType"
+                    },
+                    "iconUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "attachedAgentCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "connectedByUserUuid",
+                    "error",
+                    "connectionStatus",
+                    "credentialScope",
+                    "hasCredentials",
+                    "allowOAuthCredentialSharing",
+                    "authType",
+                    "iconUrl",
+                    "url",
+                    "name",
+                    "projectUuid",
+                    "uuid",
+                    "attachedAgentCount"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiSuccess_AiProjectMcpServer-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiProjectMcpServer"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiProjectMcpServerListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiProjectMcpServer-Array_"
+            },
             "AiMcpServer": {
                 "properties": {
                     "updatedAt": {
@@ -25900,26 +26004,6 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess_AiMcpServer-Array_": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AiMcpServer"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiMcpServerListResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiMcpServer-Array_"
-            },
             "ApiSuccess_AiMcpServer_": {
                 "properties": {
                     "results": {
@@ -25980,6 +26064,15 @@
                     }
                 },
                 "required": ["bearerToken"],
+                "type": "object"
+            },
+            "ApiRenameAiMcpServerBody": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
                 "type": "object"
             },
             "AiMcpGithubConnectMode": {
@@ -26733,6 +26826,26 @@
             },
             "ApiAiAgentMemoryResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentMemory_"
+            },
+            "ApiSuccess_AiMcpServer-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiMcpServer"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiMcpServerListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiMcpServer-Array_"
             },
             "AiAgentMcpServerTool": {
                 "allOf": [
@@ -66515,7 +66628,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.338.0",
+        "version": "2.339.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -74225,7 +74338,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAiMcpServerListResponse"
+                                    "$ref": "#/components/schemas/ApiAiProjectMcpServerListResponse"
                                 }
                             }
                         }
@@ -74354,6 +74467,106 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}": {
+            "patch": {
+                "operationId": "renameMcpServer",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpServerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "mcpServerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiRenameAiMcpServerBody"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteMcpServer",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "mcpServerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/github/availability": {
