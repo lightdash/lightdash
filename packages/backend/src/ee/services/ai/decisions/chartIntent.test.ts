@@ -115,6 +115,26 @@ const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
         }),
     });
 
+const byStatus: AiSemanticChartArtifactConfig = structuredClone(artifact);
+byStatus.config.queryConfig.dimensions = ['orders_status'];
+
+const interpretByStatus = (prompt: string, answers: Partial<DecisionAnswers>) =>
+    interpretChartIntent({
+        answers: {
+            multiple: noul(0.05),
+            nonEdit: noul(0.05),
+            ...answers,
+        } as DecisionAnswers,
+        prompt,
+        context: buildChartIntentContext({
+            filterRules: [],
+            prompt,
+            artifact: byStatus,
+            explore,
+            usage: noUsage,
+        }),
+    });
+
 describe('interpretChartIntent', () => {
     it('leaves new questions to the agent', () => {
         expect(
@@ -375,7 +395,7 @@ describe('interpretChartIntent', () => {
 
     it('applies every edit a request names, never just the primary one', () => {
         expect(
-            interpret('top 3 as horizontal bars', {
+            interpretByStatus('top 3 as horizontal bars', {
                 intent: choice('chart_type'),
                 chartType: choice('horizontal'),
                 wantsSort: noul(0.95),
@@ -401,6 +421,46 @@ describe('interpretChartIntent', () => {
                 },
             ],
         });
+    });
+
+    it('keeps the top N rows without reading the limit as a separate filter', () => {
+        expect(
+            interpretByStatus('only the 3 biggest', {
+                intent: choice('sort'),
+                wantsSort: noul(0.95),
+                wantsFilter: noul(0.9),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.2),
+                number: choice('3'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'sort',
+                fieldId: null,
+                descending: true,
+                limit: 3,
+            },
+        });
+    });
+
+    it('never limits the rows of a chart with several dimensions', () => {
+        expect(
+            interpret('top 3 statuses', {
+                intent: choice('sort'),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.2),
+                number: choice('3'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'sort-limit' });
+        expect(
+            interpret('sort by count', {
+                intent: choice('sort'),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.9),
+                sortField: choice('orders_count'),
+            }),
+        ).toMatchObject({ type: 'intent', intent: { kind: 'sort' } });
     });
 
     it('falls back when any part of a compound request is unresolved', () => {
