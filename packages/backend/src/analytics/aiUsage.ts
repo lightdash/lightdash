@@ -9,75 +9,49 @@ type BaseTrack = Omit<AnalyticsTrack, 'context'>;
  * Coarse feature bucket for an AI call. Lets us attribute token usage and cost
  * to a product surface (data apps vs the agent vs metadata generation, etc.)
  * independently of the fine-grained `functionId`.
+ *
+ * The list is the single source of truth: `AiCallFeature` is derived from it,
+ * so the runtime membership a guard needs cannot drift from the type.
  */
-export type AiCallFeature =
-    | 'agent'
-    | 'deep-research'
-    | 'agent-subtask'
-    | 'chart-metadata'
-    | 'chart-similarity'
-    | 'chart-type-fields'
-    | 'chart-type-explore'
-    | 'document-summary'
-    | 'thread-title'
-    | 'tooltip'
-    | 'artifact-question'
-    | 'agent-suggestions'
-    | 'table-calc'
-    | 'custom-dimension'
-    | 'formula-table-calc'
-    | 'compaction'
-    | 'embedding'
-    | 'project-router'
-    | 'agent-selector'
-    | 'review-classifier'
-    | 'prompt-input-classifier'
-    | 'ai-agent-memory'
-    | 'llm-judge'
-    | 'data-app'
-    | 'managed-agent'
-    | 'external-connection-config'
-    | 'delivery-summary'
-    | 'data-app-analysis';
+export const AI_CALL_FEATURES = [
+    'agent',
+    'deep-research',
+    'agent-subtask',
+    'chart-metadata',
+    'chart-similarity',
+    'chart-type-fields',
+    'chart-type-explore',
+    'document-summary',
+    'thread-title',
+    'tooltip',
+    'artifact-question',
+    'agent-suggestions',
+    'table-calc',
+    'custom-dimension',
+    'formula-table-calc',
+    'compaction',
+    'embedding',
+    'project-router',
+    'agent-selector',
+    'review-classifier',
+    'prompt-input-classifier',
+    'ai-agent-memory',
+    'llm-judge',
+    'data-app',
+    'managed-agent',
+    'external-connection-config',
+    'delivery-summary',
+    'data-app-analysis',
+] as const;
 
-/**
- * Runtime membership for `AiCallFeature`. `satisfies` makes this exhaustive, so
- * adding a feature to the union without registering it here fails to compile
- * rather than silently failing to parse back off the runtime context.
- */
-const AI_CALL_FEATURES = {
-    agent: true,
-    'deep-research': true,
-    'agent-subtask': true,
-    'chart-metadata': true,
-    'chart-similarity': true,
-    'chart-type-fields': true,
-    'chart-type-explore': true,
-    'document-summary': true,
-    'thread-title': true,
-    tooltip: true,
-    'artifact-question': true,
-    'agent-suggestions': true,
-    'table-calc': true,
-    'custom-dimension': true,
-    'formula-table-calc': true,
-    compaction: true,
-    embedding: true,
-    'project-router': true,
-    'agent-selector': true,
-    'review-classifier': true,
-    'prompt-input-classifier': true,
-    'ai-agent-memory': true,
-    'llm-judge': true,
-    'data-app': true,
-    'managed-agent': true,
-    'external-connection-config': true,
-    'delivery-summary': true,
-    'data-app-analysis': true,
-} satisfies Record<AiCallFeature, true>;
+export type AiCallFeature = (typeof AI_CALL_FEATURES)[number];
+
+// Typed as ReadonlySet<string> so `has` accepts an unnarrowed string; a
+// ReadonlySet<AiCallFeature> would only accept what we are trying to test.
+const FEATURES: ReadonlySet<string> = new Set(AI_CALL_FEATURES);
 
 const isAiCallFeature = (value: unknown): value is AiCallFeature =>
-    typeof value === 'string' && Object.hasOwn(AI_CALL_FEATURES, value);
+    typeof value === 'string' && FEATURES.has(value);
 
 /**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the
