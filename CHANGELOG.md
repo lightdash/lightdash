@@ -1,3 +1,10 @@
+## [2.339.1](https://github.com/lightdash/lightdash/compare/2.339.0...2.339.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* preserve metric formatting in chart drill-down labels ([#29767](https://github.com/lightdash/lightdash/issues/29767)) ([b214228](https://github.com/lightdash/lightdash/commit/b214228f35ec2f50027a7a48efe50046e0a90c8a)), closes [#29713](https://github.com/lightdash/lightdash/issues/29713)
+
 # [2.339.0](https://github.com/lightdash/lightdash/compare/2.338.0...2.339.0) (2026-09-25)
 
 
