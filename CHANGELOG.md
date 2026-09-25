@@ -1,3 +1,10 @@
+## [2.342.4](https://github.com/lightdash/lightdash/compare/2.342.3...2.342.4) (2026-09-25)
+
+
+### Bug Fixes
+
+* **ai:** keep sidebar collapsed when artifact resolves as composer ([#29989](https://github.com/lightdash/lightdash/issues/29989)) ([8eb2277](https://github.com/lightdash/lightdash/commit/8eb2277762c59210656e196b2af5df61c561e55b))
+
 ## [2.342.3](https://github.com/lightdash/lightdash/compare/2.342.2...2.342.3) (2026-09-25)
 
 
