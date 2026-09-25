@@ -3,6 +3,8 @@ import { type FC, type ReactNode } from 'react';
 
 type Props = {
     title: string;
+    /** A few words after the title on when this applies, e.g. "Always applied". */
+    hint?: string;
     /** One line on what the subsection controls. */
     description?: ReactNode;
     /** Rendered next to the title, e.g. a beta badge. */
@@ -14,6 +16,7 @@ type Props = {
 
 export const AgentSettingsSubsection: FC<Props> = ({
     title,
+    hint,
     description,
     badge,
     action,
@@ -26,6 +29,11 @@ export const AgentSettingsSubsection: FC<Props> = ({
                     <Title order={6} c="ldGray.7" size="sm" fw={500}>
                         {title}
                     </Title>
+                    {hint && (
+                        <Text size="xs" c="dimmed">
+                            · {hint}
+                        </Text>
+                    )}
                     {badge}
                 </Group>
                 {description && (
