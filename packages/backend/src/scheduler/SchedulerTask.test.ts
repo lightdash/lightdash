@@ -21,6 +21,7 @@ import {
     SchedulerResourceType,
     sleep,
     ThresholdOperator,
+    UnexpectedGoogleSheetsError,
     VizAggregationOptions,
     VizIndexType,
     type CapturedQuery,
@@ -43,6 +44,7 @@ import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import type { ExecutionContextInfo } from '../logging/winston';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
+import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 import SchedulerTask, {
     buildItemMapFromColumns,
     buildSchedulerLogContext,
@@ -2634,6 +2636,34 @@ describe('uploadGsheets — app branch', () => {
         expect(logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({ status: 'completed' }),
         );
+    });
+
+    // A network-level failure is classified transient by the client; the task
+    // must report it as retryable so the worker never disables the sync.
+    it('reports a persistent transient Google error as a retryable delivery failure', async () => {
+        const { run, uploadMetadata } = setup();
+        uploadMetadata.mockRejectedValue(
+            new GoogleSheetsTransientError(
+                'request to https://oauth2.googleapis.com/token failed, reason: socket hang up',
+            ),
+        );
+
+        await expect(run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: false,
+        } satisfies Partial<SchedulerDeliveryError>);
+    });
+
+    it('reports an unexpected Google error as a non-retryable delivery failure', async () => {
+        const { run, uploadMetadata } = setup();
+        uploadMetadata.mockRejectedValue(
+            new UnexpectedGoogleSheetsError('Unknown object'),
+        );
+
+        await expect(run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: true,
+        } satisfies Partial<SchedulerDeliveryError>);
     });
 
     // The metadata tab must list what was actually written, not the raw
