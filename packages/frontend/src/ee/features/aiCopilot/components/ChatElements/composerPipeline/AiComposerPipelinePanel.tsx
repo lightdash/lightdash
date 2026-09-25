@@ -561,6 +561,9 @@ type Props = NodeDisplay & {
     /** The displayed node result shown above the panel. */
     children: ReactNode;
     defaultExpanded?: boolean;
+    /** Controlled open state; the panel keeps its own when omitted. */
+    expanded?: boolean;
+    onExpandedChange?: (expanded: boolean) => void;
     defaultMode?: PipelineMode;
 };
 
@@ -575,9 +578,12 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     onDisplayNode,
     children,
     defaultExpanded = false,
+    expanded: controlledExpanded,
+    onExpandedChange,
     defaultMode = 'list',
 }) => {
-    const [expanded, setExpanded] = useState(defaultExpanded);
+    const [ownExpanded, setOwnExpanded] = useState(defaultExpanded);
+    const expanded = controlledExpanded ?? ownExpanded;
     const [mode, setMode] = useState<PipelineMode>(defaultMode);
     const display: NodeDisplay = {
         displayedNodeId,
@@ -592,7 +598,10 @@ export const AiComposerPipelinePanel: FC<Props> = ({
         <PipelineBar
             nodeCount={queries.length}
             expanded={expanded}
-            onToggle={() => setExpanded((value) => !value)}
+            onToggle={() => {
+                setOwnExpanded(!expanded);
+                onExpandedChange?.(!expanded);
+            }}
             mode={mode}
             onModeChange={setMode}
         />
