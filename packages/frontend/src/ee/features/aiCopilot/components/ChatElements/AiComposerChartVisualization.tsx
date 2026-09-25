@@ -30,7 +30,10 @@ import {
     type ComposerChartSpec,
 } from './composerChartSpec';
 import { useArtifactResultRows } from './useArtifactResultRows';
-import { ComposerPivotExpiredError, useComposerPivot } from './useComposerPivot';
+import {
+    ComposerPivotExpiredError,
+    useComposerPivot,
+} from './useComposerPivot';
 
 export type ComposerChartVizConfig = Exclude<AllVizChartConfig, VizTableConfig>;
 
@@ -133,53 +136,14 @@ const Loading: FC<{ message: string }> = ({ message }) => (
     </Center>
 );
 
-type PivotedProps = {
-    projectUuid: string;
-    queryUuid: string;
-    kind: ComposerChartKind;
-    layout: PivotChartLayout;
-    headerContent: ReactNode;
-    loadingMessage: string;
-};
+type SpecInput =
+    | ({ source: 'rows' } & Parameters<typeof buildComposerChartSpec>[0])
+    | ({ source: 'pivot' } & Parameters<typeof buildComposerPivotSpec>[0]);
 
-// Aggregations, series splits and value sorts are pivoted on the server from the node's stored result.
-const ComposerPivotedChart: FC<PivotedProps> = ({
-    projectUuid,
-    queryUuid,
-    kind,
-    layout,
-    headerContent,
-    loadingMessage,
-}) => {
-    const colors = useChartColors(projectUuid);
-    const pivot = useComposerPivot({ projectUuid, queryUuid, layout });
-    const input = useMemo(
-        () =>
-            pivot.data
-                ? { kind, result: pivot.data, layout, colors }
-                : undefined,
-        [kind, pivot.data, layout, colors],
-    );
-    const spec = useComposerChartSpec(input, buildComposerPivotSpec);
-
-    if (pivot.error instanceof ComposerPivotExpiredError) {
-        return <AiComposerResultsExpired headerContent={headerContent} />;
-    }
-    if (!pivot.data && !pivot.error) {
-        return <Loading message={loadingMessage} />;
-    }
-    return (
-        <Frame headerContent={headerContent}>
-            <ChartBody
-                kind={kind}
-                layout={layout}
-                isPivoted
-                spec={spec}
-                error={pivot.error}
-            />
-        </Frame>
-    );
-};
+const buildSpecFrom = (input: SpecInput) =>
+    input.source === 'rows'
+        ? buildComposerChartSpec(input)
+        : buildComposerPivotSpec(input);
 
 type Props = {
     projectUuid: string;
@@ -191,6 +155,9 @@ type Props = {
     loadingMessage: string;
 };
 
+// Draws from the fetched rows, or from a pivot of the stored result on the
+// compose engine for aggregations, series splits and value sorts. The last
+// chart stays on screen until the next one is built.
 export const AiComposerChartVisualization: FC<Props> = ({
     projectUuid,
     results,
@@ -209,43 +176,45 @@ export const AiComposerChartVisualization: FC<Props> = ({
         const isSplit = (layout.groupBy?.length ?? 0) > 0;
         return isSplit ? { ...layout, y: layout.y.slice(0, 1) } : layout;
     }, [layout]);
+    const pivot = useComposerPivot({
+        projectUuid,
+        queryUuid: pivotQueryUuid,
+        layout: pivotLayout,
+    });
     const drawn = useMemo(
         () => (layout ? resolveComposerVizColumns(layout, columns) : null),
         [layout, columns],
     );
-    const input = useMemo(
-        () =>
-            drawn && drawn.y.length > 0
+    const input = useMemo((): SpecInput | undefined => {
+        if (pivotLayout) {
+            return pivot.data
                 ? {
+                      source: 'pivot',
                       kind,
-                      columns,
-                      rows,
-                      x: drawn.x,
-                      y: drawn.y,
+                      result: pivot.data,
+                      layout: pivotLayout,
                       colors,
                   }
-                : undefined,
-        [kind, columns, rows, drawn, colors],
-    );
-    const spec = useComposerChartSpec(
-        pivotLayout ? undefined : input,
-        buildComposerChartSpec,
-    );
+                : undefined;
+        }
+        return drawn && drawn.y.length > 0
+            ? {
+                  source: 'rows',
+                  kind,
+                  columns,
+                  rows,
+                  x: drawn.x,
+                  y: drawn.y,
+                  colors,
+              }
+            : undefined;
+    }, [pivotLayout, pivot.data, kind, colors, drawn, columns, rows]);
+    const spec = useComposerChartSpec(input, buildSpecFrom);
 
-    if (pivotLayout && pivotQueryUuid !== null) {
-        return (
-            <ComposerPivotedChart
-                projectUuid={projectUuid}
-                queryUuid={pivotQueryUuid}
-                kind={kind}
-                layout={pivotLayout}
-                headerContent={headerContent}
-                loadingMessage={loadingMessage}
-            />
-        );
+    if (pivot.error instanceof ComposerPivotExpiredError) {
+        return <AiComposerResultsExpired headerContent={headerContent} />;
     }
-    if (isLoading) return <Loading message={loadingMessage} />;
-    if (!layout || !drawn) {
+    if (!layout || (!pivotLayout && !isLoading && !drawn)) {
         return (
             <Frame headerContent={headerContent}>
                 <Center h="100%">
@@ -256,14 +225,17 @@ export const AiComposerChartVisualization: FC<Props> = ({
             </Frame>
         );
     }
+    if (!pivotLayout && isLoading && spec === undefined) {
+        return <Loading message={loadingMessage} />;
+    }
     return (
         <Frame headerContent={headerContent}>
             <ChartBody
                 kind={kind}
-                layout={layout}
-                isPivoted={false}
+                layout={pivotLayout ?? layout}
+                isPivoted={pivotLayout !== null}
                 spec={spec}
-                error={null}
+                error={pivot.error}
             />
         </Frame>
     );

@@ -1,11 +1,15 @@
 import {
     ChartKind,
+    DimensionType,
     getComposerVizPanelOptions,
+    VizIndexType,
     getComposerVizPanelValue,
     switchComposerVizKind,
     type AiComposerChartArtifactConfig,
     type AllVizChartConfig,
     type ComposerVizKind,
+    type ComposerVizPanelOptions,
+    type ResultColumn,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
@@ -28,6 +32,34 @@ import { useArtifactResultRows } from './useArtifactResultRows';
 const SAVE_DELAY_MS = 400;
 const READ_ONLY_REASON =
     'Only the thread owner or an agent admin can change this chart';
+const EXPIRED_REASON = 'These results have expired, so the chart is read-only';
+
+/** Columns an expired result's stored viz config names, so its controls can still show it. */
+const columnsOfVizConfig = (vizConfig: AllVizChartConfig): ResultColumn[] => {
+    if (vizConfig.type === ChartKind.TABLE || !vizConfig.fieldConfig) return [];
+    const { x, y, groupBy } = vizConfig.fieldConfig;
+    return [
+        ...(x
+            ? [
+                  {
+                      reference: x.reference,
+                      type:
+                          x.type === VizIndexType.TIME
+                              ? DimensionType.DATE
+                              : DimensionType.STRING,
+                  },
+              ]
+            : []),
+        ...y.map((item) => ({
+            reference: item.reference,
+            type: DimensionType.NUMBER,
+        })),
+        ...(groupBy ?? []).map((item) => ({
+            reference: item.reference,
+            type: DimensionType.STRING,
+        })),
+    ];
+};
 
 type Props = {
     projectUuid: string;
@@ -99,7 +131,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const [editedValues, setEditedValues] = useState<
         Record<string, AllVizChartConfig>
     >({});
-    // The last chart config per node, restored when leaving the table.
+    // The last chart viz config per node, restored when leaving the table.
     const [rememberedCharts, setRememberedCharts] = useState<
         Record<string, AllVizChartConfig>
     >({});
@@ -107,10 +139,15 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const value = isResultReady
         ? (editedValues[displayedNodeId] ?? derivedValue)
         : (editedValues[displayedNodeId] ?? storedVizConfig ?? derivedValue);
-    const options = useMemo(
-        () => getComposerVizPanelOptions(value, columns, rows),
-        [value, columns, rows],
+    const isExpired = !!results.error;
+    const panelColumns = useMemo(
+        () => (isExpired ? columnsOfVizConfig(value) : columns),
+        [isExpired, value, columns],
     );
+    const options = useMemo((): ComposerVizPanelOptions => {
+        const available = getComposerVizPanelOptions(value, panelColumns, rows);
+        return isExpired ? { ...available, kinds: [] } : available;
+    }, [value, panelColumns, rows, isExpired]);
 
     const { mutate: saveVizConfig } = useUpdateComposerVizConfig({
         projectUuid,
@@ -149,8 +186,17 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     };
 
     const panelMode = ((): AiComposerVizConfigPanelMode => {
+        // An expired terminal result still opens onto its stored viz config, read-only.
+        if (isExpired)
+            return isTerminalDisplayed && storedVizConfig
+                ? 'expandable'
+                : 'static';
         if (!isResultReady || options.kinds.length <= 1) return 'static';
         return isTerminalDisplayed ? 'expandable' : 'switcher';
+    })();
+    const fieldsDisabledReason = ((): string | null => {
+        if (isExpired) return EXPIRED_REASON;
+        return isWritable ? null : READ_ONLY_REASON;
     })();
     // Only one of Chart and Queries is open at a time.
     const [isChartOpen, setIsChartOpen] = useState(false);
@@ -216,7 +262,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 >
                     <AiComposerVizConfigPanel
                         value={value}
-                        columns={columns}
+                        columns={panelColumns}
                         options={options}
                         onChange={setValue}
                         onKindChange={changeKind}
@@ -226,9 +272,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                             setIsChartOpen(open);
                             if (open) setIsPipelineOpen(false);
                         }}
-                        fieldsDisabledReason={
-                            isWritable ? null : READ_ONLY_REASON
-                        }
+                        fieldsDisabledReason={fieldsDisabledReason}
                     >
                         <AiComposerArtifactVisualization
                             projectUuid={projectUuid}

@@ -21,7 +21,7 @@ export const AiComposerVizKindSwitcher: FC<Props> = ({
     availableKinds,
     onChange,
 }) => (
-    <Group gap={2} wrap="nowrap" role="group" aria-label="Chart type">
+    <Group gap="xxs" wrap="nowrap" role="group" aria-label="Chart kind">
         {COMPOSER_VIZ_KINDS.map((kind) => {
             const label = getComposerVizKindLabel(kind);
             const isAvailable = availableKinds.includes(kind);

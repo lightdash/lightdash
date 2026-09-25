@@ -14,20 +14,15 @@ import {
     type ResultColumn,
     type VizTableConfig,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    Select,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { DataVizAggregationConfig } from '../../../../../../components/DataViz/config/DataVizAggregationConfig';
 import pillClasses from '../../../../../../components/DataViz/config/PillSelect.module.css';
 import { FieldReferenceSelect } from '../../../../../../components/DataViz/FieldReferenceSelect';
+import styles from './AiComposerVizConfigPanel.module.css';
 
 type ChartConfig = Exclude<AllVizChartConfig, VizTableConfig>;
 
@@ -63,12 +58,15 @@ const SortPill: FC<{
             classNames={{
                 option: `${pillClasses.option} ${pillClasses.grayOption}`,
                 dropdown: pillClasses.dropdown,
-                input: `${pillClasses.input} ${pillClasses.grayInput} ${
-                    value === 'x_order' ? pillClasses.inputUnsetValue : ''
-                }`,
+                input: clsx(
+                    pillClasses.input,
+                    pillClasses.grayInput,
+                    value === 'x_order'
+                        ? [pillClasses.inputUnsetValue, styles.sortPillWide]
+                        : styles.sortPillNarrow,
+                ),
                 section: pillClasses.section,
             }}
-            styles={{ input: { width: value === 'x_order' ? 96 : 68 } }}
         />
     </Tooltip>
 );
@@ -79,7 +77,7 @@ const Row: FC<{ title: string; action?: ReactNode; children: ReactNode }> = ({
     children,
 }) => (
     <Stack gap="xs">
-        <Group justify="space-between" wrap="nowrap" mih={22}>
+        <Group justify="space-between" wrap="nowrap">
             <Text fw={500} fz="sm" c="ldGray.7">
                 {title}
             </Text>
@@ -248,11 +246,7 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                             onChange(setComposerVizGroupBy(value, reference))
                         }
                         fieldType={typeOf(groupBy ?? undefined)}
-                        styles={{
-                            input: groupBy
-                                ? undefined
-                                : { borderStyle: 'dashed' },
-                        }}
+                        className={groupBy ? undefined : styles.emptySelect}
                     />
                 </Row>
             )}
