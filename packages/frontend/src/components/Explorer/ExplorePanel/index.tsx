@@ -41,7 +41,7 @@ import { JoinWithWarehouseHint } from '../../../features/externalSources/compone
 import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
 import { MergeQuerySidebar } from '../../../features/mergeQuery/components/MergeQuerySidebar';
 import {
-    DEFAULT_ADDITIONAL_SOURCE_ID,
+    getNextMergeSourceId,
     PRIMARY_SOURCE_ID,
 } from '../../../features/mergeQuery/constants';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
@@ -187,10 +187,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const handleAddMergeSource = useCallback(() => {
         if (!merge) return;
-        merge.addSource(DEFAULT_ADDITIONAL_SOURCE_ID, {
+        const sourceId = getNextMergeSourceId(merge.additionalSources);
+        merge.addSource(sourceId, {
             kind: 'source',
             sourceId: isMergeSourceReady(metricQuery)
-                ? DEFAULT_ADDITIONAL_SOURCE_ID
+                ? sourceId
                 : PRIMARY_SOURCE_ID,
         });
     }, [merge, metricQuery]);
@@ -247,7 +248,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         explore.type !== ExploreType.VIRTUAL &&
         mergeFlag?.enabled === true &&
         !!merge &&
-        !merge.isMerging &&
         !merge.readOnly;
 
     // Only call `onBack` for 4XX errors, otherwise we lose URL state when there's a Network error or backend is down

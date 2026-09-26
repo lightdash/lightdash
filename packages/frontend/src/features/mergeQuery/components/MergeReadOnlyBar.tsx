@@ -6,7 +6,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
-import { getJoinClauseLabel } from './mergeJoinLabels';
 
 /**
  * One line for the saved-chart view: what this chart is merged with and on
@@ -16,36 +15,16 @@ import { getJoinClauseLabel } from './mergeJoinLabels';
 export const MergeReadOnlyBar: FC = () => {
     const merge = useMergeSafe();
     const {
+        relationshipSummary: keys,
         effectiveParts,
         labelFor,
+        sourceLabels,
         primaryExploreLabel,
-        additionalExploreLabel,
-        additionalSourceId,
         isIncomplete,
     } = useMergeSetup();
 
     if (!merge?.isMerging || !merge.readOnly || isIncomplete) return null;
 
-    const keys = effectiveParts
-        .map((part) => {
-            const primaryFieldId = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
-            const additionalFieldId =
-                part.fieldIdBySourceId[additionalSourceId];
-            const primaryField = primaryFieldId
-                ? labelFor(primaryFieldId)
-                : '?';
-            const additionalField = additionalFieldId
-                ? labelFor(additionalFieldId)
-                : '?';
-
-            return getJoinClauseLabel(
-                primaryExploreLabel ?? 'First data',
-                primaryField,
-                additionalExploreLabel ?? 'Combined data',
-                additionalField,
-            );
-        })
-        .join(' AND ');
     const keepLabel =
         merge.joinType === MergeJoinType.LEFT
             ? `Keep ${primaryExploreLabel}`
@@ -53,6 +32,18 @@ export const MergeReadOnlyBar: FC = () => {
               ? 'Matches only'
               : 'Keep all rows';
     const runError = merge.mergeResults?.results.error ?? null;
+    const sourceSummary =
+        sourceLabels.length <= 3
+            ? sourceLabels.join(' + ')
+            : `${sourceLabels[0]} + ${sourceLabels[1]} + ${sourceLabels.length - 2} more`;
+    const keySummary =
+        sourceLabels.length <= 2
+            ? keys
+            : effectiveParts
+                  .map((part) => part.fieldIdBySourceId[PRIMARY_SOURCE_ID])
+                  .filter((fieldId): fieldId is string => !!fieldId)
+                  .map(labelFor)
+                  .join(' + ');
 
     return (
         <Paper radius="md" px="sm" py="xs">
@@ -65,21 +56,18 @@ export const MergeReadOnlyBar: FC = () => {
                     />
                 </ThemeIcon>
                 <Box flex={1} miw={0}>
-                    <Group gap={6} wrap="nowrap">
-                        <Text size="sm" fw={600} truncate>
-                            {primaryExploreLabel}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            +
-                        </Text>
-                        <Text size="sm" fw={600} truncate>
-                            {additionalExploreLabel}
-                        </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed" truncate>
+                    <Text
+                        size="sm"
+                        fw={600}
+                        truncate
+                        title={sourceLabels.join(' + ')}
+                    >
+                        {sourceSummary}
+                    </Text>
+                    <Text size="xs" c="dimmed" truncate title={keySummary}>
                         Matched on{' '}
                         <Text span size="xs" fw={600} c="gray.7">
-                            {keys}
+                            {keySummary}
                         </Text>{' '}
                         · {keepLabel}
                     </Text>

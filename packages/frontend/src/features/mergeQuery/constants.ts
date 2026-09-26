@@ -9,7 +9,17 @@ export {
 } from '@lightdash/common';
 import { type MergeEditorSource, type MergeJoinPart } from './context/context';
 
-export const MAX_MERGE_SOURCES = 2;
+/** Stable editor handles; existing two-source links retain `b`. */
+export const getNextMergeSourceId = (
+    sources: Pick<MergeEditorSource, 'id'>[],
+) => {
+    const ids = new Set(sources.map((source) => source.id));
+    if (!ids.has(DEFAULT_ADDITIONAL_SOURCE_ID))
+        return DEFAULT_ADDITIONAL_SOURCE_ID;
+    let index = 2;
+    while (ids.has(`source_${index}`)) index += 1;
+    return `source_${index}`;
+};
 
 export const emptyMergeSource = (id: string): MergeEditorSource => ({
     id,

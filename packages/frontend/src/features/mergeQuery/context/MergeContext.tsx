@@ -1,6 +1,7 @@
 import {
     derivePivotConfigurationFromChart,
     getItemId,
+    mergeCalculationReferencePattern,
     MergeJoinType,
     type AdditionalMetric,
     type ApiCompiledMergeQueryResults,
@@ -29,7 +30,6 @@ import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     emptyMergeSource,
-    MAX_MERGE_SOURCES,
     PRIMARY_SOURCE_ID,
 } from '../constants';
 import { executeMergeQuery } from '../hooks/useMergeQuery';
@@ -143,14 +143,15 @@ export const MergeProvider: FC<
         ) => {
             if (
                 additionalSources.some((source) => source.id === sourceId) ||
-                additionalSources.length + 1 >= MAX_MERGE_SOURCES
+                sourceId === PRIMARY_SOURCE_ID
             ) {
                 return;
             }
-            setAdditionalSources((current) => [
-                ...current,
-                emptyMergeSource(sourceId),
-            ]);
+            setAdditionalSources((current) =>
+                current.some((source) => source.id === sourceId)
+                    ? current
+                    : [...current, emptyMergeSource(sourceId)],
+            );
             setJoinParts((current) =>
                 current.map((part) => ({
                     ...part,
@@ -165,37 +166,62 @@ export const MergeProvider: FC<
         [additionalSources],
     );
 
-    const removeSource = useCallback((sourceId: string) => {
-        activeRun.current += 1;
-        setFocus({ kind: 'source', sourceId: PRIMARY_SOURCE_ID });
-        setAdditionalSources((current) =>
-            current.filter((source) => source.id !== sourceId),
-        );
-        setJoinParts((current) =>
-            current.map((part) => {
-                const { [sourceId]: _, ...fieldIdBySourceId } =
-                    part.fieldIdBySourceId;
-                return { fieldIdBySourceId };
-            }),
-        );
-        // Repeating was a relationship between two sources; with one gone the
-        // other's flag has nothing to repeat across.
-        setRepeatValuesSourceIds([]);
-        setTableCalculations([]);
-        setRunState({
-            isRunning: false,
-            errors: [],
-            started: null,
-            unpivotedStarted: null,
-            error: null,
-            unpivotedErrors: [],
-            unpivotedError: null,
-            parameterReferences: [],
-            fieldOrigins: {},
-            ranMergeQuery: null,
-            lastRunMergeQuery: null,
-        });
-    }, []);
+    const removeSource = useCallback(
+        (sourceId: string, namesByHandle?: Record<string, string>) => {
+            activeRun.current += 1;
+            setFocus({ kind: 'source', sourceId: PRIMARY_SOURCE_ID });
+            setAdditionalSources((current) =>
+                current
+                    .filter((source) => source.id !== sourceId)
+                    .map((source) =>
+                        namesByHandle?.[source.id]
+                            ? { ...source, name: namesByHandle[source.id] }
+                            : source,
+                    ),
+            );
+            setJoinParts((current) =>
+                current.map((part) => {
+                    const { [sourceId]: _, ...fieldIdBySourceId } =
+                        part.fieldIdBySourceId;
+                    return { ...part, fieldIdBySourceId };
+                }),
+            );
+            setRepeatValuesSourceIds((current) =>
+                additionalSources.length <= 1
+                    ? []
+                    : current.filter((id) => id !== sourceId),
+            );
+            const removedSourceName = namesByHandle?.[sourceId];
+            setTableCalculations((current) =>
+                additionalSources.length <= 1 || !removedSourceName
+                    ? []
+                    : current.filter(
+                          (calculation) =>
+                              !Array.from(
+                                  calculation.sql.matchAll(
+                                      mergeCalculationReferencePattern,
+                                  ),
+                              ).some(([, reference]) =>
+                                  reference.startsWith(`${removedSourceName}.`),
+                              ),
+                      ),
+            );
+            setRunState({
+                isRunning: false,
+                errors: [],
+                started: null,
+                unpivotedStarted: null,
+                error: null,
+                unpivotedErrors: [],
+                unpivotedError: null,
+                parameterReferences: [],
+                fieldOrigins: {},
+                ranMergeQuery: null,
+                lastRunMergeQuery: null,
+            });
+        },
+        [additionalSources.length],
+    );
 
     const setSourceExplore = useCallback(
         (sourceId: string, exploreName: string | null) => {

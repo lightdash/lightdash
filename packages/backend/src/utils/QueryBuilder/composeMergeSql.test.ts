@@ -375,3 +375,181 @@ describe('buildComposeMergeSql', () => {
         expect(rows.every((row) => Number(row.column_index) >= 1)).toBe(true);
     });
 });
+
+describe('multi-source scorecards', () => {
+    const key = [
+        {
+            name: 'week',
+            fieldIdBySourceId: { a: 'week', b: 'week', c: 'week' },
+        },
+        {
+            name: 'team',
+            fieldIdBySourceId: { a: 'team', b: 'team', c: 'team' },
+        },
+    ];
+    const setup = [
+        'CREATE TABLE merge_source_0 (week INTEGER, team VARCHAR, value DOUBLE)',
+        "INSERT INTO merge_source_0 VALUES (1, 'X', 10), (NULL, 'X', 1)",
+        'CREATE TABLE merge_source_1 (week INTEGER, team VARCHAR, value DOUBLE)',
+        "INSERT INTO merge_source_1 VALUES (1, 'X', 20), (2, 'X', 30), (4, NULL, 4), (NULL, 'X', 2)",
+        'CREATE TABLE merge_source_2 (week INTEGER, team VARCHAR, value DOUBLE)',
+        "INSERT INTO merge_source_2 VALUES (1, 'X', 40), (2, 'X', 50), (2, 'Y', 60), (4, NULL, 8), (NULL, 'X', 3)",
+    ];
+    test.each([MergeJoinType.FULL, MergeJoinType.LEFT, MergeJoinType.INNER])(
+        '%s joins match complete keys across all sources',
+        async (joinType) => {
+            const built = buildComposeMergeSql({
+                sources: ['a', 'b', 'c'].map((id) => ({
+                    id,
+                    valueColumns: ['value'],
+                })),
+                joinKey: key,
+                joinType,
+                limit: 500,
+                fieldTypes: Object.fromEntries(
+                    ['a', 'b', 'c'].map((id) => [
+                        id,
+                        {
+                            week: {
+                                type: DimensionType.NUMBER,
+                                timeInterval: null,
+                            },
+                            team: {
+                                type: DimensionType.STRING,
+                                timeInterval: null,
+                            },
+                        },
+                    ]),
+                ),
+                outputAliasByColumn: {
+                    week: 'merge_week',
+                    team: 'merge_team',
+                    c0_0: 'a_value',
+                    c1_0: 'b_value',
+                    c2_0: 'c_value',
+                },
+                tableCalculations: [
+                    {
+                        name: 'combined',
+                        displayName: 'Combined',
+                        sql: 'COALESCE(${a.value}, 0) + COALESCE(${b.value}, 0) + COALESCE(${c.value}, 0)',
+                    },
+                ],
+            });
+            const rows = await runOnDuckdb(toSql(built), setup);
+            const common = [
+                {
+                    merge_week: '1',
+                    merge_team: 'X',
+                    a_value: '10',
+                    b_value: '20',
+                    c_value: '40',
+                    combined: '70',
+                },
+                {
+                    merge_week: null,
+                    merge_team: 'X',
+                    a_value: '1',
+                    b_value: '2',
+                    c_value: '3',
+                    combined: '6',
+                },
+            ];
+            expect(rows).toHaveLength(joinType === MergeJoinType.FULL ? 5 : 2);
+            expect(rows).toEqual(expect.arrayContaining(common));
+            if (joinType === MergeJoinType.FULL) {
+                expect(rows).toEqual(
+                    expect.arrayContaining([
+                        {
+                            merge_week: '2',
+                            merge_team: 'X',
+                            a_value: null,
+                            b_value: '30',
+                            c_value: '50',
+                            combined: '80',
+                        },
+                        {
+                            merge_week: '2',
+                            merge_team: 'Y',
+                            a_value: null,
+                            b_value: null,
+                            c_value: '60',
+                            combined: '60',
+                        },
+                        {
+                            merge_week: '4',
+                            merge_team: null,
+                            a_value: null,
+                            b_value: '4',
+                            c_value: '8',
+                            combined: '12',
+                        },
+                    ]),
+                );
+            }
+        },
+    );
+
+    test('joins seven independent explores without losing keys absent from the chart source', async () => {
+        const sources = Array.from({ length: 7 }, (_, index) => ({
+            id: `s${index}`,
+            valueColumns: ['value'],
+        }));
+        const built = buildComposeMergeSql({
+            sources,
+            joinKey: [
+                {
+                    name: 'week',
+                    fieldIdBySourceId: Object.fromEntries(
+                        sources.map(({ id }) => [id, 'week']),
+                    ),
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+            limit: 500,
+            fieldTypes: Object.fromEntries(
+                sources.map(({ id }) => [
+                    id,
+                    {
+                        week: {
+                            type: DimensionType.NUMBER,
+                            timeInterval: null,
+                        },
+                    },
+                ]),
+            ),
+            outputAliasByColumn: {
+                week: 'merge_week',
+                ...Object.fromEntries(
+                    sources.map(({ id }, index) => [
+                        `c${index}_0`,
+                        `${id}_value`,
+                    ]),
+                ),
+            },
+            tableCalculations: [
+                {
+                    name: 'combined',
+                    displayName: 'Combined',
+                    sql: sources
+                        .map(({ id }) => `COALESCE(\${${id}.value}, 0)`)
+                        .join(' + '),
+                },
+            ],
+        });
+        const rows = await runOnDuckdb(
+            toSql(built),
+            sources.flatMap((_, index) => [
+                `CREATE TABLE merge_source_${index} (week INTEGER, value DOUBLE)`,
+                `INSERT INTO merge_source_${index} VALUES (1, ${index + 1})${index > 0 ? `, (2, ${index + 1})` : ''}`,
+            ]),
+        );
+        expect(rows).toHaveLength(2);
+        expect(rows.find((row) => row.merge_week === '1')?.combined).toBe('28');
+        expect(rows.find((row) => row.merge_week === '2')).toMatchObject({
+            s0_value: null,
+            s6_value: '7',
+            combined: '27',
+        });
+    });
+});
