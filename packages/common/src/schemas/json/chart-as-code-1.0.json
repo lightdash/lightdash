@@ -2785,6 +2785,13 @@
         "Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid-or-dataAppVizVersion__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
+                "conditionalFormattings": {
+                    "description": "Conditional formatting rules on the chart's bound numeric fields, for\nvizzes that declare `conditionalFormatting`. Absent on charts saved\nbefore conditional formatting shipped.",
+                    "items": {
+                        "$ref": "#/$defs/ConditionalFormattingConfig"
+                    },
+                    "type": "array"
+                },
                 "fieldMapping": {
                     "$ref": "#/$defs/DataAppVizFieldMapping"
                 },

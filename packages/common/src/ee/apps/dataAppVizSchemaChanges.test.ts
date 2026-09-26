@@ -334,4 +334,41 @@ describe('diffDataAppVizSchema', () => {
             hasDataAppVizSchemaChanges(diffDataAppVizSchema(withPalette, base)),
         ).toBe(true);
     });
+
+    it('treats stored schemas that predate the conditional formatting key as not opted in', () => {
+        const stored = structuredClone(base);
+        expect('conditionalFormatting' in stored).toBe(false);
+
+        expect(
+            diffDataAppVizSchema(stored, structuredClone(base))
+                .conditionalFormatting,
+        ).toBe('unchanged');
+        expect(
+            diffDataAppVizSchema(stored, { ...base, conditionalFormatting: {} })
+                .conditionalFormatting,
+        ).toBe('added');
+    });
+
+    it('reports conditional formatting being opted into or out of', () => {
+        const optedIn = { ...base, conditionalFormatting: {} };
+
+        expect(
+            summarizeDataAppVizSchemaChanges(
+                diffDataAppVizSchema(base, optedIn),
+            ),
+        ).toEqual(['conditional formatting added']);
+        expect(
+            summarizeDataAppVizSchemaChanges(
+                diffDataAppVizSchema(optedIn, base),
+            ),
+        ).toEqual(['conditional formatting removed']);
+        expect(
+            hasDataAppVizSchemaChanges(
+                diffDataAppVizSchema(optedIn, {
+                    ...base,
+                    conditionalFormatting: { group: 'Style' },
+                }),
+            ),
+        ).toBe(false);
+    });
 });

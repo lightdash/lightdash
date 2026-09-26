@@ -1,5 +1,6 @@
 import {
     getDataAppVizFieldIds,
+    type ConditionalFormattingConfig,
     type DataAppVizChart,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
@@ -17,7 +18,12 @@ export type SelectedDataAppViz = Pick<
     DataAppVizChart,
     'dataAppVizUuid' | 'dataAppVizVersion' | 'fieldMapping'
 > &
-    Required<Pick<DataAppVizChart, 'optionValues' | 'fieldOptionValues'>>;
+    Required<
+        Pick<
+            DataAppVizChart,
+            'optionValues' | 'fieldOptionValues' | 'conditionalFormattings'
+        >
+    >;
 
 export interface DataAppVizVisualizationConfigAndData {
     validConfig: SelectedDataAppViz | null;
@@ -42,6 +48,7 @@ export interface DataAppVizVisualizationConfigAndData {
         fieldMapping: DataAppVizFieldMapping,
         optionValues: DataAppVizOptionValues,
         fieldOptionValues: DataAppVizFieldOptionValues,
+        conditionalFormattings: ConditionalFormattingConfig[],
     ) => void;
     /** Back to pointing at no viz; bindings and options go with it. */
     clearDataAppViz: () => void;
@@ -59,6 +66,11 @@ export interface DataAppVizVisualizationConfigAndData {
         fieldId: string,
         optionName: string,
         value: DataAppVizOptionValue,
+    ) => void;
+    /** `dataAppVizUuid` is the viz the edited rules belonged to. */
+    setConditionalFormattings: (
+        dataAppVizUuid: string,
+        conditionalFormattings: ConditionalFormattingConfig[],
     ) => void;
 }
 
@@ -82,6 +94,7 @@ const toSelected = (
               fieldMapping: chartConfig.fieldMapping,
               optionValues: chartConfig.optionValues ?? {},
               fieldOptionValues: chartConfig.fieldOptionValues ?? {},
+              conditionalFormattings: chartConfig.conditionalFormattings ?? [],
           }
         : null;
 };
@@ -149,6 +162,7 @@ const useDataAppVizVisualizationConfig = (
                 fieldMapping,
                 optionValues: {},
                 fieldOptionValues: {},
+                conditionalFormattings: [],
             });
         },
         [commit],
@@ -176,6 +190,7 @@ const useDataAppVizVisualizationConfig = (
             fieldMapping: DataAppVizFieldMapping,
             optionValues: DataAppVizOptionValues,
             fieldOptionValues: DataAppVizFieldOptionValues,
+            conditionalFormattings: ConditionalFormattingConfig[],
         ) => {
             const selected = configRef.current;
             if (selected === null) return;
@@ -185,6 +200,7 @@ const useDataAppVizVisualizationConfig = (
                 fieldMapping,
                 optionValues,
                 fieldOptionValues,
+                conditionalFormattings,
             });
         },
         [commit],
@@ -274,6 +290,20 @@ const useDataAppVizVisualizationConfig = (
         [commit],
     );
 
+    const setConditionalFormattings = useCallback(
+        (
+            dataAppVizUuid: string,
+            conditionalFormattings: ConditionalFormattingConfig[],
+        ) => {
+            if (!isOwningChartConfigRef.current) return;
+            const selected = configRef.current;
+            if (selected === null || dataAppVizUuid !== selected.dataAppVizUuid)
+                return;
+            commit({ ...selected, conditionalFormattings });
+        },
+        [commit],
+    );
+
     return {
         validConfig: config,
         dataAppVizUuid: config?.dataAppVizUuid ?? null,
@@ -284,6 +314,7 @@ const useDataAppVizVisualizationConfig = (
         setField,
         setOption,
         setFieldOption,
+        setConditionalFormattings,
     };
 };
 

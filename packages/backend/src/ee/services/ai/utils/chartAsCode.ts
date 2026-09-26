@@ -9,6 +9,7 @@ import {
     isCustomChartTypeSlugChartConfig,
     ParameterError,
     remapFieldIdsDeep,
+    toDataAppVizConditionalFormattings,
     type ChartAsCode,
     type DataAppVizSchema,
     type ItemsMap,
@@ -121,6 +122,12 @@ export const prepareChartAsCode = ({
                           optionValues: customConfig.options ?? undefined,
                           fieldOptionValues:
                               customConfig.fieldOptions ?? undefined,
+                          conditionalFormattings:
+                              customConfig.conditionalFormattings
+                                  ? toDataAppVizConditionalFormattings(
+                                        customConfig.conditionalFormattings,
+                                    )
+                                  : undefined,
                       },
                   }
                 : getRunQueryChartConfig({

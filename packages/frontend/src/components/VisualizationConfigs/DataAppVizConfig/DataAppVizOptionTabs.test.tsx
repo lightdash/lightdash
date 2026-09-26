@@ -45,6 +45,8 @@ const renderTabs = (
             renderFieldOptions={(group) => (
                 <div data-testid="field-options">{group}</div>
             )}
+            conditionalFormatting={null}
+            conditionalFormattingControl={null}
         />,
     );
 

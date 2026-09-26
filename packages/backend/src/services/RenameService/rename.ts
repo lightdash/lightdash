@@ -546,6 +546,15 @@ export const renameChartConfigType = (
                               ),
                           }
                         : {}),
+                    ...(dataAppVizConfig.config.conditionalFormattings
+                        ? {
+                              conditionalFormattings:
+                                  renameConditionalFormattings(
+                                      dataAppVizConfig.config
+                                          .conditionalFormattings,
+                                  ),
+                          }
+                        : {}),
                 },
             };
         }

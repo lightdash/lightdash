@@ -6,6 +6,7 @@ import {
     generateVisualizationFilterExpressionToolDefinition,
     generateVisualizationToolDefinition,
     getItemId,
+    getItemMap,
     getReferencedExploreParameterDefinitions,
     getRunQueryAgentViewRejectingMerge,
     getRunQueryFilterExpressionAgentViewRejectingMerge,
@@ -1027,6 +1028,11 @@ export const getRunQuery = ({
                     };
                 }
 
+                const populatedCustomMetrics = populateCustomMetricsSQL(
+                    queryTool.queryConfig.customMetrics,
+                    explore,
+                );
+
                 // Custom chart type answers: resolve the slug project-scoped
                 // and validate the field mapping against the type's schema.
                 // The resolved uuid is persisted beside the replay payload.
@@ -1060,6 +1066,13 @@ export const getRunQuery = ({
                             tableCalculations: (
                                 queryTool.queryConfig.tableCalculations ?? []
                             ).map((tableCalc) => tableCalc.name),
+                            itemsMap: getItemMap(
+                                explore,
+                                populatedCustomMetrics,
+                                convertAiTableCalcsSchemaToTableCalcs(
+                                    queryTool.queryConfig.tableCalculations,
+                                ),
+                            ),
                         },
                     );
                     customChartTypeBinding = {
@@ -1068,11 +1081,6 @@ export const getRunQuery = ({
                         fields: resolved.schema.fields,
                     };
                 }
-
-                const populatedCustomMetrics = populateCustomMetricsSQL(
-                    queryTool.queryConfig.customMetrics,
-                    explore,
-                );
 
                 const expandedMetrics = expandMetricsWithPopAdditionalMetrics(
                     queryTool.queryConfig.metrics,

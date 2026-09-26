@@ -1303,6 +1303,7 @@ describe('data-app-viz-context push', () => {
         colorPalette: ['#7162FF', '#1A1B1E'],
         seriesColors: {},
         valueColors: {},
+        conditionalFormattingColors: [],
         pivotDetails: null,
         underlyingData: { enabled: false },
         drillDown: { enabled: false },

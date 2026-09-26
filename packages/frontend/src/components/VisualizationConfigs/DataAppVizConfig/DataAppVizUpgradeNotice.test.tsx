@@ -30,6 +30,7 @@ const changes: DataAppVizSchemaChanges = {
     fields: { added: [], removed: [], changed: [] },
     configOptions: { added: [], removed: [], changed: [] },
     colorPalette: 'unchanged',
+    conditionalFormatting: 'unchanged',
 };
 
 const renderNotice = (onUpgrade: () => void = vi.fn()) =>

@@ -14,6 +14,11 @@ export type DataAppVizConfigOptionChange = {
 
 export type DataAppVizPaletteChange = 'added' | 'removed' | 'unchanged';
 
+export type DataAppVizConditionalFormattingChange =
+    | 'added'
+    | 'removed'
+    | 'unchanged';
+
 /** What moved between two declarations of the same project chart type. */
 export type DataAppVizSchemaChanges = {
     fields: {
@@ -27,6 +32,7 @@ export type DataAppVizSchemaChanges = {
         changed: DataAppVizConfigOptionChange[];
     };
     colorPalette: DataAppVizPaletteChange;
+    conditionalFormatting: DataAppVizConditionalFormattingChange;
 };
 
 const isSameOption = (
@@ -109,6 +115,12 @@ export const diffDataAppVizSchema = (
     let colorPalette: DataAppVizPaletteChange = 'unchanged';
     if (hasPalette && !hadPalette) colorPalette = 'added';
     if (!hasPalette && hadPalette) colorPalette = 'removed';
+    const hadFormatting = before.conditionalFormatting !== undefined;
+    const hasFormatting = after.conditionalFormatting !== undefined;
+    let conditionalFormatting: DataAppVizConditionalFormattingChange =
+        'unchanged';
+    if (hasFormatting && !hadFormatting) conditionalFormatting = 'added';
+    if (!hasFormatting && hadFormatting) conditionalFormatting = 'removed';
     return {
         fields: diffByName(before.fields, after.fields, isSameField),
         configOptions: diffByName(
@@ -117,6 +129,7 @@ export const diffDataAppVizSchema = (
             isSameOption,
         ),
         colorPalette,
+        conditionalFormatting,
     };
 };
 
@@ -124,6 +137,7 @@ export const hasDataAppVizSchemaChanges = (
     changes: DataAppVizSchemaChanges,
 ): boolean =>
     changes.colorPalette !== 'unchanged' ||
+    changes.conditionalFormatting !== 'unchanged' ||
     [changes.fields, changes.configOptions].some(
         (group) =>
             group.added.length > 0 ||
@@ -156,5 +170,9 @@ export const summarizeDataAppVizSchemaChanges = (
     }
     if (changes.colorPalette === 'added') parts.push('palette added');
     if (changes.colorPalette === 'removed') parts.push('palette removed');
+    if (changes.conditionalFormatting === 'added')
+        parts.push('conditional formatting added');
+    if (changes.conditionalFormatting === 'removed')
+        parts.push('conditional formatting removed');
     return parts;
 };

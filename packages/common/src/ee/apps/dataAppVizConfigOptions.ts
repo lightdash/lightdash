@@ -103,3 +103,14 @@ export type DataAppVizPaletteDeclaration = {
     /** Tab to place the picker in, matching a config option `group`. */
     group?: string;
 };
+
+/**
+ * Declared by a viz that honours conditional formatting. Not a config option:
+ * it asks the config panel for the built-in conditional formatting editor,
+ * whose rules are stored on the chart and whose resulting colours are
+ * delivered on `conditionalFormattingColors`.
+ */
+export type DataAppVizConditionalFormattingDeclaration = {
+    /** Tab to place the editor in, matching a config option `group`. */
+    group?: string;
+};

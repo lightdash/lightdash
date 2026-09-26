@@ -51,7 +51,11 @@ const installedType: DataAppViz = {
     spaceUuid: null,
     createdAt: new Date('2026-09-23'),
     createdByUserUuid: 'user-uuid',
-    schema: { fields: [], configOptions: [], colorPalette: null },
+    schema: {
+        fields: [],
+        configOptions: [],
+        colorPalette: null,
+    },
     icon: null,
     registrySlug: 'installed-type',
 };

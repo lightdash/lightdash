@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FilterOperator } from '../../types/filter';
 import { AiResultType } from './types';
 import {
     getDataAppVizChartFromArtifact,
@@ -37,6 +38,7 @@ const customChartTypeSlugChartConfig = {
     fieldMapping: { x: 'orders_created_month', y: 'orders_revenue' },
     options: { showLegend: true },
     fieldOptions: { y: { orders_revenue: { color: '#ff0000' } } },
+    conditionalFormattings: null,
 };
 
 const statusRule = {
@@ -525,6 +527,75 @@ describe('getDataAppVizChartFromArtifact', () => {
         });
     });
 
+    it('carries conditional formatting rules as saved chart rules', () => {
+        expect(
+            getDataAppVizChartFromArtifact({
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                config: {
+                    ...semanticConfig,
+                    queryConfig: {
+                        ...semanticConfig.queryConfig,
+                        parameters: null,
+                    },
+                    chartConfig: {
+                        ...customChartTypeSlugChartConfig,
+                        conditionalFormattings: [
+                            {
+                                type: 'single',
+                                fieldId: 'orders_revenue',
+                                color: '#ff0000',
+                                conditions: [
+                                    {
+                                        operator: FilterOperator.GREATER_THAN,
+                                        values: [100],
+                                        compareFieldId: null,
+                                    },
+                                    {
+                                        operator: FilterOperator.LESS_THAN,
+                                        values: null,
+                                        compareFieldId: 'orders_target',
+                                    },
+                                ],
+                            },
+                            {
+                                type: 'range',
+                                fieldId: 'orders_revenue',
+                                startColor: '#ffffff',
+                                endColor: '#0000ff',
+                                min: 0,
+                                max: 'auto',
+                            },
+                        ],
+                    },
+                },
+            })?.conditionalFormattings,
+        ).toEqual([
+            {
+                target: { fieldId: 'orders_revenue' },
+                color: '#ff0000',
+                rules: [
+                    {
+                        id: 'ai-0-0',
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [100],
+                    },
+                    {
+                        id: 'ai-0-1',
+                        operator: FilterOperator.LESS_THAN,
+                        compareTarget: { fieldId: 'orders_target' },
+                    },
+                ],
+            },
+            {
+                target: { fieldId: 'orders_revenue' },
+                color: { start: '#ffffff', end: '#0000ff' },
+                rule: { min: 0, max: 'auto' },
+            },
+        ]);
+    });
+
     it('preserves ordered multiple bindings alongside scalar bindings', () => {
         expect(
             getDataAppVizChartFromArtifact({
@@ -573,6 +644,7 @@ describe('getDataAppVizChartFromArtifact', () => {
                         ...customChartTypeSlugChartConfig,
                         options: null,
                         fieldOptions: null,
+                        conditionalFormattings: null,
                     },
                 },
             }),

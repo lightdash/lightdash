@@ -70,6 +70,36 @@ describe.each([
     });
 });
 
+describe.each([
+    ['persisted', dataAppVizSchema],
+    ['generated', dataAppVizGenerationSchema],
+])('%s conditional formatting declaration', (_name, schema) => {
+    const declaration = (conditionalFormatting: unknown) => ({
+        ...validFields,
+        configOptions: [],
+        colorPalette: null,
+        conditionalFormatting,
+    });
+
+    it('opts in with or without a group', () => {
+        expect(
+            schema.parse(declaration({ group: 'Style' })).conditionalFormatting,
+        ).toEqual({ group: 'Style' });
+        expect(
+            schema.parse(declaration({ group: null })).conditionalFormatting,
+        ).toEqual({});
+    });
+
+    it('treats a null or absent declaration as not opted in', () => {
+        expect(
+            schema.parse(declaration(null)).conditionalFormatting,
+        ).toBeUndefined();
+        expect(
+            schema.parse(declaration(undefined)).conditionalFormatting,
+        ).toBeUndefined();
+    });
+});
+
 describe('isOfficialChartType', () => {
     it('is true only when registrySlug is set', () => {
         expect(isOfficialChartType({ registrySlug: 'radial-gauge' })).toBe(

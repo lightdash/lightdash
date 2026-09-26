@@ -1,4 +1,7 @@
-import { type DataAppVizSchema } from '@lightdash/common';
+import {
+    type DataAppVizSchema,
+    type ConditionalFormattingColorRange,
+} from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,6 +9,9 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { buildSampleVizContext } from '../utils/sampleVizContext';
 import PreviewRowsPeek from './PreviewRowsPeek';
 import { type SavedChartSourceControls } from './savedChartSource';
+
+const keepColorRange = (colorRange: ConditionalFormattingColorRange) =>
+    colorRange;
 
 const schema: DataAppVizSchema = {
     fields: [
@@ -43,7 +49,7 @@ const source = (
 
 describe('PreviewRowsPeek', () => {
     it('uses a native table with mapped headers and three preview body rows', async () => {
-        const context = buildSampleVizContext(schema);
+        const context = buildSampleVizContext(schema, keepColorRange);
         renderWithProviders(
             <PreviewRowsPeek
                 source={source()}
@@ -90,7 +96,7 @@ describe('PreviewRowsPeek', () => {
                     },
                 ],
             };
-            const context = buildSampleVizContext(pivotSchema);
+            const context = buildSampleVizContext(pivotSchema, keepColorRange);
             const pivotColumn =
                 context.pivotDetails!.valuesColumns[0].pivotColumnName;
             context.rows[0][pivotColumn] = {
@@ -150,7 +156,7 @@ describe('PreviewRowsPeek', () => {
     );
 
     it('keeps the ready saved-chart summary and View all action', async () => {
-        const context = buildSampleVizContext(schema);
+        const context = buildSampleVizContext(schema, keepColorRange);
         const viewRows = vi.fn();
         renderWithProviders(
             <PreviewRowsPeek

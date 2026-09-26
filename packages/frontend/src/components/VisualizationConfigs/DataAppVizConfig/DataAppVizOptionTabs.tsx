@@ -1,4 +1,5 @@
 import {
+    type DataAppVizConditionalFormattingDeclaration,
     type DataAppVizConfigOption,
     type DataAppVizField,
     type DataAppVizFieldMapping,
@@ -36,6 +37,10 @@ type Props = {
     fieldMapping: DataAppVizFieldMapping;
     /** Per-field options declared with `group`, rendered in that tab. */
     renderFieldOptions: (group: string) => ReactNode;
+    /** Null when the viz does not honour conditional formatting. */
+    conditionalFormatting: DataAppVizConditionalFormattingDeclaration | null;
+    /** Rendered in the tab the conditional formatting declaration names. */
+    conditionalFormattingControl: ReactNode;
 };
 
 /**
@@ -57,6 +62,8 @@ const DataAppVizOptionTabs: FC<Props> = ({
     fields,
     fieldMapping,
     renderFieldOptions,
+    conditionalFormatting,
+    conditionalFormattingControl,
 }) => {
     const optionGroups = useMemo(
         () =>
@@ -65,8 +72,15 @@ const DataAppVizOptionTabs: FC<Props> = ({
                 colorPalette,
                 fields,
                 fieldMapping,
+                conditionalFormatting,
             ),
-        [configOptions, colorPalette, fields, fieldMapping],
+        [
+            configOptions,
+            colorPalette,
+            fields,
+            fieldMapping,
+            conditionalFormatting,
+        ],
     );
 
     if (optionGroups.length === 0) return <>{generalContent}</>;
@@ -106,6 +120,8 @@ const DataAppVizOptionTabs: FC<Props> = ({
                         {group.hasFieldOptions &&
                             renderFieldOptions(group.label)}
                         {group.hasPalette && paletteControl}
+                        {group.hasConditionalFormatting &&
+                            conditionalFormattingControl}
                     </Stack>
                 </Tabs.Panel>
             ))}
