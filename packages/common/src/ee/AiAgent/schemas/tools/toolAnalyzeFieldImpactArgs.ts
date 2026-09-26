@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import { DBFieldTypes } from '../../../../types/api';
+import { FieldImpactSeverity } from '../../../../types/fieldImpact';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_ANALYZE_FIELD_IMPACT_DESCRIPTION = `Tool: analyzeFieldImpact
@@ -35,15 +40,92 @@ export const toolAnalyzeFieldImpactArgsSchema = createToolSchema()
     })
     .build();
 
-export const toolAnalyzeFieldImpactOutputSchema = z.object({
-    result: z.string(),
+export const toolAnalyzeFieldImpactStructuredContentSchema = z.object({
+    fieldId: z
+        .string()
+        .describe('The analyzed field id ("<table>_<fieldName>").'),
+    fieldType: z
+        .nativeEnum(DBFieldTypes)
+        .nullable()
+        .describe(
+            'Inferred from the content referencing the field; null when nothing references it.',
+        ),
+    severity: z
+        .nativeEnum(FieldImpactSeverity)
+        .describe(
+            '"breaking" when at least one chart, dependent metric or dashboard filter references the field; otherwise "safe". Does not detect silent value-drift.',
+        ),
+    summary: z
+        .object({
+            charts: z.number(),
+            dashboards: z.number(),
+            dashboardFilterTargets: z.number(),
+            metricTreeDependents: z.number(),
+            scheduledDeliveries: z.number(),
+        })
+        .describe('Count of each referencing item type.'),
+    charts: z
+        .array(
+            z.object({
+                uuid: z.string(),
+                name: z.string(),
+                spaceName: z.string(),
+                dashboardName: z
+                    .string()
+                    .nullable()
+                    .describe(
+                        'Set when the chart lives inside a dashboard rather than a space.',
+                    ),
+                viewsCount: z.number(),
+            }),
+        )
+        .describe('Saved charts that directly reference the field.'),
+    dashboards: z
+        .array(
+            z.object({
+                uuid: z.string(),
+                name: z.string(),
+                viaChartName: z
+                    .string()
+                    .describe(
+                        'Name of an impacted chart that places this dashboard in the blast radius.',
+                    ),
+            }),
+        )
+        .describe('Dashboards that embed an impacted chart.'),
+    dashboardFilterTargets: z
+        .array(z.object({ uuid: z.string(), name: z.string() }))
+        .describe('Dashboards whose filters target the field.'),
+    metricTreeDependents: z
+        .array(z.object({ fieldId: z.string() }))
+        .describe(
+            'Metrics built on this metric; they break with no chart between them.',
+        ),
+    scheduledDeliveries: z
+        .array(
+            z.object({
+                name: z.string(),
+                savedChartUuid: z.string().nullable(),
+                dashboardUuid: z.string().nullable(),
+            }),
+        )
+        .describe(
+            'Scheduled deliveries and alerts on the affected charts or dashboards.',
+        ),
+});
+
+export const toolAnalyzeFieldImpactOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolAnalyzeFieldImpactStructuredContentSchema,
 });
 
 export type ToolAnalyzeFieldImpactArgs = z.infer<
     typeof toolAnalyzeFieldImpactArgsSchema
 >;
 export type ToolAnalyzeFieldImpactArgsTransformed = ToolAnalyzeFieldImpactArgs;
+export type ToolAnalyzeFieldImpactStructuredContent = z.infer<
+    typeof toolAnalyzeFieldImpactStructuredContentSchema
+>;
 export type ToolAnalyzeFieldImpactOutput = z.infer<
     typeof toolAnalyzeFieldImpactOutputSchema
 >;
