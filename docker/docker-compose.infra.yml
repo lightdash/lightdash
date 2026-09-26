@@ -1,40 +1,22 @@
 volumes:
     postgres_data:
-    minio_data:
     rustfs_data:
 
 services:
-    minio:
-        image: coollabsio/minio:latest
-        restart: always
-        ports:
-            - '9000:9000'
-            - '9001:9001' # for minio console
-        volumes:
-            - minio_data:/data
-            - ./init-minio.sh:/init-minio.sh
-        entrypoint: '/init-minio.sh'
-        environment:
-            - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-            - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
-            - MINIO_BROWSER=${MINIO_BROWSER:-off}
-            - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
-
-    # RustFS runs alongside MinIO on 9010/9011 for evaluation. Nothing reads
-    # from it until S3_ENDPOINT is repointed. See docs/rustfs-migration.md.
     rustfs:
         image: rustfs/rustfs:1.0.0
         restart: always
         ports:
-            - '9010:9000'
-            - '9011:9001' # console, served at /rustfs/console/
+            - '9000:9000'
+            - '9001:9001' # console, served at /rustfs/console/
         volumes:
             - rustfs_data:/data
         environment:
-            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:-rustfsadmin}
-            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:-rustfsadmin}
+            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
+            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
             - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE:-false}
+            # The browser PUTs to presigned URLs directly. The S3 API sends no
+            # CORS headers unless this is set.
             - RUSTFS_CORS_ALLOWED_ORIGINS=${RUSTFS_CORS_ALLOWED_ORIGINS:-*}
         healthcheck:
             test: ['CMD', 'curl', '-fsS', 'http://localhost:9000/health']
@@ -53,9 +35,9 @@ services:
         entrypoint: '/init-rustfs.sh'
         environment:
             - RUSTFS_ENDPOINT=http://rustfs:9000
-            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:-rustfsadmin}
-            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:-rustfsadmin}
-            - RUSTFS_DEFAULT_BUCKETS=${RUSTFS_DEFAULT_BUCKETS:-default,results,lightdash-apps}
+            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
+            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
+            - RUSTFS_DEFAULT_BUCKETS=${RUSTFS_DEFAULT_BUCKETS}
             - RUSTFS_EXPIRATION_DAYS=${RUSTFS_EXPIRATION_DAYS:-1}
         restart: 'no'
 

@@ -1,0 +1,106 @@
+# In-cluster RustFS: the S3-compatible object store backing both the app's file
+# storage and the sandbox runtime's snapshot store (S3SnapshotStore). On Azure we
+# bundle RustFS instead of using Azure Blob because Lightdash speaks the S3 API
+# strictly (parseBaseS3Config enforces S3_ENDPOINT/BUCKET/REGION). Single replica,
+# ephemeral-ish PVC — fine for a testbed. Root creds come from the `rustfs-creds`
+# secret created idempotently by up.sh (never templated here).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rustfs
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-data
+  namespace: rustfs
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: managed-csi
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustfs
+  namespace: rustfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: rustfs }
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels: { app: rustfs }
+    spec:
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:1.0.0
+          env:
+            - name: RUSTFS_VOLUMES
+              value: /data
+            - name: RUSTFS_CONSOLE_ENABLE
+              value: "true"
+            # The browser PUTs to presigned URLs directly. The S3 API sends no
+            # CORS headers unless this is set.
+            - name: RUSTFS_CORS_ALLOWED_ORIGINS
+              value: "*"
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: rustfs-creds, key: accesskey } }
+            - name: RUSTFS_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: rustfs-creds, key: secretkey } }
+          ports:
+            - { containerPort: 9000, name: api }
+            - { containerPort: 9001, name: console }
+          readinessProbe:
+            httpGet: { path: /health/ready, port: 9000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: rustfs-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+  namespace: rustfs
+spec:
+  selector: { app: rustfs }
+  ports:
+    - { name: api, port: 9000, targetPort: 9000 }
+    - { name: console, port: 9001, targetPort: 9001 }
+---
+# Create the `lightdash` bucket once RustFS is reachable (idempotent: `create -p`).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rustfs-make-bucket
+  namespace: rustfs
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: rc
+          image: rustfs/rc:v0.1.36
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              until rc alias set local http://rustfs:9000 "$ACCESS" "$SECRET"; do
+                echo "waiting for rustfs..."; sleep 3
+              done
+              rc bucket create -p local/lightdash || true
+              echo "bucket ready"
+          env:
+            - name: ACCESS
+              valueFrom: { secretKeyRef: { name: rustfs-creds, key: accesskey } }
+            - name: SECRET
+              valueFrom: { secretKeyRef: { name: rustfs-creds, key: secretkey } }

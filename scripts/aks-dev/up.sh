@@ -123,29 +123,29 @@ WRITEBACK_DISK_IMAGE_ID="${WRITEBACK_DISK_IMAGE_ID:-}"
 ok "data-app sandbox group: $DATA_APP_SANDBOX_GROUP (disk id: $DATA_APP_DISK_IMAGE_ID)"
 
 # ---------------------------------------------------------------------------
-step "in-cluster MinIO (S3 for app file storage)"
+step "in-cluster RustFS (S3 for app file storage)"
 kubectl get ns "$K8S_NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$K8S_NAMESPACE"
-kubectl get ns minio >/dev/null 2>&1 || kubectl create ns minio
-# minio-creds is needed in BOTH namespaces with the SAME value: the `minio` ns
-# (the MinIO server's root creds) and the `lightdash` ns (the app + migration job's
+kubectl get ns rustfs >/dev/null 2>&1 || kubectl create ns rustfs
+# rustfs-creds is needed in BOTH namespaces with the SAME value: the `rustfs` ns
+# (the RustFS server's root creds) and the `lightdash` ns (the app + migration job's
 # S3 client). Generate once, mirror to both.
-if ! kubectl -n minio get secret minio-creds >/dev/null 2>&1; then
-  MINIO_SECRET="$(rand_hex)"
-  for ns in minio "$K8S_NAMESPACE"; do
-    kubectl -n "$ns" create secret generic minio-creds \
-      --from-literal=accesskey="lightdash" --from-literal=secretkey="$MINIO_SECRET"
+if ! kubectl -n rustfs get secret rustfs-creds >/dev/null 2>&1; then
+  RUSTFS_SECRET="$(rand_hex)"
+  for ns in rustfs "$K8S_NAMESPACE"; do
+    kubectl -n "$ns" create secret generic rustfs-creds \
+      --from-literal=accesskey="lightdash" --from-literal=secretkey="$RUSTFS_SECRET"
   done
-  ok "secret/minio-creds created in minio + $K8S_NAMESPACE"
+  ok "secret/rustfs-creds created in rustfs + $K8S_NAMESPACE"
 else
-  # Ensure the lightdash-ns copy exists too (mirror the minio-ns value).
-  kubectl -n "$K8S_NAMESPACE" get secret minio-creds >/dev/null 2>&1 || \
-    kubectl -n minio get secret minio-creds -o json \
-      | sed "s/\"namespace\": \"minio\"/\"namespace\": \"$K8S_NAMESPACE\"/" \
+  # Ensure the lightdash-ns copy exists too (mirror the rustfs-ns value).
+  kubectl -n "$K8S_NAMESPACE" get secret rustfs-creds >/dev/null 2>&1 || \
+    kubectl -n rustfs get secret rustfs-creds -o json \
+      | sed "s/\"namespace\": \"rustfs\"/\"namespace\": \"$K8S_NAMESPACE\"/" \
       | kubectl apply -f - >/dev/null
-  skip "secret/minio-creds already exists"
+  skip "secret/rustfs-creds already exists"
 fi
-kubectl apply -f "$AKS_DEV_DIR/manifests/minio.yaml" >/dev/null
-ok "minio deployed"
+kubectl apply -f "$AKS_DEV_DIR/manifests/rustfs.yaml" >/dev/null
+ok "rustfs deployed"
 
 # ---------------------------------------------------------------------------
 step "ingress-nginx + public host"

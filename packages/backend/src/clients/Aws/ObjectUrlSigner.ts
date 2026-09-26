@@ -22,7 +22,7 @@ export interface ObjectUrlSigner {
     ): Promise<string>;
 }
 
-/** Signs URLs with SigV4 through the AWS SDK. Use this class with S3, MinIO, or GCS HMAC keys. */
+/** Signs URLs with SigV4 through the AWS SDK. Use this class with S3, RustFS, or GCS HMAC keys. */
 export class S3PresignerUrlSigner implements ObjectUrlSigner {
     private readonly client: S3 | S3Client;
 

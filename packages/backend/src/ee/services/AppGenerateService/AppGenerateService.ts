@@ -2290,7 +2290,7 @@ export class AppGenerateService extends BaseService {
         // Buffer the whole body, then validate content against the declared
         // type. We need the full Buffer anyway so the AWS SDK can use standard
         // S3v4 signing — streaming bodies cause chunked signing which
-        // MinIO/GCS reject with RequestTimeout.
+        // RustFS/GCS reject with RequestTimeout.
         const bufferedBody = await AppGenerateService.bufferUploadBody(
             body,
             maxSize,

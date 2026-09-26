@@ -177,7 +177,7 @@ stays next to the code that wrote the snapshot — the Manager never sees an
 object-store key or constructs an S3 client.
 
 The object store (`SnapshotStore.ts`) is a narrow `put`/`get`/`delete` over
-S3/MinIO (`S3SnapshotStore`), reusing the app's existing storage config. It's only
+S3/RustFS (`S3SnapshotStore`), reusing the app's existing storage config. It's only
 constructed for the object-store provider (Docker); native-pause paths pass `null`.
 
 ## Lifecycle of a turn

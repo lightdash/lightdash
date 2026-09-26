@@ -89,7 +89,7 @@ const uploadVersionArtifacts = async (): Promise<void> => {
     try {
         await putArtifacts();
     } catch (error) {
-        // Local MinIO may not have the apps bucket yet
+        // Local RustFS may not have the apps bucket yet
         if (error instanceof Error && error.name === 'NoSuchBucket') {
             await client.send(
                 new CreateBucketCommand({ Bucket: s3Config.bucket }),

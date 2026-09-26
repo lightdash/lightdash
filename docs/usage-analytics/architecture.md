@@ -160,7 +160,7 @@ reads `USAGE_EVENTS_S3_ENDPOINT`, `USAGE_EVENTS_S3_BUCKET`,
 `USAGE_EVENTS_S3_SECRET_KEY`. Each falls back to its base `S3_*` setting; a valid
 base storage configuration is still required. These are server configuration,
 not user-editable project credentials. Use the endpoint override to read GCS
-without redirecting ordinary local MinIO storage. This override applies to the
+without redirecting ordinary local RustFS storage. This override applies to the
 usage-events writer/compactor configuration too, not only the reader.
 
 [`S3AnalyticsSource`](../../packages/backend/src/services/ProjectService/analyticsProject/S3AnalyticsSource.ts)
@@ -243,7 +243,7 @@ no Terraform/IAM change or read-only cutover is included in this stack.
   binding and the browser-console provisioning request. Keep capture
   disabled for a read-only local test; never copy another worktree's DB settings.
 - Follow [credential verification](credentials.md) for real-bucket read-only
-  smoke tests and disposable MinIO tests of signatures, expiry and denied writes.
+  smoke tests and disposable RustFS tests of signatures, expiry and denied writes.
 - Missing data: check capture, compaction success, source org, Explore date
   filters, retention and stream schemas. No supported event files means no data is
   available, even if dimension snapshots exist; partially missing
@@ -267,7 +267,7 @@ no Terraform/IAM change or read-only cutover is included in this stack.
 
 The read path has been exercised against real GCS with native DuckDB and via the
 local API for the original Query Events and AI Usage explores; local UI provisioning was manually confirmed.
-Dimension exports and joins have been exercised against isolated Postgres and MinIO.
+Dimension exports and joins have been exercised against isolated Postgres and RustFS.
 Focused tests cover reuse, access denial and credential boundaries. This is not
 a production multi-tenant security audit or a claim that every warehouse provider
 and failure mode has been validated.

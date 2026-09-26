@@ -805,7 +805,7 @@ export class OrganizationDesignService extends BaseService {
 
         // Buffer the body with a hard cap. We need the full Buffer anyway so
         // the AWS SDK can use standard S3v4 signing — streaming bodies cause
-        // chunked signing which MinIO/GCS reject with RequestTimeout.
+        // chunked signing which RustFS/GCS reject with RequestTimeout.
         const chunks: Buffer[] = [];
         let total = 0;
         // eslint-disable-next-line no-restricted-syntax

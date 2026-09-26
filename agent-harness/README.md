@@ -1,6 +1,6 @@
 # Agent Harness
 
-Run multiple isolated Lightdash development environments on a single machine. Each agent gets its own database, S3 bucket, ports, and PM2 processes while sharing one set of infrastructure containers (PostgreSQL, MinIO, headless browser, Mailpit).
+Run multiple isolated Lightdash development environments on a single machine. Each agent gets its own database, S3 bucket, ports, and PM2 processes while sharing one set of infrastructure containers (PostgreSQL, RustFS, headless browser, Mailpit).
 
 Built for AI coding agents (Claude Code, etc.) but works just as well for parallel human development.
 
@@ -46,7 +46,7 @@ This skill guides you through discovering your agent ID, finding your ports, man
 ┌─────────────────────────── Host Machine ───────────────────────────┐
 │                                                                     │
 │  ┌─── Shared Docker Containers ──────────────────────────────────┐  │
-│  │  PostgreSQL (:15432)  MinIO (:19000)  Browser (:13001)        │  │
+│  │  PostgreSQL (:15432)  RustFS (:19000)  Browser (:13001)       │  │
 │  │  Mailpit (:11025/:18025)                                      │  │
 │  └───────────────────────────────────────────────────────────────┘  │
 │                                                                     │
@@ -74,8 +74,8 @@ Shared infrastructure uses non-standard ports to avoid conflicts with normal dev
 | Service        | Port  |
 |----------------|-------|
 | PostgreSQL     | 15432 |
-| MinIO S3 API   | 19000 |
-| MinIO Console  | 19001 |
+| RustFS S3 API  | 19000 |
+| RustFS Console | 19001 |
 | Headless Browser | 13001 |
 | Mailpit SMTP   | 11025 |
 | Mailpit Web UI | 18025 |
@@ -92,7 +92,7 @@ Starts shared Docker containers and creates the template database (migrations + 
 
 ### `launch.sh <agent-id> [--worktree]`
 
-Launches one agent (ID 1–5). Creates its database from the template, MinIO bucket, `.env` file, PM2 config, and starts all processes. Waits for the health check.
+Launches one agent (ID 1–5). Creates its database from the template, RustFS bucket, `.env` file, PM2 config, and starts all processes. Waits for the health check.
 
 `--worktree`: creates an isolated git worktree at `~/worktrees/agent-<id>/` so the agent can modify files without affecting other agents.
 
@@ -168,7 +168,7 @@ just cli 1 logs api      # CLI shortcut
 | Frontend (Vite) | 300–500 MB | — |
 | TypeScript watchers | 100–200 MB | — |
 | PostgreSQL | — | 500 MB–1 GB |
-| MinIO | — | 128–256 MB |
+| RustFS | — | 256–512 MB |
 | Headless Browser | — | 500 MB–1 GB |
 | Mailpit | — | 64 MB |
 

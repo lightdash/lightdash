@@ -16,7 +16,7 @@ import { createObjectUrlSigner, type ObjectUrlSigner } from './ObjectUrlSigner';
  * Selects how Lightdash authenticates requests to the object store.
  *
  * - `default`: sign requests with SigV4 and AWS credentials. Use this value
- *   for S3, MinIO, and GCS HMAC keys.
+ *   for S3, RustFS, and GCS HMAC keys.
  * - `gcp_oauth`: send a Google OAuth bearer token. Use this value to reach GCS
  *   from a workload identity service account, which needs no static keys.
  *

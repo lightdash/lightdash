@@ -36,7 +36,7 @@ in-memory instance for each query. HTTP is allowed only for loopback test storag
 remote endpoints require HTTPS.
 
 The native HTTP reader can retry a rejected HEAD request with a ranged GET; both
-the live GCS test and local MinIO test exercise this with GET-signed URLs. Expired
+the live GCS test and local RustFS test exercise this with GET-signed URLs. Expired
 URLs fail closed; retry the query to obtain a fresh manifest and signatures.
 
 The trusted backend still holds write-capable credentials. A compromised backend
@@ -49,10 +49,10 @@ that migration, credentials may also cover other storage used by the deployment.
 Unit coverage tests prefix filtering, pagination, exact GET signing, invalid scope,
 credential-free manifests, native-error redaction, and blocked catalog/file reads.
 
-The opt-in local test creates a uniquely named bucket on loopback MinIO, uploads
+The opt-in local test creates a uniquely named bucket on loopback RustFS, uploads
 synthetic Parquet, runs actual DuckDB queries, verifies tampered cross-org URLs,
 PUT attempts, and expired URLs fail, and deletes only its own fixtures/bucket.
-Supply local MinIO credentials as `S3_ACCESS_KEY` / `S3_SECRET_KEY` and run:
+Supply local RustFS credentials as `S3_ACCESS_KEY` / `S3_SECRET_KEY` and run:
 
 ```sh
 ANALYTICS_S3_SMOKE_ENDPOINT=http://localhost:9000 pnpm -F backend test src/services/ProjectService/analyticsProject/S3AnalyticsSource.smoke.test.ts

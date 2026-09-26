@@ -229,7 +229,7 @@ Notes:
 - If you change files inside `/packages/warehouses` you should run `pnpm warehouses-build` before `pnpm dev`
 - If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 - If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run the `docker compose up` command mentioned above
-- On MacOS, you may need to add an entry to your `/etc/hosts` file, mapping `minio` to `127.0.0.1` to be able to access the container via its name.
+- On MacOS, you may need to add an entry to your `/etc/hosts` file, mapping `rustfs` to `127.0.0.1` to be able to access the container via its name.
 
 When you want to stop:
 
@@ -376,18 +376,18 @@ If you're running Lightdash without Docker, you can install and run Mailpit dire
     - Navigate to http://localhost:8025
     - All emails sent from Lightdash will appear here
 
-#### Downloading files stored in local docker container MinIO
+#### Downloading files stored in local docker container RustFS
 
-When developing using the docker compose setup there's a MinIO container already setup to serve as the S3 compatible
+When developing using the docker compose setup there's a RustFS container already setup to serve as the S3 compatible
 storage to save any files that are exported from the app - these can be images, results csv, etc.
 
-Because the MinIO internal docker endpoint is not accessible to the host machine - `localhost` - it needs to be added to
+Because the RustFS internal docker endpoint is not accessible to the host machine - `localhost` - it needs to be added to
 the `/etc/hosts` configuration in your computer otherwise it will fail with a `DNS_PROBE_FINISHED_NXDOMAIN` error.
 
 1. Edit the hosts file using a text editor (e.g. vim, nano, etc.) with administrator privileges:
    `sudo nano /etc/hosts`
 2. Add the following line at the end of the file:
-   `127.0.0.1    minio`
+   `127.0.0.1    rustfs`
 3. Save the file
 
 #### Setup Development Environment without Docker
