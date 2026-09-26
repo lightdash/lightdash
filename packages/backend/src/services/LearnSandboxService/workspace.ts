@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export type LearnBundle = {
     version: 1;
@@ -95,4 +95,38 @@ export const materialiseWorkspace = async (args: {
         path.join(args.workspaceDir, 'profiles.yml'),
         renderProfiles(args.profiles.databasePath),
     );
+};
+
+/**
+ * The CLI reads its token from `$HOME/.config/lightdash/config.yaml`, and
+ * `HOME` is the per-command workspace. Handing the token over this way
+ * rather than as `LIGHTDASH_API_KEY` keeps it out of the child's
+ * environment, where dbt's `env_var()` could render it into the manifest
+ * and `lightdash deploy` would then push it into a description. The file
+ * is owner-only and dies with the workspace; the file API never lists it
+ * because it is neither bundle nor overlay.
+ */
+export const writeCliConfig = async (args: {
+    workspaceDir: string;
+    apiKey: string;
+    serverUrl: string;
+    projectUuid: string;
+}): Promise<string> => {
+    const dir = path.join(args.workspaceDir, '.config', 'lightdash');
+    const file = path.join(dir, 'config.yaml');
+    await mkdir(dir, { recursive: true, mode: 0o700 });
+    await chmod(dir, 0o700);
+    await writeFile(
+        file,
+        stringifyYaml({
+            context: {
+                apiKey: args.apiKey,
+                serverUrl: args.serverUrl,
+                project: args.projectUuid,
+            },
+        }),
+        { mode: 0o600 },
+    );
+    await chmod(file, 0o600);
+    return file;
 };
