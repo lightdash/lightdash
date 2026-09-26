@@ -76,6 +76,10 @@ describe('LearnSandboxService', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        countActiveCommands: vi.fn(async () => ({
+            forUser: 0,
+            forOrganization: 0,
+        })),
         claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),
@@ -331,6 +335,75 @@ describe('LearnSandboxService', () => {
         );
     });
 
+    it('refuses a second command while the learner has one in flight elsewhere', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.countActiveCommands.mockResolvedValueOnce({
+            forUser: 1,
+            forOrganization: 1,
+        });
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow(
+            'You already have a command running in another training copy',
+        );
+        expect(files.createCommand).not.toHaveBeenCalled();
+        expect(schedulerClient.learnSandboxCommand).not.toHaveBeenCalled();
+    });
+
+    it('refuses a command once the organization has reached its in-flight limit', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.countActiveCommands.mockResolvedValueOnce({
+            forUser: 0,
+            forOrganization: 4,
+        });
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow(
+            'Your organization has reached its limit of running Learn commands',
+        );
+        expect(files.createCommand).not.toHaveBeenCalled();
+    });
+
+    it('counts only live commands in the organization, from the same stale cutoff as the workspace check', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.countActiveCommands.mockResolvedValueOnce({
+            forUser: 0,
+            forOrganization: 3,
+        });
+        files.createCommand.mockResolvedValueOnce({ commandUuid: 'c1' });
+        const before = Date.now();
+        await service.enqueueCommand(user, 'copy', {
+            tool: 'dbt',
+            subcommand: 'parse',
+            args: [],
+        });
+        expect(files.countActiveCommands).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                staleCutoff: expect.any(Date),
+            }),
+        );
+        const { staleCutoff } = (
+            files.countActiveCommands.mock.calls as unknown as [
+                { staleCutoff: Date },
+            ][]
+        )[0][0];
+        const cutoff = staleCutoff.getTime();
+        expect(cutoff).toBeLessThanOrEqual(
+            before - LEARN_SANDBOX_COMMAND_TIMEOUT_MS,
+        );
+        expect(files.createCommand).toHaveBeenCalledOnce();
+    });
+
     it('falls back to the database unique index for the 409 when the pre-check races', async () => {
         files.findActiveCommand.mockResolvedValueOnce(undefined);
         files.createCommand.mockRejectedValueOnce(
@@ -539,6 +612,10 @@ describe('LearnSandboxService.sweep', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        countActiveCommands: vi.fn(async () => ({
+            forUser: 0,
+            forOrganization: 0,
+        })),
         claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),
@@ -688,6 +765,10 @@ describe('LearnSandboxService.runCommand', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        countActiveCommands: vi.fn(async () => ({
+            forUser: 0,
+            forOrganization: 0,
+        })),
         claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),

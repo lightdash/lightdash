@@ -189,3 +189,26 @@ describe('resolveSandboxRuntime maxConcurrentCommands', () => {
         ).toBe(4);
     });
 });
+
+describe('resolveSandboxRuntime active command limits', () => {
+    it('defaults to one in flight per learner and four per organization', () => {
+        expect(resolveSandboxRuntime({}).activeCommandLimits).toEqual({
+            perUser: 1,
+            perOrganization: 4,
+        });
+    });
+    it('accepts positive integer overrides and ignores anything else', () => {
+        expect(
+            resolveSandboxRuntime({
+                LEARN_SANDBOX_MAX_ACTIVE_PER_USER: '2',
+                LEARN_SANDBOX_MAX_ACTIVE_PER_ORG: '10',
+            }).activeCommandLimits,
+        ).toEqual({ perUser: 2, perOrganization: 10 });
+        expect(
+            resolveSandboxRuntime({
+                LEARN_SANDBOX_MAX_ACTIVE_PER_USER: '0',
+                LEARN_SANDBOX_MAX_ACTIVE_PER_ORG: 'many',
+            }).activeCommandLimits,
+        ).toEqual({ perUser: 1, perOrganization: 4 });
+    });
+});
