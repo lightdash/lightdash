@@ -140,6 +140,7 @@ const BASE_ROLE_SCOPES = {
         'manage:CompileProject',
         'manage:DeployProject',
         'manage:DeployProject@self',
+        'create:Job@self', // Jobs inside previews created by the user
         'create:Project@preview', // Preview projects
         'delete:Project@self', // Preview projects created by user
         'update:Project',
@@ -292,6 +293,7 @@ export const TRAINING_PROJECT_EXCLUDED_SCOPES: readonly string[] = [
     'manage:DeployProject',
     'manage:DeployProject@self',
     'create:Job',
+    'create:Job@self',
     'manage:Job',
     'manage:PreAggregation',
     // Outbound messaging: a viewer must not be able to email or Slack
@@ -368,7 +370,7 @@ export const getTrainingProjectViewerScopes = (): string[] => [
  */
 export const LEARN_SANDBOX_SCOPES: readonly string[] = [
     'manage:DeployProject@self',
-    'create:Job',
+    'create:Job@self',
 ];
 
 /**

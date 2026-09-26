@@ -107,7 +107,7 @@ describe('roleToScopeMapping', () => {
             it('is exactly the two deploy scopes the sandbox needs', () => {
                 expect([...LEARN_SANDBOX_SCOPES]).toEqual([
                     'manage:DeployProject@self',
-                    'create:Job',
+                    'create:Job@self',
                 ]);
             });
             it('only names scopes the trainee set excludes on purpose', () => {
@@ -115,12 +115,16 @@ describe('roleToScopeMapping', () => {
                     expect(TRAINING_PROJECT_EXCLUDED_SCOPES).toContain(scope),
                 );
             });
-            it('never contains a project-breaking scope', () => {
+            it('never contains a project-breaking or unconditional scope', () => {
                 [
                     'manage:Project',
                     'update:Project',
                     'delete:Project',
                     'manage:CompileProject',
+                    // Granted with no project condition; the @self form is
+                    // bound to the learner's own copy.
+                    'create:Job',
+                    'manage:Job',
                 ].forEach((scope) =>
                     expect(LEARN_SANDBOX_SCOPES).not.toContain(scope),
                 );
