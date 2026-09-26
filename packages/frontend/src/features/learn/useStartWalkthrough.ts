@@ -5,6 +5,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
+import useToaster from '../../hooks/toaster/useToaster';
 import useApp from '../../providers/App/useApp';
 import { type LearnStartSource } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -27,6 +28,7 @@ export const useStartWalkthrough = (
     trainingProjectUuid: string | undefined,
 ) => {
     const navigate = useNavigate();
+    const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const { user } = useApp();
     const { track } = useTracking();
@@ -39,7 +41,15 @@ export const useStartWalkthrough = (
         { scope: string }
     >(() => createTrainingPreview(trainingProjectUuid!), {
         onMutate: ({ scope }) => setOpening(scope),
-        onError: () => setOpening(null),
+        onError: ({ error }) => {
+            setOpening(null);
+            // A refused copy (cooldown, the organization's in-flight limit)
+            // must tell the learner why nothing opened.
+            showToastApiError({
+                title: 'Could not start the walkthrough',
+                apiError: error,
+            });
+        },
         onSuccess: async (copy, { scope }) => {
             // The navbar resolves the active project from the cached project
             // list, and the trainee permissions on the new copy only exist

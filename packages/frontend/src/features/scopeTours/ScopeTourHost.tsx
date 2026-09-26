@@ -21,6 +21,7 @@ import {
     useSearchParams,
 } from 'react-router';
 import { GuidedTour, type TourPoint } from '../../components/common/GuidedTour';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
@@ -146,6 +147,7 @@ const ScopeTourHost: FC = () => {
     const project = projectRoute?.project ?? projectFromParam;
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const [activeScope, setActiveScope] = useState<string | null>(null);
     const [reachedStep, setReachedStep] = useState(0);
@@ -346,8 +348,12 @@ const ScopeTourHost: FC = () => {
             leavingCopy?: boolean;
         }
     >(({ trainingProjectUuid }) => createTrainingPreview(trainingProjectUuid), {
-        onError: () => {
+        onError: ({ error }) => {
             copyRequestedRef.current = false;
+            showToastApiError({
+                title: 'Could not start the walkthrough',
+                apiError: error,
+            });
         },
         onSuccess: async (copy, { scope, from, leavingCopy }) => {
             const to = tourUrlInCopy(copy.projectUuid, scope, from);
