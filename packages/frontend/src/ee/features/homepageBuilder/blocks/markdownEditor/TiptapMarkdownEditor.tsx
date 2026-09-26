@@ -1,6 +1,7 @@
 import { type ContentType } from '@lightdash/common';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { EditorContent, useEditor, type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import {
@@ -97,6 +98,7 @@ type Props = {
     mentionProjectUuid?: string;
     /** Read-only render mode — no editing, no toolbar. Defaults to true. */
     editable?: boolean;
+    headingIds?: string[];
 };
 
 export const TiptapMarkdownEditor: FC<Props> = ({
@@ -105,6 +107,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     onImageUpload,
     mentionProjectUuid,
     editable = true,
+    headingIds,
 }) => {
     const { showToastError } = useToaster();
     const navigate = useNavigate();
@@ -149,6 +152,34 @@ export const TiptapMarkdownEditor: FC<Props> = ({
 
     const editor = useEditor({
         editable,
+        editorProps: {
+            decorations: (state) => {
+                if (!headingIds) {
+                    return null;
+                }
+                const decorations: Decoration[] = [];
+                let headingIndex = 0;
+                state.doc.descendants((node, position) => {
+                    if (
+                        node.type.name === 'heading' &&
+                        node.attrs.level === 1 &&
+                        node.textContent.trim()
+                    ) {
+                        const id = headingIds[headingIndex++];
+                        if (id) {
+                            decorations.push(
+                                Decoration.node(
+                                    position,
+                                    position + node.nodeSize,
+                                    { id, 'data-report-heading': '' },
+                                ),
+                            );
+                        }
+                    }
+                });
+                return DecorationSet.create(state.doc, decorations);
+            },
+        },
         onCreate: mentionProjectUuid
             ? ({ editor: created }) => hydrateContentMentions(created)
             : undefined,
@@ -158,6 +189,10 @@ export const TiptapMarkdownEditor: FC<Props> = ({
             onChange(updatedEditor.storage.markdown.getMarkdown());
         },
     });
+
+    useEffect(() => {
+        editor?.setEditable(editable, false);
+    }, [editor, editable]);
 
     // Read mode: chips and images are rendered by ProseMirror, so make them
     // focusable/announceable imperatively once they are in the DOM.
