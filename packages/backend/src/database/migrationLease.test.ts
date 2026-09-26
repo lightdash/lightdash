@@ -6,9 +6,11 @@ import {
     type MigrationLeaseIdentity,
 } from './migrationLease';
 import { MIGRATION_LEASE_SCHEMA_SQL } from './migrationLeaseSchema';
+import { MIGRATION_PARK_CLASS_SCHEMA_SQL } from './migrationParkClassSchema';
 import { MIGRATION_RUN_LEDGER_SCHEMA_SQL } from './migrationRunLedgerSchema';
 import { MIGRATION_LEASE_SCHEMA_SQL as FROZEN_MIGRATION_LEASE_SCHEMA_SQL } from './migrations/20260810120000_create_migration_lease';
 import { MIGRATION_RUN_LEDGER_SCHEMA_SQL as FROZEN_MIGRATION_RUN_LEDGER_SCHEMA_SQL } from './migrations/20260811122500_create_migration_run_ledger';
+import { MIGRATION_PARK_CLASS_SCHEMA_SQL as FROZEN_MIGRATION_PARK_CLASS_SCHEMA_SQL } from './migrations/20260924100000_add_migration_lease_parked_error_class';
 
 const identity: MigrationLeaseIdentity = {
     hostname: 'host-a',
@@ -17,6 +19,7 @@ const identity: MigrationLeaseIdentity = {
 };
 
 const startedAt = new Date('2026-08-10T10:00:00.000Z');
+const transientParkCooloffMs = 120_000;
 
 const databaseRow = (
     token: string | null,
@@ -38,6 +41,17 @@ const databaseRow = (
     parked_migration: null,
     parked_error: null,
     parked_run_uuid: null,
+    parked_error_class: null,
+});
+
+const parkedDatabaseRow = (errorClass: 'transient' | 'deterministic') => ({
+    ...databaseRow(null),
+    parked_at: new Date('2026-08-10T10:00:05.000Z'),
+    parked_app_version: identity.appVersion,
+    parked_migration: '002_next.ts',
+    parked_error: 'canceling statement due to lock timeout',
+    parked_run_uuid: '00000000-0000-4000-8000-000000000003',
+    parked_error_class: errorClass,
 });
 
 const runDatabaseRow = (overrides: Record<string, unknown> = {}) => ({
@@ -75,10 +89,12 @@ const handleBootstrap = () => {
     tracker.on.any(/CREATE EXTENSION IF NOT EXISTS "uuid-ossp"/).response([]);
     tracker.on.any(MIGRATION_LEASE_SCHEMA_SQL).response([]);
     tracker.on.any(MIGRATION_RUN_LEDGER_SCHEMA_SQL).response([]);
+    tracker.on.any(MIGRATION_PARK_CLASS_SCHEMA_SQL).response([]);
 };
 
 const handleInitializedSchema = () => {
     tracker.on.any(/information_schema\.tables/).response([{}]);
+    tracker.on.any(/information_schema\.columns/).response([{}]);
 };
 
 beforeAll(() => {
@@ -102,16 +118,22 @@ describe('MigrationLeaseManager', () => {
         expect(MIGRATION_RUN_LEDGER_SCHEMA_SQL).toEqual(
             FROZEN_MIGRATION_RUN_LEDGER_SCHEMA_SQL,
         );
+        expect(MIGRATION_PARK_CLASS_SCHEMA_SQL).toEqual(
+            FROZEN_MIGRATION_PARK_CLASS_SCHEMA_SQL,
+        );
     });
 
     test('uses the runtime schema during bootstrap', async () => {
         handleBootstrap();
         await manager('claim-a').ensureSchema();
-        expect(tracker.history.any).toHaveLength(3);
+        expect(tracker.history.any).toHaveLength(4);
         expect(tracker.history.any[0]?.sql).toContain('uuid-ossp');
         expect(tracker.history.any[1]?.sql).toEqual(MIGRATION_LEASE_SCHEMA_SQL);
         expect(tracker.history.any[2]?.sql).toEqual(
             MIGRATION_RUN_LEDGER_SCHEMA_SQL,
+        );
+        expect(tracker.history.any[3]?.sql).toEqual(
+            MIGRATION_PARK_CLASS_SCHEMA_SQL,
         );
     });
 
@@ -119,7 +141,10 @@ describe('MigrationLeaseManager', () => {
         handleBootstrap();
         tracker.on.update('migration_lease').response([databaseRow('claim-a')]);
 
-        const result = await manager('claim-a').claim(identity);
+        const result = await manager('claim-a').claim(
+            identity,
+            transientParkCooloffMs,
+        );
 
         expect(result.status).toEqual('acquired');
         expect(result.token).toEqual('claim-a');
@@ -144,7 +169,10 @@ describe('MigrationLeaseManager', () => {
             .select('migration_lease')
             .response([{ ...databaseRow('claim-a'), expired: false }]);
 
-        const result = await manager('claim-b').claim(identity);
+        const result = await manager('claim-b').claim(
+            identity,
+            transientParkCooloffMs,
+        );
 
         expect(result).toMatchObject({
             status: 'held',
@@ -181,6 +209,147 @@ describe('MigrationLeaseManager', () => {
             },
         });
         expect(tracker.history.select[0]?.sql).not.toContain('parked_at');
+    });
+
+    test('reads the ledger lease shape before the parked error class column exists', async () => {
+        tracker.on
+            .any((query) => query.bindings.includes('parked_error_class'))
+            .response(false);
+        tracker.on
+            .any((query) => query.bindings.includes('migration_lease'))
+            .response(true);
+        tracker.on
+            .any((query) => query.bindings.includes('migration_run_ledger'))
+            .response(true);
+        const { parked_error_class: parkedErrorClass, ...ledgerRow } =
+            parkedDatabaseRow('deterministic');
+        tracker.on
+            .select('migration_lease')
+            .response([{ ...ledgerRow, expired: false }]);
+
+        const result = await manager('claim-a').read();
+
+        expect(parkedErrorClass).toEqual('deterministic');
+        expect(result).toMatchObject({
+            initialized: true,
+            lease: {
+                parkedAppVersion: identity.appVersion,
+                parkedMigration: '002_next.ts',
+                parkedErrorClass: null,
+            },
+        });
+        expect(tracker.history.select[0]?.sql).toContain('parked_at');
+        expect(tracker.history.select[0]?.sql).not.toContain(
+            'parked_error_class',
+        );
+    });
+
+    test('reads the parked error class when the column exists', async () => {
+        handleInitializedSchema();
+        tracker.on
+            .select('migration_lease')
+            .response([{ ...parkedDatabaseRow('transient'), expired: false }]);
+
+        const result = await manager('claim-a').read();
+
+        expect(result).toMatchObject({
+            initialized: true,
+            lease: {
+                parkedAppVersion: identity.appVersion,
+                parkedErrorClass: 'transient',
+            },
+        });
+        expect(tracker.history.select[0]?.sql).toContain('parked_error_class');
+    });
+
+    test('parks a transient failure and reads the class back', async () => {
+        tracker.on.update('migration_run_ledger').responseOnce([
+            {
+                migration_run_uuid: '00000000-0000-4000-8000-000000000003',
+            },
+        ]);
+        tracker.on
+            .update('migration_lease')
+            .responseOnce([{ lease_key: 'global' }]);
+        handleInitializedSchema();
+        tracker.on
+            .select('migration_lease')
+            .response([{ ...parkedDatabaseRow('transient'), expired: false }]);
+        const leaseManager = manager('claim-a');
+
+        await expect(
+            leaseManager.parkRun(
+                'claim-a',
+                '00000000-0000-4000-8000-000000000003',
+                identity.appVersion,
+                '002_next.ts',
+                'canceling statement due to lock timeout',
+                'transient',
+            ),
+        ).resolves.toBe(true);
+        const result = await leaseManager.read();
+
+        expect(tracker.history.update[1]?.sql).toContain(
+            '"parked_error_class" = ',
+        );
+        expect(tracker.history.update[1]?.bindings).toContain('transient');
+        expect(result.lease?.parkedErrorClass).toEqual('transient');
+    });
+
+    test('lets the same version reclaim only a transient park after the cool-off', async () => {
+        handleBootstrap();
+        tracker.on.update('migration_lease').response([
+            {
+                ...parkedDatabaseRow('transient'),
+                ...databaseRow('claim-a'),
+                parked_at: new Date('2026-08-10T10:00:05.000Z'),
+                parked_app_version: identity.appVersion,
+                parked_error_class: 'transient',
+            },
+        ]);
+
+        const result = await manager('claim-a').claim(
+            identity,
+            transientParkCooloffMs,
+        );
+
+        expect(result).toMatchObject({
+            status: 'acquired',
+            lease: { parkedErrorClass: 'transient' },
+        });
+        const claimSql = tracker.history.update[0]?.sql ?? '';
+        expect(claimSql).toContain('"parked_error_class" = ');
+        expect(claimSql).toContain('"parked_at" <= CURRENT_TIMESTAMP');
+        expect(tracker.history.update[0]?.bindings).toEqual(
+            expect.arrayContaining(['transient', transientParkCooloffMs]),
+        );
+    });
+
+    test('completion and unlock clear the parked error class', async () => {
+        tracker.on.update('migration_run_ledger').responseOnce([
+            {
+                migration_run_uuid: '00000000-0000-4000-8000-000000000002',
+            },
+        ]);
+        tracker.on
+            .update('migration_lease')
+            .responseOnce([{ lease_key: 'global' }]);
+        handleBootstrap();
+        tracker.on.update('migration_lease').responseOnce([databaseRow(null)]);
+        const leaseManager = manager('claim-a');
+
+        await leaseManager.completeRun(
+            'claim-a',
+            '00000000-0000-4000-8000-000000000002',
+        );
+        await leaseManager.unlock('operator@example.com', true);
+
+        expect(tracker.history.update[1]?.sql).toContain(
+            '"parked_error_class" = ',
+        );
+        expect(tracker.history.update[2]?.sql).toContain(
+            '"parked_error_class" = ',
+        );
     });
 
     test('heartbeat renews only the matching token', async () => {
@@ -312,6 +481,7 @@ describe('MigrationLeaseManager', () => {
                 identity.appVersion,
                 '002_next.ts',
                 'deterministic failure',
+                'deterministic',
             ),
         ).resolves.toBe(true);
 
@@ -323,7 +493,11 @@ describe('MigrationLeaseManager', () => {
                 identity.appVersion,
                 '002_next.ts',
                 'deterministic failure',
+                'deterministic',
             ]),
+        );
+        expect(tracker.history.update[4]?.sql).toContain(
+            '"parked_error_class" = ',
         );
     });
 
@@ -344,9 +518,18 @@ describe('MigrationLeaseManager', () => {
                 { ...databaseRow('takeover-token'), expired: false },
             ]);
 
-        const expired = await manager('first-racer').claim(identity);
-        const takeover = await manager('takeover-token').claim(identity);
-        const rerace = await manager('second-racer').claim(identity);
+        const expired = await manager('first-racer').claim(
+            identity,
+            transientParkCooloffMs,
+        );
+        const takeover = await manager('takeover-token').claim(
+            identity,
+            transientParkCooloffMs,
+        );
+        const rerace = await manager('second-racer').claim(
+            identity,
+            transientParkCooloffMs,
+        );
 
         expect(expired).toMatchObject({ status: 'held' });
         expect(takeover).toMatchObject({

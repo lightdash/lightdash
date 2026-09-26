@@ -30,6 +30,7 @@ export type UpgradeEventProperties = {
     attempt: number | null;
     outcome: 'succeeded' | 'parked' | 'retrying' | null;
     failure_class: UpgradeFailureClass | null;
+    error_class: 'transient' | 'deterministic' | null;
     failing_migration: string | null;
     preceded_by_unlock: boolean | null;
     preceding_unlock_forced: boolean | null;
