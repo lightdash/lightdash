@@ -19,6 +19,7 @@ import {
     MIN_RETENTION_WINDOW_HOURS,
 } from '../../types/dataRetention';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
@@ -49,6 +50,7 @@ export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
 export * from './composerViz';
+export * from './composerVizPanel';
 export * from './dashboardContext';
 export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
@@ -1212,6 +1214,11 @@ export type AiArtifactTSOACompat = Omit<
 export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;
 export type ApiAiAgentArtifactResponseTSOACompat =
     ApiSuccess<AiArtifactTSOACompat>;
+
+/** Body of the composer artifact version viz config update; the terminal node's config. */
+export type ApiUpdateComposerVizConfigRequest = {
+    vizConfig: AllVizChartConfig;
+};
 
 export type AiAgentVerifiedArtifact = {
     artifactUuid: string;
