@@ -831,6 +831,16 @@ const scopes: Scope[] = [
         getConditions: () => [],
     },
     {
+        name: 'create:Job@self',
+        description: 'Create background jobs in preview projects you created',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
+        // Bound to the preview itself: `create:Job` is unconditional, so a
+        // Learn trainee holding it on a copy could pass a job check anywhere.
+        getConditions: selfPreviewProjectCondition,
+    },
+    {
         name: 'view:Job',
         description: 'View all job details',
         isEnterprise: false,

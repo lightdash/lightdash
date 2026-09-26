@@ -2566,6 +2566,54 @@ describe('scopeAbilityBuilder', () => {
             return builder.build();
         };
 
+        it('create:Job@self grants job creation only inside the own preview', () => {
+            const ability = buildWith(selfPreviewContext, ['create:Job@self']);
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('Job', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Job', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'another-project',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('create:Job@self grants nothing outside an own preview', () => {
+            const notOwn = buildWith(
+                { ...selfPreviewContext, projectCreatedByUserUuid: 'user2' },
+                ['create:Job@self'],
+            );
+            const notPreview = buildWith(
+                { ...selfPreviewContext, projectType: ProjectType.DEFAULT },
+                ['create:Job@self'],
+            );
+            const orgLevel = buildWith(baseContextWithOrg, ['create:Job@self']);
+
+            [notOwn, notPreview, orgLevel].forEach((ability) => {
+                expect(ability.rules.length).toBe(0);
+                expect(
+                    ability.can(
+                        'create',
+                        subject('Job', {
+                            organizationUuid: 'org-123',
+                            projectUuid: 'project-123',
+                        }),
+                    ),
+                ).toBe(false);
+            });
+        });
+
         it('manage:Dashboard@self grants manage in own preview, bounded to viewable spaces', () => {
             const ability = buildWith(selfPreviewContext, [
                 'manage:Dashboard@self',
