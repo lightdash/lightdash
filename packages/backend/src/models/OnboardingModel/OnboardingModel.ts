@@ -1,4 +1,8 @@
-import { NotFoundError, OnbordingRecord } from '@lightdash/common';
+import {
+    NotFoundError,
+    OnbordingRecord,
+    TooManyRequestsError,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { OnboardingTableName } from '../../database/entities/onboarding';
 import { OrganizationTableName } from '../../database/entities/organizations';
@@ -14,6 +18,10 @@ const TRAINING_PROVISIONING_LOCK_NAMESPACE = 19350429;
 // One training copy at a time per learner: parallel requests would each
 // delete the others' copy and leave several live.
 const TRAINING_COPY_LOCK_NAMESPACE = 19350430;
+/** Advisory-lock namespace for the per-organization training copy slots. */
+const TRAINING_COPY_ORG_SLOT_NAMESPACE = 19350431;
+export const TRAINING_COPY_ORG_LIMIT_MESSAGE =
+    'Your organization is already making its limit of training copies. Try again in a moment';
 
 export class OnboardingModel {
     private database: Knex;
@@ -69,11 +77,25 @@ export class OnboardingModel {
     }
 
     /**
-     * Serialises training copy creation per learner (see
-     * ProjectService.createTrainingPreview).
+     * Serialises training copy creation per learner and caps how many copies
+     * one organization can be making at once (see
+     * ProjectService.createTrainingPreview). The organization cap is a set
+     * of advisory-lock slots taken with `pg_try_advisory_xact_lock`, so it
+     * counts copies actually in flight and releases them with the
+     * transaction however the copy ends. When every slot is held the call
+     * is refused with a 429 rather than queued: a room of learners clicking
+     * Start together should see "try again", not a pile-up.
      */
     async runInTrainingCopyLock<T>(
-        userUuid: string,
+        {
+            userUuid,
+            organizationUuid,
+            maxConcurrentPerOrganization,
+        }: {
+            userUuid: string;
+            organizationUuid: string;
+            maxConcurrentPerOrganization: number;
+        },
         callback: () => Promise<T>,
     ): Promise<T> {
         return this.database.transaction(async (trx) => {
@@ -84,10 +106,34 @@ export class OnboardingModel {
             if (!user) {
                 throw new NotFoundError('Cannot find user');
             }
+            const organization = await trx(OrganizationTableName)
+                .where('organization_uuid', organizationUuid)
+                .select('organization_id')
+                .first();
+            if (!organization) {
+                throw new NotFoundError('Cannot find organization');
+            }
             await trx.raw('SELECT pg_advisory_xact_lock(?, ?)', [
                 TRAINING_COPY_LOCK_NAMESPACE,
                 user.user_id,
             ]);
+            const slots = Math.max(1, Math.floor(maxConcurrentPerOrganization));
+            let acquired = false;
+            // Slots are tried in order; each try is its own round trip.
+            /* eslint-disable no-await-in-loop */
+            for (let slot = 0; slot < slots && !acquired; slot += 1) {
+                const result = await trx.raw<{
+                    rows: { acquired: boolean }[];
+                }>('SELECT pg_try_advisory_xact_lock(?, ?) AS acquired', [
+                    TRAINING_COPY_ORG_SLOT_NAMESPACE,
+                    organization.organization_id * slots + slot,
+                ]);
+                acquired = result.rows[0]?.acquired === true;
+            }
+            /* eslint-enable no-await-in-loop */
+            if (!acquired) {
+                throw new TooManyRequestsError(TRAINING_COPY_ORG_LIMIT_MESSAGE);
+            }
             return callback();
         });
     }

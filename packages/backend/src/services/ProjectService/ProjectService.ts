@@ -12769,11 +12769,17 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // One copy at a time per learner, and not more often than a person
-        // clicks: a copy is a whole project duplicate, and a loop of them is
-        // the cheapest way to load the instance.
+        // One copy at a time per learner, not more often than a person
+        // clicks, and only so many per organization at once: a copy is a
+        // whole project duplicate, and a loop of them is the cheapest way to
+        // load the instance.
         return this.onboardingModel.runInTrainingCopyLock(
-            user.userUuid,
+            {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                maxConcurrentPerOrganization:
+                    ProjectService.TRAINING_COPY_ORG_CONCURRENCY,
+            },
             async () => {
                 const existing = (
                     await this.projectModel.getAllByOrganizationUuid(
@@ -12804,6 +12810,13 @@ export class ProjectService extends BaseService {
     }
 
     private static readonly TRAINING_COPY_COOLDOWN_MS = 15_000;
+
+    /**
+     * Copies one organization may have in flight at once. A copy is a whole
+     * project duplicate, so a workshop clicking Start together is asked to
+     * retry rather than allowed to pile onto the instance.
+     */
+    private static readonly TRAINING_COPY_ORG_CONCURRENCY = 5;
 
     private async makeTrainingCopy(
         user: SessionUser & { organizationUuid: string },
