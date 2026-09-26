@@ -174,6 +174,7 @@ import {
     MIN_RESULTS_CACHE_TTL_SECONDS,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
+    newProjectAbilitySubject,
     normalizeIndexColumns,
     normalizeWarehouseCredentials,
     NotFoundError,
@@ -192,6 +193,7 @@ import {
     preAggregateUtils,
     PreviewExpiresAt,
     Project,
+    projectAbilitySubject,
     ProjectCatalog,
     ProjectContextEntry,
     ProjectDbtSource,
@@ -1250,7 +1252,7 @@ export class ProjectService extends BaseService {
                 if (
                     auditedAbility.can(
                         'create',
-                        subject('Project', {
+                        newProjectAbilitySubject({
                             organizationUuid: user.organizationUuid!,
                             type: ProjectType.DEFAULT,
                         }),
@@ -1285,11 +1287,7 @@ export class ProjectService extends BaseService {
                     if (
                         auditedAbility.cannot(
                             'view',
-                            subject('Project', {
-                                organizationUuid:
-                                    upstreamProject.organizationUuid,
-                                projectUuid: upstreamProject.projectUuid,
-                            }),
+                            projectAbilitySubject(upstreamProject),
                         )
                     ) {
                         throw new ForbiddenError(
@@ -1327,7 +1325,7 @@ export class ProjectService extends BaseService {
                         // checks if user has permission to create project from an upstream project on a project level
                         auditedAbility.can(
                             'create',
-                            subject('Project', {
+                            newProjectAbilitySubject({
                                 organizationUuid:
                                     upstreamProject.organizationUuid,
                                 upstreamProjectUuid:
@@ -1349,7 +1347,7 @@ export class ProjectService extends BaseService {
                     // checks if user has permission to create project on an organization level
                     auditedAbility.can(
                         'create',
-                        subject('Project', {
+                        newProjectAbilitySubject({
                             organizationUuid: user.organizationUuid!,
                             type: ProjectType.PREVIEW,
                         }),
@@ -4678,7 +4676,7 @@ export class ProjectService extends BaseService {
                 'Internal analytics configuration is managed by the backend',
             );
         const auditedAbility = this.createAuditedAbility(account);
-        if (auditedAbility.cannot('update', subject('Project', project))) {
+        if (auditedAbility.cannot('update', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
 
@@ -4836,7 +4834,7 @@ export class ProjectService extends BaseService {
             if (
                 auditedAbility.cannot(
                     'update',
-                    subject('Project', updatedProject),
+                    projectAbilitySubject(updatedProject),
                 )
             ) {
                 throw new ForbiddenError();
@@ -5380,7 +5378,9 @@ export class ProjectService extends BaseService {
             const stored = await this.projectModel.getWithSensitiveFields(
                 body.projectUuid,
             );
-            if (auditedAbility.cannot('update', subject('Project', stored))) {
+            if (
+                auditedAbility.cannot('update', projectAbilitySubject(stored))
+            ) {
                 throw new ForbiddenError();
             }
             // A switched-but-unsaved warehouse type can't be merged with stored
@@ -13190,7 +13190,10 @@ export class ProjectService extends BaseService {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
-            auditedAbility.cannot('manage', subject('Project', projectSummary))
+            auditedAbility.cannot(
+                'manage',
+                projectAbilitySubject(projectSummary),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -13322,7 +13325,7 @@ export class ProjectService extends BaseService {
     ): Promise<UserWarehouseCredentials | undefined> {
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('Project', project))) {
+        if (auditedAbility.cannot('view', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
         const credentials =
@@ -13346,7 +13349,7 @@ export class ProjectService extends BaseService {
     }> {
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('Project', project))) {
+        if (auditedAbility.cannot('view', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
         const credentials =
@@ -13369,7 +13372,7 @@ export class ProjectService extends BaseService {
     ): Promise<UserWarehouseCredentials[]> {
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('Project', project))) {
+        if (auditedAbility.cannot('view', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
         return this.userWarehouseCredentialsModel.getAllByUserUuidForProject(
@@ -13731,7 +13734,7 @@ export class ProjectService extends BaseService {
         const project = await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('update', subject('Project', project))) {
+        if (auditedAbility.cannot('update', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
 
@@ -13762,7 +13765,7 @@ export class ProjectService extends BaseService {
         const project = await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (auditedAbility.cannot('update', subject('Project', project))) {
+        if (auditedAbility.cannot('update', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
 
@@ -13777,7 +13780,7 @@ export class ProjectService extends BaseService {
         const project = await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (auditedAbility.cannot('update', subject('Project', project))) {
+        if (auditedAbility.cannot('update', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
 
@@ -13819,7 +13822,7 @@ export class ProjectService extends BaseService {
         const project = await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('update', subject('Project', project))) {
+        if (auditedAbility.cannot('update', projectAbilitySubject(project))) {
             throw new ForbiddenError();
         }
 
