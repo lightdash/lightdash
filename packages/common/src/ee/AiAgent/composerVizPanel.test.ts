@@ -223,18 +223,27 @@ describe('edits', () => {
         expect(removeComposerVizY(one, 0)).toEqual(one);
     });
 
-    test('a value sort follows the first y through y edits', () => {
-        const sorted = setComposerVizSort(
-            addComposerVizY(line(), columns),
-            'value_desc',
-        );
-        expect(getComposerVizSort(sorted)).toBe('value_desc');
-        expect(fieldConfig(sorted).sortBy?.[0].reference).toBe('revenue');
-        const removed = removeComposerVizY(sorted, 0);
-        expect(fieldConfig(removed).sortBy?.[0].reference).toBe('orders');
-        const unsorted = setComposerVizSort(removed, 'x_order');
-        expect(getComposerVizSort(unsorted)).toBe('x_order');
-        expect(fieldConfig(unsorted)).not.toHaveProperty('sortBy');
+    test('a sort orders the x axis and goes when x changes', () => {
+        const sorted = setComposerVizSort(line(), SortByDirection.DESC);
+        expect(getComposerVizSort(sorted)).toBe(SortByDirection.DESC);
+        expect(fieldConfig(sorted).sortBy).toEqual([
+            { reference: 'month', direction: SortByDirection.DESC },
+        ]);
+        // y edits leave it alone.
+        const withTwo = addComposerVizY(sorted, columns);
+        expect(getComposerVizSort(withTwo)).toBe(SortByDirection.DESC);
+        const moved = setComposerVizX(withTwo, 'region', columns);
+        expect(getComposerVizSort(moved)).toBeNull();
+        expect(fieldConfig(moved)).not.toHaveProperty('sortBy');
+        const cleared = setComposerVizSort(sorted, null);
+        expect(getComposerVizSort(cleared)).toBeNull();
+        expect(fieldConfig(cleared)).not.toHaveProperty('sortBy');
+    });
+
+    test('a big number drops the sort with its x', () => {
+        const sorted = setComposerVizSort(line(), SortByDirection.ASC);
+        const big = switchComposerVizKind(sorted, 'big_number', edit);
+        expect(fieldConfig(big)).not.toHaveProperty('sortBy');
     });
 
     test('a split is set and cleared', () => {
@@ -406,7 +415,7 @@ describe('summary and rendering helpers', () => {
         ).toBeNull();
     });
 
-    test('a pivot is needed for a split, an aggregation or a value sort', () => {
+    test('a pivot is needed for a split, an aggregation or a sort', () => {
         expect(composerVizNeedsPivot(layout())).toBe(false);
         expect(
             composerVizNeedsPivot(
