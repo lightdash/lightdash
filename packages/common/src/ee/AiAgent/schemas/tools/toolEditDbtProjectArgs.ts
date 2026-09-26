@@ -32,86 +32,88 @@ export const toolEditDbtProjectArgsSchema = z.object({
         ),
 });
 
+export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
+    z.object({
+        status: z.literal('pending'),
+        aiWritebackRunUuid: z.string(),
+    }),
+    z.object({
+        status: z.literal('success'),
+        prUrl: z.string().nullable(),
+        // Nullish, not required: tool-call metadata is persisted, so cards
+        // rendered from rows written before this field existed must still
+        // parse. Absent/null is treated as 'opened' by the renderer.
+        prAction: z.enum(['opened', 'updated']).nullish(),
+        // Head commit SHA this turn pushed. The card pins its CI checks to
+        // this SHA so a follow-up turn's commit doesn't retroactively change
+        // an earlier card. Nullish: absent on rows persisted before this
+        // existed (and when no commit was made) — the card then falls back
+        // to the PR's live head.
+        commitSha: z.string().nullish(),
+        // Lines this turn's commit added/removed, shown colour-coded on the
+        // card. Nullish for back-compat and no-commit turns.
+        additions: z.number().nullish(),
+        deletions: z.number().nullish(),
+        // Lightdash preview-environment URL, generated server-side for the
+        // PR and surfaced as the card's "View preview" button. Nullish: the
+        // run made no preview (non-GitHub, or creation failed) or the row
+        // predates this field. Replaces the old PR-comment scraping.
+        previewUrl: z.string().nullish(),
+        // Ordered actions the sandbox took, surfaced as persistent step
+        // rows under the writeback tool call. Generic shape (kind + label)
+        // so the chat UI can group/render them without writeback knowledge.
+        // Nullish for back-compat with rows persisted before this existed.
+        steps: z
+            .array(
+                z.object({
+                    kind: z.enum([
+                        'read',
+                        'edit',
+                        'search',
+                        'compile',
+                        'stage',
+                    ]),
+                    label: z.string(),
+                }),
+            )
+            .nullish(),
+        needsDbtSourceSelection: z.boolean().nullish(),
+        dbtSourceOptions: z
+            .array(
+                z.object({
+                    projectDbtSourceUuid: z.string(),
+                    name: z.string(),
+                    isPrimary: z.boolean(),
+                    repository: z.string().nullable(),
+                    branch: z.string().nullable(),
+                    projectSubPath: z.string().nullable(),
+                }),
+            )
+            .nullish(),
+    }),
+    z.object({
+        status: z.literal('error'),
+        // Classifies the failure so the client can render a specific,
+        // actionable error state instead of a generic "it failed". Nullish,
+        // not required: persisted tool-call rows written before this field
+        // existed must still parse — absent/null is treated as 'unknown'.
+        errorCode: z
+            .enum([
+                'github_not_installed',
+                'gitlab_not_installed',
+                'bitbucket_token_missing',
+                'unsupported_source_control',
+                'pull_request_not_open',
+                'git_write_permission',
+                'unknown',
+            ])
+            .nullish(),
+    }),
+]);
+
 export const toolEditDbtProjectOutputSchema = z.object({
     result: z.string(),
-    metadata: z.discriminatedUnion('status', [
-        z.object({
-            status: z.literal('pending'),
-            aiWritebackRunUuid: z.string(),
-        }),
-        z.object({
-            status: z.literal('success'),
-            prUrl: z.string().nullable(),
-            // Nullish, not required: tool-call metadata is persisted, so cards
-            // rendered from rows written before this field existed must still
-            // parse. Absent/null is treated as 'opened' by the renderer.
-            prAction: z.enum(['opened', 'updated']).nullish(),
-            // Head commit SHA this turn pushed. The card pins its CI checks to
-            // this SHA so a follow-up turn's commit doesn't retroactively change
-            // an earlier card. Nullish: absent on rows persisted before this
-            // existed (and when no commit was made) — the card then falls back
-            // to the PR's live head.
-            commitSha: z.string().nullish(),
-            // Lines this turn's commit added/removed, shown colour-coded on the
-            // card. Nullish for back-compat and no-commit turns.
-            additions: z.number().nullish(),
-            deletions: z.number().nullish(),
-            // Lightdash preview-environment URL, generated server-side for the
-            // PR and surfaced as the card's "View preview" button. Nullish: the
-            // run made no preview (non-GitHub, or creation failed) or the row
-            // predates this field. Replaces the old PR-comment scraping.
-            previewUrl: z.string().nullish(),
-            // Ordered actions the sandbox took, surfaced as persistent step
-            // rows under the writeback tool call. Generic shape (kind + label)
-            // so the chat UI can group/render them without writeback knowledge.
-            // Nullish for back-compat with rows persisted before this existed.
-            steps: z
-                .array(
-                    z.object({
-                        kind: z.enum([
-                            'read',
-                            'edit',
-                            'search',
-                            'compile',
-                            'stage',
-                        ]),
-                        label: z.string(),
-                    }),
-                )
-                .nullish(),
-            needsDbtSourceSelection: z.boolean().nullish(),
-            dbtSourceOptions: z
-                .array(
-                    z.object({
-                        projectDbtSourceUuid: z.string(),
-                        name: z.string(),
-                        isPrimary: z.boolean(),
-                        repository: z.string().nullable(),
-                        branch: z.string().nullable(),
-                        projectSubPath: z.string().nullable(),
-                    }),
-                )
-                .nullish(),
-        }),
-        z.object({
-            status: z.literal('error'),
-            // Classifies the failure so the client can render a specific,
-            // actionable error state instead of a generic "it failed". Nullish,
-            // not required: persisted tool-call rows written before this field
-            // existed must still parse — absent/null is treated as 'unknown'.
-            errorCode: z
-                .enum([
-                    'github_not_installed',
-                    'gitlab_not_installed',
-                    'bitbucket_token_missing',
-                    'unsupported_source_control',
-                    'pull_request_not_open',
-                    'git_write_permission',
-                    'unknown',
-                ])
-                .nullish(),
-        }),
-    ]),
+    metadata: toolEditDbtProjectMetadataSchema,
 });
 
 export type ToolEditDbtProjectArgs = z.infer<
@@ -124,5 +126,5 @@ export type ToolEditDbtProjectOutput = z.infer<
 
 export const isToolEditDbtProjectResult = makeBuiltInToolResultGuard(
     'editDbtProject',
-    toolEditDbtProjectOutputSchema.shape.metadata,
+    toolEditDbtProjectMetadataSchema,
 );

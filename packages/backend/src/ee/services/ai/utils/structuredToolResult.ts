@@ -1,9 +1,10 @@
+import type { ToolErrorStructuredContent } from '@lightdash/common';
+
 /**
- * Shared envelope for structured tool executors (grepFields, getMetadata, …):
- * the human-readable `result` text, the tool `metadata`, and the machine-readable
- * `structuredContent` MCP surfaces as `structuredContent`. Kept generic over the
- * metadata shape so tools can attach their own diagnostics (e.g. grep's
- * patternStats) without each redefining the wrapper.
+ * Success envelope of an agent tool: the model-facing `result` text, the tool
+ * `metadata`, and the machine-readable `structuredContent` (also what MCP
+ * surfaces as `structuredContent`). Generic over the metadata shape so tools
+ * can attach their own diagnostics (e.g. grep's patternStats).
  */
 export type ExecuteStructuredToolResult<
     TStructuredContent,
@@ -12,4 +13,11 @@ export type ExecuteStructuredToolResult<
     result: string;
     metadata: TMetadata;
     structuredContent: TStructuredContent;
+};
+
+/** Failure envelope: `structuredContent` mirrors the error text as `{ error }`. */
+export type ExecuteToolErrorResult<TMetadata = { status: 'error' }> = {
+    result: string;
+    metadata: TMetadata;
+    structuredContent: ToolErrorStructuredContent;
 };
