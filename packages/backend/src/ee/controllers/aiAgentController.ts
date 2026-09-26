@@ -72,6 +72,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
     ApiUpdateAiMcpServerCredentialBody,
+    ApiUpdateComposerVizConfigRequest,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
@@ -2076,6 +2077,44 @@ export class AiAgentController extends BaseController {
                 artifactUuid,
                 versionUuid,
                 verified: body.verified,
+            },
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-config',
+    )
+    @OperationId('updateArtifactVersionVizConfig')
+    async updateArtifactVersionVizConfig(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+        @Body() body: ApiUpdateComposerVizConfigRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateComposerArtifactVizConfig(
+            toSessionUser(req.account),
+            {
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                vizConfig: body.vizConfig,
             },
         );
 
