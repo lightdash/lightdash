@@ -5519,7 +5519,9 @@ export class ProjectService extends BaseService {
                     candidate.upstreamProjectUuid === projectUuid,
             );
             await Promise.all(
-                copies.map((copy) => this.deleteTrainingCopy(copy.projectUuid)),
+                copies.map((copy) =>
+                    this.deletePreviewAndAppFiles(copy.projectUuid),
+                ),
             );
         }
 
@@ -5560,7 +5562,10 @@ export class ProjectService extends BaseService {
 
         const results = await Promise.allSettled(
             expiredProjects.map(({ projectUuid }) =>
-                this.projectModel.delete(projectUuid).then(() => {
+                // A preview can carry copied data apps (every training copy
+                // does); deleting the rows alone leaves their bundles in the
+                // bucket for good.
+                this.deletePreviewAndAppFiles(projectUuid).then(() => {
                     this.logger.info(
                         `Deleted expired preview project: ${projectUuid}`,
                     );
@@ -12990,30 +12995,36 @@ export class ProjectService extends BaseService {
                 project.createdByUserUuid === user.userUuid,
         );
         await Promise.all(
-            copies.map((copy) => this.deleteTrainingCopy(copy.projectUuid)),
+            copies.map((copy) =>
+                this.deletePreviewAndAppFiles(copy.projectUuid),
+            ),
         );
         this.userModel.invalidateSessionUserCache(user.userUuid);
         return { deleted: copies.length };
     }
 
     /**
-     * Remove a training copy and the app files it duplicated into the
-     * bucket, which deleting the project rows alone would leave behind.
+     * Remove a preview (a training copy, or any preview that aged out) and
+     * the app files it duplicated into the bucket, which deleting the
+     * project rows alone would leave behind. A bucket failure is reported
+     * but never keeps the project alive.
      */
-    private async deleteTrainingCopy(copyProjectUuid: string): Promise<void> {
+    private async deletePreviewAndAppFiles(
+        previewProjectUuid: string,
+    ): Promise<void> {
         try {
             await this.getAppGenerateService?.()?.deleteProjectAppFiles(
-                copyProjectUuid,
+                previewProjectUuid,
             );
         } catch (error) {
             Sentry.captureException(error);
             this.logger.warn(
-                `Could not remove the app files of training copy ${copyProjectUuid}: ${
+                `Could not remove the app files of preview ${previewProjectUuid}: ${
                     error instanceof Error ? error.message : String(error)
                 }`,
             );
         }
-        await this.projectModel.delete(copyProjectUuid);
+        await this.projectModel.delete(previewProjectUuid);
     }
 
     /*
