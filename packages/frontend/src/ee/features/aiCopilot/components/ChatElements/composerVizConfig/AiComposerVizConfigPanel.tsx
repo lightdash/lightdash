@@ -157,7 +157,7 @@ export const AiComposerVizConfigPanel: FC<Props> = ({
                                     position="top"
                                     withinPortal
                                 >
-                                    <Box>
+                                    <Box className={styles.fieldRows}>
                                         <AiComposerVizFieldRows
                                             value={value}
                                             columns={columns}

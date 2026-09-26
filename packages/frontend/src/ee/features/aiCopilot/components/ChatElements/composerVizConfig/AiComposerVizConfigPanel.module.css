@@ -55,3 +55,8 @@
 .emptySelect input {
     border-style: dashed;
 }
+
+/* Field selects stay readable instead of stretching across a wide panel. */
+.fieldRows {
+    max-width: 24rem;
+}
