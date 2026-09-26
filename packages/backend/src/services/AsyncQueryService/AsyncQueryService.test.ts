@@ -9129,6 +9129,251 @@ describe('saved chart query result access', () => {
     );
 });
 
+describe('saved SQL chart query result access', () => {
+    const buildFixture = (
+        accountOptions: Parameters<typeof buildAccount>[0] = {},
+    ) => {
+        const account = buildAccount(accountOptions);
+        account.user.ability = new Ability<PossibleAbilities>([
+            {
+                subject: 'Project',
+                action: 'view',
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: {
+                    access: { $elemMatch: { userUuid: account.user.id } },
+                },
+            },
+        ]);
+        const history: QueryHistory = {
+            queryUuid: 'source-query-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.SQL_CHART,
+            status: QueryHistoryStatus.READY,
+            requestParameters: {
+                query: metricQueryMock,
+                savedSqlUuid: 'source-sql-chart-uuid',
+            },
+            metricQuery: metricQueryMock,
+            fields: validExplore.tables.a.dimensions,
+            columns: expectedColumns,
+            resultsFileName: 'results.jsonl',
+            resultsExpiresAt: new Date(Date.now() + 60_000),
+            totalRowCount: 1,
+            defaultPageSize: 10,
+            createdAt: new Date(),
+            createdBy: account.user.id,
+            createdByUserUuid: account.user.id,
+            createdByAccount: null,
+            createdByActorType: account.authentication.type,
+            warehouseQueryId: null,
+            warehouseQueryMetadata: null,
+            compiledSql: 'select 1',
+            usedParameters: null,
+            warehouseExecutionTimeMs: null,
+            error: null,
+            erroredAt: null,
+            cacheKey: 'cache-key',
+            pivotConfiguration: null,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+            resultsCreatedAt: new Date(),
+            resultsUpdatedAt: new Date(),
+            originalColumns: expectedColumns,
+            preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
+            processingStartedAt: null,
+        };
+        const getSqlChart = vi.fn().mockResolvedValue({
+            savedSqlUuid: 'source-sql-chart-uuid',
+            project: { projectUuid },
+            organization: {
+                organizationUuid: projectSummary.organizationUuid,
+            },
+            space: { uuid: 'current-space-uuid' },
+        });
+        const resolveAccess = vi.fn().mockResolvedValue({
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+            directOnly: false,
+        });
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedSqlModel: { getByUuid: getSqlChart } as never,
+            spacePermissionService: { resolveAccess } as never,
+        } as never);
+        service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);
+        service.exportsStorageClient = {
+            isEnabled: () => true,
+        } as FileStorageClient;
+        vi.spyOn(
+            service as unknown as {
+                downloadAsyncQueryResultsAsFormattedFile: () => Promise<{
+                    fileUrl: string;
+                    truncated: boolean;
+                }>;
+            },
+            'downloadAsyncQueryResultsAsFormattedFile',
+        ).mockResolvedValue({ fileUrl: 'export.csv', truncated: false });
+        return { account, service, history, getSqlChart, resolveAccess };
+    };
+
+    const readOrDownload = (
+        service: AsyncQueryService,
+        account: Account,
+        operation: 'read' | 'download',
+    ) => {
+        const args = { account, projectUuid, queryUuid: 'source-query-uuid' };
+        return operation === 'read'
+            ? service.getAsyncQueryResults(args)
+            : service.download({
+                  ...args,
+                  type: DownloadFileType.CSV,
+                  accessMode:
+                      PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+              });
+    };
+
+    describe.each(['read', 'download'] as const)('%s', (operation) => {
+        it('denies results after the source SQL chart grant is revoked', async () => {
+            const { account, service } = buildFixture();
+            await expect(
+                readOrDownload(service, account, operation),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('allows results while SQL chart source access remains', async () => {
+            const { account, service, resolveAccess } = buildFixture();
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [{ userUuid: account.user.id, role: 'viewer' }],
+            });
+            await expect(
+                readOrDownload(service, account, operation),
+            ).resolves.toBeDefined();
+        });
+    });
+
+    it('resolves the saved SQL chart identified by the request parameters', async () => {
+        const { account, service, getSqlChart } = buildFixture();
+        await expect(readOrDownload(service, account, 'read')).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(getSqlChart).toHaveBeenCalledWith('source-sql-chart-uuid', {
+            projectUuid,
+        });
+    });
+});
+
+describe('saved SQL chart execution persists chart identity', () => {
+    const buildSqlChart = (savedSqlUuid: string) => ({
+        savedSqlUuid,
+        project: { projectUuid },
+        organization: { organizationUuid: projectSummary.organizationUuid },
+        space: { uuid: 'current-space-uuid' },
+        dashboardUuid: null,
+        sql: 'select 1',
+        config: {},
+        limit: 500,
+    });
+
+    const mockExecutionInternals = (service: AsyncQueryService) => {
+        vi.spyOn(
+            service as AnyType,
+            'assertSavedChartAccess',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(
+            service as AnyType,
+            'prepareSqlChartAsyncQueryArgs',
+        ).mockResolvedValue({
+            warehouseConnection: { sshTunnel: { disconnect: vi.fn() } },
+            warehouseCredentials: {},
+            queryTags: {},
+            metricQuery: metricQueryMock,
+            queryComposer: {} as AnyType,
+            originalColumns: expectedColumns,
+            parameterReferences: [],
+            usedParameters: {},
+            appliedDashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        return vi
+            .spyOn(service as AnyType, 'executeAsyncQuery')
+            .mockResolvedValue({
+                queryUuid: 'executed-query-uuid',
+                cacheMetadata: {},
+            });
+    };
+
+    it('passes the chart uuid down to query history for a standalone SQL chart run', async () => {
+        const getSqlChart = vi
+            .fn()
+            .mockResolvedValue(buildSqlChart('source-sql-chart-uuid'));
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedSqlModel: { getByUuid: getSqlChart } as never,
+        } as never);
+        const execute = mockExecutionInternals(service);
+
+        await service.executeAsyncSqlChartQuery({
+            account: sessionAccount,
+            projectUuid,
+            savedSqlUuid: 'source-sql-chart-uuid',
+            context: QueryExecutionContext.SQL_CHART,
+        });
+
+        expect(execute).toHaveBeenCalledOnce();
+        const persistedParameters = execute.mock.calls[0][1];
+        expect(persistedParameters).toMatchObject({
+            savedSqlUuid: 'source-sql-chart-uuid',
+        });
+    });
+
+    it('passes the chart uuid down to query history for a dashboard SQL chart run', async () => {
+        const getSqlChart = vi
+            .fn()
+            .mockResolvedValue(
+                buildSqlChart('source-dashboard-sql-chart-uuid'),
+            );
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedSqlModel: { getByUuid: getSqlChart } as never,
+            dashboardModel: {
+                getDashboardParametersByIdOrSlug: vi.fn().mockResolvedValue([]),
+            } as never,
+        } as never);
+        const execute = mockExecutionInternals(service);
+
+        await service.executeAsyncDashboardSqlChartQuery({
+            account: sessionAccount,
+            projectUuid,
+            savedSqlUuid: 'source-dashboard-sql-chart-uuid',
+            dashboardUuid: 'dashboard-uuid',
+            tileUuid: 'tile-uuid',
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardSorts: [],
+            context: QueryExecutionContext.DASHBOARD,
+        });
+
+        expect(execute).toHaveBeenCalledOnce();
+        const persistedParameters = execute.mock.calls[0][1];
+        expect(persistedParameters).toMatchObject({
+            savedSqlUuid: 'source-dashboard-sql-chart-uuid',
+        });
+    });
+});
+
 describe('getQueryHistoryList', () => {
     const buildService = (
         counts: Awaited<ReturnType<QueryHistoryModel['getUserHistoryCounts']>>,

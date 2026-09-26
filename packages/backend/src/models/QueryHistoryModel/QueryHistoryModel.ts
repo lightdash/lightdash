@@ -942,7 +942,7 @@ export function mapQueryHistoryRowToListItem(
                 : null,
         savedSqlUuid:
             row.request_parameters && 'savedSqlUuid' in row.request_parameters
-                ? row.request_parameters.savedSqlUuid
+                ? (row.request_parameters.savedSqlUuid ?? null)
                 : null,
         dashboardName: row.dashboard_name,
         dashboardUuid:

@@ -35,6 +35,9 @@ export type ExecuteAsyncMetricQueryRequestParams =
         // dropped silently — an app may run queries against multiple explores
         // and one mismatch shouldn't break the others.
         dashboardFilters?: DashboardFilters;
+        // Set when this metric query wraps a saved SQL chart's SQL: the
+        // chart's identity, rechecked on every result read.
+        savedSqlUuid?: string;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =
