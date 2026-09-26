@@ -137,4 +137,22 @@ describe('LearnWorkspaceModel', () => {
         expect(q.sql).toMatch(/returning/i);
         expect(q.bindings).toEqual(expect.arrayContaining(['error', cutoff]));
     });
+    it('counts live commands for the learner and the organization in one query', async () => {
+        tracker.on
+            .select((query) => query.sql.includes('learn_commands'))
+            .response([{ for_user: '1', for_organization: '3' }]);
+        const staleCutoff = new Date('2026-09-26T09:00:00Z');
+        const counts = await model.countActiveCommands({
+            userUuid: 'u1',
+            organizationUuid: 'org-1',
+            staleCutoff,
+        });
+        expect(counts).toEqual({ forUser: 1, forOrganization: 3 });
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain('projects');
+        expect(query.sql).toContain('organizations');
+        expect(query.bindings).toEqual(
+            expect.arrayContaining(['u1', 'org-1', staleCutoff]),
+        );
+    });
 });
