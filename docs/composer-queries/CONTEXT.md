@@ -78,11 +78,19 @@ node results have no viz config and start from their column types.
 _Avoid_: viz plan, presentation, chart config (the classic vocabulary)
 
 **Viz switcher**:
-The control on a displayed node result that picks how it renders: table or a
-chart kind. The choice is per node and ephemeral. It starts from the viz
-config on the terminal node, else from a default picked from the result's
-column types.
+The kind control in the viz config panel: table or a chart kind. On the
+terminal node it edits the stored viz config's kind; on other nodes the choice
+is ephemeral. It starts from the viz config on the terminal node, else from a
+default picked from the result's column types. The floating pill is retired.
 _Avoid_: chart type selector, visualization toggle, view mode
+
+**Viz config panel**:
+The collapsible "Chart" section above the pipeline panel that shows and edits
+the displayed node's viz config: kind, x axis, y values with aggregation and
+series split. On the terminal node every edit is written back to the artifact
+version; other nodes get the viz switcher alone. Only one of it and the
+pipeline panel is open at a time.
+_Avoid_: chart settings, config sidebar, viz sidebar
 
 **Composer artifact**:
 The chart artifact a successful composer query creates: the displayed node's
