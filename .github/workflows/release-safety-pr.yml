@@ -15,6 +15,13 @@ name: Release-safety preview
 # at all: the committed spec is a release-time artifact, identical on both sides
 # of every PR diff, and diffing it against itself reports "no breaking changes"
 # for an API break it never looked at.
+#
+# AE-949: a TypeSafe Jev screen classifies which expensive PR-time API checks
+# may be skipped. It starts in shadow mode, so every effective decision remains
+# `run` while probabilities are collected. `RELEASE_SAFETY_JEV_GATE=enforce`
+# enables skips. Missing credentials, errors and uncertain answers all run the
+# deterministic checks. The release-time marker remains unchanged and always
+# runs the complete checks.
 
 # SPK-857 / SPK-1015: no `paths:` filter here, deliberately. This has now been
 # removed twice — #26995 took it out for SPK-857 and #27139 put it back, leaving
@@ -68,6 +75,10 @@ jobs:
       base_sha: ${{ steps.base.outputs.sha }}
       base_short: ${{ steps.base.outputs.short }}
       openapi: ${{ steps.filter.outputs.release_safety_api }}
+      gate_rest_api: ${{ steps.jev-gate.outputs.gate_rest_api || 'run' }}
+      gate_db_schema: ${{ steps.jev-gate.outputs.gate_db_schema || 'run' }}
+      gate_mcp_tools: ${{ steps.jev-gate.outputs.gate_mcp_tools || 'run' }}
+      gate_json: ${{ steps.jev-gate.outputs.gate_json || '{}' }}
       # 'true' only on an `edited` event whose head+base the sticky comment
       # already describes — empty when the fresh step is skipped, so downstream
       # `!= 'true'` gates default to running.
@@ -142,6 +153,7 @@ jobs:
               - 'scripts/release-safety-declarations.ts'
               - 'scripts/release-safety-declarations.schema.json'
               - 'scripts/release-safety-pr-gate.ts'
+              - 'scripts/release-safety-jev-gate.ts'
               - 'scripts/upgrade-overrides.ts'
               - 'scripts/release-safety-pr-comment.ts'
               - '.github/file-filters.yml'
@@ -242,6 +254,89 @@ jobs:
           BASE=$(git merge-base FETCH_HEAD HEAD)
           echo "sha=${BASE}" >> "$GITHUB_OUTPUT"
           echo "short=$(git rev-parse --short "${BASE}")" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether TypeSafe is available
+        id: typesafe
+        if: steps.watched.outputs.watched == 'true'
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          if [ -n "${TYPESAFE_API_KEY}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "TypeSafe secret is unavailable; the Jev gate is skipped and every surface runs."
+          fi
+
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        if: steps.watched.outputs.watched == 'true' && steps.typesafe.outputs.available == 'true'
+        with:
+          cache: true
+          install: false
+
+      - name: Install Jev gate dependencies
+        if: steps.watched.outputs.watched == 'true' && steps.typesafe.outputs.available == 'true'
+        run: pnpm install --frozen-lockfile --filter . --network-concurrency=16
+
+      - name: Jev gate
+        id: jev-gate
+        if: steps.watched.outputs.watched == 'true' && steps.typesafe.outputs.available == 'true'
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          RELEASE_SAFETY_JEV_GATE: ${{ vars.RELEASE_SAFETY_JEV_GATE || 'shadow' }}
+        run: |
+          set -euo pipefail
+          MODE="${RELEASE_SAFETY_JEV_GATE}"
+          if [ "${MODE}" != "shadow" ] && [ "${MODE}" != "enforce" ]; then
+            echo "::warning::RELEASE_SAFETY_JEV_GATE must be shadow or enforce; using shadow"
+            MODE="shadow"
+          fi
+          pnpm exec tsx scripts/release-safety-jev-gate.ts \
+            --base "${{ steps.base.outputs.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --mode "${MODE}" \
+            --out /tmp/release-safety-jev-gate.json
+          node <<'NODE'
+          const fs = require('fs');
+          const gate = JSON.parse(fs.readFileSync('/tmp/release-safety-jev-gate.json', 'utf8'));
+          const output = process.env.GITHUB_OUTPUT;
+          const summary = process.env.GITHUB_STEP_SUMMARY;
+          const rows = [
+            ['rest_api', 'rest_api_may_change'],
+            ['db_schema', 'db_schema_may_change'],
+            ['mcp_tools', 'mcp_tools_may_change'],
+          ];
+          const proposed = gate.shadow_decisions || gate.decisions;
+          fs.appendFileSync(output, `gate_rest_api=${gate.decisions.rest_api}\n`);
+          fs.appendFileSync(output, `gate_db_schema=${gate.decisions.db_schema}\n`);
+          fs.appendFileSync(output, `gate_mcp_tools=${gate.decisions.mcp_tools}\n`);
+          fs.appendFileSync(output, `gate_json=${JSON.stringify(gate)}\n`);
+          const table = [
+            '### Release-safety Jev gate',
+            '',
+            `Mode: \`${gate.mode}\` · Model: \`${gate.model}\` · Latency: ${gate.latencyMs} ms · Input: ${gate.inputTokens} tokens`,
+            '',
+            '| Surface | Probability | Decision | Effective |',
+            '|---|---:|---|---|',
+            ...rows.map(([surface, question]) => {
+              const probability = gate.probabilities[question];
+              const rendered = probability === null ? 'n/a' : probability.toFixed(4);
+              return `| ${surface} | ${rendered} | ${proposed[surface]} | ${gate.decisions[surface]} |`;
+            }),
+            '',
+            `Reasons: ${gate.reasons.join('; ')}`,
+            '',
+          ].join('\n');
+          fs.appendFileSync(summary, table);
+          NODE
+
+      - name: Upload the Jev gate record
+        if: steps.jev-gate.outcome == 'success'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: release-safety-jev-gate.json
+          path: /tmp/release-safety-jev-gate.json
+          retention-days: 30
 
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
@@ -356,7 +451,7 @@ jobs:
   openapi-specs:
     name: Generate API snapshots
     needs: changes
-    if: needs.changes.outputs.open == 'true' && needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true'
+    if: needs.changes.outputs.open == 'true' && needs.changes.outputs.openapi == 'true' && needs.changes.outputs.fresh != 'true' && (needs.changes.outputs.gate_rest_api != 'skip' || needs.changes.outputs.gate_mcp_tools != 'skip')
     runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 30
     env:
@@ -493,11 +588,19 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ needs.openapi-specs.result }}" = "success" ]; then
-            echo "expected=true" >> "$GITHUB_OUTPUT"
-            echo "flags=--rest-base-spec /tmp/api-snapshots/base-swagger.json --rest-new-spec /tmp/api-snapshots/pr-swagger.json --mcp-base-snapshot /tmp/api-snapshots/base-mcp-tools.json --mcp-new-snapshot /tmp/api-snapshots/pr-mcp-tools.json" >> "$GITHUB_OUTPUT"
+            if [ "${{ needs.changes.outputs.gate_rest_api }}" != "skip" ]; then
+              echo "rest_flags=--rest-base-spec /tmp/api-snapshots/base-swagger.json --rest-new-spec /tmp/api-snapshots/pr-swagger.json" >> "$GITHUB_OUTPUT"
+            else
+              echo "rest_flags=" >> "$GITHUB_OUTPUT"
+            fi
+            if [ "${{ needs.changes.outputs.gate_mcp_tools }}" != "skip" ]; then
+              echo "mcp_flags=--mcp-base-snapshot /tmp/api-snapshots/base-mcp-tools.json --mcp-new-snapshot /tmp/api-snapshots/pr-mcp-tools.json" >> "$GITHUB_OUTPUT"
+            else
+              echo "mcp_flags=" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "expected=false" >> "$GITHUB_OUTPUT"
-            echo "flags=" >> "$GITHUB_OUTPUT"
+            echo "rest_flags=" >> "$GITHUB_OUTPUT"
+            echo "mcp_flags=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Compute release-safety marker
@@ -530,7 +633,8 @@ jobs:
             --last-tag "${{ needs.changes.outputs.base_sha }}" \
             --out /tmp/release-safety.json \
             --index /tmp/release-safety-index.json \
-            ${{ steps.api.outputs.flags }} \
+            ${{ steps.api.outputs.rest_flags }} \
+            ${{ steps.api.outputs.mcp_flags }} \
             ${AI_FLAG}
 
       - name: Enforce API breaking-change declarations
@@ -560,16 +664,19 @@ jobs:
         run: |
           set -euo pipefail
           CHECKED=$(node -e 'const m=JSON.parse(require("fs").readFileSync("/tmp/release-safety.json","utf8"));process.stdout.write(String(m?.api?.rest?.checked === true))')
-          if [ "${{ steps.api.outputs.expected }}" = "true" ] && [ "${CHECKED}" = "true" ]; then
+          if [ "${{ needs.changes.outputs.gate_rest_api }}" = "skip" ]; then
+            echo "status=gate-skipped" >> "$GITHUB_OUTPUT"
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.changes.outputs.openapi }}" != "true" ]; then
+            echo "status=skipped" >> "$GITHUB_OUTPUT"
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.openapi-specs.result }}" = "success" ] && [ "${CHECKED}" = "true" ]; then
             echo "status=ran" >> "$GITHUB_OUTPUT"
             echo "broken=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.api.outputs.expected }}" = "true" ]; then
+          elif [ "${{ needs.openapi-specs.result }}" = "success" ]; then
             echo "::error::the OpenAPI spec pair was generated but the REST diff did not run — see the marker step's [rest-api-diff] log"
             echo "status=failed" >> "$GITHUB_OUTPUT"
             echo "broken=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ needs.openapi-specs.result }}" = "skipped" ]; then
-            echo "status=skipped" >> "$GITHUB_OUTPUT"
-            echo "broken=false" >> "$GITHUB_OUTPUT"
           else
             # openapi-specs is already red; it carries the failure on its own.
             echo "status=failed" >> "$GITHUB_OUTPUT"
@@ -581,12 +688,21 @@ jobs:
         run: |
           set -euo pipefail
           CHECKED=$(node -e 'const m=JSON.parse(require("fs").readFileSync("/tmp/release-safety.json","utf8"));process.stdout.write(String(m?.api?.mcp?.checked === true))')
-          if [ "${{ steps.api.outputs.expected }}" = "true" ] && [ "${CHECKED}" = "true" ]; then
+          if [ "${{ needs.changes.outputs.gate_mcp_tools }}" = "skip" ]; then
+            echo "status=gate-skipped" >> "$GITHUB_OUTPUT"
             echo "broken=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.api.outputs.expected }}" = "true" ]; then
+          elif [ "${{ needs.changes.outputs.openapi }}" != "true" ]; then
+            echo "status=skipped" >> "$GITHUB_OUTPUT"
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.openapi-specs.result }}" = "success" ] && [ "${CHECKED}" = "true" ]; then
+            echo "status=ran" >> "$GITHUB_OUTPUT"
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.openapi-specs.result }}" = "success" ]; then
             echo "::error::the MCP snapshot pair was generated but the MCP diff did not run — see the marker step's [mcp-tools-diff] log"
+            echo "status=failed" >> "$GITHUB_OUTPUT"
             echo "broken=true" >> "$GITHUB_OUTPUT"
           else
+            echo "status=failed" >> "$GITHUB_OUTPUT"
             echo "broken=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -607,6 +723,7 @@ jobs:
             --base-sha "${{ needs.changes.outputs.base_sha }}" \
             --run-id "${{ github.run_id }}" \
             --rest-status "${{ steps.rest-result.outputs.status }}" \
+            --mcp-status "${{ steps.mcp-result.outputs.status }}" \
             ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
             ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
             ${{ (steps.declaration-gate.outcome == 'failure' || steps.sql-declaration-gate.outcome == 'failure') && '--declaration-gate-failed' || '' }} \

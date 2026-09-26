@@ -54,6 +54,21 @@ test('safe v2 marker renders the sticky upgrade summary', () => {
     assert.match(body, /Declared breaking changes \| none/);
 });
 
+test('gate-skipped API checks reuse the not-checked rows with an explicit reason', () => {
+    const marker = baseMarker({
+        api: {
+            rest: { checked: false, breaking: 'unknown', changes: [] },
+            mcp: { checked: false, breaking: 'unknown', changes: [] },
+        },
+    });
+    const body = renderPrComment(marker, {
+        restStatus: 'gate-skipped',
+        mcpStatus: 'gate-skipped',
+    });
+    assert.match(body, /REST API \| not checked — skipped by the Jev gate/);
+    assert.match(body, /MCP tools \| not checked — skipped by the Jev gate/);
+});
+
 test('unknown verdict is rendered as unsafe for a ready PR', () => {
     const body = renderPrComment(
         baseMarker({

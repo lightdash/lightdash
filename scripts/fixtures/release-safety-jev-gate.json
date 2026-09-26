@@ -1,0 +1,35 @@
+[
+  {
+    "name": "migration file forces the database surface",
+    "changedFiles": [
+      "packages/backend/src/database/migrations/20260917090000_add_gate.ts"
+    ],
+    "diff": "diff --git a/packages/backend/src/database/migrations/20260917090000_add_gate.ts b/packages/backend/src/database/migrations/20260917090000_add_gate.ts\nnew file mode 100644\n+export async function up() {}",
+    "forced": {
+      "rest_api": null,
+      "db_schema": "migration file",
+      "mcp_tools": null
+    }
+  },
+  {
+    "name": "workflow tooling forces every surface",
+    "changedFiles": [".github/workflows/release-safety-pr.yml"],
+    "diff": "",
+    "forced": {
+      "rest_api": "tooling",
+      "db_schema": "tooling",
+      "mcp_tools": "tooling"
+    }
+  },
+  {
+    "name": "large diff forces every surface",
+    "changedFiles": ["packages/backend/src/services/LargeService.ts"],
+    "diff": "fixture expands this diff in the test",
+    "large": true,
+    "forced": {
+      "rest_api": "diff too large",
+      "db_schema": "diff too large",
+      "mcp_tools": "diff too large"
+    }
+  }
+]

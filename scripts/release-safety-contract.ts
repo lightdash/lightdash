@@ -5,6 +5,11 @@ import type { MigrationDetail } from './release-safety-migrations';
 export type TriState = boolean | 'unknown';
 
 export interface ApiSurface {
+    /**
+     * The PR-time Jev gate may leave a surface unchecked when it predicts the
+     * deterministic preview would be irrelevant. Release-time generation never
+     * uses that gate and still runs the complete deterministic contract checks.
+     */
     checked: boolean;
     breaking: TriState;
     changes: string[];
