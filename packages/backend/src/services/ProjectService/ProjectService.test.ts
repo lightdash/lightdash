@@ -494,6 +494,7 @@ const getMockedProjectService = (
             | 'provisionTrainingProject'
             | 'downloadFileModel'
             | 'getAiAgentService'
+            | 'getAppGenerateService'
             | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
@@ -598,6 +599,7 @@ const getMockedProjectService = (
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         provisionTrainingProject: overrides.provisionTrainingProject,
         getAiAgentService: overrides.getAiAgentService,
+        getAppGenerateService: overrides.getAppGenerateService,
         getDataAppCustomSqlProvenance:
             overrides.getDataAppCustomSqlProvenance ??
             (async () => ({
@@ -2552,6 +2554,51 @@ describe('ProjectService', () => {
                 }
             },
         );
+    });
+
+    describe('expired preview sweep', () => {
+        const getExpiredPreviewProjects = vi.fn();
+        const deleteProjectAppFiles = vi.fn();
+        const expiring = projectModel as typeof projectModel & {
+            getExpiredPreviewProjects: typeof getExpiredPreviewProjects;
+        };
+        const sweepService = () =>
+            getMockedProjectService(lightdashConfigMock, {
+                getAppGenerateService: () =>
+                    ({ deleteProjectAppFiles }) as never,
+            });
+
+        beforeEach(() => {
+            expiring.getExpiredPreviewProjects = getExpiredPreviewProjects;
+            getExpiredPreviewProjects.mockResolvedValue([
+                { projectUuid: 'copy-1', organizationUuid: 'org' },
+                { projectUuid: 'copy-2', organizationUuid: 'org' },
+            ]);
+            deleteProjectAppFiles.mockReset();
+            deleteProjectAppFiles.mockResolvedValue(1);
+            projectModel.delete.mockClear();
+        });
+
+        test('removes each expired preview and the app files it copied', async () => {
+            await expect(
+                sweepService().deleteExpiredPreviewProjects(),
+            ).resolves.toBe(2);
+            expect(
+                deleteProjectAppFiles.mock.calls.map(([uuid]) => uuid),
+            ).toEqual(['copy-1', 'copy-2']);
+            expect(projectModel.delete).toHaveBeenNthCalledWith(1, 'copy-1');
+            expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
+        });
+
+        test('still deletes the project when its app files cannot be removed', async () => {
+            deleteProjectAppFiles.mockRejectedValueOnce(
+                new Error('bucket gone'),
+            );
+            await expect(
+                sweepService().deleteExpiredPreviewProjects(),
+            ).resolves.toBe(2);
+            expect(projectModel.delete).toHaveBeenCalledTimes(2);
+        });
     });
 
     describe('training project connection lock', () => {
