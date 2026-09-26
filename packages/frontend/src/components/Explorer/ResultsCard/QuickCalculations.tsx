@@ -42,6 +42,7 @@ const getFormatForQuickCalculation = (
             };
         case TableCalculationTemplateType.RANK_IN_COLUMN:
             return undefined;
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
         case TableCalculationTemplateType.RUNNING_TOTAL:
             return {
                 type: CustomFormatType.NUMBER,
@@ -76,6 +77,7 @@ const isCalculationAvailable = (
     ];
     switch (templateType) {
         case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS:
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
         case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE:
         case TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL:
         case TableCalculationTemplateType.RUNNING_TOTAL:

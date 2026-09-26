@@ -579,6 +579,27 @@ describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
         });
     });
 
+    describe('DIFFERENCE_FROM_PREVIOUS', () => {
+        it('subtracts the previous row value using orderBy and partitionBy', () => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+                fieldId: 'table_revenue',
+                orderBy: [{ fieldId: 'table_date', order: 'asc' }],
+                partitionBy: ['table_category'],
+            };
+
+            const result = compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            );
+
+            expect(result).toBe(
+                '"table_revenue" - LAG("table_revenue") OVER(PARTITION BY "table_category" ORDER BY "table_date" ASC )',
+            );
+        });
+    });
+
     describe('PERCENT_CHANGE_FROM_PREVIOUS partitionBy', () => {
         it('Should compile without partitionBy (backward compatibility)', () => {
             const template: TableCalculationTemplate = {
