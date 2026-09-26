@@ -43,8 +43,11 @@ Code is the reference for anything finer-grained. Specs live in Linear (CS-207, 
 A learner opens the Learn library from the icon beside notifications, picks a module and presses Start. Lightdash
 makes a fresh copy of the training project for them, opens the walkthrough on the page where it begins, and
 highlights the one control to click at each step. Typed steps offer a suggestion so the learner never has to
-invent input. The last step shows the result, then *Got it* opens a completion dialog and *Back to library*
-deletes the copy and returns to the library, where the module is marked done.
+invent input. The last step shows the result, then *Got it* opens a completion dialog over it. From there
+*Back to library* deletes the copy and returns to the library, where the module is marked done; *Next* goes
+straight into the recommended module in a fresh copy; and *Keep exploring* closes the dialog and leaves the
+learner standing in the copy, on the page the module ended on, with what the walkthrough built still there to
+take apart. A copy the learner stays in goes when they start the next module or when it expires.
 
 Inside their copy a trainee can do what a project admin can, minus anything that breaks the project or reaches
 outside it: explore, run SQL, save charts, dashboards and spaces, pin, comment, verify, categorise, export results,
@@ -87,8 +90,11 @@ copies expire after 24 hours, and deleting a copy also removes its duplicated da
 training project deletes its copies first. A copy cannot be minted from the outside: preview creation and
 metadata updates refuse a training project as upstream unless the call comes from the training path.
 
-The navbar shows a copy as *Training copy* and skips the preview banner, since a copy is not a preview in the
-engineering sense: no branch, nothing to promote.
+The navbar shows a copy as *Training copy* and, in place of the preview banner (a copy is not a preview in the
+engineering sense: no branch, nothing to promote), a practice banner: what the copy is, that it resets when the
+next module starts, and *Back to Learn*. That link is the way out of a copy the learner stayed in, since the
+navbar's Learn icon is hidden on any preview, copies included. It uses the same put-away order as the completion
+dialog (`useLeaveTrainingCopy`): leave the page first, delete the copy second.
 
 ### Developer sandbox
 
@@ -168,7 +174,9 @@ profile only when the file sits directly inside it.
 - **Library.** `features/learn/LearnPage.tsx` lists one module per trainee scope from `catalogue.ts`: the title is
   the scope registry's description, the group is the registry's group, the module is available when a generated
   walkthrough exists, and its blurb is that walkthrough's opening docs sentence. Foundations (what a viewer can
-  already do) is the first section. Progress (`progress.ts`) is kept in the browser for now.
+  already do) is the first section. Progress is stored per user on the instance (`user_learn_progress`,
+  `UserLearnProgressModel`, `/api/v1/user/learn-progress`), with a one-time merge of anything an earlier release
+  left in the browser.
 - **Library search.** `features/learn/search.ts` indexes module titles, blurbs, permission names, and every
   walkthrough step's title and body with the existing Fuse.js dependency. It ignores conversational filler,
   requires each remaining query word to match, and tolerates small typos. Available walkthroughs rank first;
@@ -218,7 +226,7 @@ profile only when the file sits directly inside it.
 Stack 1 merges behind the switch and goes live on the internal instance first (CS-263), with the walkthrough
 content following in six further pull requests. Next on the product side: a playground badge and a deletion guard
 for the training project (CS-261), a visual pass on the kit and library (CS-262), library search and a "request a
-module" route (CS-258, CS-259), and progress stored server-side rather than in the browser.
+module" route (CS-258, CS-259).
 
 ## Rollout
 

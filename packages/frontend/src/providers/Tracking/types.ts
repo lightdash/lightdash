@@ -1084,6 +1084,20 @@ type LearnWalkthroughDismissedEvent = {
     };
 };
 
+/**
+ * The learner chose to stay in their copy when the module ended, rather
+ * than going back to the library or straight into the next module: the
+ * walkthrough left something behind that was worth poking at.
+ */
+type LearnWalkthroughKeptExploringEvent = {
+    name: EventName.LEARN_WALKTHROUGH_KEPT_EXPLORING;
+    properties: {
+        organizationUuid: string | null;
+        trainingProjectUuid: string | null;
+        scope: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | DashboardWorkbookEvent
@@ -1181,7 +1195,8 @@ export type EventData =
     | LearnLibraryViewedEvent
     | LearnWalkthroughStartedEvent
     | LearnWalkthroughCompletedEvent
-    | LearnWalkthroughDismissedEvent;
+    | LearnWalkthroughDismissedEvent
+    | LearnWalkthroughKeptExploringEvent;
 
 export type IdentifyData = {
     id: string;
