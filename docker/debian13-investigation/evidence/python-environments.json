@@ -1,0 +1,5313 @@
+{
+  "baseline_commit": "4c056f790453fd3be9118851e85b0b10364d8bd6",
+  "date": "2026-09-24",
+  "platform": "linux/amd64",
+  "environments": {
+    "bookworm-1.10": {
+      "requirements": [
+        "dbt-core~=1.10.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.10.0",
+        "dbt-bigquery~=1.10.0",
+        "dbt-databricks~=1.10.0",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.10.0",
+        "dbt-duckdb~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.51
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.24
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 50.59
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.56
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 1.6
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.28
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.07
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.51
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.68
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.04
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 2.77
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.94
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.67
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.68
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 0.83
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.78
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 6.19
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 6.37
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.48
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.93
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.63.0",
+        "databricks-sql-connector==4.0.5",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.22.10",
+        "dbt-athena==1.10.2",
+        "dbt-bigquery==1.10.3",
+        "dbt-clickhouse==1.9.3",
+        "dbt-common==1.37.5",
+        "dbt-core==1.10.19",
+        "dbt-databricks==1.10.19",
+        "dbt-duckdb==1.10.1",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.10.2",
+        "dbt-semantic-interfaces==0.9.0",
+        "dbt-snowflake==1.10.8",
+        "dbt-spark==1.9.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==2.2.0",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==2.25.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==8.9.0",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.14",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.6.1",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.2.3",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pycparser==3.0",
+        "pydantic==2.13.5",
+        "pydantic_core==2.46.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.4",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.20.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.11": {
+      "requirements": [
+        "dbt-core~=1.11.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.11.0",
+        "dbt-bigquery~=1.11.0",
+        "dbt-databricks~=1.11.0",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.10.0",
+        "dbt-duckdb~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.56
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.38
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 48.49
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.43
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 1.4
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.29
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.04
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.07
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.1
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.46
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.63
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.12
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.02
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.8
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.64
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.63
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 0.81
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.7
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 4.34
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 4.28
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.41
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.85
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.77.0",
+        "databricks-sql-connector==4.1.5",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.22.10",
+        "dbt-athena==1.10.2",
+        "dbt-bigquery==1.11.3",
+        "dbt-clickhouse==1.9.3",
+        "dbt-common==1.37.5",
+        "dbt-core==1.11.8",
+        "dbt-databricks==1.11.8",
+        "dbt-duckdb==1.10.1",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.10.2",
+        "dbt-semantic-interfaces==0.9.0",
+        "dbt-snowflake==1.11.6",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==2.2.0",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==2.25.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==8.9.0",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.5.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.14",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.6.1",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.2.3",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.20.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.12": {
+      "requirements": [
+        "dbt-core==1.12.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.12.0",
+        "dbt-bigquery~=1.12.0",
+        "dbt-databricks~=1.12.3",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.10.0",
+        "dbt-duckdb~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.53
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.2
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 49.02
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.46
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 1.73
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.27
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.05
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.07
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.11
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.79
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.95
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.4
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.5
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.36
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.89
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.7
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 1.07
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.76
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 4.64
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 4.62
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.62
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 2.17
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.117.0",
+        "databricks-sql-connector==4.4.0",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.24.5",
+        "dbt-athena==1.10.2",
+        "dbt-bigquery==1.12.1",
+        "dbt-clickhouse==1.9.3",
+        "dbt-common==1.38.0",
+        "dbt-core==1.12.0",
+        "dbt-core-experimental-parser==2.0.5",
+        "dbt-databricks==1.12.5",
+        "dbt-duckdb==1.10.1",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.10.2",
+        "dbt-snowflake==1.12.1",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==2.2.0",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==2.25.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.17",
+        "metricflow==0.213.0",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.6.1",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==25.0",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==1.0.4",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-dotenv==1.2.3",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "RapidFuzz==3.14.6",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlglot==30.19.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tabulate==0.10.0",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.4": {
+      "requirements": [
+        "dbt-postgres~=1.4.0",
+        "dbt-redshift~=1.4.0",
+        "dbt-snowflake~=1.4.0",
+        "dbt-bigquery~=1.4.0",
+        "dbt-databricks~=1.4.0",
+        "dbt-trino~=1.4.0",
+        "dbt-clickhouse~=1.4.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.74
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.87
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 34.68
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.36
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.85
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.45
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.15
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.12
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 1.14
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 1.18
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.72
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 0.91
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.91
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 1.36
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 1.34
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 1.36
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 3.0
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 1.95
+        },
+        "compile": {
+          "exit": 2,
+          "seconds": 1.51
+        }
+      },
+      "freeze": [
+        "agate==1.6.3",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "betterproto==1.2.5",
+        "boto3==1.26.165",
+        "botocore==1.29.165",
+        "certifi==2026.7.22",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.1.3",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "databricks-sql-connector==4.5.0",
+        "db-dtypes==1.7.1",
+        "dbt-bigquery==1.4.5",
+        "dbt-clickhouse==1.4.9",
+        "dbt-core==1.4.10",
+        "dbt-databricks==1.4.3",
+        "dbt-extractor==0.4.1",
+        "dbt-postgres==1.4.10",
+        "dbt-redshift==1.4.1",
+        "dbt-snowflake==1.4.5",
+        "dbt-spark==1.4.3",
+        "dbt-trino==1.4.2",
+        "et_xmlfile==2.0.0",
+        "filelock==3.32.7",
+        "future==1.0.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-storage==2.19.0",
+        "google-crc32c==1.8.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "grpclib==0.4.9",
+        "h2==4.4.1",
+        "hologram==0.0.16",
+        "hpack==4.2.0",
+        "hyperframe==6.1.0",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.6.1",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.2",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "Logbook==1.5.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.3.1",
+        "minimal-snowplow-tracker==0.0.2",
+        "more-itertools==11.1.0",
+        "msgpack==1.2.2",
+        "multidict==6.9.1",
+        "networkx==2.8.8",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.4",
+        "pathspec==0.10.3",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==7.36.2",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.6",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.8.2",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.6.2",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "snowflake-connector-python==3.18.1",
+        "sortedcontainers==2.4.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.4.3",
+        "stringcase==1.2.0",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "trino==0.340.0",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==1.26.20",
+        "Werkzeug==2.3.8",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.5": {
+      "requirements": [
+        "dbt-postgres~=1.5.0",
+        "dbt-redshift~=1.5.0",
+        "dbt-snowflake~=1.5.0",
+        "dbt-bigquery~=1.5.0",
+        "dbt-databricks~=1.5.0",
+        "dbt-trino==1.5.0",
+        "dbt-clickhouse~=1.5.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.5
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.32
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 38.27
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.43
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.7
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.28
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.11
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.15
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 1.15
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 1.33
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 2.0
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.88
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.32
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 1.23
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 1.02
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 3.45
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 3.5
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 1.62
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.38
+        }
+      },
+      "freeze": [
+        "agate==1.6.3",
+        "alembic==1.19.2",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.26.165",
+        "botocore==1.29.165",
+        "certifi==2026.7.22",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "databricks-sdk==0.9.0",
+        "databricks-sql-connector==2.9.6",
+        "db-dtypes==1.7.1",
+        "dbt-bigquery==1.5.9",
+        "dbt-clickhouse==1.5.2",
+        "dbt-core==1.5.12",
+        "dbt-databricks==1.5.7",
+        "dbt-extractor==0.4.1",
+        "dbt-postgres==1.5.12",
+        "dbt-redshift==1.5.12",
+        "dbt-snowflake==1.5.7",
+        "dbt-spark==1.5.3",
+        "dbt-trino==1.5.0",
+        "et_xmlfile==2.0.0",
+        "filelock==3.32.7",
+        "future==1.0.0",
+        "google-api-core==2.30.3",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.28.0",
+        "google-cloud-storage==2.19.0",
+        "google-crc32c==1.8.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.0",
+        "greenlet==3.5.6",
+        "grpc-google-iam-v1==0.14.4",
+        "grpcio==1.84.0",
+        "grpcio-status==1.62.3",
+        "hologram==0.0.16",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.6.1",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "Logbook==1.5.3",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "Mako==1.4.3",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.6",
+        "minimal-snowplow-tracker==0.0.2",
+        "more-itertools==11.1.0",
+        "msgpack==1.2.2",
+        "networkx==2.8.8",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.3.3",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.4",
+        "pathspec==0.11.2",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.2",
+        "protobuf==4.25.9",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.6",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pycparser==3.0",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.8.2",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift-connector==2.0.913",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.6.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "snowflake-connector-python==3.18.1",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "SQLAlchemy==1.4.54",
+        "sqlparams==6.2.0",
+        "sqlparse==0.4.4",
+        "text-unidecode==1.3",
+        "thrift==0.16.0",
+        "tomlkit==0.15.1",
+        "trino==0.340.0",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==1.26.20",
+        "Werkzeug==2.3.8",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.6": {
+      "requirements": [
+        "dbt-postgres~=1.6.0",
+        "dbt-redshift~=1.6.0",
+        "dbt-snowflake~=1.6.0",
+        "dbt-bigquery~=1.6.0",
+        "dbt-databricks~=1.6.0",
+        "dbt-trino==1.6.0",
+        "dbt-clickhouse~=1.6.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.67
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.39
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 39.85
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.38
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.87
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.32
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.04
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.08
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.12
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 1.38
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 1.46
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 2.03
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 2.02
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.06
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 1.44
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 1.55
+        },
+        "version": {
+          "exit": 1,
+          "seconds": 2.72
+        },
+        "cli-version": {
+          "exit": 1,
+          "seconds": 2.56
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.58
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 2.65
+        }
+      },
+      "freeze": [
+        "agate==1.7.1",
+        "alembic==1.19.2",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2026.7.22",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "databricks-sdk==0.15.0",
+        "databricks-sql-connector==2.9.6",
+        "db-dtypes==1.7.1",
+        "dbt-bigquery==1.6.13",
+        "dbt-clickhouse==1.6.2",
+        "dbt-core==1.6.19",
+        "dbt-databricks==1.6.9",
+        "dbt-extractor==0.4.1",
+        "dbt-postgres==1.6.19",
+        "dbt-redshift==1.6.7",
+        "dbt-semantic-interfaces==0.2.3",
+        "dbt-snowflake==1.6.8",
+        "dbt-spark==1.6.2",
+        "dbt-trino==1.6.0",
+        "et_xmlfile==2.0.0",
+        "filelock==3.32.7",
+        "google-api-core==2.30.3",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.28.0",
+        "google-cloud-storage==2.19.0",
+        "google-crc32c==1.8.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.0",
+        "greenlet==3.5.6",
+        "grpc-google-iam-v1==0.14.4",
+        "grpcio==1.84.0",
+        "grpcio-status==1.62.3",
+        "hologram==0.0.16",
+        "idna==3.20",
+        "importlib-metadata==6.11.0",
+        "isodate==0.6.1",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "Logbook==1.5.3",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "Mako==1.4.3",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.8.1",
+        "minimal-snowplow-tracker==0.0.2",
+        "more-itertools==8.14.0",
+        "msgpack==1.2.2",
+        "networkx==3.6.1",
+        "numpy==1.26.4",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.1.4",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.11.2",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.2",
+        "protobuf==4.25.9",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.6",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pycparser==3.0",
+        "pydantic==1.10.26",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.8.2",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift-connector==2.0.915",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "snowflake-connector-python==3.18.1",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "SQLAlchemy==1.4.54",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "text-unidecode==1.3",
+        "thrift==0.16.0",
+        "tomlkit==0.15.1",
+        "trino==0.340.0",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==1.26.20",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.7": {
+      "requirements": [
+        "dbt-postgres~=1.7.0",
+        "dbt-redshift~=1.7.0",
+        "dbt-snowflake~=1.7.0",
+        "dbt-bigquery~=1.7.0",
+        "dbt-databricks~=1.7.0",
+        "dbt-trino==1.7.0",
+        "dbt-clickhouse~=1.7.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.55
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.51
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 40.05
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.38
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.74
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.36
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.14
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 1.29
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 1.49
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 2.1
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.97
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.15
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 1.57
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 1.53
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 4.01
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 3.79
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.36
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.92
+        }
+      },
+      "freeze": [
+        "agate==1.7.1",
+        "alembic==1.19.2",
+        "annotated-types==0.8.0",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2026.7.22",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "databricks-sdk==0.17.0",
+        "databricks-sql-connector==2.9.6",
+        "db-dtypes==1.7.1",
+        "dbt-bigquery==1.7.9",
+        "dbt-clickhouse==1.7.7",
+        "dbt-core==1.7.20",
+        "dbt-databricks==1.7.17",
+        "dbt-extractor==0.5.1",
+        "dbt-postgres==1.7.20",
+        "dbt-redshift==1.7.7",
+        "dbt-semantic-interfaces==0.4.4",
+        "dbt-snowflake==1.7.5",
+        "dbt-spark==1.7.1",
+        "dbt-trino==1.7.0",
+        "et_xmlfile==2.0.0",
+        "filelock==3.32.7",
+        "google-api-core==2.30.3",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.28.0",
+        "google-cloud-storage==2.19.0",
+        "google-crc32c==1.8.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.0",
+        "greenlet==3.5.6",
+        "grpc-google-iam-v1==0.14.4",
+        "grpcio==1.84.0",
+        "grpcio-status==1.62.3",
+        "idna==3.20",
+        "importlib-metadata==6.11.0",
+        "isodate==0.6.1",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "Logbook==1.5.3",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "Mako==1.4.3",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.14",
+        "minimal-snowplow-tracker==0.0.2",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "networkx==3.6.1",
+        "numpy==1.26.4",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.1.4",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.11.2",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.2",
+        "protobuf==4.25.9",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.6",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pycparser==3.0",
+        "pydantic==2.13.5",
+        "pydantic_core==2.46.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift-connector==2.0.917",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "snowflake-connector-python==3.18.1",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "SQLAlchemy==1.4.54",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "text-unidecode==1.3",
+        "thrift==0.16.0",
+        "tomlkit==0.15.1",
+        "trino==0.340.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==1.26.20",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.8": {
+      "requirements": [
+        "dbt-core~=1.8.0",
+        "dbt-postgres~=1.8.0",
+        "dbt-redshift~=1.8.0",
+        "dbt-snowflake~=1.8.0",
+        "dbt-bigquery~=1.8.0",
+        "dbt-databricks~=1.8.0",
+        "dbt-trino~=1.8.0",
+        "dbt-clickhouse~=1.8.0",
+        "dbt-duckdb~=1.8.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.58
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.38
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 38.83
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.41
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.8
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.3
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.04
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.1
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.41
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.46
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 0.94
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.06
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.4
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.64
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.59
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.7
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 3.41
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 3.52
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.1
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.72
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2026.7.22",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "daff==1.4.2",
+        "databricks-sdk==0.17.0",
+        "databricks-sql-connector==3.1.2",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.7.0",
+        "dbt-bigquery==1.8.3",
+        "dbt-clickhouse==1.8.9",
+        "dbt-common==1.10.0",
+        "dbt-core==1.8.8",
+        "dbt-databricks==1.8.7",
+        "dbt-duckdb==1.8.4",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.8.2",
+        "dbt-redshift==1.8.1",
+        "dbt-semantic-interfaces==0.5.1",
+        "dbt-snowflake==1.8.4",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.8.5",
+        "deepdiff==7.0.1",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "filelock==3.32.7",
+        "google-api-core==2.30.3",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.28.0",
+        "google-cloud-storage==2.19.0",
+        "google-crc32c==1.8.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.0",
+        "grpc-google-iam-v1==0.14.4",
+        "grpcio==1.84.0",
+        "grpcio-status==1.62.3",
+        "idna==3.20",
+        "importlib-metadata==6.11.0",
+        "isodate==0.6.1",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "Logbook==1.5.3",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.22",
+        "minimal-snowplow-tracker==0.0.2",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "networkx==3.6.1",
+        "numpy==1.26.4",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "ordered-set==4.1.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.1.4",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.2",
+        "protobuf==4.25.9",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==14.0.2",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pycparser==3.0",
+        "pydantic==2.13.5",
+        "pydantic_core==2.46.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift-connector==2.0.917",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "snowflake-connector-python==3.18.1",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "text-unidecode==1.3",
+        "thrift==0.16.0",
+        "tomlkit==0.15.1",
+        "trino==0.340.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-1.9": {
+      "requirements": [
+        "dbt-core~=1.9.0",
+        "dbt-postgres~=1.9.0",
+        "dbt-redshift~=1.9.0",
+        "dbt-snowflake~=1.9.0",
+        "dbt-bigquery~=1.9.0",
+        "dbt-databricks~=1.9.0",
+        "dbt-trino~=1.9.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.9.0",
+        "dbt-duckdb~=1.9.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.56
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.35
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 48.22
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.39
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 1.48
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.25
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.1
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.49
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.7
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.02
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 3.13
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.57
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.66
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.68
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 0.88
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.8
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 6.22
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 6.3
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.49
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.71
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "daff==1.4.2",
+        "databricks-sdk==0.17.0",
+        "databricks-sql-connector==3.7.5",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.16.7",
+        "dbt-athena==1.9.5",
+        "dbt-bigquery==1.9.2",
+        "dbt-clickhouse==1.9.8",
+        "dbt-common==1.39.0",
+        "dbt-core==1.9.11",
+        "dbt-databricks==1.9.8",
+        "dbt-duckdb==1.9.6",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.9.1",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.9.5",
+        "dbt-semantic-interfaces==0.7.5",
+        "dbt-snowflake==1.9.4",
+        "dbt-spark==1.9.3",
+        "dbt-trino==1.9.3",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==2.2.0",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==2.25.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==8.9.0",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.5.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.14",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.6.1",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.2.3",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==3.18.1",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.20.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-demo-preview": {
+      "requirements": [
+        "dbt-core==1.12.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-snowflake~=1.12.0",
+        "dbt-bigquery~=1.12.0",
+        "dbt-databricks~=1.12.3",
+        "dbt-trino~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.58
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.37
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 47.6
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.55
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 1.38
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.26
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.08
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.16
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.19
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.77
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.5
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.31
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.6
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 1.06
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 4.38
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 4.4
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 3.08
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 2.06
+        },
+        "jaffle-parse": {
+          "exit": 0,
+          "seconds": 4.74
+        },
+        "jaffle-compile": {
+          "exit": 0,
+          "seconds": 3.45
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.117.0",
+        "databricks-sql-connector==4.4.0",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.24.5",
+        "dbt-bigquery==1.12.1",
+        "dbt-common==1.38.0",
+        "dbt-core==1.12.0",
+        "dbt-core-experimental-parser==2.0.5",
+        "dbt-databricks==1.12.5",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-snowflake==1.12.1",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==2.2.0",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==2.25.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.17",
+        "metricflow==0.213.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "nbformat==5.11.1",
+        "networkx==3.6.1",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==25.0",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==1.0.4",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-dotenv==1.2.3",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "RapidFuzz==3.14.6",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "sqlglot==30.19.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tabulate==0.10.0",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "bookworm-preview": {
+      "requirements": [
+        "dbt-core==1.12.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-snowflake~=1.12.0",
+        "dbt-bigquery~=1.12.0",
+        "dbt-databricks~=1.12.3",
+        "dbt-trino~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.53
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.29
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 40.51
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.41
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 1.0
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.25
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.08
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.12
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.8
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.37
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.3
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.05
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.81
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 3.75
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 4.21
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.57
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.89
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.117.0",
+        "databricks-sql-connector==4.4.0",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.24.5",
+        "dbt-bigquery==1.12.1",
+        "dbt-common==1.38.0",
+        "dbt-core==1.12.0",
+        "dbt-core-experimental-parser==2.0.5",
+        "dbt-databricks==1.12.5",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-snowflake==1.12.1",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==2.2.0",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==2.25.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.17",
+        "metricflow==0.213.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "nbformat==5.11.1",
+        "networkx==3.6.1",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==25.0",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==1.0.4",
+        "pip==23.0.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-dotenv==1.2.3",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "RapidFuzz==3.14.6",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "SecretStorage==3.5.0",
+        "setuptools==66.1.1",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "sqlglot==30.19.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tabulate==0.10.0",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.2"
+    },
+    "trixie-1.10": {
+      "requirements": [
+        "dbt-core~=1.10.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.10.0",
+        "dbt-bigquery~=1.10.0",
+        "dbt-databricks~=1.10.0",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.10.0",
+        "dbt-duckdb~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.5
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.68
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 42.86
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.27
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.46
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.3
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.04
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.13
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.14
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.55
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.71
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.13
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 2.82
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.13
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.73
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.7
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 1.11
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.84
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 6.13
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 5.98
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.45
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.83
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.63.0",
+        "databricks-sql-connector==4.0.5",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.22.10",
+        "dbt-athena==1.10.2",
+        "dbt-bigquery==1.10.3",
+        "dbt-clickhouse==1.9.3",
+        "dbt-common==1.37.5",
+        "dbt-core==1.10.19",
+        "dbt-databricks==1.10.19",
+        "dbt-duckdb==1.10.1",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.10.2",
+        "dbt-semantic-interfaces==0.9.0",
+        "dbt-snowflake==1.10.8",
+        "dbt-spark==1.9.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==1.148.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==1.75.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==8.9.0",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.14",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.7",
+        "numpy==2.5.3",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.2.3",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==25.1.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pycparser==3.0",
+        "pydantic==2.13.5",
+        "pydantic_core==2.46.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==84.0.0",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.4",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.20.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.11": {
+      "requirements": [
+        "dbt-core~=1.11.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.11.0",
+        "dbt-bigquery~=1.11.0",
+        "dbt-databricks~=1.11.0",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.10.0",
+        "dbt-duckdb~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.52
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.64
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 41.39
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.23
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.47
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.33
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.04
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.08
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.1
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.56
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.74
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.24
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.21
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.2
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.61
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.77
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 0.74
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.72
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 4.07
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 3.8
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.24
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.99
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.77.0",
+        "databricks-sql-connector==4.1.5",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.22.10",
+        "dbt-athena==1.10.2",
+        "dbt-bigquery==1.11.3",
+        "dbt-clickhouse==1.9.3",
+        "dbt-common==1.37.5",
+        "dbt-core==1.11.8",
+        "dbt-databricks==1.11.8",
+        "dbt-duckdb==1.10.1",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.10.2",
+        "dbt-semantic-interfaces==0.9.0",
+        "dbt-snowflake==1.11.6",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==1.148.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==1.75.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==8.9.0",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.5.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.14",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.7",
+        "numpy==2.5.3",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.2.3",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==25.1.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==84.0.0",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.20.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.12": {
+      "requirements": [
+        "dbt-core==1.12.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.12.0",
+        "dbt-bigquery~=1.12.0",
+        "dbt-databricks~=1.12.3",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.10.0",
+        "dbt-duckdb~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.48
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.56
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 39.43
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.23
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.46
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.25
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.07
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.7
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.83
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.39
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.45
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.09
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 1.08
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.72
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 1.16
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.8
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 4.2
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 4.26
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.59
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 2.3
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.117.0",
+        "databricks-sql-connector==4.4.0",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.24.5",
+        "dbt-athena==1.10.2",
+        "dbt-bigquery==1.12.1",
+        "dbt-clickhouse==1.9.3",
+        "dbt-common==1.38.0",
+        "dbt-core==1.12.0",
+        "dbt-core-experimental-parser==2.0.5",
+        "dbt-databricks==1.12.5",
+        "dbt-duckdb==1.10.1",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.10.2",
+        "dbt-snowflake==1.12.1",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==1.148.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==1.75.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.17",
+        "metricflow==0.213.0",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.7",
+        "numpy==2.5.3",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==25.0",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==1.0.4",
+        "pip==25.1.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-dotenv==1.2.3",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "RapidFuzz==3.14.6",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==84.0.0",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlglot==30.19.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tabulate==0.10.0",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.4": {
+      "requirements": [
+        "dbt-postgres~=1.4.0",
+        "dbt-redshift~=1.4.0",
+        "dbt-snowflake~=1.4.0",
+        "dbt-bigquery~=1.4.0",
+        "dbt-databricks~=1.4.0",
+        "dbt-trino~=1.4.0",
+        "dbt-clickhouse~=1.4.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.51
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.66
+        },
+        "install": {
+          "exit": 1,
+          "seconds": 1.35
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.2
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.19
+        },
+        "import-dbt.version": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-psycopg2": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-cryptography": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-pyarrow": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 1,
+          "seconds": 0.04
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "version": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "parse": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "compile": {
+          "exit": 1,
+          "seconds": 0.01
+        }
+      },
+      "freeze": [
+        "pip==25.1.1"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.5": {
+      "requirements": [
+        "dbt-postgres~=1.5.0",
+        "dbt-redshift~=1.5.0",
+        "dbt-snowflake~=1.5.0",
+        "dbt-bigquery~=1.5.0",
+        "dbt-databricks~=1.5.0",
+        "dbt-trino==1.5.0",
+        "dbt-clickhouse~=1.5.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.74
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.7
+        },
+        "install": {
+          "exit": 1,
+          "seconds": 1.79
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.23
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.21
+        },
+        "import-dbt.version": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-psycopg2": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-cryptography": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-pyarrow": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "version": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "parse": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "compile": {
+          "exit": 1,
+          "seconds": 0.01
+        }
+      },
+      "freeze": [
+        "pip==25.1.1"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.6": {
+      "requirements": [
+        "dbt-postgres~=1.6.0",
+        "dbt-redshift~=1.6.0",
+        "dbt-snowflake~=1.6.0",
+        "dbt-bigquery~=1.6.0",
+        "dbt-databricks~=1.6.0",
+        "dbt-trino==1.6.0",
+        "dbt-clickhouse~=1.6.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.55
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.67
+        },
+        "install": {
+          "exit": 1,
+          "seconds": 1.73
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.18
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.16
+        },
+        "import-dbt.version": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-psycopg2": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-cryptography": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-numpy": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-pyarrow": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 1,
+          "seconds": 0.04
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "version": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "parse": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "compile": {
+          "exit": 1,
+          "seconds": 0.01
+        }
+      },
+      "freeze": [
+        "pip==25.1.1"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.7": {
+      "requirements": [
+        "dbt-postgres~=1.7.0",
+        "dbt-redshift~=1.7.0",
+        "dbt-snowflake~=1.7.0",
+        "dbt-bigquery~=1.7.0",
+        "dbt-databricks~=1.7.0",
+        "dbt-trino==1.7.0",
+        "dbt-clickhouse~=1.7.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.56
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.8
+        },
+        "install": {
+          "exit": 1,
+          "seconds": 1.63
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.18
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.2
+        },
+        "import-dbt.version": {
+          "exit": 1,
+          "seconds": 0.04
+        },
+        "import-psycopg2": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-cryptography": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-pyarrow": {
+          "exit": 1,
+          "seconds": 0.04
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "version": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "parse": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "compile": {
+          "exit": 1,
+          "seconds": 0.02
+        }
+      },
+      "freeze": [
+        "pip==25.1.1"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.8": {
+      "requirements": [
+        "dbt-core~=1.8.0",
+        "dbt-postgres~=1.8.0",
+        "dbt-redshift~=1.8.0",
+        "dbt-snowflake~=1.8.0",
+        "dbt-bigquery~=1.8.0",
+        "dbt-databricks~=1.8.0",
+        "dbt-trino~=1.8.0",
+        "dbt-clickhouse~=1.8.0",
+        "dbt-duckdb~=1.8.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.49
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.79
+        },
+        "install": {
+          "exit": 1,
+          "seconds": 142.09
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.18
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.16
+        },
+        "import-dbt.version": {
+          "exit": 1,
+          "seconds": 0.04
+        },
+        "import-psycopg2": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-cryptography": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 1,
+          "seconds": 0.04
+        },
+        "import-pyarrow": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 1,
+          "seconds": 0.05
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 1,
+          "seconds": 0.03
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 1,
+          "seconds": 0.02
+        },
+        "version": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "parse": {
+          "exit": 1,
+          "seconds": 0.01
+        },
+        "compile": {
+          "exit": 1,
+          "seconds": 0.02
+        }
+      },
+      "freeze": [
+        "pip==25.1.1"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-1.9": {
+      "requirements": [
+        "dbt-core~=1.9.0",
+        "dbt-postgres~=1.9.0",
+        "dbt-redshift~=1.9.0",
+        "dbt-snowflake~=1.9.0",
+        "dbt-bigquery~=1.9.0",
+        "dbt-databricks~=1.9.0",
+        "dbt-trino~=1.9.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.9.0",
+        "dbt-duckdb~=1.9.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.61
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.71
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 41.4
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.28
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.43
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.28
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.51
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.67
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.13
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 2.92
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.84
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.67
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.6
+        },
+        "import-dbt.adapters.athena": {
+          "exit": 0,
+          "seconds": 0.84
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.74
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 6.04
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 5.33
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.36
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.73
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "boto3-stubs==1.43.101",
+        "botocore==1.43.101",
+        "botocore-stubs==1.43.67",
+        "certifi==2025.1.31",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "daff==1.4.2",
+        "databricks-sdk==0.17.0",
+        "databricks-sql-connector==3.7.5",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.16.7",
+        "dbt-athena==1.9.5",
+        "dbt-bigquery==1.9.2",
+        "dbt-clickhouse==1.9.8",
+        "dbt-common==1.39.0",
+        "dbt-core==1.9.11",
+        "dbt-databricks==1.9.8",
+        "dbt-duckdb==1.9.6",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.9.1",
+        "dbt-protos==1.0.565",
+        "dbt-redshift==1.9.5",
+        "dbt-semantic-interfaces==0.7.5",
+        "dbt-snowflake==1.9.4",
+        "dbt-spark==1.9.3",
+        "dbt-trino==1.9.3",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "fsspec==2026.9.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==1.148.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==1.75.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==8.9.0",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.5.0",
+        "leather==0.4.1",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.14",
+        "mmh3==4.1.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "mypy-boto3-athena==1.43.0",
+        "mypy-boto3-glue==1.43.100",
+        "mypy-boto3-lakeformation==1.43.0",
+        "mypy-boto3-sts==1.43.94",
+        "nbformat==5.11.1",
+        "networkx==3.7",
+        "numpy==2.5.3",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.2.3",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==25.1.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "PyAthena==3.36.0",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift_connector==2.1.17",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==84.0.0",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==3.18.1",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.20.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "types-s3transfer==0.16.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-demo-preview": {
+      "requirements": [
+        "dbt-core==1.12.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-snowflake~=1.12.0",
+        "dbt-bigquery~=1.12.0",
+        "dbt-databricks~=1.12.3",
+        "dbt-trino~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.68
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.76
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 36.1
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.25
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.37
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.28
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.05
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.12
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.13
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.77
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.38
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.37
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.33
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.81
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 3.82
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 4.01
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.96
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 2.25
+        },
+        "jaffle-parse": {
+          "exit": 0,
+          "seconds": 5.15
+        },
+        "jaffle-compile": {
+          "exit": 0,
+          "seconds": 3.42
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.117.0",
+        "databricks-sql-connector==4.4.0",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.24.5",
+        "dbt-bigquery==1.12.1",
+        "dbt-common==1.38.0",
+        "dbt-core==1.12.0",
+        "dbt-core-experimental-parser==2.0.5",
+        "dbt-databricks==1.12.5",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-snowflake==1.12.1",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==1.148.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==1.75.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.17",
+        "metricflow==0.213.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "nbformat==5.11.1",
+        "networkx==3.7",
+        "numpy==2.5.3",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==25.0",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==1.0.4",
+        "pip==25.1.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-dotenv==1.2.3",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "RapidFuzz==3.14.6",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "SecretStorage==3.5.0",
+        "setuptools==84.0.0",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "sqlglot==30.19.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tabulate==0.10.0",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-preview": {
+      "requirements": [
+        "dbt-core==1.12.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-snowflake~=1.12.0",
+        "dbt-bigquery~=1.12.0",
+        "dbt-databricks~=1.12.3",
+        "dbt-trino~=1.10.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.45
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 1.68
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 32.99
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.27
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.33
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.26
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.08
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.13
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.81
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.44
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.38
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 2.37
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.88
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 4.22
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 4.11
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.76
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 2.2
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "anyio==4.15.1",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2025.1.31",
+        "cffi==2.1.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "colorama==0.4.6",
+        "cryptography==50.0.1",
+        "daff==1.4.2",
+        "databricks-sdk==0.117.0",
+        "databricks-sql-connector==4.4.0",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.24.5",
+        "dbt-bigquery==1.12.1",
+        "dbt-common==1.38.0",
+        "dbt-core==1.12.0",
+        "dbt-core-experimental-parser==2.0.5",
+        "dbt-databricks==1.12.5",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.10.2",
+        "dbt-protos==1.0.565",
+        "dbt-snowflake==1.12.1",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.10.5",
+        "deepdiff==8.6.2",
+        "distro==1.9.0",
+        "docstring_parser==0.18.0",
+        "et_xmlfile==2.0.0",
+        "fastjsonschema==2.22.2",
+        "filelock==3.32.7",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-aiplatform==1.148.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-resource-manager==1.18.0",
+        "google-cloud-storage==3.1.1",
+        "google-crc32c==1.8.0",
+        "google-genai==1.75.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "h11==0.16.0",
+        "httpcore==1.0.9",
+        "httpx==0.28.1",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.7.2",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "jupyter_core==5.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.17",
+        "metricflow==0.213.0",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "nbformat==5.11.1",
+        "networkx==3.7",
+        "numpy==2.5.3",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orderly-set==5.5.0",
+        "orjson==3.12.0",
+        "packaging==25.0",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==1.0.4",
+        "pip==25.1.1",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==6.33.6",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydantic==2.12.5",
+        "pydantic_core==2.41.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==26.4.0",
+        "python-dateutil==2.9.0.post0",
+        "python-dotenv==1.2.3",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "RapidFuzz==3.14.6",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "SecretStorage==3.5.0",
+        "setuptools==84.0.0",
+        "six==1.17.0",
+        "sniffio==1.3.1",
+        "snowflake-connector-python==4.7.5",
+        "snowplow-tracker==1.1.0",
+        "sortedcontainers==2.4.0",
+        "sqlglot==30.19.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "tabulate==0.10.0",
+        "tenacity==9.1.4",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "traitlets==5.16.1",
+        "trino==0.340.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "websockets==16.1.1",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.13.5"
+    },
+    "trixie-python311-1.4": {
+      "requirements": [
+        "dbt-postgres~=1.4.0",
+        "dbt-redshift~=1.4.0",
+        "dbt-snowflake~=1.4.0",
+        "dbt-bigquery~=1.4.0",
+        "dbt-databricks~=1.4.0",
+        "dbt-trino~=1.4.0",
+        "dbt-clickhouse~=1.4.0",
+        "psycopg2-binary==2.9.6"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.52
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.0
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.92
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 35.65
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.4
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.84
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.49
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.03
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.09
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.1
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 1.27
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 1.41
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.92
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 1,
+          "seconds": 1.21
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.64
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 1.36
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 1.31
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 1.29
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 2.83
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 1.79
+        },
+        "compile": {
+          "exit": 2,
+          "seconds": 1.13
+        }
+      },
+      "freeze": [
+        "agate==1.6.3",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "betterproto==1.2.5",
+        "boto3==1.26.165",
+        "botocore==1.29.165",
+        "certifi==2026.7.22",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.1.3",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "databricks-sql-connector==4.5.0",
+        "db-dtypes==1.7.1",
+        "dbt-bigquery==1.4.5",
+        "dbt-clickhouse==1.4.9",
+        "dbt-core==1.4.10",
+        "dbt-databricks==1.4.3",
+        "dbt-extractor==0.4.1",
+        "dbt-postgres==1.4.10",
+        "dbt-redshift==1.4.1",
+        "dbt-snowflake==1.4.5",
+        "dbt-spark==1.4.3",
+        "dbt-trino==1.4.2",
+        "et_xmlfile==2.0.0",
+        "filelock==3.32.7",
+        "future==1.0.0",
+        "google-api-core==2.38.0",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.30.0",
+        "google-cloud-storage==2.19.0",
+        "google-crc32c==1.8.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.3",
+        "grpc-google-iam-v1==0.14.5",
+        "grpcio==1.84.0",
+        "grpcio-status==1.84.0",
+        "grpclib==0.4.9",
+        "h2==4.4.1",
+        "hologram==0.0.16",
+        "hpack==4.2.0",
+        "hyperframe==6.1.0",
+        "idna==3.20",
+        "importlib_metadata==9.0.1",
+        "isodate==0.6.1",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.2",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "Logbook==1.5.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.3.1",
+        "minimal-snowplow-tracker==0.0.2",
+        "more-itertools==11.1.0",
+        "msgpack==1.2.2",
+        "multidict==6.9.1",
+        "networkx==2.8.8",
+        "numpy==2.4.6",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "opentelemetry-api==1.44.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==3.0.6",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.4",
+        "pathspec==0.10.3",
+        "pip==24.0",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.4",
+        "protobuf==7.36.2",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.6",
+        "pyarrow==25.0.1",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pybreaker==1.4.1",
+        "pycparser==3.0",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.8.2",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.6.2",
+        "SecretStorage==3.5.0",
+        "setuptools==79.0.1",
+        "six==1.17.0",
+        "snowflake-connector-python==3.18.1",
+        "sortedcontainers==2.4.0",
+        "sqlparams==6.2.0",
+        "sqlparse==0.4.3",
+        "stringcase==1.2.0",
+        "text-unidecode==1.3",
+        "thrift==0.24.0",
+        "tomlkit==0.15.1",
+        "trino==0.340.0",
+        "typing_extensions==4.16.0",
+        "tzlocal==5.4.4",
+        "urllib3==1.26.20",
+        "Werkzeug==2.3.8",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.16"
+    },
+    "trixie-python311-1.8": {
+      "requirements": [
+        "dbt-core~=1.8.0",
+        "dbt-postgres~=1.8.0",
+        "dbt-redshift~=1.8.0",
+        "dbt-snowflake~=1.8.0",
+        "dbt-bigquery~=1.8.0",
+        "dbt-databricks~=1.8.0",
+        "dbt-trino~=1.8.0",
+        "dbt-clickhouse~=1.8.0",
+        "dbt-duckdb~=1.8.0"
+      ],
+      "checks": {
+        "system": {
+          "exit": 0,
+          "seconds": 0.52
+        },
+        "dpkg": {
+          "exit": 0,
+          "seconds": 0.01
+        },
+        "venv": {
+          "exit": 0,
+          "seconds": 2.98
+        },
+        "install": {
+          "exit": 0,
+          "seconds": 39.2
+        },
+        "freeze": {
+          "exit": 0,
+          "seconds": 0.37
+        },
+        "pip-check": {
+          "exit": 0,
+          "seconds": 0.78
+        },
+        "import-dbt.version": {
+          "exit": 0,
+          "seconds": 0.28
+        },
+        "import-psycopg2": {
+          "exit": 0,
+          "seconds": 0.04
+        },
+        "import-cryptography": {
+          "exit": 0,
+          "seconds": 0.02
+        },
+        "import-numpy": {
+          "exit": 0,
+          "seconds": 0.12
+        },
+        "import-pyarrow": {
+          "exit": 0,
+          "seconds": 0.13
+        },
+        "import-dbt.adapters.postgres": {
+          "exit": 0,
+          "seconds": 0.45
+        },
+        "import-dbt.adapters.redshift": {
+          "exit": 0,
+          "seconds": 0.51
+        },
+        "import-dbt.adapters.snowflake": {
+          "exit": 0,
+          "seconds": 1.03
+        },
+        "import-dbt.adapters.bigquery": {
+          "exit": 0,
+          "seconds": 1.12
+        },
+        "import-dbt.adapters.databricks": {
+          "exit": 0,
+          "seconds": 1.52
+        },
+        "import-dbt.adapters.trino": {
+          "exit": 0,
+          "seconds": 0.64
+        },
+        "import-dbt.adapters.clickhouse": {
+          "exit": 0,
+          "seconds": 0.63
+        },
+        "import-dbt.adapters.duckdb": {
+          "exit": 0,
+          "seconds": 0.6
+        },
+        "version": {
+          "exit": 0,
+          "seconds": 3.55
+        },
+        "cli-version": {
+          "exit": 0,
+          "seconds": 3.21
+        },
+        "parse": {
+          "exit": 0,
+          "seconds": 2.17
+        },
+        "compile": {
+          "exit": 0,
+          "seconds": 1.64
+        }
+      },
+      "freeze": [
+        "agate==1.9.1",
+        "annotated-types==0.8.0",
+        "asn1crypto==1.5.1",
+        "attrs==26.1.0",
+        "babel==2.18.0",
+        "backports.tarfile==1.2.0",
+        "backports.zstd==1.7.0",
+        "beautifulsoup4==4.15.0",
+        "boto3==1.43.101",
+        "botocore==1.43.101",
+        "certifi==2026.7.22",
+        "cffi==1.17.1",
+        "charset-normalizer==3.5.1",
+        "click==8.5.0",
+        "clickhouse-connect==1.9.0",
+        "clickhouse-driver==0.2.11",
+        "colorama==0.4.6",
+        "cryptography==46.0.0",
+        "daff==1.4.2",
+        "databricks-sdk==0.17.0",
+        "databricks-sql-connector==3.1.2",
+        "db-dtypes==1.7.1",
+        "dbt-adapters==1.7.0",
+        "dbt-bigquery==1.8.3",
+        "dbt-clickhouse==1.8.9",
+        "dbt-common==1.10.0",
+        "dbt-core==1.8.8",
+        "dbt-databricks==1.8.7",
+        "dbt-duckdb==1.8.4",
+        "dbt-extractor==0.6.0",
+        "dbt-postgres==1.8.2",
+        "dbt-redshift==1.8.1",
+        "dbt-semantic-interfaces==0.5.1",
+        "dbt-snowflake==1.8.4",
+        "dbt-spark==1.10.3",
+        "dbt-trino==1.8.5",
+        "deepdiff==7.0.1",
+        "duckdb==1.5.5",
+        "et_xmlfile==2.0.0",
+        "filelock==3.32.7",
+        "google-api-core==2.30.3",
+        "google-auth==2.58.0",
+        "google-auth-oauthlib==1.4.1",
+        "google-cloud-bigquery==3.45.2",
+        "google-cloud-core==2.7.0",
+        "google-cloud-dataproc==5.28.0",
+        "google-cloud-storage==2.19.0",
+        "google-crc32c==1.8.0",
+        "google-resumable-media==2.10.2",
+        "googleapis-common-protos==1.75.0",
+        "grpc-google-iam-v1==0.14.4",
+        "grpcio==1.84.0",
+        "grpcio-status==1.62.3",
+        "idna==3.20",
+        "importlib-metadata==6.11.0",
+        "isodate==0.6.1",
+        "jaraco.classes==3.4.0",
+        "jaraco.context==6.1.2",
+        "jaraco.functools==4.6.0",
+        "jeepney==0.9.0",
+        "Jinja2==3.1.6",
+        "jmespath==1.1.0",
+        "jsonschema==4.26.0",
+        "jsonschema-specifications==2025.9.1",
+        "keyring==25.7.0",
+        "leather==0.4.1",
+        "Logbook==1.5.3",
+        "lxml==6.1.3",
+        "lz4==4.4.5",
+        "MarkupSafe==3.0.3",
+        "mashumaro==3.22",
+        "minimal-snowplow-tracker==0.0.2",
+        "more-itertools==10.8.0",
+        "msgpack==1.2.2",
+        "networkx==3.6.1",
+        "numpy==1.26.4",
+        "oauthlib==3.3.1",
+        "openpyxl==3.1.5",
+        "ordered-set==4.1.0",
+        "orjson==3.12.0",
+        "packaging==26.3",
+        "pandas==2.1.4",
+        "pandas-gbq==0.35.2",
+        "parsedatetime==2.6",
+        "pathspec==0.12.1",
+        "pip==24.0",
+        "platformdirs==4.11.12",
+        "proto-plus==1.28.2",
+        "protobuf==4.25.9",
+        "psutil==7.2.2",
+        "psycopg2-binary==2.9.13",
+        "pyarrow==14.0.2",
+        "pyasn1==0.6.4",
+        "pyasn1_modules==0.4.2",
+        "pycparser==3.0",
+        "pydantic==2.13.5",
+        "pydantic_core==2.46.5",
+        "pydata-google-auth==1.9.1",
+        "PyJWT==2.15.0",
+        "pyOpenSSL==25.3.0",
+        "python-dateutil==2.9.0.post0",
+        "python-slugify==9.1.1",
+        "pytimeparse==1.1.8",
+        "pytz==2026.4",
+        "PyYAML==6.0.3",
+        "redshift-connector==2.0.917",
+        "referencing==0.37.0",
+        "requests==2.34.2",
+        "requests-oauthlib==2.0.0",
+        "rpds-py==2026.6.3",
+        "s3transfer==0.19.2",
+        "scramp==1.4.17",
+        "SecretStorage==3.5.0",
+        "setuptools==79.0.1",
+        "six==1.17.0",
+        "snowflake-connector-python==3.18.1",
+        "sortedcontainers==2.4.0",
+        "soupsieve==2.10",
+        "sqlparams==6.2.0",
+        "sqlparse==0.5.5",
+        "text-unidecode==1.3",
+        "thrift==0.16.0",
+        "tomlkit==0.15.1",
+        "trino==0.340.0",
+        "typing-inspection==0.4.4",
+        "typing_extensions==4.16.0",
+        "tzdata==2026.4",
+        "tzlocal==5.4.4",
+        "urllib3==2.8.0",
+        "zipp==4.1.0",
+        "zstandard==0.25.0"
+      ],
+      "python": "3.11.16"
+    }
+  }
+}

@@ -1,0 +1,211 @@
+Complete-build attempts: linux/amd64, local BuildKit, no push, default empty Sentry arguments.
+
+=== production-build.log (last 50 lines) ===
+
+#18 [runtime-base  1/13] WORKDIR /usr/app
+#18 DONE 0.0s
+
+#19 [runtime-base  2/13] RUN apt-get update && apt-get install -y --no-install-recommends     python3     python3-psycopg2     python3-venv     git     build-essential     fontconfig     fonts-noto-cjk     ca-certificates     dumb-init     libjemalloc2     && apt-get clean     && rm -rf /var/lib/apt/lists/*
+#19 0.202 Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+#19 0.212 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#19 0.212 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#19 0.225 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+#19 0.265 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+#19 0.265 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [263 kB]
+#19 0.843 Fetched 10.2 MB in 1s (15.8 MB/s)
+#19 0.843 Reading package lists...
+#19 1.290 Reading package lists...
+#19 1.788 Building dependency tree...
+#19 1.952 Reading state information...
+#19 ...
+
+#20 [base 1/4] RUN apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*
+#20 0.245 Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+#20 0.252 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#20 0.254 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#20 0.263 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+#20 0.304 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+#20 0.304 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [263 kB]
+#20 0.872 Fetched 10.2 MB in 1s (16.1 MB/s)
+#20 0.872 Reading package lists...
+#20 1.370 Reading package lists...
+#20 1.874 Building dependency tree...
+#20 2.039 Reading state information...
+#20 2.056 E: Unable to locate package software-properties-common
+#20 ERROR: process "/bin/sh -c apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
+
+#19 [runtime-base  2/13] RUN apt-get update && apt-get install -y --no-install-recommends     python3     python3-psycopg2     python3-venv     git     build-essential     fontconfig     fonts-noto-cjk     ca-certificates     dumb-init     libjemalloc2     && apt-get clean     && rm -rf /var/lib/apt/lists/*
+#19 CANCELED
+------
+ > [base 1/4] RUN apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*:
+0.254 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+0.263 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+0.304 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+0.304 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [263 kB]
+0.872 Fetched 10.2 MB in 1s (16.1 MB/s)
+0.872 Reading package lists...
+1.370 Reading package lists...
+1.874 Building dependency tree...
+2.039 Reading state information...
+2.056 E: Unable to locate package software-properties-common
+------
+ERROR: failed to build: failed to solve: process "/bin/sh -c apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
+exit=1 elapsed_seconds=12
+
+=== preview-build.log (last 50 lines) ===
+#15 DONE 2.8s
+
+#16 [pnpm-base 5/6] RUN pnpm config set store-dir /pnpm/store
+#16 DONE 0.2s
+
+#17 [pnpm-base 6/6] WORKDIR /usr/app
+#17 DONE 0.0s
+
+#18 [base 1/4] RUN apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*
+#18 0.245 Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+#18 0.252 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#18 0.254 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#18 0.263 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+#18 0.304 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+#18 0.304 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [263 kB]
+#18 0.872 Fetched 10.2 MB in 1s (16.1 MB/s)
+#18 0.872 Reading package lists...
+#18 1.370 Reading package lists...
+#18 1.874 Building dependency tree...
+#18 2.039 Reading state information...
+#18 2.056 E: Unable to locate package software-properties-common
+#18 ERROR: process "/bin/sh -c apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
+
+#19 [prod  1/13] RUN apt-get update && apt-get install -y --no-install-recommends     python3     git     fontconfig     ca-certificates     fonts-noto-cjk     dumb-init     && apt-get clean     && rm -rf /var/lib/apt/lists/*
+#19 0.245 Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+#19 0.252 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#19 0.252 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#19 0.263 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+#19 0.318 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+#19 0.318 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [263 kB]
+#19 0.953 Fetched 10.2 MB in 1s (14.3 MB/s)
+#19 0.953 Reading package lists...
+#19 1.453 Reading package lists...
+#19 1.952 Building dependency tree...
+#19 CANCELED
+------
+ > [base 1/4] RUN apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*:
+0.252 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+0.254 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+0.263 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9678 kB]
+0.304 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [4412 B]
+0.304 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [263 kB]
+
+
+1.874 Building dependency tree...
+2.039 Reading state information...
+2.056 E: Unable to locate package software-properties-common
+------
+ERROR: failed to build: failed to solve: process "/bin/sh -c apt-get update && apt-get install -y --no-install-recommends     build-essential     g++     libsasl2-modules-gssapi-mit     python3     python3-psycopg2     python3-venv     python3-dev     software-properties-common     unzip     git     fontconfig     fonts-noto-cjk     && apt-get clean     && rm -rf /var/lib/apt/lists/*" did not complete successfully: exit code: 100
+exit=1 elapsed_seconds=12
+
+=== dockerfile-build-2.log (last 50 lines) ===
+#22 3.559       
+#22 3.559       !!
+#22 3.559         self._finalize_license_expression()
+#22 3.559       running egg_info
+#22 3.559       writing psycopg2_binary.egg-info/PKG-INFO
+#22 3.559       writing dependency_links to psycopg2_binary.egg-info/dependency_links.txt
+#22 3.559       writing top-level names to psycopg2_binary.egg-info/top_level.txt
+#22 3.559       
+#22 3.559       Error: pg_config executable not found.
+#22 3.559       
+#22 3.559       pg_config is required to build psycopg2 from source.  Please add the directory
+#22 3.559       containing pg_config to the $PATH or specify the full executable path with the
+#22 3.559       option:
+#22 3.559       
+#22 3.559           python setup.py build_ext --pg-config /path/to/pg_config build ...
+#22 3.559       
+#22 3.559       or with the pg_config option in 'setup.cfg'.
+#22 3.559       
+#22 3.559       If you prefer to avoid building psycopg2 from source, please install the PyPI
+#22 3.559       'psycopg2-binary' package instead.
+#22 3.559       
+#22 3.559       For further information please check the 'doc/src/install.rst' file (also at
+#22 3.559       <https://www.psycopg.org/docs/install.html>).
+#22 3.559       
+#22 3.559       [end of output]
+#22 3.559   
+#22 3.559   note: This error originates from a subprocess, and is likely not a problem with pip.
+#22 3.561 error: subprocess-exited-with-error
+#22 3.561 
+#22 3.561 × Getting requirements to build wheel did not run successfully.
+#22 3.561 │ exit code: 1
+#22 3.561 ╰─> See above for output.
+#22 3.561 
+#22 3.561 note: This error originates from a subprocess, and is likely not a problem with pip.
+#22 ERROR: process "/bin/sh -c python3 -m venv /usr/local/dbt1.4     && /usr/local/dbt1.4/bin/pip install     \"dbt-postgres~=1.4.0\"     \"dbt-redshift~=1.4.0\"     \"dbt-snowflake~=1.4.0\"     \"dbt-bigquery~=1.4.0\"     \"dbt-databricks~=1.4.0\"     \"dbt-trino~=1.4.0\"     \"dbt-clickhouse~=1.4.0\"     \"psycopg2-binary==2.9.6\"" did not complete successfully: exit code: 1
+------
+ > [base 3/4] RUN --mount=type=cache,target=/root/.cache/pip     python3 -m venv /usr/local/dbt1.4     && /usr/local/dbt1.4/bin/pip install     "dbt-postgres~=1.4.0"     "dbt-redshift~=1.4.0"     "dbt-snowflake~=1.4.0"     "dbt-bigquery~=1.4.0"     "dbt-databricks~=1.4.0"     "dbt-trino~=1.4.0"     "dbt-clickhouse~=1.4.0"     "psycopg2-binary==2.9.6":
+3.559       [end of output]
+3.559   
+3.559   note: This error originates from a subprocess, and is likely not a problem with pip.
+3.561 error: subprocess-exited-with-error
+3.561 
+3.561 × Getting requirements to build wheel did not run successfully.
+3.561 │ exit code: 1
+3.561 ╰─> See above for output.
+3.561 
+3.561 note: This error originates from a subprocess, and is likely not a problem with pip.
+------
+ERROR: failed to build: failed to solve: process "/bin/sh -c python3 -m venv /usr/local/dbt1.4     && /usr/local/dbt1.4/bin/pip install     \"dbt-postgres~=1.4.0\"     \"dbt-redshift~=1.4.0\"     \"dbt-snowflake~=1.4.0\"     \"dbt-bigquery~=1.4.0\"     \"dbt-databricks~=1.4.0\"     \"dbt-trino~=1.4.0\"     \"dbt-clickhouse~=1.4.0\"     \"psycopg2-binary==2.9.6\"" did not complete successfully: exit code: 1
+exit=1 elapsed_seconds=32
+
+=== dockerfile-prs-build-2.log (last 50 lines) ===
+#30 [package-manifests 5/5] COPY packages/backend/package.json packages/backend/
+#30 DONE 0.0s
+
+#31 [prod-builder  5/10] COPY packages/common/package.json packages/common/
+#31 DONE 0.0s
+
+#32 [prod-builder  6/10] COPY packages/formula/package.json packages/formula/
+#32 DONE 0.0s
+
+#33 [prod-builder  7/10] COPY packages/warehouses/package.json packages/warehouses/
+#33 DONE 0.0s
+
+#34 [prod-dependencies 1/1] RUN --mount=type=cache,id=pnpm,target=/pnpm/store     pnpm --filter backend... install --prod     --frozen-lockfile --prefer-offline
+#34 ...
+
+#35 [prod-builder  8/10] COPY packages/backend/package.json packages/backend/
+#35 DONE 0.0s
+
+#36 [prod-builder  9/10] COPY packages/frontend/package.json packages/frontend/
+#36 DONE 0.0s
+
+#34 [prod-dependencies 1/1] RUN --mount=type=cache,id=pnpm,target=/pnpm/store     pnpm --filter backend... install --prod     --frozen-lockfile --prefer-offline
+#34 0.207 Scope: 4 of 5 workspace projects
+#34 0.375 ? Verifying lockfile against supply-chain policies (3361 entries)...
+#34 ...
+
+#37 [prod-builder 10/10] RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prefer-offline
+#37 0.241 Scope: all 6 workspace projects
+#37 0.472 ? Verifying lockfile against supply-chain policies (3361 entries)...
+#37 0.654 Packages are copied from the content-addressable store to the virtual store.
+#37 0.654   Content-addressable store is at: /pnpm/store/v11
+#37 0.654   Virtual store is at:             node_modules/.pnpm
+#37 0.663 Downloading @swc/core-linux-x64-gnu@1.13.5: 0.00 B/14.25 MB
+#37 1.272 Downloading mermaid@11.14.0: 0.00 B/15.86 MB
+#37 2.072 Downloading @turbo/linux-64@2.9.14: 0.00 B/15.65 MB
+#37 2.073 Downloading @rolldown/binding-linux-x64-gnu@1.2.3: 0.00 B/7.96 MB
+#37 2.967 Downloading @next/swc-linux-x64-gnu@16.3.3: 0.00 B/33.79 MB
+#37 2.970 Downloading nodejs-polars-linux-x64-gnu@0.15.0: 0.00 B/22.44 MB
+#37 3.943 Downloading @duckdb/node-bindings-linux-x64@1.5.2-r.2: 0.00 B/23.75 MB
+#37 4.558 Downloading node@runtime:24.18.1: 0.00 B/57.25 MB
+#37 4.672 Downloading @img/sharp-libvips-linux-x64@1.3.3: 0.00 B/8.17 MB
+#37 5.573 Downloading @oxlint-tsgolint/linux-x64@7.0.2001: 0.00 B/7.71 MB
+#37 6.873 Downloading node@runtime:24.18.1: 507.90 kB/57.25 MB
+#37 7.602 Downloading @oxlint-tsgolint/linux-x64@0.18.1: 0.00 B/12.83 MB
+#37 7.682 Downloading @rolldown/binding-linux-x64-gnu@1.0.3: 0.00 B/8.85 MB
+#37 7.868 Downloading duckdb@1.4.2: 0.00 B/11.43 MB
+#37 8.654 Downloading monaco-editor@0.54.0: 0.00 B/16.71 MB
+#37 8.812 Downloading @oxlint/binding-linux-x64-gnu@1.57.0: 0.00 B/5.59 MB
+#37 8.868 Downloading @oxlint/binding-linux-x64-gnu@1.75.0: 0.00 B/6.71 MB
+#37 8.912 Downloading storybook@10.3.4: 0.00 B/5.77
+
+Preview second build log was truncated when disk became full (25 GiB disk, 0 bytes free). Its exit status/wall-clock trailer could not be written. No successful final image was produced.

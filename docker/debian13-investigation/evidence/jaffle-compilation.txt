@@ -1,0 +1,54 @@
+=== bookworm preview: jaffle-parse ===
+13:30:15  Running with dbt=1.12.0
+13:30:15  Registered adapter: postgres=1.10.2
+13:30:15  Unable to do partial parsing because saved manifest not found. Starting full parse.
+13:30:17  [WARNING][MissingArgumentsPropertyInGenericTestDeprecation]: Deprecated
+functionality
+Found top-level arguments to test `relationships` defined on 'orders' in package
+'jaffle_shop' (models/orders.yml). Arguments to generic tests should be nested
+under the `arguments` property.
+13:30:18  Performance info: /jaffle/target/perf_info.json
+13:30:18  [WARNING][DeprecationsSummary]: Deprecated functionality
+Summary of encountered deprecations:
+- MissingArgumentsPropertyInGenericTestDeprecation: 4 occurrences
+To see all deprecation instances instead of just the first occurrence of each,
+run command again with the `--show-all-deprecations` flag. You may also need to
+run with `--no-partial-parse` as some deprecations are only encountered during
+parsing.
+
+
+=== bookworm preview: jaffle-compile ===
+13:30:20  Running with dbt=1.12.0
+13:30:20  Registered adapter: postgres=1.10.2
+13:30:20  Found 63 models, 46 seeds, 74 data tests, 492 macros
+13:30:20  
+13:30:20  Concurrency: 1 threads (target='probe')
+13:30:20  
+
+
+=== trixie preview: jaffle-parse ===
+13:28:50  Running with dbt=1.12.0
+13:28:50  Registered adapter: postgres=1.10.2
+13:28:50  Unable to do partial parsing because saved manifest not found. Starting full parse.
+13:28:52  [WARNING][MissingArgumentsPropertyInGenericTestDeprecation]: Deprecated
+functionality
+Found top-level arguments to test `relationships` defined on 'orders' in package
+'jaffle_shop' (models/orders.yml). Arguments to generic tests should be nested
+under the `arguments` property.
+13:28:53  Performance info: /jaffle/target/perf_info.json
+13:28:53  [WARNING][DeprecationsSummary]: Deprecated functionality
+Summary of encountered deprecations:
+- MissingArgumentsPropertyInGenericTestDeprecation: 4 occurrences
+To see all deprecation instances instead of just the first occurrence of each,
+run command again with the `--show-all-deprecations` flag. You may also need to
+run with `--no-partial-parse` as some deprecations are only encountered during
+parsing.
+
+
+=== trixie preview: jaffle-compile ===
+13:28:55  Running with dbt=1.12.0
+13:28:55  Registered adapter: postgres=1.10.2
+13:28:56  Found 63 models, 46 seeds, 74 data tests, 492 macros
+13:28:56  
+13:28:56  Concurrency: 1 threads (target='probe')
+13:28:56  

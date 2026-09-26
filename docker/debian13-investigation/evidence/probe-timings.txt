@@ -1,0 +1,33 @@
+Build/export success means evidence collection succeeded, not that compatibility checks passed. Bookworm 1.4 wrapper includes a scheduling pause.
+
+=== probe-timings ===
+1.4 exit=0 elapsed_seconds=5
+1.5 exit=0 elapsed_seconds=6
+1.6 exit=0 elapsed_seconds=6
+1.7 exit=0 elapsed_seconds=6
+1.8 exit=0 elapsed_seconds=146
+1.9 exit=0 elapsed_seconds=73
+1.10 exit=0 elapsed_seconds=76
+1.11 exit=0 elapsed_seconds=67
+1.12 exit=0 elapsed_seconds=69
+preview exit=0 elapsed_seconds=59
+
+=== baseline-probe-timings ===
+bookworm-1.4 exit=0 elapsed_seconds=313
+bookworm-1.5 exit=0 elapsed_seconds=66
+bookworm-1.6 exit=0 elapsed_seconds=70
+bookworm-1.7 exit=0 elapsed_seconds=72
+bookworm-1.8 exit=0 elapsed_seconds=63
+bookworm-1.9 exit=0 elapsed_seconds=82
+bookworm-1.10 exit=0 elapsed_seconds=84
+bookworm-1.11 exit=0 elapsed_seconds=77
+bookworm-1.12 exit=0 elapsed_seconds=82
+bookworm-preview exit=0 elapsed_seconds=66
+
+=== demo-timings ===
+trixie-demo-preview exit=0 elapsed_seconds=70
+bookworm-demo-preview exit=0 elapsed_seconds=85
+
+=== python311-timings ===
+python311-1.4 exit=0 elapsed_seconds=91
+python311-1.8 exit=0 elapsed_seconds=64

@@ -1,0 +1,549 @@
+=== bookworm-1.10: dbt --version ===
+Core:
+  - installed: 1.10.19
+  - latest:    1.12.5  - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2  - Update available!
+  - duckdb:     1.10.1  - Update available!
+  - trino:      1.10.5  - Up to date!
+  - bigquery:   1.10.3  - Update available!
+  - databricks: 1.10.19 - Update available!
+  - athena:     1.10.2  - Update available!
+  - spark:      1.9.3   - Update available!
+  - clickhouse: 1.9.3   - Update available!
+  - redshift:   1.10.2  - Update available!
+  - snowflake:  1.10.8  - Update available!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== bookworm-1.11: dbt --version ===
+Core:
+  - installed: 1.11.8
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - duckdb:     1.10.1 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.11.3 - Update available!
+  - databricks: 1.11.8 - Update available!
+  - athena:     1.10.2 - Update available!
+  - spark:      1.10.3 - Update available!
+  - clickhouse: 1.9.3  - Update available!
+  - redshift:   1.10.2 - Update available!
+  - snowflake:  1.11.6 - Update available!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== bookworm-1.12: dbt --version ===
+Core:
+  - installed: 1.12.0
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - duckdb:     1.10.1 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.12.1 - Up to date!
+  - databricks: 1.12.5 - Up to date!
+  - athena:     1.10.2 - Update available!
+  - spark:      1.10.3 - Update available!
+  - clickhouse: 1.9.3  - Update available!
+  - redshift:   1.10.2 - Update available!
+  - snowflake:  1.12.1 - Up to date!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== bookworm-1.4: dbt --version ===
+13:24:20  [WARNING]: This version of dbt is deprecated and no longer receives regular patches, including for known bugs. Please upgrade to a newer supported version of dbt for new projects: https://docs.getdbt.com/docs/dbt-versions?utm_source=dbt-cli
+Core:
+  - installed: 1.4.10
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.4.10 - Update available!
+  - trino:      1.4.2  - Update available!
+  - bigquery:   1.4.5  - Update available!
+  - databricks: 1.4.3  - Update available!
+  - spark:      1.4.3  - Update available!
+  - clickhouse: 1.4.9  - Update available!
+  - redshift:   1.4.1  - Update available!
+  - snowflake:  1.4.5  - Update available!
+
+  At least one plugin is out of date or incompatible with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+=== bookworm-1.5: dbt --version ===
+Core:
+  - installed: 1.5.12
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.5.12 - Update available!
+  - trino:      1.5.0  - Update available!
+  - bigquery:   1.5.9  - Update available!
+  - databricks: 1.5.7  - Update available!
+  - spark:      1.5.3  - Update available!
+  - clickhouse: 1.5.2  - Update available!
+  - redshift:   1.5.12 - Update available!
+  - snowflake:  1.5.7  - Update available!
+
+  At least one plugin is out of date or incompatible with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+13:28:35  [WARNING]: This version of dbt is deprecated and no longer receives regular patches, including for known bugs. Please upgrade to a newer supported version of dbt for new projects: https://docs.getdbt.com/docs/dbt-versions?utm_source=dbt-cli
+
+
+=== bookworm-1.6: dbt --version ===
+Traceback (most recent call last):
+  File "/probe-venv/bin/dbt", line 8, in <module>
+    sys.exit(cli())
+             ^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1631, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1551, in main
+    with self.make_context(prog_name, args, **extra) as ctx:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1362, in make_context
+    self.parse_args(ctx, args)
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1988, in parse_args
+    rest = super().parse_args(ctx, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 1373, in parse_args
+    _, args = param.handle_parse_result(ctx, opts, args)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 2778, in handle_parse_result
+    value = self.process_value(ctx, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 3660, in process_value
+    return super().process_value(ctx, value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/click/core.py", line 2640, in process_value
+    value = self.callback(ctx, self, value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/cli/params.py", line 573, in _version_callback
+    click.echo(get_version_information())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 24, in get_version_information
+    plugin_version_msg = _get_plugins_msg(installed)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 104, in _get_plugins_msg
+    for name, version_s in _get_dbt_plugins_info():
+  File "/probe-venv/lib/python3.11/site-packages/dbt/version.py", line 211, in _get_dbt_plugins_info
+    mod = importlib.import_module(f"dbt.adapters.{plugin_name}.__version__")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1128, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/__init__.py", line 1, in <module>
+    from dbt.adapters.bigquery.connections import BigQueryConnectionManager  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe-venv/lib/python3.11/site-packages/dbt/adapters/bigquery/connections.py", line 72, in <module>
+    bigquery._helpers._CELLDATA_FROM_JSON["JSON"] = _json_from_json
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'google.cloud.bigquery._helpers' has no attribute '_CELLDATA_FROM_JSON'
+
+
+=== bookworm-1.7: dbt --version ===
+Core:
+  - installed: 1.7.20
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.7.20 - Update available!
+  - trino:      1.7.0  - Update available!
+  - bigquery:   1.7.9  - Update available!
+  - databricks: 1.7.17 - Update available!
+  - spark:      1.7.1  - Update available!
+  - clickhouse: 1.7.7  - Update available!
+  - redshift:   1.7.7  - Update available!
+  - snowflake:  1.7.5  - Update available!
+
+  At least one plugin is out of date or incompatible with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+13:30:55  [WARNING]: This version of dbt is deprecated and no longer receives regular patches, including for known bugs. Please upgrade to a newer supported version of dbt for new projects: https://docs.getdbt.com/docs/dbt-versions?utm_source=dbt-cli
+
+
+=== bookworm-1.8: dbt --version ===
+Core:
+  - installed: 1.8.8 
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.8.2  - Update available!
+  - duckdb:     1.8.4  - Update available!
+  - trino:      1.8.5  - Update available!
+  - bigquery:   1.8.3  - Update available!
+  - databricks: 1.8.7  - Update available!
+  - spark:      1.10.3 - Not compatible!
+  - clickhouse: 1.8.9  - Update available!
+  - redshift:   1.8.1  - Update available!
+  - snowflake:  1.8.4  - Update available!
+
+  At least one plugin is out of date or incompatible with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== bookworm-1.9: dbt --version ===
+/probe-venv/lib/python3.11/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'allow_population_by_field_name' has been renamed to 'validate_by_name'
+  warnings.warn(message, UserWarning)
+Core:
+  - installed: 1.9.11
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.9.1 - Update available!
+  - duckdb:     1.9.6 - Update available!
+  - trino:      1.9.3 - Update available!
+  - bigquery:   1.9.2 - Update available!
+  - databricks: 1.9.8 - Update available!
+  - athena:     1.9.5 - Update available!
+  - spark:      1.9.3 - Update available!
+  - clickhouse: 1.9.8 - Update available!
+  - redshift:   1.9.5 - Update available!
+  - snowflake:  1.9.4 - Update available!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+13:33:19  [WARNING]: This version of dbt is deprecated and no longer receives regular patches, including for known bugs. Please upgrade to a newer supported version of dbt for new projects: https://docs.getdbt.com/docs/dbt-versions?utm_source=dbt-cli
+
+
+=== bookworm-demo-preview: dbt --version ===
+Core:
+  - installed: 1.12.0
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.12.1 - Up to date!
+  - databricks: 1.12.5 - Up to date!
+  - spark:      1.10.3 - Update available!
+  - snowflake:  1.12.1 - Up to date!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== bookworm-preview: dbt --version ===
+Core:
+  - installed: 1.12.0
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.12.1 - Up to date!
+  - databricks: 1.12.5 - Up to date!
+  - spark:      1.10.3 - Update available!
+  - snowflake:  1.12.1 - Up to date!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== trixie-1.10: dbt --version ===
+WARNING:thrift.transport.sslcompat:using legacy validation callback
+Core:
+  - installed: 1.10.19
+  - latest:    1.12.5  - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2  - Update available!
+  - duckdb:     1.10.1  - Update available!
+  - trino:      1.10.5  - Up to date!
+  - bigquery:   1.10.3  - Update available!
+  - databricks: 1.10.19 - Update available!
+  - athena:     1.10.2  - Update available!
+  - spark:      1.9.3   - Update available!
+  - clickhouse: 1.9.3   - Update available!
+  - redshift:   1.10.2  - Update available!
+  - snowflake:  1.10.8  - Update available!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== trixie-1.11: dbt --version ===
+WARNING:thrift.transport.sslcompat:using legacy validation callback
+Core:
+  - installed: 1.11.8
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - duckdb:     1.10.1 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.11.3 - Update available!
+  - databricks: 1.11.8 - Update available!
+  - athena:     1.10.2 - Update available!
+  - spark:      1.10.3 - Update available!
+  - clickhouse: 1.9.3  - Update available!
+  - redshift:   1.10.2 - Update available!
+  - snowflake:  1.11.6 - Update available!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== trixie-1.12: dbt --version ===
+Core:
+  - installed: 1.12.0
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - duckdb:     1.10.1 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.12.1 - Up to date!
+  - databricks: 1.12.5 - Up to date!
+  - athena:     1.10.2 - Update available!
+  - spark:      1.10.3 - Update available!
+  - clickhouse: 1.9.3  - Update available!
+  - redshift:   1.10.2 - Update available!
+  - snowflake:  1.12.1 - Up to date!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== trixie-1.9: dbt --version ===
+WARNING:thrift.transport.sslcompat:using legacy validation callback
+/probe-venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'allow_population_by_field_name' has been renamed to 'validate_by_name'
+  warnings.warn(message, UserWarning)
+Core:
+  - installed: 1.9.11
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.9.1 - Update available!
+  - duckdb:     1.9.6 - Update available!
+  - trino:      1.9.3 - Update available!
+  - bigquery:   1.9.2 - Update available!
+  - databricks: 1.9.8 - Update available!
+  - athena:     1.9.5 - Update available!
+  - spark:      1.9.3 - Update available!
+  - clickhouse: 1.9.8 - Update available!
+  - redshift:   1.9.5 - Update available!
+  - snowflake:  1.9.4 - Update available!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+13:23:08  [WARNING]: This version of dbt is deprecated and no longer receives regular patches, including for known bugs. Please upgrade to a newer supported version of dbt for new projects: https://docs.getdbt.com/docs/dbt-versions?utm_source=dbt-cli
+
+
+=== trixie-demo-preview: dbt --version ===
+Core:
+  - installed: 1.12.0
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.12.1 - Up to date!
+  - databricks: 1.12.5 - Up to date!
+  - spark:      1.10.3 - Update available!
+  - snowflake:  1.12.1 - Up to date!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== trixie-preview: dbt --version ===
+Core:
+  - installed: 1.12.0
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.10.2 - Update available!
+  - trino:      1.10.5 - Up to date!
+  - bigquery:   1.12.1 - Up to date!
+  - databricks: 1.12.5 - Up to date!
+  - spark:      1.10.3 - Update available!
+  - snowflake:  1.12.1 - Up to date!
+
+  At least one plugin is out of date with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
+
+=== trixie-python311-1.4: dbt --version ===
+13:40:05  [WARNING]: This version of dbt is deprecated and no longer receives regular patches, including for known bugs. Please upgrade to a newer supported version of dbt for new projects: https://docs.getdbt.com/docs/dbt-versions?utm_source=dbt-cli
+Core:
+  - installed: 1.4.10
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.4.10 - Update available!
+  - trino:      1.4.2  - Update available!
+  - bigquery:   1.4.5  - Update available!
+  - databricks: 1.4.3  - Update available!
+  - spark:      1.4.3  - Update available!
+  - clickhouse: 1.4.9  - Update available!
+  - redshift:   1.4.1  - Update available!
+  - snowflake:  1.4.5  - Update available!
+
+  At least one plugin is out of date or incompatible with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+=== trixie-python311-1.8: dbt --version ===
+Core:
+  - installed: 1.8.8 
+  - latest:    1.12.5 - Update available!
+
+  Your version of dbt-core is out of date!
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+Plugins:
+  - postgres:   1.8.2  - Update available!
+  - duckdb:     1.8.4  - Update available!
+  - trino:      1.8.5  - Update available!
+  - bigquery:   1.8.3  - Update available!
+  - databricks: 1.8.7  - Update available!
+  - spark:      1.10.3 - Not compatible!
+  - clickhouse: 1.8.9  - Update available!
+  - redshift:   1.8.1  - Update available!
+  - snowflake:  1.8.4  - Update available!
+
+  At least one plugin is out of date or incompatible with dbt-core.
+  You can find instructions for upgrading here:
+  https://docs.getdbt.com/docs/installation
+
+
+
