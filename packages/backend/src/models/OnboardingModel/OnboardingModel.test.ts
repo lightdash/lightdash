@@ -55,6 +55,72 @@ describe('OnboardingModel', () => {
         expect(typedCallback).toHaveBeenCalledWith(expect.any(Function));
     });
 
+    it('takes the learner lock, then one of the organization copy slots', async () => {
+        tracker.on.select('users').responseOnce({ user_id: 42 });
+        tracker.on.select('organizations').responseOnce({ organization_id: 7 });
+        tracker.on.select('pg_advisory_xact_lock').responseOnce({});
+        // First slot is taken, second is free.
+        let tries = 0;
+        tracker.on.select('pg_try_advisory_xact_lock').response(() => {
+            tries += 1;
+            return { rows: [{ acquired: tries > 1 }] };
+        });
+        const callback = vi.fn(async () => 'copied');
+
+        await expect(
+            model.runInTrainingCopyLock(
+                {
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'org-uuid',
+                    maxConcurrentPerOrganization: 3,
+                },
+                callback,
+            ),
+        ).resolves.toBe('copied');
+
+        const userLock = tracker.history.select.find(({ sql }) =>
+            sql.includes('pg_advisory_xact_lock'),
+        );
+        expect(userLock?.bindings).toEqual([19350430, 42]);
+        const slots = tracker.history.select.filter(({ sql }) =>
+            sql.includes('pg_try_advisory_xact_lock'),
+        );
+        expect(slots.map((q) => q.bindings)).toEqual([
+            [19350431, 7 * 3 + 0],
+            [19350431, 7 * 3 + 1],
+        ]);
+        expect(callback).toHaveBeenCalledOnce();
+    });
+
+    it('refuses with a 429 when every organization copy slot is taken', async () => {
+        tracker.on.select('users').responseOnce({ user_id: 42 });
+        tracker.on.select('organizations').responseOnce({ organization_id: 7 });
+        tracker.on.select('pg_advisory_xact_lock').responseOnce({});
+        tracker.on
+            .select('pg_try_advisory_xact_lock')
+            .response({ rows: [{ acquired: false }] });
+        const callback = vi.fn(async () => 'copied');
+
+        await expect(
+            model.runInTrainingCopyLock(
+                {
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'org-uuid',
+                    maxConcurrentPerOrganization: 2,
+                },
+                callback,
+            ),
+        ).rejects.toThrow(
+            'Your organization is already making its limit of training copies',
+        );
+        expect(
+            tracker.history.select.filter(({ sql }) =>
+                sql.includes('pg_try_advisory_xact_lock'),
+            ),
+        ).toHaveLength(2);
+        expect(callback).not.toHaveBeenCalled();
+    });
+
     it('reads the playground content seed version', async () => {
         tracker.on
             .select(({ sql }) =>
