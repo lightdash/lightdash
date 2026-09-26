@@ -313,7 +313,10 @@ describe('version metadata propagation on app copy paths', () => {
 
         expect(appModel.createVersion).toHaveBeenCalledWith(
             UPSTREAM_APP_UUID,
-            { version: 7, prompt: expect.any(String) },
+            {
+                version: 7,
+                prompt: `Promote [My Viz](/projects/${PROJECT_UUID}/chart-studio/${SOURCE_APP_UUID})`,
+            },
             'ready',
             USER_UUID,
             expect.any(Object),

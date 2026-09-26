@@ -8673,7 +8673,7 @@ export class AppGenerateService extends BaseService {
             sourceApp.name ||
             (isChartType ? 'untitled chart type' : 'untitled app');
         const sourcePreviewPath = isChartType
-            ? `/projects/${projectUuid}/chart-types/${sourceApp.app_id}`
+            ? `/projects/${projectUuid}/chart-studio/${sourceApp.app_id}`
             : `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
         const { client: s3Client, bucket } = this.getS3Client();

@@ -347,7 +347,7 @@ export const ConfigTabs: FC = memo(() => {
                         }
                         onBrowseGallery={() =>
                             void navigate(
-                                `/projects/${projectUrlIdentifier}/chart-types`,
+                                `/projects/${projectUrlIdentifier}/chart-studio`,
                             )
                         }
                     />
