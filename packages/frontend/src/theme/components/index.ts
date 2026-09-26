@@ -22,6 +22,7 @@ import {
     Loader,
     Menu,
     Modal,
+    MultiSelect,
     NavLink,
     Notification,
     Pagination,
@@ -33,6 +34,7 @@ import {
     Radio,
     ScrollArea,
     SegmentedControl,
+    Select,
     Skeleton,
     Switch,
     Table,
@@ -395,8 +397,21 @@ export const themeComponents: MantineThemeOverride['components'] = {
         classNames: dividerClasses,
     }),
 
+    Select: Select.extend({
+        defaultProps: {
+            scrollAreaProps: { type: 'always' },
+        },
+    }),
+
+    MultiSelect: MultiSelect.extend({
+        defaultProps: {
+            scrollAreaProps: { type: 'always' },
+        },
+    }),
+
     ScrollArea: ScrollArea.extend({
         defaultProps: {
+            type: 'always',
             scrollbarSize: 8,
         },
         classNames: scrollAreaClasses,

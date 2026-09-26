@@ -386,7 +386,7 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                         <Combobox.Options>
                             <ScrollArea.Autosize
                                 mah={maxDropdownHeight}
-                                type="scroll"
+                                type="always"
                                 scrollbarSize="var(--combobox-padding)"
                                 offsetScrollbars="y"
                                 {...scrollAreaProps}
