@@ -149,7 +149,6 @@ export type BuildSandboxEnvironmentArgs = {
     apiUrl: string | undefined;
     siteUrl: string;
     projectUuid: string;
-    apiKey: string;
     workspaceDir: string;
     projectDir: string;
     databasePath: string;
@@ -172,7 +171,8 @@ export const buildSandboxEnvironment = (
             .join(':'),
         LIGHTDASH_URL: args.apiUrl ?? args.siteUrl,
         LIGHTDASH_PROJECT: args.projectUuid,
-        LIGHTDASH_API_KEY: args.apiKey,
+        // No LIGHTDASH_API_KEY here: the token goes through the CLI config
+        // file in HOME (see writeCliConfig) so dbt's env_var() cannot read it.
         // The CLI only accepts a local .duckdb profile when the file sits
         // directly inside PLAYGROUND_DATA_DIR, and it reads that from its own
         // environment. Set it from the resolved runtime rather than

@@ -773,7 +773,11 @@ describe('LearnSandboxService.runCommand', () => {
             path.join(bin, 'dbt'),
             [
                 '#!/bin/sh',
-                'echo "parse ok key=$LIGHTDASH_API_KEY project=$LIGHTDASH_PROJECT"',
+                'echo "parse ok key=${LIGHTDASH_API_KEY:-unset} project=$LIGHTDASH_PROJECT"',
+                // The CLI reads its token from $HOME/.config/lightdash/config.yaml;
+                // dbt's env_var() cannot reach a file, so that is where it lives.
+                'echo "config-mode=$(ls -l "$HOME/.config/lightdash/config.yaml" | cut -c1-10)"',
+                'cat "$HOME/.config/lightdash/config.yaml"',
                 'echo "warn" 1>&2',
                 'echo "home=$HOME profiles=$DBT_PROFILES_DIR project_dir=$DBT_PROJECT_DIR pwd=$(pwd) sentinel=$SANDBOX_HOST_SENTINEL"',
                 'exit 0',
@@ -831,7 +835,13 @@ describe('LearnSandboxService.runCommand', () => {
             .join('');
         const workspaceDir = path.join(workspaceRoot, 'copy-c1');
         const projectDir = path.join(workspaceDir, 'project');
-        expect(text).toContain('parse ok key=*** project=copy');
+        expect(text).toContain('parse ok key=unset project=copy');
+        expect(text).toContain('config-mode=-rw-------');
+        // The file carries the token (redacted here, as all output is) and
+        // points the CLI at the copy on this instance.
+        expect(text).toContain('apiKey: ***');
+        expect(text).toContain('project: copy');
+        expect(text).toContain('serverUrl: ');
         expect(text).toContain('warn');
         expect(text).not.toContain('ldpat_abc');
         expect(text).toContain(`home=${workspaceDir}`);

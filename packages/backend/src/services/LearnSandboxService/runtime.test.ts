@@ -15,7 +15,6 @@ describe('buildSandboxEnvironment', () => {
         apiUrl: undefined,
         siteUrl: 'https://learn.test',
         projectUuid: 'copy',
-        apiKey: 'ldpat_abc',
         workspaceDir: '/tmp/ws/copy-c1',
         projectDir: '/tmp/ws/copy-c1/project',
         databasePath: '/srv/playground/jaffle_shop.duckdb',
@@ -66,7 +65,6 @@ describe('buildSandboxEnvironment', () => {
         expect(env).toMatchObject({
             LIGHTDASH_URL: 'https://learn.test',
             LIGHTDASH_PROJECT: 'copy',
-            LIGHTDASH_API_KEY: 'ldpat_abc',
             PLAYGROUND_DATA_DIR: '/srv/playground',
             DBT_PROFILES_DIR: '/tmp/ws/copy-c1',
             DBT_PROJECT_DIR: '/tmp/ws/copy-c1/project',
@@ -78,6 +76,9 @@ describe('buildSandboxEnvironment', () => {
             // A stalled API surfaces as a CLI error well inside the command timeout
             LIGHTDASH_API_TIMEOUT_MS: '30000',
         });
+        // The token goes through the CLI config file, never the environment,
+        // so dbt's env_var() cannot render it into the manifest.
+        expect(env).not.toHaveProperty('LIGHTDASH_API_KEY');
     });
 
     it('tells the CLI which directory holds the playground database', () => {
