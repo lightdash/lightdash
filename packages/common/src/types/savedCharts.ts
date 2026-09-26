@@ -798,6 +798,12 @@ export type DataAppVizFieldMapping = Record<string, string | string[]>;
 /** Maps a declared config option's name → the value the user chose for it. */
 export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
 
+/** Viz field (input) name → bound query field id → that field's option values. */
+export type DataAppVizFieldOptionValues = Record<
+    string,
+    Record<string, DataAppVizOptionValues>
+>;
+
 export type DataAppVizChart = {
     /**
      * The reusable data app viz this chart renders with (by reference).
@@ -818,6 +824,12 @@ export type DataAppVizChart = {
      * before config options shipped.
      */
     optionValues?: DataAppVizOptionValues;
+    /**
+     * Per-field option values the user explicitly changed, for inputs that
+     * declare `configOptions`. Absent on charts saved before per-field options
+     * shipped.
+     */
+    fieldOptionValues?: DataAppVizFieldOptionValues;
 };
 
 export type CartesianChart = {

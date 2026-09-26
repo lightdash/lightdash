@@ -529,6 +529,7 @@ describe('DataAppVizTestPanel', () => {
                 },
                 rows: resultRows,
                 options: { showLegend: true },
+                fieldOptions: {},
                 colorPalette: ['#111111'],
                 seriesColors: {},
                 valueColors: {
@@ -552,6 +553,7 @@ describe('DataAppVizTestPanel', () => {
                 },
                 rows: resultRows,
                 options: { showLegend: false },
+                fieldOptions: {},
                 colorPalette: ['#111111'],
                 seriesColors: {},
                 valueColors: {
@@ -584,6 +586,7 @@ describe('DataAppVizTestPanel', () => {
                 },
                 rows: resultRows,
                 options: { showLegend: true },
+                fieldOptions: {},
                 colorPalette: ['#111111'],
                 seriesColors: {},
                 valueColors: {
@@ -607,6 +610,7 @@ describe('DataAppVizTestPanel', () => {
                 },
                 rows: resultRows,
                 options: { showLegend: true },
+                fieldOptions: {},
                 colorPalette: ['#123456', '#abcdef'],
                 seriesColors: {},
                 valueColors: {
@@ -617,6 +621,69 @@ describe('DataAppVizTestPanel', () => {
                 drillDown: { enabled: false },
                 pointMenu: { enabled: false },
             }),
+        );
+    });
+
+    it('republishes per-field option edits after a successful query', async () => {
+        const onContextChange = vi.fn();
+        renderWithProviders(
+            <TestDataAppVizPanel
+                projectUuid="p1"
+                schema={{
+                    ...configurableSchema,
+                    fields: [
+                        {
+                            ...configurableSchema.fields[0],
+                            configOptions: [
+                                {
+                                    type: 'boolean',
+                                    name: 'showLabel',
+                                    label: 'Show label',
+                                    default: true,
+                                },
+                                {
+                                    type: 'boolean',
+                                    name: 'bold',
+                                    label: 'Bold',
+                                    group: 'Style',
+                                    default: false,
+                                },
+                            ],
+                        },
+                    ],
+                }}
+                onContextChange={onContextChange}
+            />,
+        );
+
+        const user = await runSuccessfulPreviewQuery();
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    fieldOptions: {
+                        source: {
+                            orders_visible: { showLabel: true, bold: false },
+                        },
+                    },
+                }),
+            ),
+        );
+
+        await user.click(screen.getByLabelText('Show label'));
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+        expect(screen.getByText('Source')).toBeInTheDocument();
+        await user.click(screen.getByLabelText('Bold'));
+
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    fieldOptions: {
+                        source: {
+                            orders_visible: { showLabel: false, bold: true },
+                        },
+                    },
+                }),
+            ),
         );
     });
 

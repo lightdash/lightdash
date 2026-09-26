@@ -1,4 +1,7 @@
-import { type DataAppVizConfigOption } from '@lightdash/common';
+import {
+    type DataAppVizConfigOption,
+    type DataAppVizField,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     groupDataAppVizOptions,
@@ -15,13 +18,15 @@ const option = (name: string, group?: string): DataAppVizConfigOption => ({
 
 describe('groupDataAppVizOptions', () => {
     it('returns no groups for an empty declaration', () => {
-        expect(groupDataAppVizOptions([], null)).toEqual([]);
+        expect(groupDataAppVizOptions([], null, [], {})).toEqual([]);
     });
 
     it('keeps declaration order and merges repeated groups', () => {
         const groups = groupDataAppVizOptions(
             [option('a', 'Style'), option('b', 'Axes'), option('c', 'Style')],
             null,
+            [],
+            {},
         );
 
         expect(groups.map((g) => g.label)).toEqual(['Style', 'Axes']);
@@ -33,6 +38,8 @@ describe('groupDataAppVizOptions', () => {
         const groups = groupDataAppVizOptions(
             [option('a'), option('b', 'Style'), option('c')],
             null,
+            [],
+            {},
         );
 
         expect(groups.map((g) => g.label)).toEqual([
@@ -43,7 +50,12 @@ describe('groupDataAppVizOptions', () => {
     });
 
     it('marks no group as holding the palette when none is declared', () => {
-        const groups = groupDataAppVizOptions([option('a', 'Style')], null);
+        const groups = groupDataAppVizOptions(
+            [option('a', 'Style')],
+            null,
+            [],
+            {},
+        );
 
         expect(groups.every((g) => !g.hasPalette)).toBe(true);
     });
@@ -52,6 +64,8 @@ describe('groupDataAppVizOptions', () => {
         const groups = groupDataAppVizOptions(
             [option('a', 'Style'), option('b', 'Axes')],
             { group: 'Style' },
+            [],
+            {},
         );
 
         expect(groups.map((g) => g.label)).toEqual(['Style', 'Axes']);
@@ -59,16 +73,19 @@ describe('groupDataAppVizOptions', () => {
     });
 
     it('puts an ungrouped palette in the Display group', () => {
-        const groups = groupDataAppVizOptions([option('a')], {});
+        const groups = groupDataAppVizOptions([option('a')], {}, [], {});
 
         expect(groups.map((g) => g.label)).toEqual([UNGROUPED_OPTIONS_LABEL]);
         expect(groups[0].hasPalette).toBe(true);
     });
 
     it('creates a group for a palette whose tab no option shares', () => {
-        const groups = groupDataAppVizOptions([option('a', 'Style')], {
-            group: 'Colours',
-        });
+        const groups = groupDataAppVizOptions(
+            [option('a', 'Style')],
+            { group: 'Colours' },
+            [],
+            {},
+        );
 
         expect(groups.map((g) => g.label)).toEqual(['Style', 'Colours']);
         expect(groups[1].options).toEqual([]);
@@ -76,9 +93,47 @@ describe('groupDataAppVizOptions', () => {
     });
 
     it('gives a viz that declares only a palette a single group', () => {
-        const groups = groupDataAppVizOptions([], { group: 'Colours' });
+        const groups = groupDataAppVizOptions([], { group: 'Colours' }, [], {});
 
         expect(groups.map((g) => g.label)).toEqual(['Colours']);
         expect(groups[0].hasPalette).toBe(true);
+    });
+
+    it('adds tabs for grouped per-field options and leaves ungrouped ones out', () => {
+        const metrics: DataAppVizField = {
+            name: 'metrics',
+            label: 'Metrics',
+            type: 'metric',
+            required: true,
+            configOptions: [option('color', 'Series'), option('label')],
+        };
+        const groups = groupDataAppVizOptions(
+            [option('a', 'Style'), option('b', 'Series')],
+            null,
+            [metrics],
+            { metrics: ['orders_revenue'] },
+        );
+
+        expect(groups.map((g) => [g.label, g.hasFieldOptions])).toEqual([
+            ['Style', false],
+            ['Series', true],
+        ]);
+    });
+
+    it('adds no tab for per-field options whose input has no bound field', () => {
+        const metrics: DataAppVizField = {
+            name: 'metrics',
+            label: 'Metrics',
+            type: 'metric',
+            required: true,
+            configOptions: [option('color', 'Series')],
+        };
+        const unbound = groupDataAppVizOptions([], null, [metrics], {});
+        expect(unbound).toEqual([]);
+
+        const cleared = groupDataAppVizOptions([], null, [metrics], {
+            metrics: [],
+        });
+        expect(cleared).toEqual([]);
     });
 });

@@ -215,6 +215,40 @@ describe('serializeCustomChartTypeSchema', () => {
         );
     });
 
+    it('lists per-field options under the field that declares them', () => {
+        expect(
+            serializeCustomChartTypeSchema({
+                ...minimal,
+                schema: {
+                    ...minimal.schema,
+                    fields: [
+                        {
+                            ...minimal.schema.fields[0],
+                            configOptions: [
+                                {
+                                    type: 'color',
+                                    name: 'color',
+                                    label: 'Colour',
+                                    default: '#000000',
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+        ).toBe(
+            [
+                'name: Status Donut',
+                'slug: status-donut',
+                'fields:',
+                '- status "Status" (dimension, required)',
+                '  per-field options:',
+                '  - color "Colour" [color] default: "#000000"',
+                'configOptions: none',
+            ].join('\n'),
+        );
+    });
+
     it('omits empty examples', () => {
         expect(
             serializeCustomChartTypeSchema({

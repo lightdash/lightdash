@@ -49,6 +49,8 @@ const renderPanel = ({
             schema={panelSchema}
             optionValues={{}}
             onOptionChange={vi.fn()}
+            fieldOptionValues={{}}
+            onFieldOptionChange={vi.fn()}
             colorPaletteUuid={null}
             onPaletteChange={vi.fn()}
             resolvedColorPalette={['#111111']}
@@ -184,6 +186,8 @@ describe('ConfigurePanel', () => {
                 }}
                 optionValues={{}}
                 onOptionChange={vi.fn()}
+                fieldOptionValues={{}}
+                onFieldOptionChange={vi.fn()}
                 colorPaletteUuid={null}
                 onPaletteChange={vi.fn()}
                 resolvedColorPalette={[]}

@@ -61,10 +61,12 @@ const selectedFields = {
 const buildChartConfig = (
     fieldMapping: ToolRunQueryCustomChartTypeConfig['fieldMapping'],
     options: ToolRunQueryCustomChartTypeConfig['options'] = null,
+    fieldOptions: ToolRunQueryCustomChartTypeConfig['fieldOptions'] = null,
 ): ToolRunQueryCustomChartTypeConfig => ({
     customChartTypeSlug: 'cohort-waterfall',
     fieldMapping,
     options,
+    fieldOptions,
 });
 
 const validMapping = {
@@ -399,6 +401,68 @@ describe('validateCustomChartTypeChartConfig', () => {
                 expect.objectContaining({
                     message: expect.stringContaining(
                         'Slot "y" (metric) only accepts metrics or table calculations, but "orders_status" is a dimension. Metrics and table calculations selected in this query: orders_revenue, revenue_running_total.',
+                    ),
+                }),
+            );
+        });
+    });
+
+    describe('fieldOptions', () => {
+        const fieldOptionsSchema: DataAppVizSchema = {
+            ...multiVizSchema,
+            fields: multiVizSchema.fields.map((field) =>
+                field.name === 'y'
+                    ? {
+                          ...field,
+                          configOptions: [
+                              {
+                                  name: 'color',
+                                  label: 'Colour',
+                                  type: 'color',
+                                  default: '#000000',
+                              },
+                          ],
+                      }
+                    : field,
+            ),
+        };
+        const mapping = {
+            x: 'orders_order_date_month',
+            y: ['orders_revenue', 'revenue_running_total'],
+        };
+
+        it('accepts values for fields bound to a slot that declares them', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig(mapping, null, {
+                        y: {
+                            orders_revenue: { color: '#ff0000' },
+                            revenue_running_total: { color: '#00ff00' },
+                        },
+                    }),
+                    fieldOptionsSchema,
+                    selectedFields,
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects unbound fields, undeclared slots, unknown options and wrong types', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig(mapping, null, {
+                        x: { orders_order_date_month: { color: '#ff0000' } },
+                        y: {
+                            orders_status: { color: '#ff0000' },
+                            orders_revenue: { colour: '#ff0000', color: 1 },
+                        },
+                    }),
+                    fieldOptionsSchema,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringMatching(
+                        /Slot "x" declares no per-field options[\s\S]*"orders_status", which is not bound[\s\S]*Unknown per-field option "colour"[\s\S]*y → orders_revenue: Option "color" \(color\) expects a string/,
                     ),
                 }),
             );

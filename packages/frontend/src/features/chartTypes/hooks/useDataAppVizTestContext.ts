@@ -2,6 +2,7 @@ import {
     deriveDataAppVizFieldMetadata,
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
+    getDataAppVizFieldOptions,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
     getItemMap,
@@ -9,6 +10,7 @@ import {
     QueryExecutionContext,
     type DataAppVizContext,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldOptionValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
@@ -54,6 +56,14 @@ export type DataAppVizTestContextState = {
     metrics: ReturnType<typeof getDataAppVizFieldItems>['metrics'];
     effectiveOptions: DataAppVizOptionValues;
     setOption: (name: string, value: DataAppVizOptionValue) => void;
+    /** Only what the user explicitly changed, keyed by input then field id. */
+    fieldOptionValues: DataAppVizFieldOptionValues;
+    setFieldOption: (
+        fieldName: string,
+        fieldId: string,
+        optionName: string,
+        value: DataAppVizOptionValue,
+    ) => void;
     colorPaletteUuid: string | null;
     setColorPaletteUuid: (uuid: string | null) => void;
     palettes: OrganizationColorPaletteWithIsActive[];
@@ -84,6 +94,8 @@ export const useDataAppVizTestContext = ({
     const [optionValues, setOptionValues] = useState<DataAppVizOptionValues>(
         {},
     );
+    const [fieldOptionValues, setFieldOptionValues] =
+        useState<DataAppVizFieldOptionValues>({});
     // Preview-only; a chart using the viz owns the palette the normal way.
     const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
         null,
@@ -160,6 +172,11 @@ export const useDataAppVizTestContext = ({
                 ),
                 rows,
                 options: effectiveOptions,
+                fieldOptions: getDataAppVizFieldOptions(
+                    schema.fields,
+                    run.fieldMapping,
+                    fieldOptionValues,
+                ),
                 colorPalette,
                 ...resolvedColors,
                 pivotDetails: queryResults.pivotDetails ?? null,
@@ -176,6 +193,8 @@ export const useDataAppVizTestContext = ({
         queryResults.queryUuid,
         queryResults.pivotDetails,
         effectiveOptions,
+        schema.fields,
+        fieldOptionValues,
         colorPalette,
         resolvedColors,
         onContextChange,
@@ -192,6 +211,7 @@ export const useDataAppVizTestContext = ({
         (value: string | null) => {
             setExploreName(value);
             setFieldMapping({});
+            setFieldOptionValues({});
             clearRun();
         },
         [clearRun],
@@ -214,6 +234,26 @@ export const useDataAppVizTestContext = ({
         (name: string, value: DataAppVizOptionValue) => {
             setOptionValues((prev) => ({ ...prev, [name]: value }));
         },
+        [],
+    );
+
+    const setFieldOption = useCallback(
+        (
+            fieldName: string,
+            fieldId: string,
+            optionName: string,
+            value: DataAppVizOptionValue,
+        ) =>
+            setFieldOptionValues((prev) => ({
+                ...prev,
+                [fieldName]: {
+                    ...prev[fieldName],
+                    [fieldId]: {
+                        ...prev[fieldName]?.[fieldId],
+                        [optionName]: value,
+                    },
+                },
+            })),
         [],
     );
 
@@ -271,6 +311,8 @@ export const useDataAppVizTestContext = ({
         metrics,
         effectiveOptions,
         setOption,
+        fieldOptionValues,
+        setFieldOption,
         colorPaletteUuid,
         setColorPaletteUuid,
         palettes,

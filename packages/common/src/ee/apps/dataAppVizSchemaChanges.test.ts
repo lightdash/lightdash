@@ -81,6 +81,90 @@ describe('diffDataAppVizSchema', () => {
         expect(hasDataAppVizSchemaChanges(changes)).toBe(true);
     });
 
+    it('reports a changed per-field option list as a field change', () => {
+        const colorOption = {
+            type: 'color' as const,
+            name: 'color',
+            label: 'Colour',
+            default: '#000000',
+        };
+        const withFieldOptions: DataAppVizSchema = {
+            ...base,
+            fields: base.fields.map((field) =>
+                field.name === 'value'
+                    ? { ...field, configOptions: [colorOption] }
+                    : field,
+            ),
+        };
+
+        expect(
+            hasDataAppVizSchemaChanges(
+                diffDataAppVizSchema(
+                    withFieldOptions,
+                    structuredClone(withFieldOptions),
+                ),
+            ),
+        ).toBe(false);
+        expect(
+            diffDataAppVizSchema(base, withFieldOptions).fields.changed.map(
+                (change) => change.after.name,
+            ),
+        ).toEqual(['value']);
+        expect(
+            diffDataAppVizSchema(withFieldOptions, {
+                ...withFieldOptions,
+                fields: withFieldOptions.fields.map((field) =>
+                    field.name === 'value'
+                        ? {
+                              ...field,
+                              configOptions: [
+                                  { ...colorOption, default: '#ffffff' },
+                              ],
+                          }
+                        : field,
+                ),
+            }).fields.changed.map((change) => change.after.name),
+        ).toEqual(['value']);
+    });
+
+    it('ignores a per-field option list that was only reordered', () => {
+        const colorOption = {
+            type: 'color' as const,
+            name: 'color',
+            label: 'Colour',
+            default: '#000000',
+        };
+        const labelOption = {
+            type: 'boolean' as const,
+            name: 'showLabel',
+            label: 'Show label',
+            default: true,
+        };
+        const withOptions = (
+            configOptions: DataAppVizSchema['configOptions'],
+        ): DataAppVizSchema => ({
+            ...base,
+            fields: base.fields.map((field) =>
+                field.name === 'value' ? { ...field, configOptions } : field,
+            ),
+        });
+
+        expect(
+            hasDataAppVizSchemaChanges(
+                diffDataAppVizSchema(
+                    withOptions([colorOption, labelOption]),
+                    withOptions([labelOption, colorOption]),
+                ),
+            ),
+        ).toBe(false);
+        expect(
+            diffDataAppVizSchema(
+                withOptions([colorOption, labelOption]),
+                withOptions([{ ...colorOption, name: 'fill' }, labelOption]),
+            ).fields.changed.map((change) => change.after.name),
+        ).toEqual(['value']);
+    });
+
     it('tracks added, removed and retyped fields by name', () => {
         const changes = diffDataAppVizSchema(base, {
             ...base,

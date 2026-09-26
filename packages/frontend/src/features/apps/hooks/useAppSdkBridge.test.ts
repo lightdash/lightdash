@@ -1298,6 +1298,7 @@ describe('data-app-viz-context push', () => {
                 orders_count: { value: { raw: 42, formatted: '42' } },
             },
         ],
+        fieldOptions: {},
         options: { showLegend: true, barColor: '#ff0000' },
         colorPalette: ['#7162FF', '#1A1B1E'],
         seriesColors: {},
