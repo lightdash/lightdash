@@ -53,6 +53,7 @@ import {
     DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
+    DEFAULT_VERTEX_MODEL_NAME,
 } from './aiConfigSchema';
 import {
     normalizeAnthropicGatewayBaseUrl,
@@ -1469,6 +1470,33 @@ export const getAiConfig = () => ({
                   ),
               }
             : undefined,
+        vertex:
+            process.env.GOOGLE_VERTEX_API_KEY ||
+            process.env.GOOGLE_VERTEX_PROJECT
+                ? {
+                      auth: process.env.GOOGLE_VERTEX_API_KEY
+                          ? {
+                                type: 'api-key',
+                                apiKey: process.env.GOOGLE_VERTEX_API_KEY,
+                            }
+                          : {
+                                type: 'adc',
+                                project: process.env.GOOGLE_VERTEX_PROJECT,
+                                location:
+                                    process.env.GOOGLE_VERTEX_LOCATION ||
+                                    'global',
+                            },
+                      modelName:
+                          process.env.GOOGLE_VERTEX_MODEL_NAME ||
+                          DEFAULT_VERTEX_MODEL_NAME,
+                      fastModelName:
+                          process.env.GOOGLE_VERTEX_FAST_MODEL_NAME ||
+                          undefined,
+                      supportsStreaming: getProviderSupportsStreaming(
+                          'GOOGLE_VERTEX_SUPPORTS_STREAMING',
+                      ),
+                  }
+                : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
             ? {
                   apiKey: process.env.OPENROUTER_API_KEY,
