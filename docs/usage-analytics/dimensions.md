@@ -68,7 +68,8 @@ worker scratch-space cleanup and storage lifecycle configuration.
 
 Query Events exposes Charts, Dashboards and Users as optional many-to-one LEFT
 JOINs on organization plus entity ID. AI Usage joins Users and Agents; Data App
-Events and Export Events join Users.
+Events and Export Events join Users. Export Events also joins Charts and Dashboards
+through its Query Events metadata, so exports can be grouped by content names.
 Every lookup declares a composite primary key on organization and entity ID.
 The query builder adds joins only for selected or filtered lookup fields.
 Existing event IDs and metrics retain their names and behavior.

@@ -207,10 +207,18 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     Bucket: storage.bucket,
                     Key: `events/raw/org_id=${org}/stream=export_events/dt=2026-01-01/test.jsonl.gz`,
                     Body: gzipSync(
-                        JSON.stringify({
-                            ...events[0],
-                            event_name: 'download_results.completed',
-                        }),
+                        [
+                            events[0],
+                            events[1],
+                            { ...events[2], query_id: randomUUID() },
+                        ]
+                            .map((event) =>
+                                JSON.stringify({
+                                    ...event,
+                                    event_name: 'download_results.completed',
+                                }),
+                            )
+                            .join('\n'),
                     ),
                 });
                 await s3.putObject({
@@ -279,18 +287,40 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 expect(sql([])).not.toContain('JOIN');
                 const exportResult = await reader.runQuery(
                     sql(
-                        ['query_events_chart_id', 'lightdash_users_name'],
+                        [
+                            'lightdash_charts_name',
+                            'lightdash_dashboards_name',
+                            'lightdash_users_name',
+                        ],
                         createAnalyticsExplores()[3],
                         ['export_events_total_events'],
                     ),
                 );
-                expect(exportResult.rows).toEqual([
-                    {
-                        query_events_chart_id: chart,
-                        lightdash_users_name: 'Same Name',
-                        export_events_total_events: '1',
-                    },
-                ]);
+                expect(exportResult.rows).toEqual(
+                    expect.arrayContaining([
+                        {
+                            lightdash_charts_name: 'Chart before',
+                            lightdash_dashboards_name: 'Dashboard before',
+                            lightdash_users_name: 'Same Name',
+                            export_events_total_events: '1',
+                        },
+                        {
+                            lightdash_charts_name: null,
+                            lightdash_dashboards_name: null,
+                            lightdash_users_name: 'Unknown user',
+                            export_events_total_events: '2',
+                        },
+                    ]),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            sql([], createAnalyticsExplores()[3], [
+                                'export_events_total_events',
+                            ]),
+                        )
+                    ).rows,
+                ).toEqual([{ export_events_total_events: '3' }]);
                 const agentSql = sql(
                     ['lightdash_agents_name'],
                     createAnalyticsExplores()[1],
