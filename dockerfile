@@ -10,17 +10,23 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
-FROM node:24-bookworm-slim AS pnpm-base
+FROM node:24-trixie-slim AS node-runtime
 
-RUN --mount=type=bind,source=docker/security/perl-bookworm,target=/tmp/perl-backport bash /tmp/perl-backport/install.sh
+# Keep Python 3.11 for the older supported dbt adapters on Debian 13.
+FROM python:3.11-slim-trixie AS pnpm-base
+COPY --from=node-runtime /usr/local /usr/local
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
 COPY --from=pnpm-cli /pnpm /pnpm
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libatomic1 \
+    && apt-get install -y --no-install-recommends libatomic1 libstdc++6 \
+    && groupadd --gid 1000 node \
+    && useradd --uid 1000 --gid node --shell /bin/bash --create-home node \
     && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["node"]
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -34,11 +40,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     g++ \
     libsasl2-modules-gssapi-mit \
-    python3 \
-    python3-psycopg2 \
-    python3-venv \
-    python3-dev \
-    software-properties-common \
     unzip \
     git \
     # Required by node-canvas prebuilt binaries for font rendering in chart images
@@ -412,8 +413,9 @@ RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout
 # Stage 5: runtime base
 # -----------------------------
 
-# This stage depends only on system packages, security backports and dbt, so a
-# release version bump never rebuilds it.
+# Everything here is invalidated only by this file: system packages, the dbt
+# virtualenvs and their symlinks. It is deliberately independent of the build
+# context so a release version bump never rebuilds it.
 FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
@@ -423,9 +425,6 @@ ENV PLAYGROUND_DATA_DIR=/usr/app/packages/backend/assets/playground
 WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-psycopg2 \
-    python3-venv \
     git \
     build-essential \
     # Required by node-canvas prebuilt binaries for font rendering in chart images
@@ -492,6 +491,8 @@ FROM runtime-base AS prod
 # destination here must stay a real directory.
 COPY --link --from=build-final /usr/app /usr/app
 COPY --link ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
+# Preserve the Yarn installation referenced by the Node image's binary links.
+COPY --link --from=node-runtime /opt /opt
 
 EXPOSE 8080
 
