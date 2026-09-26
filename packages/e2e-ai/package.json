@@ -1,0 +1,16 @@
+{
+    "name": "@lightdash/e2e-ai",
+    "version": "0.0.0",
+    "private": true,
+    "description": "Manual Playwright test suite for Lightdash AI features. Run by hand; see AI_TEST_PLAN.md and README.md.",
+    "scripts": {
+        "test": "../backend/node_modules/.bin/playwright test",
+        "report": "../backend/node_modules/.bin/playwright show-report",
+        "typecheck": "../backend/node_modules/.bin/tsc --project tsconfig.json",
+        "linter": "../backend/node_modules/.bin/oxlint -c .oxlintrc.json --ignore-path ../../.gitignore",
+        "lint": "pnpm run linter lib tests scripts playwright.config.ts",
+        "format": "oxfmt lib tests scripts playwright.config.ts --check",
+        "fix-format": "oxfmt lib tests scripts playwright.config.ts",
+        "t8.7": "../../node_modules/.bin/tsx scripts/t8.7-claude-code-mcp.ts"
+    }
+}
