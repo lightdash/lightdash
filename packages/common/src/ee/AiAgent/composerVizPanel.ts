@@ -41,8 +41,6 @@ export const COMPOSER_VIZ_AGGREGATIONS: VizAggregationOptions[] = [
     VizAggregationOptions.COUNT,
 ];
 
-export type ComposerVizSort = 'x_order' | 'value_desc' | 'value_asc';
-
 type ComposerChartConfig = Exclude<AllVizChartConfig, VizTableConfig>;
 
 type ResultShape = {
@@ -201,22 +199,21 @@ export const getComposerVizPanelOptions = (
     };
 };
 
-/** A value sort always follows the first y. */
-const withSortOnFirstY = (layout: PivotChartLayout): PivotChartLayout => {
+/** Like the SQL runner, a sort only orders the x axis; it goes when x changes or is gone. */
+const withSortOnX = (layout: PivotChartLayout): PivotChartLayout => {
     const sort = layout.sortBy?.[0];
-    const first = layout.y[0];
-    if (!sort || !first) {
-        const { sortBy: _sortBy, ...rest } = layout;
-        return rest;
+    if (sort && layout.x && sort.reference === layout.x.reference) {
+        return { ...layout, sortBy: [sort] };
     }
-    return { ...layout, sortBy: [{ ...sort, reference: first.reference }] };
+    const { sortBy: _sortBy, ...rest } = layout;
+    return rest;
 };
 
 const withLayout = (
     kind: ComposerChartKind,
     layout: PivotChartLayout,
 ): AllVizChartConfig =>
-    buildComposerVizConfig({ kind, fieldConfig: withSortOnFirstY(layout) });
+    buildComposerVizConfig({ kind, fieldConfig: withSortOnX(layout) });
 
 const editLayout = (
     value: AllVizChartConfig,
@@ -354,34 +351,27 @@ export const setComposerVizGroupBy = (
         groupBy: reference ? [{ reference }] : [],
     }));
 
+/** The x axis sort direction; null when the x axis keeps its own order. */
 export const getComposerVizSort = (
     value: AllVizChartConfig,
-): ComposerVizSort => {
+): SortByDirection | null => {
     const layout = layoutOf(value);
     const sort = layout?.sortBy?.[0];
-    if (!sort || sort.reference !== layout?.y[0]?.reference) return 'x_order';
-    return sort.direction === SortByDirection.DESC ? 'value_desc' : 'value_asc';
+    return sort && sort.reference === layout?.x?.reference
+        ? sort.direction
+        : null;
 };
 
 export const setComposerVizSort = (
     value: AllVizChartConfig,
-    sort: ComposerVizSort,
+    direction: SortByDirection | null,
 ): AllVizChartConfig =>
     editLayout(value, (layout) => {
         const { sortBy: _sortBy, ...rest } = layout;
-        const first = layout.y[0];
-        if (sort === 'x_order' || !first) return rest;
+        if (!direction || !layout.x) return rest;
         return {
             ...rest,
-            sortBy: [
-                {
-                    reference: first.reference,
-                    direction:
-                        sort === 'value_desc'
-                            ? SortByDirection.DESC
-                            : SortByDirection.ASC,
-                },
-            ],
+            sortBy: [{ reference: layout.x.reference, direction }],
         };
     });
 
@@ -466,7 +456,7 @@ export const resolveComposerVizColumns = (
     };
 };
 
-/** True when the chart needs the pivoted re-run: a series split, a real aggregation, or a value sort. */
+/** True when the chart needs the pivoted re-run: a series split, a real aggregation, or an x sort. */
 export const composerVizNeedsPivot = (layout: PivotChartLayout): boolean =>
     (layout.groupBy?.length ?? 0) > 0 ||
     layout.y.some((y) => y.aggregation !== VizAggregationOptions.ANY) ||
