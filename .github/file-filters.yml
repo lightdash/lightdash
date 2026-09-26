@@ -5,6 +5,8 @@ preview:
   - "packages/**/*"
   - "docker/**/*"
   - "okteto.preview.yaml"
+  - "rainbow.toml"
+  - "scripts/rainbow-e2e-env.sh"
 
 # Previews divert their database from a pre-seeded snapshot of main; PRs that
 # change the seed data itself must migrate and seed from scratch instead
