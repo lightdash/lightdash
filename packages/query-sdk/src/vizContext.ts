@@ -23,6 +23,7 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import type { VizGradient } from './gradient';
 import { useOptionalTransport } from './LightdashProvider';
 import type {
     ColumnType,
@@ -43,11 +44,12 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 
 /**
  * A config option value. Its shape follows the option's declared type:
- * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
+ * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string,
+ * `gradient` → `VizGradient` (colour values with `getGradientColor`).
  * Series colours are not an option — the host resolves them separately from
  * config options and exposes them through the colour helpers.
  */
-export type VizContextOptionValue = boolean | number | string;
+export type VizContextOptionValue = boolean | number | string | VizGradient;
 
 /**
  * The host's complete backend-pivot layout metadata. This is a structural
@@ -340,12 +342,27 @@ type VizContextValue = {
 
 type VizContextState = VizContextValue | null;
 
+const isGradientBound = (value: unknown): value is number | null =>
+    value === null || (typeof value === 'number' && Number.isFinite(value));
+
+const isVizGradient = (value: unknown): value is VizGradient =>
+    typeof value === 'object' &&
+    value !== null &&
+    'colors' in value &&
+    Array.isArray(value.colors) &&
+    value.colors.every((color: unknown) => typeof color === 'string') &&
+    'min' in value &&
+    isGradientBound(value.min) &&
+    'max' in value &&
+    isGradientBound(value.max);
+
 const isVizContextOptionValue = (
     value: unknown,
 ): value is VizContextOptionValue =>
     typeof value === 'string' ||
     typeof value === 'boolean' ||
-    (typeof value === 'number' && Number.isFinite(value));
+    (typeof value === 'number' && Number.isFinite(value)) ||
+    isVizGradient(value);
 
 const normalizeOptions = (
     options: unknown,

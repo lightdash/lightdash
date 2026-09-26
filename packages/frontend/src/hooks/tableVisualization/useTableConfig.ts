@@ -1,5 +1,6 @@
 import {
     convertFormattedValue,
+    getConditionalFormattingMinMaxMap,
     getItemLabel,
     getMergeColumnTotals,
     isCustomDimension,
@@ -501,7 +502,7 @@ const useTableConfig = (
 
         return {
             rows: resultsData.rows,
-            pivotDetails: resultsData.pivotDetails,
+            pivotDetails: resultsData.pivotDetails ?? null,
             pivotConfig,
             getField,
             getFieldLabel,
@@ -678,80 +679,27 @@ const useTableConfig = (
             return cachedMinMaxMapRef.current;
         }
 
-        // Step 3: Build field-to-columns mapping
-        // For SQL pivots: Maps base field (e.g., "revenue") to pivot columns (e.g., ["revenue_bank", "revenue_paypal"])
-        // For non-pivots: Direct 1:1 mapping (e.g., "revenue" → ["revenue"])
-        const fieldColumnMapping = new Map<string, string[]>();
-
-        for (const fieldId of fieldsNeedingMinMax) {
-            if (!isColumnVisible(fieldId)) continue;
-
-            const field = itemsMap[fieldId];
-            if (!field || !isNumericItem(field)) continue;
-
-            if (!resultsData.pivotDetails) {
-                fieldColumnMapping.set(fieldId, [fieldId]);
-            } else {
-                const pivotColumnNames = resultsData.pivotDetails.valuesColumns
-                    .filter((col) => col.referenceField === fieldId)
-                    .map((col) => col.pivotColumnName);
-                if (pivotColumnNames.length > 0) {
-                    fieldColumnMapping.set(fieldId, pivotColumnNames);
-                }
-            }
-        }
-
-        if (fieldColumnMapping.size === 0) {
-            prevMinMaxQueryUuidRef.current = currentQueryUuid;
-            prevMinMaxFieldsRef.current = currentFieldsKey;
-            cachedMinMaxMapRef.current = undefined;
-            return undefined;
-        }
-
-        // Step 4: Single-pass collection of all values
-        const fieldValues = new Map<string, number[]>();
-        for (const fieldId of fieldColumnMapping.keys()) {
-            fieldValues.set(fieldId, []);
-        }
-
-        for (const row of resultsData.rows) {
-            for (const [fieldId, columnNames] of fieldColumnMapping.entries()) {
-                const values = fieldValues.get(fieldId) ?? [];
+        // Step 3: Min/max of the visible numeric fields; a pivoted field
+        // spans all of its pivot columns
+        const numericFieldIds = Array.from(fieldsNeedingMinMax).filter(
+            (fieldId) => {
                 const field = itemsMap[fieldId];
-
-                for (const columnName of columnNames) {
-                    const rawValue = row[columnName]?.value?.raw;
-                    if (
-                        rawValue !== undefined &&
-                        rawValue !== null &&
-                        rawValue !== ''
-                    ) {
-                        const numValue = Number(rawValue);
-                        if (!Number.isNaN(numValue)) {
-                            values.push(convertFormattedValue(numValue, field));
-                        }
-                    }
-                }
-
-                // Update the values for the field
-                fieldValues.set(fieldId, values);
-            }
-        }
-
-        // Step 5: Calculate min/max for each field
-        const result: ConditionalFormattingMinMaxMap = {};
-        for (const [fieldId, values] of fieldValues.entries()) {
-            if (values.length > 0) {
-                result[fieldId] = {
-                    min: Math.min(...values),
-                    max: Math.max(...values),
-                };
-            }
-        }
+                return (
+                    isColumnVisible(fieldId) && !!field && isNumericItem(field)
+                );
+            },
+        );
+        const result = getConditionalFormattingMinMaxMap({
+            rows: resultsData.rows,
+            fieldIds: numericFieldIds,
+            pivotDetails: resultsData.pivotDetails ?? null,
+            convertValue: (fieldId, value) =>
+                convertFormattedValue(value, itemsMap[fieldId]),
+        });
 
         const finalResult = Object.keys(result).length > 0 ? result : undefined;
 
-        // Step 6: Update cache
+        // Step 4: Update cache
         prevMinMaxQueryUuidRef.current = currentQueryUuid;
         prevMinMaxFieldsRef.current = currentFieldsKey;
         cachedMinMaxMapRef.current = finalResult;

@@ -7137,38 +7137,69 @@ All branches of an IF must return the same type.",
         },
         "__schema132": {
           "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "string",
-              },
-              {
-                "type": "number",
-              },
-              {
-                "type": "boolean",
-              },
-            ],
+            "$ref": "#/definitions/__schema133",
           },
           "type": [
             "object",
             "null",
           ],
         },
-        "__schema134": {
+        "__schema133": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "type": "number",
+            },
+            {
+              "type": "boolean",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "colors": {
+                  "description": "Two to five hex colours from low to high, evenly spaced along the gradient.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "maxItems": 5,
+                  "minItems": 2,
+                  "type": "array",
+                },
+                "max": {
+                  "$ref": "#/definitions/__schema136",
+                },
+                "min": {
+                  "$ref": "#/definitions/__schema136",
+                },
+              },
+              "required": [
+                "colors",
+                "min",
+                "max",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema136": {
+          "anyOf": [
+            {
+              "type": "number",
+            },
+            {
+              "const": "auto",
+              "type": "string",
+            },
+          ],
+          "description": "A fixed number, or 'auto' to use the smallest (min) or largest (max) value the gradient covers.",
+        },
+        "__schema139": {
           "additionalProperties": {
             "additionalProperties": {
               "additionalProperties": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                  },
-                  {
-                    "type": "number",
-                  },
-                  {
-                    "type": "boolean",
-                  },
-                ],
+                "$ref": "#/definitions/__schema133",
               },
               "type": "object",
             },
@@ -7179,13 +7210,13 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema135": {
+        "__schema140": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema136",
+                "$ref": "#/definitions/__schema141",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -7193,7 +7224,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema137",
+                "$ref": "#/definitions/__schema142",
               },
               "minItems": 1,
               "type": "array",
@@ -7220,7 +7251,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema136": {
+        "__schema141": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -7268,13 +7299,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema137": {
+        "__schema142": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema138",
+                "$ref": "#/definitions/__schema143",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -7292,7 +7323,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema138": {
+        "__schema143": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -8201,7 +8232,7 @@ All branches of an IF must return the same type.",
                 "fieldOptions": {
                   "allOf": [
                     {
-                      "$ref": "#/definitions/__schema134",
+                      "$ref": "#/definitions/__schema139",
                     },
                   ],
                   "default": null,
@@ -8235,7 +8266,7 @@ All branches of an IF must return the same type.",
         "mergeConfig": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema135",
+              "$ref": "#/definitions/__schema140",
             },
             {
               "type": "null",
@@ -10254,38 +10285,69 @@ All branches of an IF must return the same type.",
       },
       "__schema31": {
         "additionalProperties": {
-          "anyOf": [
-            {
-              "type": "string",
-            },
-            {
-              "type": "number",
-            },
-            {
-              "type": "boolean",
-            },
-          ],
+          "$ref": "#/definitions/__schema32",
         },
         "type": [
           "object",
           "null",
         ],
       },
-      "__schema33": {
+      "__schema32": {
+        "anyOf": [
+          {
+            "type": "string",
+          },
+          {
+            "type": "number",
+          },
+          {
+            "type": "boolean",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "colors": {
+                "description": "Two to five hex colours from low to high, evenly spaced along the gradient.",
+                "items": {
+                  "type": "string",
+                },
+                "maxItems": 5,
+                "minItems": 2,
+                "type": "array",
+              },
+              "max": {
+                "$ref": "#/definitions/__schema35",
+              },
+              "min": {
+                "$ref": "#/definitions/__schema35",
+              },
+            },
+            "required": [
+              "colors",
+              "min",
+              "max",
+            ],
+            "type": "object",
+          },
+        ],
+      },
+      "__schema35": {
+        "anyOf": [
+          {
+            "type": "number",
+          },
+          {
+            "const": "auto",
+            "type": "string",
+          },
+        ],
+        "description": "A fixed number, or 'auto' to use the smallest (min) or largest (max) value the gradient covers.",
+      },
+      "__schema38": {
         "additionalProperties": {
           "additionalProperties": {
             "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "string",
-                },
-                {
-                  "type": "number",
-                },
-                {
-                  "type": "boolean",
-                },
-              ],
+              "$ref": "#/definitions/__schema32",
             },
             "type": "object",
           },
@@ -10296,13 +10358,13 @@ All branches of an IF must return the same type.",
           "null",
         ],
       },
-      "__schema34": {
+      "__schema39": {
         "additionalProperties": false,
         "properties": {
           "additionalSources": {
             "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
             "items": {
-              "$ref": "#/definitions/__schema35",
+              "$ref": "#/definitions/__schema40",
             },
             "maxItems": 1,
             "minItems": 1,
@@ -10310,7 +10372,7 @@ All branches of an IF must return the same type.",
           },
           "joinKey": {
             "items": {
-              "$ref": "#/definitions/__schema36",
+              "$ref": "#/definitions/__schema41",
             },
             "minItems": 1,
             "type": "array",
@@ -10337,7 +10399,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema35": {
+      "__schema40": {
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -10385,13 +10447,13 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema36": {
+      "__schema41": {
         "additionalProperties": false,
         "properties": {
           "fields": {
             "description": "One selected dimension from each source. Both must represent the same grain and value type.",
             "items": {
-              "$ref": "#/definitions/__schema37",
+              "$ref": "#/definitions/__schema42",
             },
             "maxItems": 2,
             "minItems": 2,
@@ -10409,7 +10471,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema37": {
+      "__schema42": {
         "additionalProperties": false,
         "properties": {
           "fieldId": {
@@ -10623,7 +10685,7 @@ All branches of an IF must return the same type.",
               "fieldOptions": {
                 "allOf": [
                   {
-                    "$ref": "#/definitions/__schema33",
+                    "$ref": "#/definitions/__schema38",
                   },
                 ],
                 "default": null,
@@ -10657,7 +10719,7 @@ All branches of an IF must return the same type.",
       "mergeConfig": {
         "anyOf": [
           {
-            "$ref": "#/definitions/__schema34",
+            "$ref": "#/definitions/__schema39",
           },
           {
             "type": "null",

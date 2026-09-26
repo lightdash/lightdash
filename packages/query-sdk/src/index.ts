@@ -114,6 +114,7 @@ export {
     resolveSeriesColor,
     resolveValueColor,
 } from './vizContext';
+export { getGradientColor, type VizGradient } from './gradient';
 export type {
     VizContext,
     VizContextCell,

@@ -510,7 +510,7 @@ Every option has:
   tab; ungrouped options share a default tab.
 - `default` — REQUIRED on every option. The value the viz uses until the viewer changes it;
   its shape follows `type`. Use the value you would otherwise have hardcoded.
-- `type` — exactly one of these five, no others:
+- `type` — exactly one of these six, no others:
 
 | `type` | control | `default` | extra keys |
 |---|---|---|---|
@@ -519,10 +519,31 @@ Every option has:
 | `number` | number input | a number | `min`, `max` — both optional numbers |
 | `text` | single-line text input | a string | — |
 | `color` | single colour | a hex string, e.g. `"#7162FF"` | — |
+| `gradient` | colour range with min and max | `{ "colors": ["#228BE6", "#FA5252"], "min": "auto", "max": "auto" }` — 2 to 5 hex colours from low to high; `min`/`max` each a number or `"auto"` | — |
 
 The `color` control includes swatches from the active Lightdash palette and accepts custom
 hex colours. It stores the chosen hex string. Changing the palette or light/dark theme
 updates the available swatches; it does not change previously chosen colours.
+
+A `gradient` arrives as `{ colors, min, max }`. Never interpolate colours yourself: call
+`getGradientColor(gradient, value, domain?)` from the SDK. Declared on an input (per field),
+`"auto"` bounds arrive already resolved to that field's smallest and largest value in the
+results, across all of its pivot columns. Declared chart-wide, `"auto"` bounds arrive as
+`null`: pass the `{ min, max }` your chart covers as `domain`. It returns `null` for
+missing, non-numeric or non-finite values, while a bound is still unknown or not finite, or
+when `min` is above `max` — draw those cells in a neutral colour. Values outside the range take the end
+colour, and when `min` equals `max` every value takes the last colour. Saved colours are
+fixed hex values; they do not follow palette changes.
+
+```tsx
+import { getGradientColor, type VizGradient } from '@lightdash/query-sdk';
+// Per-field gradient. Older hosts send no fieldOptions: fall back to the declared default,
+// whose unresolved 'auto' bounds leave every cell neutral.
+const scale =
+  (fieldOptions.value?.[valueField]?.scale as VizGradient | undefined) ??
+  { colors: ['#E3FAFC', '#0B7285'], min: null, max: null };
+const fill = getGradientColor(scale, getRaw(row, valueField)) ?? '#DEE2E6';
+```
 
 Series colours are not in this list. They are declared separately, on `colorPalette`.
 

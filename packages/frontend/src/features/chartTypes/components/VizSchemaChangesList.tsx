@@ -15,6 +15,7 @@ import {
     IconPalette,
     IconPlus,
 } from '@tabler/icons-react';
+import isEqual from 'lodash/isEqual';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './VizSchemaChangesList.module.css';
@@ -83,7 +84,10 @@ const describeDefaultChange = (
     before: DataAppVizConfigOption['default'],
     after: DataAppVizConfigOption['default'],
 ) =>
-    before === '' || after === ''
+    before === '' ||
+    after === '' ||
+    typeof before === 'object' ||
+    typeof after === 'object'
         ? 'default changed'
         : `default ${formatDefault(before)} → ${formatDefault(after)}`;
 
@@ -94,7 +98,7 @@ const describeOptionChange = ({
     const parts: string[] = [];
     if (before.type !== after.type)
         parts.push(`${before.type} → ${after.type}`);
-    if (before.default !== after.default)
+    if (!isEqual(before.default, after.default))
         parts.push(describeDefaultChange(before.default, after.default));
     if (before.type === 'select' && after.type === 'select') {
         const beforeValues = before.choices.map((c) => c.value);

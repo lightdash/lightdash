@@ -295,6 +295,44 @@ const colors = ids.map(
 );
 ```
 
+## Gradient options (chart types)
+
+A `gradient` config option arrives as `{ colors, min, max }`: two to five hex
+colours from low to high, evenly spaced. Colour a value with
+`getGradientColor(gradient, value, domain?)` rather than interpolating yourself;
+it blends in OKLab like Lightdash's own gradients.
+
+- Per-field gradients arrive with `'auto'` bounds resolved to the smallest and
+  largest value of that field in the results, across all of its pivot columns.
+  A series dimension has no column of its own once pivoted, so its `'auto'`
+  bounds arrive as `null`.
+- Chart-wide gradients arrive with `'auto'` bounds as `null`. Pass the
+  `{ min, max }` your chart covers as `domain`.
+- It returns `null` for missing, non-numeric or non-finite values, while a
+  bound is still unknown or not finite, and when `min` is above `max`. Values outside the
+  range take the end colour; when `min` equals `max`, every value takes the
+  last colour.
+
+```tsx
+import { getGradientColor, type VizGradient } from '@lightdash/query-sdk';
+
+const { options, rows, fieldMapping } = useVizContext();
+const scale = options.scale as VizGradient;
+const valueId = fieldMapping.value as string;
+// Skip null and non-numeric values rather than coercing them to 0.
+const values = rows.flatMap((row) => {
+    const raw = getRaw(row, valueId);
+    const value = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw;
+    return typeof value === 'number' && Number.isFinite(value) ? [value] : [];
+});
+const domain =
+    values.length > 0
+        ? { min: Math.min(...values), max: Math.max(...values) }
+        : undefined;
+const fill = (row: VizContextRow) =>
+    getGradientColor(scale, getRaw(row, valueId), domain) ?? '#DEE2E6';
+```
+
 ## How it works
 
 1. `createClient()` sets up auth and the API transport

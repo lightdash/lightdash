@@ -1,5 +1,6 @@
 import {
     getColorFromRange,
+    interpolateMultiColor,
     type ConditionalFormattingColorRange,
 } from '@lightdash/common';
 import Color from 'colorjs.io';
@@ -57,38 +58,6 @@ export const transformColorsForDarkMode = (
     }
 
     return { start: startColor, end: endColor };
-};
-
-/**
- * Interpolates a color from an array of colors based on a normalized value (0-1).
- * Uses piecewise linear interpolation between adjacent color stops.
- */
-export const interpolateMultiColor = (colors: string[], t: number): string => {
-    if (colors.length === 0) return '#888888';
-    if (colors.length === 1) return colors[0];
-
-    // Clamp t to [0, 1]
-    const clampedT = Math.max(0, Math.min(1, t));
-
-    // Find which segment we're in
-    const segmentCount = colors.length - 1;
-    const segmentIndex = Math.min(
-        Math.floor(clampedT * segmentCount),
-        segmentCount - 1,
-    );
-
-    // Get local t within the segment (0-1)
-    const segmentStart = segmentIndex / segmentCount;
-    const segmentEnd = (segmentIndex + 1) / segmentCount;
-    const localT = (clampedT - segmentStart) / (segmentEnd - segmentStart);
-
-    // Interpolate between the two colors in this segment
-    const startColor = new Color(colors[segmentIndex]);
-    const endColor = new Color(colors[segmentIndex + 1]);
-    // Using oklab for perceptually uniform gradients (better for data visualization)
-    const range = Color.range(startColor, endColor, { space: 'oklab' });
-
-    return range(localT).toString({ format: 'hex' });
 };
 
 /**

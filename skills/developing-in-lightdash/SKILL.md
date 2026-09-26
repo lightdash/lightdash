@@ -272,7 +272,7 @@ lightdash download --include-chart-types   # every chart type in the project (ca
 lightdash download --chart-types-only      # chart types only, skipping charts, dashboards, and spaces
 ```
 
-Downloading a chart that renders with a custom chart type also downloads that chart type. In chart YAML the binding is `chartConfig.type: data_app_viz` with `config.dataAppVizSlug`, `fieldMapping`, `optionValues`, and, for inputs with per-field options, `fieldOptionValues` (input name → field id → option values).
+Downloading a chart that renders with a custom chart type also downloads that chart type. In chart YAML the binding is `chartConfig.type: data_app_viz` with `config.dataAppVizSlug`, `fieldMapping`, `optionValues`, and, for inputs with per-field options, `fieldOptionValues` (input name → field id → option values). A `gradient` option value is saved whole as `{ colors, min, max }`: 2–5 hex colours from low to high, and `min`/`max` each a number or `"auto"`.
 
 **Upload:**
 
