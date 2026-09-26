@@ -1,3 +1,15 @@
+# [2.347.0](https://github.com/lightdash/lightdash/compare/2.346.0...2.347.0) (2026-09-26)
+
+
+### Features
+
+* **ai:** required structuredContent envelope for agent tool outputs ([#29604](https://github.com/lightdash/lightdash/issues/29604)) ([b68db2b](https://github.com/lightdash/lightdash/commit/b68db2ba48306cd4f3a79d43924d37009b9e4e53))
+* **ai:** structured output for the analyzeFieldImpact tool ([#29609](https://github.com/lightdash/lightdash/issues/29609)) ([04b9083](https://github.com/lightdash/lightdash/commit/04b9083817f826732e91eff954484a7c0c6e7bf1))
+* **ai:** structured output for the closePullRequest tool ([#29610](https://github.com/lightdash/lightdash/issues/29610)) ([c589551](https://github.com/lightdash/lightdash/commit/c589551e3affa9b537e5f4570d0d9b00c529a445))
+* **ai:** structured output for the createContent tool ([#29611](https://github.com/lightdash/lightdash/issues/29611)) ([8cd2a3b](https://github.com/lightdash/lightdash/commit/8cd2a3bd1c6228979f0ba08a9c34a3f746e27f2f))
+* **ai:** structured output for the createScheduledDelivery tool ([#29612](https://github.com/lightdash/lightdash/issues/29612)) ([10ddd0d](https://github.com/lightdash/lightdash/commit/10ddd0d083b190043e4516e019fea59b2eba922f))
+* **ai:** structured output for the delegateResearchTask tool ([#29613](https://github.com/lightdash/lightdash/issues/29613)) ([8ac219e](https://github.com/lightdash/lightdash/commit/8ac219e9ea423b79d68111e3ad7116214c090d84))
+
 # [2.346.0](https://github.com/lightdash/lightdash/compare/2.345.0...2.346.0) (2026-09-25)
 
 

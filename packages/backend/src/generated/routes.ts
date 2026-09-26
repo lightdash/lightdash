@@ -29655,23 +29655,88 @@ const models: TsoaRoute.Models = {
                                             },
                                         },
                                         {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
                                                         },
-                                                        {
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
                                                             dataType: 'enum',
                                                             enums: ['success'],
+                                                            required: true,
                                                         },
-                                                    ],
-                                                    required: true,
+                                                    },
                                                 },
-                                            },
+                                            ],
+                                        },
+                                        {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'enum',
+                                                            enums: ['error'],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                            ],
                                         },
                                     ],
                                     required: true,
