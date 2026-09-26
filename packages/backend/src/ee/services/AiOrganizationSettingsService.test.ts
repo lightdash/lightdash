@@ -589,6 +589,76 @@ describe('isAiAgentMemoryEnabled', () => {
     });
 });
 
+describe('areAiAgentsVisible', () => {
+    const user = { organizationUuid: 'org-uuid', userUuid: 'user-uuid' };
+    const buildService = ({
+        copilotEnabled,
+        settings,
+    }: {
+        copilotEnabled: boolean;
+        settings: AiOrganizationSettings | null;
+    }) => {
+        const findByOrganizationUuid = vi.fn().mockResolvedValue(settings);
+        const service = new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: { findByOrganizationUuid },
+            commercialFeatureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: copilotEnabled }),
+            },
+            lightdashConfig: { ai: { copilot: { enabled: false } } },
+        } as unknown as ConstructorParameters<
+            typeof AiOrganizationSettingsService
+        >[0]);
+        return { service, findByOrganizationUuid };
+    };
+
+    it('defaults to visible when the organization has no stored settings', async () => {
+        const { service } = buildService({
+            copilotEnabled: true,
+            settings: null,
+        });
+
+        await expect(service.areAiAgentsVisible(user)).resolves.toBe(true);
+    });
+
+    it.each([false, true])(
+        'returns the stored visibility when it is %s',
+        async (aiAgentsVisible) => {
+            const { service } = buildService({
+                copilotEnabled: true,
+                settings: { ...settingsWithKeys, aiAgentsVisible },
+            });
+
+            await expect(service.areAiAgentsVisible(user)).resolves.toBe(
+                aiAgentsVisible,
+            );
+        },
+    );
+
+    it('is hidden without Copilot or a trial, before reading settings', async () => {
+        const { service, findByOrganizationUuid } = buildService({
+            copilotEnabled: false,
+            settings: settingsWithKeys,
+        });
+
+        await expect(service.areAiAgentsVisible(user)).resolves.toBe(false);
+        expect(findByOrganizationUuid).not.toHaveBeenCalled();
+    });
+
+    it('is hidden for a user without an organization', async () => {
+        const { service } = buildService({
+            copilotEnabled: true,
+            settings: settingsWithKeys,
+        });
+
+        await expect(
+            service.areAiAgentsVisible({
+                organizationUuid: undefined,
+                userUuid: 'user-uuid',
+            }),
+        ).resolves.toBe(false);
+    });
+});
+
 describe('isDeepResearchRawSqlEnabled', () => {
     const buildService = (settings: AiOrganizationSettings | null) =>
         new AiOrganizationSettingsService({

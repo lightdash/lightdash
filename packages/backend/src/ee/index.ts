@@ -117,6 +117,7 @@ import { OrganizationWarehouseCredentialsService } from './services/Organization
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
+import { CommercialProjectNavigationService } from './services/ProjectNavigationService/CommercialProjectNavigationService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
@@ -886,6 +887,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     aiAgentReviewNotificationService:
                         repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
+                }),
+            projectNavigationService: ({ models, repository }) =>
+                new CommercialProjectNavigationService({
+                    projectModel: models.getProjectModel(),
+                    catalogModel: models.getCatalogModel(),
+                    featureFlagService: repository.getFeatureFlagService(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService<AiOrganizationSettingsService>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({

@@ -1,6 +1,4 @@
-import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     ManagedAgentActionType,
     ManagedAgentRunStatus,
     type ManagedAgentRun,
@@ -20,8 +18,6 @@ import { lightdashApi } from '../../api';
 import { useManagedAgentLatestRun } from '../../ee/features/managedAgent/hooks/useManagedAgentLatestRun';
 import { useManagedAgentSettings } from '../../ee/features/managedAgent/hooks/useManagedAgentSettings';
 import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAgentSetupModal';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import classes from './AutopilotNavButton.module.css';
@@ -72,8 +68,8 @@ const CAPABILITIES = [
 ];
 
 /**
- * Autopilot setup, resume and status in the primary nav, gated by feature
- * flag, permissions and project settings.
+ * Autopilot setup, resume and status in the primary nav. The navbar decides
+ * visibility; this picks the variant from project settings.
  */
 export const AutopilotNavButton = ({
     projectUuid,
@@ -82,24 +78,10 @@ export const AutopilotNavButton = ({
     const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { user } = useApp();
-    const canManage =
-        user.data?.ability?.can(
-            'manage',
-            subject('AiAgent', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        ) ?? false;
-    const { data: aiAutopilotFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAutopilot,
-    );
-    const active = !!aiAutopilotFlag?.enabled && canManage;
-
-    const { data: settings } = useManagedAgentSettings({ enabled: active });
+    const { data: settings } = useManagedAgentSettings();
     const isEnabled = settings?.enabled ?? false;
     const { data: latestRun } = useManagedAgentLatestRun({
-        enabled: active && isEnabled,
+        enabled: isEnabled,
     });
 
     const [setupOpen, setSetupOpen] = useState(false);
@@ -115,8 +97,6 @@ export const AutopilotNavButton = ({
             });
         },
     });
-
-    if (!active) return null;
 
     if (!isEnabled) {
         const hasExistingSettings = !!settings;

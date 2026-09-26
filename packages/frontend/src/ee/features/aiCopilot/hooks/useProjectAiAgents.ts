@@ -53,6 +53,7 @@ import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
+import { PROJECT_NAVIGATION_QUERY_KEY } from '../../../../hooks/useProjectNavigation';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
@@ -196,6 +197,9 @@ export const useProjectCreateAiAgentMutation = (
             void queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
             });
+            void queryClient.invalidateQueries({
+                queryKey: [PROJECT_NAVIGATION_QUERY_KEY, projectUuid],
+            });
             if (!options?.skipNavigation) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/${result.uuid}`,
@@ -314,6 +318,9 @@ export const useProjectUpdateAiAgentMutation = (
                 queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
             });
             await queryClient.invalidateQueries({
+                queryKey: [PROJECT_NAVIGATION_QUERY_KEY, projectUuid],
+            });
+            await queryClient.invalidateQueries({
                 queryKey: [AGENT_AI_MCP_SERVERS_KEY, projectUuid, data.uuid],
             });
         },
@@ -387,6 +394,7 @@ export const useDeleteAiAgentMutation = (projectUuid: string) => {
                     [AI_AGENTS_KEY, projectUuid],
                     // Invalidates User Preferences queries
                     [USER_AGENT_PREFERENCES, projectUuid],
+                    [PROJECT_NAVIGATION_QUERY_KEY, projectUuid],
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({
                         queryKey,

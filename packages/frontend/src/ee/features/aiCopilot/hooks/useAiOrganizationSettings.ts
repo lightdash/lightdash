@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { PROJECT_NAVIGATION_QUERY_KEY } from '../../../../hooks/useProjectNavigation';
 
 const resolveAiAgentMemoryEnabled = (
     settings:
@@ -52,6 +53,7 @@ const invalidateAiOrganizationSettingsQueries = (queryClient: QueryClient) =>
     Promise.all([
         queryClient.invalidateQueries(aiOrganizationAdminSettingsQueryKey),
         queryClient.invalidateQueries(aiOrganizationRuntimeSettingsQueryKey),
+        queryClient.invalidateQueries([PROJECT_NAVIGATION_QUERY_KEY]),
     ]);
 
 export const useAiOrganizationSettings = (

@@ -9,7 +9,6 @@ import {
     useAiAgentAdminReviewItems,
 } from '../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiAgentOrgPermission } from '../../ee/features/aiCopilot/hooks/useAiAgentPermission';
-import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import MantineIcon from '../common/MantineIcon';
 import { useNavBarPortalTarget } from './NavBarPortalContext';
@@ -25,7 +24,6 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
     const portalTarget = useNavBarPortalTarget();
     const navigate = useNavigate();
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-    const isVisible = useAiAgentButtonVisibility();
     const canViewReviews = useAiAgentOrgPermission({ action: 'manage' });
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const reviewsEnabled =
@@ -59,10 +57,6 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         { enabled: showReviews && reviewCount > 0 && isPreviewOpen },
     );
     const goToAskAi = () => void navigate(`/projects/${projectUuid}/ai-agents`);
-
-    if (!isVisible) {
-        return null;
-    }
 
     const reviewsUrl = `/generalSettings/ai/issues?projects=${encodeURIComponent(
         projectUuid,
