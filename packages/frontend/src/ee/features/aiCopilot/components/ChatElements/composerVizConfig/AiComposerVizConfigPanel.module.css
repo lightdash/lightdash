@@ -44,19 +44,11 @@
     background: var(--ld-color-page);
 }
 
-.sortPillWide {
-    width: 96px;
-}
-
-.sortPillNarrow {
-    width: 68px;
-}
-
 .emptySelect input {
     border-style: dashed;
 }
 
-/* Field selects stay readable instead of stretching across a wide panel. */
+/* Field rows stay readable instead of stretching across a wide panel. */
 .fieldRows {
-    max-width: 24rem;
+    max-width: 34rem;
 }

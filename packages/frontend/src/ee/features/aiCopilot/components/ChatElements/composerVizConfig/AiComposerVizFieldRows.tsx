@@ -9,28 +9,42 @@ import {
     setComposerVizX,
     setComposerVizY,
     type AllVizChartConfig,
+    SortByDirection,
+    VizAggregationOptions,
     type ComposerVizPanelOptions,
-    type ComposerVizSort,
     type ResultColumn,
     type VizTableConfig,
 } from '@lightdash/common';
 import { ActionIcon, Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
-import { clsx } from 'clsx';
+import capitalize from 'lodash/capitalize';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { DataVizAggregationConfig } from '../../../../../../components/DataViz/config/DataVizAggregationConfig';
-import pillClasses from '../../../../../../components/DataViz/config/PillSelect.module.css';
 import { FieldReferenceSelect } from '../../../../../../components/DataViz/FieldReferenceSelect';
+import fieldSelectClasses from '../../../../../../components/DataViz/FieldReferenceSelect.module.css';
 import styles from './AiComposerVizConfigPanel.module.css';
 
 type ChartConfig = Exclude<AllVizChartConfig, VizTableConfig>;
 
-const SORT_OPTIONS: { value: ComposerVizSort; label: string }[] = [
-    { value: 'x_order', label: 'X axis order' },
-    { value: 'value_desc', label: 'Value ↓' },
-    { value: 'value_asc', label: 'Value ↑' },
+// Same options and labels as the SQL runner's sort and aggregation pills.
+const NO_SORT = 'none';
+const SORT_OPTIONS = [
+    { value: NO_SORT, label: 'No sorting' },
+    { value: SortByDirection.ASC, label: 'Ascending' },
+    { value: SortByDirection.DESC, label: 'Descending' },
 ];
+const toSortDirection = (value: string | null): SortByDirection | null =>
+    Object.values(SortByDirection).find((direction) => direction === value) ??
+    null;
+
+const aggregationLabel = (aggregation: VizAggregationOptions) =>
+    aggregation === VizAggregationOptions.ANY
+        ? 'Any value'
+        : capitalize(aggregation);
+const toAggregation = (value: string | null) =>
+    Object.values(VizAggregationOptions).find(
+        (aggregation) => aggregation === value,
+    );
 
 const toData = (columns: ResultColumn[]) =>
     columns.map((column) => ({
@@ -38,37 +52,29 @@ const toData = (columns: ResultColumn[]) =>
         label: column.label ?? column.reference,
     }));
 
-const SortPill: FC<{
-    value: ComposerVizSort;
+/** A select beside a field select, in the same row. */
+const SideSelect: FC<{
+    label: string;
+    data: { value: string; label: string }[];
+    value: string;
     disabled: boolean;
-    onChange: (sort: ComposerVizSort) => void;
-}> = ({ value, disabled, onChange }) => (
-    <Tooltip label="Sort" withinPortal>
-        <Select
-            aria-label="Sort"
-            allowDeselect={false}
-            disabled={disabled}
-            comboboxProps={{ withinPortal: true, position: 'bottom-end' }}
-            data={SORT_OPTIONS}
-            value={value}
-            onChange={(next) => {
-                const sort = SORT_OPTIONS.find((o) => o.value === next);
-                if (sort) onChange(sort.value);
-            }}
-            classNames={{
-                option: `${pillClasses.option} ${pillClasses.grayOption}`,
-                dropdown: pillClasses.dropdown,
-                input: clsx(
-                    pillClasses.input,
-                    pillClasses.grayInput,
-                    value === 'x_order'
-                        ? [pillClasses.inputUnsetValue, styles.sortPillWide]
-                        : styles.sortPillNarrow,
-                ),
-                section: pillClasses.section,
-            }}
-        />
-    </Tooltip>
+    onChange: (value: string | null) => void;
+}> = ({ label, data, value, disabled, onChange }) => (
+    <Select
+        aria-label={label}
+        allowDeselect={false}
+        disabled={disabled}
+        comboboxProps={{ withinPortal: true }}
+        data={data}
+        value={value}
+        onChange={onChange}
+        w="9rem"
+        flex="0 0 auto"
+        classNames={{
+            input: fieldSelectClasses.input,
+            option: fieldSelectClasses.option,
+        }}
+    />
 );
 
 const Row: FC<{ title: string; action?: ReactNode; children: ReactNode }> = ({
@@ -122,30 +128,39 @@ export const AiComposerVizFieldRows: FC<Props> = ({
         <Stack gap="md">
             {hasX && (
                 <Row title="X axis">
-                    <FieldReferenceSelect
-                        flex={1}
-                        aria-label="X axis"
-                        placeholder="Select X axis"
-                        disabled={disabled}
-                        allowDeselect={false}
-                        comboboxProps={{ withinPortal: true }}
-                        data={toData(options.x)}
-                        value={layout.x?.reference ?? null}
-                        onChange={(reference) =>
-                            reference &&
-                            onChange(setComposerVizX(value, reference, columns))
-                        }
-                        fieldType={typeOf(layout.x?.reference)}
-                        rightSection={
-                            <SortPill
-                                value={getComposerVizSort(value)}
-                                disabled={disabled}
-                                onChange={(sort) =>
-                                    onChange(setComposerVizSort(value, sort))
-                                }
-                            />
-                        }
-                    />
+                    <Group gap="xs" wrap="nowrap">
+                        <FieldReferenceSelect
+                            flex={1}
+                            aria-label="X axis"
+                            placeholder="Select X axis"
+                            disabled={disabled}
+                            allowDeselect={false}
+                            comboboxProps={{ withinPortal: true }}
+                            data={toData(options.x)}
+                            value={layout.x?.reference ?? null}
+                            onChange={(reference) =>
+                                reference &&
+                                onChange(
+                                    setComposerVizX(value, reference, columns),
+                                )
+                            }
+                            fieldType={typeOf(layout.x?.reference)}
+                        />
+                        <SideSelect
+                            label="Sort"
+                            data={SORT_OPTIONS}
+                            value={getComposerVizSort(value) ?? NO_SORT}
+                            disabled={disabled}
+                            onChange={(next) =>
+                                onChange(
+                                    setComposerVizSort(
+                                        value,
+                                        toSortDirection(next),
+                                    ),
+                                )
+                            }
+                        />
+                    </Group>
                 </Row>
             )}
             <Row
@@ -189,21 +204,24 @@ export const AiComposerVizFieldRows: FC<Props> = ({
                                 )
                             }
                             fieldType={typeOf(y.reference)}
-                            rightSection={
-                                <DataVizAggregationConfig
-                                    color="gray"
-                                    disabled={disabled}
-                                    options={options.aggregations}
-                                    aggregation={y.aggregation}
-                                    onChangeAggregation={(aggregation) =>
-                                        onChange(
-                                            setComposerVizY(value, index, {
-                                                aggregation,
-                                            }),
-                                        )
-                                    }
-                                />
-                            }
+                        />
+                        <SideSelect
+                            label={`Aggregation ${index + 1}`}
+                            data={options.aggregations.map((aggregation) => ({
+                                value: aggregation,
+                                label: aggregationLabel(aggregation),
+                            }))}
+                            value={y.aggregation}
+                            disabled={disabled}
+                            onChange={(next) => {
+                                const aggregation = toAggregation(next);
+                                if (aggregation)
+                                    onChange(
+                                        setComposerVizY(value, index, {
+                                            aggregation,
+                                        }),
+                                    );
+                            }}
                         />
                         {layout.y.length > 1 && (
                             <Tooltip label="Remove this value" withinPortal>

@@ -56,8 +56,6 @@ type Props = {
     options: VizValuesLayoutOptions['aggregationOptions'] | undefined;
     aggregation: VizAggregationOptions | undefined;
     onChangeAggregation: (value: VizAggregationOptions) => void;
-    color?: 'indigo' | 'gray';
-    disabled?: boolean;
 };
 
 const AggregationItem = forwardRef<
@@ -76,13 +74,7 @@ export const DataVizAggregationConfig: FC<Props> = ({
     options,
     onChangeAggregation,
     aggregation,
-    color = 'indigo',
-    disabled = false,
 }) => {
-    const colorClasses =
-        color === 'gray'
-            ? { option: classes.grayOption, input: classes.grayInput }
-            : { option: classes.indigoOption, input: classes.indigoInput };
     const aggregationOptionsWithNone = options ?? [];
 
     const selectOptions = aggregationOptionsWithNone.map((option) => ({
@@ -97,7 +89,6 @@ export const DataVizAggregationConfig: FC<Props> = ({
         <Tooltip label="Aggregation type">
             <Select
                 allowDeselect={false}
-                disabled={disabled}
                 comboboxProps={{ withinPortal: true }}
                 data={selectOptions}
                 renderOption={({ option, checked }) => (
@@ -111,9 +102,9 @@ export const DataVizAggregationConfig: FC<Props> = ({
                     value && onChangeAggregation(value as VizAggregationOptions)
                 }
                 classNames={{
-                    option: `${classes.option} ${colorClasses.option}`,
+                    option: `${classes.option} ${classes.indigoOption}`,
                     dropdown: classes.dropdown,
-                    input: `${classes.input} ${colorClasses.input}`,
+                    input: `${classes.input} ${classes.indigoInput}`,
                     section: classes.section,
                 }}
                 styles={{
