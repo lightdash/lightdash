@@ -519,8 +519,10 @@ export async function start(
     noWait: boolean,
 ): Promise<Instance> {
     assertInstance(instance);
-    if (instance.phase === 'stopped' || instance.phase === 'failed')
+    if (instance.phase === 'stopped' || instance.phase === 'failed') {
         instance.startedAt = new Date().toISOString();
+        instance.timings = {};
+    }
     await ensurePostgres(controlRoot);
     await sharedServices(
         instance.worktree,
