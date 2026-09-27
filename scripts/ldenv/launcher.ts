@@ -59,12 +59,17 @@ export async function installLauncher(): Promise<string> {
             await install(directory, true, {}, 'tool-install');
         const loader = path.join(directory, 'node_modules/tsx/dist/loader.mjs');
         const entry = path.join(directory, 'scripts/ldenv/index.ts');
-        if (!existsSync(loader) || !existsSync(entry))
+        const executable = path.join(directory, 'node_modules/node/bin/node');
+        if (
+            !existsSync(loader) ||
+            !existsSync(entry) ||
+            !existsSync(executable)
+        )
             throw new Error('The pinned tool checkout is incomplete');
         const launcher = path.join(home, 'bin', 'ldenv');
         await atomicWrite(
             launcher,
-            `#!/bin/sh\nexec ${shellQuote(process.execPath)} --import ${shellQuote(loader)} ${shellQuote(entry)} "$@"\n`,
+            `#!/bin/sh\nexec ${shellQuote(executable)} --import ${shellQuote(loader)} ${shellQuote(entry)} "$@"\n`,
         );
         await chmod(launcher, 0o755);
         await writeJson(path.join(home, 'tool.json'), {
