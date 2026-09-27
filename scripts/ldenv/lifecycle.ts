@@ -353,6 +353,9 @@ export async function buildParent(
             timings,
             seedComplete: true,
             nodeVersion: process.version,
+            pnpmVersion: await runner.run('pnpm', ['--version'], {
+                cwd: directory,
+            }),
             platform: process.platform,
             arch: process.arch,
         };

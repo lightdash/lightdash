@@ -116,11 +116,16 @@ charts, settings and migrations remain private to each cloned application DB.
 Parent GC drops a warehouse only after no remaining parent references it; active
 instances pin their parents. A changed example hash creates a separate warehouse.
 
-The lockfile, Node version, platform and architecture guard dependency reuse.
+The lockfile, pnpm version, Node version, platform and architecture guard reuse.
+Parents and matching forks use pnpm's global virtual store by default. Workspace
+links remain local, while pnpm manages external dependencies in its shared store.
+A lockfile or pnpm mismatch uses a normal local offline install. When the module
+layout differs from an older parent, package tiers rebuild before API startup.
 Use `pnpm ldenv parent build --benchmark-deps` to measure APFS/reflink copies
-against an offline frozen install in a disposable worktree. The benchmark is
+against local and global-store offline installs in a disposable worktree.
+Copies are compared only for parents with a local virtual store. The benchmark is
 opt-in and its result persists per machine. Forks choose the measured winner;
-before a measurement they use offline install. Normal parent builds do not benchmark. Package
+before a measurement they use the global store. Normal parent builds do not benchmark. Package
 `dist`, build metadata and the Vite dependency cache travel with the clone.
 Compiled Node modules and tsx temporary caches use persistent machine directories.
 No mutable source directory is shared between parent and child.

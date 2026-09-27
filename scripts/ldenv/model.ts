@@ -41,6 +41,7 @@ export type Parent = {
     timings: Record<string, number>;
     seedComplete: boolean;
     nodeVersion: string;
+    pnpmVersion: string;
     platform: string;
     arch: string;
 };

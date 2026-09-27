@@ -7,6 +7,7 @@ import {
     readFile,
     readdir,
     readlink,
+    realpath,
     rm,
     writeFile,
     utimes,
@@ -20,6 +21,7 @@ import {
     type Environment,
     type Parent,
     type Recipe,
+    json,
 } from './model';
 
 export const builtPackages = ['formula', 'common', 'warehouses'];
@@ -166,6 +168,7 @@ export async function install(
     offline: boolean,
     env: Environment,
     label: string,
+    store: 'global' | 'local' = 'global',
 ): Promise<void> {
     await runner.run(
         'sfw',
@@ -177,7 +180,7 @@ export async function install(
         ],
         {
             cwd: root,
-            env,
+            env: { ...env, PNPM_CONFIG_VIRTUAL_STORE_TYPE: store },
             log: path.join(home, 'logs', `${label}-install.log`),
         },
     );
@@ -192,13 +195,25 @@ export async function install(
     }
 }
 type DependencyStrategy = {
-    strategy: 'clone' | 'offline';
-    cloneMs: number;
+    strategy: 'clone' | 'offline' | 'global';
+    cloneMs: number | null;
     offlineMs: number;
+    globalMs: number;
     lockHash: string;
     platform: string;
     nodeVersion: string;
+    pnpmVersion: string;
 };
+export async function moduleLayout(root: string): Promise<'global' | 'local'> {
+    const resolved = await realpath(path.join(root, 'node_modules/tslib'));
+    return resolved.startsWith(`${root}${path.sep}`) ? 'local' : 'global';
+}
+export async function pinnedPnpm(root: string): Promise<string> {
+    const manifest = json<{ packageManager: string }>(
+        await readFile(path.join(root, 'package.json'), 'utf8'),
+    );
+    return manifest.packageManager.replace(/^pnpm@/, '').split('+')[0];
+}
 export async function benchmarkDependencies(
     parent: Parent,
     env: Environment,
@@ -211,20 +226,38 @@ export async function benchmarkDependencies(
     await mkdir(path.dirname(probe), { recursive: true });
     await git(parent.path, ['worktree', 'add', '--detach', probe, parent.sha]);
     try {
-        const cloneStart = Date.now();
-        await cloneModules(parent.path, probe);
-        const cloneMs = Date.now() - cloneStart;
+        let cloneMs: number | null = null;
+        if ((await moduleLayout(parent.path)) === 'local') {
+            const cloneStart = Date.now();
+            await cloneModules(parent.path, probe);
+            cloneMs = Date.now() - cloneStart;
+            for (const tree of await moduleTrees(probe))
+                await rm(path.join(probe, tree), { recursive: true });
+        }
+        const offlineStart = Date.now();
+        await install(probe, true, env, 'dependency-probe', 'local');
+        const offlineMs = Date.now() - offlineStart;
         for (const tree of await moduleTrees(probe))
             await rm(path.join(probe, tree), { recursive: true });
-        const offlineStart = Date.now();
-        await install(probe, true, env, 'dependency-probe');
+        const globalStart = Date.now();
+        await install(probe, true, env, 'dependency-probe-global', 'global');
+        const globalMs = Date.now() - globalStart;
         const result: DependencyStrategy = {
-            strategy: cloneMs < Date.now() - offlineStart ? 'clone' : 'offline',
+            strategy:
+                globalMs <= Math.min(cloneMs ?? Infinity, offlineMs)
+                    ? 'global'
+                    : (cloneMs ?? Infinity) < offlineMs
+                      ? 'clone'
+                      : 'offline',
             cloneMs,
-            offlineMs: Date.now() - offlineStart,
+            offlineMs,
+            globalMs,
             lockHash: parent.lockHash,
             platform: process.platform,
             nodeVersion: process.version,
+            pnpmVersion: await runner.run('pnpm', ['--version'], {
+                cwd: probe,
+            }),
         };
         await writeJson(path.join(home, 'dependency-strategy.json'), result);
         return result;
@@ -240,24 +273,41 @@ export async function dependencies(
 ): Promise<void> {
     const equal =
         parent.lockHash === (await hashFile(path.join(root, 'pnpm-lock.yaml')));
-    if (!equal || existsSync(path.join(root, 'node_modules'))) {
-        await install(root, equal, env, label);
+    const pnpmVersion = await runner.run('pnpm', ['--version'], { cwd: root });
+    const parentVersion = parent.pnpmVersion ?? (await pinnedPnpm(parent.path));
+    if (!equal || pnpmVersion !== parentVersion) {
+        await install(root, true, env, label, 'local');
         return;
     }
     const file = path.join(home, 'dependency-strategy.json');
     const preference = existsSync(file)
         ? await readJson<DependencyStrategy>(file)
         : null;
-    if (
-        preference?.strategy === 'clone' &&
-        preference.lockHash === parent.lockHash &&
+    const measured =
+        preference?.lockHash === parent.lockHash &&
         preference.platform === process.platform &&
-        preference.nodeVersion === process.version
+        preference.nodeVersion === process.version &&
+        preference.pnpmVersion === pnpmVersion
+            ? preference.strategy
+            : 'global';
+    if (
+        measured === 'clone' &&
+        !existsSync(path.join(root, 'node_modules')) &&
+        (await moduleLayout(parent.path)) === 'local'
     )
         await cloneModules(parent.path, root);
-    else await install(root, true, env, label);
+    else
+        await install(
+            root,
+            true,
+            env,
+            label,
+            measured === 'offline' ? 'local' : 'global',
+        );
 }
 export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
+    const sameLayout =
+        (await moduleLayout(parent.path)) === (await moduleLayout(root));
     for (const name of builtPackages) {
         const prefix = `packages/${name}`;
         const source = path.join(parent.path, prefix);
@@ -281,7 +331,7 @@ export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
             await rm(path.join(destination, name), { force: true });
             await clone(path.join(source, name), path.join(destination, name));
         }
-        if (unchanged) {
+        if (unchanged && sameLayout) {
             const now = new Date();
             for await (const metadata of glob(
                 [
@@ -339,10 +389,12 @@ export async function buildDiff(
 ): Promise<string[]> {
     const files = await changedFiles(root, parent.sha);
     const hashes = await sourceHashes(root);
+    const layoutChanged =
+        (await moduleLayout(parent.path)) !== (await moduleLayout(root));
     for (const name of builtPackages) {
         const prefix = `packages/${name}`;
         if (
-            hashes[prefix] !== parent.sourceHashes[prefix] &&
+            (layoutChanged || hashes[prefix] !== parent.sourceHashes[prefix]) &&
             !files.some((file) => file.startsWith(`${prefix}/`))
         )
             files.push(`${prefix}/package.json`);

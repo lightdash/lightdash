@@ -34,6 +34,7 @@ const parent = (sha: string, builtAt: string, seedComplete = true): Parent => ({
     path: '/parent',
     database: `ldp_${sha.slice(0, 12)}`,
     lockHash: 'hash',
+    pnpmVersion: '12.3.4',
     sourceHashes: {},
     migrations: [],
     timings: {},
