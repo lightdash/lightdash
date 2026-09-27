@@ -219,3 +219,78 @@ test('portable configuration normalizes the checkout only at path boundaries', (
         portableValue('/b/fork-sibling/src', '/b/fork'),
     );
 });
+
+test('Vite cache restores generated browser externals but rejects real workspace sources', async () => {
+    const f = await fixture();
+    const externalContent = `    module.exports = Object.create(new Proxy({}, {
+        get(_, key) {
+        if (
+            key !== '__esModule' &&
+            key !== '__proto__' &&
+            key !== 'constructor' &&
+            key !== 'splice'
+        ) {
+            console.warn(\`Module "path" has been externalized for browser compatibility. Cannot access "path.\${key}" in client code. See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.\`)
+        }
+        }
+    }))`;
+    try {
+        const mapFile = path.join(f.parent.cacheDir, 'example.js.map');
+        const setSource = async (source: string, content: string) => {
+            await writeFile(
+                mapFile,
+                JSON.stringify({
+                    version: 3,
+                    sources: [source],
+                    sourcesContent: [content],
+                }),
+            );
+            assert.equal(
+                (await captureViteCache(f.parent)).status,
+                'populated',
+            );
+        };
+        await setSource('../../../browser-external:path', externalContent);
+        assert.equal(
+            (await restoreViteSnapshot(f.parent.root, f.target)).status,
+            'hit',
+        );
+        const restored = JSON.parse(
+            await readFile(
+                path.join(f.target.cacheDir, 'example.js.map'),
+                'utf8',
+            ),
+        );
+        assert.deepEqual(restored.sources, ['browser-external:path']);
+        assert.deepEqual(restored.sourcesContent, [externalContent]);
+        await rm(f.target.cacheDir, { recursive: true });
+        const workspaceFile = path.join(
+            f.parent.root,
+            'packages/frontend/browser-external:path',
+        );
+        await writeFile(workspaceFile, externalContent);
+        assert.equal(
+            (await restoreViteSnapshot(f.parent.root, f.target)).status,
+            'miss',
+        );
+        await rm(workspaceFile);
+        await setSource(
+            '../../../browser-external:path',
+            'export const actualSource = true;',
+        );
+        assert.equal(
+            (await restoreViteSnapshot(f.parent.root, f.target)).status,
+            'miss',
+        );
+        await setSource(
+            '../../../src/workspace.ts',
+            'export const actualSource = true;',
+        );
+        assert.equal(
+            (await restoreViteSnapshot(f.parent.root, f.target)).status,
+            'miss',
+        );
+    } finally {
+        await f.cleanup();
+    }
+});

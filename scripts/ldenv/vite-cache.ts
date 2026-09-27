@@ -241,14 +241,18 @@ export async function hasViteSnapshot(
     }
 }
 
-function relocateMap(
+async function relocateMap(
     content: string,
     sourceDir: string,
     targetDir: string,
     sourceRoot: string,
     targetRoot: string,
-): string {
-    let map: { sources: string[]; sourceRoot?: string };
+): Promise<string> {
+    let map: {
+        sources: string[];
+        sourceRoot?: string;
+        sourcesContent?: Array<string | null>;
+    };
     try {
         map = JSON.parse(content);
     } catch {
@@ -256,24 +260,53 @@ function relocateMap(
     }
     if (!Array.isArray(map.sources) || map.sourceRoot)
         fail('Unsupported optimizer sourcemap');
-    map.sources = map.sources.map((source) => {
-        if (
-            typeof source !== 'string' ||
-            source.includes('://') ||
-            source.startsWith('\0')
-        )
-            return source;
-        const absolute = path.resolve(sourceDir, source);
-        if (
-            inside(sourceRoot, absolute) &&
-            !absolute.includes(`${path.sep}node_modules${path.sep}`)
-        )
-            fail('Sourcemap includes bundled workspace source');
-        return path
-            .relative(targetDir, relocate(absolute, sourceRoot, targetRoot))
-            .split(path.sep)
-            .join('/');
-    });
+    map.sources = await Promise.all(
+        map.sources.map(async (source, index) => {
+            if (
+                typeof source !== 'string' ||
+                source.includes('://') ||
+                source.startsWith('\0')
+            )
+                return source;
+            const absolute = path.resolve(sourceDir, source);
+            const external = /^(?:\.\.\/)*browser-external:(.+)$/.exec(
+                source,
+            )?.[1];
+            const embedded = map.sourcesContent?.[index];
+            if (external && typeof embedded === 'string') {
+                const normalized = embedded
+                    .replace(`Module "${external}"`, 'Module "<external>"')
+                    .replace(
+                        `Cannot access "${external}.`,
+                        'Cannot access "<external>.',
+                    );
+                if (
+                    digest(normalized) ===
+                    'd4c467dc565324b1b7ecd69c7adbe1f1f9de1ee8c9320c97354f9dd1c56ffd0a'
+                ) {
+                    try {
+                        await lstat(absolute);
+                        fail(
+                            'Browser external sourcemap resolves to a real file',
+                        );
+                    } catch (error) {
+                        if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+                            throw error;
+                    }
+                    return `browser-external:${external}`;
+                }
+            }
+            if (
+                inside(sourceRoot, absolute) &&
+                !absolute.includes(`${path.sep}node_modules${path.sep}`)
+            )
+                fail('Sourcemap includes bundled workspace source');
+            return path
+                .relative(targetDir, relocate(absolute, sourceRoot, targetRoot))
+                .split(path.sep)
+                .join('/');
+        }),
+    );
     return JSON.stringify(map);
 }
 
@@ -324,7 +357,7 @@ export async function restoreViteSnapshot(
                 fail('Optimizer snapshot checksum mismatch');
             const original = content.toString('utf8');
             const transformed = name.endsWith('.map')
-                ? relocateMap(
+                ? await relocateMap(
                       original,
                       manifest.cacheDir,
                       context.cacheDir,
