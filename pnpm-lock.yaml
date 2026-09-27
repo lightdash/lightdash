@@ -188,6 +188,9 @@ importers:
       pm2:
         specifier: 7.0.0
         version: 7.0.0(supports-color@9.1.0)
+      smol-toml:
+        specifier: 1.6.1
+        version: 1.6.1
       tsx:
         specifier: 4.23.12
         version: 4.23.12
