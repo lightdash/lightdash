@@ -113,6 +113,45 @@ export async function stopProcesses(
     )
         throw new Error('PM2 teardown verification failed');
 }
+export async function processPriority(
+    instance: Instance,
+    low: boolean,
+): Promise<void> {
+    const roots = new Set(
+        (await ownedProcesses(instance))
+            .map((item) => item.pid)
+            .filter(Boolean),
+    );
+    const rows = (
+        await runner.run('ps', ['-axo', 'pid=,ppid='], { cwd: controlRoot })
+    )
+        .trim()
+        .split('\n')
+        .map((row) => row.trim().split(/\s+/).map(Number));
+    let count = -1;
+    while (count !== roots.size) {
+        count = roots.size;
+        rows.forEach(([pid, parent]) => {
+            if (roots.has(parent)) roots.add(pid);
+        });
+    }
+    await Promise.all(
+        [...roots].map(async (pid) => {
+            try {
+                if (process.platform === 'darwin')
+                    await runner.run(
+                        '/usr/sbin/taskpolicy',
+                        [low ? '-b' : '-B', '-p', String(pid)],
+                        { cwd: controlRoot },
+                    );
+                else if (process.getuid?.() === 0)
+                    os.setPriority(pid, low ? 10 : 0);
+            } catch (error) {
+                if (alive(pid)) throw error;
+            }
+        }),
+    );
+}
 export async function startProcesses(
     instance: Instance,
     late: boolean,
@@ -143,6 +182,7 @@ export async function startProcesses(
         instance.worktree,
         { ...env, LDENV_WORKTREE: instance.worktree },
     );
+    if (instance.kind === 'warming') await processPriority(instance, true);
 }
 export async function dbtEnvironment(root: string): Promise<Environment> {
     const cache = path.join(os.homedir(), '.lightdash/dev-venv-1.12/bin/dbt');

@@ -7,6 +7,9 @@ import { changedFiles, dependencies, runTiers } from './cache';
 import { diskGuard, dotenv, localSecrets } from './infra';
 import {
     git,
+    backgroundWork,
+    foregroundWork,
+    yieldToForeground,
     home,
     readJson,
     runner,
@@ -25,7 +28,12 @@ import {
     up,
 } from './lifecycle';
 import { matchingTiers, selectParent, type Instance } from './model';
-import { background, cheapReady, stopProcesses } from './processes';
+import {
+    background,
+    cheapReady,
+    processPriority,
+    stopProcesses,
+} from './processes';
 
 export async function availableMemory(root: string): Promise<number> {
     if (process.platform === 'darwin') {
@@ -55,77 +63,81 @@ export async function fillPool(
     root: string,
     requestedSize: number | null,
 ): Promise<Instance[]> {
-    return withLock('pool-fill', async () => {
-        const settings = await poolSettings(root);
-        if (requestedSize !== null) settings.size = requestedSize;
-        settings.source = root;
-        if (
-            !Number.isInteger(settings.size) ||
-            settings.size < 0 ||
-            settings.size > 2
-        )
-            throw new Error('Pool size must be 0, 1 or 2');
-        await writeJson(path.join(home, 'pool.json'), settings);
-        const parent = (await parents()).sort((a, b) =>
-            b.builtAt.localeCompare(a.builtAt),
-        )[0];
-        if (!parent) throw new Error('Build a parent before filling the pool');
-        const secrets = await localSecrets(root);
-        if (!secrets.LIGHTDASH_LICENSE_KEY)
-            Object.assign(secrets, await localSecrets(parent.path));
-        await withLock('pool', async () => {
-            const stale = (await instances()).filter(
-                (instance) =>
-                    (instance.kind === 'spare' ||
-                        instance.kind === 'warming') &&
-                    (instance.parent !== parent.sha ||
-                        instance.phase === 'failed'),
-            );
-            for (const instance of stale)
-                await withLock(instance.id, () => down(instance));
-        });
-        const spares = (await instances()).filter(
-            (instance) =>
-                instance.kind === 'spare' &&
-                instance.parent === parent.sha &&
-                instance.phase === 'ready',
-        );
-        while (spares.length < settings.size) {
-            await diskGuard();
-            if ((await availableMemory(root)) < 3 * 1024 ** 3)
-                throw new Error(
-                    'Pool refill needs 3 GiB available memory; existing spares remain available',
-                );
-            const directory = path.join(
-                home,
-                'warm',
-                randomUUID().slice(0, 12),
-            );
-            await mkdir(path.dirname(directory), { recursive: true });
-            await git(root, [
-                'worktree',
-                'add',
-                '--detach',
-                directory,
-                parent.sha,
-            ]);
-            const instance = await up(
-                directory,
-                parent.sha,
-                false,
-                'warming',
-                secrets,
-            );
+    return backgroundWork(() =>
+        withLock('pool-fill', async () => {
+            await yieldToForeground();
+            const settings = await poolSettings(root);
+            if (requestedSize !== null) settings.size = requestedSize;
+            settings.source = root;
+            if (
+                !Number.isInteger(settings.size) ||
+                settings.size < 0 ||
+                settings.size > 2
+            )
+                throw new Error('Pool size must be 0, 1 or 2');
+            await writeJson(path.join(home, 'pool.json'), settings);
+            const parent = (await parents()).sort((a, b) =>
+                b.builtAt.localeCompare(a.builtAt),
+            )[0];
+            if (!parent)
+                throw new Error('Build a parent before filling the pool');
+            const secrets = await localSecrets(root);
+            if (!secrets.LIGHTDASH_LICENSE_KEY)
+                Object.assign(secrets, await localSecrets(parent.path));
             await withLock('pool', async () => {
-                instance.kind = 'spare';
-                await saveInstance(instance);
+                const stale = (await instances()).filter(
+                    (instance) =>
+                        (instance.kind === 'spare' ||
+                            instance.kind === 'warming') &&
+                        (instance.parent !== parent.sha ||
+                            instance.phase === 'failed'),
+                );
+                for (const instance of stale)
+                    await withLock(instance.id, () => down(instance));
             });
-            spares.push(instance);
-        }
-        return spares;
-    });
+            const spares = (await instances()).filter(
+                (instance) =>
+                    instance.kind === 'spare' &&
+                    instance.parent === parent.sha &&
+                    instance.phase === 'ready',
+            );
+            while (spares.length < settings.size) {
+                await diskGuard();
+                if ((await availableMemory(root)) < 3 * 1024 ** 3)
+                    throw new Error(
+                        'Pool refill needs 3 GiB available memory; existing spares remain available',
+                    );
+                const directory = path.join(
+                    home,
+                    'warm',
+                    randomUUID().slice(0, 12),
+                );
+                await mkdir(path.dirname(directory), { recursive: true });
+                await git(root, [
+                    'worktree',
+                    'add',
+                    '--detach',
+                    directory,
+                    parent.sha,
+                ]);
+                const instance = await up(
+                    directory,
+                    parent.sha,
+                    false,
+                    'warming',
+                    secrets,
+                );
+                await withLock('pool', async () => {
+                    instance.kind = 'spare';
+                    await saveInstance(instance);
+                });
+                spares.push(instance);
+            }
+            return spares;
+        }),
+    );
 }
-export async function claimSpare(
+async function claimInstance(
     root: string,
     branch: string,
     base: string,
@@ -174,6 +186,7 @@ export async function claimSpare(
                 throw new Error(
                     `Spare has user edits: ${spare.worktree}; refusing to switch it`,
                 );
+            await processPriority(spare, false);
             spare.kind = 'claimed';
             spare.phase = 'starting';
             spare.readyAt = null;
@@ -258,4 +271,10 @@ export async function claimSpare(
         log: path.join(home, 'logs/pool-refill.log'),
     });
     return instance;
+}
+
+export async function claimSpare(
+    ...args: Parameters<typeof claimInstance>
+): Promise<Instance> {
+    return foregroundWork(() => claimInstance(...args));
 }

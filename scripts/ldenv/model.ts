@@ -29,6 +29,7 @@ export type Ports = {
     prometheus: number;
 };
 export type Parent = {
+    retiredPaths?: string[];
     warehouseDatabase: string;
     warehouseHash: string;
     sha: string;

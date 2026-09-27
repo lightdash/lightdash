@@ -1,4 +1,6 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
@@ -51,6 +53,47 @@ export async function withLock<T>(
         await rm(lock, { recursive: true });
     }
 }
+const priority = new AsyncLocalStorage<'foreground' | 'background'>();
+export const backgroundWork = <T>(work: () => Promise<T>): Promise<T> =>
+    priority.run('background', work);
+export async function foregroundWork<T>(work: () => Promise<T>): Promise<T> {
+    if (priority.getStore()) return work();
+    const file = path.join(
+        home,
+        'foreground',
+        `${process.pid}-${randomUUID()}.json`,
+    );
+    await writeJson(file, { pid: process.pid });
+    try {
+        return await priority.run('foreground', work);
+    } finally {
+        await rm(file, { force: true });
+    }
+}
+export async function foregroundActive(): Promise<boolean> {
+    const leases = await listJson<{ pid: number }>(
+        path.join(home, 'foreground'),
+    );
+    if (leases.some((lease) => alive(lease.pid))) return true;
+    const instances = await listJson<Instance>(path.join(home, 'instances'));
+    return instances.some(
+        (instance) =>
+            instance.kind !== 'warming' &&
+            instance.kind !== 'spare' &&
+            (instance.phase === 'starting' || instance.phase === 'preparing') &&
+            alive(instance.monitorPid),
+    );
+}
+export async function yieldToForeground(): Promise<void> {
+    if (priority.getStore() !== 'background') return;
+    let announced = false;
+    while (await foregroundActive()) {
+        if (!announced)
+            process.stdout.write('WAIT: foreground instance is starting\n');
+        announced = true;
+        await delay(250);
+    }
+}
 export type CommandOptions = {
     cwd: string;
     env?: Environment;
@@ -84,6 +127,15 @@ export class Runner {
         options: CommandOptions,
     ): Promise<string> {
         this.protect(options.env ?? {});
+        await yieldToForeground();
+        if (priority.getStore() === 'background') {
+            args = ['-n', '10', command, ...args];
+            command = 'nice';
+            if (process.platform === 'darwin') {
+                args = ['-b', command, ...args];
+                command = '/usr/sbin/taskpolicy';
+            }
+        }
         return new Promise((resolve, reject) => {
             const child = spawn(command, args, {
                 cwd: options.cwd,
@@ -173,9 +225,17 @@ export function alive(pid: number | null): boolean {
 export async function listJson<T>(directory: string): Promise<T[]> {
     if (!existsSync(directory)) return [];
     const { readdir } = await import('node:fs/promises');
-    return Promise.all(
+    const values = await Promise.all(
         (await readdir(directory))
             .filter((name) => name.endsWith('.json'))
-            .map((name) => readJson<T>(path.join(directory, name))),
+            .map(async (name) =>
+                readJson<T>(path.join(directory, name)).catch(
+                    (error: NodeJS.ErrnoException) => {
+                        if (error.code === 'ENOENT') return null;
+                        throw error;
+                    },
+                ),
+            ),
     );
+    return values.filter((value): value is Awaited<T> => value !== null);
 }

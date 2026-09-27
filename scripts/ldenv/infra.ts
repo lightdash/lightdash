@@ -33,6 +33,7 @@ export async function localSecrets(root: string): Promise<Environment> {
         'LIGHTDASH_LICENSE_KEY',
         'LIGHTDASH_LICENSE_CERTIFICATE',
         'LDENV_STANDALONE_SCHEDULER',
+        'LDENV_TRACING',
     ]) {
         if (process.env[key]) env[key] = process.env[key]!;
     }
@@ -353,7 +354,7 @@ export async function dropDatabase(root: string, name: string): Promise<void> {
 export async function claimPorts(root: string, id: string): Promise<Ports> {
     await runner.run(
         'bash',
-        ['scripts/dev-ports.sh', 'claim', '--instance-id', id],
+        [path.join(__dirname, '../dev-ports.sh'), 'claim', '--instance-id', id],
         { cwd: root },
     );
     const registration = json<{
@@ -363,7 +364,12 @@ export async function claimPorts(root: string, id: string): Promise<Ports> {
     }>(
         await runner.run(
             'bash',
-            ['scripts/dev-ports.sh', 'show', '--instance-id', id],
+            [
+                path.join(__dirname, '../dev-ports.sh'),
+                'show',
+                '--instance-id',
+                id,
+            ],
             { cwd: root },
         ),
     );

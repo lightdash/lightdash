@@ -191,10 +191,17 @@ git fetch origin
 ~/.ldenv/bin/ldenv parent refresh
 ```
 
-Refresh checks the fetched `origin/main`. It reuses an unchanged parent. A source
+Refresh checks the fetched `origin/main`. It reuses an unchanged parent with the
+current global-store layout. An older layout gets fresh artifacts in a separate
+cache worktree; its frozen database is reused and the old files remain available
+to forks that already selected them. A source
 change with no build or migration work advances through cached artifacts and a
 database clone; deeper changes build and seed a new parent. Refresh then refills
 from the newest parent. Fetch is explicit so refresh does not alter remote refs.
+
+Parent builds and refills yield between commands while a user-facing fork or claim
+starts. Their commands run with `nice` and macOS background I/O policy. Warming
+processes use background priority, restored when a spare is claimed.
 
 Default pool size is one on either platform; the box can use two with `--size 2`.
 The setting persists in `~/.ldenv/pool.json`. A refill requires at least 3 GiB free
