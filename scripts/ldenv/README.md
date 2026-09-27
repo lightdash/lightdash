@@ -4,15 +4,39 @@
 It works from a plain shell. All registry data, parent worktrees, caches and logs
 live under `~/.ldenv`. A worktree gets a private `.env.development.local` file.
 
+## Install the machine launcher
+
+From a checkout of this branch with dependencies installed, run:
+
+```sh
+pnpm ldenv install
+```
+
+This pins the committed tool in `~/.ldenv/tools/<sha>` with its own dependencies
+and installs `~/.ldenv/bin/ldenv`. It works even when the target branch has no
+`node_modules` or `scripts/ldenv`. Parent builds refresh the launcher; rerun
+`pnpm ldenv install` from the implementation checkout to pick up tool updates.
+The pinned tool checkout must stay in place while its processes are running.
+
+Commands target `--worktree PATH`, then `T3CODE_WORKTREE_PATH`, then the shell's
+current directory, in that order. For example:
+
+```sh
+~/.ldenv/bin/ldenv --worktree /path/to/fresh-worktree up --no-wait
+```
+
+A fresh worktree can inherit the development EE licence from its selected parent.
+The licence is written only into its private local env file and is never printed.
+
 ## Start work
 
 Prepare a parent and one spare ahead of time:
 
 ```sh
-pnpm ldenv doctor
-pnpm ldenv parent build --ref origin/main
-pnpm ldenv pool fill --size 1
-pnpm ldenv new feature/my-change
+~/.ldenv/bin/ldenv doctor
+~/.ldenv/bin/ldenv parent build --ref origin/main
+~/.ldenv/bin/ldenv pool fill --size 1
+~/.ldenv/bin/ldenv new feature/my-change
 ```
 
 `new` prints the worktree path and URL. Open that path in your editor or choose
@@ -26,11 +50,11 @@ An empty pool fails with instructions to refill; it does not claim an unready sp
 For an existing worktree, use the fork path:
 
 ```sh
-pnpm ldenv up
-pnpm ldenv up --parent <sha>
-pnpm ldenv up --build-parent
-pnpm ldenv up --no-wait
-pnpm ldenv status --json
+~/.ldenv/bin/ldenv up
+~/.ldenv/bin/ldenv up --parent <sha>
+~/.ldenv/bin/ldenv up --build-parent
+~/.ldenv/bin/ldenv up --no-wait
+~/.ldenv/bin/ldenv status --json
 ```
 
 `--no-wait` finishes after preparation and process launch. A detached monitor
@@ -72,14 +96,14 @@ volume. Existing resources with mismatched ownership or configuration are refuse
 ## Stop and remove
 
 ```sh
-pnpm ldenv stop
-pnpm ldenv start
-pnpm ldenv down --dry-run
-pnpm ldenv down
-pnpm ldenv gc --dry-run
-pnpm ldenv gc
-pnpm ldenv parent list
-pnpm ldenv parent gc --keep 2
+~/.ldenv/bin/ldenv stop
+~/.ldenv/bin/ldenv start
+~/.ldenv/bin/ldenv down --dry-run
+~/.ldenv/bin/ldenv down
+~/.ldenv/bin/ldenv gc --dry-run
+~/.ldenv/bin/ldenv gc
+~/.ldenv/bin/ldenv parent list
+~/.ldenv/bin/ldenv parent gc --keep 2
 ```
 
 `stop` keeps the database, files and port reservation. `down` terminates only the
@@ -121,7 +145,7 @@ Parents and matching forks use pnpm's global virtual store by default. Workspace
 links remain local, while pnpm manages external dependencies in its shared store.
 A lockfile or pnpm mismatch uses a normal local offline install. When the module
 layout differs from an older parent, package tiers rebuild before API startup.
-Use `pnpm ldenv parent build --benchmark-deps` to measure APFS/reflink copies
+Use `~/.ldenv/bin/ldenv parent build --benchmark-deps` to measure APFS/reflink copies
 against local and global-store offline installs in a disposable worktree.
 Copies are compared only for parents with a local virtual store. The benchmark is
 opt-in and its result persists per machine. Forks choose the measured winner;
@@ -156,7 +180,7 @@ These overrides retain the existing local workflow or isolate machine resources:
 
 ```sh
 git fetch origin
-pnpm ldenv parent refresh
+~/.ldenv/bin/ldenv parent refresh
 ```
 
 Refresh checks the fetched `origin/main`. It reuses an unchanged parent. A source
@@ -172,7 +196,7 @@ before increasing the pool. Claimed environments are additional to spare capacit
 A cron example (replace the checkout and absolute pnpm path):
 
 ```cron
-0 * * * * cd /path/to/lightdash && /absolute/path/to/pnpm ldenv parent refresh >> "$HOME/.ldenv/logs/refresh.log" 2>&1
+0 * * * * cd /path/to/lightdash && /absolute/path/to/~/.ldenv/bin/ldenv parent refresh >> "$HOME/.ldenv/logs/refresh.log" 2>&1
 ```
 
 On macOS, use a LaunchAgent with `ProgramArguments` set to the absolute pnpm path,
@@ -185,20 +209,20 @@ if desired. No cron or LaunchAgent is installed by this tool.
 ## T3 Code actions
 
 Add these in **Settings → Project → Actions**. Do not add a repository `t3.json`.
-For T3-created worktrees, configure:
+Install the machine launcher first. For T3-created worktrees, configure:
 
 ```json
 {
     "name": "Dev env",
-    "command": "pnpm ldenv up --no-wait",
+    "command": "~/.ldenv/bin/ldenv up --no-wait",
     "runOnWorktreeCreate": true,
     "async": true
 }
 ```
 
-Add manual buttons named **Dev env: down** (`pnpm ldenv down`) and
-**Dev env: status** (`pnpm ldenv status`). For the fastest path, claim with
-`pnpm ldenv new <branch>` first and open the printed worktree in T3.
+Add manual buttons named **Dev env: down** (`~/.ldenv/bin/ldenv down`) and
+**Dev env: status** (`~/.ldenv/bin/ldenv status`). For the fastest path, claim with
+`~/.ldenv/bin/ldenv new <branch>` first and open the printed worktree in T3.
 
 ## Development checks
 

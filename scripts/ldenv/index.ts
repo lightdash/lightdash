@@ -7,6 +7,7 @@ import {
     sharedServices,
 } from './infra';
 import { alive, runner, saveInstance, withLock } from './io';
+import { installLauncher, targetArguments } from './launcher';
 import {
     buildParent,
     down,
@@ -29,7 +30,8 @@ import {
     stopProcesses,
 } from './processes';
 
-const help = `ldenv new <branch> [--base origin/main]
+const help = `ldenv install
+ldenv [--worktree PATH] new <branch> [--base origin/main]
 ldenv pool fill [--size 1]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
 ldenv up [--parent SHA] [--build-parent] [--no-wait]
@@ -52,14 +54,23 @@ async function main(args: string[]): Promise<void> {
         process.stdout.write(`${help}\n`);
         return;
     }
+    const target = targetArguments(
+        args,
+        process.env.T3CODE_WORKTREE_PATH ?? process.cwd(),
+    );
+    args = target.args;
     const [command, subcommand] = args;
+    if (command === 'install') {
+        process.stdout.write(`INSTALLED: ${await installLauncher()}\n`);
+        return;
+    }
     if (command === 'monitor') {
         const instance = await currentState(subcommand);
         if (!instance) throw new Error('Monitor instance is missing');
         await withLock(`monitor-${instance.id}`, () => finishStart(instance));
         return;
     }
-    const root = await rootDirectory();
+    const root = await rootDirectory(target.worktree);
     if (command === 'parent') {
         if (subcommand === 'list') {
             process.stdout.write(
@@ -81,6 +92,7 @@ async function main(args: string[]): Promise<void> {
             process.stdout.write(
                 `PARENT: ${parent.sha}\nTimings (ms): ${JSON.stringify(parent.timings)}\n`,
             );
+            await installLauncher();
             await parentGc(root, Number(option(args, '--keep', '2')));
             if (subcommand === 'refresh') await fillPool(root, null);
             return;

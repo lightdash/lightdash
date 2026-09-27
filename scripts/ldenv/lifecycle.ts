@@ -72,8 +72,10 @@ export const controlRoot = path.resolve(__dirname, '../..');
 export const manifests = path.join(home, 'manifests');
 export const parents = () => listJson<Parent>(manifests);
 export const instances = () => listJson<Instance>(path.join(home, 'instances'));
-export async function rootDirectory(): Promise<string> {
-    return realpath(await git(process.cwd(), ['rev-parse', '--show-toplevel']));
+export async function rootDirectory(
+    directory = process.cwd(),
+): Promise<string> {
+    return realpath(await git(directory, ['rev-parse', '--show-toplevel']));
 }
 export async function recipeAt(root: string) {
     return parseRecipe(await readFile(path.join(root, 'rainbow.toml'), 'utf8'));
@@ -416,6 +418,16 @@ export async function up(
             );
         }
         const secrets = inheritedSecrets ?? (await localSecrets(root));
+        if (!secrets.LIGHTDASH_LICENSE_KEY) {
+            const parent = await selectParent(
+                await parents(),
+                (sha) => ancestor(root, sha),
+                requested,
+            );
+            const inherited = await localSecrets(parent.path);
+            if (inherited.LIGHTDASH_LICENSE_KEY)
+                secrets.LIGHTDASH_LICENSE_KEY = inherited.LIGHTDASH_LICENSE_KEY;
+        }
         requireLicense(secrets);
         const pinned = await dotenv(path.join(root, '.env.development.local'));
         if (pinned.LD_INSTANCE_ID && pinned.LD_INSTANCE_ID !== instanceId(root))
