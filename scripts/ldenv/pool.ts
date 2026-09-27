@@ -164,6 +164,10 @@ async function claimInstance(
         const available = (await instances()).filter(
             (item) => item.kind === 'spare' && item.phase === 'ready',
         );
+        if (!available.length)
+            throw new Error(
+                'No ready spare. Run ~/.ldenv/bin/ldenv pool fill, or use ~/.ldenv/bin/ldenv up in a worktree.',
+            );
         const parent = await selectParent(
             (await parents()).filter((item) =>
                 available.some((spare) => spare.parent === item.sha),

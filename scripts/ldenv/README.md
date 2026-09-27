@@ -90,7 +90,7 @@ to `timeToReady`.
 ## Prerequisites
 
 Use the Node and pnpm versions pinned by the repository, plus Docker, `sfw`,
-Python 3 and the existing dbt 1.12 environment. Like `dev-fast-start`, ldenv reads
+`lsof`, Python 3 and the existing dbt 1.12 environment. Like `dev-fast-start`, ldenv reads
 `LIGHTDASH_LICENSE_KEY` from `.env.development.local`; an exported key also works.
 It never fetches a licence or prints its value. The seed requires EE migrations.
 The optional offline licence certificate follows the same path.

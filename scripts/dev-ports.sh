@@ -194,6 +194,10 @@ ENDJSON
 }
 
 cmd_claim() {
+    if ! command -v lsof >/dev/null 2>&1; then
+        echo "ERROR: lsof is required to verify that instance ports are free. Install lsof before claiming a slot." >&2
+        return 1
+    fi
     local id
     id=$(get_instance_id)
     local file="$REGISTRY_DIR/${id}.json"
