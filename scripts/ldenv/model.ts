@@ -29,6 +29,8 @@ export type Ports = {
     prometheus: number;
 };
 export type Parent = {
+    warehouseDatabase: string;
+    warehouseHash: string;
     sha: string;
     path: string;
     database: string;
@@ -292,4 +294,16 @@ export function newInstance(
         monitorPid: null,
         readyAt: null,
     };
+}
+
+export function seedCommands(run: string): {
+    warehouse: string;
+    application: string;
+} {
+    const match = run.match(/^([\s\S]+)&&\s*(pnpm\s+-F\s+backend\s+seed)\s*$/);
+    if (!match)
+        throw new Error(
+            'Expected the Rainbow seed recipe to end with pnpm -F backend seed',
+        );
+    return { warehouse: match[1].trim(), application: match[2] };
 }

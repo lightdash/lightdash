@@ -73,6 +73,31 @@ export async function ownedProcesses(
         },
     }));
 }
+export async function instanceRss(instance: Instance): Promise<number> {
+    const roots = new Set(
+        (await ownedProcesses(instance))
+            .map((item) => item.pid)
+            .filter(Boolean),
+    );
+    const output = await runner.run('ps', ['-axo', 'pid=,ppid=,rss='], {
+        cwd: controlRoot,
+    });
+    const rows = output
+        .split('\n')
+        .map((line) => line.trim().split(/\s+/).map(Number))
+        .filter((row) => row.length === 3);
+    let previousSize = -1;
+    while (previousSize !== roots.size) {
+        previousSize = roots.size;
+        rows.forEach(([pid, parent]) => {
+            if (roots.has(parent)) roots.add(pid);
+        });
+    }
+    return rows
+        .filter(([pid]) => roots.has(pid))
+        .reduce((sum, row) => sum + row[2] * 1024, 0);
+}
+
 export async function stopProcesses(
     instance: Instance,
     remove: boolean,
@@ -278,11 +303,7 @@ export async function finishStart(instance: Instance): Promise<void> {
         const schedulerPort = instance.ports!.scheduler;
         await waitUntil(() => health(schedulerPort), 60000, 'scheduler health');
         instance.timings.schedulerBoot = Date.now() - laterStart;
-        const processes = await ownedProcesses(instance);
-        instance.timings.rssBytes = processes.reduce(
-            (sum, item) => sum + (item.monit?.memory ?? 0),
-            0,
-        );
+        instance.timings.rssBytes = await instanceRss(instance);
         instance.timings.total = Date.now() - Date.parse(instance.createdAt);
         instance.monitorPid = null;
         await saveInstance(instance);

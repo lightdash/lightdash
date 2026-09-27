@@ -17,7 +17,7 @@ import {
     type Parent,
     type Ports,
 } from './model';
-import { newInstance } from './model';
+import { newInstance, seedCommands } from './model';
 
 const recipe = awaitRecipe();
 async function awaitRecipe() {
@@ -27,6 +27,8 @@ async function awaitRecipe() {
 }
 const parent = (sha: string, builtAt: string, seedComplete = true): Parent => ({
     sha,
+    warehouseDatabase: 'ldj_0123456789ab',
+    warehouseHash: 'hash',
     builtAt,
     seedComplete,
     path: '/parent',
@@ -204,5 +206,17 @@ test('ownership checks reject arbitrary database names and mismatched instance r
     assert.throws(
         () => assertInstance({ ...instance, worktree: '/tmp/b' }),
         /ownership/,
+    );
+});
+
+test('separates warehouse loading from the application seed without changing the recipe', async () => {
+    const commands = seedCommands((await recipe).seed.run);
+    assert.equal(commands.application, 'pnpm -F backend seed');
+    assert.match(commands.warehouse, /dbt1.12 deps/);
+    assert.match(commands.warehouse, /dbt1.12 seed/);
+    assert.match(commands.warehouse, /dbt1.12 run/);
+    assert.throws(
+        () => seedCommands('unknown recipe'),
+        /Expected the Rainbow seed recipe/,
     );
 });

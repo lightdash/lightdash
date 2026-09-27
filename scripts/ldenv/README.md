@@ -97,10 +97,19 @@ and seed assertions. The application seed already includes the EE embed seed
 when the real licence is present. A marker records completion before the database
 becomes a connection-disabled template. Only then is its manifest published.
 
-Forks use `CREATE DATABASE ... TEMPLATE`, not volume copies. They rewrite the
-seeded warehouse credentials with the backend's own encryption utility, update
-the local dbt path, and query `jaffle.orders` through the rewritten credentials.
-A clone cannot accidentally query the connection-disabled parent database.
+Forks use `CREATE DATABASE ... TEMPLATE`, not volume copies. The demo warehouse
+lives in `ldj_<hash>`, where the hash covers `examples/full-jaffle-shop-demo`.
+Parents with the same example content share that warehouse. App seeding uses an
+explicit application database connection URI while dbt and the seeded warehouse
+credentials use the shared warehouse database. Compiled explores keep that stable
+name, so forks need neither credential rewriting nor recompilation. Only the
+local dbt project path changes in a fork.
+
+**The demo warehouse is shared and read-mostly.** Writing to its `jaffle` schema
+from one instance changes what other instances see. Application data, users,
+charts, settings and migrations remain private to each cloned application DB.
+Parent GC drops a warehouse only after no remaining parent references it; active
+instances pin their parents. A changed example hash creates a separate warehouse.
 
 The lockfile, Node version, platform and architecture guard dependency reuse.
 A parent build measures APFS/reflink copies against an offline frozen install in

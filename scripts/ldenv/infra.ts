@@ -295,7 +295,11 @@ export async function ensurePostgres(root: string): Promise<Machine> {
     });
 }
 export function databaseIdentifier(name: string): string {
-    if (!/^(ldp_[a-f0-9]{12}|ld_ldenv_[a-f0-9]{16})$/.test(name))
+    if (
+        !/^(ldp_[a-f0-9]{12}|ldj_[a-f0-9]{12}|ld_ldenv_[a-f0-9]{16})$/.test(
+            name,
+        )
+    )
         throw new Error(
             'Refusing to operate on a database outside the ldenv namespace',
         );

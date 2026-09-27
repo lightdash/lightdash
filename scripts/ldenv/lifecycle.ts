@@ -10,6 +10,7 @@ import {
     install,
     runTiers,
     sourceHashes,
+    sourceHash,
 } from './cache';
 import {
     claimPorts,
@@ -49,6 +50,7 @@ import {
     matchingTiers,
     parseRecipe,
     selectParent,
+    seedCommands,
     tierEnvironment,
     type Environment,
     type Instance,
@@ -125,10 +127,12 @@ export async function timed<T>(
     action: () => Promise<T>,
 ): Promise<T> {
     const start = Date.now();
+    process.stdout.write(`PHASE: ${key}\n`);
     try {
         return await action();
     } finally {
         timings[key] = Date.now() - start;
+        process.stdout.write(`TIME: ${key}=${timings[key]}ms\n`);
     }
 }
 export async function buildParent(
@@ -145,14 +149,20 @@ export async function buildParent(
         if (!/^[a-f0-9]{40}$/.test(sha))
             throw new Error('Invalid parent commit');
         const existing = (await parents()).find((parent) => parent.sha === sha);
-        if (existing) return existing;
+        if (existing) {
+            if (!existing.warehouseDatabase)
+                throw new Error(
+                    'This parent predates shared warehouses; rebuild it before use',
+                );
+            return existing;
+        }
         await diskGuard();
         const secrets = await localSecrets(root);
         requireLicense(secrets);
         const directory = path.join(home, 'parents', sha.slice(0, 12));
         if (existsSync(directory))
             throw new Error(
-                `Unpublished parent remains at ${directory}. Inspect its log and use parent gc --failed before retrying.`,
+                `Unpublished parent remains at ${directory}. Inspect its log and remove only this unpublished worktree and database before retrying.`,
             );
         const timings: Record<string, number> = {};
         const started = Date.now();
@@ -171,6 +181,12 @@ export async function buildParent(
         );
         const recipe = await recipeAt(directory);
         const initialHashes = await sourceHashes(directory);
+        const warehouseHash = await sourceHash(
+            directory,
+            'examples/full-jaffle-shop-demo',
+        );
+        const warehouseDatabase = `ldj_${warehouseHash.slice(0, 12)}`;
+        const seeds = seedCommands(recipe.seed.run);
         const previous = refresh
             ? await selectParent(await parents(), (candidate) =>
                   ancestor(root, candidate, sha),
@@ -181,6 +197,7 @@ export async function buildParent(
             : [];
         const canAdvance =
             previous &&
+            previous.warehouseHash === warehouseHash &&
             !matchingTiers(recipe.tiers, changed).some(
                 (tier) => tier.preset === 'pnpm' || tier.run,
             );
@@ -239,10 +256,52 @@ export async function buildParent(
                     ),
                 }),
             );
-            await timed(timings, 'seed', () =>
-                runner.shell(recipe.seed.run, {
+            const warehouseExists = await sql(
+                root,
+                `SELECT datname FROM pg_database WHERE datname='${warehouseDatabase}';`,
+            );
+            if (!warehouseExists) {
+                await sql(
+                    root,
+                    `CREATE DATABASE ${databaseIdentifier(warehouseDatabase)};`,
+                );
+                await timed(timings, 'warehouseSeed', () =>
+                    runner.shell(seeds.warehouse, {
+                        cwd: directory,
+                        env: {
+                            ...tierEnvironment(env, recipe.seed.env),
+                            PGDATABASE: warehouseDatabase,
+                        },
+                        log: path.join(
+                            home,
+                            'logs',
+                            `${warehouseDatabase}-seed.log`,
+                        ),
+                    }),
+                );
+                await sql(
+                    root,
+                    `CREATE TABLE public.ldenv_warehouse_complete (hash text PRIMARY KEY); INSERT INTO public.ldenv_warehouse_complete VALUES ('${warehouseHash}');`,
+                    warehouseDatabase,
+                );
+            }
+            const warehouseMarker = await sql(
+                root,
+                'SELECT hash FROM public.ldenv_warehouse_complete;',
+                warehouseDatabase,
+            );
+            if (warehouseMarker !== warehouseHash)
+                throw new Error(
+                    'Warehouse seed marker does not match source hash',
+                );
+            await timed(timings, 'applicationSeed', () =>
+                runner.shell(seeds.application, {
                     cwd: directory,
-                    env: tierEnvironment(env, recipe.seed.env),
+                    env: {
+                        ...tierEnvironment(env, recipe.seed.env),
+                        PGDATABASE: warehouseDatabase,
+                        PGCONNECTIONURI: `postgresql://postgres:password@127.0.0.1:${env.PGPORT}/${database}`,
+                    },
                     log: path.join(
                         home,
                         'logs',
@@ -253,7 +312,7 @@ export async function buildParent(
         }
         const check = await sql(
             root,
-            "SELECT (EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') AND EXISTS(SELECT 1 FROM jaffle.orders) AND EXISTS(SELECT 1 FROM embedding))::text;",
+            "SELECT (EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') AND EXISTS(SELECT 1 FROM embedding))::text;",
             database,
         );
         if (check !== 'true')
@@ -269,6 +328,8 @@ export async function buildParent(
         );
         const manifest: Parent = {
             sha,
+            warehouseDatabase,
+            warehouseHash,
             path: directory,
             database,
             builtAt: new Date().toISOString(),
@@ -423,7 +484,7 @@ export async function up(
                 state.id,
             );
             await timed(state.timings, 'warehouse', () =>
-                bridge(state, 'repoint'),
+                bridge(state, 'dbt-path'),
             );
             await saveInstance(state);
             return await start(state, noWait);
@@ -520,6 +581,15 @@ export async function parentGc(root: string, keep: number): Promise<void> {
             await dropDatabase(root, parent.database);
             await git(root, ['worktree', 'remove', '--force', parent.path]);
             await rm(path.join(manifests, `${parent.sha}.json`));
+            if (
+                parent.warehouseDatabase &&
+                !(await parents()).some(
+                    (item) =>
+                        item.warehouseDatabase === parent.warehouseDatabase,
+                )
+            ) {
+                await dropDatabase(root, parent.warehouseDatabase);
+            }
         }
     });
 }

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { changedFiles, dependencies, runTiers } from './cache';
@@ -26,6 +26,23 @@ import {
 } from './lifecycle';
 import { matchingTiers, selectParent, type Instance } from './model';
 import { background, ready, stopProcesses } from './processes';
+
+export async function availableMemory(root: string): Promise<number> {
+    if (process.platform === 'darwin') {
+        const output = await runner.run('memory_pressure', ['-Q'], {
+            cwd: root,
+        });
+        const percent = output.match(
+            /System-wide memory free percentage: (\d+)%/,
+        );
+        if (!percent) throw new Error('Cannot read macOS available memory');
+        return (os.totalmem() * Number(percent[1])) / 100;
+    }
+    const output = await readFile('/proc/meminfo', 'utf8');
+    const available = output.match(/^MemAvailable:\s+(\d+) kB/m);
+    if (!available) throw new Error('Cannot read Linux available memory');
+    return Number(available[1]) * 1024;
+}
 
 export type PoolSettings = { size: number; source: string };
 export async function poolSettings(source: string): Promise<PoolSettings> {
@@ -74,7 +91,7 @@ export async function fillPool(
         );
         while (spares.length < settings.size) {
             await diskGuard();
-            if (os.freemem() < 3 * 1024 ** 3)
+            if ((await availableMemory(root)) < 3 * 1024 ** 3)
                 throw new Error(
                     'Pool refill needs 3 GiB available memory; existing spares remain available',
                 );
