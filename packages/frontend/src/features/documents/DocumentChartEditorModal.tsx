@@ -27,6 +27,7 @@ import {
 import {
     buildDocumentChartEditorState,
     getDocumentChartFromVersion,
+    getQuerySignature,
 } from './documentChartEditor';
 
 type Props = {
@@ -68,7 +69,14 @@ const EditorSession = ({
     const [confirmTableChange, setConfirmTableChange] = useState<
         (() => void) | null
     >(null);
-    const dirty = form.isDirty() || !deepEqual(initialVersion, version);
+    // The visualization normalises chart config once results arrive, so only
+    // the query-defining parts count as user changes
+    const dirty =
+        form.isDirty() ||
+        !deepEqual(
+            getQuerySignature(initialVersion),
+            getQuerySignature(version),
+        );
     const unsupported = version.chartConfig.type === ChartType.DATA_APP_VIZ;
     const rightSidebar = useChartGalleryRightSidebar({ enabled: true });
     const applyChart = form.onSubmit(({ name, description }) => {

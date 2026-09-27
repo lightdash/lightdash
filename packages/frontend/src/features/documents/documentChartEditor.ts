@@ -129,3 +129,11 @@ export const getDocumentChartFromVersion = (
         parameters: version.parameters,
     };
 };
+
+/** The parts of a chart version a person changes deliberately, excluding derived visualization config. */
+export const getQuerySignature = (version: CreateSavedChartVersion) => ({
+    tableName: version.tableName,
+    metricQuery: version.metricQuery,
+    pivotConfig: version.pivotConfig ?? null,
+    chartType: version.chartConfig.type,
+});
