@@ -342,6 +342,15 @@ export function relocateBuildMetadata<T>(
     };
     return relocate(metadata) as T;
 }
+export async function cloneFormulaParser(
+    parentRoot: string,
+    root: string,
+): Promise<void> {
+    const relative = 'packages/formula/src/grammar/parser.js';
+    const target = path.join(root, relative);
+    await rm(target, { force: true });
+    await clone(path.join(parentRoot, relative), target);
+}
 export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
     const sameLayout =
         (await moduleLayout(parent.path)) === (await moduleLayout(root));
@@ -395,6 +404,7 @@ export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
             }
         }
     }
+    await cloneFormulaParser(parent.path, root);
     const generated = 'packages/backend/src/generated';
     if (
         (

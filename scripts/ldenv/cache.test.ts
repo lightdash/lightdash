@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { changedFiles, sourceHash, relocateBuildMetadata } from './cache';
+import {
+    changedFiles,
+    sourceHash,
+    relocateBuildMetadata,
+    cloneFormulaParser,
+} from './cache';
 import { git } from './io';
 
 test('real git diff includes committed, staged, unstaged, renamed and untracked changes', async () => {
@@ -100,4 +105,30 @@ test('build metadata keeps external dependencies valid at a different worktree d
         result.missingPackageJsons[0],
         '../../node_modules/missing/package.json',
     );
+});
+
+test('forks carry the generated formula parser used by the frontend source alias', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-formula-'));
+    try {
+        const relative = 'packages/formula/src/grammar/parser.js';
+        const source = path.join(root, 'parent', relative);
+        const target = path.join(root, 'child', relative);
+        await mkdir(path.dirname(source), { recursive: true });
+        await writeFile(source, 'export const parse = () => 42;');
+        await cloneFormulaParser(
+            path.join(root, 'parent'),
+            path.join(root, 'child'),
+        );
+        assert.equal(
+            await readFile(target, 'utf8'),
+            await readFile(source, 'utf8'),
+        );
+        await writeFile(target, 'changed');
+        assert.equal(
+            await readFile(source, 'utf8'),
+            'export const parse = () => 42;',
+        );
+    } finally {
+        await rm(root, { recursive: true });
+    }
 });
