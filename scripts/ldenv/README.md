@@ -69,8 +69,11 @@ are in `~/.ldenv/logs`; credentials are redacted from command logs.
 
 Readiness requires backend health, a visible `#root > *` on `/login`, a seeded
 chart query that returns rows through the API with the dev PAT, and successful
-warm routes from `rainbow.toml`. API and frontend start first; tracing and watchers
-start after API health. The API runs the full core and EE scheduler task set, so
+warm routes from `rainbow.toml`. Vite starts after dependencies are ready and warms
+its entry module graph while the remaining preparation runs. Package and route
+watchers must finish their initial scan before the API starts. Documentation files
+are ignored; the route watcher generates only after controller edits. Readiness
+waits for frontend warmup and repeats its checks if the API restarts during them. The API runs the full core and EE scheduler task set, so
 ldenv does not start a duplicate scheduler process by default. To opt in, export
 `LDENV_STANDALONE_SCHEDULER=true` before `up`, or set it in the instance's local
 env file before `stop` / `start`. The optional scheduler watches backend changes
@@ -164,9 +167,17 @@ against local and global-store offline installs in a disposable worktree.
 Copies are compared only for parents with a local virtual store. The benchmark is
 opt-in and its result persists per machine. Forks choose the measured winner;
 before a measurement they use the global store. Normal parent builds do not benchmark. Package
-`dist` and build metadata travel with the clone. Vite currently builds its own
-optimizer cache per worktree; cache relocation and earlier frontend startup
-remain follow-up optimizations.
+`dist` and build metadata travel with the clone. External dependency paths in
+TypeScript metadata are relocated, so worktrees at different directory depths do
+not trigger a full initial watcher build.
+
+Parent builds populate a private Vite optimizer snapshot. Matching forks copy it
+and relocate paths after checking the lockfile, Vite configuration and its imports,
+patch contents, package manifests, Node and platform. A reviewed Vite version and
+source hash guard the optimizer metadata adapter; other versions safely miss the
+cache. Each fork owns its cache files. A changed or corrupt snapshot also falls
+back to normal optimization. The ldenv frontend launcher pre-transforms static
+entry imports before readiness; the repository-wide Vite config is unchanged.
 Node uses the persistent `~/.ldenv/cache/node` compile cache. Parent builds and
 pool fills warm the backend import graph before boot. tsx keeps its default disk
 cache. Absolute source paths can limit reuse between worktrees.

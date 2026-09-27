@@ -201,6 +201,10 @@ export async function startProcesses(
             LDENV_WORKTREE: instance.worktree,
             LDENV_WATCH_STATE_DIR: compilerDirectory(instance),
             LDENV_START_EPOCH: instance.startedAt,
+            LDENV_VITE_WARM_MARKER: path.join(
+                compilerDirectory(instance),
+                'frontend.json',
+            ),
         },
     );
     if (instance.kind === 'warming') await processPriority(instance, true);
@@ -373,7 +377,45 @@ export async function checkReady(instance: Instance): Promise<void> {
     instance.timings.warm = Date.now() - warmStart;
     instance.timings.ready = Date.now() - total;
 }
+export async function waitForFrontend(instance: Instance): Promise<void> {
+    const started = Date.now();
+    const frontend = (await ownedProcesses(instance)).find(
+        (item) => item.name === `${instance.id}-frontend`,
+    );
+    if (!frontend) throw new Error('Frontend process is missing');
+    await waitUntil(
+        async () => {
+            const marker = await readJson<{
+                pid: number;
+                status: string;
+                startedAt: number;
+                modules: number;
+            }>(path.join(compilerDirectory(instance), 'frontend.json')).catch(
+                (error: NodeJS.ErrnoException) => {
+                    if (error.code === 'ENOENT') return null;
+                    throw error;
+                },
+            );
+            if (
+                !marker ||
+                marker.pid !== frontend.pid ||
+                marker.startedAt < Date.parse(instance.startedAt)
+            )
+                return false;
+            if (marker.status === 'failed')
+                throw new Error(
+                    'Frontend module warmup failed; inspect its PM2 log',
+                );
+            instance.timings.viteWarmModules = marker.modules;
+            return marker.status === 'ready';
+        },
+        120000,
+        'frontend module warmup',
+    );
+    instance.timings.viteWarmWait = Date.now() - started;
+}
 export async function ready(instance: Instance): Promise<void> {
+    await waitForFrontend(instance);
     await stableReadiness(
         () => checkReady(instance),
         async () => {

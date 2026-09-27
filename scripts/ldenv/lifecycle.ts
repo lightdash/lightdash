@@ -72,6 +72,7 @@ import {
     stopProcesses,
 } from './processes';
 import { waitForCompilers } from './readiness';
+import { populateViteCache, restoreViteCache } from './vite';
 
 export const controlRoot = path.resolve(__dirname, '../..');
 export const manifests = path.join(home, 'manifests');
@@ -190,6 +191,20 @@ export async function buildParent(
                         ),
                     );
                 }
+                await timed(existing.timings, 'viteCachePopulate', async () => {
+                    const result = await populateViteCache(
+                        existing.path,
+                        await dotenv(
+                            path.join(existing.path, '.env.development.local'),
+                        ),
+                    );
+                    process.stdout.write(
+                        `VITE CACHE: ${result.status}: ${result.reason}\n`,
+                    );
+                });
+                await withLock('parents', () =>
+                    writeJson(path.join(manifests, `${sha}.json`), existing),
+                );
                 return existing;
             }
             await diskGuard();
@@ -415,6 +430,12 @@ export async function buildParent(
             await timed(timings, 'compileCacheWarm', () =>
                 warmCompileCache(directory, env),
             );
+            await timed(timings, 'viteCachePopulate', async () => {
+                const result = await populateViteCache(directory, env);
+                process.stdout.write(
+                    `VITE CACHE: ${result.status}: ${result.reason}\n`,
+                );
+            });
             manifest.compileCacheWarmedAt = new Date().toISOString();
             timings.total = Date.now() - started;
             await withLock('parents', () =>
@@ -468,6 +489,12 @@ async function refreshArtifacts(
     await timed(timings, 'compileCacheWarm', () =>
         warmCompileCache(directory, env),
     );
+    await timed(timings, 'viteCachePopulate', async () => {
+        const result = await populateViteCache(directory, env);
+        process.stdout.write(
+            `VITE CACHE: ${result.status}: ${result.reason}\n`,
+        );
+    });
     const refreshed: Parent = {
         compileCacheWarmedAt: new Date().toISOString(),
         ...previous,
@@ -609,6 +636,16 @@ async function upInstance(
                 throw new Error('Cloned seed marker does not match parent');
             const env = await environment(root, state, secrets);
             await writeInstanceEnv(state, env);
+            await timed(state.timings, 'viteCacheRestore', async () => {
+                const result = await restoreViteCache(parent.path, root, env);
+                state.timings.viteCacheHit = result.status === 'hit' ? 1 : 0;
+                process.stdout.write(
+                    `VITE CACHE: ${result.status}: ${result.reason}\n`,
+                );
+            });
+            await timed(state.timings, 'frontendStart', () =>
+                startProcesses(state, 'frontend'),
+            );
             const diff = await buildDiff(parent, root);
             await runTiers(
                 root,
@@ -663,9 +700,10 @@ async function startInstance(
     instance.phase = 'starting';
     instance.error = null;
     instance.readyAt = null;
-    await timed(instance.timings, 'frontendStart', () =>
-        startProcesses(instance, 'frontend'),
-    );
+    if (!instance.timings.frontendStart)
+        await timed(instance.timings, 'frontendStart', () =>
+            startProcesses(instance, 'frontend'),
+        );
     await timed(instance.timings, 'watchersSettle', async () => {
         await startProcesses(instance, 'watchers');
         await waitForCompilers(instance);

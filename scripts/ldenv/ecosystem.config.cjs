@@ -74,4 +74,11 @@ if (process.env.LDENV_WATCH_STATE_DIR && process.env.LDENV_START_EPOCH) {
         process.env.LDENV_START_EPOCH,
     ];
 }
+const frontend = config.apps.find((app) => app.name.endsWith('-frontend'));
+if (frontend) {
+    frontend.script = path.join(__dirname, 'vite-launcher.cjs');
+    frontend.interpreter = process.execPath;
+    frontend.args = ['serve', root];
+    frontend.cwd = path.join(root, 'packages/frontend');
+}
 module.exports = config;
