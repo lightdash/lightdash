@@ -133,12 +133,12 @@ export async function startProcesses(
     await pm2(
         [
             'start',
-            'ecosystem.config.js',
+            path.join(controlRoot, 'scripts/ldenv/ecosystem.config.cjs'),
             '--only',
             suffixes.map((suffix) => `${instance.id}-${suffix}`).join(','),
         ],
         instance.worktree,
-        env,
+        { ...env, LDENV_WORKTREE: instance.worktree },
     );
 }
 export async function dbtEnvironment(root: string): Promise<Environment> {

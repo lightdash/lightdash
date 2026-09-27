@@ -312,7 +312,7 @@ export async function buildParent(
         }
         const check = await sql(
             root,
-            "SELECT (EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') AND EXISTS(SELECT 1 FROM embedding))::text;",
+            "SELECT (EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') AND EXISTS(SELECT 1 FROM embedding) AND EXISTS(SELECT 1 FROM cached_explore))::text;",
             database,
         );
         if (check !== 'true')

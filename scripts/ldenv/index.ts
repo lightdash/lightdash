@@ -21,6 +21,7 @@ import {
 import { instanceId, type Instance } from './model';
 import { claimSpare, fillPool, poolSettings } from './pool';
 import {
+    cancelMonitor,
     currentState,
     finishStart,
     health,
@@ -203,7 +204,9 @@ async function main(args: string[]): Promise<void> {
             return;
         }
         if (command === 'stop') {
-            await stopProcesses(instance, false);
+            await cancelMonitor(instance);
+            await stopProcesses(instance, true);
+            instance.monitorPid = null;
             instance.phase = 'stopped';
             instance.readyAt = null;
             await saveInstance(instance);
