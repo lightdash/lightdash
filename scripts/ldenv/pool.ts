@@ -3,7 +3,13 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, readlink, realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { buildDiff, changedFiles, dependencies, runTiers } from './cache';
+import {
+    buildDiff,
+    changedFiles,
+    dependencies,
+    install,
+    runTiers,
+} from './cache';
 import { diskGuard, dotenv, localSecrets, movePortRegistration } from './infra';
 import {
     git,
@@ -288,36 +294,68 @@ export async function claimSpare(
     return foregroundWork(() => claimInstance(...args));
 }
 
+export function worktreeCwdMatches(root: string, cwd: string): boolean {
+    return cwd === root || cwd.startsWith(`${root}${path.sep}`);
+}
+
 async function callerPids(): Promise<Set<number>> {
+    const parents = new Map(
+        (await runner.run('ps', ['-axo', 'pid=,ppid='], { cwd: home }))
+            .split('\n')
+            .map((line) => line.trim().split(/\s+/).map(Number))
+            .filter((row) => row.length === 2 && row.every(Number.isInteger))
+            .map(([pid, parent]) => [pid, parent]),
+    );
     const callers = new Set<number>();
     let pid = process.pid;
     while (pid > 1 && !callers.has(pid)) {
         callers.add(pid);
-        const status = await readFile(`/proc/${pid}/status`, 'utf8');
-        pid = Number(status.match(/^PPid:\s+(\d+)/m)?.[1] ?? 0);
+        pid = parents.get(pid) ?? 0;
     }
     return callers;
 }
 
-async function worktreeIsFree(root: string): Promise<boolean> {
-    if (process.platform !== 'linux') return false;
-    const callers = await callerPids();
-    for (const entry of await readdir('/proc')) {
-        const pid = Number(entry);
-        if (!Number.isInteger(pid) || callers.has(pid)) continue;
-        try {
-            const cwd = await readlink(`/proc/${pid}/cwd`);
-            if (cwd === root || cwd.startsWith(`${root}${path.sep}`))
-                return false;
-        } catch (error) {
-            if (
-                (error as NodeJS.ErrnoException).code !== 'ENOENT' &&
-                (error as NodeJS.ErrnoException).code !== 'EACCES'
-            )
-                throw error;
+export async function worktreeIsFree(root: string): Promise<boolean> {
+    try {
+        const callers = await callerPids();
+        if (process.platform === 'darwin') {
+            const output = await runner.run(
+                'lsof',
+                ['-a', '-d', 'cwd', '-Fpn'],
+                {
+                    cwd: home,
+                },
+            );
+            let pid = 0;
+            let sawCaller = false;
+            for (const line of output.split('\n')) {
+                if (line.startsWith('p')) pid = Number(line.slice(1));
+                if (!line.startsWith('n')) continue;
+                if (!Number.isInteger(pid) || pid < 1) return false;
+                if (callers.has(pid)) sawCaller = true;
+                else if (worktreeCwdMatches(root, line.slice(1))) return false;
+            }
+            return sawCaller;
         }
+        if (process.platform !== 'linux') return false;
+        for (const entry of await readdir('/proc')) {
+            const pid = Number(entry);
+            if (!Number.isInteger(pid) || callers.has(pid)) continue;
+            try {
+                if (
+                    worktreeCwdMatches(root, await readlink(`/proc/${pid}/cwd`))
+                )
+                    return false;
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+                    continue;
+                return false;
+            }
+        }
+        return true;
+    } catch {
+        return false;
     }
-    return true;
 }
 
 async function adoptionTarget(
@@ -411,6 +449,9 @@ async function adoptInstance(root: string): Promise<Instance> {
                 const env = await environment(root, spare, secrets);
                 await timed(spare.timings, 'environment', () =>
                     writeInstanceEnv(spare, env),
+                );
+                await timed(spare.timings, 'dependencyRelink', () =>
+                    install(root, true, env, spare.id, 'global'),
                 );
                 await runTiers(
                     root,
