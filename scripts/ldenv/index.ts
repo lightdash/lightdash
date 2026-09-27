@@ -51,7 +51,7 @@ function printInstance(instance: Instance): void {
     );
     if (instance.viteCache)
         process.stdout.write(
-            `Vite cache: ${JSON.stringify(instance.viteCache)}\n`,
+            `Vite cache: ${instance.viteCache.status}; ${instance.viteCache.reason}; key=${instance.viteCache.key ?? 'unknown'}; snapshot=${instance.viteCache.snapshotKey ?? 'unknown'}\n`,
         );
 }
 async function main(args: string[]): Promise<void> {

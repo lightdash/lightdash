@@ -296,19 +296,27 @@ claim latency is under 1 second for the cheap gate; fork targets are 60 seconds 
 
 On 28 September 2026, a fresh `origin/main` worktree at T3's directory depth,
 started through the installed launcher with `up --no-wait`, reached readiness in
-**33.4 seconds**. This includes the first browser paint. Dependencies and artifacts
-took 4.67 s, DB clone 0.55 s, port allocation 0.15 s, Vite cache restore 1.60 s,
-watcher setup 2.88 s, API health 13.07 s, paint 4.85 s and chart query 0.33 s.
-Database and dependency work overlap, as do watcher and dbt-path setup; frontend
-warmup overlaps API boot. Total including RSS collection was 33.7 s.
+**34.5 seconds**, including the first browser paint. Dependencies and artifacts
+took 2.71 s (1.47 s dependency setup, 1.25 s artifacts), DB clone 0.42 s,
+port allocation 0.16 s, Vite cache restore 1.90 s with a verified hit, watcher
+setup 2.93 s, dbt-path update 0.27 s, API health 19.65 s, paint 4.82 s and
+chart query 0.27 s. Frontend preparation, watchers and the path update overlap;
+frontend graph warmup overlaps API boot. Total including RSS collection was 34.8 s.
+The API had zero restarts from launch through 60 seconds after readiness, including
+a Markdown edit. Health stayed available, and Vite did not rebundle dependencies.
 
-The same deeper-worktree path before these fixes took 54.4 s with 26.0 s paint,
-and reported ready just before an API restart. The fixed run restored the Vite
-cache without rebundling, warmed 3,897 static modules, and had zero API restarts
-from launch through 60 seconds after readiness. Health stayed available throughout
-that window, including a Markdown edit. These are sequential samples, not a
-controlled statistical trial. An earlier 25.3 s sample used a shallower worktree
-and did not expose the TypeScript metadata relocation bug; it is not the T3 baseline.
+The preceding actual T3 run took 40.6 s with a cache miss, 5.23 s code setup,
+4.64 s watcher setup and 2.44 s path setup. The old miss was real, but its caller
+environment was not captured. Caller package-version differences can change the
+cache key; ldenv now derives that version from the target frontend and records
+both keys plus hashed input groups for diagnosis. Explicit configuration changes
+still invalidate the cache.
+
+Before the watcher and Vite fixes, this deeper-worktree path took 54.4 s with
+26.0 s paint and reported ready just before an API restart. An earlier 25.3 s
+sample used a shallower worktree and did not expose the TypeScript metadata
+relocation bug; it is not the T3 baseline. These are sequential samples with
+varying machine load, not a controlled statistical trial.
 
 Warm claims reached 0.53 s before the background-priority changes. Parent builds
 and fills use background priority and can take substantially longer than a
