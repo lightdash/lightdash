@@ -30,25 +30,39 @@ export async function saveInstance(instance: Instance): Promise<void> {
     instance.updatedAt = new Date().toISOString();
     await writeJson(statePath(instance.id), instance);
 }
+const sharedLock = new AsyncLocalStorage<boolean>();
 export async function withLock<T>(
     name: string,
     work: () => Promise<T>,
 ): Promise<T> {
     const lock = path.join(home, 'locks', name);
     await mkdir(path.dirname(lock), { recursive: true, mode: 0o700 });
-    try {
-        await mkdir(lock);
-    } catch {
-        throw new Error(
-            `ldenv is busy: ${name}. Inspect ${lock}/owner.json before removing a stale lock.`,
-        );
+    const shared = ['postgres', 'parents', 'pool'].includes(name);
+    await yieldToForeground();
+    const deadline = Date.now() + (shared ? 60000 : 0);
+    while (true) {
+        try {
+            await mkdir(lock);
+            break;
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            if (Date.now() >= deadline)
+                throw new Error(
+                    `ldenv is busy: ${name}. Inspect ${lock}/owner.json before removing a stale lock.`,
+                );
+            await delay(25);
+            await yieldToForeground();
+        }
     }
     try {
         await writeJson(path.join(lock, 'owner.json'), {
             pid: process.pid,
             startedAt: new Date().toISOString(),
         });
-        return await work();
+        return await sharedLock.run(
+            shared || Boolean(sharedLock.getStore()),
+            work,
+        );
     } finally {
         await rm(lock, { recursive: true });
     }
@@ -85,7 +99,7 @@ export async function foregroundActive(): Promise<boolean> {
     );
 }
 export async function yieldToForeground(): Promise<void> {
-    if (priority.getStore() !== 'background') return;
+    if (priority.getStore() !== 'background' || sharedLock.getStore()) return;
     let announced = false;
     while (await foregroundActive()) {
         if (!announced)

@@ -7,8 +7,13 @@ import { test } from 'node:test';
 test('background commands wait for a foreground lease, then run at low priority', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-priority-'));
     process.env.LDENV_HOME = root;
-    const { backgroundWork, foregroundWork, foregroundActive, runner } =
-        await import('./io.js');
+    const {
+        backgroundWork,
+        foregroundWork,
+        foregroundActive,
+        runner,
+        withLock,
+    } = await import('./io.js');
     try {
         let release!: () => void;
         let entered!: () => void;
@@ -42,6 +47,34 @@ test('background commands wait for a foreground lease, then run at low priority'
         await foreground;
         assert.equal(await foregroundActive(), false);
         assert((await background) >= 10);
+        const order: string[] = [];
+        let unlockBackground!: () => void;
+        let acquired!: () => void;
+        const locked = new Promise<void>((resolve) => {
+            acquired = resolve;
+        });
+        const held = backgroundWork(() =>
+            withLock('postgres', async () => {
+                acquired();
+                await new Promise<void>((resolve) => {
+                    unlockBackground = resolve;
+                });
+                await runner.run(process.execPath, ['-e', 'process.exit(0)'], {
+                    cwd: root,
+                });
+                order.push('background');
+            }),
+        );
+        await locked;
+        const waiting = foregroundWork(() =>
+            withLock('postgres', async () => {
+                order.push('foreground');
+            }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        unlockBackground();
+        await Promise.all([held, waiting]);
+        assert.deepEqual(order, ['background', 'foreground']);
         await assert.rejects(
             foregroundWork(async () => {
                 throw new Error('failed fork');
