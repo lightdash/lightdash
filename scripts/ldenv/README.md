@@ -271,7 +271,11 @@ pnpm -F lightdash ldenv:format
 
 Runtime acceptance is separate: measure a warm claim, a fresh matching fork,
 a fork with a real common change and a new migration, concurrent environments,
-coexistence with the existing bootstrap, then complete teardown. Report parent,
+coexistence with the existing bootstrap, then complete teardown. Use the installed
+launcher from a fresh worktree without dependencies, at a different directory
+depth from the parent. Include the first browser paint. Require zero API restarts
+from process launch through 60 seconds after ready; a Markdown edit during that
+window must not restart the API. Report parent,
 claim, fork, backend health, paint, chart, scheduler and RSS measurements. Target
 claim latency is under 1 second for the cheap gate; fork targets are 60 seconds on macOS and
 90 seconds on Linux. These are targets until measured on each machine.

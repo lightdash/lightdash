@@ -43,16 +43,24 @@ export function frontendOptions(root: string) {
     return {
         root: path.join(root, 'packages/frontend'),
         mode: 'development',
+        plugins: [
+            {
+                name: 'ldenv-static-entry-warmup',
+                enforce: 'post' as const,
+                configResolved(config: ResolvedConfig) {
+                    const entries = [
+                        './src/index.tsx',
+                        './src/App.tsx',
+                        './src/Routes.tsx',
+                    ];
+                    config.server.warmup.clientFiles = [...entries];
+                    config.environments.client.dev.warmup = [...entries];
+                },
+            },
+        ],
         server: {
             ...(port === null ? {} : { port }),
             strictPort: true,
-            warmup: {
-                clientFiles: [
-                    './src/index.tsx',
-                    './src/App.tsx',
-                    './src/Routes.tsx',
-                ],
-            },
         },
     };
 }

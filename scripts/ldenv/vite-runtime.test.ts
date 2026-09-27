@@ -84,7 +84,7 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
             );
             await writeFile(
                 path.join(frontend, 'vite.config.mjs'),
-                'import path from "node:path"; export default { optimizeDeps: { include: ["example"] }, resolve: { alias: { "@src": path.join(import.meta.dirname, "src") } } };',
+                'import path from "node:path"; export default { server: { warmup: { clientFiles: ["./src/providers/**/*.tsx", "./src/lazy/**/*.tsx"] } }, optimizeDeps: { include: ["example"] }, resolve: { alias: { "@src": path.join(import.meta.dirname, "src") } } };',
             );
             await symlink(
                 installedVite,
@@ -113,6 +113,18 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
             );
         const parentConfig = await resolve(parent);
         const forkConfig = await resolve(fork);
+        for (const config of [parentConfig, forkConfig]) {
+            assert.deepEqual(config.server.warmup.clientFiles, [
+                './src/index.tsx',
+                './src/App.tsx',
+                './src/Routes.tsx',
+            ]);
+            assert.deepEqual(config.environments.client.dev.warmup, [
+                './src/index.tsx',
+                './src/App.tsx',
+                './src/Routes.tsx',
+            ]);
+        }
         const parentContext = await viteCacheContext(parent, parentConfig);
         const forkContext = await viteCacheContext(fork, forkConfig);
         assert(parentContext, 'installed Vite must match the reviewed adapter');
