@@ -282,12 +282,21 @@ claim latency is under 1 second for the cheap gate; fork targets are 60 seconds 
 
 ## Measured Mac timings
 
-On 27 September 2026, a fresh main worktree with the global-store parent and
-tracing disabled reached full readiness in **25.3 seconds**: dependencies and
-artifacts 5.10 s, database clone 0.26 s, port allocation 0.15 s, API health 13.12 s,
-paint 3.26 s, chart query 0.26 s. The database, ports and dependency steps overlap.
-There were no package rebuild or migration tiers. The matching tracing-enabled
-fork took 30.0 s. These are sequential samples, not a controlled statistical trial.
+On 28 September 2026, a fresh `origin/main` worktree at T3's directory depth,
+started through the installed launcher with `up --no-wait`, reached readiness in
+**33.4 seconds**. This includes the first browser paint. Dependencies and artifacts
+took 4.67 s, DB clone 0.55 s, port allocation 0.15 s, Vite cache restore 1.60 s,
+watcher setup 2.88 s, API health 13.07 s, paint 4.85 s and chart query 0.33 s.
+Database and dependency work overlap, as do watcher and dbt-path setup; frontend
+warmup overlaps API boot. Total including RSS collection was 33.7 s.
+
+The same deeper-worktree path before these fixes took 54.4 s with 26.0 s paint,
+and reported ready just before an API restart. The fixed run restored the Vite
+cache without rebundling, warmed 3,897 static modules, and had zero API restarts
+from launch through 60 seconds after readiness. Health stayed available throughout
+that window, including a Markdown edit. These are sequential samples, not a
+controlled statistical trial. An earlier 25.3 s sample used a shallower worktree
+and did not expose the TypeScript metadata relocation bug; it is not the T3 baseline.
 
 Warm claims reached 0.53 s before the background-priority changes. Parent builds
 and fills use background priority and can take substantially longer than a
