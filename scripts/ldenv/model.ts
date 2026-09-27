@@ -4,6 +4,11 @@ import { parse } from 'smol-toml';
 import type { ViteCacheReport } from './vite-cache';
 
 export type Environment = Record<string, string>;
+export function backendMode(value: string | undefined): 'tsx' | 'bundle' {
+    if (value === undefined || value === 'tsx') return 'tsx';
+    if (value === 'bundle') return 'bundle';
+    throw new Error('Backend mode must be tsx or bundle');
+}
 export type Tier = {
     name: string;
     preset: string | null;
@@ -227,6 +232,7 @@ export function instanceEnvironment(input: {
         APPS_RUNTIME_ENABLED: local.APPS_RUNTIME_ENABLED ?? 'false',
         CI: 'false',
         SCHEDULER_ENABLED: 'true',
+        LDENV_BACKEND: backendMode(local.LDENV_BACKEND),
         LDENV_TRACING: local.LDENV_TRACING ?? 'false',
         OTEL_SDK_DISABLED: local.LDENV_TRACING === 'true' ? 'false' : 'true',
         LDENV_STANDALONE_SCHEDULER: local.LDENV_STANDALONE_SCHEDULER ?? 'false',

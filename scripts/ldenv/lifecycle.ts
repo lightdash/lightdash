@@ -801,6 +801,10 @@ export async function down(instance: Instance): Promise<void> {
         }
         await rm(backup);
     }
+    await rm(path.join(home, 'bundles', instance.id), {
+        recursive: true,
+        force: true,
+    });
     await rm(statePath(instance.id));
 }
 export async function garbageCollect(_root: string): Promise<void> {

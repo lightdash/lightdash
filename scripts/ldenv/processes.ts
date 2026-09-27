@@ -17,6 +17,7 @@ import {
 } from './io';
 import {
     assertInstance,
+    backendMode,
     dotenvText,
     json,
     parseRecipe,
@@ -167,6 +168,25 @@ export async function startProcesses(
     const env = await dotenv(
         path.join(instance.worktree, '.env.development.local'),
     );
+    const requestedBackend = backendMode(
+        process.env.LDENV_BACKEND ?? env.LDENV_BACKEND,
+    );
+    if (
+        stage === 'frontend' &&
+        requestedBackend !== backendMode(env.LDENV_BACKEND)
+    ) {
+        if (
+            (await ownedProcesses(instance)).some(
+                (item) => item.pm2_env.status === 'online',
+            )
+        )
+            throw new Error('Stop this instance before changing backend mode');
+        env.LDENV_BACKEND = requestedBackend;
+        await atomicWrite(
+            path.join(instance.worktree, '.env.development.local'),
+            dotenvText(env),
+        );
+    }
     if (process.env.LDENV_TRACING !== undefined) {
         env.LDENV_TRACING = process.env.LDENV_TRACING;
         env.OTEL_SDK_DISABLED = env.LDENV_TRACING === 'true' ? 'false' : 'true';
@@ -199,6 +219,7 @@ export async function startProcesses(
         {
             ...env,
             LDENV_WORKTREE: instance.worktree,
+            LDENV_HOME: home,
             LDENV_WATCH_STATE_DIR: compilerDirectory(instance),
             LDENV_START_EPOCH: instance.startedAt,
             LDENV_VITE_WARM_MARKER: path.join(

@@ -1,4 +1,5 @@
 const path = require('node:path');
+const { createRequire } = require('node:module');
 
 const root = process.env.LDENV_WORKTREE;
 if (!root) throw new Error('LDENV_WORKTREE is required');
@@ -53,6 +54,25 @@ scheduler.watch = api.watch;
 scheduler.ignore_watch = api.ignore_watch;
 scheduler.watch_options = api.watch_options;
 scheduler.watch_delay = api.watch_delay;
+const mode = process.env.LDENV_BACKEND ?? api.env.LDENV_BACKEND ?? 'tsx';
+if (!['tsx', 'bundle'].includes(mode))
+    throw new Error('Backend mode must be tsx or bundle');
+if (mode === 'bundle') {
+    const toolRequire = createRequire(
+        path.join(__dirname, '../../package.json'),
+    );
+    api.script = path.join(__dirname, 'bundle-runner.ts');
+    api.args = [];
+    api.node_args = ['--import', toolRequire.resolve('tsx')];
+    api.watch = false;
+    api.kill_timeout = 10000;
+    api.env = {
+        ...api.env,
+        LDENV_BACKEND: mode,
+        LDENV_WORKTREE: root,
+        LDENV_HOME: process.env.LDENV_HOME,
+    };
+}
 const backend = require(path.join(root, 'packages/backend/package.json'));
 const command = backend.scripts['generate-api-dev'];
 const separator = command.indexOf(' && ');
