@@ -317,6 +317,7 @@ async function callerPids(): Promise<Set<number>> {
 
 export async function worktreeIsFree(root: string): Promise<boolean> {
     try {
+        const directory = await realpath(root);
         const callers = await callerPids();
         if (process.platform === 'darwin') {
             const output = await runner.run(
@@ -333,7 +334,8 @@ export async function worktreeIsFree(root: string): Promise<boolean> {
                 if (!line.startsWith('n')) continue;
                 if (!Number.isInteger(pid) || pid < 1) return false;
                 if (callers.has(pid)) sawCaller = true;
-                else if (worktreeCwdMatches(root, line.slice(1))) return false;
+                else if (worktreeCwdMatches(directory, line.slice(1)))
+                    return false;
             }
             return sawCaller;
         }
@@ -343,7 +345,10 @@ export async function worktreeIsFree(root: string): Promise<boolean> {
             if (!Number.isInteger(pid) || callers.has(pid)) continue;
             try {
                 if (
-                    worktreeCwdMatches(root, await readlink(`/proc/${pid}/cwd`))
+                    worktreeCwdMatches(
+                        directory,
+                        await readlink(`/proc/${pid}/cwd`),
+                    )
                 )
                     return false;
             } catch (error) {
