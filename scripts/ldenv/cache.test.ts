@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { changedFiles, sourceHash } from './cache';
+import { changedFiles, sourceHash, relocateBuildMetadata } from './cache';
 import { git } from './io';
 
 test('real git diff includes committed, staged, unstaged, renamed and untracked changes', async () => {
@@ -57,4 +57,47 @@ test('source hash changes with content and deletion but not mtime or ignored dis
     } finally {
         await rm(root, { recursive: true });
     }
+});
+
+test('build metadata keeps external dependencies valid at a different worktree depth', () => {
+    const source = '/home/dev/parents/base';
+    const target = '/home/dev/worktrees/project/thread';
+    const metadata = 'packages/common/dist/cjs/.tsbuildinfo';
+    const external = '/home/dev/store/pkg/index.d.ts';
+    const relative = path.relative(
+        path.dirname(path.join(source, metadata)),
+        external,
+    );
+    const result = relocateBuildMetadata(
+        {
+            fileNames: ['../../src/index.ts', relative, 'lib.es5.d.ts'],
+            packageJsons: [relative.replace('index.d.ts', 'package.json')],
+            missingPackageJsons: ['../../node_modules/missing/package.json'],
+            options: {
+                rootDir: '../../src',
+                tsBuildInfoFile: './.tsbuildinfo',
+            },
+        },
+        source,
+        target,
+        metadata,
+    );
+    assert.equal(
+        path.resolve(target, path.dirname(metadata), result.fileNames[1]),
+        external,
+    );
+    assert.equal(
+        path.resolve(target, path.dirname(metadata), result.packageJsons[0]),
+        '/home/dev/store/pkg/package.json',
+    );
+    assert.equal(result.fileNames[0], '../../src/index.ts');
+    assert.equal(result.fileNames[2], 'lib.es5.d.ts');
+    assert.deepEqual(result.options, {
+        rootDir: '../../src',
+        tsBuildInfoFile: './.tsbuildinfo',
+    });
+    assert.equal(
+        result.missingPackageJsons[0],
+        '../../node_modules/missing/package.json',
+    );
 });

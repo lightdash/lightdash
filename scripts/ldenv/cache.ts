@@ -305,6 +305,43 @@ export async function dependencies(
             measured === 'offline' ? 'local' : 'global',
         );
 }
+export function relocateBuildMetadata<T>(
+    metadata: T,
+    source: string,
+    target: string,
+    relativeFile: string,
+): T {
+    const sourceDirectory = path.dirname(path.join(source, relativeFile));
+    const targetDirectory = path.dirname(path.join(target, relativeFile));
+    const normalizedSource =
+        process.platform === 'darwin' ? source.toLowerCase() : source;
+    const relocate = (value: unknown): unknown => {
+        if (typeof value === 'string' && /^\.\.?\//.test(value)) {
+            const absolute = path.resolve(sourceDirectory, value);
+            const normalized =
+                process.platform === 'darwin'
+                    ? absolute.toLowerCase()
+                    : absolute;
+            if (
+                normalized === normalizedSource ||
+                normalized.startsWith(`${normalizedSource}${path.sep}`)
+            )
+                return value;
+            const relative = path.relative(targetDirectory, absolute);
+            return relative.startsWith('.') ? relative : `./${relative}`;
+        }
+        if (Array.isArray(value)) return value.map(relocate);
+        if (value && typeof value === 'object')
+            return Object.fromEntries(
+                Object.entries(value).map(([key, entry]) => [
+                    key,
+                    relocate(entry),
+                ]),
+            );
+        return value;
+    };
+    return relocate(metadata) as T;
+}
 export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
     const sameLayout =
         (await moduleLayout(parent.path)) === (await moduleLayout(root));
@@ -341,7 +378,20 @@ export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
                 ],
                 { cwd: destination },
             )) {
-                await utimes(path.join(destination, metadata), now, now);
+                const file = path.join(destination, metadata);
+                const original = json<unknown>(await readFile(file, 'utf8'));
+                await writeFile(
+                    file,
+                    JSON.stringify(
+                        relocateBuildMetadata(
+                            original,
+                            parent.path,
+                            root,
+                            path.join(prefix, metadata),
+                        ),
+                    ),
+                );
+                await utimes(file, now, now);
             }
         }
     }
