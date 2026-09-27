@@ -655,9 +655,17 @@ async function upInstance(
                 state.timings,
                 state.id,
             );
-            await timed(state.timings, 'warehouse', () =>
-                bridge(state, 'dbt-path'),
+            const preparations = await Promise.allSettled([
+                timed(state.timings, 'warehouse', () =>
+                    bridge(state, 'dbt-path'),
+                ),
+                prepareWatchers(state),
+            ]);
+            const preparationFailure = preparations.find(
+                (result) => result.status === 'rejected',
             );
+            if (preparationFailure?.status === 'rejected')
+                throw preparationFailure.reason;
             if (kind === 'warming')
                 await timed(state.timings, 'compileCacheWarm', () =>
                     warmCompileCache(root, env),
@@ -675,6 +683,12 @@ async function upInstance(
             }
             throw error;
         }
+    });
+}
+async function prepareWatchers(instance: Instance): Promise<void> {
+    await timed(instance.timings, 'watchersSettle', async () => {
+        await startProcesses(instance, 'watchers');
+        await waitForCompilers(instance);
     });
 }
 export async function start(
@@ -704,10 +718,7 @@ async function startInstance(
         await timed(instance.timings, 'frontendStart', () =>
             startProcesses(instance, 'frontend'),
         );
-    await timed(instance.timings, 'watchersSettle', async () => {
-        await startProcesses(instance, 'watchers');
-        await waitForCompilers(instance);
-    });
+    if (!instance.timings.watchersSettle) await prepareWatchers(instance);
     await timed(instance.timings, 'pm2', () => startProcesses(instance, 'api'));
     await saveInstance(instance);
     if (noWait) {
