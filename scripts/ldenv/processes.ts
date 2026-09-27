@@ -24,6 +24,11 @@ import {
     type Environment,
     type Ports,
 } from './model';
+import {
+    compilerDirectory,
+    stableReadiness,
+    waitForCompilers,
+} from './readiness';
 
 const controlRoot = path.resolve(__dirname, '../..');
 const requireRoot = createRequire(path.join(controlRoot, 'package.json'));
@@ -190,7 +195,12 @@ export async function startProcesses(
             suffixes.map((suffix) => `${instance.id}-${suffix}`).join(','),
         ],
         instance.worktree,
-        { ...env, LDENV_WORKTREE: instance.worktree },
+        {
+            ...env,
+            LDENV_WORKTREE: instance.worktree,
+            LDENV_WATCH_STATE_DIR: compilerDirectory(instance),
+            LDENV_START_EPOCH: instance.startedAt,
+        },
     );
     if (instance.kind === 'warming') await processPriority(instance, true);
 }
@@ -363,7 +373,23 @@ export async function checkReady(instance: Instance): Promise<void> {
     instance.timings.ready = Date.now() - total;
 }
 export async function ready(instance: Instance): Promise<void> {
-    await checkReady(instance);
+    await stableReadiness(
+        () => checkReady(instance),
+        async () => {
+            await waitForCompilers(instance);
+            await waitUntil(
+                () => health(instance.ports!.api),
+                120000,
+                'settled backend health',
+            );
+            const api = (await ownedProcesses(instance)).find(
+                (item) => item.name === `${instance.id}-api`,
+            );
+            if (!api || api.pm2_env.status !== 'online')
+                throw new Error('API is not online after its watchers settled');
+            return `${api.pid}:${api.pm2_env.pm_uptime}`;
+        },
+    );
     instance.phase = 'ready';
     instance.readyAt = new Date().toISOString();
     instance.timings.timeToReady =

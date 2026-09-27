@@ -21,6 +21,26 @@ for (const app of config.apps) {
                 : 'true',
     };
 }
+if (process.env.LDENV_WATCH_STATE_DIR && process.env.LDENV_START_EPOCH) {
+    for (const name of ['common', 'formula', 'warehouses']) {
+        const compiler = config.apps.find((app) =>
+            app.name.endsWith(`-${name}-watch`),
+        );
+        if (!compiler) throw new Error(`Missing ${name} watcher`);
+        const command = path.resolve(compiler.cwd, compiler.script);
+        const args = Array.isArray(compiler.args)
+            ? compiler.args
+            : compiler.args.split(/\s+/);
+        compiler.script = path.join(__dirname, 'compiler-watch.cjs');
+        compiler.interpreter = process.execPath;
+        compiler.args = [
+            path.join(process.env.LDENV_WATCH_STATE_DIR, `${name}.json`),
+            process.env.LDENV_START_EPOCH,
+            command,
+            ...args,
+        ];
+    }
+}
 scheduler.watch = api.watch;
 scheduler.ignore_watch = api.ignore_watch;
 scheduler.watch_options = api.watch_options;
