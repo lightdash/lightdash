@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
 import DocumentPage from './Document';
 
 const mocks = vi.hoisted(() => ({
@@ -329,14 +328,11 @@ describe('Document page', () => {
         expect(
             screen.getByRole('button', { name: 'Findings' }),
         ).toBeInTheDocument();
-        expect(heading).toHaveAttribute('id', 'document-heading-0-0');
+        expect(heading).toHaveAttribute('id', 'document-heading-0');
         expect(heading.tagName).toBe('H1');
-        expect(heading.closest('section')).toHaveClass(
-            reportStyles.reportFinding,
-        );
         expect(
             screen.getByRole('heading', { name: 'Recommendations' }),
-        ).toHaveAttribute('id', 'document-heading-2-0');
+        ).toHaveAttribute('id', 'document-heading-1');
     });
 
     test('omits chart names and Markdown H2s from the contents', async () => {

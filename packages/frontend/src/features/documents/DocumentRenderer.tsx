@@ -1,14 +1,12 @@
 import { type Document } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
+import { EditorContent } from '@tiptap/react';
 import { useMemo, type ReactNode } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
-import ErrorBoundary from '../errorBoundary/ErrorBoundary';
-import DocumentChart from './DocumentChart';
-import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
+import { DocumentEditorProvider } from './editor/DocumentEditorContext';
+import { useDocumentReader } from './editor/useDocumentReader';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
-import ReportChartFrame from './presentation/ReportChartFrame';
-import ReportMarkdown from './presentation/ReportMarkdown';
 import styles from './presentation/ReportPresentation.module.css';
 
 const DocumentRenderer = ({
@@ -19,7 +17,21 @@ const DocumentRenderer = ({
     actions?: ReactNode;
 }) => {
     const { cells } = document.version.content;
-    const headings = useMemo(() => getDocumentHeadings(cells), [cells]);
+    const { editor, headings } = useDocumentReader(document);
+    const target = useMemo(
+        () => ({
+            projectUuid: document.projectUuid,
+            spaceUuid: document.spaceUuid,
+            documentUuid: document.documentUuid,
+            versionUuid: document.version.versionUuid,
+        }),
+        [
+            document.projectUuid,
+            document.spaceUuid,
+            document.documentUuid,
+            document.version.versionUuid,
+        ],
+    );
     const creatorName = document.createdBy
         ? `${document.createdBy.firstName} ${document.createdBy.lastName}`.trim() ||
           'Unknown user'
@@ -68,56 +80,16 @@ const DocumentRenderer = ({
                 </Group>
             }
         >
-            <Stack
-                className={`${styles.structuredReport} ${styles.documentCells}`}
-            >
-                {cells.length === 0 && (
-                    <Text c="dimmed">This document is empty.</Text>
-                )}
-                {cells.map((cell, index) =>
-                    cell.type === 'chart' ? (
-                        <ErrorBoundary
-                            key={`${document.version.versionUuid}:${index}`}
-                            fallbackWrapper={(fallback) => (
-                                <ReportChartFrame
-                                    title={cell.content.chart.name}
-                                >
-                                    {fallback}
-                                </ReportChartFrame>
-                            )}
-                        >
-                            <DocumentChart
-                                showTitle
-                                projectUuid={document.projectUuid}
-                                spaceUuid={document.spaceUuid}
-                                documentUuid={document.documentUuid}
-                                versionUuid={document.version.versionUuid}
-                                cellIndex={index}
-                                cell={cell}
-                            />
-                        </ErrorBoundary>
-                    ) : cell.type === 'markdown' ? (
-                        <ErrorBoundary
-                            key={`${document.version.versionUuid}:${index}`}
-                        >
-                            <ReportMarkdown
-                                markdown={cell.content.markdown}
-                                firstHeadingId={headings[0]?.id}
-                                headingId={(offset) =>
-                                    getDocumentHeadingId(index, offset)
-                                }
-                            />
-                        </ErrorBoundary>
-                    ) : (
-                        <Text
-                            key={`${document.version.versionUuid}:${index}`}
-                            c="dimmed"
-                        >
-                            This content type is not supported yet.
-                        </Text>
-                    ),
-                )}
-            </Stack>
+            {cells.length === 0 ? (
+                <Text c="dimmed">This document is empty.</Text>
+            ) : (
+                <DocumentEditorProvider value={target}>
+                    <EditorContent
+                        editor={editor}
+                        className={styles.documentProse}
+                    />
+                </DocumentEditorProvider>
+            )}
         </DocumentReportLayout>
     );
 };

@@ -5,7 +5,7 @@ import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../components/common/AiMarkdown/AiMarkdown';
 import Callout from '../../../components/common/Callout';
 import styles from './ReportPresentation.module.css';
-import ReportSection, { ReportSectionHeading } from './ReportSection';
+import { ReportSectionHeading } from './ReportSection';
 
 const REHYPE_PLUGINS: StreamdownProps['rehypePlugins'] = [
     rehypeRaw,
@@ -57,59 +57,38 @@ const ReportMarkdown = ({
     markdown,
     className = styles.reportProse,
     components,
-    headingId,
-    firstHeadingId,
 }: {
     markdown: string;
     className?: string;
     components?: StreamdownProps['components'];
-    headingId?: (offset: number) => string;
-    firstHeadingId?: string;
 }) => {
     const mergedComponents = useMemo<StreamdownProps['components']>(
         () => ({
             ...CALLOUT_COMPONENTS,
-            h1: ({ node, children }) =>
-                headingId ? (
-                    <h1
-                        id={headingId(node?.position?.start.offset ?? 0)}
-                        data-report-heading=""
-                        data-first-heading={
-                            headingId(node?.position?.start.offset ?? 0) ===
-                                firstHeadingId || undefined
-                        }
-                    >
-                        {children}
-                    </h1>
-                ) : (
-                    <ReportSectionHeading order={1} standalone>
-                        {children}
-                    </ReportSectionHeading>
-                ),
-            h2: ({ children }) =>
-                headingId ? (
-                    <h2>{children}</h2>
-                ) : (
-                    <ReportSectionHeading standalone>
-                        {children}
-                    </ReportSectionHeading>
-                ),
+            h1: ({ children }) => (
+                <ReportSectionHeading order={1} standalone>
+                    {children}
+                </ReportSectionHeading>
+            ),
+            h2: ({ children }) => (
+                <ReportSectionHeading standalone>
+                    {children}
+                </ReportSectionHeading>
+            ),
             ...components,
         }),
-        [components, headingId, firstHeadingId],
+        [components],
     );
 
-    const content = (
+    return (
         <AiMarkdown
-            className={`${className} ${styles.reportMarkdown} ${headingId ? styles.documentMarkdown : ''}`}
+            className={`${className} ${styles.reportMarkdown}`}
             rehypePlugins={REHYPE_PLUGINS}
             components={mergedComponents}
         >
             {markdown}
         </AiMarkdown>
     );
-
-    return headingId ? <ReportSection>{content}</ReportSection> : content;
 };
 
 export default ReportMarkdown;
