@@ -256,6 +256,24 @@ export async function warmCompileCache(
         },
     );
 }
+export async function seedProjectUuid(root: string): Promise<string> {
+    const value = await runner.run(
+        process.execPath,
+        [
+            '-e',
+            "const { createRequire } = require('node:module'); const path = require('node:path'); const local = createRequire(path.join(process.argv[1], 'packages/backend/package.json')); process.stdout.write(local('@lightdash/common').SEED_PROJECT.project_uuid);",
+            root,
+        ],
+        { cwd: root },
+    );
+    if (
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+            value,
+        )
+    )
+        throw new Error('Invalid seeded project UUID');
+    return value;
+}
 export async function bridge(
     instance: Instance,
     operation: string,

@@ -29,6 +29,7 @@ export type Ports = {
     prometheus: number;
 };
 export type Parent = {
+    seedProjectUuid?: string;
     retiredPaths?: string[];
     compileCacheWarmedAt?: string;
     warehouseDatabase: string;

@@ -69,6 +69,7 @@ import {
     finishStart,
     startProcesses,
     warmCompileCache,
+    seedProjectUuid,
     stopProcesses,
 } from './processes';
 import { waitForCompilers } from './readiness';
@@ -191,6 +192,9 @@ export async function buildParent(
                         ),
                     );
                 }
+                existing.seedProjectUuid ??= await seedProjectUuid(
+                    existing.path,
+                );
                 await timed(existing.timings, 'viteCachePopulate', async () => {
                     const result = await populateViteCache(
                         existing.path,
@@ -388,6 +392,7 @@ export async function buildParent(
                 `ALTER DATABASE ${databaseIdentifier(database)} ALLOW_CONNECTIONS false; SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${database}'; ALTER DATABASE ${databaseIdentifier(database)} IS_TEMPLATE true;`,
             );
             const manifest: Parent = {
+                seedProjectUuid: await seedProjectUuid(directory),
                 sha,
                 warehouseDatabase,
                 warehouseHash,
@@ -498,6 +503,7 @@ async function refreshArtifacts(
     const refreshed: Parent = {
         compileCacheWarmedAt: new Date().toISOString(),
         ...previous,
+        seedProjectUuid: await seedProjectUuid(directory),
         path: directory,
         retiredPaths: [...(previous.retiredPaths ?? []), previous.path],
         builtAt: new Date().toISOString(),
@@ -636,31 +642,60 @@ async function upInstance(
                 throw new Error('Cloned seed marker does not match parent');
             const env = await environment(root, state, secrets);
             await writeInstanceEnv(state, env);
-            await timed(state.timings, 'viteCacheRestore', async () => {
-                const result = await restoreViteCache(parent.path, root, env);
-                state.timings.viteCacheHit = result.status === 'hit' ? 1 : 0;
-                process.stdout.write(
-                    `VITE CACHE: ${result.status}: ${result.reason}\n`,
-                );
-            });
-            await timed(state.timings, 'frontendStart', () =>
-                startProcesses(state, 'frontend'),
-            );
             const diff = await buildDiff(parent, root);
-            await runTiers(
-                root,
-                await recipeAt(root),
-                diff,
-                env,
-                state.timings,
-                state.id,
-            );
-            const preparations = await Promise.allSettled([
+            const recipe = await recipeAt(root);
+            const frontend = async () => {
+                await timed(state.timings, 'viteCacheRestore', async () => {
+                    const result = await restoreViteCache(
+                        parent.path,
+                        root,
+                        env,
+                    );
+                    state.timings.viteCacheHit =
+                        result.status === 'hit' ? 1 : 0;
+                    process.stdout.write(
+                        `VITE CACHE: ${result.status}: ${result.reason}\n`,
+                    );
+                });
+                await timed(state.timings, 'frontendStart', () =>
+                    startProcesses(state, 'frontend'),
+                );
+            };
+            const warehouse = () =>
                 timed(state.timings, 'warehouse', () =>
-                    bridge(state, 'dbt-path'),
-                ),
-                prepareWatchers(state),
-            ]);
+                    bridge(
+                        state,
+                        'dbt-path',
+                        parent.seedProjectUuid
+                            ? {
+                                  LDENV_SEED_PROJECT_UUID:
+                                      parent.seedProjectUuid,
+                              }
+                            : {},
+                    ),
+                );
+            let preparations: PromiseSettledResult<void>[];
+            if (matchingTiers(recipe.tiers, diff).length === 0) {
+                preparations = await Promise.allSettled([
+                    frontend(),
+                    warehouse(),
+                    prepareWatchers(state),
+                ]);
+            } else {
+                await frontend();
+                await runTiers(
+                    root,
+                    recipe,
+                    diff,
+                    env,
+                    state.timings,
+                    state.id,
+                );
+                preparations = await Promise.allSettled([
+                    warehouse(),
+                    prepareWatchers(state),
+                ]);
+            }
             const preparationFailure = preparations.find(
                 (result) => result.status === 'rejected',
             );
@@ -687,8 +722,12 @@ async function upInstance(
 }
 async function prepareWatchers(instance: Instance): Promise<void> {
     await timed(instance.timings, 'watchersSettle', async () => {
-        await startProcesses(instance, 'watchers');
-        await waitForCompilers(instance);
+        await timed(instance.timings, 'watchersLaunch', () =>
+            startProcesses(instance, 'watchers'),
+        );
+        await timed(instance.timings, 'watchersWait', () =>
+            waitForCompilers(instance),
+        );
     });
 }
 export async function start(

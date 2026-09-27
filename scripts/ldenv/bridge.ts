@@ -27,9 +27,19 @@ async function updateDbtPath(root: string): Promise<void> {
             'packages/backend/src/utils/EncryptionUtil/EncryptionUtil.ts',
         ),
     ) as { EncryptionUtil: new (config: unknown) => Cipher };
-    const { SEED_PROJECT } = requireBackend('@lightdash/common') as {
-        SEED_PROJECT: { project_uuid: string };
-    };
+    const projectUuid =
+        process.env.LDENV_SEED_PROJECT_UUID ??
+        (
+            requireBackend('@lightdash/common') as {
+                SEED_PROJECT: { project_uuid: string };
+            }
+        ).SEED_PROJECT.project_uuid;
+    if (
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+            projectUuid,
+        )
+    )
+        throw new Error('Invalid seeded project UUID');
     const secret = process.env.LIGHTDASH_SECRET;
     if (!secret) throw new Error('Machine secret is missing');
     const enc = new EncryptionUtil({
@@ -43,7 +53,7 @@ async function updateDbtPath(root: string): Promise<void> {
     try {
         const result = await client.query(
             'SELECT project_id, dbt_connection FROM projects WHERE project_uuid=$1',
-            [SEED_PROJECT.project_uuid],
+            [projectUuid],
         );
         if (result.rows.length !== 1)
             throw new Error('Expected one seeded project');
@@ -51,20 +61,24 @@ async function updateDbtPath(root: string): Promise<void> {
         const dbt = json<Record<string, unknown>>(
             enc.decrypt(row.dbt_connection as Buffer),
         );
+        const projectDir = path.join(
+            root,
+            'examples/full-jaffle-shop-demo/dbt',
+        );
+        const profilesDir = path.join(
+            root,
+            'examples/full-jaffle-shop-demo/profiles',
+        );
+        if (dbt.project_dir === projectDir && dbt.profiles_dir === profilesDir)
+            return;
         await client.query(
             'UPDATE projects SET dbt_connection=$1 WHERE project_id=$2',
             [
                 enc.encrypt(
                     JSON.stringify({
                         ...dbt,
-                        project_dir: path.join(
-                            root,
-                            'examples/full-jaffle-shop-demo/dbt',
-                        ),
-                        profiles_dir: path.join(
-                            root,
-                            'examples/full-jaffle-shop-demo/profiles',
-                        ),
+                        project_dir: projectDir,
+                        profiles_dir: profilesDir,
                     }),
                 ),
                 row.project_id,
