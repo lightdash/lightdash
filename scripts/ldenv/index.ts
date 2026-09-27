@@ -12,6 +12,7 @@ import {
     buildParent,
     down,
     garbageCollect,
+    instanceAt,
     instances,
     parentGc,
     parents,
@@ -19,8 +20,8 @@ import {
     start,
     up,
 } from './lifecycle';
-import { instanceId, type Instance } from './model';
-import { claimSpare, fillPool, poolSettings } from './pool';
+import { type Instance } from './model';
+import { adoptSpare, claimSpare, fillPool, poolSettings } from './pool';
 import {
     cancelMonitor,
     currentState,
@@ -36,6 +37,7 @@ ldenv [--worktree PATH] new <branch> [--base origin/main]
 ldenv pool fill [--size 1]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
 ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing]
+ldenv adopt
 ldenv down [--dry-run] | stop | start [--no-wait] | status [--json] | gc [--dry-run] | doctor`;
 function option(args: string[], name: string, fallback: string): string {
     const index = args.indexOf(name);
@@ -125,6 +127,10 @@ async function main(args: string[]): Promise<void> {
         );
         return;
     }
+    if (command === 'adopt') {
+        printInstance(await adoptSpare(root));
+        return;
+    }
     if (command === 'up') {
         if (args.includes('--build-parent')) await buildParent(root, 'HEAD');
         printInstance(
@@ -183,7 +189,7 @@ async function main(args: string[]): Promise<void> {
         process.stdout.write(`${JSON.stringify(checks, null, 2)}\n`);
         return;
     }
-    const instance = await currentState(instanceId(root));
+    const instance = await instanceAt(root);
     if (command === 'status') {
         if (!instance) {
             process.stdout.write(

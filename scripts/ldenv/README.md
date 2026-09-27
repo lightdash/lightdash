@@ -234,16 +234,42 @@ if desired. No cron or LaunchAgent is installed by this tool.
 ## T3 Code actions
 
 Add these in **Settings → Project → Actions**. Do not add a repository `t3.json`.
-Install the machine launcher first. For T3-created worktrees, configure:
+Install the machine launcher and fill the pool first. To make **New worktree**
+adopt a warm spare and wait until the first browser paint and seeded chart pass,
+configure:
 
 ```json
 {
-    "name": "Dev env",
-    "command": "~/.ldenv/bin/ldenv up --no-wait",
+    "name": "Dev env: adopt",
+    "command": "~/.ldenv/bin/ldenv adopt",
     "runOnWorktreeCreate": true,
-    "async": true
+    "async": false
 }
 ```
+
+`adopt` uses `T3CODE_WORKTREE_PATH` when T3 provides it. It requires a clean,
+unused T3 worktree with a branch and a ready spare whose parent precedes its
+HEAD. It removes the empty worktree, moves the spare into the same path, switches
+to T3's branch, applies matching tiers, restarts the processes from their new
+cwd and repeats the full ready gate. It refills the pool in the background. If
+the target is dirty or in use, or no matching spare is ready, it uses `up` on the
+original worktree instead. Keep the action synchronous so T3 waits for readiness.
+
+For the fork path on every T3-created worktree, use this action instead:
+
+```json
+{
+    "name": "Dev env: up",
+    "command": "~/.ldenv/bin/ldenv up",
+    "runOnWorktreeCreate": true,
+    "async": false
+}
+```
+
+Enable only one automatic setup action at a time. The fork action also waits for
+the full ready gate. To let T3 return before readiness, change its command to
+`up --no-wait` and set `async` to `true`; check `ldenv status` before opening the
+app. `adopt` may take longer when the branch changes a build or migration tier.
 
 Add manual buttons named **Dev env: down** (`~/.ldenv/bin/ldenv down`) and
 **Dev env: status** (`~/.ldenv/bin/ldenv status`). For the fastest path, claim with

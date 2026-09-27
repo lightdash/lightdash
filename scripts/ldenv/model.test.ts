@@ -209,6 +209,13 @@ test('ownership checks reject arbitrary database names and mismatched instance r
         () => assertInstance({ ...instance, worktree: '/tmp/b' }),
         /ownership/,
     );
+    assert.doesNotThrow(() =>
+        assertInstance({
+            ...instance,
+            worktree: '/tmp/b',
+            adoptedFrom: '/tmp/a',
+        }),
+    );
 });
 
 test('separates warehouse loading from the application seed without changing the recipe', async () => {

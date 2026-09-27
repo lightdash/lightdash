@@ -4,7 +4,15 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, statfs } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { home, readJson, runner, waitUntil, withLock, writeJson } from './io';
+import {
+    atomicWrite,
+    home,
+    readJson,
+    runner,
+    waitUntil,
+    withLock,
+    writeJson,
+} from './io';
 import { json, type Environment, type Machine, type Ports } from './model';
 
 export type ComposeService = {
@@ -405,4 +413,26 @@ export async function releasePorts(
     );
     if (existsSync(registrationFile))
         throw new Error('Port slot remains after release');
+}
+export async function movePortRegistration(
+    id: string,
+    previous: string,
+    next: string,
+): Promise<void> {
+    const file = path.join(
+        os.homedir(),
+        '.lightdash/dev-instances',
+        `${id}.json`,
+    );
+    const registration = await readJson<{
+        instanceId: string;
+        worktreePath: string;
+    }>(file);
+    if (
+        registration.instanceId !== id ||
+        registration.worktreePath !== previous
+    )
+        throw new Error('Port slot belongs to another worktree');
+    registration.worktreePath = next;
+    await atomicWrite(file, `${JSON.stringify(registration, null, 2)}\n`);
 }

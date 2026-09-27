@@ -51,6 +51,7 @@ export type Instance = {
     kind: 'worktree' | 'warming' | 'spare' | 'claimed';
     id: string;
     worktree: string;
+    adoptedFrom?: string;
     parent: string;
     database: string;
     ports: Ports | null;
@@ -285,7 +286,7 @@ export function dotenvText(env: Environment): string {
 }
 export function assertInstance(instance: Instance): void {
     if (
-        instance.id !== instanceId(instance.worktree) ||
+        instance.id !== instanceId(instance.adoptedFrom ?? instance.worktree) ||
         instance.database !== `ld_${instance.id}` ||
         !path.isAbsolute(instance.worktree) ||
         !/^[a-f0-9]{40}$/.test(instance.parent)

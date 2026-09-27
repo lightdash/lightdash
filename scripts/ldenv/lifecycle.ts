@@ -64,7 +64,6 @@ import {
     background,
     bridge,
     cancelMonitor,
-    currentState,
     dbtEnvironment,
     finishStart,
     startProcesses,
@@ -77,6 +76,14 @@ export const controlRoot = path.resolve(__dirname, '../..');
 export const manifests = path.join(home, 'manifests');
 export const parents = () => listJson<Parent>(manifests);
 export const instances = () => listJson<Instance>(path.join(home, 'instances'));
+export async function instanceAt(worktree: string): Promise<Instance | null> {
+    const matches = (await instances()).filter(
+        (instance) => instance.worktree === worktree,
+    );
+    if (matches.length > 1)
+        throw new Error('Multiple instances claim this worktree');
+    return matches[0] ?? null;
+}
 export async function rootDirectory(
     directory = process.cwd(),
 ): Promise<string> {
@@ -518,7 +525,7 @@ async function upInstance(
 ): Promise<Instance> {
     await garbageCollect(root);
     return withLock(instanceId(root), async () => {
-        const existing = await currentState(instanceId(root));
+        const existing = await instanceAt(root);
         if (existing) {
             if (existing.phase === 'ready' || existing.phase === 'starting')
                 return existing;
