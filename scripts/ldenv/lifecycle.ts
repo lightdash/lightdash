@@ -139,6 +139,7 @@ export async function buildParent(
     root: string,
     ref: string,
     refresh = false,
+    benchmarkDeps = false,
 ): Promise<Parent> {
     return withLock('parents', async () => {
         const sha = await git(root, [
@@ -154,6 +155,14 @@ export async function buildParent(
                 throw new Error(
                     'This parent predates shared warehouses; rebuild it before use',
                 );
+            if (benchmarkDeps) {
+                await benchmarkDependencies(
+                    existing,
+                    await dotenv(
+                        path.join(existing.path, '.env.development.local'),
+                    ),
+                );
+            }
             return existing;
         }
         await diskGuard();
@@ -357,9 +366,10 @@ export async function buildParent(
         )
             .split('\n')
             .filter(Boolean);
-        await timed(timings, 'dependencyBenchmark', () =>
-            benchmarkDependencies(manifest, env),
-        );
+        if (benchmarkDeps)
+            await timed(timings, 'dependencyBenchmark', () =>
+                benchmarkDependencies(manifest, env),
+            );
         timings.total = Date.now() - started;
         await writeJson(path.join(manifests, `${sha}.json`), manifest);
         return manifest;

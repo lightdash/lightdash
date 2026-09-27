@@ -112,8 +112,10 @@ Parent GC drops a warehouse only after no remaining parent references it; active
 instances pin their parents. A changed example hash creates a separate warehouse.
 
 The lockfile, Node version, platform and architecture guard dependency reuse.
-A parent build measures APFS/reflink copies against an offline frozen install in
-a disposable worktree. Subsequent forks choose the measured winner. Package
+Use `pnpm ldenv parent build --benchmark-deps` to measure APFS/reflink copies
+against an offline frozen install in a disposable worktree. The benchmark is
+opt-in and its result persists per machine. Forks choose the measured winner;
+before a measurement they use offline install. Normal parent builds do not benchmark. Package
 `dist`, build metadata and the Vite dependency cache travel with the clone.
 Compiled Node modules and tsx temporary caches use persistent machine directories.
 No mutable source directory is shared between parent and child.

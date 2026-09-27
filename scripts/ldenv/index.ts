@@ -31,7 +31,7 @@ import {
 
 const help = `ldenv new <branch> [--base origin/main]
 ldenv pool fill [--size 1]
-ldenv parent build [--ref origin/main] | refresh [--ref origin/main] | list | gc [--keep 2]
+ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
 ldenv up [--parent SHA] [--build-parent] [--no-wait]
 ldenv down [--dry-run] | stop | start [--no-wait] | status [--json] | gc [--dry-run] | doctor`;
 function option(args: string[], name: string, fallback: string): string {
@@ -76,6 +76,7 @@ async function main(args: string[]): Promise<void> {
                 root,
                 option(args, '--ref', 'origin/main'),
                 subcommand === 'refresh',
+                args.includes('--benchmark-deps'),
             );
             process.stdout.write(
                 `PARENT: ${parent.sha}\nTimings (ms): ${JSON.stringify(parent.timings)}\n`,
