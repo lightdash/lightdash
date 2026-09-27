@@ -278,3 +278,10 @@ Warm claims reached 0.53 s before the background-priority changes. Parent builds
 and fills use background priority and can take substantially longer than a
 foreground fork; they prepare future claims. Timings under simultaneous fills,
 forks and other development instances are not directly comparable to idle runs.
+
+The same main revision on the Linux box reached readiness in **29.4 seconds**
+(dependencies/artifacts 3.83 s, DB clone 0.22 s, ports 0.13 s, API health 16.72 s,
+paint 4.36 s). A warm claim took **0.527 seconds**, including restoring the spare's
+process priority. Background paint and chart verification passed. Its automatic
+refill waited for the fresh fork to finish starting. All box acceptance instances
+were then removed; the parent, shared warehouse and launcher remain cached.
