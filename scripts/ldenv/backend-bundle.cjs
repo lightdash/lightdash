@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { performance } = require('node:perf_hooks');
+const { getTsconfig } = require('get-tsconfig');
 
 async function createBackendBuilder({
     root,
@@ -19,7 +20,6 @@ async function createBackendBuilder({
         fs.realpathSync(path.join(root, 'node_modules/tsx/package.json')),
     );
     const esbuild = tsxRequire('esbuild');
-    const { getTsconfig } = tsxRequire('get-tsconfig');
     const tsconfigPath = path.join(backend, 'tsconfig.json');
     let tsconfig = getTsconfig(backend);
     let configFingerprint = JSON.stringify(tsconfig?.config);

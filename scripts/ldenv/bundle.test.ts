@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+    mkdir,
+    mkdtemp,
+    readFile,
+    realpath,
+    rm,
+    stat,
+    symlink,
+    writeFile,
+} from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -125,5 +134,48 @@ test('owned API shutdown waits and kills a stubborn child without touching a nei
         await child.stop();
         neighbour.kill();
         await once(neighbour, 'exit');
+    }
+});
+
+test('bundles when the target tsx package cannot resolve a hoisted config parser', async () => {
+    const directory = await mkdtemp(
+        path.join(os.tmpdir(), 'ldenv-isolated-tsx-'),
+    );
+    const backend = path.join(directory, 'packages/backend');
+    const targetTsx = path.join(directory, 'node_modules/tsx');
+    await mkdir(path.join(targetTsx, 'node_modules'), { recursive: true });
+    await mkdir(path.join(backend, 'node_modules'), { recursive: true });
+    await mkdir(path.join(backend, 'src'), { recursive: true });
+    await writeFile(path.join(targetTsx, 'package.json'), '{"name":"tsx"}');
+    const installedTsx = createRequire(
+        await realpath(path.join(root, 'node_modules/tsx/package.json')),
+    );
+    await symlink(
+        path.dirname(installedTsx.resolve('esbuild/package.json')),
+        path.join(targetTsx, 'node_modules/esbuild'),
+        'dir',
+    );
+    const isolatedTsx = createRequire(path.join(targetTsx, 'package.json'));
+    assert.throws(() => isolatedTsx.resolve('get-tsconfig'));
+    await writeFile(
+        path.join(backend, 'tsconfig.json'),
+        '{"compilerOptions":{"target":"ES2022"}}',
+    );
+    await writeFile(
+        path.join(backend, 'src/index.ts'),
+        'export const value = 42;',
+    );
+    let builder: Awaited<ReturnType<typeof createBackendBuilder>> | undefined;
+    try {
+        builder = await createBackendBuilder({
+            root: directory,
+            outDir: path.join(directory, 'output'),
+        });
+        const result = await builder.rebuild();
+        assert(result.ok);
+        assert.equal(requireFixture(builder.outfile).value, 42);
+    } finally {
+        await builder?.dispose();
+        await rm(directory, { recursive: true });
     }
 });
