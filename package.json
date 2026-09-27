@@ -160,7 +160,12 @@
         "scope-tours:coverage:test": "tsx scripts/scope-tours/coverage.test.ts",
         "scope-tours:release-check": "tsx scripts/scope-tours/coverage.ts --release",
         "scope-tours:suggest": "tsx scripts/scope-tours/suggest.ts",
-        "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts"
+        "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts",
+        "ldenv": "tsx scripts/ldenv/index.ts",
+        "ldenv:test": "tsx --test scripts/ldenv/*.test.ts",
+        "ldenv:typecheck": "tsc --project scripts/ldenv/tsconfig.json",
+        "ldenv:lint": "pnpm -F backend exec sh -c 'cd ../.. && oxlint -c scripts/ldenv/oxlint.json scripts/ldenv'",
+        "ldenv:format": "oxfmt --check scripts/ldenv"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
