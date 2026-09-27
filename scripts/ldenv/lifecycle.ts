@@ -68,6 +68,7 @@ import {
     dbtEnvironment,
     finishStart,
     startProcesses,
+    warmCompileCache,
     stopProcesses,
 } from './processes';
 
@@ -170,6 +171,21 @@ export async function buildParent(
                         existing,
                         await dotenv(
                             path.join(existing.path, '.env.development.local'),
+                        ),
+                    );
+                }
+                if (!existing.compileCacheWarmedAt) {
+                    const env = await dotenv(
+                        path.join(existing.path, '.env.development.local'),
+                    );
+                    await timed(existing.timings, 'compileCacheWarm', () =>
+                        warmCompileCache(existing.path, env),
+                    );
+                    existing.compileCacheWarmedAt = new Date().toISOString();
+                    await withLock('parents', () =>
+                        writeJson(
+                            path.join(manifests, `${sha}.json`),
+                            existing,
                         ),
                     );
                 }
@@ -395,6 +411,10 @@ export async function buildParent(
                 await timed(timings, 'dependencyBenchmark', () =>
                     benchmarkDependencies(manifest, env),
                 );
+            await timed(timings, 'compileCacheWarm', () =>
+                warmCompileCache(directory, env),
+            );
+            manifest.compileCacheWarmedAt = new Date().toISOString();
             timings.total = Date.now() - started;
             await withLock('parents', () =>
                 writeJson(path.join(manifests, `${sha}.json`), manifest),
@@ -444,7 +464,11 @@ async function refreshArtifacts(
             },
         ),
     );
+    await timed(timings, 'compileCacheWarm', () =>
+        warmCompileCache(directory, env),
+    );
     const refreshed: Parent = {
+        compileCacheWarmedAt: new Date().toISOString(),
         ...previous,
         path: directory,
         retiredPaths: [...(previous.retiredPaths ?? []), previous.path],
@@ -596,6 +620,10 @@ async function upInstance(
             await timed(state.timings, 'warehouse', () =>
                 bridge(state, 'dbt-path'),
             );
+            if (kind === 'warming')
+                await timed(state.timings, 'compileCacheWarm', () =>
+                    warmCompileCache(root, env),
+                );
             await saveInstance(state);
             return await start(state, noWait);
         } catch (error) {

@@ -207,9 +207,11 @@ async function claimInstance(
                     .split('\0')
                     .filter(Boolean);
                 const recipe = await recipeAt(spare.worktree);
-                const deep = matchingTiers(recipe.tiers, delta).some(
-                    (tier) => tier.run || tier.preset,
-                );
+                const deep =
+                    process.env.LDENV_TRACING === 'true' ||
+                    matchingTiers(recipe.tiers, delta).some(
+                        (tier) => tier.run || tier.preset,
+                    );
                 if (deep) await stopProcesses(spare, true);
                 await timed(spare.timings, 'checkout', async () => {
                     await git(

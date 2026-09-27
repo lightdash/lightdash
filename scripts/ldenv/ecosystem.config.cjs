@@ -12,6 +12,15 @@ api.node_args = api.node_args.replace(
     '--inspect=127.0.0.1:',
 );
 api.env.SCHEDULER_ENABLED = 'true';
+for (const app of config.apps) {
+    app.env = {
+        ...app.env,
+        OTEL_SDK_DISABLED:
+            (process.env.LDENV_TRACING ?? app.env?.LDENV_TRACING) === 'true'
+                ? 'false'
+                : 'true',
+    };
+}
 scheduler.watch = api.watch;
 scheduler.ignore_watch = api.ignore_watch;
 scheduler.watch_options = api.watch_options;

@@ -75,6 +75,12 @@ ldenv does not start a duplicate scheduler process by default. To opt in, export
 `LDENV_STANDALONE_SCHEDULER=true` before `up`, or set it in the instance's local
 env file before `stop` / `start`. The optional scheduler watches backend changes
 and has its own health timing. The Node inspector binds only to `127.0.0.1`.
+Tracing is off by default (`OTEL_SDK_DISABLED=true`). Use `up --tracing`,
+`new <branch> --tracing`, or export `LDENV_TRACING=true` to enable it. For an
+existing instance, `stop` then `start --tracing` applies the change. A tracing-mode
+claim requires a restart and uses full readiness. Export `LDENV_TRACING=false`
+before a restart to return to the fast default.
+
 The headline `timeToReady` measures the current fork, fill, claim or restart until
 all readiness checks pass. For a fresh instance it is `readyAt - createdAt`;
 claims and restarts start a new clock. `total` also includes the scheduler tail
@@ -159,7 +165,9 @@ Copies are compared only for parents with a local virtual store. The benchmark i
 opt-in and its result persists per machine. Forks choose the measured winner;
 before a measurement they use the global store. Normal parent builds do not benchmark. Package
 `dist`, build metadata and the Vite dependency cache travel with the clone.
-Compiled Node modules and tsx temporary caches use persistent machine directories.
+Node uses the persistent `~/.ldenv/cache/node` compile cache. Parent builds and
+pool fills warm the backend import graph before boot. tsx keeps its default disk
+cache. Absolute source paths can limit reuse between worktrees.
 No mutable source directory is shared between parent and child.
 
 Tier matching reads `rainbow.toml` with `smol-toml`. It includes committed changes,

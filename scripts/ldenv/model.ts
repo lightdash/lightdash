@@ -30,6 +30,7 @@ export type Ports = {
 };
 export type Parent = {
     retiredPaths?: string[];
+    compileCacheWarmedAt?: string;
     warehouseDatabase: string;
     warehouseHash: string;
     sha: string;
@@ -222,6 +223,8 @@ export function instanceEnvironment(input: {
         APPS_RUNTIME_ENABLED: local.APPS_RUNTIME_ENABLED ?? 'false',
         CI: 'false',
         SCHEDULER_ENABLED: 'true',
+        LDENV_TRACING: local.LDENV_TRACING ?? 'false',
+        OTEL_SDK_DISABLED: local.LDENV_TRACING === 'true' ? 'false' : 'true',
         LDENV_STANDALONE_SCHEDULER: local.LDENV_STANDALONE_SCHEDULER ?? 'false',
         LD_INSTANCE_ID: id,
         PGHOST: '127.0.0.1',

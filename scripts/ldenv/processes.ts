@@ -7,6 +7,7 @@ import path from 'node:path';
 import { containers, dotenv, sql } from './infra';
 import {
     home,
+    atomicWrite,
     runner,
     waitUntil,
     saveInstance,
@@ -16,6 +17,7 @@ import {
 } from './io';
 import {
     assertInstance,
+    dotenvText,
     json,
     parseRecipe,
     type Instance,
@@ -160,6 +162,14 @@ export async function startProcesses(
     const env = await dotenv(
         path.join(instance.worktree, '.env.development.local'),
     );
+    if (process.env.LDENV_TRACING !== undefined) {
+        env.LDENV_TRACING = process.env.LDENV_TRACING;
+        env.OTEL_SDK_DISABLED = env.LDENV_TRACING === 'true' ? 'false' : 'true';
+        await atomicWrite(
+            path.join(instance.worktree, '.env.development.local'),
+            dotenvText(env),
+        );
+    }
     const suffixes = late
         ? [
               ...(env.LDENV_STANDALONE_SCHEDULER === 'true'
@@ -196,15 +206,40 @@ export async function dbtEnvironment(root: string): Promise<Environment> {
     const env = {
         PATH: `${bin}:${path.join(root, 'venv/bin')}:${process.env.PATH ?? ''}`,
         NODE_COMPILE_CACHE: path.join(home, 'cache/node'),
-        TMPDIR: path.join(home, 'cache/tmp'),
     };
     await mkdir(env.NODE_COMPILE_CACHE, { recursive: true });
-    await mkdir(env.TMPDIR, { recursive: true });
     await runner.run('/bin/bash', ['-c', 'command -v dbt1.12'], {
         cwd: root,
         env,
     });
     return env;
+}
+export async function warmCompileCache(
+    root: string,
+    env: Environment,
+): Promise<void> {
+    await runner.run(
+        path.join(root, 'node_modules/node/bin/node'),
+        [
+            '--import',
+            'tsx',
+            '-e',
+            "require('./src/App'); require('./src/ee'); require('node:module').flushCompileCache(); process.exit(0)",
+        ],
+        {
+            cwd: path.join(root, 'packages/backend'),
+            env: {
+                ...env,
+                OTEL_SDK_DISABLED:
+                    env.LDENV_TRACING === 'true' ? 'false' : 'true',
+            },
+            log: path.join(
+                home,
+                'logs',
+                `compile-warm-${path.basename(root)}.log`,
+            ),
+        },
+    );
 }
 export async function bridge(
     instance: Instance,

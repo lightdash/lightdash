@@ -141,6 +141,7 @@ test('instance env overrides inherited identity, secret, database and unsafe glo
         machine: { pgPort: 15432, secret: 'machine-secret' },
         ports,
     });
+    assert.equal(env.OTEL_SDK_DISABLED, 'true');
     assert.equal(env.PGPORT, '15432');
     assert.equal(env.PGDATABASE, 'ld_test');
     assert.equal(env.LD_INSTANCE_ID, instanceId(root));

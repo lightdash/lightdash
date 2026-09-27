@@ -35,7 +35,7 @@ const help = `ldenv install
 ldenv [--worktree PATH] new <branch> [--base origin/main]
 ldenv pool fill [--size 1]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
-ldenv up [--parent SHA] [--build-parent] [--no-wait]
+ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing]
 ldenv down [--dry-run] | stop | start [--no-wait] | status [--json] | gc [--dry-run] | doctor`;
 function option(args: string[], name: string, fallback: string): string {
     const index = args.indexOf(name);
@@ -61,6 +61,7 @@ async function main(args: string[]): Promise<void> {
     );
     args = target.args;
     const [command, subcommand] = args;
+    if (args.includes('--tracing')) process.env.LDENV_TRACING = 'true';
     if (command === 'install') {
         process.stdout.write(`INSTALLED: ${await installLauncher()}\n`);
         return;
