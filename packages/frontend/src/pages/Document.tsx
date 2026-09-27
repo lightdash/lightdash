@@ -1,21 +1,33 @@
-import { FeatureFlags, type UuidOrSlug } from '@lightdash/common';
-import { Box, Button, Group, Title } from '@mantine/core';
+import {
+    FeatureFlags,
+    type Document,
+    type UuidOrSlug,
+} from '@lightdash/common';
+import { ActionIcon, Button } from '@mantine/core';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
-import { DASHBOARD_HEADER_HEIGHT } from '../components/common/Dashboard/dashboard.constants';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
-import Page from '../components/common/Page/Page';
-import PageHeader from '../components/common/Page/PageHeader';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import TruncatedText from '../components/common/TruncatedText';
 import DocumentActions from '../features/documents/DocumentActions';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
+import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
-import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import styles from './Document.module.css';
+
+const DocumentWorkspace = ({ document }: { document: Document }) => (
+    <DocumentPageLayout name={document.name}>
+        <DocumentRenderer
+            document={document}
+            actions={
+                <ActionIcon.Group role="group" aria-label="Document controls">
+                    <DocumentActions document={document} />
+                </ActionIcon.Group>
+            }
+        />
+    </DocumentPageLayout>
+);
 
 const DocumentContent = ({
     projectUuid,
@@ -47,43 +59,11 @@ const DocumentContent = ({
             />
         );
     }
-    const document = query.data;
     return (
-        <Box className={styles.page}>
-            <Page
-                title={document.name}
-                noContentPadding
-                header={
-                    <PageHeader
-                        cardProps={{
-                            px: 0,
-                            py: 0,
-                            h: DASHBOARD_HEADER_HEIGHT,
-                        }}
-                    >
-                        <Group
-                            className={reportStyles.reportControls}
-                            wrap="nowrap"
-                            justify="space-between"
-                        >
-                            <Title order={6} flex={1} miw={0}>
-                                <TruncatedText
-                                    maxWidth="100%"
-                                    inline
-                                    inherit
-                                    display="block"
-                                >
-                                    {document.name}
-                                </TruncatedText>
-                            </Title>
-                            <DocumentActions document={document} />
-                        </Group>
-                    </PageHeader>
-                }
-            >
-                <DocumentRenderer document={document} />
-            </Page>
-        </Box>
+        <DocumentWorkspace
+            key={query.data.documentUuid}
+            document={query.data}
+        />
     );
 };
 

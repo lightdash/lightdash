@@ -1,6 +1,7 @@
 import {
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    getUserAvatarUrl,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
     SpaceMemberRole,
@@ -53,7 +54,8 @@ describe('DocumentModel PostgreSQL integration', () => {
             CREATE TABLE organizations (organization_id integer PRIMARY KEY, organization_uuid uuid NOT NULL);
             CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE NOT NULL, organization_id integer NOT NULL);
             CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid NOT NULL, project_id integer NOT NULL, deleted_at timestamptz, deleted_by_user_uuid uuid);
-            CREATE TABLE users (user_uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4(), first_name text, last_name text, is_marketing_opted_in boolean, is_tracking_anonymized boolean, is_setup_complete boolean, is_active boolean);
+            CREATE TABLE users (user_uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4(), first_name text, last_name text, avatar_gradient text, is_marketing_opted_in boolean, is_tracking_anonymized boolean, is_setup_complete boolean, is_active boolean);
+            CREATE TABLE user_avatars (user_uuid uuid PRIMARY KEY REFERENCES users(user_uuid) ON DELETE CASCADE, content_hash text NOT NULL);
         `);
         await transaction.raw('INSERT INTO organizations VALUES (1, ?)', [
             randomUUID(),
@@ -1167,6 +1169,71 @@ describe('DocumentModel PostgreSQL integration', () => {
         }
     });
 
+    test('returns the original creator independently of the latest editor', async () => {
+        await transaction('users')
+            .where('user_uuid', input.createdByUserUuid)
+            .update({ first_name: 'Original', last_name: 'Author' });
+        await transaction.raw('INSERT INTO user_avatars VALUES (?, ?)', [
+            input.createdByUserUuid,
+            'avatar-hash',
+        ]);
+        const document = await model.create(input);
+        const creator = {
+            userUuid: input.createdByUserUuid,
+            firstName: 'Original',
+            lastName: 'Author',
+            avatarUrl: getUserAvatarUrl(
+                SEED_ORG_1_ADMIN.user_uuid,
+                'avatar-hash',
+            ),
+            avatarGradient: null,
+        };
+        expect(document.createdBy).toEqual(creator);
+        const editorUuid = randomUUID();
+        await transaction.raw(
+            'INSERT INTO users (user_uuid, first_name, last_name) VALUES (?, ?, ?)',
+            [editorUuid, 'Latest', 'Editor'],
+        );
+        const updated = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: document.version.versionUuid,
+                content: { cells: [] },
+            },
+            editorUuid,
+        );
+        expect(updated.createdBy).toEqual(creator);
+        expect(updated.version.createdByUserUuid).toBe(editorUuid);
+    });
+
+    test('returns null for an unattributed document', async () => {
+        const document = await model.create({
+            ...input,
+            createdByUserUuid: null,
+        });
+        expect(document.createdBy).toBeNull();
+    });
+
+    test('returns initials metadata without an uploaded avatar', async () => {
+        await transaction('users')
+            .where('user_uuid', input.createdByUserUuid)
+            .update({
+                first_name: 'Original',
+                last_name: 'Author',
+                avatar_gradient: 'invalid',
+            });
+        const document = await model.create(input);
+        expect(document.createdBy).toEqual({
+            userUuid: input.createdByUserUuid,
+            firstName: 'Original',
+            lastName: 'Author',
+            avatarUrl: null,
+            avatarGradient: null,
+        });
+    });
+
     test('creates identity and first immutable version together', async () => {
         const document = await model.create(input);
         expect(document.version).toMatchObject({
@@ -1336,6 +1403,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             document.documentUuid,
         );
         expect(preserved.createdByUserUuid).toBeNull();
+        expect(preserved.createdBy).toBeNull();
         expect(preserved.version.createdByUserUuid).toBeNull();
     });
 

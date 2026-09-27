@@ -298,12 +298,217 @@
     flex: 0 0 auto !important;
 }
 
+.documentLayout {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    width: 100%;
+    max-width: none;
+
+    .contentsRail {
+        background: var(--ld-color-page);
+    }
+
+    .contentsNav {
+        padding: var(--mantine-spacing-xxl) var(--mantine-spacing-lg);
+    }
+
+    .contentsList {
+        gap: var(--mantine-spacing-xxs);
+    }
+
+    .contentsControl {
+        display: flex;
+        align-items: center;
+        gap: var(--mantine-spacing-xs);
+        padding: var(--mantine-spacing-xs);
+        border-radius: var(--mantine-radius-md);
+        font-size: var(--mantine-font-size-xs);
+        line-height: var(--mantine-line-height-md);
+
+        &::before {
+            content: '';
+            flex: 0 0 var(--mantine-spacing-two);
+            height: var(--mantine-spacing-md);
+            border-radius: var(--mantine-radius-xs);
+            background: transparent;
+        }
+
+        &[data-active='true']::before {
+            background: var(--mantine-color-text);
+        }
+
+        &:hover {
+            background: var(--mantine-color-default-hover);
+        }
+    }
+
+    .report {
+        min-width: 0;
+        padding: var(--mantine-spacing-3xl) var(--mantine-spacing-5xl)
+            var(--mantine-spacing-emptySpace);
+    }
+
+    .reportContent {
+        min-width: 0;
+        max-width: 48rem;
+        margin-inline: auto;
+    }
+
+    .reportHeader {
+        padding-bottom: var(--mantine-spacing-lg);
+        border-bottom: 1px solid var(--mantine-color-default-border);
+    }
+
+    .reportTitleRow {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--mantine-spacing-xl);
+    }
+
+    .reportTitle {
+        flex: 1 1 50%;
+        min-width: 0;
+        font-size: var(--mantine-h1-font-size);
+        font-weight: 700;
+        line-height: var(--mantine-h1-line-height);
+        letter-spacing: -0.02em;
+        overflow-wrap: anywhere;
+    }
+
+    .reportActions {
+        flex: 0 0 auto;
+    }
+
+    .documentCells {
+        gap: var(--mantine-spacing-xl);
+    }
+
+    .reportFinding {
+        min-width: 0;
+        padding-block: 0;
+        border-top: 0;
+    }
+
+    .reportEvidence {
+        padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+        border-color: var(--mantine-color-default-border);
+        border-radius: var(--mantine-radius-lg);
+        box-shadow: none;
+    }
+
+    .documentMarkdown {
+        --ai-markdown-font-size: var(--mantine-font-size-sm);
+
+        min-width: 0;
+        color: var(--mantine-color-text);
+        line-height: var(--mantine-line-height-md);
+        letter-spacing: normal;
+
+        p + p,
+        p + ul,
+        p + ol,
+        ul + p,
+        ol + p {
+            margin-top: var(--mantine-spacing-sm);
+        }
+
+        [data-streamdown='table-wrapper'] {
+            margin-block: var(--mantine-spacing-xl);
+            overflow-x: auto;
+        }
+
+        /* The base inset ring sits under the header fill, so use a real border */
+        table {
+            font-size: var(--mantine-font-size-sm);
+            margin: 0;
+            border: 1px solid var(--mantine-color-default-border);
+            border-radius: var(--mantine-radius-lg);
+            box-shadow: none;
+        }
+
+        th,
+        td {
+            padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+        }
+
+        th {
+            font-size: var(--mantine-font-size-xs);
+            font-weight: 500;
+            color: var(--mantine-color-dimmed);
+        }
+
+        a:not([data-content-link]) {
+            color: var(--mantine-color-anchor);
+            border-bottom-color: currentColor;
+        }
+
+        /* Title 28 > H1 24 > H2 18 > H3 16 > rest 14: skips the 20px step so
+           each level reads as a distinct drop instead of a 2px nudge */
+        h1 {
+            font-size: var(--mantine-h2-font-size);
+            line-height: var(--mantine-h2-line-height);
+            letter-spacing: -0.015em;
+            padding-top: var(--mantine-spacing-xl);
+            border-top: 1px solid var(--mantine-color-default-border);
+        }
+
+        h2 {
+            font-size: var(--mantine-h4-font-size);
+            line-height: var(--mantine-h4-line-height);
+        }
+
+        h3 {
+            font-size: var(--mantine-h5-font-size);
+            line-height: var(--mantine-h5-line-height);
+        }
+
+        h4,
+        h5,
+        h6 {
+            font-size: var(--mantine-h6-font-size);
+            line-height: var(--mantine-h6-line-height);
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            margin-top: var(--mantine-spacing-xl);
+            margin-bottom: var(--mantine-spacing-sm);
+            font-weight: var(--mantine-h2-font-weight);
+        }
+
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            letter-spacing: normal;
+        }
+
+        :is(h1, h2, h3, h4, h5, h6):first-child {
+            margin-top: 0;
+        }
+    }
+
+    .documentMarkdown h1[data-first-heading] {
+        padding-top: 0;
+        border-top: 0;
+    }
+}
+
 @media (max-width: 48em) {
     .reportLayout {
         display: block;
     }
     .contentsRail {
         display: none;
+    }
+    .documentLayout .report {
+        padding: var(--mantine-spacing-xl);
     }
 }
 
@@ -316,6 +521,12 @@
     }
     .reportEvidence .chartTile {
         height: 24rem;
+    }
+    .documentLayout {
+        .report,
+        .reportEvidence {
+            padding: var(--mantine-spacing-md);
+        }
     }
 }
 
@@ -330,7 +541,8 @@
     .contentsRail {
         display: none;
     }
-    .report {
+    .report,
+    .documentLayout .report {
         width: 100%;
         padding: 0;
     }

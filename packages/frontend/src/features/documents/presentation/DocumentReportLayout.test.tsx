@@ -10,6 +10,29 @@ import DocumentReportLayout from './DocumentReportLayout';
 import ReportChartFrame from './ReportChartFrame';
 
 describe('Shared report presentation', () => {
+    it('places document actions beside the single title in the report header', () => {
+        render(
+            <MantineProvider env="test">
+                <DocumentReportLayout
+                    title="Orders review"
+                    variant="document"
+                    headings={[]}
+                    actions={<button aria-label="Share">Share</button>}
+                    metadata={<p>Last edited yesterday</p>}
+                >
+                    <p>Report narrative</p>
+                </DocumentReportLayout>
+            </MantineProvider>,
+        );
+        const title = screen.getByRole('heading', { name: 'Orders review' });
+        const share = screen.getByRole('button', { name: 'Share' });
+        expect(title.closest('header')).toContainElement(share);
+        expect(screen.getByRole('article')).toContainElement(share);
+        expect(title.closest('header')).toContainElement(
+            screen.getByText('Last edited yesterday'),
+        );
+    });
+
     it('preserves declarative heading identities when an earlier cell failed to render', async () => {
         render(
             <MantineProvider env="test">
