@@ -95,18 +95,17 @@ compute_ports() {
 }
 
 get_taken_slots() {
-    local slots=""
-    if [ -d "$REGISTRY_DIR" ]; then
-        for f in "$REGISTRY_DIR"/*.json; do
-            [ -f "$f" ] || continue
-            local s
-            s=$(python3 -c "import json; print(json.load(open('$f'))['slot'])" 2>/dev/null || true)
-            if [ -n "$s" ]; then
-                slots="$slots $s"
-            fi
-        done
-    fi
-    echo "$slots"
+    python3 - "$REGISTRY_DIR" <<'PYTHON'
+import glob, json, os, sys
+slots = []
+for filename in glob.glob(os.path.join(sys.argv[1], '*.json')):
+    try:
+        with open(filename) as stream:
+            slots.append(str(json.load(stream)['slot']))
+    except (OSError, ValueError, KeyError):
+        pass
+print(' '.join(slots))
+PYTHON
 }
 
 find_next_slot() {
@@ -142,12 +141,7 @@ validate_slot_ports() {
         all_ports="$FRONTEND_PORT $all_ports"
     fi
 
-    for port in $all_ports; do
-        if ! check_port_available "$port"; then
-            return 1
-        fi
-    done
-    return 0
+    check_port_available "${all_ports// /,}"
 }
 
 write_instance_file() {
