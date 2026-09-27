@@ -52,3 +52,49 @@ test('port claims batch listener checks and skip occupied and registered slots',
         await rm(root, { recursive: true });
     }
 });
+
+test('empty port values are omitted and lsof errors reject the slot', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-port-errors-'));
+    try {
+        const source = (
+            await readFile(path.join(__dirname, '../dev-ports.sh'), 'utf8')
+        ).split('# Main\n')[0];
+        await writeFile(
+            path.join(root, 'ports.sh'),
+            `${source}\ncompute_ports() { PG_PORT=""; FRONTEND_PORT=3000; API_PORT=8080; SCHEDULER_PORT=""; DEBUG_PORT=9229; SDK_TEST_PORT=""; MAPLE_PORT=4320; PROMETHEUS_PORT=""; }\nvalidate_slot_ports 0\n`,
+        );
+        await writeFile(
+            path.join(root, 'lsof'),
+            '#!/bin/bash\nprintf "%s" "$1" > "$PORT_TEST_LOG"\n[ -z "$PORT_TEST_ERROR" ] || printf "%s" "$PORT_TEST_ERROR" >&2\nexit "$PORT_TEST_STATUS"\n',
+            { mode: 0o700 },
+        );
+        const env = {
+            PATH: `${root}:${process.env.PATH}`,
+            PORT_TEST_LOG: path.join(root, 'calls'),
+            PORT_TEST_STATUS: '1',
+            PORT_TEST_ERROR: '',
+        };
+        await runner.run('bash', ['ports.sh'], { cwd: root, env });
+        assert.equal(
+            await readFile(path.join(root, 'calls'), 'utf8'),
+            '-iTCP:3000,8080,9229,4320',
+        );
+        for (const [status, error] of [
+            ['0', ''],
+            ['2', ''],
+            ['1', 'usage error'],
+        ])
+            await assert.rejects(
+                runner.run('bash', ['ports.sh'], {
+                    cwd: root,
+                    env: {
+                        ...env,
+                        PORT_TEST_STATUS: status,
+                        PORT_TEST_ERROR: error,
+                    },
+                }),
+            );
+    } finally {
+        await rm(root, { recursive: true });
+    }
+});

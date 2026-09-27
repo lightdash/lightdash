@@ -123,10 +123,13 @@ find_next_slot() {
 
 check_port_available() {
     local port="$1"
-    if lsof -iTCP:"$port" -sTCP:LISTEN -P -n >/dev/null 2>&1; then
+    local output status
+    if output=$(lsof -iTCP:"$port" -sTCP:LISTEN -P -n 2>&1); then
         return 1
+    else
+        status=$?
     fi
-    return 0
+    [ "$status" -eq 1 ] && [ -z "$output" ]
 }
 
 validate_slot_ports() {
@@ -141,7 +144,9 @@ validate_slot_ports() {
         all_ports="$FRONTEND_PORT $all_ports"
     fi
 
-    check_port_available "${all_ports// /,}"
+    local port_list
+    port_list=$(printf '%s\n' $all_ports | paste -sd, -)
+    [ -n "$port_list" ] && check_port_available "$port_list"
 }
 
 write_instance_file() {
