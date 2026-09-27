@@ -8,7 +8,7 @@ export type CompilerState = {
     errors: number;
     at: number;
 };
-export const compilerNames = ['common', 'formula', 'warehouses'];
+export const compilerNames = ['common', 'formula', 'warehouses', 'routes'];
 export function compilerDirectory(instance: Instance): string {
     return path.join(home, 'watchers', instance.id);
 }
@@ -64,7 +64,12 @@ export async function stableReadiness(
 ): Promise<void> {
     for (let attempt = 0; attempt < 4; attempt += 1) {
         const generation = await settledGeneration();
-        await check();
+        try {
+            await check();
+        } catch (error) {
+            if (generation !== (await settledGeneration())) continue;
+            throw error;
+        }
         if (generation === (await settledGeneration())) return;
     }
     throw new Error('API keeps restarting during readiness checks');

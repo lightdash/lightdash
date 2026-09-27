@@ -12,6 +12,14 @@ api.node_args = api.node_args.replace(
     '--inspect=127.0.0.1:',
 );
 api.env.SCHEDULER_ENABLED = 'true';
+api.ignore_watch = [
+    ...api.ignore_watch,
+    '**/*.md',
+    '**/*.mdx',
+    '**/*.map',
+    '**/*.test.ts',
+    '**/*.test.tsx',
+];
 for (const app of config.apps) {
     app.env = {
         ...app.env,
@@ -58,4 +66,12 @@ if (!watcher)
 watcher.script = 'pnpm';
 watcher.args = ['exec', 'bash', '-c', command.slice(separator + 4)];
 watcher.cwd = path.join(root, 'packages/backend');
+if (process.env.LDENV_WATCH_STATE_DIR && process.env.LDENV_START_EPOCH) {
+    watcher.script = path.join(__dirname, 'routes-watch.cjs');
+    watcher.interpreter = process.execPath;
+    watcher.args = [
+        path.join(process.env.LDENV_WATCH_STATE_DIR, 'routes.json'),
+        process.env.LDENV_START_EPOCH,
+    ];
+}
 module.exports = config;

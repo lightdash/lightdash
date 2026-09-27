@@ -161,7 +161,7 @@ export async function processPriority(
 }
 export async function startProcesses(
     instance: Instance,
-    late: boolean,
+    stage: 'frontend' | 'watchers' | 'api',
 ): Promise<void> {
     await ownedProcesses(instance);
     const env = await dotenv(
@@ -175,18 +175,19 @@ export async function startProcesses(
             dotenvText(env),
         );
     }
-    const suffixes = late
-        ? [
-              ...(env.LDENV_STANDALONE_SCHEDULER === 'true'
-                  ? ['scheduler']
-                  : []),
-              'common-watch',
-              'formula-watch',
-              'warehouses-watch',
-              'api-routes-watch',
-              'maple',
-          ]
-        : ['api', 'frontend'];
+    const suffixes =
+        stage === 'watchers'
+            ? [
+                  ...(env.LDENV_STANDALONE_SCHEDULER === 'true'
+                      ? ['scheduler']
+                      : []),
+                  'common-watch',
+                  'formula-watch',
+                  'warehouses-watch',
+                  'api-routes-watch',
+                  'maple',
+              ]
+            : [stage];
     await pm2(
         [
             'start',
@@ -522,7 +523,6 @@ export async function finishStart(instance: Instance): Promise<void> {
         );
         instance.timings.bootToHealth = Date.now() - apiStarted;
         const laterStart = Date.now();
-        await startProcesses(instance, true);
         await ready(instance);
         const env = await dotenv(
             path.join(instance.worktree, '.env.development.local'),

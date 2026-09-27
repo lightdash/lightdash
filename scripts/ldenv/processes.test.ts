@@ -78,6 +78,7 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
                 node_args?: string;
                 env?: { SCHEDULER_ENABLED: string; OTEL_SDK_DISABLED: string };
                 watch?: string[];
+                ignore_watch?: string[];
                 args?: string[];
             }[];
         }>(
@@ -95,6 +96,8 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
             '--import tsx --inspect=127.0.0.1:9229',
         );
         assert.equal(result.apps[0].env?.SCHEDULER_ENABLED, 'true');
+        assert(result.apps[0].ignore_watch?.includes('**/*.md'));
+        assert(result.apps[0].ignore_watch?.includes('**/*.mdx'));
         assert.equal(result.apps[0].env?.OTEL_SDK_DISABLED, 'true');
         const traced = json<typeof result>(
             await runner.run(

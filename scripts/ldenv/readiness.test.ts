@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import {
+    mkdtemp,
+    readFile,
+    rm,
+    mkdir,
+    writeFile,
+    symlink,
+} from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -21,12 +29,12 @@ test('initial watcher work and the PM2 debounce must finish before readiness', (
         at: 1000,
     };
     assert.equal(
-        compilersSettled([settled, settled, null], 'current', 3000),
+        compilersSettled([settled, settled, settled, null], 'current', 3000),
         false,
     );
     assert.equal(
         compilersSettled(
-            [settled, settled, { ...settled, epoch: 'old' }],
+            [settled, settled, settled, { ...settled, epoch: 'old' }],
             'current',
             3000,
         ),
@@ -34,23 +42,23 @@ test('initial watcher work and the PM2 debounce must finish before readiness', (
     );
     assert.equal(
         compilersSettled(
-            [settled, settled, { ...settled, state: 'building' }],
+            [settled, settled, settled, { ...settled, state: 'building' }],
             'current',
             3000,
         ),
         false,
     );
     assert.equal(
-        compilersSettled([settled, settled, settled], 'current', 1500),
+        compilersSettled([settled, settled, settled, settled], 'current', 1500),
         false,
     );
     assert.equal(
-        compilersSettled([settled, settled, settled], 'current', 2000),
+        compilersSettled([settled, settled, settled, settled], 'current', 2000),
         true,
     );
     assert.throws(() =>
         compilersSettled(
-            [settled, settled, { ...settled, errors: 1 }],
+            [settled, settled, settled, { ...settled, errors: 1 }],
             'current',
             3000,
         ),
@@ -125,6 +133,102 @@ test('compiler wrapper reports initial completion and later builds from split ou
             async () => (await state())?.state === 'building',
             5000,
             'incremental compiler marker',
+        );
+    } finally {
+        child.kill('SIGTERM');
+        await once(child, 'exit');
+        await rm(directory, { recursive: true });
+    }
+});
+
+test('an API restart during a failed chart request retries instead of failing the instance', async () => {
+    let generation = 'initial';
+    let checks = 0;
+    await stableReadiness(
+        async () => {
+            checks += 1;
+            if (checks === 1) {
+                generation = 'restart';
+                throw new Error('fetch failed');
+            }
+        },
+        async () => generation,
+    );
+    assert.equal(checks, 2);
+    await assert.rejects(
+        stableReadiness(
+            async () => {
+                throw new Error('chart invalid');
+            },
+            async () => generation,
+        ),
+        /chart invalid/,
+    );
+});
+
+test('route watcher scans without generating and reacts only to controller code changes', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'ldenv-routes-'));
+    const marker = path.join(directory, 'state.json');
+    const count = path.join(directory, 'generated');
+    await mkdir(path.join(directory, 'node_modules'), { recursive: true });
+    await mkdir(path.join(directory, 'src/controllers'), { recursive: true });
+    await mkdir(path.join(directory, 'bin'));
+    await writeFile(path.join(directory, 'package.json'), '{}');
+    const backend = createRequire(
+        path.resolve(__dirname, '../../packages/backend/package.json'),
+    );
+    await symlink(
+        path.dirname(backend.resolve('chokidar-cli/package.json')),
+        path.join(directory, 'node_modules/chokidar-cli'),
+    );
+    await writeFile(
+        path.join(directory, 'bin/pnpm'),
+        `#!${process.execPath}\nrequire('fs').writeFileSync(${JSON.stringify(count)}, 'generated')`,
+        { mode: 0o755 },
+    );
+    const controller = path.join(directory, 'src/controllers/Example.ts');
+    await writeFile(controller, 'export const value = 1;');
+    const child = spawn(
+        process.execPath,
+        [path.join(__dirname, 'routes-watch.cjs'), marker, 'epoch'],
+        {
+            cwd: directory,
+            env: {
+                ...process.env,
+                PATH: `${directory}/bin:${process.env.PATH}`,
+            },
+            stdio: 'ignore',
+        },
+    );
+    const state = async () => {
+        try {
+            return json<CompilerState>(await readFile(marker, 'utf8'));
+        } catch {
+            return null;
+        }
+    };
+    try {
+        await waitUntil(
+            async () => (await state())?.state === 'settled',
+            5000,
+            'route watcher scan',
+        );
+        await assert.rejects(readFile(count), { code: 'ENOENT' });
+        await writeFile(
+            path.join(directory, 'src/controllers/CLAUDE.md'),
+            'documentation',
+        );
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        await assert.rejects(readFile(count), { code: 'ENOENT' });
+        await writeFile(controller, 'export const value = 2;');
+        await waitUntil(
+            async () =>
+                readFile(count).then(
+                    () => true,
+                    () => false,
+                ),
+            5000,
+            'route generation after edit',
         );
     } finally {
         child.kill('SIGTERM');

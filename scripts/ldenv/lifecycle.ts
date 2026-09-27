@@ -71,6 +71,7 @@ import {
     warmCompileCache,
     stopProcesses,
 } from './processes';
+import { waitForCompilers } from './readiness';
 
 export const controlRoot = path.resolve(__dirname, '../..');
 export const manifests = path.join(home, 'manifests');
@@ -662,7 +663,14 @@ async function startInstance(
     instance.phase = 'starting';
     instance.error = null;
     instance.readyAt = null;
-    await timed(instance.timings, 'pm2', () => startProcesses(instance, false));
+    await timed(instance.timings, 'frontendStart', () =>
+        startProcesses(instance, 'frontend'),
+    );
+    await timed(instance.timings, 'watchersSettle', async () => {
+        await startProcesses(instance, 'watchers');
+        await waitForCompilers(instance);
+    });
+    await timed(instance.timings, 'pm2', () => startProcesses(instance, 'api'));
     await saveInstance(instance);
     if (noWait) {
         instance.monitorPid = await background(
