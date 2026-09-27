@@ -588,6 +588,34 @@
             > :global(.tableWrapper) tr:last-child td {
                 border-bottom: 0;
             }
+
+            /* Editing affordances: placeholder, selected chart, selected cells */
+            > :global(.is-editor-empty:first-child)::before {
+                content: attr(data-placeholder);
+                float: left;
+                height: 0;
+                color: var(--mantine-color-placeholder);
+                pointer-events: none;
+            }
+
+            > :global(.node-documentChart.ProseMirror-selectednode) > * {
+                outline: 2px solid var(--mantine-color-text);
+                outline-offset: 2px;
+                border-radius: var(--mantine-radius-lg);
+            }
+
+            :global(.selectedCell)::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: var(--mantine-color-default-hover);
+                pointer-events: none;
+            }
+
+            td,
+            th {
+                position: relative;
+            }
         }
     }
 }

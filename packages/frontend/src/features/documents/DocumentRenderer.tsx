@@ -1,11 +1,11 @@
 import { type Document } from '@lightdash/common';
-import { Group, Text } from '@mantine/core';
+import { Box, Text } from '@mantine/core';
 import { EditorContent } from '@tiptap/react';
 import { useMemo, type ReactNode } from 'react';
-import { LightdashUserAvatar } from '../../components/Avatar';
-import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
+import DocumentByline from './DocumentByline';
 import { DocumentEditorProvider } from './editor/DocumentEditorContext';
-import { useDocumentReader } from './editor/useDocumentReader';
+import { useDocumentReader } from './editor/useDocumentEditor';
+import { useMentionNavigation } from './editor/useMentionNavigation';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
 import styles from './presentation/ReportPresentation.module.css';
 
@@ -18,6 +18,7 @@ const DocumentRenderer = ({
 }) => {
     const { cells } = document.version.content;
     const { editor, headings } = useDocumentReader(document);
+    const mentions = useMentionNavigation(editor, document.projectUuid);
     const target = useMemo(
         () => ({
             projectUuid: document.projectUuid,
@@ -32,10 +33,6 @@ const DocumentRenderer = ({
             document.version.versionUuid,
         ],
     );
-    const creatorName = document.createdBy
-        ? `${document.createdBy.firstName} ${document.createdBy.lastName}`.trim() ||
-          'Unknown user'
-        : null;
     return (
         <DocumentReportLayout
             title={document.name}
@@ -43,51 +40,18 @@ const DocumentRenderer = ({
             headings={headings}
             variant="document"
             actions={actions}
-            metadata={
-                <Group gap="xs" wrap="nowrap">
-                    {document.createdBy && (
-                        <>
-                            <Group
-                                gap="xs"
-                                wrap="nowrap"
-                                role="group"
-                                aria-label="Created by"
-                            >
-                                <LightdashUserAvatar
-                                    userUuid={document.createdBy.userUuid}
-                                    avatarUrl={document.createdBy.avatarUrl}
-                                    avatarGradient={
-                                        document.createdBy.avatarGradient
-                                    }
-                                    name={creatorName ?? undefined}
-                                    size="sm"
-                                    aria-hidden
-                                />
-                                <Text fz="xs" fw={500} c="dimmed">
-                                    {creatorName}
-                                </Text>
-                            </Group>
-                            <Text fz="xs" c="dimmed" aria-hidden>
-                                ·
-                            </Text>
-                        </>
-                    )}
-                    <UpdatedInfo
-                        updatedAt={document.updatedAt}
-                        user={null}
-                        partiallyBold={false}
-                    />
-                </Group>
-            }
+            metadata={<DocumentByline document={document} />}
         >
             {cells.length === 0 ? (
                 <Text c="dimmed">This document is empty.</Text>
             ) : (
                 <DocumentEditorProvider value={target}>
-                    <EditorContent
-                        editor={editor}
-                        className={styles.documentProse}
-                    />
+                    <Box role="presentation" {...mentions}>
+                        <EditorContent
+                            editor={editor}
+                            className={styles.documentProse}
+                        />
+                    </Box>
                 </DocumentEditorProvider>
             )}
         </DocumentReportLayout>

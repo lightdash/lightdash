@@ -1,5 +1,6 @@
-import { type DocumentCell } from '@lightdash/common';
+import { ChartType, type DocumentCell } from '@lightdash/common';
 import { Node } from '@tiptap/core';
+import { NodeSelection } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import DocumentChartNodeView from './DocumentChartNodeView';
 
@@ -14,6 +15,16 @@ export type DocumentChartContent = Extract<
 export type DocumentChartAttributes = {
     content: DocumentChartContent | null;
     sourceIndex: number | null;
+};
+
+export type EditChartHandler = (
+    position: number,
+    content: DocumentChartContent,
+) => void;
+
+export type DocumentChartNodeOptions = {
+    /** Opens the chart editor for the node at this document position. */
+    onEditChart: EditChartHandler | null;
 };
 
 const CONTENT_ATTRIBUTE = 'data-document-chart';
@@ -61,12 +72,20 @@ const parseContentAttribute = (
     }
 };
 
-export const DocumentChartNode = Node.create({
+export const isEditableChart = (content: DocumentChartContent | null) =>
+    content?.source === 'semantic' &&
+    content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ;
+
+export const DocumentChartNode = Node.create<DocumentChartNodeOptions>({
     name: DOCUMENT_CHART_NODE,
     group: 'block',
     atom: true,
     selectable: true,
     draggable: false,
+
+    addOptions() {
+        return { onEditChart: null };
+    },
 
     addAttributes() {
         return {
@@ -99,6 +118,28 @@ export const DocumentChartNode = Node.create({
 
     addNodeView() {
         return ReactNodeViewRenderer(DocumentChartNodeView);
+    },
+
+    addKeyboardShortcuts() {
+        return {
+            Enter: () => {
+                const { selection } = this.editor.state;
+                if (
+                    !this.options.onEditChart ||
+                    !(selection instanceof NodeSelection) ||
+                    selection.node.type.name !== this.name
+                ) {
+                    return false;
+                }
+                const { content } = selection.node
+                    .attrs as DocumentChartAttributes;
+                if (!content || !isEditableChart(content)) {
+                    return false;
+                }
+                this.options.onEditChart(selection.from, content);
+                return true;
+            },
+        };
     },
 
     // Charts have no Markdown form; the cell serializer handles them.

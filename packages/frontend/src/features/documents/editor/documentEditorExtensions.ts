@@ -1,15 +1,31 @@
+import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
 import { type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
-import { DocumentChartNode } from './documentChartNode';
+import { createMentionMarkdownExtension } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
+import { SlashCommand } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/SlashCommandExtension';
+import { DocumentChartNode, type EditChartHandler } from './documentChartNode';
 import { DocumentHeadingIds } from './DocumentHeadingIds';
+import { createDocumentSlashCommandItems } from './documentSlashCommandItems';
 
-export const createDocumentEditorExtensions = (): Extensions => [
+export type DocumentEditorExtensionOptions = {
+    projectUuid: string;
+    /** Authoring-only extensions (placeholder, slash menu, chart callbacks) are added when set. */
+    editing?: {
+        onInsertChart: ((position: number) => void) | null;
+        onEditChart: EditChartHandler | null;
+    };
+};
+
+export const createDocumentEditorExtensions = ({
+    projectUuid,
+    editing,
+}: DocumentEditorExtensionOptions): Extensions => [
     StarterKit.configure({
-        link: { openOnClick: true, autolink: false },
+        link: { openOnClick: !editing, autolink: false },
         // Reading never needs a caret landing spot after the last block
-        trailingNode: false,
+        trailingNode: editing ? undefined : false,
     }),
     TableKit.configure({ table: { resizable: false } }),
     Markdown.configure({
@@ -17,6 +33,21 @@ export const createDocumentEditorExtensions = (): Extensions => [
         transformPastedText: true,
         transformCopiedText: true,
     }),
+    createMentionMarkdownExtension(projectUuid),
     DocumentHeadingIds,
-    DocumentChartNode,
+    DocumentChartNode.configure({
+        onEditChart: editing?.onEditChart ?? null,
+    }),
+    ...(editing
+        ? [
+              Placeholder.configure({
+                  placeholder: "Write something, or type '/' for blocks…",
+              }),
+              SlashCommand.configure({
+                  items: createDocumentSlashCommandItems({
+                      onInsertChart: editing.onInsertChart,
+                  }),
+              }),
+          ]
+        : []),
 ];
