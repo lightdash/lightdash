@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import {
+    glob,
     lstat,
     mkdir,
     readFile,
@@ -8,6 +9,7 @@ import {
     readlink,
     rm,
     writeFile,
+    utimes,
 } from 'node:fs/promises';
 import path from 'node:path';
 import { git, hashFile, home, readJson, runner, writeJson } from './io';
@@ -260,6 +262,8 @@ export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
         const prefix = `packages/${name}`;
         const source = path.join(parent.path, prefix);
         const destination = path.join(root, prefix);
+        const unchanged =
+            (await sourceHash(root, prefix)) === parent.sourceHashes[prefix];
         if (!existsSync(destination))
             throw new Error(
                 `Built package removed: ${prefix}; build a compatible parent first`,
@@ -276,6 +280,19 @@ export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
         )) {
             await rm(path.join(destination, name), { force: true });
             await clone(path.join(source, name), path.join(destination, name));
+        }
+        if (unchanged) {
+            const now = new Date();
+            for await (const metadata of glob(
+                [
+                    'dist/**/.tsbuildinfo',
+                    'dist/**/*.tsbuildinfo',
+                    '*.tsbuildinfo',
+                ],
+                { cwd: destination },
+            )) {
+                await utimes(path.join(destination, metadata), now, now);
+            }
         }
     }
     const generated = 'packages/backend/src/generated';
