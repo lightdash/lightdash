@@ -211,7 +211,7 @@ export function instanceEnvironment(input: {
         PGPASSWORD: 'password',
         PGDATABASE: database,
         LIGHTDASH_SECRET: machine.secret,
-        LIGHTDASH_SECRET_FALLBACKS: '',
+        LIGHTDASH_SECRET_FALLBACKS: '[]',
         RUDDERSTACK_ANALYTICS_DISABLED: 'true',
         PORT: String(ports.api),
         FE_PORT: String(ports.frontend),

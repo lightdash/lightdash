@@ -45,7 +45,10 @@ export async function ownedProcesses(
     instance: Instance,
 ): Promise<ProcessInfo[]> {
     assertInstance(instance);
-    const all = json<ProcessInfo[]>(await pm2(['jlist']));
+    const output = await pm2(['jlist']);
+    const start = output.search(/\[\s*(?:\{|\])/);
+    if (start < 0) throw new Error('PM2 inventory is not JSON');
+    const all = json<ProcessInfo[]>(output.slice(start));
     const owned = all.filter((item) => item.name.startsWith(`${instance.id}-`));
     if (
         owned.some(

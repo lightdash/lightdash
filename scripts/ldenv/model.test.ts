@@ -142,6 +142,7 @@ test('instance env overrides inherited identity, secret, database and unsafe glo
     assert.equal(env.PGDATABASE, 'ld_test');
     assert.equal(env.LD_INSTANCE_ID, instanceId(root));
     assert.equal(env.LIGHTDASH_SECRET, 'machine-secret');
+    assert.equal(env.LIGHTDASH_SECRET_FALLBACKS, '[]');
     assert.equal(env.LIGHTDASH_LICENSE_KEY, 'license');
     assert.equal(env.AI_COPILOT_ENABLED, 'true');
     assert.equal(env.RUDDERSTACK_ANALYTICS_DISABLED, 'true');
