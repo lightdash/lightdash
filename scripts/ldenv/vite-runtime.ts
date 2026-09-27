@@ -62,6 +62,7 @@ export function frontendOptions(root: string) {
         server: {
             ...(port === null ? {} : { port }),
             strictPort: true,
+            forwardConsole: true,
         },
     };
 }

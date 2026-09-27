@@ -188,7 +188,9 @@ cache. Each fork owns its cache files. A changed or corrupt snapshot also falls
 back to normal optimization. The ldenv frontend launcher pre-transforms static
 entry imports before readiness; the repository-wide Vite config is unchanged.
 The frontend version comes from its target package, independent of the calling
-shell. Status records the cache hit or miss, reason, and compared keys. Cache
+shell. Console forwarding is explicitly enabled so Vite's automatic agent
+detection cannot change the plugin list between parent builds and T3 startup.
+Status records the cache hit or miss, reason, and compared keys. Cache
 misses remain valid cold starts and are never counted as hits.
 Node uses the persistent `~/.ldenv/cache/node` compile cache. Parent builds and
 pool fills warm the backend import graph before boot. tsx keeps its default disk
@@ -306,11 +308,11 @@ The API had zero restarts from launch through 60 seconds after readiness, includ
 a Markdown edit. Health stayed available, and Vite did not rebundle dependencies.
 
 The preceding actual T3 run took 40.6 s with a cache miss, 5.23 s code setup,
-4.64 s watcher setup and 2.44 s path setup. The old miss was real, but its caller
-environment was not captured. Caller package-version differences can change the
-cache key; ldenv now derives that version from the target frontend and records
-both keys plus hashed input groups for diagnosis. Explicit configuration changes
-still invalidate the cache.
+4.64 s watcher setup and 2.44 s path setup. The cache diagnostics later isolated Vite's `vite:forward-console` plugin: its
+default depends on whether Vite detects an agent. ldenv now enables it explicitly
+for parent builds and all launches, preserving the full plugin compatibility
+check. Caller package-version differences are also removed by using the target
+frontend version. Explicit configuration changes still invalidate the cache.
 
 Before the watcher and Vite fixes, this deeper-worktree path took 54.4 s with
 26.0 s paint and reported ready just before an API restart. An earlier 25.3 s

@@ -49,7 +49,7 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
             'export const value = 42;',
         );
         const parent = path.join(root, 'parent');
-        const fork = path.join(root, 'deep', 'fork');
+        const fork = path.join(root, '.t3/worktrees/lightdash/t3code-fixture');
         for (const checkout of [parent, fork]) {
             const frontend = path.join(checkout, 'packages/frontend');
             await mkdir(path.join(frontend, 'node_modules'), {
@@ -118,6 +118,14 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
         const parentConfig = await resolve(parent);
         const forkConfig = await resolve(fork);
         for (const config of [parentConfig, forkConfig]) {
+            assert.equal(config.server.forwardConsole.enabled, true);
+            assert(
+                config.plugins.some(
+                    (plugin) =>
+                        (plugin as { name: string }).name ===
+                        'vite:forward-console',
+                ),
+            );
             assert.deepEqual(config.server.warmup.clientFiles, [
                 './src/index.tsx',
                 './src/App.tsx',
@@ -148,18 +156,25 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
             'populated',
         );
         assert.equal(await hasViteSnapshot(parentContext), true);
-        const inspect = async (callerVersion: string, devtools: string) => {
+        const inspect = async (
+            callerVersion: string,
+            devtools: string,
+            agent = true,
+            checkout = fork,
+        ) => {
             const { stdout } = await promisify(execFile)(
                 process.execPath,
                 [
                     path.join(__dirname, 'vite-launcher.cjs'),
                     'inspect',
-                    fork,
+                    checkout,
                     parent,
                 ],
                 {
                     env: {
-                        ...process.env,
+                        PATH: process.env.PATH,
+                        HOME: process.env.HOME,
+                        ...(agent ? { AI_AGENT: 'ldenv-test' } : {}),
                         npm_package_version: callerVersion,
                         REACT_QUERY_DEVTOOLS_ENABLED: devtools,
                     },
@@ -179,6 +194,17 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
         };
         const firstCaller = await inspect('caller-one', 'true');
         const secondCaller = await inspect('caller-two', 'true');
+        const agentParent = await inspect('caller-one', 'true', true, parent);
+        const ordinaryT3 = await inspect('caller-one', 'true', false, fork);
+        assert.equal(
+            agentParent.key,
+            ordinaryT3.key,
+            'agent parent and ordinary T3 shell must resolve the same cache key',
+        );
+        assert.equal(
+            agentParent.fingerprints?.['config.plugins'],
+            ordinaryT3.fingerprints?.['config.plugins'],
+        );
         assert.equal(firstCaller.key, secondCaller.key);
         assert.equal(firstCaller.snapshotKey, parentContext.key);
         assert.equal(
