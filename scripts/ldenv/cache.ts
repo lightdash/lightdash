@@ -23,6 +23,7 @@ import {
     type Recipe,
     json,
 } from './model';
+import { cloneGlobalModules, globalModuleInputsMatch } from './modules';
 
 export const builtPackages = ['formula', 'common', 'warehouses'];
 export async function changedFiles(
@@ -278,6 +279,23 @@ export async function dependencies(
     if (!equal || pnpmVersion !== parentVersion) {
         await install(root, true, env, label, 'local');
         return;
+    }
+    if (
+        !existsSync(path.join(root, 'node_modules')) &&
+        (await moduleLayout(parent.path)) === 'global' &&
+        (await globalModuleInputsMatch(parent.path, root))
+    ) {
+        try {
+            const result = await cloneGlobalModules(parent.path, root);
+            process.stdout.write(
+                `DEPENDENCIES: copied global-store links in ${result.cloneMs}ms\n`,
+            );
+            return;
+        } catch (error) {
+            process.stdout.write(
+                `DEPENDENCIES: link copy unavailable; installing (${runner.redact(error instanceof Error ? error.message : String(error))})\n`,
+            );
+        }
     }
     const file = path.join(home, 'dependency-strategy.json');
     const preference = existsSync(file)
