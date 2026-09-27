@@ -202,6 +202,7 @@ export async function buildParent(
                             path.join(existing.path, '.env.development.local'),
                         ),
                     );
+                    existing.viteCache = result;
                     process.stdout.write(
                         `VITE CACHE: ${result.status}: ${result.reason}\n`,
                     );
@@ -437,6 +438,7 @@ export async function buildParent(
             );
             await timed(timings, 'viteCachePopulate', async () => {
                 const result = await populateViteCache(directory, env);
+                manifest.viteCache = result;
                 process.stdout.write(
                     `VITE CACHE: ${result.status}: ${result.reason}\n`,
                 );
@@ -494,15 +496,17 @@ async function refreshArtifacts(
     await timed(timings, 'compileCacheWarm', () =>
         warmCompileCache(directory, env),
     );
-    await timed(timings, 'viteCachePopulate', async () => {
+    const viteCache = await timed(timings, 'viteCachePopulate', async () => {
         const result = await populateViteCache(directory, env);
         process.stdout.write(
             `VITE CACHE: ${result.status}: ${result.reason}\n`,
         );
+        return result;
     });
     const refreshed: Parent = {
         compileCacheWarmedAt: new Date().toISOString(),
         ...previous,
+        viteCache,
         seedProjectUuid: await seedProjectUuid(directory),
         path: directory,
         retiredPaths: [...(previous.retiredPaths ?? []), previous.path],
@@ -625,8 +629,12 @@ async function upInstance(
                     ),
                 ),
                 timed(state.timings, 'codeClone', async () => {
-                    await dependencies(parent, root, preliminary, state.id);
-                    await cloneBuilds(parent, root);
+                    await timed(state.timings, 'dependencies', () =>
+                        dependencies(parent, root, preliminary, state.id),
+                    );
+                    await timed(state.timings, 'artifactsClone', () =>
+                        cloneBuilds(parent, root),
+                    );
                 }),
             ]);
             const failure = results.find(
@@ -651,6 +659,7 @@ async function upInstance(
                         root,
                         env,
                     );
+                    state.viteCache = result;
                     state.timings.viteCacheHit =
                         result.status === 'hit' ? 1 : 0;
                     process.stdout.write(

@@ -16,7 +16,9 @@ This pins the committed tool in `~/.ldenv/tools/<sha>` with its own dependencies
 and installs `~/.ldenv/bin/ldenv`. It works even when the target branch has no
 `node_modules` or `scripts/ldenv`. Parent builds refresh the launcher; rerun
 `pnpm ldenv install` from the implementation checkout to pick up tool updates.
-The pinned tool checkout must stay in place while its processes are running.
+Installation checks or refreshes retained parent Vite snapshots with the new pinned
+runtime before switching the launcher. Parent manifests record the tool revision
+and cache key. The pinned tool checkout must stay in place while its processes are running.
 
 Commands target `--worktree PATH`, then `T3CODE_WORKTREE_PATH`, then the shell's
 current directory, in that order. For example:
@@ -160,16 +162,23 @@ instances pin their parents. A changed example hash creates a separate warehouse
 The lockfile, pnpm version, Node version, platform and architecture guard reuse.
 Parents and matching forks use pnpm's global virtual store by default. Workspace
 links remain local, while pnpm manages external dependencies in its shared store.
+When package manifests, lockfile, workspace config, pnpm hooks and patches match,
+forks copy private link directories and relocate workspace links and executable
+shims. Vite caches are handled separately. Changed inputs or an unsafe link tree
+fall back to installation.
 A lockfile or pnpm mismatch uses a normal local offline install. When the module
 layout differs from an older parent, package tiers rebuild before API startup.
 Use `~/.ldenv/bin/ldenv parent build --benchmark-deps` to measure APFS/reflink copies
 against local and global-store offline installs in a disposable worktree.
 Copies are compared only for parents with a local virtual store. The benchmark is
-opt-in and its result persists per machine. Forks choose the measured winner;
-before a measurement they use the global store. Normal parent builds do not benchmark. Package
+opt-in and its result persists per machine. Matching global-store parents use the link-copy fast path. Other forks choose
+the measured winner; before a measurement they use the global store. Normal parent builds do not benchmark. Package
 `dist` and build metadata travel with the clone. External dependency paths in
 TypeScript metadata are relocated, so worktrees at different directory depths do
-not trigger a full initial watcher build.
+not trigger a full initial watcher build. When no tier needs to run, watcher
+settling and the dbt-path update overlap frontend cache restore and process launch.
+The parent stores the seeded project UUID so a path update avoids loading the
+common package.
 
 Parent builds populate a private Vite optimizer snapshot. Matching forks copy it
 and relocate paths after checking the lockfile, Vite configuration and its imports,
@@ -178,6 +187,9 @@ source hash guard the optimizer metadata adapter; other versions safely miss the
 cache. Each fork owns its cache files. A changed or corrupt snapshot also falls
 back to normal optimization. The ldenv frontend launcher pre-transforms static
 entry imports before readiness; the repository-wide Vite config is unchanged.
+The frontend version comes from its target package, independent of the calling
+shell. Status records the cache hit or miss, reason, and compared keys. Cache
+misses remain valid cold starts and are never counted as hits.
 Node uses the persistent `~/.ldenv/cache/node` compile cache. Parent builds and
 pool fills warm the backend import graph before boot. tsx keeps its default disk
 cache. Absolute source paths can limit reuse between worktrees.

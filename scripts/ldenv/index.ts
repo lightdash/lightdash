@@ -49,6 +49,10 @@ function printInstance(instance: Instance): void {
     process.stdout.write(
         `${instance.phase.toUpperCase()}: ${instance.worktree}\nURL: http://localhost:${instance.ports?.frontend}\ninstance=${instance.id} parent=${instance.parent.slice(0, 12)} api=${instance.ports?.api} database=${instance.database}\ntimeToReady=${instance.timings.timeToReady === undefined ? 'pending' : `${instance.timings.timeToReady}ms`}\nTimings (ms, RSS bytes): ${JSON.stringify(instance.timings)}\n`,
     );
+    if (instance.viteCache)
+        process.stdout.write(
+            `Vite cache: ${JSON.stringify(instance.viteCache)}\n`,
+        );
 }
 async function main(args: string[]): Promise<void> {
     if (!args.length || args.includes('--help')) {

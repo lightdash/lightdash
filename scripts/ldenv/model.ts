@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { parse } from 'smol-toml';
+import type { ViteCacheReport } from './vite-cache';
 
 export type Environment = Record<string, string>;
 export type Tier = {
@@ -29,6 +30,7 @@ export type Ports = {
     prometheus: number;
 };
 export type Parent = {
+    viteCache?: ViteCacheReport & { toolSha?: string };
     seedProjectUuid?: string;
     retiredPaths?: string[];
     compileCacheWarmedAt?: string;
@@ -49,6 +51,7 @@ export type Parent = {
     arch: string;
 };
 export type Instance = {
+    viteCache?: ViteCacheReport;
     kind: 'worktree' | 'warming' | 'spare' | 'claimed';
     id: string;
     worktree: string;

@@ -9,6 +9,20 @@ async function main() {
             process.env.LDENV_WORKTREE ||
             path.join(process.cwd(), '../..'),
     );
+    let frontend;
+    try {
+        frontend = JSON.parse(
+            require('node:fs').readFileSync(
+                path.join(root, 'packages/frontend/package.json'),
+                'utf8',
+            ),
+        );
+    } catch {
+        throw new Error('Cannot read target frontend package version');
+    }
+    if (typeof frontend.version !== 'string' || !frontend.version)
+        throw new Error('Target frontend package version is missing');
+    process.env.npm_package_version = frontend.version;
     const viteRoot = require('node:fs').realpathSync(
         path.join(root, 'packages/frontend/node_modules/vite'),
     );
@@ -26,7 +40,7 @@ async function main() {
     if (action === 'serve') {
         const { serveVite } = require('./vite-prewarm.ts');
         await serveVite(root);
-    } else if (['populate', 'restore'].includes(action)) {
+    } else if (['populate', 'restore', 'inspect'].includes(action)) {
         const result = await runViteCache(action, root, parentRoot || null);
         process.stdout.write(`LDENV_VITE_RESULT=${JSON.stringify(result)}\n`);
     } else throw new Error(`Unknown Vite action: ${action}`);

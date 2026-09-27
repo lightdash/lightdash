@@ -22,10 +22,17 @@ export type ViteCacheContext = {
     cacheDir: string;
     key: string;
     hashes: ViteHashes;
+    fingerprints?: Record<string, string>;
 };
 export type ViteCacheResult = {
     status: 'hit' | 'miss' | 'populated';
     reason: string;
+};
+export type ViteCacheReport = ViteCacheResult & {
+    key: string | null;
+    snapshotKey: string | null;
+    fingerprints: Record<string, string> | null;
+    snapshotFingerprints: Record<string, string> | null;
 };
 type Entry = {
     file: string;
@@ -44,6 +51,7 @@ type Manifest = {
     cacheDir: string;
     key: string;
     files: Record<string, string>;
+    fingerprints?: Record<string, string>;
 };
 
 export const digest = (value: string | Buffer): string =>
@@ -175,6 +183,7 @@ export async function captureViteCache(
             cacheDir: context.cacheDir,
             key: context.key,
             files,
+            fingerprints: context.fingerprints,
         };
         await writeFile(
             path.join(temporary, 'ldenv-manifest.json'),
@@ -200,6 +209,23 @@ export async function captureViteCache(
         return { status: 'miss', reason: (error as Error).message };
     } finally {
         await rm(temporary, { recursive: true, force: true });
+    }
+}
+
+export async function viteSnapshotIdentity(root: string): Promise<{
+    key: string | null;
+    fingerprints: Record<string, string> | null;
+}> {
+    try {
+        const manifest = await readObject<Manifest>(
+            path.join(viteSnapshotPath(root), 'ldenv-manifest.json'),
+        );
+        return {
+            key: typeof manifest.key === 'string' ? manifest.key : null,
+            fingerprints: manifest.fingerprints ?? null,
+        };
+    } catch {
+        return { key: null, fingerprints: null };
     }
 }
 
@@ -321,14 +347,16 @@ export async function restoreViteSnapshot(
         const manifest = await readObject<Manifest>(
             path.join(source, 'ldenv-manifest.json'),
         );
+        if (manifest.schema !== 1) fail('Unsupported Vite snapshot schema');
+        if (manifest.root !== parentRoot)
+            fail('Vite snapshot source root does not match parent');
         if (
-            manifest.schema !== 1 ||
-            manifest.key !== context.key ||
-            manifest.root !== parentRoot ||
             typeof manifest.cacheDir !== 'string' ||
             !inside(parentRoot, manifest.cacheDir)
         )
-            fail('Incompatible Vite snapshot');
+            fail('Vite snapshot source cache is outside parent');
+        if (manifest.key !== context.key)
+            fail('Vite snapshot key does not match target');
         if (
             !manifest.files ||
             Object.keys(manifest.files).sort().join('\0') !==

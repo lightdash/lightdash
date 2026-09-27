@@ -8,11 +8,12 @@ import type { ResolvedConfig } from '../../packages/frontend/node_modules/vite/d
 import {
     captureViteCache,
     hasViteSnapshot,
+    viteSnapshotIdentity,
     digest,
     portableValue,
     restoreViteSnapshot,
     type ViteCacheContext,
-    type ViteCacheResult,
+    type ViteCacheReport,
     type ViteHashes,
 } from './vite-cache';
 
@@ -142,38 +143,112 @@ export async function viteCacheContext(
             root,
         ),
     );
-    return { root, cacheDir: path.join(config.cacheDir, 'deps'), key, hashes };
+    const fingerprints = Object.fromEntries(
+        Object.entries(normalizedConfig).map(([name, value]) => [
+            `config.${name}`,
+            digest(portableValue(value, root) ?? 'undefined'),
+        ]),
+    );
+    fingerprints.files = digest(JSON.stringify(files));
+    fingerprints.runtime = digest(
+        JSON.stringify([
+            supportedViteSource,
+            process.version,
+            process.platform,
+            process.arch,
+        ]),
+    );
+    fingerprints.profile = digest(
+        Buffer.concat(
+            await Promise.all(
+                ['vite-runtime.ts', 'vite-launcher.cjs'].map((file) =>
+                    readFile(path.join(__dirname, file)),
+                ),
+            ),
+        ),
+    );
+    return {
+        root,
+        cacheDir: path.join(config.cacheDir, 'deps'),
+        key,
+        hashes,
+        fingerprints,
+    };
 }
 
 export async function runViteCache(
-    action: 'populate' | 'restore',
+    action: 'populate' | 'restore' | 'inspect',
     root: string,
     parentRoot: string | null,
-): Promise<ViteCacheResult> {
+): Promise<ViteCacheReport> {
+    const provenance: Pick<
+        ViteCacheReport,
+        'key' | 'snapshotKey' | 'fingerprints' | 'snapshotFingerprints'
+    > = {
+        key: null,
+        snapshotKey: null,
+        fingerprints: null,
+        snapshotFingerprints: null,
+    };
     try {
+        const snapshot = await viteSnapshotIdentity(parentRoot ?? root);
+        provenance.snapshotKey = snapshot.key;
+        provenance.snapshotFingerprints = snapshot.fingerprints;
         const vite = await loadVite(root);
         const config = await vite.resolveConfig(frontendOptions(root), 'serve');
         const context = await viteCacheContext(root, config);
         if (!context)
             return {
+                ...provenance,
                 status: 'miss',
                 reason: 'Unsupported Vite optimizer implementation',
             };
+        provenance.key = context.key;
+        provenance.fingerprints = context.fingerprints ?? null;
+        if (action === 'inspect')
+            return {
+                ...provenance,
+                status: provenance.snapshotKey === context.key ? 'hit' : 'miss',
+                reason:
+                    provenance.snapshotKey === context.key
+                        ? 'Snapshot key matches; inspection only'
+                        : 'Snapshot key differs; inspection only',
+            };
         if (action === 'restore') {
             if (!parentRoot) throw new Error('Parent root is required');
-            return await restoreViteSnapshot(
-                await realpath(parentRoot),
-                context,
-            );
+            return {
+                ...provenance,
+                ...(await restoreViteSnapshot(
+                    await realpath(parentRoot),
+                    context,
+                )),
+            };
         }
         if (await hasViteSnapshot(context))
             return {
+                ...provenance,
                 status: 'populated',
                 reason: 'Compatible optimizer snapshot already exists',
             };
         await vite.optimizeDeps(config, true);
-        return await captureViteCache(context);
+        const result = await captureViteCache(context);
+        return {
+            ...provenance,
+            ...result,
+            snapshotKey:
+                result.status === 'populated'
+                    ? context.key
+                    : provenance.snapshotKey,
+            snapshotFingerprints:
+                result.status === 'populated'
+                    ? (context.fingerprints ?? null)
+                    : provenance.snapshotFingerprints,
+        };
     } catch (error) {
-        return { status: 'miss', reason: (error as Error).message };
+        return {
+            ...provenance,
+            status: 'miss',
+            reason: (error as Error).message,
+        };
     }
 }

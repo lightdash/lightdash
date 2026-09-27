@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import {
     mkdtemp,
     mkdir,
@@ -13,10 +14,13 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { promisify } from 'node:util';
 import {
     captureViteCache,
     hasViteSnapshot,
     restoreViteSnapshot,
+    digest,
+    type ViteCacheReport,
 } from './vite-cache';
 import { frontendOptions, loadVite, viteCacheContext } from './vite-runtime';
 
@@ -72,7 +76,7 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
             );
             await writeFile(
                 path.join(frontend, 'package.json'),
-                '{"name":"fixture","private":true}',
+                '{"name":"fixture","version":"1.2.3","private":true}',
             );
             await writeFile(
                 path.join(frontend, 'index.html'),
@@ -84,7 +88,7 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
             );
             await writeFile(
                 path.join(frontend, 'vite.config.mjs'),
-                'import path from "node:path"; export default { server: { warmup: { clientFiles: ["./src/providers/**/*.tsx", "./src/lazy/**/*.tsx"] } }, optimizeDeps: { include: ["example"] }, resolve: { alias: { "@src": path.join(import.meta.dirname, "src") } } };',
+                'import path from "node:path"; export default { define: { __APP_VERSION__: JSON.stringify(process.env.npm_package_version), REACT_QUERY_DEVTOOLS_ENABLED: process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true }, server: { warmup: { clientFiles: ["./src/providers/**/*.tsx", "./src/lazy/**/*.tsx"] } }, optimizeDeps: { include: ["example"] }, resolve: { alias: { "@src": path.join(import.meta.dirname, "src") } } };',
             );
             await symlink(
                 installedVite,
@@ -144,6 +148,58 @@ test('installed Vite accepts relocated optimizer metadata without rebundling and
             'populated',
         );
         assert.equal(await hasViteSnapshot(parentContext), true);
+        const inspect = async (callerVersion: string, devtools: string) => {
+            const { stdout } = await promisify(execFile)(
+                process.execPath,
+                [
+                    path.join(__dirname, 'vite-launcher.cjs'),
+                    'inspect',
+                    fork,
+                    parent,
+                ],
+                {
+                    env: {
+                        ...process.env,
+                        npm_package_version: callerVersion,
+                        REACT_QUERY_DEVTOOLS_ENABLED: devtools,
+                    },
+                },
+            );
+            const result = stdout
+                .split('\n')
+                .find((line) => line.startsWith('LDENV_VITE_RESULT='));
+            assert(result);
+            try {
+                return JSON.parse(
+                    result.slice('LDENV_VITE_RESULT='.length),
+                ) as ViteCacheReport;
+            } catch {
+                throw new Error('Invalid launcher diagnostic');
+            }
+        };
+        const firstCaller = await inspect('caller-one', 'true');
+        const secondCaller = await inspect('caller-two', 'true');
+        assert.equal(firstCaller.key, secondCaller.key);
+        assert.equal(firstCaller.snapshotKey, parentContext.key);
+        assert.equal(
+            firstCaller.fingerprints?.['config.define'],
+            digest(
+                JSON.stringify({
+                    __APP_VERSION__: JSON.stringify('1.2.3'),
+                    REACT_QUERY_DEVTOOLS_ENABLED: 'true',
+                }),
+            ),
+        );
+        assert(firstCaller.fingerprints?.profile);
+        assert.deepEqual(
+            firstCaller.snapshotFingerprints,
+            parentContext.fingerprints,
+        );
+        assert.notEqual(
+            (await inspect('caller-two', 'false')).key,
+            firstCaller.key,
+        );
+        await assert.rejects(stat(forkContext.cacheDir), { code: 'ENOENT' });
         assert.equal(
             await hasViteSnapshot({ ...parentContext, key: 'incompatible' }),
             false,
