@@ -65,8 +65,12 @@ are in `~/.ldenv/logs`; credentials are redacted from command logs.
 
 Readiness requires backend health, a visible `#root > *` on `/login`, a seeded
 chart query that returns rows through the API with the dev PAT, and successful
-warm routes from `rainbow.toml`. The scheduler has its own health timing. API and
-frontend start first; scheduler, tracing and watchers start after API health.
+warm routes from `rainbow.toml`. API and frontend start first; tracing and watchers
+start after API health. The API runs the full core and EE scheduler task set, so
+ldenv does not start a duplicate scheduler process by default. To opt in, export
+`LDENV_STANDALONE_SCHEDULER=true` before `up`, or set it in the instance's local
+env file before `stop` / `start`. The optional scheduler watches backend changes
+and has its own health timing. The Node inspector binds only to `127.0.0.1`.
 The headline `timeToReady` measures the current fork, fill, claim or restart until
 all readiness checks pass. For a fresh instance it is `readyAt - createdAt`;
 claims and restarts start a new clock. `total` also includes the scheduler tail

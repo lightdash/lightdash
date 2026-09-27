@@ -32,6 +32,7 @@ export async function localSecrets(root: string): Promise<Environment> {
     for (const key of [
         'LIGHTDASH_LICENSE_KEY',
         'LIGHTDASH_LICENSE_CERTIFICATE',
+        'LDENV_STANDALONE_SCHEDULER',
     ]) {
         if (process.env[key]) env[key] = process.env[key]!;
     }

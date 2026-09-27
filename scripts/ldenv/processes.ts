@@ -117,9 +117,14 @@ export async function startProcesses(
     late: boolean,
 ): Promise<void> {
     await ownedProcesses(instance);
+    const env = await dotenv(
+        path.join(instance.worktree, '.env.development.local'),
+    );
     const suffixes = late
         ? [
-              'scheduler',
+              ...(env.LDENV_STANDALONE_SCHEDULER === 'true'
+                  ? ['scheduler']
+                  : []),
               'common-watch',
               'formula-watch',
               'warehouses-watch',
@@ -127,9 +132,6 @@ export async function startProcesses(
               'maple',
           ]
         : ['api', 'frontend'];
-    const env = await dotenv(
-        path.join(instance.worktree, '.env.development.local'),
-    );
     await pm2(
         [
             'start',
@@ -303,9 +305,18 @@ export async function finishStart(instance: Instance): Promise<void> {
         const laterStart = Date.now();
         await startProcesses(instance, true);
         await ready(instance);
-        const schedulerPort = instance.ports!.scheduler;
-        await waitUntil(() => health(schedulerPort), 60000, 'scheduler health');
-        instance.timings.schedulerBoot = Date.now() - laterStart;
+        const env = await dotenv(
+            path.join(instance.worktree, '.env.development.local'),
+        );
+        if (env.LDENV_STANDALONE_SCHEDULER === 'true') {
+            const schedulerPort = instance.ports!.scheduler;
+            await waitUntil(
+                () => health(schedulerPort),
+                60000,
+                'scheduler health',
+            );
+            instance.timings.schedulerBoot = Date.now() - laterStart;
+        }
         instance.timings.rssBytes = await instanceRss(instance);
         instance.timings.total =
             Date.now() - Date.parse(instance.startedAt ?? instance.createdAt);

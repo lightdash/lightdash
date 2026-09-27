@@ -208,6 +208,8 @@ export function instanceEnvironment(input: {
         AI_COPILOT_ENABLED: local.AI_COPILOT_ENABLED ?? 'false',
         APPS_RUNTIME_ENABLED: local.APPS_RUNTIME_ENABLED ?? 'false',
         CI: 'false',
+        SCHEDULER_ENABLED: 'true',
+        LDENV_STANDALONE_SCHEDULER: local.LDENV_STANDALONE_SCHEDULER ?? 'false',
         LD_INSTANCE_ID: id,
         PGHOST: '127.0.0.1',
         PGPORT: String(machine.pgPort),
