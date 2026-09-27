@@ -1,10 +1,48 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { runner } from './io';
 import { json } from './model';
+import { checkClaimEndpoints } from './processes';
+
+test('cheap claims require live health, frontend and authenticated user responses', async () => {
+    let failingPath: string | null = null;
+    const server = createServer((request, response) => {
+        response.statusCode = request.url === failingPath ? 503 : 200;
+        if (request.url === '/api/v1/user') {
+            if (request.headers.authorization !== 'ApiKey test-token')
+                response.statusCode = 401;
+            response.end(
+                JSON.stringify({
+                    status: 'ok',
+                    results: { userUuid: 'seed-user' },
+                }),
+            );
+        } else response.end('ok');
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const address = server.address();
+    assert(address && typeof address !== 'string');
+    const ports = { api: address.port, frontend: address.port };
+    try {
+        await checkClaimEndpoints(ports, 'test-token');
+        await assert.rejects(checkClaimEndpoints(ports, 'wrong-token'));
+        for (const route of ['/', '/api/v1/health', '/api/v1/user']) {
+            failingPath = route;
+            await assert.rejects(checkClaimEndpoints(ports, 'test-token'));
+        }
+    } finally {
+        server.closeAllConnections();
+        await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+        );
+    }
+});
 
 test('the ldenv ecosystem binds the inspector locally and watches the optional scheduler', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-processes-'));

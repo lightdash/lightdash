@@ -43,8 +43,12 @@ Prepare a parent and one spare ahead of time:
 **New thread in this worktree** in T3 Code. The directory does not move when a
 spare is claimed. The claim switches to an existing local branch, or creates a
 branch from `--base origin/main`. The branch must descend from a completed parent.
-It applies each matching Rainbow tier, checks readiness again and starts a pool
-refill in the background. A deep change can take longer than a warm claim.
+It applies each matching Rainbow tier and starts a pool refill in the background.
+A source-only claim returns after live API health, frontend and authentication
+checks. The spare already passed full readiness when filled; a background verifier
+repeats paint and chart checks after the claim. Status exposes `verification` and
+reports `degraded` if that check fails. Deep changes run full readiness before
+returning and can take longer than a warm claim.
 An empty pool fails with instructions to refill; it does not claim an unready spare.
 
 For an existing worktree, use the fork path:
@@ -241,5 +245,5 @@ Runtime acceptance is separate: measure a warm claim, a fresh matching fork,
 a fork with a real common change and a new migration, concurrent environments,
 coexistence with the existing bootstrap, then complete teardown. Report parent,
 claim, fork, backend health, paint, chart, scheduler and RSS measurements. Target
-claim latency is under 5 seconds; fork targets are 60 seconds on macOS and
+claim latency is under 1 second for the cheap gate; fork targets are 60 seconds on macOS and
 90 seconds on Linux. These are targets until measured on each machine.

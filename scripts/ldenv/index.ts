@@ -28,6 +28,7 @@ import {
     health,
     ownedProcesses,
     stopProcesses,
+    verifyClaim,
 } from './processes';
 
 const help = `ldenv install
@@ -64,10 +65,14 @@ async function main(args: string[]): Promise<void> {
         process.stdout.write(`INSTALLED: ${await installLauncher()}\n`);
         return;
     }
-    if (command === 'monitor') {
+    if (command === 'monitor' || command === 'verify') {
         const instance = await currentState(subcommand);
         if (!instance) throw new Error('Monitor instance is missing');
-        await withLock(`monitor-${instance.id}`, () => finishStart(instance));
+        await withLock(`monitor-${instance.id}`, () =>
+            command === 'verify'
+                ? verifyClaim(instance)
+                : finishStart(instance),
+        );
         return;
     }
     const root = await rootDirectory(target.worktree);

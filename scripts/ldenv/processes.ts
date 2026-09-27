@@ -20,6 +20,7 @@ import {
     parseRecipe,
     type Instance,
     type Environment,
+    type Ports,
 } from './model';
 
 const controlRoot = path.resolve(__dirname, '../..');
@@ -202,7 +203,7 @@ export async function health(port: number): Promise<boolean> {
         return false;
     }
 }
-export async function ready(instance: Instance): Promise<void> {
+export async function checkReady(instance: Instance): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
     const total = Date.now();
     const started = Date.now();
@@ -285,13 +286,130 @@ export async function ready(instance: Instance): Promise<void> {
     );
     instance.timings.warm = Date.now() - warmStart;
     instance.timings.ready = Date.now() - total;
+}
+export async function ready(instance: Instance): Promise<void> {
+    await checkReady(instance);
     instance.phase = 'ready';
     instance.readyAt = new Date().toISOString();
     instance.timings.timeToReady =
         Date.parse(instance.readyAt) -
         Date.parse(instance.startedAt ?? instance.createdAt);
     instance.error = null;
+    instance.verification = {
+        state: 'passed',
+        checkedAt: instance.readyAt,
+        error: null,
+        timings: {
+            paint: instance.timings.paint,
+            chart: instance.timings.chart,
+            ready: instance.timings.ready,
+        },
+    };
     await saveInstance(instance);
+}
+export async function checkClaimEndpoints(
+    ports: Pick<Ports, 'api' | 'frontend'>,
+    token: string,
+): Promise<Record<string, number>> {
+    const timings: Record<string, number> = {};
+    const started = Date.now();
+    const measured = async <T>(name: string, check: Promise<T>): Promise<T> => {
+        const result = await check;
+        timings[name] = Date.now() - started;
+        return result;
+    };
+    const [healthy, frontend, auth] = await Promise.all([
+        measured('claimHealth', health(ports.api)),
+        measured(
+            'claimFrontend',
+            fetch(`http://localhost:${ports.frontend}/`, {
+                signal: AbortSignal.timeout(2000),
+            }),
+        ),
+        measured(
+            'claimAuth',
+            fetch(`http://localhost:${ports.api}/api/v1/user`, {
+                headers: { Authorization: `ApiKey ${token}` },
+                signal: AbortSignal.timeout(2000),
+            }),
+        ),
+    ]);
+    const user = json<{ status: string; results?: { userUuid?: string } }>(
+        await auth.text(),
+    );
+    await frontend.arrayBuffer();
+    if (
+        !healthy ||
+        !frontend.ok ||
+        !auth.ok ||
+        user.status !== 'ok' ||
+        !user.results?.userUuid
+    )
+        throw new Error(
+            'Warm claim health, frontend or authentication check failed',
+        );
+    return timings;
+}
+export async function cheapReady(instance: Instance): Promise<void> {
+    if (!instance.ports) throw new Error('Instance has no ports');
+    const started = Date.now();
+    const env = await dotenv(
+        path.join(instance.worktree, '.env.development.local'),
+    );
+    Object.assign(
+        instance.timings,
+        await checkClaimEndpoints(instance.ports, env.LDPAT),
+    );
+    instance.phase = 'ready';
+    instance.readyAt = new Date().toISOString();
+    instance.timings.cheapGate = Date.now() - started;
+    instance.timings.timeToReady =
+        Date.parse(instance.readyAt) - Date.parse(instance.startedAt);
+    instance.verification = {
+        state: 'pending',
+        checkedAt: null,
+        error: null,
+        timings: {},
+    };
+    instance.error = null;
+    await saveInstance(instance);
+}
+export async function verifyClaim(instance: Instance): Promise<void> {
+    let failure: string | null = null;
+    const probe = { ...instance, timings: {} as Record<string, number> };
+    try {
+        await checkReady(probe);
+    } catch (error) {
+        failure = runner.redact(
+            error instanceof Error ? error.message : String(error),
+        );
+    }
+    const current = await currentState(instance.id);
+    if (
+        !current ||
+        current.startedAt !== instance.startedAt ||
+        !['ready', 'degraded'].includes(current.phase)
+    )
+        return;
+    current.verification = {
+        state: failure ? 'failed' : 'passed',
+        checkedAt: new Date().toISOString(),
+        error: failure,
+        timings: {
+            paint: probe.timings.paint ?? 0,
+            chart: probe.timings.chart ?? 0,
+            ready: probe.timings.ready ?? 0,
+        },
+    };
+    if (failure) {
+        current.phase = 'degraded';
+        current.error = `Background readiness verification failed: ${failure}`;
+    } else {
+        current.phase = 'ready';
+        current.error = null;
+    }
+    current.monitorPid = null;
+    await saveInstance(current);
 }
 export async function finishStart(instance: Instance): Promise<void> {
     try {
@@ -374,7 +492,8 @@ export async function cancelMonitor(instance: Instance): Promise<void> {
     );
     if (
         !command.includes('scripts/ldenv/index.ts') ||
-        !command.includes(`monitor ${instance.id}`)
+        (!command.includes(`monitor ${instance.id}`) &&
+            !command.includes(`verify ${instance.id}`))
     )
         throw new Error('Monitor PID no longer belongs to this instance');
     process.kill(-instance.monitorPid!, 'SIGTERM');

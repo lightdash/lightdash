@@ -25,7 +25,7 @@ import {
     up,
 } from './lifecycle';
 import { matchingTiers, selectParent, type Instance } from './model';
-import { background, ready, stopProcesses } from './processes';
+import { background, cheapReady, stopProcesses } from './processes';
 
 export async function availableMemory(root: string): Promise<number> {
     if (process.platform === 'darwin') {
@@ -76,7 +76,8 @@ export async function fillPool(
         await withLock('pool', async () => {
             const stale = (await instances()).filter(
                 (instance) =>
-                    instance.kind === 'spare' &&
+                    (instance.kind === 'spare' ||
+                        instance.kind === 'warming') &&
                     (instance.parent !== parent.sha ||
                         instance.phase === 'failed'),
             );
@@ -112,9 +113,13 @@ export async function fillPool(
                 directory,
                 parent.sha,
                 false,
-                'spare',
+                'warming',
                 secrets,
             );
+            await withLock('pool', async () => {
+                instance.kind = 'spare';
+                await saveInstance(instance);
+            });
             spares.push(instance);
         }
         return spares;
@@ -222,7 +227,13 @@ export async function claimSpare(
                         spare.id,
                     );
                     await start(spare, false);
-                } else await ready(spare);
+                } else {
+                    await cheapReady(spare);
+                    spare.monitorPid = await background(
+                        ['verify', spare.id],
+                        `${spare.id}-verify`,
+                    );
+                }
                 spare.timings.claim = Date.now() - started;
                 await saveInstance(spare);
                 return spare;

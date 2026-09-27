@@ -46,13 +46,19 @@ export type Parent = {
     arch: string;
 };
 export type Instance = {
-    kind: 'worktree' | 'spare' | 'claimed';
+    kind: 'worktree' | 'warming' | 'spare' | 'claimed';
     id: string;
     worktree: string;
     parent: string;
     database: string;
     ports: Ports | null;
-    phase: 'preparing' | 'starting' | 'ready' | 'stopped' | 'failed';
+    phase:
+        | 'preparing'
+        | 'starting'
+        | 'ready'
+        | 'degraded'
+        | 'stopped'
+        | 'failed';
     createdAt: string;
     startedAt: string;
     updatedAt: string;
@@ -60,6 +66,12 @@ export type Instance = {
     error: string | null;
     monitorPid: number | null;
     readyAt: string | null;
+    verification: {
+        state: 'pending' | 'passed' | 'failed';
+        checkedAt: string | null;
+        error: string | null;
+        timings: Record<string, number>;
+    } | null;
 };
 export type Machine = { pgPort: number; secret: string };
 
@@ -299,6 +311,7 @@ export function newInstance(
         error: null,
         monitorPid: null,
         readyAt: null,
+        verification: null,
     };
 }
 
