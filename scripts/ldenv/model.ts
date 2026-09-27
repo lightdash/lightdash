@@ -185,7 +185,7 @@ export async function selectParent(
         if (await isAncestor(parent.sha)) return parent;
     }
     throw new Error(
-        'No completed ancestor parent. Run pnpm ldenv parent build --ref HEAD (or up --build-parent).',
+        'No completed ancestor parent. Run ~/.ldenv/bin/ldenv parent build --ref HEAD (or up --build-parent).',
     );
 }
 export function instanceEnvironment(input: {

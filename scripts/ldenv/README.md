@@ -164,7 +164,9 @@ against local and global-store offline installs in a disposable worktree.
 Copies are compared only for parents with a local virtual store. The benchmark is
 opt-in and its result persists per machine. Forks choose the measured winner;
 before a measurement they use the global store. Normal parent builds do not benchmark. Package
-`dist`, build metadata and the Vite dependency cache travel with the clone.
+`dist` and build metadata travel with the clone. Vite currently builds its own
+optimizer cache per worktree; cache relocation and earlier frontend startup
+remain follow-up optimizations.
 Node uses the persistent `~/.ldenv/cache/node` compile cache. Parent builds and
 pool fills warm the backend import graph before boot. tsx keeps its default disk
 cache. Absolute source paths can limit reuse between worktrees.
@@ -216,14 +218,14 @@ The setting persists in `~/.ldenv/pool.json`. A refill requires at least 3 GiB f
 RAM and the disk floor (`LDENV_MIN_FREE_GB`, default 8 decimal GB). Watch status RSS
 before increasing the pool. Claimed environments are additional to spare capacity.
 
-A cron example (replace the checkout and absolute pnpm path):
+A cron example (replace the checkout and absolute launcher path):
 
 ```cron
-0 * * * * cd /path/to/lightdash && /absolute/path/to/~/.ldenv/bin/ldenv parent refresh >> "$HOME/.ldenv/logs/refresh.log" 2>&1
+0 * * * * cd /path/to/lightdash && /home/developer/.ldenv/bin/ldenv parent refresh >> "$HOME/.ldenv/logs/refresh.log" 2>&1
 ```
 
-On macOS, use a LaunchAgent with `ProgramArguments` set to the absolute pnpm path,
-`ldenv`, `parent`, `refresh`; `WorkingDirectory` set to the checkout;
+On macOS, use a LaunchAgent with `ProgramArguments` set to the absolute
+`~/.ldenv/bin/ldenv` path, `parent`, `refresh`; `WorkingDirectory` set to the checkout;
 `StartInterval` set to 3600; and explicit `PATH`, `StandardOutPath` and
 `StandardErrorPath`. Load it only after an interactive parent build and pool fill
 succeed. The job uses the fetched local ref; schedule `git fetch origin` separately
@@ -262,3 +264,17 @@ coexistence with the existing bootstrap, then complete teardown. Report parent,
 claim, fork, backend health, paint, chart, scheduler and RSS measurements. Target
 claim latency is under 1 second for the cheap gate; fork targets are 60 seconds on macOS and
 90 seconds on Linux. These are targets until measured on each machine.
+
+## Measured Mac timings
+
+On 27 September 2026, a fresh main worktree with the global-store parent and
+tracing disabled reached full readiness in **25.3 seconds**: dependencies and
+artifacts 5.10 s, database clone 0.26 s, port allocation 0.15 s, API health 13.12 s,
+paint 3.26 s, chart query 0.26 s. The database, ports and dependency steps overlap.
+There were no package rebuild or migration tiers. The matching tracing-enabled
+fork took 30.0 s. These are sequential samples, not a controlled statistical trial.
+
+Warm claims reached 0.53 s before the background-priority changes. Parent builds
+and fills use background priority and can take substantially longer than a
+foreground fork; they prepare future claims. Timings under simultaneous fills,
+forks and other development instances are not directly comparable to idle runs.
