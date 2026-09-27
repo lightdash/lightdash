@@ -20,7 +20,9 @@ record('building');
 let child = null;
 let timer = null;
 let pending = false;
+let closing = false;
 const run = () => {
+    if (closing) return;
     if (child) {
         pending = true;
         return;
@@ -30,6 +32,10 @@ const run = () => {
     child.on('error', () => record('failed'));
     child.on('exit', (code) => {
         child = null;
+        if (closing) {
+            process.exit(0);
+            return;
+        }
         if (pending) {
             pending = false;
             run();
@@ -38,6 +44,8 @@ const run = () => {
 };
 const watcher = chokidar.watch('./src/**/controllers/**/*.ts', {
     ignoreInitial: true,
+    followSymlinks: false,
+    ignored: ['**/node_modules/**', '**/*.test.ts'],
 });
 watcher.on('ready', () => record('settled'));
 watcher.on('error', () => record('failed'));
@@ -48,6 +56,7 @@ watcher.on('all', () => {
 });
 for (const signal of ['SIGINT', 'SIGTERM'])
     process.on(signal, async () => {
+        closing = true;
         clearTimeout(timer);
         await watcher.close();
         if (child) child.kill(signal);
