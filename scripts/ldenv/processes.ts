@@ -285,6 +285,9 @@ export async function ready(instance: Instance): Promise<void> {
     instance.timings.ready = Date.now() - total;
     instance.phase = 'ready';
     instance.readyAt = new Date().toISOString();
+    instance.timings.timeToReady =
+        Date.parse(instance.readyAt) -
+        Date.parse(instance.startedAt ?? instance.createdAt);
     instance.error = null;
     await saveInstance(instance);
 }
@@ -304,7 +307,8 @@ export async function finishStart(instance: Instance): Promise<void> {
         await waitUntil(() => health(schedulerPort), 60000, 'scheduler health');
         instance.timings.schedulerBoot = Date.now() - laterStart;
         instance.timings.rssBytes = await instanceRss(instance);
-        instance.timings.total = Date.now() - Date.parse(instance.createdAt);
+        instance.timings.total =
+            Date.now() - Date.parse(instance.startedAt ?? instance.createdAt);
         instance.monitorPid = null;
         await saveInstance(instance);
     } catch (error) {

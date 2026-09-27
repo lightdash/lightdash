@@ -43,6 +43,11 @@ Readiness requires backend health, a visible `#root > *` on `/login`, a seeded
 chart query that returns rows through the API with the dev PAT, and successful
 warm routes from `rainbow.toml`. The scheduler has its own health timing. API and
 frontend start first; scheduler, tracing and watchers start after API health.
+The headline `timeToReady` measures the current fork, fill, claim or restart until
+all readiness checks pass. For a fresh instance it is `readyAt - createdAt`;
+claims and restarts start a new clock. `total` also includes the scheduler tail
+and RSS collection, so it can exceed time to usable. The latency targets apply
+to `timeToReady`.
 
 ## Prerequisites
 

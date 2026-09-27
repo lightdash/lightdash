@@ -44,7 +44,7 @@ function option(args: string[], name: string, fallback: string): string {
 }
 function printInstance(instance: Instance): void {
     process.stdout.write(
-        `${instance.phase.toUpperCase()}: ${instance.worktree}\nURL: http://localhost:${instance.ports?.frontend}\ninstance=${instance.id} parent=${instance.parent.slice(0, 12)} api=${instance.ports?.api} database=${instance.database}\nTimings (ms, RSS bytes): ${JSON.stringify(instance.timings)}\n`,
+        `${instance.phase.toUpperCase()}: ${instance.worktree}\nURL: http://localhost:${instance.ports?.frontend}\ninstance=${instance.id} parent=${instance.parent.slice(0, 12)} api=${instance.ports?.api} database=${instance.database}\ntimeToReady=${instance.timings.timeToReady ?? 'pending'}ms\nTimings (ms, RSS bytes): ${JSON.stringify(instance.timings)}\n`,
     );
 }
 async function main(args: string[]): Promise<void> {
@@ -185,6 +185,7 @@ async function main(args: string[]): Promise<void> {
                 : null,
             healthy: online,
             ready: instance.phase === 'ready' && online,
+            timeToReady: instance.timings.timeToReady ?? null,
             monitorAlive: alive(instance.monitorPid),
             processes: await ownedProcesses(instance),
         };

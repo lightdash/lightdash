@@ -172,7 +172,10 @@ export async function claimSpare(
             spare.kind = 'claimed';
             spare.phase = 'starting';
             spare.readyAt = null;
-            spare.timings = {};
+            spare.startedAt = new Date(started).toISOString();
+            spare.timings = spare.timings.rssBytes
+                ? { rssBytes: spare.timings.rssBytes }
+                : {};
             await saveInstance(spare);
             try {
                 const delta = (

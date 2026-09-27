@@ -53,6 +53,7 @@ export type Instance = {
     ports: Ports | null;
     phase: 'preparing' | 'starting' | 'ready' | 'stopped' | 'failed';
     createdAt: string;
+    startedAt: string;
     updatedAt: string;
     timings: Record<string, number>;
     error: string | null;
@@ -279,6 +280,7 @@ export function newInstance(
     kind: Instance['kind'] = 'worktree',
 ): Instance {
     const id = instanceId(root);
+    const now = new Date().toISOString();
     return {
         kind,
         id,
@@ -287,8 +289,9 @@ export function newInstance(
         database: `ld_${id}`,
         ports: null,
         phase: 'preparing',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        startedAt: now,
+        updatedAt: now,
         timings: {},
         error: null,
         monitorPid: null,
