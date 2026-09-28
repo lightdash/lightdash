@@ -1,6 +1,5 @@
 const path = require('node:path');
 const { createRequire } = require('node:module');
-const { compilerWatchArgs } = require('./compiler-watch-args.cjs');
 
 const root = process.env.LDENV_WORKTREE;
 if (!root) throw new Error('LDENV_WORKTREE is required');
@@ -41,13 +40,26 @@ if (process.env.LDENV_WATCH_STATE_DIR && process.env.LDENV_START_EPOCH) {
         const args = Array.isArray(compiler.args)
             ? compiler.args
             : compiler.args.split(/\s+/);
+        const nativeWatch = process.platform === 'darwin';
         compiler.script = path.join(__dirname, 'compiler-watch.cjs');
         compiler.interpreter = process.execPath;
         compiler.args = [
             path.join(process.env.LDENV_WATCH_STATE_DIR, `${name}.json`),
             process.env.LDENV_START_EPOCH,
-            command,
-            ...compilerWatchArgs(args, process.platform),
+            nativeWatch ? process.execPath : command,
+            ...(nativeWatch
+                ? [
+                      path.join(__dirname, 'compiler-trigger.cjs'),
+                      name,
+                      root,
+                      command,
+                      ...args.filter(
+                          (arg) =>
+                              arg !== '--watch' &&
+                              arg !== '--preserveWatchOutput',
+                      ),
+                  ]
+                : args),
         ];
     }
 }
