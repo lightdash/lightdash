@@ -1,3 +1,4 @@
+import execa from 'execa';
 import { access, constants } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -146,6 +147,55 @@ export const detectSandboxRuntime = (
 
 export const resetSandboxRuntimeCache = (): void => {
     cache = undefined;
+};
+
+const DBT_VERSION_DETECTION_TIMEOUT_MS = 30_000;
+const DBT_CORE_INSTALLED_REGEX = /installed:\s*(\S+)/;
+
+let dbtVersionCache = new Map<string, Promise<string | undefined>>();
+
+/**
+ * The dbt-core version the sandbox's `dbt` resolves to, asked once per
+ * process for each PATH. The CLI otherwise runs `dbt --version` four times
+ * per `lightdash deploy`, and each run is a cold Python start that costs
+ * seconds on a scheduler pod; the result goes to the child as
+ * LIGHTDASH_DBT_VERSION instead. Anything short of a clean answer returns
+ * undefined and is not cached, so the CLI falls back to asking dbt itself.
+ */
+export const detectSandboxDbtVersion = (
+    env: Record<string, string>,
+): Promise<string | undefined> => {
+    const key = env.PATH ?? '';
+    const cached = dbtVersionCache.get(key);
+    if (cached) {
+        return cached;
+    }
+    const detection = execa('dbt', ['--version'], {
+        env,
+        extendEnv: false,
+        shell: false,
+        reject: false,
+        all: true,
+        timeout: DBT_VERSION_DETECTION_TIMEOUT_MS,
+    })
+        .then((result) =>
+            result.exitCode === 0
+                ? DBT_CORE_INSTALLED_REGEX.exec(result.all ?? '')?.[1]
+                : undefined,
+        )
+        .catch(() => undefined)
+        .then((version) => {
+            if (version === undefined) {
+                dbtVersionCache.delete(key);
+            }
+            return version;
+        });
+    dbtVersionCache.set(key, detection);
+    return detection;
+};
+
+export const resetSandboxDbtVersionCache = (): void => {
+    dbtVersionCache = new Map();
 };
 
 // Explicit allowlist only. Do NOT swap this for a subtractive approach (e.g.

@@ -151,4 +151,20 @@ describe('Get dbt version', () => {
             exitSpy.mockRestore();
         });
     });
+    describe('LIGHTDASH_DBT_VERSION', () => {
+        test('uses the given version without running dbt --version', async () => {
+            process.env.LIGHTDASH_DBT_VERSION = ' 1.12.3 ';
+            const version = await getDbtVersion();
+            expect(version.verboseVersion).toEqual('1.12.3');
+            expect(version.versionOption).toEqual(SupportedDbtVersions.V1_12);
+            expect(execaMock).not.toHaveBeenCalled();
+        });
+        test('runs dbt --version when it is empty', async () => {
+            process.env.LIGHTDASH_DBT_VERSION = '';
+            execaMock.mockImplementation(async () => cliMocks.dbt1_9);
+            const version = await getDbtVersion();
+            expect(version.verboseVersion).toEqual('1.9.1');
+            expect(execaMock).toHaveBeenCalledTimes(1);
+        });
+    });
 });

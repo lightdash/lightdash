@@ -35,6 +35,7 @@ import { buildArgv } from './allowlist';
 import { OutputBuffer } from './outputBuffer';
 import {
     buildSandboxEnvironment,
+    detectSandboxDbtVersion,
     detectSandboxRuntime,
     LEARN_SANDBOX_COMMAND_TIMEOUT_MS,
     resolveSandboxRuntime,
@@ -510,7 +511,7 @@ export class LearnSandboxService extends BaseService {
                 serverUrl,
                 projectUuid: command.project_uuid,
             });
-            const env = buildSandboxEnvironment({
+            const baseEnv = buildSandboxEnvironment({
                 processEnvironment: process.env,
                 pathPrefix: runtime.pathPrefix,
                 apiUrl: runtime.apiUrl,
@@ -520,6 +521,13 @@ export class LearnSandboxService extends BaseService {
                 projectDir,
                 databasePath: runtime.databasePath,
             });
+            // Told the version up front, the CLI skips the four `dbt --version`
+            // starts it would otherwise make per deploy (CS-330).
+            const dbtVersion = await detectSandboxDbtVersion(baseEnv);
+            const env =
+                dbtVersion === undefined
+                    ? baseEnv
+                    : { ...baseEnv, LIGHTDASH_DBT_VERSION: dbtVersion };
             const [bin, ...args] = command.argv;
             // No `forceKillAfterTimeout` here on purpose: it isn't part of
             // execa v5's top-level Options type, and reading execa's own
