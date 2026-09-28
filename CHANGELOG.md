@@ -1,3 +1,10 @@
+## [2.347.1](https://github.com/lightdash/lightdash/compare/2.347.0...2.347.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* rename chart types page to Chart Studio ([#30010](https://github.com/lightdash/lightdash/issues/30010)) ([4b897a1](https://github.com/lightdash/lightdash/commit/4b897a1da7b5a1fdcf500c017861ac1df689c95b))
+
 # [2.347.0](https://github.com/lightdash/lightdash/compare/2.346.0...2.347.0) (2026-09-26)
 
 
