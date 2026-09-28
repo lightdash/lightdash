@@ -1474,15 +1474,25 @@ const findAndOverrideChartFilter = (
     filterRulesList: FilterRule[],
     timeBasedOverrideMap: TimeBasedOverrideMap | undefined,
 ): FilterGroupItem => {
-    const overridingDashboardFilter = isFilterRule(item)
-        ? filterRulesList.find((dashboardFilter) =>
-              doesDashboardFilterOverrideChartFilter(
-                  item,
-                  dashboardFilter,
-                  timeBasedOverrideMap,
-              ),
-          )
-        : undefined;
+    if (isFilterGroup(item)) {
+        const overrideNested = (nested: FilterGroupItem) =>
+            findAndOverrideChartFilter(
+                nested,
+                filterRulesList,
+                timeBasedOverrideMap,
+            );
+        return isAndFilterGroup(item)
+            ? { id: item.id, and: item.and.map(overrideNested) }
+            : { id: item.id, or: item.or.map(overrideNested) };
+    }
+
+    const overridingDashboardFilter = filterRulesList.find((dashboardFilter) =>
+        doesDashboardFilterOverrideChartFilter(
+            item,
+            dashboardFilter,
+            timeBasedOverrideMap,
+        ),
+    );
 
     return overridingDashboardFilter
         ? {
@@ -1496,9 +1506,11 @@ const findAndOverrideChartFilter = (
                   settings: overridingDashboardFilter.settings,
               }),
               operator: overridingDashboardFilter.operator,
-              // Set unconditionally: the chart rule's own includeNull must not
-              // survive an override that doesn't ask for null.
+              // Set unconditionally: the chart rule's own includeNull and
+              // disabled state must not survive being replaced by an active
+              // dashboard rule.
               includeNull: overridingDashboardFilter.includeNull,
+              disabled: overridingDashboardFilter.disabled,
           }
         : item;
 };
