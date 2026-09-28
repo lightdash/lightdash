@@ -32,7 +32,10 @@ import path from 'path';
 import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
-import { registerAiUsageTracker } from './analytics/aiUsage';
+import {
+    registerAiUsageLedger,
+    registerAiUsageTracker,
+} from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -162,6 +165,7 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getEmailWhitelabelService(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
@@ -292,6 +296,9 @@ export default class App {
             database: this.database,
             utils: this.utils,
         });
+        registerAiUsageLedger((event) =>
+            this.models.getAiUsageLedgerModel().recordEvent(event),
+        );
         this.readinessService = new ReadinessService({
             migrationModel: this.models.getMigrationModel(),
             migrationRunLedger: new MigrationLeaseManager({

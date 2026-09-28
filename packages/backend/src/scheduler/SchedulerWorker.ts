@@ -150,6 +150,9 @@ class ForwardingWorkerEvents extends EventEmitter {
     }
 }
 
+// Fixed for now; the warehouse keeps the long history.
+const AI_USAGE_LEDGER_RETENTION_DAYS = 90;
+
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
@@ -745,6 +748,14 @@ export class SchedulerWorker extends SchedulerTask {
                 options: {
                     backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
                     maxAttempts: 1,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_AI_USAGE_LEDGER,
+                pattern: '15 1 * * *', // 01:15 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
                 },
             },
             {
@@ -1842,6 +1853,16 @@ export class SchedulerWorker extends SchedulerTask {
                     );
                     throw error;
                 }
+            },
+            [SCHEDULER_TASKS.CLEAN_AI_USAGE_LEDGER]: async () => {
+                Logger.info('Starting AI usage ledger cleanup job');
+                const deletedCount =
+                    await this.aiUsageLedgerModel.deleteOlderThan(
+                        AI_USAGE_LEDGER_RETENTION_DAYS,
+                    );
+                Logger.info(
+                    `AI usage ledger cleanup completed. Records deleted: ${deletedCount}`,
+                );
             },
             [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
                 Logger.info('Starting warehouse connect codes cleanup job');

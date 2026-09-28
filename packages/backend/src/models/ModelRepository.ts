@@ -3,6 +3,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
+import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
@@ -177,6 +178,7 @@ export type ModelManifest = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    aiUsageLedgerModel: AiUsageLedgerModel;
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionSwitchModel: WarehouseConnectionSwitchModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
@@ -993,6 +995,13 @@ export class ModelRepository
         return this.getModel(
             'warehouseConnectCodeModel',
             () => new WarehouseConnectCodeModel({ database: this.database }),
+        );
+    }
+
+    public getAiUsageLedgerModel(): AiUsageLedgerModel {
+        return this.getModel(
+            'aiUsageLedgerModel',
+            () => new AiUsageLedgerModel({ database: this.database }),
         );
     }
 

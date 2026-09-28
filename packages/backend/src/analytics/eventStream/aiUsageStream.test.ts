@@ -28,6 +28,8 @@ const aiUsageEvent: AiUsageEvent = {
     event: 'ai.usage',
     userId: 'user-1',
     properties: {
+        eventId: 'evt-1',
+        outcome: 'complete',
         feature: 'agent',
         functionId: 'generateAgentResponse',
         organizationId: 'org-1',
