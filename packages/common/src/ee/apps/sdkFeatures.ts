@@ -235,6 +235,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Show real field labels and semantic-layer formats in reusable visualizations — axis titles, legends and default labels read "Total order amount" instead of the raw field id.',
         wiring: 'Read display names with getFieldLabel(context, fieldId) — it falls back to the raw field id on hosts that send no metadata — and build axis-tick or legend formatters from useVizContext().fields[fieldId]?.format; treat the whole fields map as possibly empty.',
     },
+    {
+        key: 'viz-subtotals',
+        appliesTo: ['chart_type'],
+        label: 'Expandable subtotals',
+        description:
+            'Render root subtotals first and load deeper groups when viewers expand them.',
+        wiring: 'Declare hierarchy: { field: "<dimension slot name>" } for a multiple dimension slot, render useVizContext().rows as roots, and call useVizContext().subtotals.get({ level, parentValues }) for children when enabled.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

@@ -25,6 +25,44 @@ const validFields = {
     ],
 };
 
+describe.each([
+    ['persisted', dataAppVizSchema],
+    ['generated', dataAppVizGenerationSchema],
+])('%s subtotal hierarchy', (_name, schema) => {
+    const declaration = {
+        fields: [
+            { ...validFields.fields[0], multiple: true },
+            validFields.fields[1],
+        ],
+        configOptions: [],
+        colorPalette: null,
+    };
+
+    it('accepts an ordered multiple dimension slot', () => {
+        expect(
+            schema.parse({ ...declaration, hierarchy: { field: 'category' } })
+                .hierarchy,
+        ).toEqual({ field: 'category' });
+    });
+
+    it('keeps legacy declarations valid', () => {
+        expect(schema.parse(declaration).hierarchy).toBeUndefined();
+    });
+
+    it.each([
+        [{ field: 'missing' }, declaration.fields],
+        [{ field: 'value' }, declaration.fields],
+        [{ field: 'category' }, validFields.fields],
+    ])(
+        'rejects a hierarchy without a multiple dimension slot',
+        (hierarchy, fields) => {
+            expect(
+                schema.safeParse({ ...declaration, fields, hierarchy }).success,
+            ).toBe(false);
+        },
+    );
+});
+
 describe('isOfficialChartType', () => {
     it('is true only when registrySlug is set', () => {
         expect(isOfficialChartType({ registrySlug: 'radial-gauge' })).toBe(

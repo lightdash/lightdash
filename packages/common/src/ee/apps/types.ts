@@ -887,8 +887,31 @@ export type DataAppVizSchema = {
     configOptions: DataAppVizConfigOption[];
     /** Null when the viz colours nothing from the resolved palette. */
     colorPalette: DataAppVizPaletteDeclaration | null;
+    /** Ordered dimension slot used for root-first subtotal queries. */
+    hierarchy?: { field: string };
     /** Explains the row shape, ordering, and recovery needed to use this viz. */
     inputGuidance?: string;
+};
+
+const validateVizHierarchy = (
+    schema: { fields: DataAppVizField[]; hierarchy?: { field: string } },
+    context: z.RefinementCtx,
+) => {
+    if (
+        schema.hierarchy &&
+        !schema.fields.some(
+            (field) =>
+                field.name === schema.hierarchy?.field &&
+                field.type === 'dimension' &&
+                field.multiple === true,
+        )
+    ) {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['hierarchy', 'field'],
+            message: 'Hierarchy field must name a multiple dimension slot',
+        });
+    }
 };
 
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
@@ -1075,28 +1098,37 @@ const vizColorPalette = z
 // Read validator for persisted schemas and app manifests. Older generated
 // metadata may exceed today's authoring limits; keep those charts usable.
 // `configOptions` defaults to `[]` for declarations from before it existed.
-export const dataAppVizSchema = z.object({
-    fields: vizFieldsForRead.refine(uniqueNames, 'duplicate field name'),
-    configOptions: vizConfigOptions
-        .default([])
-        .refine(uniqueNames, 'duplicate option name'),
-    colorPalette: vizColorPalette.default(null),
-    inputGuidance: vizInputGuidance(false),
-});
+export const dataAppVizSchema = z
+    .object({
+        fields: vizFieldsForRead.refine(uniqueNames, 'duplicate field name'),
+        configOptions: vizConfigOptions
+            .default([])
+            .refine(uniqueNames, 'duplicate option name'),
+        colorPalette: vizColorPalette.default(null),
+        hierarchy: z.object({ field: z.string().min(1) }).optional(),
+        inputGuidance: vizInputGuidance(false),
+    })
+    .superRefine(validateVizHierarchy);
 
 // The stricter contract handed to the generator CLI: `configOptions` and
 // `colorPalette` are required, so an empty declaration is a deliberate answer
 // rather than the shape of the schema's defaults.
-export const dataAppVizGenerationSchema = z.object({
-    fields: vizFieldsForGeneration.refine(uniqueNames, 'duplicate field name'),
-    configOptions: vizConfigOptions
-        .refine(uniqueNames, 'duplicate option name')
-        .describe(
-            'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+export const dataAppVizGenerationSchema = z
+    .object({
+        fields: vizFieldsForGeneration.refine(
+            uniqueNames,
+            'duplicate field name',
         ),
-    colorPalette: vizColorPalette,
-    inputGuidance: vizInputGuidance(true),
-});
+        configOptions: vizConfigOptions
+            .refine(uniqueNames, 'duplicate option name')
+            .describe(
+                'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+            ),
+        colorPalette: vizColorPalette,
+        hierarchy: z.object({ field: z.string().min(1) }).optional(),
+        inputGuidance: vizInputGuidance(true),
+    })
+    .superRefine(validateVizHierarchy);
 
 // Compile-time guard: the zod schema's output type must match the explicit
 // type exposed through the API. If either side drifts, this line fails to type.
@@ -1381,6 +1413,16 @@ export const APP_SDK_VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
 export const APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH =
     '/__sdk/viz/underlying-data/open';
 
+/** Host-owned subtotal query bridge route for custom chart types. */
+export const APP_SDK_VIZ_SUBTOTALS_PATH = '/__sdk/viz/subtotals';
+
+export type DataAppVizSubtotalsRequest = {
+    level: number;
+    parentValues: Array<string | number | boolean | null>;
+};
+
+export type DataAppVizSubtotalsResult = { rows: ResultRow[] };
+
 // Click intent a viz sends to the virtual route: the untransformed source row
 // (as pushed in the viz context) and the declared field NAME bound to the
 // clicked metric slot. The host resolves everything else at request time.
@@ -1454,6 +1496,7 @@ export type DataAppVizContext = {
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    subtotals?: { enabled: boolean; dimensions: string[] };
     underlyingData: { enabled: boolean; openEnabled?: boolean };
     drillDown: { enabled: boolean };
     pointMenu: { enabled: boolean };

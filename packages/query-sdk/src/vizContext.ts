@@ -31,6 +31,7 @@ import type {
     Transport,
     UnderlyingDataResult,
     VizPointMenuResult,
+    VizSubtotalsRequest,
 } from './types';
 
 /** A single cell of a Lightdash result row: `{ value: { raw, formatted } }`. */
@@ -148,6 +149,8 @@ export type DataAppVizContextMessage = {
     valueColors?: Record<string, Record<string, string>>;
     /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
     pivotDetails?: VizContextPivotDetails | null;
+    /** Absent when the installed host predates subtotal queries. */
+    subtotals?: { enabled: boolean; dimensions: string[] };
     /** Absent when the installed host predates underlying-data delivery. */
     underlyingData?: { enabled?: boolean; openEnabled?: boolean };
     /** Absent when the installed host predates drill-down delivery. */
@@ -296,6 +299,8 @@ export type VizContext = {
     valueColors: Record<string, Record<string, string>>;
     /** Metadata that maps generated pivot column names back to their metric and series values. */
     pivotDetails: VizContextPivotDetails | null;
+    /** Root-first subtotal rows and on-demand child expansion. */
+    subtotals: VizSubtotals;
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
     /** Fetch/export the raw rows behind a clicked data point via the host. */
@@ -315,6 +320,8 @@ type VizContextValue = {
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
     pivotDetails: VizContextPivotDetails | null;
+    subtotalsEnabled: boolean;
+    subtotalDimensions: string[];
     underlyingDataEnabled: boolean;
     underlyingDataOpenEnabled: boolean;
     drillDownEnabled: boolean;
@@ -455,6 +462,13 @@ export function toVizContextState(
         seriesColors: normalizeStringRecord(message.seriesColors),
         valueColors: normalizeValueColors(message.valueColors),
         pivotDetails: message.pivotDetails ?? null,
+        subtotalsEnabled: message.subtotals?.enabled === true,
+        subtotalDimensions: Array.isArray(message.subtotals?.dimensions)
+            ? message.subtotals.dimensions.filter(
+                  (dimension): dimension is string =>
+                      typeof dimension === 'string',
+              )
+            : [],
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
         underlyingDataOpenEnabled: message.underlyingData?.openEnabled === true,
@@ -621,6 +635,32 @@ export function buildVizPointMenu(
                 metric,
                 ...(fieldId === undefined ? {} : { fieldId }),
             });
+        },
+    };
+}
+
+export type VizSubtotals = {
+    enabled: boolean;
+    dimensions: string[];
+    get: (request: VizSubtotalsRequest) => Promise<{ rows: VizContextRow[] }>;
+};
+
+export function buildVizSubtotals(
+    hostEnabled: boolean,
+    dimensions: string[],
+    transport: Transport | null,
+): VizSubtotals {
+    const enabled = hostEnabled && !!transport?.getVizSubtotals;
+    return {
+        enabled,
+        dimensions: enabled ? dimensions : [],
+        get: async (request) => {
+            if (!enabled || !transport?.getVizSubtotals) {
+                throw new Error(
+                    'Subtotals are not available for this visualization.',
+                );
+            }
+            return transport.getVizSubtotals(request);
         },
     };
 }
@@ -807,6 +847,18 @@ export function useVizContext(): VizContext {
         [pointMenuHostEnabled, transport],
     );
 
+    const subtotalsHostEnabled = context?.subtotalsEnabled === true;
+    const subtotalDimensions = context?.subtotalDimensions ?? [];
+    const subtotals = useMemo<VizSubtotals>(
+        () =>
+            buildVizSubtotals(
+                subtotalsHostEnabled,
+                subtotalDimensions,
+                transport,
+            ),
+        [subtotalsHostEnabled, subtotalDimensions, transport],
+    );
+
     return {
         fieldMapping: context?.fieldMapping ?? {},
         fields: context?.fields ?? {},
@@ -820,5 +872,6 @@ export function useVizContext(): VizContext {
         underlyingData,
         drillDown,
         pointMenu,
+        subtotals,
     };
 }
