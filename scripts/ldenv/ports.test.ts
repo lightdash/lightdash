@@ -98,3 +98,58 @@ test('empty port values are omitted and lsof errors reject the slot', async () =
         await rm(root, { recursive: true });
     }
 });
+
+test('port probes suppress lsof warnings and use ss when lsof is absent', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-ports-fallback-'));
+    try {
+        const source = (
+            await readFile(path.join(__dirname, '../dev-ports.sh'), 'utf8')
+        ).split('# Main\n')[0];
+        const script = path.join(root, 'probe.sh');
+        await writeFile(
+            script,
+            `${source}\ncommand() { if [ "$1" = -v ] && [ "$2" = lsof ]; then return 1; fi; builtin command "$@"; }\ncheck_port_available 8080,9229\n`,
+        );
+        await writeFile(
+            path.join(root, 'ss'),
+            '#!/bin/bash\n[ -z "$SS_ERROR" ] || { echo "cannot query sockets" >&2; exit 2; }\nprintf "%s\\n" "$SS_LISTENERS"\n',
+            { mode: 0o700 },
+        );
+        const env = {
+            PATH: `${root}:${process.env.PATH}`,
+            SS_LISTENERS: 'LISTEN 0 128 127.0.0.1:8081 0.0.0.0:*',
+            SS_ERROR: '',
+        };
+        await runner.run('bash', [script], { cwd: root, env });
+        await assert.rejects(
+            runner.run('bash', [script], {
+                cwd: root,
+                env: { ...env, SS_LISTENERS: 'LISTEN 0 128 [::]:9229 [::]:*' },
+            }),
+        );
+        await assert.rejects(
+            runner.run('bash', [script], {
+                cwd: root,
+                env: { ...env, SS_ERROR: 'true' },
+            }),
+            /ss could not verify TCP ports/,
+        );
+        await writeFile(
+            script,
+            `${source}\ncommand() { if [ "$1" = -v ]; then return 1; fi; builtin command "$@"; }\ncheck_port_available 8080\n`,
+        );
+        await assert.rejects(
+            runner.run('bash', [script], { cwd: root }),
+            /install lsof or ss/,
+        );
+        await writeFile(script, `${source}\ncheck_port_available 8080\n`);
+        await writeFile(
+            path.join(root, 'lsof'),
+            '#!/bin/bash\ncase " $* " in *" -w "*) exit 1;; *) echo "WARNING: cannot stat mount" >&2; exit 1;; esac\n',
+            { mode: 0o700 },
+        );
+        await runner.run('bash', [script], { cwd: root, env });
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});

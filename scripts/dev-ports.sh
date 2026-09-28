@@ -123,13 +123,35 @@ find_next_slot() {
 
 check_port_available() {
     local port="$1"
-    local output status
-    if output=$(lsof -iTCP:"$port" -sTCP:LISTEN -P -n 2>&1); then
-        return 1
-    else
-        status=$?
+    local output status candidate
+    if command -v lsof >/dev/null 2>&1; then
+        if output=$(lsof -iTCP:"$port" -sTCP:LISTEN -P -n -w 2>&1); then
+            return 1
+        else
+            status=$?
+        fi
+        if [ "$status" -eq 1 ] && [ -z "$output" ]; then
+            return 0
+        fi
+        echo "ERROR: lsof could not verify TCP ports (exit $status): $output" >&2
+        return 2
     fi
-    [ "$status" -eq 1 ] && [ -z "$output" ]
+    if command -v ss >/dev/null 2>&1; then
+        if output=$(ss -H -ltn 2>&1); then
+            for candidate in ${port//,/ }; do
+                if printf '%s\n' "$output" | awk -v port="$candidate" '$4 ~ (":" port "$") { found=1 } END { exit !found }'; then
+                    return 1
+                fi
+            done
+            return 0
+        else
+            status=$?
+        fi
+        echo "ERROR: ss could not verify TCP ports (exit $status): $output" >&2
+        return 2
+    fi
+    echo "ERROR: Cannot verify TCP ports: install lsof or ss (iproute2) before claiming a slot." >&2
+    return 2
 }
 
 validate_slot_ports() {
@@ -194,8 +216,8 @@ ENDJSON
 }
 
 cmd_claim() {
-    if ! command -v lsof >/dev/null 2>&1; then
-        echo "ERROR: lsof is required to verify that instance ports are free. Install lsof before claiming a slot." >&2
+    if ! command -v lsof >/dev/null 2>&1 && ! command -v ss >/dev/null 2>&1; then
+        echo "ERROR: Cannot verify TCP ports: install lsof or ss (iproute2) before claiming a slot." >&2
         return 1
     fi
     local id
@@ -269,6 +291,12 @@ cmd_claim() {
         fi
         if validate_slot_ports "$slot"; then
             break
+        else
+            local probe_status=$?
+            if [ "$probe_status" -ne 1 ]; then
+                rmdir "$lockdir" 2>/dev/null || true
+                return "$probe_status"
+            fi
         fi
         echo "Slot $slot has port conflicts, trying next..." >&2
         slot=$((slot + 1))
