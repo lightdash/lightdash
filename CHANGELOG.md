@@ -1,3 +1,10 @@
+## [2.360.1](https://github.com/lightdash/lightdash/compare/2.360.0...2.360.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **chart-types:** treat external connections as a chart type feature ([#30124](https://github.com/lightdash/lightdash/issues/30124)) ([b5a36c4](https://github.com/lightdash/lightdash/commit/b5a36c4821e2e2769f3452d8499a9247ad2b85f2))
+
 # [2.360.0](https://github.com/lightdash/lightdash/compare/2.359.0...2.360.0) (2026-09-28)
 
 
