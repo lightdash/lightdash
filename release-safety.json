@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.359.0",
-  "previousVersion": "2.358.1",
-  "releaseDate": "2026-09-28T15:54:02.135Z",
+  "version": "2.360.0",
+  "previousVersion": "2.359.0",
+  "releaseDate": "2026-09-28T16:13:02.869Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,18 +11,15 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": "unknown",
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "POST /api/v1/projects/{projectUuid}/documents — removed `subschema #1, subschema #2` from the `content/cells/items/anyOf[subschema #2]/content` request property `anyOf` list",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — removed `subschema #1, subschema #2` from the `content/cells/items/anyOf[subschema #2]/content` request property `anyOf` list"
-      ],
-      "breakingCount": 2,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },

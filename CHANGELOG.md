@@ -1,3 +1,18 @@
+# [2.360.0](https://github.com/lightdash/lightdash/compare/2.359.0...2.360.0) (2026-09-28)
+
+
+### Features
+
+* **ai:** structured output for the getProjectInfo tool ([#30078](https://github.com/lightdash/lightdash/issues/30078)) ([839b155](https://github.com/lightdash/lightdash/commit/839b1550aaa6b37c41360ef92ab33696cb04579e))
+* **ai:** structured output for the getPullRequestDiff tool ([#30109](https://github.com/lightdash/lightdash/issues/30109)) ([f18a35a](https://github.com/lightdash/lightdash/commit/f18a35a2d58c526ad1e72bb5de902071df339da3))
+* **ai:** structured output for the grepFields tool ([#30110](https://github.com/lightdash/lightdash/issues/30110)) ([428fcbc](https://github.com/lightdash/lightdash/commit/428fcbc124daff07bd8f5ead2bb67a7c08770dc0))
+* **ai:** structured output for the listContent tool ([#30111](https://github.com/lightdash/lightdash/issues/30111)) ([f48f6e2](https://github.com/lightdash/lightdash/commit/f48f6e22974350ee4181d0cfd0d2fae47c008ea2))
+* **ai:** structured output for the listDataAppThemes tool ([#30112](https://github.com/lightdash/lightdash/issues/30112)) ([cc59c64](https://github.com/lightdash/lightdash/commit/cc59c64a63a0065da6b2d17c0e5ef0c6663f0d15))
+* **ai:** structured output for the listKnowledgeDocuments tool ([#30116](https://github.com/lightdash/lightdash/issues/30116)) ([50b79cd](https://github.com/lightdash/lightdash/commit/50b79cd9a1b1c3b4fb1db876a150d43cb6e641e3))
+* **ai:** structured output for the listProjects tool ([#30117](https://github.com/lightdash/lightdash/issues/30117)) ([8e4acee](https://github.com/lightdash/lightdash/commit/8e4aceeaeb15452a1ab6e46d75d418f584ffb607))
+* **ai:** structured output for the listWarehouseTables tool ([#30118](https://github.com/lightdash/lightdash/issues/30118)) ([3c58ef0](https://github.com/lightdash/lightdash/commit/3c58ef09eaf2af9fd7b0117285d79c436601871f))
+* **ai:** structured output for the listWorkstreams tool ([#30119](https://github.com/lightdash/lightdash/issues/30119)) ([a8189a2](https://github.com/lightdash/lightdash/commit/a8189a218c28fc0720f471e2f1fa683d34e5d507))
+
 # [2.359.0](https://github.com/lightdash/lightdash/compare/2.358.1...2.359.0) (2026-09-28)
 
 
