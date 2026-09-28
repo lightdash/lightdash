@@ -1,3 +1,23 @@
+# [2.351.0](https://github.com/lightdash/lightdash/compare/2.350.1...2.351.0) (2026-09-28)
+
+
+### Bug Fixes
+
+* **learn:** hand the sandbox token to the CLI through its config file, not the environment (CS-320) ([#30030](https://github.com/lightdash/lightdash/issues/30030)) ([89ee75a](https://github.com/lightdash/lightdash/commit/89ee75a3eaa5fc2d95655bf27912a1e05accd6b3)), closes [#30029](https://github.com/lightdash/lightdash/issues/30029)
+
+
+### Features
+
+* **ai:** structured output for the describeWarehouseTable tool ([#30040](https://github.com/lightdash/lightdash/issues/30040)) ([5b160db](https://github.com/lightdash/lightdash/commit/5b160db56e5e4c920800ede20a2a8ddd48d909bc))
+* **ai:** structured output for the discoverRepos tool ([#30041](https://github.com/lightdash/lightdash/issues/30041)) ([f305a93](https://github.com/lightdash/lightdash/commit/f305a9343595783abd6b2f2411f558e7b0ce5288))
+* **ai:** structured output for the editContent tool ([#30042](https://github.com/lightdash/lightdash/issues/30042)) ([4c27838](https://github.com/lightdash/lightdash/commit/4c27838fff4cfe58da238b7d2f1596373140e039))
+* **ai:** structured output for the editDbtProject tool ([#30043](https://github.com/lightdash/lightdash/issues/30043)) ([961dfa2](https://github.com/lightdash/lightdash/commit/961dfa256155bf21c9426be280ccd6b116db4b4b))
+* **ai:** structured output for the editProjectContext tool ([#30044](https://github.com/lightdash/lightdash/issues/30044)) ([9367c1d](https://github.com/lightdash/lightdash/commit/9367c1dfd03dbbe9799dc76620d1db751eb9aec2))
+* **ai:** structured output for the editRepo tool ([#30045](https://github.com/lightdash/lightdash/issues/30045)) ([a4391b1](https://github.com/lightdash/lightdash/commit/a4391b18517eef67a97370312c547ee790dbe8cb))
+* **ai:** structured output for the exploreRepo tool ([#30046](https://github.com/lightdash/lightdash/issues/30046)) ([f5fee0d](https://github.com/lightdash/lightdash/commit/f5fee0d67c53a32140ad6fca473fcd61f2c7cf8e))
+* **ai:** structured output for the findContent tool ([#30047](https://github.com/lightdash/lightdash/issues/30047)) ([5d2c5f9](https://github.com/lightdash/lightdash/commit/5d2c5f9e4051684b1138ea677a6994b841558c6e))
+* **ai:** structured output for the findCustomChartTypes tool ([#30048](https://github.com/lightdash/lightdash/issues/30048)) ([27a7493](https://github.com/lightdash/lightdash/commit/27a7493f34d02baa0bfc3f247c3fb58084933193))
+
 ## [2.350.1](https://github.com/lightdash/lightdash/compare/2.350.0...2.350.1) (2026-09-28)
 
 

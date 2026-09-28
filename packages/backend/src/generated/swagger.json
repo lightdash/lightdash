@@ -29103,6 +29103,66 @@
                                                 "type": "object"
                                             },
                                             {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
@@ -29380,18 +29440,66 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success",
-                                                            "not_found"
-                                                        ]
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -29727,156 +29835,216 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "aiWritebackRunUuid": {
-                                                        "type": "string"
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "aiWritebackRunUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "aiWritebackRunUuid",
+                                                            "status"
+                                                        ],
+                                                        "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["pending"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": [
-                                                    "aiWritebackRunUuid",
-                                                    "status"
-                                                ],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
-                                                "properties": {
-                                                    "dbtSourceOptions": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "projectSubPath": {
-                                                                    "type": "string",
-                                                                    "nullable": true
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "dbtSourceOptions": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "projectSubPath": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "branch": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "repository": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "isPrimary": {
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "projectDbtSourceUuid": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "projectSubPath",
+                                                                        "branch",
+                                                                        "repository",
+                                                                        "isPrimary",
+                                                                        "name",
+                                                                        "projectDbtSourceUuid"
+                                                                    ],
+                                                                    "type": "object"
                                                                 },
-                                                                "branch": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
-                                                                "isPrimary": {
-                                                                    "type": "boolean"
-                                                                },
-                                                                "name": {
-                                                                    "type": "string"
-                                                                },
-                                                                "projectDbtSourceUuid": {
-                                                                    "type": "string"
-                                                                }
+                                                                "type": "array",
+                                                                "nullable": true
                                                             },
-                                                            "required": [
-                                                                "projectSubPath",
-                                                                "branch",
-                                                                "repository",
-                                                                "isPrimary",
-                                                                "name",
-                                                                "projectDbtSourceUuid"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "needsDbtSourceSelection": {
-                                                        "type": "boolean",
-                                                        "nullable": true
-                                                    },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "label": {
-                                                                    "type": "string"
-                                                                },
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "stage",
-                                                                        "compile",
-                                                                        "edit",
-                                                                        "read",
-                                                                        "search"
-                                                                    ]
-                                                                }
+                                                            "needsDbtSourceSelection": {
+                                                                "type": "boolean",
+                                                                "nullable": true
                                                             },
-                                                            "required": [
-                                                                "label",
-                                                                "kind"
-                                                            ],
-                                                            "type": "object"
+                                                            "steps": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                                "stage",
+                                                                                "compile",
+                                                                                "edit",
+                                                                                "read",
+                                                                                "search"
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "label",
+                                                                        "kind"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
+                                                            "previewUrl": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "deletions": {
+                                                                "type": "number",
+                                                                "format": "double",
+                                                                "nullable": true
+                                                            },
+                                                            "additions": {
+                                                                "type": "number",
+                                                                "format": "double",
+                                                                "nullable": true
+                                                            },
+                                                            "commitSha": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "prAction": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "opened",
+                                                                    "updated",
+                                                                    null
+                                                                ],
+                                                                "nullable": true
+                                                            },
+                                                            "prUrl": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
                                                         },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "previewUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "deletions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "additions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "commitSha": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "prAction": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "opened",
-                                                            "updated",
-                                                            null
+                                                        "required": [
+                                                            "prUrl",
+                                                            "status"
                                                         ],
-                                                        "nullable": true
+                                                        "type": "object"
                                                     },
-                                                    "prUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["prUrl", "status"],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
-                                                "properties": {
-                                                    "errorCode": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "unknown",
-                                                            "bitbucket_token_missing",
-                                                            "git_write_permission",
-                                                            "github_not_installed",
-                                                            "gitlab_not_installed",
-                                                            "pull_request_not_open",
-                                                            "unsupported_source_control",
-                                                            null
-                                                        ],
-                                                        "nullable": true
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "errorCode": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "unknown",
+                                                                    "bitbucket_token_missing",
+                                                                    "git_write_permission",
+                                                                    "github_not_installed",
+                                                                    "gitlab_not_installed",
+                                                                    "pull_request_not_open",
+                                                                    "unsupported_source_control",
+                                                                    null
+                                                                ],
+                                                                "nullable": true
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["error"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -30118,66 +30286,6 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
-                                            },
-                                            {
-                                                "allOf": [
-                                                    {
-                                                        "properties": {
-                                                            "status": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "error",
-                                                                    "success"
-                                                                ]
-                                                            }
-                                                        },
-                                                        "required": ["status"],
-                                                        "type": "object"
-                                                    },
-                                                    {
-                                                        "properties": {
-                                                            "status": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "success"
-                                                                ],
-                                                                "nullable": false
-                                                            }
-                                                        },
-                                                        "required": ["status"],
-                                                        "type": "object"
-                                                    }
-                                                ]
-                                            },
-                                            {
-                                                "allOf": [
-                                                    {
-                                                        "properties": {
-                                                            "status": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "error",
-                                                                    "success"
-                                                                ]
-                                                            }
-                                                        },
-                                                        "required": ["status"],
-                                                        "type": "object"
-                                                    },
-                                                    {
-                                                        "properties": {
-                                                            "status": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "error"
-                                                                ],
-                                                                "nullable": false
-                                                            }
-                                                        },
-                                                        "required": ["status"],
-                                                        "type": "object"
-                                                    }
-                                                ]
                                             }
                                         ]
                                     },
@@ -66920,7 +67028,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.350.1",
+        "version": "2.351.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
