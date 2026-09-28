@@ -724,6 +724,9 @@ describe('AsyncQueryService', () => {
             errorMessage: 'warehouse failed',
             executionSource: 'warehouse',
             warehouseType: WarehouseTypes.POSTGRES,
+            warehouseConnectionUuid: null,
+            connectionRoute: 'single',
+            connectionWarehouseType: WarehouseTypes.POSTGRES,
         });
 
         expect(track).toHaveBeenCalledWith(
@@ -734,8 +737,50 @@ describe('AsyncQueryService', () => {
                     connectionKind: null,
                     warehouseType: WarehouseTypes.POSTGRES,
                     connectionWarehouseType: WarehouseTypes.POSTGRES,
-                    connectionCount: 1,
+                    connectionCount: null,
                     context: QueryExecutionContext.SQL_RUNNER,
+                    status: 'error',
+                }),
+            }),
+        );
+        track.mockRestore();
+    });
+
+    test('terminal query error keeps an unknown multi route connection null', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const track = vi.spyOn(analyticsMock, 'track');
+        vi.mocked(track).mockClear();
+
+        await (
+            service as unknown as {
+                markAsyncQueryErrored: (
+                    args: Record<string, unknown>,
+                ) => Promise<void>;
+            }
+        ).markAsyncQueryErrored({
+            queryUuid: 'query-uuid',
+            projectUuid,
+            organizationUuid: 'organizationUuid',
+            userUuid: 'user-uuid',
+            isRegisteredUser: true,
+            isPreviewProject: false,
+            onboardingFlow: 'self_service',
+            queryTags: { query_context: QueryExecutionContext.SQL_RUNNER },
+            queryCreatedAt: new Date(),
+            errorMessage: 'warehouse failed',
+            executionSource: 'warehouse',
+            warehouseType: null,
+            connectionRoute: 'multi',
+        });
+
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'query.completed',
+                properties: expect.objectContaining({
+                    warehouseConnectionId: null,
+                    connectionKind: null,
+                    connectionWarehouseType: null,
+                    connectionCount: null,
                     status: 'error',
                 }),
             }),
@@ -5438,6 +5483,13 @@ describe('AsyncQueryService', () => {
         });
 
         test('cache hit against a row with null originalColumns keeps the current originalColumns', async () => {
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+            vi.mocked(trackAccount).mockClear();
+            const getConnectionRoute = vi.spyOn(
+                serviceWithCache.projectModel,
+                'getConnectionRoute',
+            );
+            vi.mocked(getConnectionRoute).mockClear();
             const createdAt = new Date();
             const updatedAt = new Date();
             const expiresAt = new Date(
@@ -5481,10 +5533,35 @@ describe('AsyncQueryService', () => {
                     originalColumns: mockOriginalColumns,
                     warehouseCredentials: warehouseCredentialsMock,
                     warehouseConnectionUuid: null,
+                    connectionRoute: 'multi',
                 },
                 { query: metricQueryMock },
             );
 
+            expect(getConnectionRoute).not.toHaveBeenCalled();
+            expect(trackAccount).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    event: 'query.executed',
+                    properties: expect.objectContaining({
+                        warehouseConnectionId: null,
+                        connectionKind: 'primary',
+                        connectionCount: null,
+                    }),
+                }),
+            );
+            expect(trackAccount).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    event: 'query.completed',
+                    properties: expect.objectContaining({
+                        warehouseConnectionId: null,
+                        connectionKind: 'primary',
+                        connectionCount: null,
+                        cacheHit: true,
+                    }),
+                }),
+            );
             expect(
                 serviceWithCache.queryHistoryModel.update,
             ).toHaveBeenCalledWith(
@@ -5496,6 +5573,8 @@ describe('AsyncQueryService', () => {
                 }),
                 sessionAccount,
             );
+            getConnectionRoute.mockRestore();
+            trackAccount.mockRestore();
         });
     });
 
@@ -5562,7 +5641,7 @@ describe('AsyncQueryService', () => {
                 );
                 const resolveCredentialRead = vi.spyOn(
                     mockProjectModel,
-                    'resolveWarehouseCredentialRead',
+                    'resolveWarehouseCredentialReadWithRoute',
                 );
 
                 const runQueryAndTransformRowsSpy = vi.spyOn(
@@ -5601,6 +5680,7 @@ describe('AsyncQueryService', () => {
                     projectUuid,
                     { kind: 'query', queryUuid: 'test-query-uuid' },
                 );
+                expect(resolveCredentialRead).toHaveBeenCalledTimes(1);
 
                 // THEN: _getWarehouseClient called with original credentials
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
@@ -9155,10 +9235,16 @@ describe('saved chart query result access', () => {
                 'prepareMetricQueryAsyncQueryArgs',
             ).mockResolvedValue(createQueryComposerMock());
             const resolve = vi
-                .spyOn(service.projectModel, 'resolveWarehouseCredentialRead')
+                .spyOn(
+                    service.projectModel,
+                    'resolveWarehouseCredentialReadWithRoute',
+                )
                 .mockResolvedValue({
-                    kind: 'extra',
-                    warehouseConnectionUuid: 'extra-connection-uuid',
+                    route: 'multi',
+                    target: {
+                        kind: 'extra',
+                        warehouseConnectionUuid: 'extra-connection-uuid',
+                    },
                 });
             vi.spyOn(
                 execution,

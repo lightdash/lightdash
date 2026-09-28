@@ -15,7 +15,7 @@ import {
 import { SshTunnel } from '@lightdash/warehouses';
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
-import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import Logger from '../../logging/logger';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import {
@@ -385,7 +385,10 @@ export class MultiConnectionCompiler {
                             event: 'warehouse_connection.compile_warning',
                             ...(trackingParams?.userUuid
                                 ? { userId: trackingParams.userUuid }
-                                : {}),
+                                : {
+                                      anonymousId:
+                                          LightdashAnalytics.anonymousId,
+                                  }),
                             properties: {
                                 organizationId,
                                 projectId: projectUuid,

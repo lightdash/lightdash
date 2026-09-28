@@ -8,6 +8,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { trackSafely } from '../../analytics/trackSafely';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -53,16 +54,6 @@ export class WarehouseConnectionBindingService extends BaseService {
         this.warehouseConnectionModel = args.warehouseConnectionModel;
         this.credentialPolicy = args.credentialPolicy;
         this.analytics = args.analytics;
-    }
-
-    private track(event: Parameters<LightdashAnalytics['track']>[0]): void {
-        try {
-            this.analytics.track(event);
-        } catch (error) {
-            this.logger.warn('Failed to track dbt source binding analytics', {
-                error,
-            });
-        }
     }
 
     private async getBindingsForAnalytics(
@@ -159,27 +150,29 @@ export class WarehouseConnectionBindingService extends BaseService {
                         : connection.warehouseConnectionUuid ===
                           warehouseConnectionUuid,
                 );
-                this.track({
-                    event: 'warehouse_connection.action_refused',
-                    userId: account.user.userUuid,
-                    properties: {
-                        organizationId: summary.organizationUuid,
-                        projectId: projectUuid,
-                        warehouseConnectionId:
-                            target?.warehouseConnectionUuid ??
-                            warehouseConnectionUuid,
-                        warehouseType,
-                        connectionKind:
-                            target?.isOriginal === true ||
-                            warehouseConnectionUuid === null
-                                ? 'primary'
-                                : 'extra',
-                        credentialSource: null,
-                        connectionCount: bindings.connections.length,
-                        operation: 'rebind',
-                        reason: 'primary_source',
-                    },
-                });
+                trackSafely(() =>
+                    this.analytics.track({
+                        event: 'warehouse_connection.action_refused',
+                        userId: account.user.userUuid,
+                        properties: {
+                            organizationId: summary.organizationUuid,
+                            projectId: projectUuid,
+                            warehouseConnectionId:
+                                target?.warehouseConnectionUuid ??
+                                warehouseConnectionUuid,
+                            warehouseType,
+                            connectionKind:
+                                target?.isOriginal === true ||
+                                warehouseConnectionUuid === null
+                                    ? 'primary'
+                                    : 'extra',
+                            credentialSource: null,
+                            connectionCount: bindings.connections.length,
+                            operation: 'rebind',
+                            reason: 'primary_source',
+                        },
+                    }),
+                );
             }
             throw new ParameterError(
                 'The primary dbt source always runs on the original connection',
@@ -205,32 +198,34 @@ export class WarehouseConnectionBindingService extends BaseService {
         const previousBinding = before.sources.find(
             (source) => source.projectDbtSourceUuid === projectDbtSourceUuid,
         );
-        this.track({
-            event: 'warehouse_connection.dbt_source_rebound',
-            userId: account.user.userUuid,
-            properties: {
-                organizationId: summary.organizationUuid,
-                projectId: projectUuid,
-                dbtSourceId: projectDbtSourceUuid,
-                warehouseConnectionId:
-                    warehouseConnectionUuid === null
-                        ? (primary?.warehouseConnectionUuid ?? null)
-                        : warehouseConnectionUuid,
-                previousWarehouseConnectionId:
-                    previousBinding === undefined
-                        ? null
-                        : (previousBinding.warehouseConnectionUuid ??
-                          primary?.warehouseConnectionUuid ??
-                          null),
-                warehouseType,
-                connectionKind:
-                    warehouseConnectionUuid === null ||
-                    target?.isOriginal === true
-                        ? 'primary'
-                        : 'extra',
-                credentialSource: null,
-                connectionCount: before.connections.length,
-            },
-        });
+        trackSafely(() =>
+            this.analytics.track({
+                event: 'warehouse_connection.dbt_source_rebound',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: summary.organizationUuid,
+                    projectId: projectUuid,
+                    dbtSourceId: projectDbtSourceUuid,
+                    warehouseConnectionId:
+                        warehouseConnectionUuid === null
+                            ? (primary?.warehouseConnectionUuid ?? null)
+                            : warehouseConnectionUuid,
+                    previousWarehouseConnectionId:
+                        previousBinding === undefined
+                            ? null
+                            : (previousBinding.warehouseConnectionUuid ??
+                              primary?.warehouseConnectionUuid ??
+                              null),
+                    warehouseType,
+                    connectionKind:
+                        warehouseConnectionUuid === null ||
+                        target?.isOriginal === true
+                            ? 'primary'
+                            : 'extra',
+                    credentialSource: null,
+                    connectionCount: before.connections.length,
+                },
+            }),
+        );
     }
 }

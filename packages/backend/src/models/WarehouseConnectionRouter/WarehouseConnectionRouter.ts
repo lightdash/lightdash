@@ -129,6 +129,14 @@ export class WarehouseConnectionRouter {
         projectUuid: string,
         binding: ConnectionBinding,
     ): Promise<CredentialReadTarget> {
+        return (await this.resolveCredentialReadWithRoute(projectUuid, binding))
+            .target;
+    }
+
+    async resolveCredentialReadWithRoute(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<{ route: ConnectionRoute; target: CredentialReadTarget }> {
         const route = await this.getRoute(projectUuid);
         Sentry.setTag('warehouse.route', route);
         Sentry.setTag('warehouse.binding_kind', binding.kind);
@@ -136,39 +144,48 @@ export class WarehouseConnectionRouter {
             'warehouse.route': route,
             'warehouse.binding_kind': binding.kind,
         });
-        if (route === 'single') return ORIGINAL_CONNECTION;
+        if (route === 'single') {
+            return { route, target: ORIGINAL_CONNECTION };
+        }
+        let target: CredentialReadTarget;
         switch (binding.kind) {
             case 'original':
-                return ORIGINAL_CONNECTION;
+                target = ORIGINAL_CONNECTION;
+                break;
             case 'connection':
-                return this.resolveConnectionBinding(
+                target = await this.resolveConnectionBinding(
                     projectUuid,
                     binding.warehouseConnectionUuid,
                 );
+                break;
             case 'explore':
-                return this.resolveExploreBinding(
+                target = await this.resolveExploreBinding(
                     projectUuid,
                     binding.exploreName,
                 );
+                break;
             case 'sqlChart':
-                return this.resolveConnectionBinding(
+                target = await this.resolveConnectionBinding(
                     projectUuid,
                     await this.identityModel.getSqlChartWarehouseConnectionUuid(
                         projectUuid,
                         binding.savedSqlUuid,
                     ),
                 );
+                break;
             case 'query':
-                return this.resolveConnectionBinding(
+                target = await this.resolveConnectionBinding(
                     projectUuid,
                     await this.identityModel.getQueryWarehouseConnectionUuid(
                         projectUuid,
                         binding.queryUuid,
                     ),
                 );
+                break;
             default:
                 return assertUnreachable(binding, 'Unknown connection binding');
         }
+        return { route, target };
     }
 
     private async resolveExploreBinding(

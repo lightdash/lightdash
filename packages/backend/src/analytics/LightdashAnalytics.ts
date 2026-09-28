@@ -4226,6 +4226,7 @@ export type ContentAsCodeWritebackFailedEvent = BaseTrack & {
         contentType: ContentAsCodeContentType;
         contentId: string;
         isDraft: boolean;
+        error: string;
         reason: 'writeback_error';
     };
 };

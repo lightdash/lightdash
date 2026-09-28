@@ -448,6 +448,17 @@ export const singleRouteProjectModelMethods = {
     async resolveWarehouseCredentialRead() {
         return { kind: 'original' as const };
     },
+    async resolveWarehouseCredentialReadWithRoute(): Promise<{
+        route: 'single' | 'multi';
+        target:
+            | { kind: 'original' }
+            | { kind: 'extra'; warehouseConnectionUuid: string };
+    }> {
+        return {
+            route: 'single' as const,
+            target: { kind: 'original' as const },
+        };
+    },
     async getWarehouseCredentialsForBinding(
         this: {
             getWarehouseCredentialsForProject: (

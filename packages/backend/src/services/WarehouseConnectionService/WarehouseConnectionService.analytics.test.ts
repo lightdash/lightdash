@@ -167,6 +167,15 @@ describe('WarehouseConnectionService lifecycle analytics', () => {
     it('tracks a bound-content removal refusal without deleting the connection', async () => {
         const { service, model, analytics } = buildService();
         vi.mocked(model.get).mockResolvedValue(connection(extraUuid, false));
+        vi.mocked(model.transaction).mockImplementation(async (run) => {
+            try {
+                return await run(model as unknown as WarehouseConnectionModel);
+            } catch (error) {
+                expect(vi.mocked(model.list)).not.toHaveBeenCalled();
+                expect(vi.mocked(analytics.track)).not.toHaveBeenCalled();
+                throw error;
+            }
+        });
 
         await expect(
             service.delete(account, projectUuid, extraUuid),
@@ -195,6 +204,15 @@ describe('WarehouseConnectionService lifecycle analytics', () => {
 
     it('classifies a refused original-connection removal as primary', async () => {
         const { service, model, analytics } = buildService();
+        vi.mocked(model.transaction).mockImplementation(async (run) => {
+            try {
+                return await run(model as unknown as WarehouseConnectionModel);
+            } catch (error) {
+                expect(vi.mocked(model.list)).not.toHaveBeenCalled();
+                expect(vi.mocked(analytics.track)).not.toHaveBeenCalled();
+                throw error;
+            }
+        });
 
         await expect(
             service.delete(account, projectUuid, primaryUuid),

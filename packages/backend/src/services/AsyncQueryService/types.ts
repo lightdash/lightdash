@@ -34,6 +34,7 @@ import {
     type UserAttributeValueMap,
     type UUID,
     type WarehouseClient,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
@@ -304,6 +305,9 @@ export type RunAsyncWarehouseQueryArgs = {
     query: string;
     queryCreatedAt: Date;
     displayTimezone: string | null;
+    warehouseConnectionUuid?: string | null;
+    connectionRoute?: 'single' | 'multi' | null;
+    connectionWarehouseType?: WarehouseTypes | null;
 };
 
 export type RunAsyncPreAggregateQueryArgs = Omit<

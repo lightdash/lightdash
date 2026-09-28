@@ -87,6 +87,7 @@ type RepoContentFile = {
     content: string;
 };
 
+const ANALYTICS_ERROR_MAX_LENGTH = 500;
 const WRITEBACK_BRANCH_PREFIX = 'lightdash/write-back';
 
 // The stored branch column is varchar(255); file-backed git hosts cap a ref
@@ -1429,6 +1430,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                     contentType,
                     contentId: target.contentUuid,
                     isDraft: target.contentDraftUuid !== null,
+                    error: message.slice(0, ANALYTICS_ERROR_MAX_LENGTH),
                     reason: 'writeback_error',
                 },
             });

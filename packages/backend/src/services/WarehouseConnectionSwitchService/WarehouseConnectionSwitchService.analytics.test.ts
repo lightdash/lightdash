@@ -274,4 +274,104 @@ describe('WarehouseConnectionSwitchService lifecycle analytics', () => {
             },
         });
     });
+
+    it('tracks a locked gate refusal after the transaction rejects', async () => {
+        const { service, switchModel, connectionModel, analytics } =
+            buildService();
+        const plan = await service.preview(account, projectUuid, request);
+        vi.mocked(analytics.track).mockClear();
+        vi.mocked(switchModel.getProject)
+            .mockResolvedValueOnce(project)
+            .mockResolvedValue({ ...project, connectionMode: 'multi' });
+        vi.mocked(connectionModel.list).mockResolvedValue([{}, {}, {}]);
+        vi.mocked(switchModel.transaction).mockImplementation(async (run) => {
+            const listCalls = vi.mocked(connectionModel.list).mock.calls.length;
+            const trackCalls = vi.mocked(analytics.track).mock.calls.length;
+            try {
+                return await run({
+                    switchModel:
+                        switchModel as unknown as WarehouseConnectionSwitchModel,
+                    connectionModel:
+                        connectionModel as unknown as WarehouseConnectionModel,
+                });
+            } catch (error) {
+                expect(vi.mocked(connectionModel.list)).toHaveBeenCalledTimes(
+                    listCalls,
+                );
+                expect(vi.mocked(analytics.track)).toHaveBeenCalledTimes(
+                    trackCalls,
+                );
+                throw error;
+            }
+        });
+
+        await expect(
+            service.execute(account, projectUuid, {
+                ...request,
+                planHash: plan.planHash,
+                idempotencyKey: 'locked-gate-key',
+            }),
+        ).rejects.toThrow('already has multiple connections');
+
+        expect(vi.mocked(connectionModel.list)).toHaveBeenCalledOnce();
+        expect(vi.mocked(analytics.track)).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'warehouse_connection.action_refused',
+                properties: expect.objectContaining({
+                    operation: 'switch',
+                    reason: 'already_multi',
+                    connectionCount: 3,
+                }),
+            }),
+        );
+    });
+
+    it('tracks a locked plan change after the transaction rejects', async () => {
+        const { service, switchModel, connectionModel, analytics } =
+            buildService();
+        const plan = await service.preview(account, projectUuid, request);
+        vi.mocked(analytics.track).mockClear();
+        vi.mocked(switchModel.getProject)
+            .mockResolvedValueOnce(project)
+            .mockResolvedValue({
+                ...project,
+                originalCredentialsFingerprint: 'changed-fingerprint',
+            });
+        vi.mocked(switchModel.transaction).mockImplementation(async (run) => {
+            const trackCalls = vi.mocked(analytics.track).mock.calls.length;
+            try {
+                return await run({
+                    switchModel:
+                        switchModel as unknown as WarehouseConnectionSwitchModel,
+                    connectionModel:
+                        connectionModel as unknown as WarehouseConnectionModel,
+                });
+            } catch (error) {
+                expect(vi.mocked(analytics.track)).toHaveBeenCalledTimes(
+                    trackCalls,
+                );
+                expect(vi.mocked(connectionModel.list)).not.toHaveBeenCalled();
+                throw error;
+            }
+        });
+
+        await expect(
+            service.execute(account, projectUuid, {
+                ...request,
+                planHash: plan.planHash,
+                idempotencyKey: 'locked-plan-key',
+            }),
+        ).rejects.toThrow();
+
+        expect(vi.mocked(analytics.track)).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'warehouse_connection.action_refused',
+                properties: expect.objectContaining({
+                    operation: 'switch',
+                    reason: 'plan_changed',
+                    connectionCount: 1,
+                }),
+            }),
+        );
+    });
 });

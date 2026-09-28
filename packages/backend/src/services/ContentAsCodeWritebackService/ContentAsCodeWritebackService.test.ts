@@ -980,6 +980,7 @@ describe('ContentAsCodeWritebackService', () => {
     it('marks the row as error and rethrows when git fails', async () => {
         const { service, gitIntegrationService, contentAsCodeWritebackModel } =
             buildService();
+        const track = vi.spyOn(analyticsMock, 'track');
         gitIntegrationService.saveFile.mockRejectedValue(
             new Error('github says no'),
         );
@@ -990,6 +991,16 @@ describe('ContentAsCodeWritebackService', () => {
             'row-uuid',
             { status: 'error', error: 'github says no' },
         );
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'content_as_code_writeback.failed',
+                properties: expect.objectContaining({
+                    error: 'github says no',
+                    reason: 'writeback_error',
+                }),
+            }),
+        );
+        track.mockRestore();
     });
 
     it('gives a draft a stable branch and write-back owner', async () => {

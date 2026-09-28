@@ -3396,6 +3396,8 @@ describe('ProjectService', () => {
     test('should run sql query', async () => {
         const track = vi.spyOn(analyticsMock, 'track');
         vi.mocked(track).mockClear();
+        const getConnectionRoute = vi.spyOn(projectModel, 'getConnectionRoute');
+        vi.mocked(getConnectionRoute).mockClear();
         const result = await service.runSqlQuery(
             user,
             projectUuid,
@@ -3407,6 +3409,7 @@ describe('ProjectService', () => {
         );
 
         expect(result).toEqual(resultsWith1Row);
+        expect(getConnectionRoute).not.toHaveBeenCalled();
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -3417,11 +3420,62 @@ describe('ProjectService', () => {
                     warehouseConnectionId: null,
                     connectionKind: null,
                     warehouseType: WarehouseTypes.POSTGRES,
-                    connectionCount: 1,
+                    connectionCount: null,
                     context: QueryExecutionContext.SQL_RUNNER,
                 }),
             }),
         );
+        getConnectionRoute.mockRestore();
+        track.mockRestore();
+    });
+
+    test('tracks a multi route primary query without analytics registry reads', async () => {
+        const resolve = vi
+            .spyOn(projectModel, 'resolveWarehouseCredentialReadWithRoute')
+            .mockResolvedValueOnce({
+                route: 'multi',
+                target: { kind: 'original' },
+            });
+        const getConnectionRoute = vi.spyOn(projectModel, 'getConnectionRoute');
+        vi.mocked(getConnectionRoute).mockClear();
+        const warehouseConnectionModel = Reflect.get(
+            service,
+            'warehouseConnectionModel',
+        ) as unknown as Record<string, unknown>;
+        const getProject = vi.fn();
+        const list = vi.fn();
+        Object.assign(warehouseConnectionModel, { getProject, list });
+        const track = vi.spyOn(analyticsMock, 'track');
+        vi.mocked(track).mockClear();
+        try {
+            await service.runSqlQuery(user, projectUuid, 'fake sql', {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            });
+            expect(resolve).toHaveBeenCalledExactlyOnceWith(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            });
+            expect(getConnectionRoute).not.toHaveBeenCalled();
+            expect(getProject).not.toHaveBeenCalled();
+            expect(list).not.toHaveBeenCalled();
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'query.executed',
+                    properties: expect.objectContaining({
+                        warehouseConnectionId: null,
+                        connectionKind: 'primary',
+                        connectionCount: null,
+                    }),
+                }),
+            );
+        } finally {
+            resolve.mockRestore();
+            getConnectionRoute.mockRestore();
+            delete warehouseConnectionModel.getProject;
+            delete warehouseConnectionModel.list;
+            track.mockRestore();
+        }
     });
 
     test('tracks a capped sidebar database list without names', async () => {
@@ -3697,7 +3751,7 @@ describe('ProjectService', () => {
                         warehouseConnectionId: 'extra-uuid',
                         connectionKind: 'extra',
                         warehouseType: WarehouseTypes.POSTGRES,
-                        connectionCount: 2,
+                        connectionCount: null,
                         reason: 'service_account_requires_personal_credentials',
                     }),
                 }),
@@ -5277,7 +5331,7 @@ describe('ProjectService', () => {
                 exploreName: 'orders',
             };
             const resolveWarehouseCredentialRead = vi
-                .spyOn(projectModel, 'resolveWarehouseCredentialRead')
+                .spyOn(projectModel, 'resolveWarehouseCredentialReadWithRoute')
                 .mockRejectedValueOnce(
                     new NotImplementedError(
                         'Multiple connections are not available',

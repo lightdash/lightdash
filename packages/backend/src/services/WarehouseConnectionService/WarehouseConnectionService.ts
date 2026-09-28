@@ -27,6 +27,7 @@ import {
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { trackSafely } from '../../analytics/trackSafely';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
@@ -163,16 +164,6 @@ export class WarehouseConnectionService extends BaseService {
         this.analytics = args.analytics;
     }
 
-    private track(event: Parameters<LightdashAnalytics['track']>[0]): void {
-        try {
-            this.analytics.track(event);
-        } catch (error) {
-            this.logger.warn('Failed to track warehouse connection analytics', {
-                error,
-            });
-        }
-    }
-
     private async trackWithCount(
         project: WarehouseConnectionProject,
         buildEvent: (
@@ -192,7 +183,7 @@ export class WarehouseConnectionService extends BaseService {
                 },
             );
         }
-        this.track(buildEvent(connectionCount));
+        trackSafely(() => this.analytics.track(buildEvent(connectionCount)));
     }
 
     private async trackRefusal(
@@ -1114,6 +1105,8 @@ export class WarehouseConnectionService extends BaseService {
         this.assertCanWrite(account, summary, null, null);
         let connectionName: string | null = null;
         let removedWarehouseType: WarehouseTypes | null = null;
+        let refusalReason: 'original_connection' | 'bound_content' | null =
+            null;
         await this.warehouseConnectionModel
             .transaction(async (model) => {
                 await model.lockProject(projectUuid);
@@ -1126,16 +1119,7 @@ export class WarehouseConnectionService extends BaseService {
                 connectionName = connection.name;
                 removedWarehouseType = connection.warehouseType;
                 if (connection.isOriginal) {
-                    await this.trackRefusal(
-                        account,
-                        summary.organizationUuid,
-                        projectUuid,
-                        'remove',
-                        'original_connection',
-                        warehouseConnectionUuid,
-                        connection.warehouseType,
-                        lockedProject,
-                    );
+                    refusalReason = 'original_connection';
                     throw new ConflictError(
                         'The original connection cannot be removed.',
                     );
@@ -1144,16 +1128,7 @@ export class WarehouseConnectionService extends BaseService {
                     await model.getBoundContent(warehouseConnectionUuid),
                 );
                 if (bound.length > 0) {
-                    await this.trackRefusal(
-                        account,
-                        summary.organizationUuid,
-                        projectUuid,
-                        'remove',
-                        'bound_content',
-                        warehouseConnectionUuid,
-                        connection.warehouseType,
-                        lockedProject,
-                    );
+                    refusalReason = 'bound_content';
                     throw new ConflictError(
                         `Connection '${connection.name}' cannot be removed while content uses it. ${bound.join('; ')}.`,
                     );
@@ -1174,20 +1149,22 @@ export class WarehouseConnectionService extends BaseService {
                 });
             })
             .catch(async (error: unknown) => {
-                if (isBindingConflict(error)) {
+                if (refusalReason !== null || isBindingConflict(error)) {
                     await this.trackRefusal(
                         account,
                         summary.organizationUuid,
                         projectUuid,
                         'remove',
-                        'bound_content',
+                        refusalReason ?? 'bound_content',
                         warehouseConnectionUuid,
                         removedWarehouseType,
                         project,
                     );
-                    throw new ConflictError(
-                        `Connection '${connectionName}' cannot be removed while content uses it.`,
-                    );
+                    if (refusalReason === null) {
+                        throw new ConflictError(
+                            `Connection '${connectionName}' cannot be removed while content uses it.`,
+                        );
+                    }
                 }
                 throw error;
             });

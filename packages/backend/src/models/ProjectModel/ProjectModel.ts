@@ -4545,6 +4545,16 @@ export class ProjectModel {
         );
     }
 
+    async resolveWarehouseCredentialReadWithRoute(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<{ route: ConnectionRoute; target: CredentialReadTarget }> {
+        return this.connectionRouter.resolveCredentialReadWithRoute(
+            projectUuid,
+            binding,
+        );
+    }
+
     async getWarehouseCredentialsForBinding(
         projectUuid: string,
         binding: ConnectionBinding,
