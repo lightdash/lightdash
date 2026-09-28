@@ -1,6 +1,5 @@
 import {
     ChartType,
-    ConflictError,
     ForbiddenError,
     MergeJoinType,
     NotFoundError,
@@ -55,16 +54,16 @@ const document = {
 } as Document;
 
 const setup = (savedDocument = document, cellIndex = reference.cellIndex) => {
-    const get = vi.fn().mockResolvedValue(savedDocument);
+    const getVersion = vi.fn().mockResolvedValue(savedDocument);
     const authorize = () =>
         DocumentQueryContext.authorize({
-            documentService: { get } as unknown as DocumentService,
+            documentService: { getVersion } as unknown as DocumentService,
             account,
             projectUuid,
             reference: { ...reference, cellIndex },
             sourceRowCap: 1000,
         });
-    return { get, authorize };
+    return { getVersion, authorize };
 };
 
 describe('DocumentQueryContext', () => {
@@ -105,12 +104,13 @@ describe('DocumentQueryContext', () => {
     });
 
     test('loads the persisted cell through Document authorization and binds query identity', async () => {
-        const { get, authorize } = setup();
+        const { getVersion, authorize } = setup();
         const context = await authorize();
-        expect(get).toHaveBeenCalledWith(
+        expect(getVersion).toHaveBeenCalledWith(
             account,
             projectUuid,
             reference.documentUuid,
+            reference.versionUuid,
         );
         expect(context.reference).toEqual(reference);
         expect(() =>
@@ -164,13 +164,18 @@ describe('DocumentQueryContext', () => {
         ).toThrow(ForbiddenError);
     });
 
-    test('requires the current version and a chart cell', async () => {
-        await expect(
-            setup({
-                ...document,
-                version: { ...document.version, versionUuid: 'newer' },
-            }).authorize(),
-        ).rejects.toThrow(ConflictError);
+    test('reads the referenced version, not only the latest', async () => {
+        const { getVersion, authorize } = setup();
+        await authorize();
+        expect(getVersion).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            reference.documentUuid,
+            reference.versionUuid,
+        );
+    });
+
+    test('requires a chart cell in the referenced version', async () => {
         await expect(
             setup({
                 ...document,
@@ -199,8 +204,8 @@ describe('DocumentQueryContext', () => {
         new NotFoundError('Deleted or foreign Document'),
         new ForbiddenError('Disabled or revoked'),
     ])('propagates Document authorization failure', async (error) => {
-        const { get, authorize } = setup();
-        get.mockRejectedValue(error);
+        const { getVersion, authorize } = setup();
+        getVersion.mockRejectedValue(error);
         await expect(authorize()).rejects.toBe(error);
     });
 

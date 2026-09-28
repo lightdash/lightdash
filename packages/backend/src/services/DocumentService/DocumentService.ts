@@ -15,6 +15,7 @@ import {
     type DocumentAsCode,
     type DocumentContent,
     type DocumentList,
+    type DocumentVersionList,
     type DuplicateDocumentRequest,
     type MetricQuery,
     type ParametersValuesMap,
@@ -720,6 +721,59 @@ export class DocumentService extends BaseService {
         return isUuid(documentUuidOrSlug)
             ? this.get(account, projectUuid, documentUuidOrSlug)
             : this.getBySlug(account, projectUuid, documentUuidOrSlug);
+    }
+
+    /** Version history, newest first; readable by anyone who can view the Document. */
+    async listVersions(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+        { limit = 50, offset = 0 }: { limit?: number; offset?: number } = {},
+    ): Promise<DocumentVersionList> {
+        if (
+            !Number.isInteger(limit) ||
+            limit < 1 ||
+            limit > 100 ||
+            !Number.isSafeInteger(offset) ||
+            offset < 0
+        ) {
+            throw new ParameterError(
+                'Document version pagination requires limit 1–100 and a non-negative integer offset',
+            );
+        }
+        const document = await this.getByIdOrSlug(
+            account,
+            projectUuid,
+            documentUuidOrSlug,
+        );
+        return this.dependencies.documentModel.listVersions(
+            projectUuid,
+            document.documentUuid,
+            { limit, offset },
+        );
+    }
+
+    /**
+     * The Document as it currently is, with a historical version's content in
+     * place of the latest. Read-only: nothing about the Document changes.
+     */
+    async getVersion(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+        versionUuid: string,
+    ): Promise<Document> {
+        const document = await this.getByIdOrSlug(
+            account,
+            projectUuid,
+            documentUuidOrSlug,
+        );
+        const historical = await this.dependencies.documentModel.getVersion(
+            projectUuid,
+            document.documentUuid,
+            versionUuid,
+        );
+        return { ...document, version: historical.version };
     }
 
     async getAsCode(
