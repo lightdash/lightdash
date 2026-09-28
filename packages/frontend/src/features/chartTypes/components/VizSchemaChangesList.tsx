@@ -69,7 +69,11 @@ const describeFieldChange = ({ before, after }: DataAppVizFieldChange) => {
 };
 
 const formatDefault = (value: DataAppVizConfigOption['default']) =>
-    typeof value === 'string' ? JSON.stringify(value) : String(value);
+    typeof value === 'object'
+        ? `${value.colors.join(', ')} (${value.min} to ${value.max})`
+        : typeof value === 'string'
+          ? JSON.stringify(value)
+          : String(value);
 
 const describeDefaultChange = (
     before: DataAppVizConfigOption['default'],

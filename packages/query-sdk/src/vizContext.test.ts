@@ -216,6 +216,24 @@ describe('toVizContextState', () => {
         });
     });
 
+    it('preserves saved gradients and rejects malformed gradient payloads', () => {
+        const scale = {
+            colors: ['#000000', '#ffffff'],
+            min: 'auto' as const,
+            max: 10,
+        };
+        expect(
+            toVizContextState(
+                message({
+                    options: {
+                        scale,
+                        invalid: { ...scale, colors: ['red', 'blue'] } as never,
+                    },
+                }),
+            ).options,
+        ).toEqual({ scale });
+    });
+
     it('defaults options to an empty object when the host omits them', () => {
         expect(toVizContextState(message({})).options).toEqual({});
     });

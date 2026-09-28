@@ -86,6 +86,7 @@ const serializeOptionDetail = (option: DataAppVizConfigOption): string => {
             if (option.max !== undefined) parts.push(`max: ${option.max}`);
             parts.push(`default: ${option.default}`);
             break;
+        case 'gradient':
         case 'text':
         case 'color':
             parts.push(`default: ${JSON.stringify(option.default)}`);

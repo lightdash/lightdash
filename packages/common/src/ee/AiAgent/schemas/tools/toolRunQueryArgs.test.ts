@@ -561,3 +561,14 @@ describe('toolRunQueryArgsSchemaV2FormulaOnly', () => {
         ).toBe(true);
     });
 });
+
+it('persists gradient values through the custom chart tool schema', () => {
+    const scale = { colors: ['#000000', '#ffffff'], min: 'auto', max: 100 };
+    const config = { ...customChartTypeChartConfig, options: { scale } };
+    const result = toolRunQueryArgsSchemaV2.safeParse({
+        ...buildV2Args(),
+        chartConfig: config,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.chartConfig).toEqual(config);
+});

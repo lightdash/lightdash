@@ -51,3 +51,23 @@ describe('chart preview validation', () => {
         expect(validator.safeParse(preview).success).toBe(false);
     });
 });
+
+it('accepts gradient preview options while preserving scalar rows', () => {
+    const value = {
+        colors: ['#000', '#ffffff', '#abcdef80'],
+        min: 'auto' as const,
+        max: 100,
+    };
+    const validator = getDataAppVizPreviewSchema({
+        ...schema,
+        configOptions: [
+            { type: 'gradient', name: 'scale', label: 'Scale', default: value },
+        ],
+    });
+    const preview = { optionValues: { scale: value } };
+    expect(validator.parse(preview)).toEqual(preview);
+    expect(
+        validator.safeParse({ optionValues: { scale: 'red' } }).success,
+    ).toBe(false);
+    expect(validator.safeParse({ rows: [{ value }] }).success).toBe(false);
+});
