@@ -92,7 +92,10 @@ import {
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
 } from './parameters';
-import { TotalQueryBuilder } from './TotalQueryBuilder';
+import {
+    SUBTOTAL_PARENT_FILTER_ID_PREFIX,
+    TotalQueryBuilder,
+} from './TotalQueryBuilder';
 import {
     assertValidDimensionRequiredAttribute,
     findDateGrainTableCalcWarnings,
@@ -459,7 +462,20 @@ export class MetricQueryBuilder {
     /** Totals mode: the uncompiled collapsed query, for request echo / routing. */
     private effectiveMetricQuery: MetricQuery | undefined;
 
-    constructor(private args: BuildQueryProps) {
+    private readonly subtotalParentFilterIds: ReadonlySet<string>;
+
+    constructor(
+        private args: BuildQueryProps,
+        subtotalParentFilterIds: ReadonlySet<string> = new Set(),
+    ) {
+        this.subtotalParentFilterIds = args.totalConfiguration?.subtotalLevel
+            ? new Set(
+                  args.totalConfiguration.subtotalLevel.parent.map(
+                      (_, index) =>
+                          `${SUBTOTAL_PARENT_FILTER_ID_PREFIX}${index}`,
+                  ),
+              )
+            : subtotalParentFilterIds;
         // Totals mode: collapse the query to the requested grain up front, so
         // the rest of the builder sees the collapsed query as "the query" and
         // the original one only survives as the embedded source.
@@ -476,10 +492,14 @@ export class MetricQueryBuilder {
                 pivotConfiguration: args.pivotConfiguration ?? null,
                 kind: args.totalConfiguration.kind,
                 subtotalDimensions: args.totalConfiguration.subtotalDimensions,
+                subtotalLevel: args.totalConfiguration.subtotalLevel,
             }).compileQuery();
             this.sourceQuery = collapsed.sourceQuery
                 ? {
-                      compiledMetricQuery: args.compiledMetricQuery,
+                      compiledMetricQuery: {
+                          ...args.compiledMetricQuery,
+                          filters: collapsed.sourceQuery.metricQuery.filters,
+                      },
                       pivotConfiguration: args.pivotConfiguration,
                   }
                 : undefined;
@@ -2210,9 +2230,13 @@ export class MetricQueryBuilder {
             this.args.dateZoomFilterTargetFieldId !== undefined &&
             filterRuleWithParamReplacedValues.target.fieldId ===
                 this.args.dateZoomFilterTargetFieldId;
-        const filterExplore = isZoomedFilterField
-            ? explore
-            : (this.args.originalExplore ?? explore);
+        const filterExplore =
+            isZoomedFilterField ||
+            this.subtotalParentFilterIds.has(
+                filterRuleWithParamReplacedValues.id,
+            )
+                ? explore
+                : (this.args.originalExplore ?? explore);
         const field =
             fieldType === FieldType.DIMENSION
                 ? [
@@ -4924,12 +4948,15 @@ export class MetricQueryBuilder {
         compiledMetricQuery: CompiledMetricQuery;
         pivotConfiguration?: PivotConfiguration;
     }): ReturnType<MetricQueryBuilder['compileQueryAsCteBody']> {
-        return new MetricQueryBuilder({
-            ...this.args,
-            compiledMetricQuery: source.compiledMetricQuery,
-            pivotConfiguration: source.pivotConfiguration,
-            totalConfiguration: undefined,
-        }).compileQueryAsCteBody();
+        return new MetricQueryBuilder(
+            {
+                ...this.args,
+                compiledMetricQuery: source.compiledMetricQuery,
+                pivotConfiguration: source.pivotConfiguration,
+                totalConfiguration: undefined,
+            },
+            this.subtotalParentFilterIds,
+        ).compileQueryAsCteBody();
     }
 
     /**
@@ -4955,7 +4982,8 @@ export class MetricQueryBuilder {
             });
         }
         if (
-            this.args.totalConfiguration?.kind === 'columnSubtotal' ||
+            (this.args.totalConfiguration?.kind === 'columnSubtotal' &&
+                !this.args.totalConfiguration.subtotalLevel) ||
             this.args.totalConfiguration?.kind === 'rowSubtotal'
         ) {
             groupRestrictions.push({

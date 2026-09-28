@@ -75,6 +75,18 @@ export type TotalConfiguration = {
     kind: TotalQueryKind;
     // Required for subtotal kinds; undefined for every other kind.
     subtotalDimensions: string[] | undefined;
+    // Opts column subtotals into an independently sorted and limited level
+    // query. An empty parent selects the root level.
+    subtotalLevel?: SubtotalLevelConfiguration;
+};
+
+export type SubtotalLevelConfiguration = {
+    parent: Array<{
+        dimensionId: string;
+        value: string | number | boolean | null;
+    }>;
+    sorts: MetricQuery['sorts'];
+    limit: number;
 };
 
 // Metric / table-calc filters compile to a post-aggregation WHERE at the

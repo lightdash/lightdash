@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
     convertFieldRefToFieldId,
+    FilterOperator,
+    flattenFilterGroup,
     getItemId,
     isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
@@ -10,6 +12,7 @@ import {
     NotSupportedError,
     parseTableCalculationFunctions,
     TableCalculationTotalMode,
+    type FilterRule,
     type MetricQuery,
     type PivotConfiguration,
     type TableCalculation,
@@ -22,6 +25,7 @@ import {
 import {
     getSumOfRowsTableCalculations,
     hasBlockingTotalFilters,
+    type SubtotalLevelConfiguration,
     type TotalQueryKind,
 } from './utils';
 
@@ -154,6 +158,33 @@ export type TotalQueryBuilderArgs = {
     kind: TotalQueryKind;
     // Required for subtotal kinds.
     subtotalDimensions?: string[];
+    subtotalLevel?: SubtotalLevelConfiguration;
+};
+
+export const SUBTOTAL_PARENT_FILTER_ID_PREFIX = 'subtotal-parent-';
+
+const addParentFilters = (
+    filters: MetricQuery['filters'],
+    parent: SubtotalLevelConfiguration['parent'],
+): MetricQuery['filters'] => {
+    if (parent.length === 0) return filters;
+    const rules: FilterRule[] = parent.map(({ dimensionId, value }, index) => ({
+        id: `${SUBTOTAL_PARENT_FILTER_ID_PREFIX}${index}`,
+        target: { fieldId: dimensionId },
+        operator: value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+        values: value === null ? [] : [value],
+        caseSensitive: true,
+    }));
+    return {
+        ...filters,
+        dimensions: {
+            id: 'subtotal-parent',
+            and: [
+                ...(filters.dimensions ? [filters.dimensions] : []),
+                ...rules,
+            ],
+        },
+    };
 };
 
 /**
@@ -193,9 +224,91 @@ export class TotalQueryBuilder {
     constructor(private readonly args: TotalQueryBuilderArgs) {}
 
     public compileQuery(): TotalQueryResult {
+        this.validateSubtotalLevel();
         const result = this.buildQuery();
         this.assertHasValueColumns(result.metricQuery);
         return result;
+    }
+
+    private validateSubtotalLevel(): void {
+        const {
+            kind,
+            metricQuery,
+            pivotConfiguration,
+            subtotalDimensions,
+            subtotalLevel,
+        } = this.args;
+        if (!subtotalLevel) return;
+        if (kind !== 'columnSubtotal' || pivotConfiguration) {
+            throw new NotSupportedError(
+                'Subtotal level queries require a non-pivoted column subtotal',
+            );
+        }
+        const sourceDimensions = new Set(metricQuery.dimensions);
+        const groupingDimensions = new Set(subtotalDimensions);
+        if (
+            !subtotalDimensions?.length ||
+            groupingDimensions.size !== subtotalDimensions.length ||
+            subtotalDimensions.some((id) => !sourceDimensions.has(id))
+        ) {
+            throw new NotSupportedError(
+                'Subtotal level dimensions must be unique dimensions in the source query',
+            );
+        }
+        const parentDimensionIds = subtotalLevel.parent.map(
+            ({ dimensionId }) => dimensionId,
+        );
+        const generatedFilterIds = subtotalLevel.parent.map(
+            (_, index) => `${SUBTOTAL_PARENT_FILTER_ID_PREFIX}${index}`,
+        );
+        const sourceFilterIds = new Set(
+            metricQuery.filters.dimensions
+                ? flattenFilterGroup(metricQuery.filters.dimensions).map(
+                      (rule) => rule.id,
+                  )
+                : [],
+        );
+        if (
+            new Set(parentDimensionIds).size !== parentDimensionIds.length ||
+            generatedFilterIds.some((id) => sourceFilterIds.has(id)) ||
+            subtotalLevel.parent.some(
+                ({ dimensionId, value }) =>
+                    !sourceDimensions.has(dimensionId) ||
+                    groupingDimensions.has(dimensionId) ||
+                    (value !== null &&
+                        typeof value !== 'string' &&
+                        typeof value !== 'boolean' &&
+                        (typeof value !== 'number' || !Number.isFinite(value))),
+            )
+        ) {
+            throw new NotSupportedError(
+                'Subtotal parents must be unique source dimensions outside the subtotal level with primitive values',
+            );
+        }
+        const popMetricIds = getPopMetricIds(metricQuery);
+        const keptMetrics = new Set(
+            metricQuery.metrics.filter((id) => !popMetricIds.has(id)),
+        );
+        const sortFields = new Set([
+            ...groupingDimensions,
+            ...keptMetrics,
+            ...getTotalableTableCalculations(metricQuery, keptMetrics).map(
+                (calc) => calc.name,
+            ),
+        ]);
+        if (
+            !Number.isSafeInteger(subtotalLevel.limit) ||
+            subtotalLevel.limit <= 0 ||
+            subtotalLevel.sorts.some(
+                (sort) =>
+                    !sortFields.has(sort.fieldId) ||
+                    (sort.pivotValues?.length ?? 0) > 0,
+            )
+        ) {
+            throw new NotSupportedError(
+                'Subtotal level sorts must use selected fields and limit must be a positive integer',
+            );
+        }
     }
 
     private buildQuery(): TotalQueryResult {
@@ -240,13 +353,14 @@ export class TotalQueryBuilder {
     }
 
     private buildSourceQuery(): TotalQuerySourceQuery | undefined {
-        const { kind, metricQuery, pivotConfiguration } = this.args;
+        const { kind, metricQuery, pivotConfiguration, subtotalLevel } =
+            this.args;
         const needsSourceQuery =
             // Blocking filters are enforced by restricting raw rows to the
             // source groups that pass them.
             hasBlockingTotalFilters(metricQuery) ||
             // Subtotals pin to the grain groups on the visible page.
-            kind === 'columnSubtotal' ||
+            (kind === 'columnSubtotal' && !subtotalLevel) ||
             kind === 'rowSubtotal' ||
             // Sum-of-rows calcs aggregate over the source rows.
             getSumOfRowsTableCalculations(metricQuery).length > 0;
@@ -254,7 +368,15 @@ export class TotalQueryBuilder {
             return undefined;
         }
         return {
-            metricQuery,
+            metricQuery: subtotalLevel
+                ? {
+                      ...metricQuery,
+                      filters: addParentFilters(
+                          metricQuery.filters,
+                          subtotalLevel.parent,
+                      ),
+                  }
+                : metricQuery,
             pivotConfiguration: pivotConfiguration ?? undefined,
         };
     }
@@ -367,6 +489,7 @@ export class TotalQueryBuilder {
     // (no pivot) case just groups by `subtotalDimensions`.
     private buildColumnSubtotalQuery(): TotalQueryResult {
         const { metricQuery, pivotConfiguration } = this.args;
+        const { subtotalLevel } = this.args;
         const subtotalDimensions = this.args.subtotalDimensions ?? [];
         if (subtotalDimensions.length === 0) {
             throw new NotSupportedError(
@@ -393,12 +516,16 @@ export class TotalQueryBuilder {
             (id) => !popMetricIds.has(id),
         );
 
+        const originalFilters = hasBlockingTotalFilters(metricQuery)
+            ? stripBlockingFilters(metricQuery.filters)
+            : metricQuery.filters;
         const subtotalMetricQuery: MetricQuery = {
             ...metricQuery,
             dimensions: [
                 ...new Set([...subtotalDimensions, ...groupByFieldIds]),
             ],
-            sorts: [],
+            sorts: subtotalLevel?.sorts ?? [],
+            limit: subtotalLevel?.limit ?? metricQuery.limit,
             tableCalculations: getTotalableTableCalculations(
                 metricQuery,
                 new Set(keptMetrics),
@@ -407,9 +534,9 @@ export class TotalQueryBuilder {
             additionalMetrics: (metricQuery.additionalMetrics ?? []).filter(
                 (am) => !isPeriodOverPeriodAdditionalMetric(am),
             ),
-            filters: hasBlockingTotalFilters(metricQuery)
-                ? stripBlockingFilters(metricQuery.filters)
-                : metricQuery.filters,
+            filters: subtotalLevel
+                ? addParentFilters(originalFilters, subtotalLevel.parent)
+                : originalFilters,
         };
 
         return {
