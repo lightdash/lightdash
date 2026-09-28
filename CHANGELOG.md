@@ -1,3 +1,10 @@
+# [2.358.0](https://github.com/lightdash/lightdash/compare/2.357.1...2.358.0) (2026-09-28)
+
+
+### Features
+
+* **learn:** turn Learn on by default on Lightdash Cloud ([#30067](https://github.com/lightdash/lightdash/issues/30067)) ([1d4cb27](https://github.com/lightdash/lightdash/commit/1d4cb27ef1bb90737aad5c621b15db5f067236a8))
+
 ## [2.357.1](https://github.com/lightdash/lightdash/compare/2.357.0...2.357.1) (2026-09-28)
 
 
