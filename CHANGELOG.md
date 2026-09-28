@@ -1,3 +1,10 @@
+## [2.352.2](https://github.com/lightdash/lightdash/compare/2.352.1...2.352.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* **learn:** remove copied app files when an expired preview is swept (CS-322) ([#30032](https://github.com/lightdash/lightdash/issues/30032)) ([69c2ebf](https://github.com/lightdash/lightdash/commit/69c2ebf54b4804af91a57a807113006073bf8464))
+
 ## [2.352.1](https://github.com/lightdash/lightdash/compare/2.352.0...2.352.1) (2026-09-28)
 
 
