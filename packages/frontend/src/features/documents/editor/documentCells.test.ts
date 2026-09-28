@@ -2,7 +2,7 @@ import { ChartType, type DocumentCell } from '@lightdash/common';
 import { Editor } from '@tiptap/core';
 import { GapCursor } from '@tiptap/pm/gapcursor';
 import { TextSelection } from '@tiptap/pm/state';
-import { getDocumentCells } from './documentCells';
+import { getDocumentCells, getTopLevelInsertPosition } from './documentCells';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
@@ -159,6 +159,101 @@ describe('writing around charts', () => {
             last,
             markdown('After'),
         ]);
+describe('moving charts', () => {
+    /** Moves the top-level node at `from` so it ends up at index `to`, like a drop does. */
+    const moveTopLevel = (
+        editor: ReturnType<typeof load>,
+        from: number,
+        to: number,
+    ) => {
+        const { tr, doc } = editor.state;
+        let start = 0;
+        doc.forEach((_node, offset, index) => {
+            if (index === from) start = offset;
+        });
+        const node = doc.child(from);
+        tr.delete(start, start + node.nodeSize);
+        let insertAt = 0;
+        tr.doc.forEach((child, offset, index) => {
+            if (index < to) insertAt = offset + child.nodeSize;
+        });
+        tr.insert(insertAt, node);
+        editor.view.dispatch(tr);
+    };
+
+    it('reorders cells and keeps the saved cell index so the chart keeps its query', () => {
+        const orders = chart('Orders');
+        const editor = load([markdown('# Intro'), orders, markdown('Outro')]);
+        moveTopLevel(editor, 1, 2);
+        expect(getDocumentCells(editor)).toStrictEqual([
+            markdown('# Intro\n\nOutro'),
+            orders,
+        ]);
+        let movedIndex: unknown = null;
+        editor.state.doc.forEach((node) => {
+            if (node.type.name === 'documentChart') {
+                movedIndex = node.attrs.sourceIndex;
+            }
+        });
+        expect(movedIndex).toBe(1);
+        editor.destroy();
+    });
+
+    it('serialises identically after a move back to the start position', () => {
+        const cells = [markdown('# Intro'), chart('Orders'), markdown('Outro')];
+        const editor = load(cells);
+        moveTopLevel(editor, 1, 2);
+        moveTopLevel(editor, 2, 1);
+        expect(getDocumentCells(editor)).toStrictEqual(cells);
+        editor.destroy();
+    });
+});
+
+describe('top-level charts', () => {
+    it('never allows a chart inside a table cell, list item or quote', () => {
+        const editor = load([markdown('Text')]);
+        const { schema } = editor;
+        const chartType = schema.nodes.documentChart;
+        for (const name of [
+            'tableCell',
+            'tableHeader',
+            'listItem',
+            'blockquote',
+        ]) {
+            expect(
+                schema.nodes[name].contentMatch.matchType(chartType),
+            ).toBeNull();
+        }
+        expect(
+            schema.nodes.doc.contentMatch.matchType(chartType),
+        ).not.toBeNull();
+        editor.destroy();
+    });
+
+    it('drops a pasted chart that lands inside a list instead of nesting it', () => {
+        const editor = load([markdown('- one\n- two')]);
+        const inList = 4;
+        editor.commands.insertContentAt(inList, {
+            type: 'documentChart',
+            attrs: { content: chart('Orders').content, sourceIndex: null },
+        });
+        let nested = false;
+        editor.state.doc.forEach((top) =>
+            top.descendants((node) => {
+                if (node.type.name === 'documentChart') nested = true;
+            }),
+        );
+        expect(nested).toBe(false);
+        editor.destroy();
+    });
+
+    it('resolves an insertion inside a list to just after that list', () => {
+        const editor = load([markdown('- one\n- two'), markdown('After')]);
+        const list = editor.state.doc.firstChild!;
+        expect(getTopLevelInsertPosition(editor.state.doc, 4)).toBe(
+            list.nodeSize,
+        );
+        expect(getTopLevelInsertPosition(editor.state.doc, 0)).toBe(0);
         editor.destroy();
     });
 });

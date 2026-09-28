@@ -27,7 +27,10 @@ import MantineModal from '../../components/common/MantineModal';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import DocumentByline from './DocumentByline';
 import DocumentPageLayout from './DocumentPageLayout';
-import { getDocumentCells } from './editor/documentCells';
+import {
+    getDocumentCells,
+    getTopLevelInsertPosition,
+} from './editor/documentCells';
 import {
     DOCUMENT_CHART_NODE,
     isEditableChart,
@@ -203,7 +206,10 @@ const DocumentEditor = ({
                 .chain()
                 .focus()
                 .insertContentAt(
-                    chartEditor.position ?? editor.state.selection.to,
+                    getTopLevelInsertPosition(
+                        editor.state.doc,
+                        chartEditor.position ?? editor.state.selection.to,
+                    ),
                     { type: DOCUMENT_CHART_NODE, attrs },
                 )
                 .run();

@@ -76,12 +76,13 @@ export const isEditableChart = (content: DocumentChartContent | null) =>
     content?.source === 'semantic' &&
     content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ;
 
+// No group: charts are only allowed at the document's top level (see
+// DocumentWithCharts), so they can never nest in tables, lists or quotes.
 export const DocumentChartNode = Node.create<DocumentChartNodeOptions>({
     name: DOCUMENT_CHART_NODE,
-    group: 'block',
     atom: true,
     selectable: true,
-    draggable: false,
+    draggable: true,
 
     addOptions() {
         return { onEditChart: null };

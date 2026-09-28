@@ -315,6 +315,14 @@
     flex: 0 0 auto !important;
 }
 
+.chartDragHandle {
+    cursor: grab;
+
+    &:active {
+        cursor: grabbing;
+    }
+}
+
 /* Inert controls keep the group's surface and only dim the glyph */
 .quietDisabled {
     &:disabled,

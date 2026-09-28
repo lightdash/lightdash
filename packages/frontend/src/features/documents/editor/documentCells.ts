@@ -48,3 +48,15 @@ export const getDocumentCells = (editor: Editor): DocumentCell[] => {
     flushMarkdown(editor, run, cells);
     return cells;
 };
+
+/**
+ * Charts only live at the top level, so a caret inside a list, table or quote
+ * inserts after that top-level block instead.
+ */
+export const getTopLevelInsertPosition = (
+    doc: ProseMirrorNode,
+    position: number,
+): number => {
+    const resolved = doc.resolve(Math.min(position, doc.content.size));
+    return resolved.depth > 1 ? resolved.after(1) : resolved.pos;
+};

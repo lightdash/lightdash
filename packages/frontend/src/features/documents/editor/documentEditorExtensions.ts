@@ -1,3 +1,4 @@
+import Document from '@tiptap/extension-document';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
 import { type Extensions } from '@tiptap/react';
@@ -5,7 +6,11 @@ import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import { createMentionMarkdownExtension } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
 import { SlashCommand } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/SlashCommandExtension';
-import { DocumentChartNode, type EditChartHandler } from './documentChartNode';
+import {
+    DOCUMENT_CHART_NODE,
+    DocumentChartNode,
+    type EditChartHandler,
+} from './documentChartNode';
 import { DocumentHeadingIds } from './DocumentHeadingIds';
 import { createDocumentSlashCommandItems } from './documentSlashCommandItems';
 import { DocumentTable } from './documentTableMarkdown';
@@ -20,11 +25,18 @@ export type DocumentEditorExtensionOptions = {
     };
 };
 
+const DocumentWithCharts = Document.extend({
+    content: `(block | ${DOCUMENT_CHART_NODE})+`,
+});
+
 export const createDocumentEditorExtensions = ({
     projectUuid,
     editing,
 }: DocumentEditorExtensionOptions): Extensions => [
+    DocumentWithCharts,
     StarterKit.configure({
+        document: false,
+        dropcursor: { color: 'var(--mantine-color-text)', width: 2 },
         link: { openOnClick: !editing, autolink: false },
         // Reading never needs a caret landing spot after the last block
         trailingNode: editing ? undefined : false,

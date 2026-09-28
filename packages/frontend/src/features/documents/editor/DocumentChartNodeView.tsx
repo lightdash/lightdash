@@ -1,11 +1,12 @@
 import { ActionIcon, Group, Tooltip } from '@mantine/core';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ErrorBoundary from '../../errorBoundary/ErrorBoundary';
 import DocumentChart from '../DocumentChart';
 import DocumentDraftChart from '../DocumentDraftChart';
 import ReportChartFrame from '../presentation/ReportChartFrame';
+import styles from '../presentation/ReportPresentation.module.css';
 import {
     isEditableChart,
     type DocumentChartAttributes,
@@ -30,6 +31,18 @@ const DocumentChartNodeView = ({
     const editing = editor.isEditable;
     const actions = editing ? (
         <Group gap="xs" wrap="nowrap">
+            <Tooltip label="Drag to move">
+                <ActionIcon
+                    component="div"
+                    role="button"
+                    aria-label={`Drag chart ${content.chart.name}`}
+                    className={styles.chartDragHandle}
+                    draggable
+                    data-drag-handle
+                >
+                    <MantineIcon icon={IconGripVertical} />
+                </ActionIcon>
+            </Tooltip>
             {onEditChart && (
                 <Tooltip
                     label={
