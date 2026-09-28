@@ -10,7 +10,7 @@ import {
 export const UNGROUPED_OPTIONS_LABEL = 'Display';
 
 export type DataAppVizOptionGroup = {
-    /** Stable tab value, derived from position rather than the label. */
+    /** Stable tab value, independent of group order. */
     id: string;
     label: string;
     options: DataAppVizConfigOption[];
@@ -53,7 +53,7 @@ export const groupDataAppVizOptions = (
         fields.flatMap((field) =>
             getDataAppVizFieldIds(fieldMapping[field.name]).length > 0
                 ? (field.configOptions ?? []).flatMap((option) =>
-                      option.group ? [option.group] : [],
+                      option.group != null ? [option.group] : [],
                   )
                 : [],
         ),
@@ -62,8 +62,8 @@ export const groupDataAppVizOptions = (
         if (!buckets.has(label)) buckets.set(label, []);
     });
 
-    return [...buckets.entries()].map(([label, options], index) => ({
-        id: `option-group-${index}`,
+    return [...buckets.entries()].map(([label, options]) => ({
+        id: `option-group-${encodeURIComponent(label)}`,
         label,
         options,
         hasPalette: label === paletteLabel,

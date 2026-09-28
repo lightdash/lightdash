@@ -7,7 +7,7 @@ import {
     type DataAppVizPaletteDeclaration,
 } from '@lightdash/common';
 import { Stack, Tabs } from '@mantine/core';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import OverflowTabsList from '../../common/OverflowTabsList/OverflowTabsList';
 import { Config } from '../common/Config';
 import DataAppVizOptionControl from './DataAppVizOptionControl';
@@ -58,6 +58,7 @@ const DataAppVizOptionTabs: FC<Props> = ({
     fieldMapping,
     renderFieldOptions,
 }) => {
+    const [selectedTab, setSelectedTab] = useState<string | null>('general');
     const optionGroups = useMemo(
         () =>
             groupDataAppVizOptions(
@@ -69,10 +70,17 @@ const DataAppVizOptionTabs: FC<Props> = ({
         [configOptions, colorPalette, fields, fieldMapping],
     );
 
+    const activeTab =
+        selectedTab === 'general' ||
+        optionGroups.some((group) => group.id === selectedTab)
+            ? selectedTab
+            : 'general';
+    if (selectedTab !== activeTab) setSelectedTab(activeTab);
+
     if (optionGroups.length === 0) return <>{generalContent}</>;
 
     return (
-        <Tabs defaultValue="general" keepMounted={false}>
+        <Tabs value={activeTab} onChange={setSelectedTab} keepMounted={false}>
             <OverflowTabsList mb="sm">
                 <Tabs.Tab px="sm" value="general">
                     General

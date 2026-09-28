@@ -580,6 +580,7 @@ const VisualizationProvider: FC<
         case ChartType.DATA_APP_VIZ:
             return (
                 <VisualizationDataAppVizConfig
+                    unsavedMetricQuery={unsavedMetricQuery}
                     itemsMap={itemsMap}
                     resultsData={lastValidResultsData}
                     initialChartConfig={chartConfig.config}

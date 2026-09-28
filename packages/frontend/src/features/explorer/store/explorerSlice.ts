@@ -31,6 +31,7 @@ import {
     createSlice,
     current,
     type PayloadAction,
+    type Reducer,
 } from '@reduxjs/toolkit';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
@@ -44,6 +45,10 @@ import {
     getCachedPivotConfig,
     getValidChartConfig,
 } from '../../../providers/Explorer/utils';
+import {
+    getDataAppVizQueryFieldIds,
+    pruneDataAppVizQueryFieldOptions,
+} from '../../chartTypes/utils/pruneDataAppVizQueryFieldOptions';
 import { calcColumnOrder } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;
@@ -1205,4 +1210,26 @@ const explorerSlice = createSlice({
 });
 
 export const explorerActions = explorerSlice.actions;
-export const explorerReducer = explorerSlice.reducer;
+export const explorerReducer: Reducer<ExplorerSliceState> = (state, action) => {
+    const next = explorerSlice.reducer(state, action);
+    // Merged charts bind to merged result IDs, not the primary query IDs.
+    if (next === state || next.unsavedChartVersion.merge) return next;
+    const fieldIds = getDataAppVizQueryFieldIds(
+        next.unsavedChartVersion.metricQuery,
+    );
+    return createNextState(next, (draft) => {
+        const chart = draft.unsavedChartVersion.chartConfig;
+        const configs = [
+            chart.type === ChartType.DATA_APP_VIZ ? chart.config : undefined,
+            draft.cachedChartConfigs[ChartType.DATA_APP_VIZ]?.chartConfig,
+        ];
+        configs.forEach((config) => {
+            if (config?.fieldOptionValues) {
+                config.fieldOptionValues = pruneDataAppVizQueryFieldOptions(
+                    config.fieldOptionValues,
+                    fieldIds,
+                );
+            }
+        });
+    });
+};

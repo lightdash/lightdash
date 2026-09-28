@@ -42,11 +42,17 @@ const FieldOptionsHarness = () => {
     const [hasTotal, setHasTotal] = useState(true);
     const [isOpen, setIsOpen] = useState(true);
     const { validConfig, setField, setFieldOption } =
-        useDataAppVizVisualizationConfig({
-            dataAppVizUuid: 'viz-1',
-            fieldMapping: { values: ['orders_total'] },
-            fieldOptionValues: {},
-        });
+        useDataAppVizVisualizationConfig(
+            {
+                dataAppVizUuid: 'viz-1',
+                fieldMapping: { values: ['orders_total'] },
+                fieldOptionValues: {},
+            },
+            undefined,
+            new Set(
+                hasTotal ? ['orders_total', 'orders_count'] : ['orders_count'],
+            ),
+        );
 
     const bindings = reconcileDataAppVizFieldMapping(
         [field],
@@ -64,6 +70,9 @@ const FieldOptionsHarness = () => {
             </Button>
             <Button onClick={() => setHasTotal(false)}>
                 Remove total from query
+            </Button>
+            <Button onClick={() => setHasTotal(true)}>
+                Add total to query
             </Button>
             <Button onClick={() => setIsOpen(!isOpen)}>Toggle panel</Button>
             {isOpen && (
@@ -99,6 +108,21 @@ describe('DataAppVizFieldOptions', () => {
 
         expect(screen.getByLabelText('Label')).toHaveValue('Default');
     });
+    it('drops pending edits when the query removes their field', () => {
+        vi.useFakeTimers();
+        renderWithProviders(<FieldOptionsHarness />);
+        fireEvent.change(screen.getByLabelText('Label'), {
+            target: { value: 'Pending revenue' },
+        });
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Remove total from query' }),
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Add total to query' }),
+        );
+        expect(screen.getByLabelText('Label')).toHaveValue('Default');
+    });
+
     it('keeps edits to an automatically rebound field when the panel closes', () => {
         vi.useFakeTimers();
         renderWithProviders(<FieldOptionsHarness />);

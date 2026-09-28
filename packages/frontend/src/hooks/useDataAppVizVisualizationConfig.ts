@@ -7,6 +7,7 @@ import {
     type DataAppVizOptionValues,
 } from '@lightdash/common';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { pruneDataAppVizQueryFieldOptions } from '../features/chartTypes/utils/pruneDataAppVizQueryFieldOptions';
 
 /**
  * The chart's binding to a picked viz; null while it points at none.
@@ -93,15 +94,38 @@ const toSelected = (
 const useDataAppVizVisualizationConfig = (
     initialChartConfig: DataAppVizChart | undefined,
     onConfigChange?: (config: SelectedDataAppViz | null) => void,
+    queryFieldIds: ReadonlySet<string> | null = null,
 ): DataAppVizVisualizationConfigAndData => {
-    const [config, setConfigState] = useState<SelectedDataAppViz | null>(() =>
-        toSelected(initialChartConfig),
+    const [storedConfig, setConfigState] = useState<SelectedDataAppViz | null>(
+        () => toSelected(initialChartConfig),
     );
+
+    const fieldOptionValues =
+        storedConfig && queryFieldIds
+            ? pruneDataAppVizQueryFieldOptions(
+                  storedConfig.fieldOptionValues,
+                  queryFieldIds,
+              )
+            : storedConfig?.fieldOptionValues;
+    const config =
+        storedConfig &&
+        fieldOptionValues &&
+        fieldOptionValues !== storedConfig.fieldOptionValues
+            ? { ...storedConfig, fieldOptionValues }
+            : storedConfig;
+    const pendingQueryPruneRef = useRef<SelectedDataAppViz | null>(null);
+    if (config !== storedConfig) {
+        setConfigState(config);
+        pendingQueryPruneRef.current = config;
+    }
+    const queryFieldIdsRef = useRef(queryFieldIds);
+    queryFieldIdsRef.current = queryFieldIds;
 
     // Track the committed config in a ref so setters called within a single
     // commit (debounced controls all flushing as the panel closes) build on
     // each other instead of on a stale render closure.
     const configRef = useRef(config);
+    if (config !== storedConfig) configRef.current = config;
     const onConfigChangeRef = useRef(onConfigChange);
     onConfigChangeRef.current = onConfigChange;
 
@@ -132,6 +156,15 @@ const useDataAppVizVisualizationConfig = (
         configRef.current = next;
         setConfigState(next);
     }, [externalDataAppVizUuid, externalDataAppVizVersion, initialChartConfig]);
+
+    // Persist query-driven pruning even when no option control is edited.
+    useLayoutEffect(() => {
+        const pending = pendingQueryPruneRef.current;
+        pendingQueryPruneRef.current = null;
+        if (pending !== null && pending === configRef.current) {
+            onConfigChangeRef.current?.(pending);
+        }
+    });
 
     const commit = useCallback((next: SelectedDataAppViz | null) => {
         configRef.current = next;
@@ -253,6 +286,11 @@ const useDataAppVizVisualizationConfig = (
             value: DataAppVizOptionValue,
         ) => {
             if (!isOwningChartConfigRef.current) return;
+            if (
+                queryFieldIdsRef.current &&
+                !queryFieldIdsRef.current.has(fieldId)
+            )
+                return;
             const selected = configRef.current;
             if (selected === null || dataAppVizUuid !== selected.dataAppVizUuid)
                 return;

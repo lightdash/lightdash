@@ -401,3 +401,64 @@ describe('explorerSlice saved chart metadata', () => {
         expect(result.savedChart).toBeUndefined();
     });
 });
+
+describe('explorerSlice per-field option removal', () => {
+    const config = {
+        type: ChartType.DATA_APP_VIZ as const,
+        config: {
+            dataAppVizUuid: 'viz-1',
+            fieldMapping: { values: ['orders_total', 'orders_count'] },
+            fieldOptionValues: {
+                values: {
+                    orders_total: { color: '#ff0000' },
+                    orders_count: { color: '#00ff00' },
+                },
+            },
+        },
+    };
+    const selected = {
+        ...defaultState,
+        unsavedChartVersion: {
+            ...defaultState.unsavedChartVersion,
+            metricQuery: {
+                ...defaultState.unsavedChartVersion.metricQuery,
+                metrics: ['orders_total', 'orders_count'],
+            },
+            chartConfig: config,
+        },
+        cachedChartConfigs: {
+            [ChartType.DATA_APP_VIZ]: { chartConfig: config.config },
+        },
+    };
+
+    it.each([
+        explorerActions.removeField('orders_total'),
+        explorerActions.toggleMetric('orders_total'),
+        explorerActions.setMetrics(['orders_count']),
+    ])('drops removed values before running the query via $type', (action) => {
+        const removed = explorerReducer(selected, action);
+        const delayedEdit = explorerReducer(
+            removed,
+            explorerActions.setChartConfig({ chartConfig: config }),
+        );
+        const readded = explorerReducer(
+            delayedEdit,
+            explorerActions.addMetricToQuery('orders_total'),
+        );
+        expect(readded.unsavedChartVersion.chartConfig).toEqual({
+            ...config,
+            config: {
+                ...config.config,
+                fieldOptionValues: {
+                    values: { orders_count: { color: '#00ff00' } },
+                },
+            },
+        });
+        expect(
+            readded.cachedChartConfigs[ChartType.DATA_APP_VIZ]?.chartConfig
+                ?.fieldOptionValues,
+        ).toEqual({
+            values: { orders_count: { color: '#00ff00' } },
+        });
+    });
+});

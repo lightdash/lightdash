@@ -13,7 +13,7 @@ const option = (name: string, group?: string): DataAppVizConfigOption => ({
     name,
     label: name,
     default: true,
-    ...(group ? { group } : {}),
+    ...(group !== undefined ? { group } : {}),
 });
 
 describe('groupDataAppVizOptions', () => {
@@ -135,5 +135,35 @@ describe('groupDataAppVizOptions', () => {
             metrics: [],
         });
         expect(cleared).toEqual([]);
+    });
+
+    it('keeps empty-string groups consistent across chart and field options', () => {
+        const field: DataAppVizField = {
+            name: 'metrics',
+            label: 'Metrics',
+            type: 'metric',
+            required: true,
+            configOptions: [option('fieldColor', '')],
+        };
+        const groups = groupDataAppVizOptions(
+            [option('chartColor', '')],
+            { group: '' },
+            [field],
+            { metrics: ['orders_revenue'] },
+        );
+
+        expect(groups).toHaveLength(1);
+        expect(groups[0]).toMatchObject({
+            label: '',
+            hasPalette: true,
+            hasFieldOptions: true,
+        });
+        expect(
+            groupDataAppVizOptions([], null, [field], {
+                metrics: ['orders_revenue'],
+            }),
+        ).toEqual([
+            expect.objectContaining({ label: '', hasFieldOptions: true }),
+        ]);
     });
 });

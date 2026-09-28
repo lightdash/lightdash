@@ -4,14 +4,15 @@ import {
     type DataAppVizFieldMapping,
     type DataAppVizPaletteDeclaration,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 
-const generalContent = <div data-testid="general">General content</div>;
-const paletteControl = <div data-testid="palette">Palette picker</div>;
+const generalContent = <Box data-testid="general">General content</Box>;
+const paletteControl = <Box data-testid="palette">Palette picker</Box>;
 
 const options: DataAppVizConfigOption[] = [
     {
@@ -24,29 +25,31 @@ const options: DataAppVizConfigOption[] = [
     { type: 'number', name: 'barWidth', label: 'Bar width', default: 8 },
 ];
 
-const renderTabs = (
+const tabs = (
     configOptions: DataAppVizConfigOption[],
     colorPalette: DataAppVizPaletteDeclaration | null = null,
     onChange = vi.fn(),
     fields: DataAppVizField[] = [],
     fieldMapping: DataAppVizFieldMapping = {},
-) =>
-    renderWithProviders(
-        <DataAppVizOptionTabs
-            generalContent={generalContent}
-            configOptions={configOptions}
-            values={{}}
-            onChange={onChange}
-            colorPalette={colorPalette}
-            resolvedColorPalette={['#111111', '#222222']}
-            paletteControl={paletteControl}
-            fields={fields}
-            fieldMapping={fieldMapping}
-            renderFieldOptions={(group) => (
-                <div data-testid="field-options">{group}</div>
-            )}
-        />,
-    );
+) => (
+    <DataAppVizOptionTabs
+        generalContent={generalContent}
+        configOptions={configOptions}
+        values={{}}
+        onChange={onChange}
+        colorPalette={colorPalette}
+        resolvedColorPalette={['#111111', '#222222']}
+        paletteControl={paletteControl}
+        fields={fields}
+        fieldMapping={fieldMapping}
+        renderFieldOptions={(group) => (
+            <Box data-testid="field-options">{group}</Box>
+        )}
+    />
+);
+
+const renderTabs = (...args: Parameters<typeof tabs>) =>
+    renderWithProviders(tabs(...args));
 
 describe('DataAppVizOptionTabs', () => {
     it('renders the general content bare when no options are declared', () => {
@@ -143,5 +146,64 @@ describe('DataAppVizOptionTabs', () => {
         expect(
             screen.getAllByRole('tab').map((tab) => tab.textContent),
         ).toEqual(['General', 'Style', 'Display']);
+    });
+
+    it('returns to General when the selected field group loses its last binding', async () => {
+        const user = userEvent.setup();
+        const { rerender } = renderTabs(
+            options,
+            null,
+            vi.fn(),
+            [metricsField],
+            {
+                metrics: ['orders_revenue'],
+            },
+        );
+        await user.click(screen.getByRole('tab', { name: 'Series' }));
+
+        rerender(tabs(options, null, vi.fn(), [metricsField], {}));
+
+        expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
+        expect(screen.getByTestId('general')).toBeVisible();
+    });
+
+    it('preserves the selected group when an earlier field group disappears', async () => {
+        const user = userEvent.setup();
+        const otherField: DataAppVizField = {
+            ...metricsField,
+            name: 'other',
+            configOptions: [{ ...options[0], group: 'Other' }],
+        };
+        const fields = [metricsField, otherField];
+        const { rerender } = renderTabs([], null, vi.fn(), fields, {
+            metrics: ['orders_revenue'],
+            other: ['orders_count'],
+        });
+        await user.click(screen.getByRole('tab', { name: 'Other' }));
+
+        rerender(tabs([], null, vi.fn(), fields, { other: ['orders_count'] }));
+
+        expect(screen.getByRole('tab', { name: 'Other' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
+        expect(screen.getByTestId('field-options')).toHaveTextContent('Other');
+    });
+
+    it('preserves the selected group when declarations are reordered', async () => {
+        const user = userEvent.setup();
+        const { rerender } = renderTabs(options);
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+
+        rerender(tabs([...options].reverse()));
+
+        expect(screen.getByRole('tab', { name: 'Style' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
+        expect(screen.getByLabelText('Show legend')).toBeVisible();
     });
 });

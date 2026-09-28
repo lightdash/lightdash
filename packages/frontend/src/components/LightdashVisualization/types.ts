@@ -228,6 +228,7 @@ export type VisualizationDataAppVizConfigProps = Omit<
     'initialChartConfig' | 'onChartConfigChange'
 > & {
     initialChartConfig: DataAppVizChart | undefined;
+    unsavedMetricQuery?: MetricQuery;
     onChartConfigChange?: (chartConfig: DataAppVizChartConfig) => void;
     itemsMap?: ItemsMap | undefined;
 };

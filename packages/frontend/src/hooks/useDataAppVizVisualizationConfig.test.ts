@@ -646,3 +646,55 @@ describe('useDataAppVizVisualizationConfig', () => {
         expect(reloaded.result.current.validConfig).toEqual(emitted);
     });
 });
+
+describe('query field removal', () => {
+    it('drops removed values and delayed edits without resetting other edits', () => {
+        const config = {
+            ...initialConfig,
+            fieldMapping: { values: ['orders_total', 'orders_count'] },
+            fieldOptionValues: {
+                values: {
+                    orders_total: { color: '#ff0000' },
+                    orders_count: { color: '#00ff00' },
+                },
+            },
+        };
+        const onConfigChange = vi.fn();
+        const { result, rerender } = renderHook(
+            ({ ids }) =>
+                useDataAppVizVisualizationConfig(config, onConfigChange, ids),
+            {
+                initialProps: {
+                    ids: new Set(['orders_total', 'orders_count']),
+                },
+            },
+        );
+        act(() => result.current.setOption('viz-1', 'title', 'Keep me'));
+        const delayedEdit = result.current.setFieldOption;
+        onConfigChange.mockClear();
+        rerender({ ids: new Set(['orders_count']) });
+        expect(onConfigChange).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fieldOptionValues: {
+                    values: { orders_count: { color: '#00ff00' } },
+                },
+            }),
+        );
+        act(() =>
+            delayedEdit('viz-1', 'values', 'orders_total', 'color', '#000000'),
+        );
+        expect(result.current.validConfig?.fieldOptionValues).toEqual({
+            values: { orders_count: { color: '#00ff00' } },
+        });
+        expect(result.current.validConfig?.optionValues.title).toBe('Keep me');
+        rerender({ ids: new Set(['orders_total', 'orders_count']) });
+        act(() => result.current.setOption('viz-1', 'title', 'Still here'));
+        expect(onConfigChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                fieldOptionValues: {
+                    values: { orders_count: { color: '#00ff00' } },
+                },
+            }),
+        );
+    });
+});
