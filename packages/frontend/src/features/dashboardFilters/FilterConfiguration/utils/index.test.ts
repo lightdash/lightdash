@@ -13,6 +13,7 @@ import {
     getFilterTileRelation,
     getValidSqlColumnReferences,
     getTabsForFilterRule,
+    hasSavedFilterValueChanged,
 } from './index';
 
 // Helper to create a mock filter rule
@@ -84,6 +85,58 @@ describe('getValidSqlColumnReferences', () => {
                 { reference: 'orders_total' },
             ]),
         ).toEqual(['orders_id', 'orders_total']);
+    });
+});
+
+describe('hasSavedFilterValueChanged', () => {
+    const anyValueRule = createMockFilterRule({ values: [], disabled: true });
+
+    it('treats an updated rule with includeNull: false as unchanged when the saved rule omits includeNull', () => {
+        expect(
+            hasSavedFilterValueChanged(anyValueRule, {
+                ...anyValueRule,
+                includeNull: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('detects a null-only selection as a change', () => {
+        expect(
+            hasSavedFilterValueChanged(anyValueRule, {
+                ...anyValueRule,
+                disabled: false,
+                includeNull: true,
+            }),
+        ).toBe(true);
+    });
+
+    it('detects a null-only selection when the saved rule has no values array', () => {
+        const savedWithoutValues = createMockFilterRule({
+            values: undefined,
+            disabled: true,
+        });
+
+        expect(
+            hasSavedFilterValueChanged(savedWithoutValues, {
+                ...savedWithoutValues,
+                disabled: false,
+                includeNull: true,
+            }),
+        ).toBe(true);
+    });
+
+    it('treats a valueless disabled rule with null toggled off again as unchanged', () => {
+        const savedWithoutValues = createMockFilterRule({
+            values: undefined,
+            disabled: true,
+        });
+
+        expect(
+            hasSavedFilterValueChanged(savedWithoutValues, {
+                ...savedWithoutValues,
+                includeNull: false,
+            }),
+        ).toBe(false);
     });
 });
 

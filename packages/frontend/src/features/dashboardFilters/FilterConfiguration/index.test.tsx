@@ -243,6 +243,14 @@ describe('FilterConfiguration', () => {
         );
 
         await user.click(screen.getByRole('button', { name: 'Remove (null)' }));
+
+        // Functionally back to the saved state, so no reset affordance
+        expect(
+            screen.queryByRole('button', {
+                name: 'Reset filter to original value',
+            }),
+        ).not.toBeInTheDocument();
+
         await user.click(screen.getByRole('button', { name: 'Apply' }));
 
         expect(onSave).toHaveBeenLastCalledWith(

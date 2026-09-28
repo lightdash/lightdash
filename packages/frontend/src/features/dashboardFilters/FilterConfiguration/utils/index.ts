@@ -261,11 +261,22 @@ export const getFilterRuleRevertableObject = (
     };
 };
 
+// includeNull is tri-state in stored rules (absent/false/true) but binary in
+// behavior, so a comparison must not read undefined vs false as a change.
+const getComparableFilterRuleObject = (filterRule: RevertableFilterRule) => ({
+    ...getFilterRuleRevertableObject(filterRule),
+    includeNull: filterRule.includeNull === true,
+});
+
 export const hasSavedFilterValueChanged = (
     originalFilterRule: RevertableFilterRule,
     filterRule: RevertableFilterRule,
 ) => {
-    if (originalFilterRule.disabled && filterRule.values === undefined) {
+    if (
+        originalFilterRule.disabled &&
+        filterRule.values === undefined &&
+        filterRule.includeNull !== true
+    ) {
         return false;
     }
 
@@ -280,7 +291,7 @@ export const hasSavedFilterValueChanged = (
     });
 
     return !isEqual(
-        getFilterRuleRevertableObject(originalFilterRule),
-        getFilterRuleRevertableObject(serializedInternalFilterRule),
+        getComparableFilterRuleObject(originalFilterRule),
+        getComparableFilterRuleObject(serializedInternalFilterRule),
     );
 };
