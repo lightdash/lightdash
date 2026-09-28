@@ -1,5 +1,8 @@
 FROM lightdash/lightdash:latest
 
+# dbt writes logs/ and target/ into the bind-mounted project, whatever its host owner
+USER root
+
 COPY ./entrypoint.sh /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 CMD ["pnpm", "start"]

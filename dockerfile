@@ -470,13 +470,7 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
 RUN printf '#!/bin/sh\nexec node /usr/app/packages/cli/dist/index.js "$@"\n' > /usr/local/bin/lightdash \
     && chmod 755 /usr/local/bin/lightdash
 
-# The backend, and every dbt or lightdash process the Learn sandbox spawns,
-# runs as the image's unprivileged `node` user (uid 1000) rather than root.
-# Nothing under /usr/local (the dbt virtualenvs, the CLI wrapper), /etc or
-# the system Python is writable to it; the application tree is chowned to it
-# in the prod stage because the boot-time migration script writes a temp
-# directory beside dist/. HOME is set so fontconfig, pnpm and dbt have a
-# cache directory they can write to.
+# Runs as the base image's `node` user (uid 1000); the app tree stays root-owned.
 ENV HOME=/home/node
 
 # The runtime working directory is set here, not after the application layers.
@@ -499,14 +493,11 @@ FROM runtime-base AS prod
 # runtime-base.
 # COPY --link also does not follow symlinks in its destination path, so every
 # destination here must stay a real directory.
-# Numeric ids: a linked layer is built without the base image's /etc/passwd,
-# so BuildKit cannot resolve `node:node` here ("invalid user index").
-COPY --link --chown=1000:1000 --from=build-final /usr/app /usr/app
+COPY --link --from=build-final /usr/app /usr/app
 COPY --link ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 
 EXPOSE 8080
 
-# Metadata only, so it keeps the invariant above. See runtime-base for why.
 USER 1000:1000
 
 ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
