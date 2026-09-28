@@ -27,10 +27,64 @@ import {
     claimVerificationUpdate,
     verifyClaim,
     stableReady,
+    settledApiGeneration,
     stopClaimApi,
     startClaimApi,
     type ProcessInfo,
 } from './processes';
+
+test('settled API health reuses one process snapshot and detects a child restart', async () => {
+    const instance = newInstance('/tmp/ldenv-generation-probe', 'a'.repeat(40));
+    instance.ports = {
+        pg: 0,
+        api: 8080,
+        frontend: 0,
+        scheduler: 0,
+        debug: 0,
+        sdkTest: 0,
+        maple: 0,
+        prometheus: 0,
+    };
+    const api: ProcessInfo = {
+        name: `${instance.id}-api`,
+        pid: 101,
+        monit: { memory: 0 },
+        pm2_env: {
+            pm_cwd: instance.worktree,
+            status: 'online',
+            pm_uptime: Date.now(),
+        },
+    };
+    let inventories = 0;
+    let generation = 'first';
+    let attempts = 0;
+    let healthChecks = 0;
+    const operations: NonNullable<Parameters<typeof settledApiGeneration>[1]> =
+        {
+            waitForCompilers: async () => {},
+            ownedProcesses: async () => {
+                inventories += 1;
+                return [api];
+            },
+            apiProcessGeneration: async (_current, process) => {
+                assert.equal(process, api);
+                return generation;
+            },
+            health: async () => {
+                if (++healthChecks === 1) generation = 'second';
+                return true;
+            },
+            waitUntil: async (check) => {
+                while (!(await check())) attempts += 1;
+            },
+        };
+    const result = await settledApiGeneration(instance, operations);
+    assert.equal(result, 'second');
+    assert.equal(attempts, 1);
+    assert.equal(inventories, 2);
+    assert.equal(await settledApiGeneration(instance, operations), 'second');
+    assert.equal(inventories, 3);
+});
 
 test('basic readiness needs only API health and a frontend response', async () => {
     const api = createServer((_request, response) => {

@@ -597,36 +597,53 @@ export async function apiGeneration(
     );
     return operations.apiProcessGeneration(instance, api);
 }
-async function settledApiGeneration(instance: Instance): Promise<string> {
+export async function settledApiGeneration(
+    instance: Instance,
+    operations = {
+        waitForCompilers,
+        ownedProcesses,
+        apiProcessGeneration,
+        health,
+        waitUntil,
+    },
+): Promise<string> {
     const timings = instance.timings;
     const check = (timings['trace:generationChecks'] ?? 0) + 1;
     if (process.env.LDENV_TIMELINE === '1')
         timings['trace:generationChecks'] = check;
     return traced(timings, `generationCheck${check}`, async () => {
         await traced(timings, `generation${check}:compilers`, () =>
-            waitForCompilers(instance),
+            operations.waitForCompilers(instance),
         );
         let generation: string | null = null;
         let attempts = 0;
-        await waitUntil(
+        await operations.waitUntil(
             async () => {
                 attempts += 1;
+                const api = await traced(
+                    timings,
+                    `generation${check}:inventory`,
+                    async () =>
+                        (await operations.ownedProcesses(instance)).find(
+                            (item) => item.name === `${instance.id}-api`,
+                        ),
+                );
                 const before = await traced(
                     timings,
                     `generation${check}:before`,
-                    () => apiGeneration(instance),
+                    () => operations.apiProcessGeneration(instance, api),
                 );
                 if (!before) return false;
                 const healthy = await traced(
                     timings,
                     `generation${check}:health`,
-                    () => health(instance.ports!.api),
+                    () => operations.health(instance.ports!.api),
                 );
                 if (!healthy) return false;
                 generation = await traced(
                     timings,
                     `generation${check}:after`,
-                    () => apiGeneration(instance),
+                    () => operations.apiProcessGeneration(instance, api),
                 );
                 return generation === before;
             },
