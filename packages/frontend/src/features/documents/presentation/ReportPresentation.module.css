@@ -558,7 +558,8 @@
                 margin-top: 0;
             }
 
-            table {
+            /* Markdown tables only: chart tables bring their own styling */
+            > :global(.tableWrapper) table {
                 width: 100%;
                 margin: 0;
                 border-collapse: separate;
@@ -569,15 +570,14 @@
                 font-size: var(--mantine-font-size-sm);
             }
 
-            th,
-            td {
+            > :global(.tableWrapper) :is(th, td) {
                 padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
                 border-bottom: 1px solid var(--mantine-color-ldGray-1);
                 text-align: left;
                 vertical-align: top;
             }
 
-            th {
+            > :global(.tableWrapper) th {
                 border-bottom-color: var(--mantine-color-ldGray-2);
                 background: var(--mantine-color-ldGray-0);
                 color: var(--mantine-color-dimmed);
@@ -585,7 +585,7 @@
                 font-weight: 500;
             }
 
-            tr:last-child td {
+            > :global(.tableWrapper) tr:last-child td {
                 border-bottom: 0;
             }
         }
