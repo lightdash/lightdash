@@ -807,38 +807,30 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
 
-      # Every release bumps the query SDK version, so ignore version-only changes
       - name: Plan build
         id: plan
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | grep -A1 "^${RELEASE_TAG}$" | tail -1 || true)
           ACTION=retag
+          STATUS=0
+          CHANGED=$(.github/scripts/sandbox-image-changes.sh "$RELEASE_TAG" \
+            sandboxes/data-apps packages/query-sdk) || STATUS=$?
           if ! docker buildx imagetools inspect "$IMAGE:latest" >/dev/null 2>&1; then
             echo "No published :latest image — performing full build"
             ACTION=build
-          elif [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$RELEASE_TAG" ]; then
+          elif [ "$STATUS" -eq 10 ]; then
             echo "No previous tag found — performing full build"
             ACTION=build
+          elif [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          elif [ -n "$CHANGED" ]; then
+            echo "Sandbox changed — performing full build"
+            echo "$CHANGED"
+            ACTION=build
           else
-            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- \
-              sandboxes/data-apps packages/query-sdk \
-              ':(exclude)packages/query-sdk/package.json')
-            SDK_MANIFEST=packages/query-sdk/package.json
-            if ! diff -q \
-              <(git show "$PREVIOUS_TAG:$SDK_MANIFEST" | jq -S 'del(.version)') \
-              <(git show "$RELEASE_TAG:$SDK_MANIFEST" | jq -S 'del(.version)') >/dev/null; then
-              CHANGED=$(printf '%s\n%s' "$CHANGED" "$SDK_MANIFEST")
-            fi
-            if [ -n "$(echo "$CHANGED" | tr -d '[:space:]')" ]; then
-              echo "Sandbox changed since $PREVIOUS_TAG — performing full build"
-              echo "$CHANGED"
-              ACTION=build
-            else
-              echo "No sandbox changes since $PREVIOUS_TAG — re-tagging :latest"
-            fi
+            echo "No sandbox changes — re-tagging :latest"
           fi
           echo "action=$ACTION" >> "$GITHUB_OUTPUT"
 
