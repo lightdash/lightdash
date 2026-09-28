@@ -36,11 +36,11 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
-    getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
+    getExecutableFilterFieldIds,
     getFilterInteractivityValue,
     getItemId,
     InteractivityOptions,
@@ -1209,7 +1209,7 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const availableFieldIds = getAvailableFilterFieldIds(explore);
+        const availableFieldIds = getExecutableFilterFieldIds(explore);
 
         // Look up which tab this tile belongs to so we can evaluate lock state
         // for the right tab. Tiles created before tabs may have null/undefined.

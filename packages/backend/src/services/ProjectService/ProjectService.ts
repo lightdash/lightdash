@@ -94,7 +94,6 @@ import {
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
-    getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
     getCompiledModels,
@@ -104,6 +103,7 @@ import {
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
+    getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
     getIntrinsicUserAttributes,
     getItemId,
@@ -8327,7 +8327,7 @@ export class ProjectService extends BaseService {
             dashboardUuid ? { source: 'dashboard', dashboardUuid } : undefined,
         );
 
-        const availableFieldIds = getAvailableFilterFieldIds(explore);
+        const availableFieldIds = getExecutableFilterFieldIds(explore);
         const appliedDashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
                 availableFieldIds,

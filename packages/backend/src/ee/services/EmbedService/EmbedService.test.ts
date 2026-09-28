@@ -2,10 +2,16 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     applyEmbedScopeAbilities,
     buildAbilityFromScopes,
+    FilterInteractivityValues,
+    FilterOperator,
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type DashboardDAO,
+    type DashboardFilterRule,
+    type DashboardFilters,
     type EmbedContent,
+    type Explore,
     type MemberAbility,
     type PossibleAbilities,
     type SessionUser,
@@ -27,6 +33,113 @@ describe('EmbedService', () => {
     beforeEach(() => {
         service = new EmbedService(EmbedServiceArgumentsMock);
         vi.clearAllMocks();
+    });
+
+    describe('dashboard filter execution', () => {
+        const hiddenJoinedExplore: Explore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                b: {
+                    ...validExplore.tables.b,
+                    dimensions: {
+                        ...validExplore.tables.b.dimensions,
+                        dim1: {
+                            ...validExplore.tables.b.dimensions.dim1,
+                            hidden: true,
+                        },
+                    },
+                },
+            },
+        };
+        const savedRule: DashboardFilterRule = {
+            id: 'hidden-filter',
+            target: { fieldId: 'b_dim1', tableName: 'stale-table-name' },
+            operator: FilterOperator.EQUALS,
+            values: ['saved-value'],
+            label: undefined,
+        };
+        const dashboard = {
+            uuid: 'dashboard-uuid',
+            filters: {
+                dimensions: [savedRule],
+                metrics: [],
+                tableCalculations: [],
+            },
+            tiles: [{ uuid: 'tile-uuid' }],
+            tabs: [],
+        } as unknown as DashboardDAO;
+        const getAppliedDashboardFilters = (
+            embedService: EmbedService,
+            account: AnonymousAccount,
+            overrides?: DashboardFilters,
+        ) =>
+            (
+                embedService as unknown as {
+                    _getAppliedDashboardFilters(
+                        account: AnonymousAccount,
+                        explore: Explore,
+                        dashboard: DashboardDAO,
+                        tileUuid: string,
+                        dashboardFilters?: DashboardFilters,
+                    ): Promise<DashboardFilters>;
+                }
+            )._getAppliedDashboardFilters(
+                account,
+                hiddenJoinedExplore,
+                dashboard,
+                'tile-uuid',
+                overrides,
+            );
+
+        test('applies a saved filter when its joined dimension becomes hidden', async () => {
+            const account = {
+                ...mockAccountWithPermission,
+                embed: {
+                    dashboardUuids: ['dashboard-uuid'],
+                    allowAllDashboards: false,
+                },
+                access: { content: { dashboardUuid: 'dashboard-uuid' } },
+            } as unknown as AnonymousAccount;
+
+            await expect(
+                getAppliedDashboardFilters(service, account),
+            ).resolves.toEqual({
+                dimensions: [savedRule],
+                metrics: [],
+                tableCalculations: [],
+            });
+        });
+
+        test('applies an interactive override on a hidden dimension', async () => {
+            const account = {
+                ...mockAccountWithPermission,
+                embed: {
+                    dashboardUuids: ['dashboard-uuid'],
+                    allowAllDashboards: false,
+                },
+                access: {
+                    content: { dashboardUuid: 'dashboard-uuid' },
+                    filtering: { enabled: FilterInteractivityValues.all },
+                },
+            } as unknown as AnonymousAccount;
+            const overrideRule = {
+                ...savedRule,
+                values: ['override-value'],
+            };
+
+            await expect(
+                getAppliedDashboardFilters(service, account, {
+                    dimensions: [overrideRule],
+                    metrics: [],
+                    tableCalculations: [],
+                }),
+            ).resolves.toEqual({
+                dimensions: [overrideRule],
+                metrics: [],
+                tableCalculations: [],
+            });
+        });
     });
 
     test.each([undefined, 'default', 'roles'] as const)(

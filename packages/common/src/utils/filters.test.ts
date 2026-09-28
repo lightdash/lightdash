@@ -1,5 +1,6 @@
 import { DashboardTileTypes } from '../types/dashboard';
-import { DimensionType, FieldType } from '../types/field';
+import { type Explore } from '../types/explore';
+import { DimensionType, FieldType, MetricType } from '../types/field';
 import {
     FilterGroupOperator,
     FilterOperator,
@@ -1494,6 +1495,47 @@ describe('applyDashboardFiltersForTile', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
+    const exploreWithHiddenStatus: Explore = {
+        ...mockExplore,
+        tables: {
+            ...mockExplore.tables,
+            orders: {
+                ...mockExplore.tables.orders,
+                dimensions: {
+                    ...mockExplore.tables.orders.dimensions,
+                    status: {
+                        ...mockExplore.tables.orders.dimensions.status,
+                        hidden: true,
+                    },
+                },
+            },
+        },
+    };
+
+    const exploreWithHiddenMetric: Explore = {
+        ...mockExplore,
+        tables: {
+            ...mockExplore.tables,
+            orders: {
+                ...mockExplore.tables.orders,
+                metrics: {
+                    total_orders: {
+                        name: 'total_orders',
+                        label: 'Total orders',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        compiledSql: 'COUNT(*)',
+                        sql: 'COUNT(*)',
+                        hidden: true,
+                        tablesReferences: ['orders'],
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT,
+                    },
+                },
+            },
+        },
+    };
+
     test('drops rules whose fieldId is not in the explore', () => {
         const { metricQuery, appliedDashboardFilters } =
             applyDashboardFiltersForTile({
@@ -1560,6 +1602,65 @@ describe('applyDashboardFiltersForTile', () => {
             target: { fieldId: 'orders_status' },
             values: [true],
         });
+    });
+
+    test('applies saved filters when their dimension becomes hidden', () => {
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [statusRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: exploreWithHiddenStatus,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([statusRule]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup).and,
+        ).toContainEqual(
+            expect.objectContaining({
+                target: { fieldId: 'orders_status' },
+                values: [true],
+            }),
+        );
+    });
+
+    test('applies saved hidden metric filters as HAVING filters', () => {
+        const metricRule: DashboardFilterRule = {
+            id: 'f-total-orders',
+            target: {
+                fieldId: 'orders_total_orders',
+                tableName: 'orders',
+            },
+            operator: FilterOperator.GREATER_THAN,
+            values: [10],
+            label: undefined,
+        };
+
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [metricRule],
+                    tableCalculations: [],
+                },
+                explore: exploreWithHiddenMetric,
+            });
+
+        expect(appliedDashboardFilters.metrics).toEqual([metricRule]);
+        expect(
+            (metricQuery.filters.metrics as AndFilterGroup).and,
+        ).toContainEqual(
+            expect.objectContaining({
+                target: { fieldId: 'orders_total_orders' },
+                values: [10],
+            }),
+        );
     });
 });
 
