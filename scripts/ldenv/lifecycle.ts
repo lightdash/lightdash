@@ -46,6 +46,7 @@ import {
     withLock,
     writeJson,
 } from './io';
+import { resumeExistingInstance } from './live';
 import {
     assertInstance,
     dotenvText,
@@ -539,14 +540,7 @@ async function upInstance(
 ): Promise<Instance> {
     return withLock(instanceId(root), async () => {
         const existing = await currentState(instanceId(root));
-        if (existing) {
-            if (existing.phase === 'ready' || existing.phase === 'starting')
-                return existing;
-            if (existing.phase === 'stopped') return start(existing, noWait);
-            throw new Error(
-                'A partial instance exists. Inspect status, then ldenv down before retrying.',
-            );
-        }
+        if (existing) return resumeExistingInstance(existing, noWait, start);
         const secrets = inheritedSecrets ?? (await localSecrets(root));
         if (!secrets.LIGHTDASH_LICENSE_KEY) {
             const parent = await selectParent(

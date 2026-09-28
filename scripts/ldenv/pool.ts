@@ -29,6 +29,7 @@ import {
     timed,
     up,
 } from './lifecycle';
+import { instanceIsLive } from './live';
 import {
     assertInstance,
     matchingTiers,
@@ -70,6 +71,46 @@ export async function poolSettings(source: string): Promise<PoolSettings> {
         : { size: Number(process.env.LDENV_POOL_SIZE ?? 1), source };
 }
 const poolStateOperations = { withLock, instances, saveInstance, down, alive };
+
+async function retainLiveSpare(
+    instance: Instance,
+    operations: {
+        instanceIsLive: typeof instanceIsLive;
+        saveInstance: typeof saveInstance;
+    },
+): Promise<boolean> {
+    if (await operations.instanceIsLive(instance)) return true;
+    instance.phase = 'failed';
+    instance.readyAt = null;
+    instance.error = 'Ready spare is not live; awaiting pool cleanup';
+    await operations.saveInstance(instance);
+    return false;
+}
+
+export async function inspectReadySpares(
+    parent: string,
+    operations = { ...poolStateOperations, instanceIsLive },
+): Promise<{ ready: Instance[]; failed: number }> {
+    return operations.withLock('pool', async () => {
+        const ready: Instance[] = [];
+        let failed = 0;
+        const eligible = (instance: Instance) =>
+            instance.kind === 'spare' &&
+            instance.phase === 'ready' &&
+            instance.parent === parent;
+        for (const instance of (await operations.instances()).filter(eligible))
+            await operations.withLock(instance.id, async () => {
+                const current = (await operations.instances()).find(
+                    (item) => item.id === instance.id,
+                );
+                if (!current || !eligible(current)) return;
+                if (await retainLiveSpare(current, operations))
+                    ready.push(current);
+                else failed += 1;
+            });
+        return { ready, failed };
+    });
+}
 
 export async function publishSpare(
     instance: Instance,
@@ -152,10 +193,46 @@ export async function retireStalePoolInstances(
         );
 }
 
+const fillOperations = {
+    backgroundWork,
+    withLock,
+    yieldToForeground,
+    poolSettings,
+    writeJson,
+    parents,
+    localSecrets,
+    retireStalePoolInstances,
+    inspectReadySpares,
+    diskGuard,
+    availableMemory,
+    mkdir: (directory: string) => mkdir(directory, { recursive: true }),
+    git,
+    up,
+    publishSpare,
+};
+
 export async function fillPool(
     root: string,
     requestedSize: number | null,
+    operations = fillOperations,
 ): Promise<Instance[]> {
+    const {
+        backgroundWork,
+        withLock,
+        yieldToForeground,
+        poolSettings,
+        writeJson,
+        parents,
+        localSecrets,
+        retireStalePoolInstances,
+        inspectReadySpares,
+        diskGuard,
+        availableMemory,
+        mkdir,
+        git,
+        up,
+        publishSpare,
+    } = operations;
     return backgroundWork(() =>
         withLock('pool-fill', async () => {
             await yieldToForeground();
@@ -177,14 +254,11 @@ export async function fillPool(
             const secrets = await localSecrets(root);
             if (!secrets.LIGHTDASH_LICENSE_KEY)
                 Object.assign(secrets, await localSecrets(parent.path));
-            await retireStalePoolInstances(parent.sha);
-            const spares = (await instances()).filter(
-                (instance) =>
-                    instance.kind === 'spare' &&
-                    instance.parent === parent.sha &&
-                    instance.phase === 'ready',
-            );
-            while (spares.length < settings.size) {
+            while (true) {
+                await retireStalePoolInstances(parent.sha);
+                const { ready, failed } = await inspectReadySpares(parent.sha);
+                if (failed) continue;
+                if (ready.length >= settings.size) return ready;
                 await diskGuard();
                 if ((await availableMemory(root)) < 3 * 1024 ** 3)
                     throw new Error(
@@ -195,7 +269,7 @@ export async function fillPool(
                     'warm',
                     randomUUID().slice(0, 12),
                 );
-                await mkdir(path.dirname(directory), { recursive: true });
+                await mkdir(path.dirname(directory));
                 await git(root, [
                     'worktree',
                     'add',
@@ -211,13 +285,12 @@ export async function fillPool(
                     secrets,
                 );
                 await publishSpare(instance);
-                spares.push(instance);
             }
-            return spares;
         }),
     );
 }
 const claimOperations = {
+    instanceIsLive,
     git,
     realpath: (directory: string) => realpath(directory),
     instances,
@@ -320,64 +393,71 @@ export async function claimInstance(
                 ':!packages/formula/src/grammar/parser.js',
             ]);
         const reservation = await withLock('pool', async () => {
-            const available = (await instances()).filter(
+            let available = (await instances()).filter(
                 (item) => item.kind === 'spare' && item.phase === 'ready',
             );
-            if (!available.length)
-                throw new Error(
-                    'No ready spare. Run ~/.ldenv/bin/ldenv pool fill, or use ~/.ldenv/bin/ldenv up in a worktree.',
+            while (available.length) {
+                const parent = await selectParent(
+                    (await parents()).filter((item) =>
+                        available.some((spare) => spare.parent === item.sha),
+                    ),
+                    (sha) => ancestor(root, sha, target),
                 );
-            const parent = await selectParent(
-                (await parents()).filter((item) =>
-                    available.some((spare) => spare.parent === item.sha),
-                ),
-                (sha) => ancestor(root, sha, target),
+                const spare = available.find(
+                    (item) => item.parent === parent.sha,
+                )!;
+                const selected = await withLock(spare.id, async () => {
+                    const current = (await instances()).find(
+                        (item) => item.id === spare.id,
+                    );
+                    if (
+                        !current ||
+                        current.kind !== 'spare' ||
+                        current.phase !== 'ready' ||
+                        current.parent !== parent.sha
+                    )
+                        throw new Error(
+                            `Spare changed before reservation: ${spare.worktree}`,
+                        );
+                    if (!(await retainLiveSpare(current, operations)))
+                        return null;
+                    Object.assign(spare, current);
+                    if (await status(spare.worktree))
+                        throw new Error(
+                            `Spare has user edits: ${spare.worktree}; refusing to switch it`,
+                        );
+                    const previous = structuredClone(spare);
+                    const previousHead = await git(spare.worktree, [
+                        'rev-parse',
+                        'HEAD',
+                    ]);
+                    const previousBranch = await git(spare.worktree, [
+                        'branch',
+                        '--show-current',
+                    ]);
+                    spare.kind = 'claimed';
+                    spare.phase = 'starting';
+                    spare.readyAt = null;
+                    spare.processStartedAt = processEpoch(spare);
+                    spare.startedAt = new Date(started).toISOString();
+                    spare.timings = spare.timings.rssBytes
+                        ? { rssBytes: spare.timings.rssBytes }
+                        : {};
+                    await saveInstance(spare);
+                    return {
+                        spare,
+                        previous,
+                        previousHead,
+                        previousBranch,
+                        parent,
+                    };
+                });
+                if (selected) return selected;
+                available = available.filter((item) => item.id !== spare.id);
+            }
+            throw new Error(
+                'No ready spare. Run ~/.ldenv/bin/ldenv pool fill, or use ~/.ldenv/bin/ldenv up in a worktree.',
             );
-            const spare = available.find((item) => item.parent === parent.sha)!;
-            return withLock(spare.id, async () => {
-                const current = (await instances()).find(
-                    (item) => item.id === spare.id,
-                );
-                if (
-                    !current ||
-                    current.kind !== 'spare' ||
-                    current.phase !== 'ready' ||
-                    current.parent !== parent.sha
-                )
-                    throw new Error(
-                        `Spare changed before reservation: ${spare.worktree}`,
-                    );
-                Object.assign(spare, current);
-                if (await status(spare.worktree))
-                    throw new Error(
-                        `Spare has user edits: ${spare.worktree}; refusing to switch it`,
-                    );
-                const previous = structuredClone(spare);
-                const previousHead = await git(spare.worktree, [
-                    'rev-parse',
-                    'HEAD',
-                ]);
-                const previousBranch = await git(spare.worktree, [
-                    'branch',
-                    '--show-current',
-                ]);
-                spare.kind = 'claimed';
-                spare.phase = 'starting';
-                spare.readyAt = null;
-                spare.processStartedAt = processEpoch(spare);
-                spare.startedAt = new Date(started).toISOString();
-                spare.timings = spare.timings.rssBytes
-                    ? { rssBytes: spare.timings.rssBytes }
-                    : {};
-                await saveInstance(spare);
-                return {
-                    spare,
-                    previous,
-                    previousHead,
-                    previousBranch,
-                    parent,
-                };
-            });
         });
         instance = await withLock(
             reservation.spare.id,

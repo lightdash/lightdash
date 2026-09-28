@@ -8,7 +8,13 @@ import { after, before, test } from 'node:test';
 import { promisify } from 'node:util';
 import { home } from './io';
 import { newInstance, type Instance, type Parent } from './model';
-import { claimInstance, publishSpare, retireStalePoolInstances } from './pool';
+import {
+    claimInstance,
+    publishSpare,
+    retireStalePoolInstances,
+    fillPool,
+    inspectReadySpares,
+} from './pool';
 
 const tracing = process.env.LDENV_TRACING;
 before(() => {
@@ -67,6 +73,7 @@ function fixture(name = '12345678-abc') {
     const saved: Instance[] = [];
     const downKinds: Instance['kind'][] = [];
     const operations: NonNullable<Parameters<typeof claimInstance>[3]> = {
+        instanceIsLive: async () => true,
         realpath: async () => state.canonicalPath,
         git: async (_root, args) => {
             events.push(`git ${args.join(' ')}`);
@@ -701,4 +708,168 @@ test('shallow claim keeps its physical process epoch when resetting claim timing
     assert.notEqual(f.spare.startedAt, physical);
     assert.equal(f.events.includes('stop-api'), false);
     assert.equal(f.events.includes('stable-health'), false);
+});
+
+test('claim skips a dead ready spare under its lock and reserves a live spare', async () => {
+    const f = fixture();
+    const live = fixture('87654321-abc').spare;
+    const locks = mutex();
+    f.operations.withLock = locks.withLock;
+    f.operations.instances = async () => [f.spare, live];
+    f.operations.instanceIsLive = async (instance) => {
+        assert.equal(locks.held.has(instance.id), true);
+        assert.equal(instance.kind, 'spare');
+        return instance.id === live.id;
+    };
+    assert.equal((await f.claim()).id, live.id);
+    assert.equal(f.spare.kind, 'spare');
+    assert.equal(f.spare.phase, 'failed');
+    assert.equal(f.spare.readyAt, null);
+    assert.match(f.spare.error ?? '', /not live/i);
+    assert(f.events.includes('background pool fill --size 1'));
+});
+
+test('claim fails with refill instructions when every ready spare is dead', async () => {
+    const f = fixture();
+    f.operations.instanceIsLive = async () => false;
+    await assert.rejects(f.claim(), /No ready spare.*pool fill/);
+    assert.equal(f.spare.kind, 'spare');
+    assert.equal(f.spare.phase, 'failed');
+    assert.equal(
+        f.events.some((event) => event.startsWith('git switch')),
+        false,
+    );
+    assert.equal(f.events.includes('priority false'), false);
+    assert(f.events.includes('background pool fill --size 1'));
+});
+
+test('claim falls back to an older compatible parent after the newest spare fails liveness', async () => {
+    const f = fixture();
+    const [newest] = await f.operations.parents();
+    const older = {
+        ...newest,
+        sha: 'c'.repeat(40),
+        builtAt: '2000-01-01T00:00:00.000Z',
+    };
+    const live = newInstance(
+        path.join(home, 'warm/87654321-abc'),
+        older.sha,
+        'spare',
+    );
+    live.phase = 'ready';
+    f.operations.instances = async () => [f.spare, live];
+    f.operations.parents = async () => [newest, older];
+    f.operations.instanceIsLive = async (instance) => instance.id === live.id;
+    const claimed = await f.claim();
+    assert.equal(claimed.id, live.id);
+    assert.equal(claimed.parent, older.sha);
+    assert.equal(f.spare.phase, 'failed');
+    assert(f.events.includes('background pool fill --size 1'));
+});
+
+test('claim preserves an unverified spare when the liveness probe errors and still schedules refill', async () => {
+    const f = fixture();
+    f.operations.instanceIsLive = async () => {
+        throw new Error('PM2 ownership cannot be verified');
+    };
+    await assert.rejects(f.claim(), /ownership cannot be verified/);
+    assert.equal(f.spare.kind, 'spare');
+    assert.equal(f.spare.phase, 'ready');
+    assert.equal(f.saved.length, 0);
+    assert.equal(
+        f.events.some((event) => event.startsWith('git switch')),
+        false,
+    );
+    assert(f.events.includes('background pool fill --size 1'));
+});
+
+function fillFixture() {
+    const f = fixture();
+    const registry = [f.spare];
+    const dead = new Set<string>();
+    const removed: string[] = [];
+    let builds = 0;
+    const stateOperations = {
+        withLock: f.operations.withLock,
+        instances: async () => registry,
+        saveInstance: f.operations.saveInstance,
+        alive: () => false,
+        instanceIsLive: async (instance: Instance) => !dead.has(instance.id),
+        down: async (instance: Instance) => {
+            removed.push(instance.id);
+            registry.splice(
+                registry.findIndex((item) => item.id === instance.id),
+                1,
+            );
+        },
+    };
+    const operations: NonNullable<Parameters<typeof fillPool>[2]> = {
+        backgroundWork: async (work) => work(),
+        withLock: f.operations.withLock,
+        yieldToForeground: async () => {},
+        poolSettings: f.operations.poolSettings,
+        writeJson: f.operations.writeJson,
+        parents: f.operations.parents,
+        localSecrets: async () => ({}),
+        retireStalePoolInstances: (parent) =>
+            retireStalePoolInstances(parent, stateOperations),
+        inspectReadySpares: (parent) =>
+            inspectReadySpares(parent, stateOperations),
+        diskGuard: async () => {},
+        availableMemory: async () => 4 * 1024 ** 3,
+        mkdir: async () => undefined,
+        git: async () => '',
+        up: async (directory, parent) => {
+            builds += 1;
+            assert(builds < 5, 'fill must reach the live target size');
+            const instance = newInstance(directory, parent!, 'warming');
+            instance.phase = 'ready';
+            registry.push(instance);
+            return instance;
+        },
+        publishSpare: (instance) => publishSpare(instance, stateOperations),
+    };
+    return { ...f, registry, dead, removed, operations, builds: () => builds };
+}
+
+test('fill replaces and retires a dead ready spare instead of counting it', async () => {
+    const f = fillFixture();
+    f.dead.add(f.spare.id);
+    const result = await fillPool('/fixture/root', 1, f.operations);
+    assert.equal(f.builds(), 1);
+    assert.deepEqual(f.removed, [f.spare.id]);
+    assert.equal(result.length, 1);
+    assert.notEqual(result[0].id, f.spare.id);
+    assert.equal(result[0].kind, 'spare');
+    assert.equal(result[0].phase, 'ready');
+});
+
+test('fill recounts the live registry after publication when a claim consumes an initial spare', async () => {
+    const f = fillFixture();
+    const publish = f.operations.publishSpare;
+    f.operations.publishSpare = async (instance) => {
+        await publish(instance);
+        if (f.builds() === 1) f.spare.kind = 'claimed';
+    };
+    const result = await fillPool('/fixture/root', 2, f.operations);
+    assert.equal(f.builds(), 2);
+    assert.equal(result.length, 2);
+    assert(result.every((instance) => instance.kind === 'spare'));
+    assert.equal(
+        result.some((instance) => instance.id === f.spare.id),
+        false,
+    );
+});
+
+test('fill replaces a spare that dies during publication and returns only live records', async () => {
+    const f = fillFixture();
+    const publish = f.operations.publishSpare;
+    f.operations.publishSpare = async (instance) => {
+        await publish(instance);
+        if (f.builds() === 1) f.dead.add(instance.id);
+    };
+    const result = await fillPool('/fixture/root', 2, f.operations);
+    assert.equal(f.builds(), 2);
+    assert.equal(f.removed.length, 1);
+    assert(result.every((instance) => !f.dead.has(instance.id)));
 });
