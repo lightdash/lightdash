@@ -6,6 +6,7 @@ import { getDocumentCells, getTopLevelInsertPosition } from './documentCells';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
+import { moveTopLevelNode } from './moveTopLevelNode';
 
 const chart = (name: string): DocumentCell => ({
     type: 'chart',
@@ -209,6 +210,86 @@ describe('moving charts', () => {
         moveTopLevel(editor, 1, 2);
         moveTopLevel(editor, 2, 1);
         expect(getDocumentCells(editor)).toStrictEqual(cells);
+        editor.destroy();
+    });
+});
+
+describe('moving charts with the keyboard', () => {
+    const chartPosition = (editor: ReturnType<typeof load>, name: string) => {
+        let found = -1;
+        editor.state.doc.forEach((node, offset) => {
+            if (node.attrs.content?.chart?.name === name) found = offset;
+        });
+        return found;
+    };
+
+    it('moves a chart past one block at a time and keeps it selected', () => {
+        const orders = chart('Orders');
+        const editor = load([markdown('# Intro'), markdown('Body'), orders]);
+        const up = moveTopLevelNode(
+            editor.state,
+            chartPosition(editor, 'Orders'),
+            -1,
+        );
+        editor.view.dispatch(up!.tr);
+        expect(getDocumentCells(editor)).toStrictEqual([
+            markdown('# Intro'),
+            orders,
+            markdown('Body'),
+        ]);
+        expect(editor.state.selection.from).toBe(up!.position);
+        expect(
+            editor.state.doc.nodeAt(editor.state.selection.from)?.type.name,
+        ).toBe(DOCUMENT_CHART_NODE);
+        const down = moveTopLevelNode(editor.state, up!.position, 1);
+        editor.view.dispatch(down!.tr);
+        expect(getDocumentCells(editor)).toStrictEqual([
+            markdown('# Intro\n\nBody'),
+            orders,
+        ]);
+        editor.destroy();
+    });
+
+    it('stops at the start of the document', () => {
+        const editor = load([chart('First'), markdown('After')]);
+        expect(moveTopLevelNode(editor.state, 0, -1)).toBeNull();
+        editor.destroy();
+    });
+
+    it('stops at the end of the document', () => {
+        const editor = load([markdown('Before'), chart('Last')]);
+        let last = 0;
+        editor.state.doc.forEach((_node, offset) => {
+            last = offset;
+        });
+        expect(moveTopLevelNode(editor.state, last, 1)).toBeNull();
+        editor.destroy();
+    });
+
+    it('swaps two adjacent charts', () => {
+        const first = chart('First');
+        const second = chart('Second');
+        const editor = load([first, second]);
+        editor.view.dispatch(moveTopLevelNode(editor.state, 0, 1)!.tr);
+        expect(getDocumentCells(editor)).toStrictEqual([second, first]);
+        editor.destroy();
+    });
+
+    it('moves a chart with Mod-Shift-ArrowUp when it is selected', () => {
+        const orders = chart('Orders');
+        const editor = load([markdown('Intro'), orders]);
+        editor.commands.setNodeSelection(chartPosition(editor, 'Orders'));
+        editor.view.dom.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'ArrowUp',
+                shiftKey: true,
+                // `Mod` is Cmd on macOS and Ctrl elsewhere
+                metaKey: /Mac/.test(navigator.platform),
+                ctrlKey: !/Mac/.test(navigator.platform),
+                bubbles: true,
+            }),
+        );
+        expect(getDocumentCells(editor)[0]).toStrictEqual(orders);
         editor.destroy();
     });
 });

@@ -1,6 +1,7 @@
 import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
+import { type KeyboardEvent } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ErrorBoundary from '../../errorBoundary/ErrorBoundary';
 import DocumentChart from '../DocumentChart';
@@ -13,6 +14,12 @@ import {
     type DocumentChartNodeOptions,
 } from './documentChartNode';
 import { useDocumentEditorTarget } from './DocumentEditorContext';
+import { moveTopLevelNode, type MoveDirection } from './moveTopLevelNode';
+
+const MOVE_KEYS: Record<string, MoveDirection> = {
+    ArrowUp: -1,
+    ArrowDown: 1,
+};
 
 const DocumentChartNodeView = ({
     node,
@@ -29,16 +36,39 @@ const DocumentChartNodeView = ({
         return null;
     }
     const editing = editor.isEditable;
+    const moveWithKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+        const direction = MOVE_KEYS[event.key];
+        const position = getPos();
+        if (direction === undefined || position === undefined) {
+            return;
+        }
+        event.preventDefault();
+        const moved = moveTopLevelNode(editor.state, position, direction);
+        if (!moved) {
+            return;
+        }
+        editor.view.dispatch(moved.tr);
+        // The move re-creates this node view, so refocus the new handle
+        requestAnimationFrame(() => {
+            const dom = editor.view.nodeDOM(moved.position);
+            if (dom instanceof HTMLElement) {
+                dom.querySelector<HTMLElement>('[data-drag-handle]')?.focus();
+            }
+        });
+    };
     const actions = editing ? (
         <Group gap="xs" wrap="nowrap">
-            <Tooltip label="Drag to move">
+            <Tooltip label="Drag, or press ↑ ↓, to move">
                 <ActionIcon
                     component="div"
                     role="button"
+                    tabIndex={0}
                     aria-label={`Drag chart ${content.chart.name}`}
+                    aria-keyshortcuts="ArrowUp ArrowDown"
                     className={styles.chartDragHandle}
                     draggable
                     data-drag-handle
+                    onKeyDown={moveWithKeyboard}
                 >
                     <MantineIcon icon={IconGripVertical} />
                 </ActionIcon>
