@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { changedFiles, dependencies, runTiers } from './cache';
+import { isOwnedWarm } from './cleanup';
 import { diskGuard, dotenv, localSecrets } from './infra';
 import {
     git,
@@ -27,7 +28,12 @@ import {
     timed,
     up,
 } from './lifecycle';
-import { matchingTiers, selectParent, type Instance } from './model';
+import {
+    assertInstance,
+    matchingTiers,
+    selectParent,
+    type Instance,
+} from './model';
 import {
     background,
     cheapReady,
@@ -137,145 +143,292 @@ export async function fillPool(
         }),
     );
 }
-async function claimInstance(
+const claimOperations = {
+    git,
+    realpath: (directory: string) => realpath(directory),
+    instances,
+    parents,
+    ancestor,
+    withLock,
+    processPriority,
+    saveInstance,
+    recipeAt,
+    stopProcesses,
+    dotenv,
+    dependencies,
+    runTiers,
+    changedFiles,
+    start,
+    cheapReady,
+    background,
+    down,
+    poolSettings,
+    writeJson,
+};
+
+export async function claimInstance(
     root: string,
     branch: string,
     base: string,
+    operations = claimOperations,
 ): Promise<Instance> {
+    const {
+        git,
+        realpath,
+        instances,
+        parents,
+        ancestor,
+        withLock,
+        processPriority,
+        saveInstance,
+        recipeAt,
+        stopProcesses,
+        dotenv,
+        dependencies,
+        runTiers,
+        changedFiles,
+        start,
+        cheapReady,
+        background,
+        down,
+        poolSettings,
+        writeJson,
+    } = operations;
     const started = Date.now();
-    await git(root, ['check-ref-format', '--branch', branch]);
-    let existingBranch = true;
+    let failure: unknown = null;
+    let instance: Instance | null = null;
     try {
-        await git(root, [
-            'show-ref',
-            '--verify',
-            '--quiet',
-            `refs/heads/${branch}`,
+        await git(root, ['check-ref-format', '--branch', branch]);
+        const worktrees = await git(root, [
+            'worktree',
+            'list',
+            '--porcelain',
+            '-z',
         ]);
-    } catch {
-        existingBranch = false;
-    }
-    const target = await git(root, [
-        'rev-parse',
-        '--verify',
-        `${existingBranch ? `refs/heads/${branch}` : base}^{commit}`,
-    ]);
-    const instance = await withLock('pool', async () => {
-        const available = (await instances()).filter(
-            (item) => item.kind === 'spare' && item.phase === 'ready',
-        );
-        if (!available.length)
-            throw new Error(
-                'No ready spare. Run ~/.ldenv/bin/ldenv pool fill, or use ~/.ldenv/bin/ldenv up in a worktree.',
+        const occupied = worktrees
+            .split('\0\0')
+            .find((record) =>
+                record.split('\0').includes(`branch refs/heads/${branch}`),
             );
-        const parent = await selectParent(
-            (await parents()).filter((item) =>
-                available.some((spare) => spare.parent === item.sha),
-            ),
-            (sha) => ancestor(root, sha, target),
-        );
-        const spare = available.find((item) => item.parent === parent.sha)!;
-        return withLock(spare.id, async () => {
-            const tracked = await git(spare.worktree, [
-                'status',
-                '--porcelain',
-                '--untracked-files=normal',
-                '--',
-                '.',
-                ':!packages/backend/src/generated',
-                ':!packages/common/src/schemas/json',
-                ':!packages/formula/src/grammar/parser.js',
+        if (occupied)
+            throw new Error(
+                `Branch ${branch} is already checked out at ${occupied.split('\0')[0].slice('worktree '.length)}; use ~/.ldenv/bin/ldenv up in that worktree.`,
+            );
+        let existingBranch = true;
+        try {
+            await git(root, [
+                'show-ref',
+                '--verify',
+                '--quiet',
+                `refs/heads/${branch}`,
             ]);
-            if (tracked)
+        } catch {
+            existingBranch = false;
+        }
+        const target = await git(root, [
+            'rev-parse',
+            '--verify',
+            `${existingBranch ? `refs/heads/${branch}` : base}^{commit}`,
+        ]);
+        instance = await withLock('pool', async () => {
+            const available = (await instances()).filter(
+                (item) => item.kind === 'spare' && item.phase === 'ready',
+            );
+            if (!available.length)
                 throw new Error(
-                    `Spare has user edits: ${spare.worktree}; refusing to switch it`,
+                    'No ready spare. Run ~/.ldenv/bin/ldenv pool fill, or use ~/.ldenv/bin/ldenv up in a worktree.',
                 );
-            await processPriority(spare, false);
-            spare.kind = 'claimed';
-            spare.phase = 'starting';
-            spare.readyAt = null;
-            spare.startedAt = new Date(started).toISOString();
-            spare.timings = spare.timings.rssBytes
-                ? { rssBytes: spare.timings.rssBytes }
-                : {};
-            await saveInstance(spare);
-            try {
-                const delta = (
-                    await git(root, [
-                        'diff',
-                        '--name-only',
-                        '-z',
-                        `${parent.sha}...${target}`,
-                    ])
-                )
-                    .split('\0')
-                    .filter(Boolean);
-                const recipe = await recipeAt(spare.worktree);
-                const deep =
-                    process.env.LDENV_TRACING === 'true' ||
-                    matchingTiers(recipe.tiers, delta).some(
-                        (tier) => tier.run || tier.preset,
+            const parent = await selectParent(
+                (await parents()).filter((item) =>
+                    available.some((spare) => spare.parent === item.sha),
+                ),
+                (sha) => ancestor(root, sha, target),
+            );
+            const spare = available.find((item) => item.parent === parent.sha)!;
+            return withLock(spare.id, async () => {
+                const status = () =>
+                    git(spare.worktree, [
+                        'status',
+                        '--porcelain',
+                        '--untracked-files=normal',
+                        '--',
+                        '.',
+                        ':!packages/backend/src/generated',
+                        ':!packages/common/src/schemas/json',
+                        ':!packages/formula/src/grammar/parser.js',
+                    ]);
+                if (await status())
+                    throw new Error(
+                        `Spare has user edits: ${spare.worktree}; refusing to switch it`,
                     );
-                if (deep) await stopProcesses(spare, true);
-                await timed(spare.timings, 'checkout', async () => {
-                    await git(
-                        spare.worktree,
-                        existingBranch
-                            ? ['switch', branch]
-                            : ['switch', '-c', branch, target],
-                    );
-                });
-                const env = await dotenv(
-                    path.join(spare.worktree, '.env.development.local'),
-                );
-                if (deep) {
-                    if (
-                        matchingTiers(recipe.tiers, delta).some(
-                            (tier) => tier.preset === 'pnpm',
-                        )
+                const previous = structuredClone(spare);
+                const previousHead = await git(spare.worktree, [
+                    'rev-parse',
+                    'HEAD',
+                ]);
+                const previousBranch = await git(spare.worktree, [
+                    'branch',
+                    '--show-current',
+                ]);
+                let checkoutLanded = false;
+                try {
+                    await processPriority(spare, false);
+                    spare.kind = 'claimed';
+                    spare.phase = 'starting';
+                    spare.readyAt = null;
+                    spare.startedAt = new Date(started).toISOString();
+                    spare.timings = spare.timings.rssBytes
+                        ? { rssBytes: spare.timings.rssBytes }
+                        : {};
+                    await saveInstance(spare);
+                    const delta = (
+                        await git(root, [
+                            'diff',
+                            '--name-only',
+                            '-z',
+                            `${parent.sha}...${target}`,
+                        ])
                     )
-                        await timed(spare.timings, 'dependencies', () =>
-                            dependencies(parent, spare.worktree, env, spare.id),
+                        .split('\0')
+                        .filter(Boolean);
+                    const recipe = await recipeAt(spare.worktree);
+                    const deep =
+                        process.env.LDENV_TRACING === 'true' ||
+                        matchingTiers(recipe.tiers, delta).some(
+                            (tier) => tier.run || tier.preset,
                         );
-                    await runTiers(
-                        spare.worktree,
-                        await recipeAt(spare.worktree),
-                        await changedFiles(spare.worktree, parent.sha),
-                        env,
-                        spare.timings,
-                        spare.id,
+                    if (deep) await stopProcesses(spare, true);
+                    await timed(spare.timings, 'checkout', async () => {
+                        await git(
+                            spare.worktree,
+                            existingBranch
+                                ? ['switch', branch]
+                                : ['switch', '-c', branch, target],
+                        );
+                        checkoutLanded = true;
+                    });
+                    const env = await dotenv(
+                        path.join(spare.worktree, '.env.development.local'),
                     );
-                    await start(spare, false);
-                } else {
-                    await cheapReady(spare);
-                    spare.monitorPid = await background(
-                        ['verify', spare.id],
-                        `${spare.id}-verify`,
+                    if (deep) {
+                        if (
+                            matchingTiers(recipe.tiers, delta).some(
+                                (tier) => tier.preset === 'pnpm',
+                            )
+                        )
+                            await timed(spare.timings, 'dependencies', () =>
+                                dependencies(
+                                    parent,
+                                    spare.worktree,
+                                    env,
+                                    spare.id,
+                                ),
+                            );
+                        await runTiers(
+                            spare.worktree,
+                            await recipeAt(spare.worktree),
+                            await changedFiles(spare.worktree, parent.sha),
+                            env,
+                            spare.timings,
+                            spare.id,
+                        );
+                        await start(spare, false);
+                    } else {
+                        await cheapReady(spare);
+                        spare.monitorPid = await background(
+                            ['verify', spare.id],
+                            `${spare.id}-verify`,
+                        );
+                    }
+                    spare.timings.claim = Date.now() - started;
+                    await saveInstance(spare);
+                    return spare;
+                } catch (error) {
+                    const reason = runner.redact(
+                        error instanceof Error ? error.message : String(error),
+                    );
+                    let unchanged = false;
+                    let recovered = false;
+                    let recoveryFailure = '';
+                    try {
+                        unchanged =
+                            !checkoutLanded &&
+                            !previousBranch &&
+                            (await git(spare.worktree, [
+                                'rev-parse',
+                                'HEAD',
+                            ])) === previousHead &&
+                            (await git(spare.worktree, [
+                                'branch',
+                                '--show-current',
+                            ])) === previousBranch &&
+                            !(await status());
+                        if (unchanged) {
+                            Object.assign(spare, previous, {
+                                kind: 'claimed',
+                                phase: 'starting',
+                            });
+                            await cheapReady(spare);
+                            await processPriority(spare, true);
+                            spare.kind = 'spare';
+                            spare.verification = previous.verification;
+                            await saveInstance(spare);
+                            recovered = true;
+                        }
+                    } catch (recoveryError) {
+                        recoveryFailure = runner.redact(String(recoveryError));
+                    }
+                    if (recovered)
+                        throw new Error(
+                            `${reason}; unchanged healthy spare returned to pool`,
+                        );
+                    spare.kind =
+                        unchanged && !previousBranch ? 'spare' : 'claimed';
+                    spare.phase = 'failed';
+                    spare.error = reason;
+                    try {
+                        await saveInstance(spare);
+                        assertInstance(spare);
+                        if (
+                            !isOwnedWarm(previous) ||
+                            (await realpath(spare.worktree)) !== spare.worktree
+                        )
+                            throw new Error(
+                                'Refusing automatic teardown: warm worktree ownership is not proven',
+                            );
+                        await down(spare);
+                    } catch (teardownError) {
+                        const command = `~/.ldenv/bin/ldenv down --worktree '${spare.worktree.replaceAll("'", "'\\''")}'`;
+                        throw new Error(
+                            `${reason}; recovery failed: ${[recoveryFailure, runner.redact(String(teardownError))].filter(Boolean).join('; ')}. Inspect the instance, then run ${command}`,
+                        );
+                    }
+                    throw new Error(
+                        `${reason}; failed warm instance stopped and released${spare.kind === 'claimed' ? `; worktree retained at ${spare.worktree}` : ''}`,
                     );
                 }
-                spare.timings.claim = Date.now() - started;
-                await saveInstance(spare);
-                return spare;
-            } catch (error) {
-                spare.phase = 'failed';
-                spare.error = runner.redact(
-                    error instanceof Error ? error.message : String(error),
-                );
-                await saveInstance(spare);
-                throw error;
-            }
+            });
         });
-    });
-    const settings = await poolSettings(root);
-    const refillPid = await background(
-        ['pool', 'fill', '--size', String(settings.size)],
-        'pool-refill',
-    );
-    await writeJson(path.join(home, 'pool-refill.json'), {
-        pid: refillPid,
-        startedAt: new Date().toISOString(),
-        log: path.join(home, 'logs/pool-refill.log'),
-    });
+    } catch (error) {
+        failure = error;
+    }
+    try {
+        const settings = await poolSettings(root);
+        const refillPid = await background(
+            ['pool', 'fill', '--size', String(settings.size)],
+            'pool-refill',
+        );
+        await writeJson(path.join(home, 'pool-refill.json'), {
+            pid: refillPid,
+            startedAt: new Date().toISOString(),
+            log: path.join(home, 'logs/pool-refill.log'),
+        });
+    } catch (error) {
+        throw new Error(
+            `${failure ? `${runner.redact(String(failure))}; ` : ''}pool refill failed: ${runner.redact(String(error))}. Run ~/.ldenv/bin/ldenv pool fill.`,
+        );
+    }
+    if (!instance) throw failure;
     return instance;
 }
 
