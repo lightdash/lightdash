@@ -46,6 +46,30 @@ describe('resolveVizDrillDownConfig', () => {
         });
     });
 
+    it('has no value label when the row carries the metric cell', () => {
+        const config = resolveVizDrillDownConfig(
+            { row, metric: 'value' },
+            { fieldMapping, itemsMap },
+        );
+        expect(config.valueLabel).toBeUndefined();
+    });
+
+    it('labels a dimension-only row with its dimension values', () => {
+        const config = resolveVizDrillDownConfig(
+            {
+                row: {
+                    orders_status: {
+                        value: { raw: 'done', formatted: 'Done' },
+                    },
+                },
+                metric: 'value',
+            },
+            { fieldMapping, itemsMap },
+        );
+        expect(config.item).toBe(metricItem);
+        expect(config.valueLabel).toBe('Done');
+    });
+
     it('rejects a malformed intent', () => {
         expect(() =>
             resolveVizDrillDownConfig(
