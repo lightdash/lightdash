@@ -15,6 +15,42 @@ import type { Instance } from './model';
 const spare = '/worktrees/ready-one';
 const instance = { id: 'spare-one', worktree: spare } as Instance;
 
+test('an ldenv directory or script mentioned in arguments does not hide an agent', () => {
+    const rows = [
+        {
+            pid: 10,
+            ppid: 1,
+            command: 'python3 validate.py /reports/ldenv mac-1',
+        },
+        { pid: 11, ppid: 10, command: '/bin/sleep 300' },
+        {
+            pid: 12,
+            ppid: 1,
+            command: 'node agent.js /repo/scripts/ldenv/index.ts',
+        },
+        {
+            pid: 13,
+            ppid: 1,
+            command:
+                'node --import tsx /repo/scripts/ldenv/index.ts pool monitor',
+        },
+    ];
+    assert.deepEqual(
+        eligibleActivityProcesses(rows, [], 999).map((row) => row.pid),
+        [10, 11, 12],
+    );
+    assert.equal(
+        activityFromSnapshot(
+            [instance],
+            rows,
+            new Map([[11, spare]]),
+            [],
+            999,
+        ).get(instance.id)?.pid,
+        11,
+    );
+});
+
 test('activity picks an agent cwd and excludes PM2, observer, ldenv and probes', () => {
     const rows: ActivityProcess[] = [
         { pid: 1, ppid: 0, command: 'launchd' },

@@ -77,14 +77,27 @@ function observerTree(pid: number, rows: ActivityProcess[]): Set<number> {
 }
 
 function isInternalCommand(command: string): boolean {
-    if (
-        /(?:^|[\s/])ldenv(?:\s|$)|(?:^|[\s/])scripts[\\/]ldenv[\\/]/.test(
-            command,
-        )
-    )
+    const words = command.trim().split(/\s+/);
+    const executable = path.basename(words[0] ?? '');
+    if (['ldenv', 'git', 'lsof', 'ps', 'pgrep'].includes(executable))
         return true;
-    const executable = path.basename(command.trim().split(/\s+/, 1)[0] ?? '');
-    if (['git', 'lsof', 'ps', 'pgrep'].includes(executable)) return true;
+    if (['node', 'tsx'].includes(executable)) {
+        for (let index = 1; index < words.length; index += 1) {
+            if (
+                ['--import', '--require', '-r', '--loader'].includes(
+                    words[index],
+                )
+            ) {
+                index += 1;
+                continue;
+            }
+            if (['-e', '--eval', '-p', '--print'].includes(words[index])) break;
+            if (words[index].startsWith('-')) continue;
+            if (/(?:^|[\\/])scripts[\\/]ldenv[\\/]/.test(words[index]))
+                return true;
+            break;
+        }
+    }
     return /^(?:\S*\/)?(?:ba|z|k|fi)?sh\s+-c\s+(?:git|lsof|ps|pgrep)(?:\s|$)/.test(
         command,
     );
