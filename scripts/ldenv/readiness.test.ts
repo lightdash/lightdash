@@ -39,10 +39,17 @@ test('API overlap only skips package and route rebuild inputs', () => {
         'packages/warehouses/src/index.ts',
         'packages/formula/src/index.ts',
         'packages/backend/src/controllers/UserController.ts',
+        'packages/backend/src/ee/services/x/controllers/y.ts',
         'packages/backend/src/generated/routes.ts',
         'pnpm-lock.yaml',
     ])
         assert.equal(canStartApiAlongsideWatchers([file]), false, file);
+    assert.equal(
+        canStartApiAlongsideWatchers([
+            'packages/backend/src/ee/services/x/controllers/y.test.ts',
+        ]),
+        true,
+    );
 });
 
 test('claim API changes match watched backend code and skip ignored or unrelated files', () => {

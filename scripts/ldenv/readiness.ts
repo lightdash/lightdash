@@ -18,8 +18,10 @@ export function canStartApiAlongsideWatchers(files: string[]): boolean {
             file.startsWith('packages/common/') ||
             file.startsWith('packages/warehouses/') ||
             file.startsWith('packages/formula/') ||
-            file.startsWith('packages/backend/src/controllers/') ||
-            file.startsWith('packages/backend/src/ee/controllers/') ||
+            (file.startsWith('packages/backend/src/') &&
+                file.includes('/controllers/') &&
+                file.endsWith('.ts') &&
+                !file.endsWith('.test.ts')) ||
             file.startsWith('packages/backend/src/generated/'),
     );
 }
