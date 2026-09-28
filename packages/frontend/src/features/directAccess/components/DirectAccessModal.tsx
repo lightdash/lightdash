@@ -26,13 +26,13 @@ import {
     getInitials,
     getUserNameOrEmail,
 } from '../../../components/common/ShareSpaceModal/Utils';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import useApp from '../../../providers/App/useApp';
 import { type DirectAccessResourceRef } from '../api';
 import {
     useDirectAccessAssignments,
     useDirectAccessAvailability,
     useDirectAccessGroups,
+    useDirectAccessUsers,
     useResetDirectAccess,
     useRevokeDirectAccessAssignment,
     useUpsertDirectAccessAssignment,
@@ -190,21 +190,14 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
     const [selectedRole, setSelectedRole] = useState<SpaceMemberRole>(
         SpaceMemberRole.VIEWER,
     );
-    const organizationUsers = useOrganizationUsers({ projectUuid });
+    const users = useDirectAccessUsers(projectUuid, resource);
     const groups = useDirectAccessGroups(projectUuid, resource);
 
     const options = useMemo(() => {
-        const userOptions = (organizationUsers.data ?? [])
-            .map((member) => ({
-                value: `${DirectAccessPrincipalType.USER}:${member.userUuid}`,
-                label:
-                    getUserNameOrEmail(
-                        member.userUuid,
-                        member.firstName,
-                        member.lastName,
-                        member.email,
-                        false,
-                    ) ?? member.email,
+        const userOptions = (users.data ?? [])
+            .map((user) => ({
+                value: `${DirectAccessPrincipalType.USER}:${user.userUuid}`,
+                label: userDisplayName(user),
             }))
             .filter((option) => !assignedKeys.has(option.value));
         const groupOptions = (groups.data ?? [])
@@ -217,7 +210,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
             { group: 'Users', items: userOptions },
             { group: 'Groups', items: groupOptions },
         ].filter((section) => section.items.length > 0);
-    }, [organizationUsers.data, groups.data, assignedKeys]);
+    }, [users.data, groups.data, assignedKeys]);
 
     const handleAdd = () => {
         if (!selectedPrincipal) return;
@@ -240,8 +233,8 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
                 aria-label="Select a user or group to share with"
                 nothingFoundMessage="No matching users or groups"
                 error={
-                    groups.isError
-                        ? 'Unable to load groups. Close and reopen this dialog to retry.'
+                    users.isError || groups.isError
+                        ? 'Unable to load users and groups. Close and reopen this dialog to retry.'
                         : undefined
                 }
                 data={options}

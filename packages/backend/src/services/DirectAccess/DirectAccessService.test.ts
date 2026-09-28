@@ -117,6 +117,7 @@ const buildService = ({
         findCandidateResourceUuidsForUser: vi.fn().mockResolvedValue([]),
         listAssignments: vi.fn().mockResolvedValue([]),
         listGroups: vi.fn().mockResolvedValue([]),
+        listUsers: vi.fn().mockResolvedValue([]),
         upsertAccess: vi.fn().mockResolvedValue({
             organizationId: 1,
             organizationUuid: ORGANIZATION_UUID,
@@ -194,7 +195,12 @@ const buildService = ({
 };
 
 describe('DirectAccessService', () => {
-    it.each(['listAssignments', 'listGroups', 'resetAssignments'] as const)(
+    it.each([
+        'listAssignments',
+        'listGroups',
+        'listUsers',
+        'resetAssignments',
+    ] as const)(
         'document %s fails closed while flag disabled',
         async (method) => {
             const { service, featureFlagModel, directAccessModel } =
@@ -972,9 +978,32 @@ describe('DirectAccessService.findSharedWithMeAccess', () => {
     });
 });
 
-describe('DirectAccessService.listGroups', () => {
+describe.each([
+    {
+        method: 'listGroups',
+        principals: [
+            {
+                type: DirectAccessPrincipalType.GROUP,
+                groupUuid: 'group-uuid',
+                name: 'Analysts',
+            },
+        ],
+    },
+    {
+        method: 'listUsers',
+        principals: [
+            {
+                type: DirectAccessPrincipalType.USER,
+                userUuid: 'member-uuid',
+                firstName: 'Mallory',
+                lastName: 'Member',
+                email: 'mallory@example.com',
+            },
+        ],
+    },
+] as const)('DirectAccessService.$method', ({ method, principals }) => {
     it.each(Object.values(DirectAccessResourceType))(
-        'allows a content admin without project administration to discover named groups for %s',
+        'allows a content admin without project administration to discover eligible principals for %s',
         async (resourceType) => {
             const { service, directAccessModel } = buildService({
                 context: spaceContext([
@@ -984,23 +1013,16 @@ describe('DirectAccessService.listGroups', () => {
             const account = buildAccount(
                 OrganizationMemberRole.INTERACTIVE_VIEWER,
             );
-            const groups = [
-                {
-                    type: DirectAccessPrincipalType.GROUP,
-                    groupUuid: 'group-uuid',
-                    name: 'Analysts',
-                },
-            ];
-            directAccessModel.listGroups.mockResolvedValue(groups);
+            directAccessModel[method].mockResolvedValue(principals);
             await expect(
-                service.listGroups(
+                service[method](
                     account,
                     PROJECT_UUID,
                     resourceType,
                     DASHBOARD_UUID,
                 ),
-            ).resolves.toEqual(groups);
-            expect(directAccessModel.listGroups).toHaveBeenCalledWith({
+            ).resolves.toEqual(principals);
+            expect(directAccessModel[method]).toHaveBeenCalledWith({
                 organizationUuid: ORGANIZATION_UUID,
                 projectUuid: PROJECT_UUID,
             });
@@ -1014,14 +1036,14 @@ describe('DirectAccessService.listGroups', () => {
                 context: spaceContext([{ userUuid: USER_UUID, role }]),
             });
             await expect(
-                service.listGroups(
+                service[method](
                     buildAccount(OrganizationMemberRole.INTERACTIVE_VIEWER),
                     PROJECT_UUID,
                     DirectAccessResourceType.DASHBOARD,
                     DASHBOARD_UUID,
                 ),
             ).rejects.toThrowError(ForbiddenError);
-            expect(directAccessModel.listGroups).not.toHaveBeenCalled();
+            expect(directAccessModel[method]).not.toHaveBeenCalled();
         },
     );
 
@@ -1029,16 +1051,19 @@ describe('DirectAccessService.listGroups', () => {
         { enabled: false },
         { location: null },
         { location: { ...dashboardLocation, projectUuid: 'other-project' } },
-    ])('rejects unavailable groups before querying: %j', async (options) => {
-        const { service, directAccessModel } = buildService(options);
-        await expect(
-            service.listGroups(
-                buildAccount(OrganizationMemberRole.ADMIN),
-                PROJECT_UUID,
-                DirectAccessResourceType.DASHBOARD,
-                DASHBOARD_UUID,
-            ),
-        ).rejects.toThrow();
-        expect(directAccessModel.listGroups).not.toHaveBeenCalled();
-    });
+    ])(
+        'rejects unavailable principals before querying: %j',
+        async (options) => {
+            const { service, directAccessModel } = buildService(options);
+            await expect(
+                service[method](
+                    buildAccount(OrganizationMemberRole.ADMIN),
+                    PROJECT_UUID,
+                    DirectAccessResourceType.DASHBOARD,
+                    DASHBOARD_UUID,
+                ),
+            ).rejects.toThrow();
+            expect(directAccessModel[method]).not.toHaveBeenCalled();
+        },
+    );
 });

@@ -7,6 +7,7 @@ import {
     type DirectAccessAssignment,
     type DirectAccessGroupPrincipal,
     type DirectAccessPrincipalRef,
+    type DirectAccessUserPrincipal,
     type SpaceMemberRole,
     type UUID,
 } from '@lightdash/common';
@@ -29,6 +30,7 @@ import { DocumentsTableName } from '../database/entities/documents';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectTableName } from '../database/entities/projects';
@@ -45,6 +47,7 @@ import {
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import {
+    getActiveProjectMemberPredicate,
     validateDirectAccessGroup,
     validateDirectAccessUser,
     type DirectAccessMutationContext,
@@ -188,6 +191,62 @@ export class DirectAccessModel {
         return groups.map((group) => ({
             type: DirectAccessPrincipalType.GROUP,
             ...group,
+        }));
+    }
+
+    /**
+     * Users eligible to receive a grant in the project: the same current
+     * project access check that `validatePrincipal` applies on write.
+     */
+    async listUsers({
+        organizationUuid,
+        projectUuid,
+    }: {
+        organizationUuid: UUID;
+        projectUuid: UUID;
+    }): Promise<DirectAccessUserPrincipal[]> {
+        const users = await this.database(UserTableName)
+            .innerJoin(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                this.on(
+                    `${EmailTableName}.user_id`,
+                    `${UserTableName}.user_id`,
+                ).andOnVal(`${EmailTableName}.is_primary`, true);
+            })
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(getActiveProjectMemberPredicate(this.database))
+            .orderBy([
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
+            ])
+            .select<Omit<DirectAccessUserPrincipal, 'type'>[]>({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                email: `${EmailTableName}.email`,
+            });
+        return users.map((user) => ({
+            type: DirectAccessPrincipalType.USER,
+            ...user,
         }));
     }
 
@@ -1348,7 +1407,11 @@ export class DirectAccessModel {
                 ? await validateDirectAccessUser(trx, context, principal.uuid)
                 : await validateDirectAccessGroup(trx, context, principal.uuid);
         if (!valid) {
-            throw new NotFoundError('Direct access target not found');
+            throw new ParameterError(
+                principal.type === DirectAccessPrincipalType.USER
+                    ? 'This user does not have access to the project'
+                    : 'This group does not have access to the project',
+            );
         }
     }
 
