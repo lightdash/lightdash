@@ -334,8 +334,29 @@ claim latency is under 1 second for the cheap gate; fork targets are 60 seconds 
 
 ## Measured Mac timings
 
-On 28 September 2026, a fresh `origin/main` worktree under T3's real worktree
-path, started through the installed launcher with `up --no-wait` and ordinary
+On 28 September 2026, fresh `origin/main` worktrees under T3's worktree path,
+started through the installed launcher with `up --no-wait`, gave these results:
+
+| Backend          | Time to ready | API boot to health | Median edit to served |
+| ---------------- | ------------: | -----------------: | --------------------: |
+| Bundle (default) |        24.4 s |             13.2 s |                 8.2 s |
+| tsx (fallback)   |        28.9 s |             17.7 s |                13.1 s |
+
+Each mode used one fresh worktree and three timed backend edits. Both restored
+Vite optimizer caches without rebundling, passed authenticated chart queries and
+background paint verification, and had zero API restarts during 60 seconds after
+ready. Background paint took 9.35 s for bundle and 6.77 s for tsx. Bundle also
+kept its last good child serving through an invalid edit, reported degraded
+status, and cleared the build error after repair. The esbuild builder had
+`GOMEMLIMIT=512MiB`; the API child did not inherit it.
+
+These are sequential samples under varying Mac load, not controlled fork
+medians: one-minute load ranged from 21 to 28. The headline excludes background
+paint and includes API health, frontend HTTP and the authenticated chart query.
+Total including startup tail was 25.2 s for bundle and 29.3 s for tsx.
+
+Before the bundle default, a fresh tsx `origin/main` worktree under T3's real
+worktree path, started through the installed launcher with `up --no-wait` and ordinary
 shell environment markers, reached foreground readiness in **26.6 seconds**.
 The authenticated chart query passed before ready. Background headless paint
 passed at 32.7 s without changing the ready time; its check took 5.86 s.
