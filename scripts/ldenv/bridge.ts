@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { runner } from './io';
@@ -177,7 +178,12 @@ async function screenshot(root: string): Promise<void> {
         width: number;
         height: number;
     }>(process.env.LDENV_SCREENSHOT_OPTIONS!);
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({
+        headless: true,
+        ...(process.platform === 'linux' && existsSync('/bin/google-chrome')
+            ? { executablePath: '/bin/google-chrome' }
+            : {}),
+    });
     const frontend = `http://localhost:${process.env.LDENV_SCREENSHOT_FRONTEND_PORT}`;
     const api = `http://localhost:${process.env.LDENV_SCREENSHOT_API_PORT}`;
     try {
