@@ -1,3 +1,10 @@
+## [2.360.3](https://github.com/lightdash/lightdash/compare/2.360.2...2.360.3) (2026-09-28)
+
+
+### Performance Improvements
+
+* **learn:** skip dbt --version in sandbox commands (CS-330) ([#30141](https://github.com/lightdash/lightdash/issues/30141)) ([26610ba](https://github.com/lightdash/lightdash/commit/26610ba9d78af106ab469ce1198387abf3d37625))
+
 ## [2.360.2](https://github.com/lightdash/lightdash/compare/2.360.1...2.360.2) (2026-09-28)
 
 
