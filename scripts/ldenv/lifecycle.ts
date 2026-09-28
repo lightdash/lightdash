@@ -567,6 +567,7 @@ async function upInstance(
                 'This worktree is configured for another instance; refusing to replace its env',
             );
         let instance: Instance | null = null;
+        let apiStarted = false;
         try {
             const parent = await withLock('parents', async () => {
                 const selected = await selectParent(
@@ -695,8 +696,12 @@ async function upInstance(
             process.stdout.write(
                 `API WATCHER OVERLAP: ${overlapWatchers ? 'yes' : 'no'}\n`,
             );
-            markTimeline(state.timings, 'preparations', 'start');
             if (overlapWatchers) {
+                await timed(state.timings, 'pm2', () =>
+                    startProcesses(state, 'api'),
+                );
+                apiStarted = true;
+                markTimeline(state.timings, 'preparations', 'start');
                 preparations = await Promise.allSettled([
                     frontend(),
                     warehouse(),
@@ -705,6 +710,7 @@ async function upInstance(
                     ),
                 ]);
             } else {
+                markTimeline(state.timings, 'preparations', 'start');
                 await frontend();
                 await runTiers(
                     root,
@@ -735,7 +741,7 @@ async function upInstance(
             await traced(state.timings, 'preparedStateSave', () =>
                 saveInstance(state),
             );
-            return await start(state, noWait, overlapWatchers);
+            return await start(state, noWait, overlapWatchers, apiStarted);
         } catch (error) {
             if (instance) {
                 const state = instance as Instance;
@@ -743,6 +749,17 @@ async function upInstance(
                 state.error = runner.redact(
                     error instanceof Error ? error.message : String(error),
                 );
+                if (apiStarted) {
+                    try {
+                        await stopProcesses(state, true);
+                    } catch (cleanupError) {
+                        state.error += `; API cleanup failed: ${runner.redact(
+                            cleanupError instanceof Error
+                                ? cleanupError.message
+                                : String(cleanupError),
+                        )}`;
+                    }
+                }
                 await saveInstance(state);
             }
             throw error;
@@ -768,6 +785,7 @@ async function startInstance(
     instance: Instance,
     noWait: boolean,
     overlapWatchers = false,
+    apiStarted = false,
 ): Promise<Instance> {
     markTimeline(instance.timings, 'startInstance', 'start');
     assertInstance(instance);
@@ -776,16 +794,18 @@ async function startInstance(
         instance.processStartedAt = instance.startedAt;
         instance.timings = {};
     }
-    await traced(instance.timings, 'startPostgres', () =>
-        ensurePostgres(controlRoot),
-    );
-    await traced(instance.timings, 'startShared', async () =>
-        sharedServices(
-            instance.worktree,
-            await compose(instance.worktree),
-            true,
-        ),
-    );
+    if (!apiStarted) {
+        await traced(instance.timings, 'startPostgres', () =>
+            ensurePostgres(controlRoot),
+        );
+        await traced(instance.timings, 'startShared', async () =>
+            sharedServices(
+                instance.worktree,
+                await compose(instance.worktree),
+                true,
+            ),
+        );
+    }
     instance.phase = 'starting';
     instance.error = null;
     instance.readyAt = null;
@@ -795,7 +815,10 @@ async function startInstance(
         );
     if (!instance.timings.watchersSettle && !overlapWatchers)
         await prepareWatchers(instance);
-    await timed(instance.timings, 'pm2', () => startProcesses(instance, 'api'));
+    if (!apiStarted)
+        await timed(instance.timings, 'pm2', () =>
+            startProcesses(instance, 'api'),
+        );
     if (overlapWatchers && !noWait)
         await timed(instance.timings, 'watchersSettle', () =>
             timed(instance.timings, 'watchersWait', () =>
