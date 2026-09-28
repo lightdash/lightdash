@@ -44,7 +44,7 @@ const DocumentContent = ({
         projectUrlIdentifier,
     );
     if (query.isInitialLoading) {
-        return <EmptyStateLoader title="Loading document" />;
+        return <EmptyStateLoader my="xl" title="Loading document" />;
     }
     if (query.isError || !query.data) {
         return (
@@ -74,7 +74,7 @@ const DocumentPage = () => {
     }>();
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     if (!projectUuid || flag.isInitialLoading) {
-        return <EmptyStateLoader title="Loading document" />;
+        return <EmptyStateLoader my="xl" title="Loading document" />;
     }
     if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
