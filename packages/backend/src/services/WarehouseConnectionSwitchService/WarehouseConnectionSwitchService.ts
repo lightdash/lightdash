@@ -249,20 +249,10 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 project.connectionMode === 'multi'
                     ? (await this.connectionModel.list(project)).length
                     : 1;
-            let credentialSource: 'project' | 'organization' | null = null;
-            if (
-                request.connection.warehouseConnection !== undefined &&
-                request.connection.organizationWarehouseCredentialsUuid ===
-                    undefined
-            ) {
-                credentialSource = 'project';
-            } else if (
-                request.connection.organizationWarehouseCredentialsUuid !==
-                    undefined &&
-                request.connection.warehouseConnection === undefined
-            ) {
-                credentialSource = 'organization';
-            }
+            const credentialSource =
+                WarehouseConnectionSwitchService.credentialSourceFromRequest(
+                    request.connection,
+                );
             let previewReason:
                 | 'invalid_request'
                 | 'name_conflict'
@@ -391,6 +381,18 @@ export class WarehouseConnectionSwitchService extends BaseService {
                       request.organizationWarehouseCredentialsUuid,
               }
             : { kind: 'project', credentials: request.warehouseConnection! };
+    }
+
+    private static credentialSourceFromRequest(
+        request: ApiCreateWarehouseConnectionRequest,
+    ): 'project' | 'organization' | null {
+        if (request.organizationWarehouseCredentialsUuid !== undefined) {
+            return 'organization';
+        }
+        if (request.warehouseConnection !== undefined) {
+            return 'project';
+        }
+        return null;
     }
 
     private assertCanWrite(
@@ -665,6 +667,9 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 projectUuid,
                 'switch_preview',
                 error,
+                WarehouseConnectionSwitchService.credentialSourceFromRequest(
+                    request.connection,
+                ),
             );
             await this.trackPreviewFailure(
                 account,
@@ -819,21 +824,14 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 );
                 if (winner) return winner;
             }
-            let credentialSource: 'organization' | 'project' | null = null;
-            if (
-                request.connection.organizationWarehouseCredentialsUuid !==
-                undefined
-            ) {
-                credentialSource = 'organization';
-            } else if (request.connection.warehouseConnection !== undefined) {
-                credentialSource = 'project';
-            }
             await this.trackSwitchRefusal(
                 account,
                 projectUuid,
                 'switch',
                 error,
-                credentialSource,
+                WarehouseConnectionSwitchService.credentialSourceFromRequest(
+                    request.connection,
+                ),
             );
             throw error;
         }

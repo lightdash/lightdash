@@ -217,6 +217,47 @@ describe('WarehouseConnectionSwitchService lifecycle analytics', () => {
         );
     });
 
+    it.each([
+        {
+            credentialSource: 'project' as const,
+            connection: request.connection,
+        },
+        {
+            credentialSource: 'organization' as const,
+            connection: {
+                name: 'Extra',
+                organizationWarehouseCredentialsUuid: 'credentials-uuid',
+            },
+        },
+    ])(
+        'tracks $credentialSource credentials on a preview refusal',
+        async ({ credentialSource, connection }) => {
+            const { service, switchModel, analytics } = buildService();
+            vi.mocked(switchModel.getProject).mockResolvedValue({
+                ...project,
+                connectionMode: 'multi',
+            });
+
+            await expect(
+                service.preview(account, projectUuid, {
+                    ...request,
+                    connection,
+                }),
+            ).rejects.toThrow('already has multiple connections');
+
+            expect(vi.mocked(analytics.track)).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'warehouse_connection.action_refused',
+                    properties: expect.objectContaining({
+                        operation: 'switch_preview',
+                        reason: 'already_multi',
+                        credentialSource,
+                    }),
+                }),
+            );
+        },
+    );
+
     it('tracks a switch only after the transaction completes', async () => {
         const { service, switchModel, connectionModel, analytics } =
             buildService();
