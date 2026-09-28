@@ -1,3 +1,10 @@
+## [2.360.2](https://github.com/lightdash/lightdash/compare/2.360.1...2.360.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* **screenshots:** cap the pre-ready dashboard viewport height ([#30121](https://github.com/lightdash/lightdash/issues/30121)) ([06ba523](https://github.com/lightdash/lightdash/commit/06ba523de7b7c59b9e6e6a17c47b2aa10e4953e6))
+
 ## [2.360.1](https://github.com/lightdash/lightdash/compare/2.360.0...2.360.1) (2026-09-28)
 
 
