@@ -101,17 +101,22 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
         document.projectUuid,
         document.documentUuid,
     );
-    const summary =
-        versions.data?.pages
-            .flatMap((page) => page.items)
-            .find((version) => version.versionUuid === selectedVersionUuid) ??
-        null;
     const documentUrl = getDocumentUrl(
         projectUrlIdentifier,
         document.documentUuid,
         document.slug,
     );
-    const shown = isCurrent ? document : historical.data;
+    // Keep the last shown version up while the next loads so the rail (and
+    // its focus) stays mounted; the byline follows what is actually shown
+    const shown = isCurrent ? document : (historical.data ?? document);
+    const shownIsCurrent =
+        shown.version.versionUuid === document.version.versionUuid;
+    const summary =
+        versions.data?.pages
+            .flatMap((page) => page.items)
+            .find(
+                (version) => version.versionUuid === shown.version.versionUuid,
+            ) ?? null;
 
     const rail = (
         <DocumentVersionList
@@ -145,9 +150,6 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
             />
         );
     }
-    if (!shown) {
-        return <EmptyStateLoader my="xl" title="Loading version" />;
-    }
     return (
         <DocumentPageLayout name={document.name}>
             <DocumentRenderer
@@ -155,7 +157,10 @@ const DocumentHistoryView = ({ document }: { document: Document }) => {
                 document={{ ...shown, name: document.name }}
                 rail={rail}
                 metadata={
-                    <VersionByline summary={summary} isCurrent={isCurrent} />
+                    <VersionByline
+                        summary={summary}
+                        isCurrent={shownIsCurrent}
+                    />
                 }
                 actions={
                     <ActionIcon.Group

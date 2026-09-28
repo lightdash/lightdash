@@ -196,10 +196,16 @@ describe('Document history page', () => {
 
     test('selecting an older version renders its content and records it in the URL', async () => {
         const router = renderPage();
-        fireEvent.click(
-            await screen.findByRole('button', { name: /^Version 1, saved/ }),
-        );
+        const older = await screen.findByRole('button', {
+            name: /^Version 1, saved/,
+        });
+        older.focus();
+        fireEvent.click(older);
         expect(await screen.findByText('Earlier findings')).toBeInTheDocument();
+        // The rail stays mounted while the version loads, so focus survives
+        expect(
+            screen.getByRole('button', { name: /^Version 1, saved/ }),
+        ).toHaveFocus();
         expect(screen.queryByText('Current findings')).not.toBeInTheDocument();
         expect(router.state.location.search).toBe('?version=version-1');
         expect(
