@@ -218,7 +218,7 @@ import {
 } from './dashboard';
 import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
-import type { Document, DocumentList } from './document';
+import type { Document, DocumentList, DocumentVersionList } from './document';
 import { type EmailStatusExpiring } from './email';
 import {
     type Explore,
@@ -1341,6 +1341,7 @@ type ApiResults =
     | ApiWarehouseDatabaseListing['results']
     | Document
     | DocumentList
+    | DocumentVersionList
     | ContentReviewRequest
     | ContentReviewRequestDetail
     | ContentReviewSettings
