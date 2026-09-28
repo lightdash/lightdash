@@ -1,3 +1,10 @@
+# [2.352.0](https://github.com/lightdash/lightdash/compare/2.351.1...2.352.0) (2026-09-28)
+
+
+### Features
+
+* **learn:** docs-page lessons and the Developer group, with the Metrics and Dimensions lessons (CS-282) ([#29294](https://github.com/lightdash/lightdash/issues/29294)) ([b718224](https://github.com/lightdash/lightdash/commit/b718224eb7b078a13bdc6e1592976d4213f5a48e))
+
 ## [2.351.1](https://github.com/lightdash/lightdash/compare/2.351.0...2.351.1) (2026-09-28)
 
 
