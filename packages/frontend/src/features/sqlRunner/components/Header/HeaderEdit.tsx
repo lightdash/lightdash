@@ -9,13 +9,13 @@ import {
     Menu,
     Tooltip,
 } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
 import {
     IconArrowBack,
     IconDots,
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { useHotkeys } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
