@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
     activityFromSnapshot,
     eligibleActivityProcesses,
+    openFileReferences,
     parseLsofPaths,
     readyActivity,
     readyReferences,
@@ -280,5 +281,99 @@ test('readyReferences scans eligible PIDs and propagates probe failures', async 
             },
         }),
         /lsof timed out/,
+    );
+});
+
+test('open file probe accepts valid partial lsof records on exit one', async () => {
+    const output = `p40\nfcwd\nn/elsewhere\nf3r\nn${path.join(spare, 'src', 'app.ts')}\n`;
+    let invoked: string[] = [];
+    const references = await openFileReferences([40, 41], async (args) => {
+        invoked = args;
+        throw Object.assign(new Error('lsof exited 1'), {
+            code: 1,
+            stdout: output,
+            stderr: '',
+            killed: false,
+            signal: null,
+        });
+    });
+    assert.deepEqual(invoked, ['-nP', '-p', '40,41', '-Fpfn']);
+    assert.deepEqual(
+        [...references],
+        [[40, ['/elsewhere', path.join(spare, 'src', 'app.ts')]]],
+    );
+    assert.deepEqual(
+        [
+            ...(await openFileReferences([41], async () => {
+                throw Object.assign(new Error('lsof exited 1'), {
+                    code: 1,
+                    stdout: '',
+                    stderr: '',
+                    killed: false,
+                    signal: null,
+                });
+            })),
+        ],
+        [],
+    );
+});
+
+test('open file probe rejects killed, diagnostic and malformed lsof results', async () => {
+    const output = `p40\nfcwd\nn${spare}\n`;
+    const failure = (changes: Record<string, unknown>) =>
+        Object.assign(
+            new Error('lsof exited 1'),
+            {
+                code: 1,
+                stdout: output,
+                stderr: '',
+                killed: false,
+                signal: null,
+            },
+            changes,
+        );
+    await assert.rejects(
+        openFileReferences([40], async () => {
+            throw failure({ killed: true, signal: 'SIGTERM' });
+        }),
+        /lsof exited 1/,
+    );
+    await assert.rejects(
+        openFileReferences([40], async () => {
+            throw failure({ code: null, killed: true, signal: 'SIGTERM' });
+        }),
+        /lsof exited 1/,
+    );
+    await assert.rejects(
+        openFileReferences([40], async () => {
+            throw failure({ stderr: 'lsof: permission denied' });
+        }),
+        /lsof exited 1/,
+    );
+    await assert.rejects(
+        openFileReferences([40], async () => {
+            throw failure({ stdout: `p40\nn${spare}\n` });
+        }),
+        /malformed lsof/i,
+    );
+    await assert.rejects(
+        openFileReferences([40], async () => {
+            throw failure({ stdout: 'p40\n' });
+        }),
+        /malformed lsof/i,
+    );
+    await assert.rejects(
+        openFileReferences([40], async () => ({
+            stdout: 'garbled output\n',
+            stderr: '',
+        })),
+        /malformed lsof/i,
+    );
+    await assert.rejects(
+        openFileReferences([40], async () => ({
+            stdout: output,
+            stderr: 'lsof: warning',
+        })),
+        /lsof.*diagnostic/i,
     );
 });

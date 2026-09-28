@@ -316,33 +316,75 @@ export function parseLsofPaths(
     return values;
 }
 
-async function openFileReferences(
+function validateLsofOutput(output: string, pids: number[]): void {
+    if (!output.endsWith('\n')) throw new Error('Malformed lsof output');
+    const requested = new Set(pids);
+    let currentPid = 0;
+    let hasDescriptor = false;
+    let hasProcess = false;
+    for (const line of output.slice(0, -1).split('\n')) {
+        const field = line[0];
+        const value = line.slice(1);
+        if (field === 'p') {
+            if (currentPid > 0 && !hasDescriptor)
+                throw new Error('Malformed lsof output');
+            const pid = Number(value);
+            if (!/^[1-9]\d*$/.test(value) || !requested.has(pid))
+                throw new Error('Malformed lsof output');
+            currentPid = pid;
+            hasDescriptor = false;
+            hasProcess = true;
+        } else if (field === 'f') {
+            if (currentPid === 0 || value === '')
+                throw new Error('Malformed lsof output');
+            hasDescriptor = true;
+        } else if (field === 'n') {
+            if (currentPid === 0 || !hasDescriptor)
+                throw new Error('Malformed lsof output');
+        } else throw new Error('Malformed lsof output');
+    }
+    if (!hasProcess || !hasDescriptor) throw new Error('Malformed lsof output');
+}
+
+export async function openFileReferences(
     pids: number[],
+    execute: (args: string[]) => Promise<{ stdout: string; stderr: string }> = (
+        args,
+    ) =>
+        execFileAsync('lsof', args, {
+            timeout: 5000,
+            maxBuffer: 32 * 1024 * 1024,
+        }),
 ): Promise<Map<number, string[]>> {
     if (!pids.length) return new Map();
     let stdout: string;
     try {
-        ({ stdout } = await execFileAsync(
-            'lsof',
-            ['-nP', '-p', pids.join(','), '-Fpfn'],
-            { timeout: 5000, maxBuffer: 32 * 1024 * 1024 },
-        ));
+        const result = await execute(['-nP', '-p', pids.join(','), '-Fpfn']);
+        if (result.stderr.trim() !== '')
+            throw new Error('lsof emitted diagnostics');
+        stdout = result.stdout;
     } catch (error) {
+        if (!(error instanceof Error)) throw error;
+        const failure = error as Error & {
+            code?: unknown;
+            stdout?: unknown;
+            stderr?: unknown;
+            killed?: unknown;
+            signal?: unknown;
+        };
         if (
-            typeof error !== 'object' ||
-            error === null ||
-            !('code' in error) ||
-            error.code !== 1 ||
-            !('stdout' in error) ||
-            typeof error.stdout !== 'string' ||
-            error.stdout.trim() !== '' ||
-            !('stderr' in error) ||
-            typeof error.stderr !== 'string' ||
-            error.stderr.trim() !== ''
+            failure.code !== 1 ||
+            failure.killed === true ||
+            (failure.signal !== null && failure.signal !== undefined) ||
+            typeof failure.stdout !== 'string' ||
+            typeof failure.stderr !== 'string' ||
+            failure.stderr.trim() !== ''
         )
             throw error;
-        stdout = '';
+        if (failure.stdout === '') return new Map();
+        stdout = failure.stdout;
     }
+    validateLsofOutput(stdout, pids);
     return parseLsofPaths(stdout);
 }
 
