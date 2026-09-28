@@ -419,13 +419,6 @@
                 font-size: var(--mantine-h2-font-size);
                 line-height: var(--mantine-h2-line-height);
                 letter-spacing: -0.015em;
-                padding-top: var(--mantine-spacing-xl);
-                border-top: 1px solid var(--mantine-color-default-border);
-            }
-
-            > h1[data-first-heading] {
-                padding-top: 0;
-                border-top: 0;
             }
 
             > h2 {
