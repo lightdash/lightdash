@@ -10,7 +10,15 @@ import {
 } from '@mantine/core';
 import { IconChartBar, IconCheck, IconDots, IconX } from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -45,9 +53,13 @@ type ChartEditorState =
 const DocumentEditor = ({
     document,
     onClose,
+    initialScrollTop,
+    onScrollTopChange,
 }: {
     document: Document;
     onClose: () => void;
+    initialScrollTop?: number;
+    onScrollTopChange?: (scrollTop: number) => void;
 }) => {
     const { canDrillInto: canAuthorCharts } = useContextMenuPermissions({
         projectUuid: document.projectUuid,
@@ -95,6 +107,30 @@ const DocumentEditor = ({
             : null,
     });
     useTopGapClick(editor);
+    // The Edit button unmounts on entry, so place focus deliberately: an
+    // empty document is ready to type into, otherwise Cancel takes Edit's spot
+    const cancelRef = useRef<HTMLButtonElement>(null);
+    const startsEmpty = document.version.content.cells.length === 0;
+    useEffect(() => {
+        if (!editor) {
+            return undefined;
+        }
+        const placeFocus = () => {
+            if (startsEmpty) {
+                editor.commands.focus('start', { scrollIntoView: false });
+            } else {
+                cancelRef.current?.focus({ preventScroll: true });
+            }
+        };
+        if (editor.isInitialized) {
+            placeFocus();
+            return undefined;
+        }
+        editor.once('create', placeFocus);
+        return () => {
+            editor.off('create', placeFocus);
+        };
+    }, [editor, startsEmpty]);
     const target = useMemo(
         () => ({
             projectUuid: document.projectUuid,
@@ -204,6 +240,8 @@ const DocumentEditor = ({
                 }
                 contentsLabel={null}
                 headings={headings}
+                initialScrollTop={initialScrollTop}
+                onScrollTopChange={onScrollTopChange}
                 variant="document"
                 actions={
                     <ActionIcon.Group
@@ -212,6 +250,7 @@ const DocumentEditor = ({
                     >
                         <Tooltip label="Cancel editing">
                             <ActionIcon
+                                ref={cancelRef}
                                 variant="default"
                                 size="lg"
                                 aria-label="Cancel"

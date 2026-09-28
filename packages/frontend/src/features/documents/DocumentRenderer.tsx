@@ -12,9 +12,13 @@ import styles from './presentation/ReportPresentation.module.css';
 const DocumentRenderer = ({
     document,
     actions,
+    initialScrollTop,
+    onScrollTopChange,
 }: {
     document: Document;
     actions?: ReactNode;
+    initialScrollTop?: number;
+    onScrollTopChange?: (scrollTop: number) => void;
 }) => {
     const { cells } = document.version.content;
     const { editor, headings } = useDocumentReader(document);
@@ -41,6 +45,8 @@ const DocumentRenderer = ({
             variant="document"
             actions={actions}
             metadata={<DocumentByline document={document} />}
+            initialScrollTop={initialScrollTop}
+            onScrollTopChange={onScrollTopChange}
         >
             {cells.length === 0 ? (
                 <Text c="dimmed">This document is empty.</Text>

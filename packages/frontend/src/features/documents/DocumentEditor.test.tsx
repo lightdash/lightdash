@@ -486,3 +486,19 @@ describe('title', () => {
         expect(titleInput()).toHaveValue('Twolines');
     });
 });
+
+it('moves focus to Cancel when editing an existing document', async () => {
+    renderEditor();
+    const cancel = await screen.findByRole('button', { name: 'Cancel' });
+    await waitFor(() => expect(cancel).toHaveFocus());
+});
+
+it('puts the caret in the body of an empty document', async () => {
+    renderEditor({
+        ...report,
+        version: { ...report.version, content: { cells: [] } },
+    });
+    await waitFor(() =>
+        expect(document.activeElement).toHaveClass('ProseMirror'),
+    );
+});

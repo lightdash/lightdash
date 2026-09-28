@@ -7,7 +7,7 @@ import {
     Title,
     UnstyledButton,
 } from '@mantine/core';
-import type { HTMLAttributes, ReactNode } from 'react';
+import { useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react';
 import styles from './ReportPresentation.module.css';
 import { useReportContents } from './useReportContents';
 
@@ -27,6 +27,9 @@ type Props = {
     variant?: 'structured' | 'markdown' | 'document';
     actions?: ReactNode;
     metadata?: ReactNode;
+    /** Scroll offset to open at, e.g. when swapping between reading and editing. */
+    initialScrollTop?: number;
+    onScrollTopChange?: (scrollTop: number) => void;
 };
 
 const DocumentReportLayout = ({
@@ -41,8 +44,34 @@ const DocumentReportLayout = ({
     variant = 'structured',
     actions,
     metadata,
+    initialScrollTop = 0,
+    onScrollTopChange,
 }: Props) => {
     const contents = useReportContents(headings, headingSelector);
+    const { viewportRef } = contents;
+    const openAt = useRef(initialScrollTop);
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        const target = openAt.current;
+        if (!viewport || target <= 0) {
+            return undefined;
+        }
+        // The body renders after the layout mounts, so retry briefly until
+        // it is tall enough to reach the offset
+        const started = performance.now();
+        let frame = 0;
+        const restore = () => {
+            viewport.scrollTop = target;
+            if (
+                Math.abs(viewport.scrollTop - target) > 1 &&
+                performance.now() - started < 2000
+            ) {
+                frame = requestAnimationFrame(restore);
+            }
+        };
+        restore();
+        return () => cancelAnimationFrame(frame);
+    }, [viewportRef]);
     const entries = [
         { id: null, label: 'Summary', badge: undefined },
         ...headings,
@@ -52,7 +81,10 @@ const DocumentReportLayout = ({
         <ScrollArea
             className={styles.reportScroll}
             viewportRef={contents.viewportRef}
-            onScrollPositionChange={contents.updateActiveSection}
+            onScrollPositionChange={({ y }) => {
+                contents.updateActiveSection();
+                onScrollTopChange?.(y);
+            }}
         >
             <Box
                 className={[

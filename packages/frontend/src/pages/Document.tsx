@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Button, Tooltip } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
@@ -29,6 +29,12 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
         null,
     );
     const canEdit = useCanEditDocument(document);
+    // Reading and editing are separate layouts; carry the scroll offset across
+    const scrollTop = useRef(0);
+    const [openAt, setOpenAt] = useState(0);
+    const trackScroll = (top: number) => {
+        scrollTop.current = top;
+    };
     if (editingDocument && canEdit) {
         return (
             <Suspense
@@ -36,7 +42,12 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
             >
                 <DocumentEditor
                     document={editingDocument}
-                    onClose={() => setEditingDocument(null)}
+                    initialScrollTop={openAt}
+                    onScrollTopChange={trackScroll}
+                    onClose={() => {
+                        setOpenAt(scrollTop.current);
+                        setEditingDocument(null);
+                    }}
                 />
             </Suspense>
         );
@@ -45,6 +56,8 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
         <DocumentPageLayout name={document.name}>
             <DocumentRenderer
                 document={document}
+                initialScrollTop={openAt}
+                onScrollTopChange={trackScroll}
                 actions={
                     <ActionIcon.Group
                         role="group"
@@ -56,7 +69,10 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                                     variant="default"
                                     size="lg"
                                     aria-label="Edit document"
-                                    onClick={() => setEditingDocument(document)}
+                                    onClick={() => {
+                                        setOpenAt(scrollTop.current);
+                                        setEditingDocument(document);
+                                    }}
                                 >
                                     <MantineIcon icon={IconPencil} />
                                 </ActionIcon>

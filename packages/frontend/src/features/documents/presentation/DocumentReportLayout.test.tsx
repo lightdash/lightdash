@@ -33,6 +33,30 @@ describe('Shared report presentation', () => {
         );
     });
 
+    it('opens at a carried-over scroll offset and reports scrolling', async () => {
+        const onScrollTopChange = vi.fn();
+        const { container } = render(
+            <MantineProvider env="test">
+                <DocumentReportLayout
+                    title="Long report"
+                    variant="document"
+                    headings={[]}
+                    initialScrollTop={640}
+                    onScrollTopChange={onScrollTopChange}
+                >
+                    <p>Report narrative</p>
+                </DocumentReportLayout>
+            </MantineProvider>,
+        );
+        const viewport = container.querySelector<HTMLElement>(
+            '.mantine-ScrollArea-viewport',
+        )!;
+        await waitFor(() => expect(viewport.scrollTop).toBe(640));
+        viewport.scrollTop = 900;
+        fireEvent.scroll(viewport);
+        expect(onScrollTopChange).toHaveBeenLastCalledWith(900);
+    });
+
     it('preserves declarative heading identities when an earlier cell failed to render', async () => {
         render(
             <MantineProvider env="test">
