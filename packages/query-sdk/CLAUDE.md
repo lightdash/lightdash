@@ -28,9 +28,10 @@ upgrade detection and the "What's new" UI, so old apps will never be offered it.
    feature — `'data_app'`, `'chart_type'`, or both. Every bundle reports the
    whole registry, so this is what stops a chart type being offered Sheets
    export, or an app being offered `useVizContext()` features. Chart types run
-   no queries and fetch nothing (see the `reusable-visualization` skill), so
-   anything on the query builder, `externalFetch`, URL state or deliveries is
-   `['data_app']`; anything read from `useVizContext()` is `['chart_type']`.
+   no queries (see the `reusable-visualization` skill), so anything on the
+   query builder, URL state or deliveries is `['data_app']`; anything read
+   from `useVizContext()` is `['chart_type']`. Both kinds can link external
+   connections, so `externalFetch` lists both.
 2. If the feature needs app-code wiring before the host can use it (e.g.
    `lineage` needs `data-ld-query` stamps on chart roots), say exactly how in
    the optional `wiring` field. It is agent-facing only — never rendered in

@@ -9,9 +9,20 @@ You are editing a Lightdash **custom chart type** (a reusable visualization, the
 
 ## The contract is the reusable-visualization skill
 
-Read the `reusable-visualization` skill before editing. It defines everything the component may do: `useVizContext()` is the only channel to the host (data, options, resolved colours), the component runs no query, owns no explore, and never fetches anything itself. App-level SDK APIs (query builder, `useLightdash`, filters, `externalFetch`) do not apply here and must not be introduced.
+Read the `reusable-visualization` skill before editing. It defines everything the component may do: `useVizContext()` is the only channel to the host for data, options and resolved colours; the component runs no query and owns no explore. App-level query APIs (query builder, `useLightdash`, filters) do not apply here and must not be introduced.
 
 Never hand-build a data-point action menu when `useVizContext().pointMenu.enabled` — call `pointMenu.open({ x, y, row, metric })` and let Lightdash render it; an in-viz menu is only the fallback for hosts that predate the capability.
+
+## External HTTP APIs go through linked connections
+
+A chart type's rows always come from `useVizContext()`. Anything else it needs from outside Lightdash, such as reference data from a third-party API or images from a URL, goes through an **external connection**, the same way it does for data apps.
+
+- The one sanctioned path to a third-party API is `client.externalFetch('<alias>', ...)`, with the client from `useLightdashClient()`, against an external connection a project admin configured and linked to this chart type. Do not add direct `fetch` or REST calls; the sandbox blocks them.
+- Images load only from a linked connection that has public images enabled, from its exact origin. Never put Lightdash data in an image URL.
+- Links are declared in this folder's `lightdash-app.yml` under `externalConnections` (`- alias: stripe` / `connectionSlug: stripe-api`). When the key is present, upload reconciles the chart type's links to match it exactly, so to link a connection that **already exists in the project**, add its `{alias, connectionSlug}` entry and upload. Do not remove entries casually: an entry removed from the list (or an empty list) unlinks on upload, and a manifest without the key leaves links unchanged.
+- Watch the upload output: a `connectionSlug` that doesn't exist in the target project is skipped with a warning (the chart type uploads, but `externalFetch` on that alias fails at runtime). If a link is skipped or forbidden, report it to the user instead of retrying.
+- If the chart type needs an API with **no existing connection**, **stop and say so**. An admin must create the connection first; then it can be linked via the manifest as above.
+- Connections are not emulated by the local fixture preview. Test them after upload, in the explorer.
 
 ## The declaration lives in lightdash-app.yml — keep it in lockstep
 
