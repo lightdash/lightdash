@@ -169,6 +169,7 @@ export async function claimReadyWorktree(
         promoteReadyWorktree,
         queuePoolRefill,
     },
+    observed?: Instance,
 ): Promise<Instance> {
     let claimed = false;
     const instance = await operations.foregroundWork(() =>
@@ -183,6 +184,15 @@ export async function claimReadyWorktree(
                         throw new Error(
                             'No instance for this worktree; run ldenv up',
                         );
+                    if (
+                        observed &&
+                        (current.kind !== observed.kind ||
+                            current.phase !== observed.phase ||
+                            current.updatedAt !== observed.updatedAt ||
+                            JSON.stringify(current.readyWorktree) !==
+                                JSON.stringify(observed.readyWorktree))
+                    )
+                        return current;
                     if (current.kind === 'worktree') return current;
                     if (current.kind === 'warming')
                         throw new Error(
@@ -197,6 +207,8 @@ export async function claimReadyWorktree(
                         throw new Error(
                             'Ready worktree ownership is not proven',
                         );
+                    if (current.kind === 'spare' && current.phase !== 'ready')
+                        throw new Error('Ready worktree is no longer ready');
                     claimed = true;
                     return operations.promoteReadyWorktree(
                         current,
@@ -337,7 +349,10 @@ export async function monitorReadyPool(root: string): Promise<never> {
                     pending.claim!.pid,
                 );
             const spares = inventory.filter(
-                (item) => item.kind === 'spare' && item.readyWorktree,
+                (item) =>
+                    item.kind === 'spare' &&
+                    item.phase === 'ready' &&
+                    item.readyWorktree,
             );
             const activity = await readyActivity(spares);
             const checkGit = Date.now() - lastGitCheck >= 2000;
@@ -353,6 +368,8 @@ export async function monitorReadyPool(root: string): Promise<never> {
                         spare.worktree,
                         occupant ? 'process cwd' : 'worktree changed',
                         occupant?.pid ?? null,
+                        undefined,
+                        spare,
                     );
             }
             previousActivity = activity;

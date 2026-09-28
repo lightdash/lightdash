@@ -274,38 +274,49 @@ export async function retireStalePoolInstances(
     });
     for (const instance of reserved) {
         await (operations.waitForGrace ?? delay)(2000);
-        await operations.withLock(
-            instance.id,
-            async () => {
-                const current = (await operations.instances()).find(
-                    (item) => item.id === instance.id,
-                );
-                if (
-                    !current ||
-                    current.phase !== instance.phase ||
-                    current.kind !== instance.kind ||
-                    current.startedAt !== instance.startedAt ||
-                    current.updatedAt !== instance.updatedAt ||
-                    current.worktree !== instance.worktree ||
-                    current.parent !== instance.parent ||
-                    current.readyWorktree?.retiring?.hiddenAt !==
-                        instance.readyWorktree?.retiring?.hiddenAt
-                )
-                    return;
-                if (await (operations.protectReadyWorktree?.(current) ?? false))
-                    return;
-                await (
-                    operations.assertOwnedWarmForTeardown ??
-                    assertOwnedWarmForTeardown
-                )(current, path.resolve(__dirname, '../..'));
-                if (await (operations.protectReadyWorktree?.(current) ?? false))
-                    return;
-                current.phase = 'failed';
-                await operations.saveInstance(current);
-                await operations.down(current);
-            },
-            { timeoutMs: null },
-        );
+        const retire = () =>
+            operations.withLock(
+                instance.id,
+                async () => {
+                    const current = (await operations.instances()).find(
+                        (item) => item.id === instance.id,
+                    );
+                    if (
+                        !current ||
+                        current.phase !== instance.phase ||
+                        current.kind !== instance.kind ||
+                        current.startedAt !== instance.startedAt ||
+                        current.updatedAt !== instance.updatedAt ||
+                        current.worktree !== instance.worktree ||
+                        current.parent !== instance.parent ||
+                        current.readyWorktree?.retiring?.hiddenAt !==
+                            instance.readyWorktree?.retiring?.hiddenAt
+                    )
+                        return;
+                    if (
+                        await (operations.protectReadyWorktree?.(current) ??
+                            false)
+                    )
+                        return;
+                    await (
+                        operations.assertOwnedWarmForTeardown ??
+                        assertOwnedWarmForTeardown
+                    )(current, path.resolve(__dirname, '../..'));
+                    if (
+                        await (operations.protectReadyWorktree?.(current) ??
+                            false)
+                    )
+                        return;
+                    current.phase = 'failed';
+                    await operations.saveInstance(current);
+                    await operations.down(current);
+                },
+                { timeoutMs: null },
+            );
+        await operations.withLock('pool', retire, {
+            timeoutMs: null,
+            yieldToForeground: false,
+        });
     }
 }
 

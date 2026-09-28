@@ -115,6 +115,60 @@ test('explicit claim is idempotent and queues one refill', async () => {
     assert.deepEqual(locks, ['pool', instance.id, 'pool', instance.id]);
 });
 
+test('a stale monitor observation cannot claim a retiring or failed spare', async () => {
+    for (const changed of ['retiring', 'failed']) {
+        const instance = fixture();
+        const observed = structuredClone(instance);
+        const operations: NonNullable<
+            Parameters<typeof claimReadyWorktree>[3]
+        > = {
+            foregroundWork: async (work) => work(),
+            withLock: async (name, work) => {
+                if (name === instance.id) {
+                    if (changed === 'failed') instance.phase = 'failed';
+                    else
+                        instance.readyWorktree!.retiring = {
+                            branch: 'ldenv-retiring/aaaaaaa-123',
+                            at: new Date().toISOString(),
+                        };
+                }
+                return work();
+            },
+            currentState: async () => instance,
+            promoteReadyWorktree: async () =>
+                assert.fail('stale observation must not promote'),
+            queuePoolRefill: async () =>
+                assert.fail('stale observation must not refill'),
+        };
+        const result = await claimReadyWorktree(
+            instance.worktree,
+            'worktree changed',
+            null,
+            operations,
+            observed,
+        );
+        assert.equal(result.kind, 'spare');
+        assert.equal(result.claim, undefined);
+    }
+});
+
+test('explicit claim rejects a spare whose teardown has started', async () => {
+    const instance = fixture();
+    instance.phase = 'failed';
+    await assert.rejects(
+        claimReadyWorktree(instance.worktree, 'explicit claim', null, {
+            foregroundWork: async (work) => work(),
+            withLock: async (_name, work) => work(),
+            currentState: async () => instance,
+            promoteReadyWorktree: async () =>
+                assert.fail('failed spare must not promote'),
+            queuePoolRefill: async () =>
+                assert.fail('failed spare must not refill'),
+        }),
+        /no longer ready/,
+    );
+});
+
 test('an interrupted promotion can resume without changing process timestamps', async () => {
     const instance = fixture();
     const originalStart = instance.startedAt;

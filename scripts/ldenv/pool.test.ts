@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AsyncLocalStorage } from 'node:async_hooks';
+import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -545,7 +545,63 @@ test('an agent entering during retirement grace is claimed before runtime teardo
     assert.equal(f.spare.phase, 'ready');
 });
 
-test('slow stale teardown leaves the pool available for claims and publication', async () => {
+test('foreground claim cannot make background retirement wait on itself', async () => {
+    const f = fixture();
+    f.spare.kind = 'warming';
+    const locks = mutex();
+    const shared = new AsyncLocalStorage<boolean>();
+    const foreground = new AsyncResource('foreground-claim');
+    const escape = deferred();
+    const withSharedLock: typeof locks.withLock = (name, work, options) =>
+        locks.withLock(
+            name,
+            () =>
+                shared.run(name === 'pool' || Boolean(shared.getStore()), work),
+            options,
+        );
+    let claim: Promise<void> | null = null;
+    const retirement = retireStalePoolInstances(f.spare.parent, {
+        ...retirementTestHooks,
+        withLock: withSharedLock,
+        instances: async () => [f.spare],
+        saveInstance: async () => {},
+        alive: () => false,
+        spareBackendMode: async () => 'bundle',
+        down: async () => {
+            claim = foreground.runInAsyncScope(() =>
+                withSharedLock('pool', () =>
+                    withSharedLock(f.spare.id, async () => {}),
+                ),
+            );
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            if (!shared.getStore()) await Promise.race([claim, escape.promise]);
+        },
+    });
+    let timedOut = false;
+    try {
+        await Promise.race([
+            retirement,
+            new Promise<never>((_, reject) =>
+                setTimeout(
+                    () => reject(new Error('retirement deadlocked')),
+                    200,
+                ),
+            ),
+        ]);
+    } catch {
+        timedOut = true;
+        escape.resolve();
+        await retirement;
+    }
+    if (claim) await claim;
+    assert.equal(
+        timedOut,
+        false,
+        'background down waited for a claim blocked on its instance lock',
+    );
+});
+
+test('retirement grace leaves the pool available, then teardown holds pool before instance', async () => {
     const f = fixture();
     const stale = fixture('abcdef01-234').spare;
     stale.kind = 'warming';
@@ -554,10 +610,16 @@ test('slow stale teardown leaves the pool available for claims and publication',
     warming.monitorPid = 123;
     const registry = [f.spare, stale, warming];
     const locks = mutex();
+    const graceEntered = deferred();
+    const graceRelease = deferred();
     const entered = deferred();
     const release = deferred();
     const operations = {
         ...retirementTestHooks,
+        waitForGrace: async () => {
+            graceEntered.resolve();
+            await graceRelease.promise;
+        },
         withLock: locks.withLock,
         instances: async () => registry,
         saveInstance: f.operations.saveInstance,
@@ -571,23 +633,26 @@ test('slow stale teardown leaves the pool available for claims and publication',
     };
     const teardown = retireStalePoolInstances(f.spare.parent, operations);
     try {
-        await entered.promise;
-        assert.equal(stale.phase, 'failed');
+        await graceEntered.promise;
         assert.equal(locks.held.has('pool'), false);
-        assert.equal(locks.held.has(stale.id), true);
         f.operations.withLock = locks.withLock;
         f.operations.instances = operations.instances;
         assert.equal((await f.claim()).id, f.spare.id);
         await publishSpare(warming, operations);
         assert.equal(warming.kind, 'spare');
+        graceRelease.resolve();
+        await entered.promise;
+        assert.equal(stale.phase, 'failed');
+        assert.equal(locks.held.has('pool'), true);
         assert.equal(locks.held.has(stale.id), true);
     } finally {
+        graceRelease.resolve();
         release.resolve();
         await teardown;
     }
 });
 
-test('stale teardown rechecks generation and state after releasing the pool lock', async () => {
+test('stale teardown rechecks generation and state after grace under the pool lock', async () => {
     for (const change of ['missing', 'phase', 'epoch', 'updated', 'kind']) {
         const f = fixture();
         f.spare.kind = 'warming';
@@ -599,7 +664,7 @@ test('stale teardown rechecks generation and state after releasing the pool lock
             ...retirementTestHooks,
             withLock: async (name, work, options) => {
                 if (name === f.spare.id && ++acquired === 2) {
-                    assert.equal(locks.held.has('pool'), false);
+                    assert.equal(locks.held.has('pool'), true);
                     assert.equal(f.spare.phase, 'ready');
                     const changed = structuredClone(f.spare);
                     if (change === 'phase') changed.phase = 'starting';
