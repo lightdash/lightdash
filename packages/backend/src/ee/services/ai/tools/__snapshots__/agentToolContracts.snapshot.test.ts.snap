@@ -5341,33 +5341,155 @@ All branches of an IF must return the same type.",
     "name": "generateDashboard",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "excludedVisualizations": {
+                  "description": "Visualizations left out of the dashboard because they failed validation; empty when every visualization was included.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "error": {
+                        "description": "Why the visualization failed validation.",
+                        "type": "string",
+                      },
+                      "title": {
+                        "description": "Title of the visualization.",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "title",
+                      "error",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "visualizationCount": {
+                  "description": "How many visualizations the dashboard was created with.",
+                  "type": "number",
+                },
+              },
+              "required": [
+                "visualizationCount",
+                "excludedVisualizations",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
