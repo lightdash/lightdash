@@ -9,6 +9,20 @@ export type CompilerState = {
     at: number;
 };
 export const compilerNames = ['common', 'formula', 'warehouses', 'routes'];
+export function canStartApiAlongsideWatchers(files: string[]): boolean {
+    return !files.some(
+        (file) =>
+            file === 'pnpm-lock.yaml' ||
+            file === 'pnpm-workspace.yaml' ||
+            file === '.npmrc' ||
+            file.startsWith('packages/common/') ||
+            file.startsWith('packages/warehouses/') ||
+            file.startsWith('packages/formula/') ||
+            file.startsWith('packages/backend/src/controllers/') ||
+            file.startsWith('packages/backend/src/ee/controllers/') ||
+            file.startsWith('packages/backend/src/generated/'),
+    );
+}
 export const processEpoch = (instance: Instance): string =>
     instance.processStartedAt ?? instance.startedAt;
 

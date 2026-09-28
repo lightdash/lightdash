@@ -16,12 +16,34 @@ import { test } from 'node:test';
 import { waitUntil } from './io';
 import { json, newInstance } from './model';
 import {
+    canStartApiAlongsideWatchers,
     compilersSettled,
     stableReadiness,
     processEpoch,
     claimChangesApi,
     type CompilerState,
 } from './readiness';
+
+test('API overlap only skips package and route rebuild inputs', () => {
+    assert.equal(canStartApiAlongsideWatchers([]), true);
+    assert.equal(
+        canStartApiAlongsideWatchers(['packages/frontend/src/App.tsx']),
+        true,
+    );
+    assert.equal(
+        canStartApiAlongsideWatchers(['packages/backend/src/services/User.ts']),
+        true,
+    );
+    for (const file of [
+        'packages/common/src/index.ts',
+        'packages/warehouses/src/index.ts',
+        'packages/formula/src/index.ts',
+        'packages/backend/src/controllers/UserController.ts',
+        'packages/backend/src/generated/routes.ts',
+        'pnpm-lock.yaml',
+    ])
+        assert.equal(canStartApiAlongsideWatchers([file]), false, file);
+});
 
 test('claim API changes match watched backend code and skip ignored or unrelated files', () => {
     for (const file of [

@@ -81,7 +81,10 @@ import {
     seedProjectUuid,
     stopProcesses,
 } from './processes';
-import { waitForCompilers } from './readiness';
+import {
+    canStartApiAlongsideWatchers,
+    waitForCompilers,
+} from './readiness';
 import { populateViteCache, restoreViteCache } from './vite';
 
 export const controlRoot = path.resolve(__dirname, '../..');
@@ -666,11 +669,16 @@ async function upInstance(
                     ),
                 );
             let preparations: PromiseSettledResult<void>[];
-            if (matchingTiers(recipe.tiers, diff).length === 0) {
+            const overlapWatchers =
+                matchingTiers(recipe.tiers, diff).length === 0 &&
+                canStartApiAlongsideWatchers(diff);
+            if (overlapWatchers) {
                 preparations = await Promise.allSettled([
                     frontend(),
                     warehouse(),
-                    prepareWatchers(state),
+                    timed(state.timings, 'watchersLaunch', () =>
+                        startProcesses(state, 'watchers'),
+                    ),
                 ]);
             } else {
                 await frontend();
@@ -700,7 +708,7 @@ async function upInstance(
                     warmCompileCache(root, env),
                 );
             await saveInstance(state);
-            return await start(state, noWait);
+            return await start(state, noWait, overlapWatchers);
         } catch (error) {
             if (instance) {
                 const state = instance as Instance;
@@ -732,6 +740,7 @@ export async function start(
 async function startInstance(
     instance: Instance,
     noWait: boolean,
+    overlapWatchers = false,
 ): Promise<Instance> {
     assertInstance(instance);
     if (instance.phase === 'stopped' || instance.phase === 'failed') {
@@ -752,8 +761,15 @@ async function startInstance(
         await timed(instance.timings, 'frontendStart', () =>
             startProcesses(instance, 'frontend'),
         );
-    if (!instance.timings.watchersSettle) await prepareWatchers(instance);
+    if (!instance.timings.watchersSettle && !overlapWatchers)
+        await prepareWatchers(instance);
     await timed(instance.timings, 'pm2', () => startProcesses(instance, 'api'));
+    if (overlapWatchers && !noWait)
+        await timed(instance.timings, 'watchersSettle', () =>
+            timed(instance.timings, 'watchersWait', () =>
+                waitForCompilers(instance),
+            ),
+        );
     await saveInstance(instance);
     if (noWait) {
         instance.monitorPid = await background(

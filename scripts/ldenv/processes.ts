@@ -1042,12 +1042,26 @@ export async function finishStart(
 ): Promise<void> {
     try {
         const apiStarted = Date.now();
-        await waitUntil(
+        const apiHealth = waitUntil(
             () => health(instance.ports!.api),
             120000,
             'backend health',
-        );
-        instance.timings.bootToHealth = Date.now() - apiStarted;
+        ).then(() => {
+            instance.timings.bootToHealth = Date.now() - apiStarted;
+        });
+        const watcherStarted = Date.now();
+        const compilers =
+            instance.timings.watchersLaunch &&
+            !instance.timings.watchersSettle
+                ? waitForCompilers(instance).then(() => {
+                      instance.timings.watchersWait =
+                          Date.now() - watcherStarted;
+                      instance.timings.watchersSettle =
+                          instance.timings.watchersLaunch +
+                          instance.timings.watchersWait;
+                  })
+                : Promise.resolve();
+        await Promise.all([apiHealth, compilers]);
         const laterStart = Date.now();
         if (instance.kind === 'worktree') {
             await stableReady(instance, () => checkForegroundReady(instance));
