@@ -1683,30 +1683,25 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             <>
                                 {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                                 <Tooltip
+                                    disabled={userCanManageChart}
+                                    label={editButtonTooltipLabel}
+                                    position="top-start"
+                                >
+                                    <Box>
+                                        <EditChartMenuItem
+                                            tile={props.tile}
+                                            chartSlug={chart.slug}
+                                            chart={chart}
+                                            disabled={!userCanManageChart}
+                                        />
+                                    </Box>
+                                </Tooltip>
+
+                                <Tooltip
                                     disabled={!isEditMode}
                                     label="Finish editing dashboard to use these actions"
                                 >
                                     <Box>
-                                        <Tooltip
-                                            disabled={
-                                                userCanManageChart || isEditMode
-                                            }
-                                            label={editButtonTooltipLabel}
-                                            position="top-start"
-                                        >
-                                            <Box>
-                                                <EditChartMenuItem
-                                                    tile={props.tile}
-                                                    chartSlug={chart.slug}
-                                                    chart={chart}
-                                                    disabled={
-                                                        isEditMode ||
-                                                        !userCanManageChart
-                                                    }
-                                                />
-                                            </Box>
-                                        </Tooltip>
-
                                         {userCanViewExplore &&
                                             chartPathname && (
                                                 <Tooltip
@@ -2546,17 +2541,7 @@ export const GenericDashboardChartTile: FC<
                 chartKind={tile.properties.lastVersionChartKind ?? null}
                 extraMenuItems={
                     tile.properties.savedChartUuid && (
-                        <Tooltip
-                            disabled={!isEditMode}
-                            label="Finish editing dashboard to edit this chart"
-                        >
-                            <Box>
-                                <EditChartMenuItem
-                                    tile={tile}
-                                    disabled={isEditMode}
-                                />
-                            </Box>
-                        </Tooltip>
+                        <EditChartMenuItem tile={tile} />
                     )
                 }
                 {...rest}

@@ -436,54 +436,6 @@ const Dashboard: FC = () => {
 
     const [gridWidth, setGridWidth] = useState(0);
 
-    useEffect(() => {
-        if (isSuccess) {
-            setHaveTilesChanged(false);
-            setHaveCustomMetricsChanged(false);
-            setHaveFiltersChanged(false);
-            setHavePinnedParametersChanged(false);
-            setHaveDateZoomGranularitiesChanged(false);
-            setHasDefaultDateZoomGranularityChanged(false);
-            setHasDateZoomConfigChanged(false);
-            // The saved config is the source of truth again
-            setRequiredFiltersNote(undefined);
-            setDashboardTemporaryFilters({
-                dimensions: [],
-                metrics: [],
-                tableCalculations: [],
-            });
-            reset();
-            if (dashboardTabs.length > 1) {
-                void navigate(
-                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
-                    { replace: true },
-                );
-            } else {
-                void navigate(
-                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
-                    { replace: true },
-                );
-            }
-        }
-    }, [
-        dashboardIdentifier,
-        navigate,
-        isSuccess,
-        projectUrlIdentifier,
-        reset,
-        setDashboardTemporaryFilters,
-        setHaveFiltersChanged,
-        setHaveTilesChanged,
-        setHaveCustomMetricsChanged,
-        setHavePinnedParametersChanged,
-        setHaveDateZoomGranularitiesChanged,
-        setHasDefaultDateZoomGranularityChanged,
-        setHasDateZoomConfigChanged,
-        setRequiredFiltersNote,
-        dashboardTabs,
-        activeTab,
-    ]);
-
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
 
     const handleUpdateTiles = useCallback(
@@ -788,15 +740,28 @@ const Dashboard: FC = () => {
         isEditMode,
     ]);
 
+    const hasDashboardChanged =
+        haveTilesChanged ||
+        haveCustomMetricsChanged ||
+        haveFiltersChanged ||
+        hasTemporaryFilters ||
+        haveTabsChanged ||
+        hasDateZoomDisabledChanged ||
+        hasAddFilterDisabledChanged ||
+        hasRequiredFiltersNoteChanged ||
+        parametersHaveChanged ||
+        havePinnedParametersChanged ||
+        hasParameterOrderChanged ||
+        haveDateZoomGranularitiesChanged ||
+        hasDefaultDateZoomGranularityChanged ||
+        hasDateZoomConfigChanged;
+
     // Block navigating away if there are unsaved changes
     const blocker = useBlocker(({ nextLocation }) => {
         if (
             isEditMode &&
             !isLeavingTrainingCopy(nextLocation) &&
-            (haveTilesChanged ||
-                haveFiltersChanged ||
-                haveTabsChanged ||
-                haveCustomMetricsChanged) &&
+            hasDashboardChanged &&
             // A URL may carry either the uuid or the slug for both the project
             // and the dashboard, so accept any combination — but compare whole
             // segments, and require the project to match too: dashboard slugs
@@ -809,12 +774,73 @@ const Dashboard: FC = () => {
                 dashboardSlug: dashboardIdentifier,
             }) &&
             // Allow user to add a new table
-            !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
+            (nextLocation.state?.saveDashboardBeforeChartEdit === true ||
+                !sessionStorage.getItem(
+                    `unsavedDashboardTiles:${dashboardUuid}`,
+                ))
         ) {
             return true; //blocks navigation
         }
         return false; // allow navigation
     });
+
+    const isChartEditBlocked =
+        blocker.state === 'blocked' &&
+        blocker.location.state?.saveDashboardBeforeChartEdit === true;
+
+    useEffect(() => {
+        if (isSuccess) {
+            setHaveTilesChanged(false);
+            setHaveTabsChanged(false);
+            setHaveCustomMetricsChanged(false);
+            setHaveFiltersChanged(false);
+            setHavePinnedParametersChanged(false);
+            setHaveDateZoomGranularitiesChanged(false);
+            setHasDefaultDateZoomGranularityChanged(false);
+            setHasDateZoomConfigChanged(false);
+            // The saved config is the source of truth again
+            setRequiredFiltersNote(undefined);
+            setDashboardTemporaryFilters({
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            });
+            reset();
+            if (isChartEditBlocked && blocker.state === 'blocked') {
+                blocker.proceed();
+            } else if (dashboardTabs.length > 1) {
+                void navigate(
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
+                    { replace: true },
+                );
+            } else {
+                void navigate(
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
+                    { replace: true },
+                );
+            }
+        }
+    }, [
+        blocker,
+        isChartEditBlocked,
+        setHaveTabsChanged,
+        dashboardIdentifier,
+        navigate,
+        isSuccess,
+        projectUrlIdentifier,
+        reset,
+        setDashboardTemporaryFilters,
+        setHaveFiltersChanged,
+        setHaveTilesChanged,
+        setHaveCustomMetricsChanged,
+        setHavePinnedParametersChanged,
+        setHaveDateZoomGranularitiesChanged,
+        setHasDefaultDateZoomGranularityChanged,
+        setHasDateZoomConfigChanged,
+        setRequiredFiltersNote,
+        dashboardTabs,
+        activeTab,
+    ]);
 
     const handleEnterEditMode = useCallback(async () => {
         resetDashboardFilters();
@@ -1242,21 +1268,7 @@ const Dashboard: FC = () => {
         dashboardTiles,
         isFullScreenFeatureEnabled,
         onToggleFullscreen: handleToggleFullscreen,
-        hasDashboardChanged:
-            haveTilesChanged ||
-            haveCustomMetricsChanged ||
-            haveFiltersChanged ||
-            hasTemporaryFilters ||
-            haveTabsChanged ||
-            hasDateZoomDisabledChanged ||
-            hasAddFilterDisabledChanged ||
-            hasRequiredFiltersNoteChanged ||
-            parametersHaveChanged ||
-            havePinnedParametersChanged ||
-            hasParameterOrderChanged ||
-            haveDateZoomGranularitiesChanged ||
-            hasDefaultDateZoomGranularityChanged ||
-            hasDateZoomConfigChanged,
+        hasDashboardChanged,
         onAddTiles: handleAddTiles,
         onNewChart:
             isChartEditorEnabled && isEditMode ? handleOpenNewChart : undefined,
@@ -1281,7 +1293,7 @@ const Dashboard: FC = () => {
 
     return (
         <>
-            {blocker.state === 'blocked' && (
+            {blocker.state === 'blocked' && !isChartEditBlocked && (
                 <MantineModal
                     opened
                     onClose={() => {
@@ -1308,6 +1320,29 @@ const Dashboard: FC = () => {
                         you want to leave without saving?
                     </Text>
                 </MantineModal>
+            )}
+
+            {isChartEditBlocked && blocker.state === 'blocked' && (
+                <MantineModal
+                    opened={!isSaveVerificationModalOpen}
+                    onClose={() => {
+                        if (!isSaving) blocker.reset();
+                    }}
+                    role="alertdialog"
+                    title="Save dashboard before editing chart?"
+                    description="You have unsaved dashboard changes. These will be saved before opening the chart editor."
+                    confirmLabel="Save and edit chart"
+                    confirmLoading={isSaving}
+                    cancelDisabled={isSaving}
+                    withCloseButton={!isSaving}
+                    onConfirm={() => {
+                        if (shouldShowVerificationSaveOptions) {
+                            saveVerificationModalHandlers.open();
+                        } else {
+                            handleSaveDashboard();
+                        }
+                    }}
+                />
             )}
 
             <MantineModal
