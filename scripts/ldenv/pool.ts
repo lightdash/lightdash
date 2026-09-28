@@ -372,8 +372,10 @@ export async function fillPool(
         ensurePoolMonitor,
     } = operations;
     await sweepStaleInstances(root);
+    const withFillLock = (work: () => Promise<Instance[]>) =>
+        withLock('pool-fill', work, { timeoutMs: null });
     return backgroundWork(() =>
-        withLock('pool-fill', async () => {
+        withFillLock(async () => {
             await yieldToForeground();
             const settings = await poolSettings(root);
             if (requestedSize !== null) settings.size = requestedSize;

@@ -1066,6 +1066,44 @@ test('fill sweeps stale records before acquiring its fill lock', async () => {
     assert(swept);
 });
 
+test('a competing fill waits for publication and reuses the spare', async () => {
+    const f = fillFixture();
+    f.registry.length = 0;
+    const locks = mutex();
+    const entered = deferred();
+    const competing = deferred();
+    const release = deferred();
+    const originalUp = f.operations.up;
+    f.operations.withLock = async (name, work, options) => {
+        if (name === 'pool-fill' && locks.held.has(name)) {
+            competing.resolve();
+            if (options?.timeoutMs !== null)
+                throw new Error('ldenv is busy: pool-fill');
+        }
+        return locks.withLock(name, work, options);
+    };
+    f.operations.up = async (...args) => {
+        entered.resolve();
+        await release.promise;
+        return originalUp(...args);
+    };
+    const first = fillPool('/fixture/root', 1, f.operations);
+    await entered.promise;
+    const second = fillPool('/fixture/root', null, f.operations);
+    void second.catch(() => {});
+    try {
+        await competing.promise;
+        release.resolve();
+        const [initial, reused] = await Promise.all([first, second]);
+        assert.equal(initial.length, 1);
+        assert.equal(reused.length, 1);
+        assert.equal(reused[0].id, initial[0].id);
+        assert.equal(f.builds(), 1);
+    } finally {
+        release.resolve();
+    }
+});
+
 test('fill recounts the live registry after publication when a claim consumes an initial spare', async () => {
     const f = fillFixture();
     const publish = f.operations.publishSpare;
