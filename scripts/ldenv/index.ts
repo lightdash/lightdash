@@ -29,6 +29,7 @@ import {
     ownedProcesses,
     stopProcesses,
     verifyClaim,
+    verifyPaint,
 } from './processes';
 
 const help = `ldenv install
@@ -70,13 +71,19 @@ async function main(args: string[]): Promise<void> {
         process.stdout.write(`INSTALLED: ${await installLauncher()}\n`);
         return;
     }
-    if (command === 'monitor' || command === 'verify') {
+    if (
+        command === 'monitor' ||
+        command === 'verify' ||
+        command === 'verify-paint'
+    ) {
         const instance = await currentState(subcommand);
         if (!instance) throw new Error('Monitor instance is missing');
         await withLock(`monitor-${instance.id}`, () =>
             command === 'verify'
                 ? verifyClaim(instance)
-                : finishStart(instance),
+                : command === 'verify-paint'
+                  ? verifyPaint(instance)
+                  : finishStart(instance, true),
         );
         return;
     }

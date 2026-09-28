@@ -14,6 +14,7 @@ import {
     readJson,
     statePath,
     alive,
+    withLock,
 } from './io';
 import {
     assertInstance,
@@ -311,7 +312,15 @@ export async function health(port: number): Promise<boolean> {
         return false;
     }
 }
-export async function checkReady(instance: Instance): Promise<void> {
+export async function checkForegroundReady(
+    instance: Instance,
+    seededChart: (instance: Instance) => Promise<string> = (current) =>
+        sql(
+            controlRoot,
+            'SELECT saved_query_uuid FROM saved_queries WHERE deleted_at IS NULL ORDER BY saved_query_id LIMIT 1;',
+            current.database,
+        ),
+): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
     const total = Date.now();
     const started = Date.now();
@@ -327,35 +336,11 @@ export async function checkReady(instance: Instance): Promise<void> {
     const recipe = parseRecipe(
         await readFile(path.join(instance.worktree, 'rainbow.toml'), 'utf8'),
     );
-    const browserContainers = await containers(
-        controlRoot,
-        'label=com.docker.compose.service=headless-browser',
-    );
-    const browser = browserContainers.find(
-        (item) =>
-            item.Config.Labels['com.docker.compose.project'] === 'ld-shared',
-    );
-    const gateway = browser
-        ? Object.values(browser.NetworkSettings.Networks)[0]?.Gateway
-        : null;
-    const browserHost =
-        process.platform === 'darwin' ? 'host.docker.internal' : gateway;
-    const paintStarted = Date.now();
-    await bridge(instance, 'paint', {
-        LDENV_CDP_URL: `ws://localhost:${env.HEADLESS_BROWSER_PORT}/`,
-        LDENV_PAINT_URL: `http://${browserHost ?? '127.0.0.1'}:${instance.ports.frontend}`,
-        LDENV_PAINT_SELECTOR: recipe.paint.selector,
-        LDENV_PAINT_TIMEOUT: String(recipe.paint.timeout),
-    });
-    instance.timings.paint = Date.now() - paintStarted;
     const chartStart = Date.now();
-    const chart = await sql(
-        controlRoot,
-        'SELECT saved_query_uuid FROM saved_queries WHERE deleted_at IS NULL ORDER BY saved_query_id LIMIT 1;',
-        instance.database,
-    );
+    const chart = await seededChart(instance);
     if (!/^[a-f0-9-]{36}$/.test(chart))
         throw new Error('No seeded chart to query');
+    if (!env.LDPAT) throw new Error('Seeded chart API key is missing');
     const result = await fetch(
         `http://localhost:${instance.ports.api}/api/v1/saved/${chart}/results`,
         {
@@ -378,7 +363,7 @@ export async function checkReady(instance: Instance): Promise<void> {
     instance.timings.chart = Date.now() - chartStart;
     const warmStart = Date.now();
     await Promise.all(
-        recipe.warm.map(async (route) => {
+        [...new Set(['/', ...recipe.warm])].map(async (route) => {
             if (!route.startsWith('/') || route.startsWith('//'))
                 throw new Error('Warm route must be local');
             const response = await fetch(
@@ -394,6 +379,42 @@ export async function checkReady(instance: Instance): Promise<void> {
     );
     instance.timings.warm = Date.now() - warmStart;
     instance.timings.ready = Date.now() - total;
+}
+export async function checkPaintReady(instance: Instance): Promise<void> {
+    if (!instance.ports) throw new Error('Instance has no ports');
+    const env = await dotenv(
+        path.join(instance.worktree, '.env.development.local'),
+    );
+    const recipe = parseRecipe(
+        await readFile(path.join(instance.worktree, 'rainbow.toml'), 'utf8'),
+    );
+    const browserContainers = await containers(
+        controlRoot,
+        'label=com.docker.compose.service=headless-browser',
+    );
+    const browser = browserContainers.find(
+        (item) =>
+            item.Config.Labels['com.docker.compose.project'] === 'ld-shared',
+    );
+    const gateway = browser
+        ? Object.values(browser.NetworkSettings.Networks)[0]?.Gateway
+        : null;
+    const browserHost =
+        process.platform === 'darwin' ? 'host.docker.internal' : gateway;
+    const started = Date.now();
+    await bridge(instance, 'paint', {
+        LDENV_CDP_URL: `ws://localhost:${env.HEADLESS_BROWSER_PORT}/`,
+        LDENV_PAINT_URL: `http://${browserHost ?? '127.0.0.1'}:${instance.ports.frontend}`,
+        LDENV_PAINT_SELECTOR: recipe.paint.selector,
+        LDENV_PAINT_TIMEOUT: String(recipe.paint.timeout),
+    });
+    instance.timings.paint = Date.now() - started;
+}
+export async function checkReady(instance: Instance): Promise<void> {
+    const started = Date.now();
+    await checkForegroundReady(instance);
+    await checkPaintReady(instance);
+    instance.timings.ready = Date.now() - started;
 }
 export async function waitForFrontend(instance: Instance): Promise<void> {
     const started = Date.now();
@@ -432,25 +453,28 @@ export async function waitForFrontend(instance: Instance): Promise<void> {
     );
     instance.timings.viteWarmWait = Date.now() - started;
 }
-export async function ready(instance: Instance): Promise<void> {
-    await waitForFrontend(instance);
-    await stableReadiness(
-        () => checkReady(instance),
-        async () => {
-            await waitForCompilers(instance);
-            await waitUntil(
-                () => health(instance.ports!.api),
-                120000,
-                'settled backend health',
-            );
-            const api = (await ownedProcesses(instance)).find(
-                (item) => item.name === `${instance.id}-api`,
-            );
-            if (!api || api.pm2_env.status !== 'online')
-                throw new Error('API is not online after its watchers settled');
-            return `${api.pid}:${api.pm2_env.pm_uptime}`;
-        },
+async function settledApiGeneration(instance: Instance): Promise<string> {
+    await waitForCompilers(instance);
+    await waitUntil(
+        () => health(instance.ports!.api),
+        120000,
+        'settled backend health',
     );
+    const api = (await ownedProcesses(instance)).find(
+        (item) => item.name === `${instance.id}-api`,
+    );
+    if (!api || api.pm2_env.status !== 'online')
+        throw new Error('API is not online after its watchers settled');
+    return `${api.pid}:${api.pm2_env.pm_uptime}`;
+}
+async function stableReady(
+    instance: Instance,
+    check: () => Promise<void>,
+): Promise<void> {
+    await waitForFrontend(instance);
+    await stableReadiness(check, () => settledApiGeneration(instance));
+}
+function markReady(instance: Instance, verified: boolean): void {
     instance.phase = 'ready';
     instance.readyAt = new Date().toISOString();
     instance.timings.timeToReady =
@@ -458,16 +482,21 @@ export async function ready(instance: Instance): Promise<void> {
         Date.parse(instance.startedAt ?? instance.createdAt);
     instance.error = null;
     instance.verification = {
-        state: 'passed',
-        checkedAt: instance.readyAt,
+        state: verified ? 'passed' : 'pending',
+        checkedAt: verified ? instance.readyAt : null,
         error: null,
-        timings: {
-            paint: instance.timings.paint,
-            chart: instance.timings.chart,
-            ready: instance.timings.ready,
-        },
+        timings: verified
+            ? {
+                  paint: instance.timings.paint,
+                  chart: instance.timings.chart,
+                  ready: instance.timings.ready,
+              }
+            : {},
     };
-    await saveInstance(instance);
+}
+export async function ready(instance: Instance): Promise<void> {
+    await stableReady(instance, () => checkReady(instance));
+    markReady(instance, true);
 }
 export async function checkClaimEndpoints(
     ports: Pick<Ports, 'api' | 'frontend'>,
@@ -546,34 +575,241 @@ export async function verifyClaim(instance: Instance): Promise<void> {
             error instanceof Error ? error.message : String(error),
         );
     }
-    const current = await currentState(instance.id);
+    await lockedInstanceState(instance.id, async () => {
+        const current = await currentState(instance.id);
+        if (
+            !current ||
+            current.startedAt !== instance.startedAt ||
+            !['ready', 'degraded'].includes(current.phase)
+        )
+            return;
+        current.verification = {
+            state: failure ? 'failed' : 'passed',
+            checkedAt: new Date().toISOString(),
+            error: failure,
+            timings: {
+                paint: probe.timings.paint ?? 0,
+                chart: probe.timings.chart ?? 0,
+                ready: probe.timings.ready ?? 0,
+            },
+        };
+        if (failure) {
+            current.phase = 'degraded';
+            current.error = `Background readiness verification failed: ${failure}`;
+        } else {
+            current.phase = 'ready';
+            current.error = null;
+        }
+        current.monitorPid = null;
+        await saveInstance(current);
+    });
+}
+type PaintAttempt = Pick<Instance, 'id' | 'startedAt' | 'readyAt'> & {
+    monitorPid: number;
+};
+export function paintVerificationUpdate(
+    current: Instance,
+    attempt: PaintAttempt,
+    failure: string | null,
+    paintMs: number,
+    checkedAt: string,
+): Instance | null {
     if (
-        !current ||
-        current.startedAt !== instance.startedAt ||
-        !['ready', 'degraded'].includes(current.phase)
+        current.id !== attempt.id ||
+        current.startedAt !== attempt.startedAt ||
+        current.readyAt !== attempt.readyAt ||
+        current.monitorPid !== attempt.monitorPid ||
+        !['ready', 'degraded'].includes(current.phase) ||
+        current.verification?.state !== 'pending'
     )
-        return;
-    current.verification = {
-        state: failure ? 'failed' : 'passed',
-        checkedAt: new Date().toISOString(),
-        error: failure,
+        return null;
+    return {
+        ...current,
+        phase: failure || current.phase === 'degraded' ? 'degraded' : 'ready',
+        error: failure
+            ? [
+                  current.error,
+                  `Background paint verification failed: ${failure}`,
+              ]
+                  .filter(Boolean)
+                  .join('; ')
+            : current.error,
+        monitorPid: null,
         timings: {
-            paint: probe.timings.paint ?? 0,
-            chart: probe.timings.chart ?? 0,
-            ready: probe.timings.ready ?? 0,
+            ...current.timings,
+            paint: paintMs,
+            timeToVerified:
+                Date.parse(checkedAt) - Date.parse(current.startedAt),
+        },
+        verification: {
+            state: failure ? 'failed' : 'passed',
+            checkedAt,
+            error: failure,
+            timings: {
+                paint: paintMs,
+                chart: current.timings.chart ?? 0,
+                ready: current.timings.ready ?? 0,
+            },
         },
     };
-    if (failure) {
-        current.phase = 'degraded';
-        current.error = `Background readiness verification failed: ${failure}`;
-    } else {
-        current.phase = 'ready';
-        current.error = null;
-    }
-    current.monitorPid = null;
-    await saveInstance(current);
 }
-export async function finishStart(instance: Instance): Promise<void> {
+async function lockedInstanceState<T>(
+    id: string,
+    update: () => Promise<T>,
+): Promise<T> {
+    let result: T;
+    await waitUntil(
+        async () => {
+            try {
+                result = await withLock(id, update);
+                return true;
+            } catch (error) {
+                if (
+                    error instanceof Error &&
+                    error.message.startsWith(`ldenv is busy: ${id}.`)
+                )
+                    return false;
+                throw error;
+            }
+        },
+        90000,
+        'instance state lock',
+    );
+    return result!;
+}
+async function publishMonitorStart(
+    instance: Instance,
+): Promise<Instance | null> {
+    return lockedInstanceState(instance.id, async () => {
+        const current = await currentState(instance.id);
+        if (
+            !current ||
+            current.startedAt !== instance.startedAt ||
+            current.monitorPid !== process.pid ||
+            current.phase !== 'starting'
+        )
+            return null;
+        const next: Instance = {
+            ...current,
+            phase: instance.phase,
+            readyAt: instance.readyAt,
+            error: instance.error,
+            verification: instance.verification,
+            timings: { ...current.timings, ...instance.timings },
+            monitorPid: process.pid,
+        };
+        await saveInstance(next);
+        return next;
+    });
+}
+async function mergeMonitorTail(instance: Instance): Promise<void> {
+    await lockedInstanceState(instance.id, async () => {
+        const current = await currentState(instance.id);
+        if (
+            !current ||
+            current.startedAt !== instance.startedAt ||
+            current.readyAt !== instance.readyAt ||
+            current.monitorPid !== process.pid ||
+            !['ready', 'degraded'].includes(current.phase)
+        )
+            return;
+        current.timings = { ...current.timings, ...instance.timings };
+        if (instance.error) {
+            current.phase =
+                instance.kind === 'worktree' ? 'degraded' : 'failed';
+            current.error = instance.error;
+        }
+        if (instance.kind !== 'worktree') current.monitorPid = null;
+        await saveInstance(current);
+    });
+}
+async function collectStartTail(
+    instance: Instance,
+    env: Environment,
+    started: number,
+): Promise<string | null> {
+    let failure: string | null = null;
+    try {
+        if (env.LDENV_STANDALONE_SCHEDULER === 'true') {
+            const schedulerPort = instance.ports!.scheduler;
+            await waitUntil(
+                () => health(schedulerPort),
+                60000,
+                'scheduler health',
+            );
+            instance.timings.schedulerBoot = Date.now() - started;
+        }
+        instance.timings.rssBytes = await instanceRss(instance);
+    } catch (error) {
+        failure = runner.redact(
+            error instanceof Error ? error.message : String(error),
+        );
+        instance.phase = instance.kind === 'worktree' ? 'degraded' : 'failed';
+        instance.error = `Startup tail failed: ${failure}`;
+    } finally {
+        instance.timings.total =
+            Date.now() - Date.parse(instance.startedAt ?? instance.createdAt);
+    }
+    return failure;
+}
+export async function verifyPaint(instance: Instance): Promise<void> {
+    await waitUntil(
+        async () => {
+            const current = await currentState(instance.id);
+            return (
+                !current ||
+                current.startedAt !== instance.startedAt ||
+                !['ready', 'degraded'].includes(current.phase) ||
+                current.verification?.state !== 'pending' ||
+                current.monitorPid === process.pid
+            );
+        },
+        15000,
+        'paint verifier registration',
+    );
+    const registered = await currentState(instance.id);
+    if (
+        !registered ||
+        registered.startedAt !== instance.startedAt ||
+        !['ready', 'degraded'].includes(registered.phase) ||
+        registered.verification?.state !== 'pending' ||
+        registered.monitorPid !== process.pid
+    )
+        return;
+    const attempt: PaintAttempt = {
+        id: registered.id,
+        startedAt: registered.startedAt,
+        readyAt: registered.readyAt,
+        monitorPid: process.pid,
+    };
+    const probe: Instance = { ...registered, timings: {} };
+    const started = Date.now();
+    let failure: string | null = null;
+    try {
+        await checkPaintReady(probe);
+    } catch (error) {
+        failure = runner.redact(
+            error instanceof Error ? error.message : String(error),
+        );
+    }
+    const paintMs = Date.now() - started;
+    await lockedInstanceState(instance.id, async () => {
+        const current = await currentState(instance.id);
+        if (!current) return;
+        const updated = paintVerificationUpdate(
+            current,
+            attempt,
+            failure,
+            paintMs,
+            new Date().toISOString(),
+        );
+        if (updated) await saveInstance(updated);
+    });
+}
+export async function finishStart(
+    instance: Instance,
+    inlineBackgroundVerification = false,
+): Promise<void> {
     try {
         const apiStarted = Date.now();
         await waitUntil(
@@ -583,31 +819,91 @@ export async function finishStart(instance: Instance): Promise<void> {
         );
         instance.timings.bootToHealth = Date.now() - apiStarted;
         const laterStart = Date.now();
-        await ready(instance);
+        if (instance.kind === 'worktree') {
+            await stableReady(instance, () => checkForegroundReady(instance));
+            markReady(instance, false);
+        } else await ready(instance);
+        const published = inlineBackgroundVerification
+            ? await publishMonitorStart(instance)
+            : null;
+        if (inlineBackgroundVerification && !published) return;
+        if (!inlineBackgroundVerification) await saveInstance(instance);
         const env = await dotenv(
             path.join(instance.worktree, '.env.development.local'),
         );
-        if (env.LDENV_STANDALONE_SCHEDULER === 'true') {
-            const schedulerPort = instance.ports!.scheduler;
-            await waitUntil(
-                () => health(schedulerPort),
-                60000,
-                'scheduler health',
-            );
-            instance.timings.schedulerBoot = Date.now() - laterStart;
+        const tailFailure = await collectStartTail(instance, env, laterStart);
+        if (inlineBackgroundVerification) {
+            await mergeMonitorTail(instance);
+            if (instance.kind === 'worktree') await verifyPaint(published!);
+        } else await saveInstance(instance);
+        if (!inlineBackgroundVerification && instance.kind === 'worktree') {
+            try {
+                instance.monitorPid = await background(
+                    ['verify-paint', instance.id],
+                    `${instance.id}-paint-verifier`,
+                );
+                await saveInstance(instance);
+            } catch (error) {
+                const failure = runner.redact(
+                    error instanceof Error ? error.message : String(error),
+                );
+                instance.phase = 'degraded';
+                instance.error = [
+                    instance.error,
+                    `Background paint verification failed: ${failure}`,
+                ]
+                    .filter(Boolean)
+                    .join('; ');
+                instance.verification = {
+                    state: 'failed',
+                    checkedAt: new Date().toISOString(),
+                    error: failure,
+                    timings: {
+                        chart: instance.timings.chart ?? 0,
+                        ready: instance.timings.ready ?? 0,
+                    },
+                };
+                instance.monitorPid = null;
+                await saveInstance(instance);
+            }
         }
-        instance.timings.rssBytes = await instanceRss(instance);
-        instance.timings.total =
-            Date.now() - Date.parse(instance.startedAt ?? instance.createdAt);
-        instance.monitorPid = null;
-        await saveInstance(instance);
+        if (tailFailure && instance.kind !== 'worktree')
+            throw new Error(tailFailure);
     } catch (error) {
-        instance.phase = 'failed';
-        instance.error = runner.redact(
+        const failure = runner.redact(
             error instanceof Error ? error.message : String(error),
         );
-        instance.monitorPid = null;
-        await saveInstance(instance);
+        if (inlineBackgroundVerification) {
+            await lockedInstanceState(instance.id, async () => {
+                const current = await currentState(instance.id);
+                if (
+                    !current ||
+                    current.startedAt !== instance.startedAt ||
+                    current.monitorPid !== process.pid ||
+                    !['starting', 'ready', 'degraded'].includes(current.phase)
+                )
+                    return;
+                current.phase =
+                    current.phase === 'starting' ? 'failed' : 'degraded';
+                current.error = [current.error, failure]
+                    .filter(Boolean)
+                    .join('; ');
+                current.monitorPid = null;
+                if (current.phase === 'degraded')
+                    current.verification = {
+                        state: 'failed',
+                        checkedAt: new Date().toISOString(),
+                        error: failure,
+                        timings: current.verification?.timings ?? {},
+                    };
+                await saveInstance(current);
+            });
+        } else {
+            instance.phase = 'failed';
+            instance.error = failure;
+            instance.monitorPid = null;
+            await saveInstance(instance);
+        }
         throw error;
     }
 }
@@ -654,7 +950,8 @@ export async function cancelMonitor(instance: Instance): Promise<void> {
     if (
         !command.includes('scripts/ldenv/index.ts') ||
         (!command.includes(`monitor ${instance.id}`) &&
-            !command.includes(`verify ${instance.id}`))
+            !command.includes(`verify ${instance.id}`) &&
+            !command.includes(`verify-paint ${instance.id}`))
     )
         throw new Error('Monitor PID no longer belongs to this instance');
     process.kill(-instance.monitorPid!, 'SIGTERM');
