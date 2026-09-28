@@ -266,37 +266,27 @@ export async function benchmarkDependencies(
         await git(parent.path, ['worktree', 'remove', '--force', probe]);
     }
 }
-export async function dependencies(
+type DependencyPlan =
+    | 'copy-global'
+    | 'copy-local'
+    | 'install-global'
+    | 'install-local';
+
+async function dependencyPlan(
     parent: Parent,
     root: string,
-    env: Environment,
-    label: string,
-): Promise<void> {
+): Promise<DependencyPlan> {
     const equal =
         parent.lockHash === (await hashFile(path.join(root, 'pnpm-lock.yaml')));
     const pnpmVersion = await runner.run('pnpm', ['--version'], { cwd: root });
     const parentVersion = parent.pnpmVersion ?? (await pinnedPnpm(parent.path));
-    if (!equal || pnpmVersion !== parentVersion) {
-        await install(root, true, env, label, 'local');
-        return;
-    }
+    if (!equal || pnpmVersion !== parentVersion) return 'install-local';
     if (
         !existsSync(path.join(root, 'node_modules')) &&
         (await moduleLayout(parent.path)) === 'global' &&
         (await globalModuleInputsMatch(parent.path, root))
-    ) {
-        try {
-            const result = await cloneGlobalModules(parent.path, root);
-            process.stdout.write(
-                `DEPENDENCIES: copied global-store links in ${result.cloneMs}ms\n`,
-            );
-            return;
-        } catch (error) {
-            process.stdout.write(
-                `DEPENDENCIES: link copy unavailable; installing (${runner.redact(error instanceof Error ? error.message : String(error))})\n`,
-            );
-        }
-    }
+    )
+        return 'copy-global';
     const file = path.join(home, 'dependency-strategy.json');
     const preference = existsSync(file)
         ? await readJson<DependencyStrategy>(file)
@@ -313,15 +303,98 @@ export async function dependencies(
         !existsSync(path.join(root, 'node_modules')) &&
         (await moduleLayout(parent.path)) === 'local'
     )
-        await cloneModules(parent.path, root);
+        return 'copy-local';
+    return measured === 'offline' ? 'install-local' : 'install-global';
+}
+async function copyGlobalDependencies(
+    parent: Parent,
+    root: string,
+): Promise<void> {
+    const result = await cloneGlobalModules(parent.path, root);
+    process.stdout.write(
+        `DEPENDENCIES: copied global-store links in ${result.cloneMs}ms\n`,
+    );
+}
+function reportDependencyFallback(error: unknown): void {
+    process.stdout.write(
+        `DEPENDENCIES: link copy unavailable; installing (${runner.redact(error instanceof Error ? error.message : String(error))})\n`,
+    );
+}
+async function executeDependencyPlan(
+    plan: DependencyPlan,
+    parent: Parent,
+    root: string,
+    env: Environment,
+    label: string,
+): Promise<void> {
+    if (plan === 'copy-global') {
+        try {
+            await copyGlobalDependencies(parent, root);
+            return;
+        } catch (error) {
+            reportDependencyFallback(error);
+        }
+    }
+    if (plan === 'copy-local') await cloneModules(parent.path, root);
     else
         await install(
             root,
             true,
             env,
             label,
-            measured === 'offline' ? 'local' : 'global',
+            plan === 'install-local' ? 'local' : 'global',
         );
+}
+export async function dependencies(
+    parent: Parent,
+    root: string,
+    env: Environment,
+    label: string,
+): Promise<void> {
+    await executeDependencyPlan(
+        await dependencyPlan(parent, root),
+        parent,
+        root,
+        env,
+        label,
+    );
+}
+export async function prepareForkCode(
+    parent: Parent,
+    root: string,
+    env: Environment,
+    label: string,
+    timings: Record<string, number>,
+): Promise<void> {
+    const started = Date.now();
+    const plan = await dependencyPlan(parent, root);
+    if (plan !== 'copy-global') {
+        await executeDependencyPlan(plan, parent, root, env, label);
+        timings.dependencies = Date.now() - started;
+        const artifactsStarted = Date.now();
+        await cloneBuilds(parent, root);
+        timings.artifactsClone = Date.now() - artifactsStarted;
+        return;
+    }
+    const results = await Promise.allSettled([
+        copyGlobalDependencies(parent, root).then(() => {
+            timings.dependencies = Date.now() - started;
+        }),
+        (async () => {
+            const artifactsStarted = Date.now();
+            await copyBuildArtifacts(parent, root);
+            timings.artifactsClone = Date.now() - artifactsStarted;
+        })(),
+    ]);
+    if (results[1].status === 'rejected') throw results[1].reason;
+    if (results[0].status === 'rejected') {
+        reportDependencyFallback(results[0].reason);
+        await install(root, true, env, label, 'global');
+        timings.dependencies = Date.now() - started;
+    }
+    const finalizationStarted = Date.now();
+    await finalizeBuildArtifacts(parent, root);
+    timings.artifactsFinalize = Date.now() - finalizationStarted;
 }
 export function relocateBuildMetadata<T>(
     metadata: T,
@@ -369,15 +442,14 @@ export async function cloneFormulaParser(
     await rm(target, { force: true });
     await clone(path.join(parentRoot, relative), target);
 }
-export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
-    const sameLayout =
-        (await moduleLayout(parent.path)) === (await moduleLayout(root));
+export async function copyBuildArtifacts(
+    parent: Parent,
+    root: string,
+): Promise<void> {
     for (const name of builtPackages) {
         const prefix = `packages/${name}`;
         const source = path.join(parent.path, prefix);
         const destination = path.join(root, prefix);
-        const unchanged =
-            (await sourceHash(root, prefix)) === parent.sourceHashes[prefix];
         if (!existsSync(destination))
             throw new Error(
                 `Built package removed: ${prefix}; build a compatible parent first`,
@@ -395,6 +467,34 @@ export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
             await rm(path.join(destination, name), { force: true });
             await clone(path.join(source, name), path.join(destination, name));
         }
+    }
+    await cloneFormulaParser(parent.path, root);
+    const generated = 'packages/backend/src/generated';
+    if (
+        (
+            await git(root, ['diff', '--name-only', 'HEAD', '--', generated])
+        ).trim()
+    )
+        throw new Error(
+            'Generated API files have local edits; preserve them before ldenv up',
+        );
+    for (const name of ['routes.ts', 'swagger.json']) {
+        const target = path.join(root, generated, name);
+        await rm(target, { force: true });
+        await clone(path.join(parent.path, generated, name), target);
+    }
+}
+export async function finalizeBuildArtifacts(
+    parent: Parent,
+    root: string,
+): Promise<void> {
+    const sameLayout =
+        (await moduleLayout(parent.path)) === (await moduleLayout(root));
+    for (const name of builtPackages) {
+        const prefix = `packages/${name}`;
+        const destination = path.join(root, prefix);
+        const unchanged =
+            (await sourceHash(root, prefix)) === parent.sourceHashes[prefix];
         if (unchanged && sameLayout) {
             const now = new Date();
             for await (const metadata of glob(
@@ -422,21 +522,10 @@ export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
             }
         }
     }
-    await cloneFormulaParser(parent.path, root);
-    const generated = 'packages/backend/src/generated';
-    if (
-        (
-            await git(root, ['diff', '--name-only', 'HEAD', '--', generated])
-        ).trim()
-    )
-        throw new Error(
-            'Generated API files have local edits; preserve them before ldenv up',
-        );
-    for (const name of ['routes.ts', 'swagger.json']) {
-        const target = path.join(root, generated, name);
-        await rm(target, { force: true });
-        await clone(path.join(parent.path, generated, name), target);
-    }
+}
+export async function cloneBuilds(parent: Parent, root: string): Promise<void> {
+    await copyBuildArtifacts(parent, root);
+    await finalizeBuildArtifacts(parent, root);
 }
 export async function runTiers(
     root: string,

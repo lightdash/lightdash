@@ -7,6 +7,7 @@ import {
     buildDiff,
     changedFiles,
     cloneBuilds,
+    prepareForkCode,
     dependencies,
     install,
     runTiers,
@@ -629,11 +630,12 @@ async function upInstance(
                     ),
                 ),
                 timed(state.timings, 'codeClone', async () => {
-                    await timed(state.timings, 'dependencies', () =>
-                        dependencies(parent, root, preliminary, state.id),
-                    );
-                    await timed(state.timings, 'artifactsClone', () =>
-                        cloneBuilds(parent, root),
+                    await prepareForkCode(
+                        parent,
+                        root,
+                        preliminary,
+                        state.id,
+                        state.timings,
                     );
                 }),
             ]);
