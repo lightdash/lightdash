@@ -31,7 +31,9 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
     const canEdit = useCanEditDocument(document);
     if (editingDocument && canEdit) {
         return (
-            <Suspense fallback={<EmptyStateLoader title="Loading editor" />}>
+            <Suspense
+                fallback={<EmptyStateLoader my="xl" title="Loading editor" />}
+            >
                 <DocumentEditor
                     document={editingDocument}
                     onClose={() => setEditingDocument(null)}
