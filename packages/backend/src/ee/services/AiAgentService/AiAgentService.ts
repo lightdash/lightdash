@@ -2064,14 +2064,22 @@ export class AiAgentService extends BaseService {
         );
     }
 
-    // Battle mode can only switch JEV off for the baseline side, never on past the master flag.
-    private async getBattleDecisionClient(
+    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
+    private async getPromptDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-        battleProfile: AiAgentBattleProfile | null,
+        {
+            battleProfile,
+            enableFastDecisions,
+        }: {
+            battleProfile: AiAgentBattleProfile | null;
+            enableFastDecisions: boolean;
+        },
     ) {
-        return battleProfile === 'baseline'
-            ? undefined
-            : this.getDecisionClient(user);
+        const enabled =
+            battleProfile === null
+                ? enableFastDecisions
+                : battleProfile === 'fast';
+        return enabled ? this.getDecisionClient(user) : undefined;
     }
 
     private async getPromptErrorMessage(
@@ -6952,11 +6960,13 @@ export class AiAgentService extends BaseService {
             resetErrorForStreamRetry = false,
             expectedDeepResearchRunUuid,
             deferCurrentVerifiedExamples = false,
+            enableFastDecisions = true,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
+            enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
             deferCurrentVerifiedExamples?: boolean;
             onPromptResolved?: (
@@ -7118,10 +7128,10 @@ export class AiAgentService extends BaseService {
                 this.getIsVerifiedArtifactsEnabled(),
             currentPromptUuid: prompt.promptUuid,
             userUuid: user.userUuid,
-            fastDecisionsEnabled: !!(await this.getBattleDecisionClient(
-                user,
-                prompt.battleProfile,
-            )),
+            fastDecisionsEnabled: !!(await this.getPromptDecisionClient(user, {
+                battleProfile: prompt.battleProfile,
+                enableFastDecisions,
+            })),
         };
         // Fast decisions only need the conversation; the example lookup embeds the
         // prompt, so it starts now and the agent awaits it only if it runs.
@@ -7305,6 +7315,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            enableFastDecisions = true,
             autoApproveSql,
             toolHints,
             runtimeOptions,
@@ -7312,6 +7323,7 @@ export class AiAgentService extends BaseService {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
@@ -7341,6 +7353,7 @@ export class AiAgentService extends BaseService {
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
                 deferCurrentVerifiedExamples: true,
+                enableFastDecisions,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -7406,6 +7419,7 @@ export class AiAgentService extends BaseService {
                         stream: true,
                         canManageAgent,
                         enableSqlMode,
+                        enableFastDecisions,
                         autoApproveSql,
                         toolHints,
                         runtimeOptions,
@@ -13039,6 +13053,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             stream: true;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
@@ -13108,6 +13123,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             suppressWritebackPreview?: boolean;
             dbtSourceUuid?: string;
@@ -13174,17 +13190,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const battleProfile = isSlackPrompt(prompt)
             ? null
             : prompt.battleProfile;
-        const decisionClient = await this.getBattleDecisionClient(
-            user,
+        const decisionClient = await this.getPromptDecisionClient(user, {
             battleProfile,
-        );
+            enableFastDecisions: options.enableFastDecisions ?? true,
+        });
         const decisionUsage = decisionClient
             ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
             : undefined;
         const decisions = decisionUsage
             ? decisionClient?.withUsage(decisionUsage)
             : undefined;
-        // AiAgentFastDecisions is the master gate; battle mode can only disable it per side.
+        // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
         const fastExperienceEnabled = decisions !== undefined;
         let forceChartMutationRouting = false;
         let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
