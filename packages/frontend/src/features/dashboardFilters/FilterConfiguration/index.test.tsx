@@ -156,45 +156,54 @@ describe('FilterConfiguration', () => {
         );
     });
 
-    it('lets authors pick multiple permitted strings from field-value suggestions', async () => {
-        fieldValueResults.current = [
-            { value: ' Pending ', label: 'Pending review' },
-            { value: 'Active' },
-        ];
-        const user = userEvent.setup();
-        const onSave = vi.fn();
-        renderWithProviders(
-            <FilterConfiguration
-                tiles={[]}
-                tabs={[]}
-                field={mockField}
-                availableTileFilters={{}}
-                defaultFilterRule={anyValueRule}
-                isEditMode
-                onSave={onSave}
-            />,
-        );
-        await user.click(
-            screen.getByRole('switch', {
-                name: 'Filter boundaries',
-            }),
-        );
-        const input = screen.getByPlaceholderText('Add permitted values');
-        await user.click(input);
-        await user.click(
-            await screen.findByRole('option', {
-                name: 'Pending review',
-            }),
-        );
-        await user.click(input);
-        await user.click(await screen.findByRole('option', { name: 'Active' }));
-        await user.click(screen.getByRole('button', { name: 'Apply' }));
-        expect(onSave).toHaveBeenCalledWith(
-            expect.objectContaining({
-                boundaries: { type: 'string', values: [' Pending ', 'Active'] },
-            }),
-        );
-    });
+    it.each(['', 'awaiting_review', 'Pending'])(
+        'lets authors pick multiple permitted strings when searching by value or label (%s)',
+        async (search) => {
+            fieldValueResults.current = [
+                { value: ' awaiting_review ', label: 'Pending review' },
+                { value: 'Active' },
+            ];
+            const user = userEvent.setup();
+            const onSave = vi.fn();
+            renderWithProviders(
+                <FilterConfiguration
+                    tiles={[]}
+                    tabs={[]}
+                    field={mockField}
+                    availableTileFilters={{}}
+                    defaultFilterRule={anyValueRule}
+                    isEditMode
+                    onSave={onSave}
+                />,
+            );
+            await user.click(
+                screen.getByRole('switch', {
+                    name: 'Filter boundaries',
+                }),
+            );
+            const input = screen.getByPlaceholderText('Add permitted values');
+            await user.click(input);
+            if (search) await user.type(input, search);
+            await user.click(
+                await screen.findByRole('option', {
+                    name: 'Pending review',
+                }),
+            );
+            await user.click(input);
+            await user.click(
+                await screen.findByRole('option', { name: 'Active' }),
+            );
+            await user.click(screen.getByRole('button', { name: 'Apply' }));
+            expect(onSave).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    boundaries: {
+                        type: 'string',
+                        values: [' awaiting_review ', 'Active'],
+                    },
+                }),
+            );
+        },
+    );
 
     it.each([true, false])(
         'blocks invalid boundaries without discarding values (edit mode: %s)',

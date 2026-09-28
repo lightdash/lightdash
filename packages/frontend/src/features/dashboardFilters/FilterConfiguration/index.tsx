@@ -35,7 +35,12 @@ import {
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
-import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconInfoCircle,
+    IconRotate2,
+    IconSql,
+} from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
@@ -449,7 +454,14 @@ const FilterConfiguration: FC<Props> = ({
     return (
         // Keep dropdowns in document flow so the panel grows and Apply stays
         // reachable — PROD-2395.
-        <Stack className={classes.inlineDropdowns}>
+        <Stack
+            className={classes.inlineDropdowns}
+            w={
+                selectedTabId === FilterTabs.TILES
+                    ? 'min(500px, calc(100vw - 56px))'
+                    : 'min(400px, calc(100vw - 56px))'
+            }
+        >
             <Tabs
                 value={selectedTabId}
                 onChange={(tabId) => {
@@ -493,10 +505,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel
-                    value={FilterTabs.SETTINGS}
-                    w="min(400px, calc(100vw - 56px))"
-                >
+                <Tabs.Panel value={FilterTabs.SETTINGS}>
                     <Stack gap="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
@@ -640,7 +649,6 @@ const FilterConfiguration: FC<Props> = ({
                 {draftFilterRule && selectedTabId === FilterTabs.TILES && (
                     <Tabs.Panel
                         value={FilterTabs.TILES}
-                        w="min(500px, calc(100vw - 56px))"
                         data-testid="DashboardFilterConfiguration/ChartTiles"
                     >
                         <TileFilterConfiguration
@@ -658,7 +666,17 @@ const FilterConfiguration: FC<Props> = ({
             </Tabs>
 
             {boundaryError && (
-                <Callout variant="warning">{boundaryError}</Callout>
+                <Callout
+                    variant="warning"
+                    p="xs"
+                    icon={<MantineIcon icon={IconAlertTriangle} size="sm" />}
+                    classNames={{
+                        body: classes.boundaryWarningBody,
+                        message: classes.boundaryWarningMessage,
+                    }}
+                >
+                    {boundaryError}
+                </Callout>
             )}
             <Flex gap="sm">
                 <Box flex={1} />

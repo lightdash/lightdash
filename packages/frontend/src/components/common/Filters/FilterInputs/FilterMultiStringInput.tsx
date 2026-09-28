@@ -25,6 +25,7 @@ import { formatDisplayValue } from './utils';
 type Props = {
     values: string[];
     suggestions?: string[];
+    filterOptions?: boolean;
     suggestionLabels?: ReadonlyMap<string, string>;
     onSearchChange?: (search: string) => void;
     rightSection?: ReactNode;

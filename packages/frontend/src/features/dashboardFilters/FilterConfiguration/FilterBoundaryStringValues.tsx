@@ -37,12 +37,21 @@ const FilterBoundaryStringValues: FC<{
         { refetchOnMount: 'always' },
         parameterValues,
     );
+    const matchingResults = useMemo(() => {
+        const query = search.toLowerCase();
+        return results.filter(
+            ({ value, label }) =>
+                value.toLowerCase().includes(query) ||
+                label?.toLowerCase().includes(query),
+        );
+    }, [results, search]);
     return (
         <Stack gap="xxs">
             <FilterMultiStringInput
                 preserveWhitespace
                 values={values}
-                suggestions={results.map(({ value }) => value)}
+                suggestions={matchingResults.map(({ value }) => value)}
+                filterOptions={false}
                 suggestionLabels={
                     new Map(
                         results.map(({ value, label }) => [

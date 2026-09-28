@@ -31,3 +31,14 @@
     margin-top: 4px;
     transform: none !important;
 }
+
+.boundaryWarningBody {
+    min-width: 0;
+}
+
+.boundaryWarningMessage {
+    font-size: var(--mantine-font-size-xs);
+    line-height: var(--mantine-line-height-xs);
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
