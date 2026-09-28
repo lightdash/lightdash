@@ -536,7 +536,6 @@ async function upInstance(
     kind: Instance['kind'] = 'worktree',
     inheritedSecrets: Environment | null = null,
 ): Promise<Instance> {
-    await garbageCollect(root);
     return withLock(instanceId(root), async () => {
         const existing = await currentState(instanceId(root));
         if (existing) {
@@ -781,13 +780,22 @@ export async function down(instance: Instance): Promise<void> {
 export async function garbageCollect(
     root: string,
     sweepOrphans = false,
+    operations = { instances, down, withLock, cleanupOrphans },
 ): Promise<void> {
-    for (const instance of await instances()) {
-        assertInstance(instance);
-        if (!existsSync(instance.worktree))
-            await withLock(instance.id, () => down(instance));
+    for (const instance of await operations.instances()) {
+        try {
+            assertInstance(instance);
+            if (!existsSync(instance.worktree))
+                await operations.withLock(instance.id, () =>
+                    operations.down(instance),
+                );
+        } catch (error) {
+            process.stderr.write(
+                `GC SKIPPED ${instance.id}: ${runner.redact(error instanceof Error ? error.message : String(error))}\n`,
+            );
+        }
     }
-    if (sweepOrphans) await cleanupOrphans(root, false);
+    if (sweepOrphans) await operations.cleanupOrphans(root, false);
 }
 export async function parentGc(root: string, keep: number): Promise<void> {
     if (!Number.isInteger(keep) || keep < 1)
