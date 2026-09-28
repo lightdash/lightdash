@@ -170,8 +170,9 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
         false,
     );
 
+    // Keep the actions mounted: they send the approval for this call.
     if (autoApprove) {
-        return null;
+        return <SqlApprovalActions {...target} />;
     }
 
     return (
