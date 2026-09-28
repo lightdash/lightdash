@@ -453,6 +453,7 @@ const routeAgentStructuredOutputSchema = z.object({
     ),
 });
 
+/** @deprecated Legacy agent tool kept for historical tool calls. */
 export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findExplores',
     typeof toolFindExploresArgsSchemaV3,

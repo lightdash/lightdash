@@ -119,6 +119,7 @@ export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
             .nullish(),
     }),
 ]);
+
 export const toolEditDbtProjectOutputSchema = structuredToolOutputSchema({
     metadata: toolEditDbtProjectMetadataSchema,
     structuredContent: toolEditDbtProjectStructuredContentSchema,
