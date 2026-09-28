@@ -205,11 +205,25 @@ describe('ActiveFilters saved filter on a field no tile offers', () => {
         renderFilters(false);
 
         const chip = screen.getByTestId('locked-dashboard-filter');
-        expect(chip).toHaveTextContent('orders_status is completed');
+        expect(chip).toHaveTextContent(/^orders_status\s*is completed$/);
         expect(
             screen.queryByRole('button', { name: 'Remove filter' }),
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Invalid filter')).not.toBeInTheDocument();
+    });
+
+    it('shows a valueless locked filter as any value', () => {
+        setHiddenFieldContext({ 'tile-1': [metricField] });
+        mockDashboardContext.current.dashboardFilters = {
+            dimensions: [{ ...hiddenFieldFilter, values: [], disabled: true }],
+            metrics: [],
+            tableCalculations: [],
+        };
+        renderFilters(false);
+
+        expect(screen.getByTestId('locked-dashboard-filter')).toHaveTextContent(
+            /^orders_status\s*is any value$/,
+        );
     });
 
     it('lets editors remove the locked filter', () => {

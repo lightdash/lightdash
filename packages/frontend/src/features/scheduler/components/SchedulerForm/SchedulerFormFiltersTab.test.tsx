@@ -119,7 +119,7 @@ describe('SchedulerFormFiltersTab', () => {
 
             expect(
                 screen.getByTestId('locked-dashboard-filter'),
-            ).toHaveTextContent('orders_status is completed');
+            ).toHaveTextContent(/^orders_status\s*is completed$/);
             expect(
                 screen.getAllByRole('button', { name: 'Remove filter' }),
             ).toHaveLength(1);

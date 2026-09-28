@@ -1,6 +1,7 @@
 import {
     DimensionType,
     getFilterTypeFromItemType,
+    isValuelessDashboardFilterRule,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { ActionIcon, Button, Text, Tooltip } from '@mantine/core';
@@ -66,10 +67,13 @@ const LockedFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
             >
                 <Text span size="xs" fw={600} c="dimmed">
                     {summary.field}
-                </Text>{' '}
-                <Text span size="xs" c="dimmed">
-                    {summary.operator}
-                    {summary.value ? ` ${summary.value}` : ''}
+                </Text>
+                <Text span size="xs" c="dimmed" ml={4}>
+                    {isValuelessDashboardFilterRule(filterRule)
+                        ? getUiString('filters.isAnyValue')
+                        : [summary.operator, summary.value]
+                              .filter(Boolean)
+                              .join(' ')}
                 </Text>
             </Button>
         </Tooltip>
