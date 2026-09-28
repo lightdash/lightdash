@@ -1,12 +1,20 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import {
+    lstat,
+    mkdir,
+    readFile,
+    rename,
+    rm,
+    writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import { json, type Environment, type Instance } from './model';
 
 export const home = process.env.LDENV_HOME ?? path.join(os.homedir(), '.ldenv');
@@ -31,6 +39,273 @@ export async function saveInstance(instance: Instance): Promise<void> {
     await writeJson(statePath(instance.id), instance);
 }
 const sharedLock = new AsyncLocalStorage<boolean>();
+const execFileAsync = promisify(execFile);
+const staleLockGraceMs = 3000;
+type LockOwner = {
+    id?: string;
+    pid: number;
+    startedAt: string;
+    processStart?: string | null;
+    commandHash?: string | null;
+};
+type LockSnapshot = {
+    dev: number;
+    ino: number;
+    rawOwner: string | null;
+    owner: LockOwner | null;
+    modifiedAt: number;
+};
+async function processIdentity(
+    pid: number,
+): Promise<{ start: string; command: string } | null> {
+    try {
+        const { stdout } = await execFileAsync(
+            'ps',
+            ['-p', String(pid), '-o', 'lstart=', '-o', 'command='],
+            { timeout: 1000 },
+        );
+        const match = stdout.match(
+            /^\s*(\w{3}\s+\w{3}\s+\d{1,2}\s+\d\d:\d\d:\d\d\s+\d{4})\s+(.+)$/m,
+        );
+        return match ? { start: match[1], command: match[2] } : null;
+    } catch {
+        return null;
+    }
+}
+let ownProcessIdentity: Promise<{
+    start: string;
+    command: string;
+} | null> | null = null;
+function currentProcessIdentity() {
+    ownProcessIdentity ??= processIdentity(process.pid);
+    return ownProcessIdentity;
+}
+function commandHash(command: string): string {
+    return createHash('sha256').update(command).digest('hex');
+}
+async function reclaimGuard(
+    lock: string,
+): Promise<{ release: () => Promise<void> } | null> {
+    const script = [
+        'import fcntl, os, sys',
+        'fd = os.open(sys.argv[1], os.O_CREAT | os.O_RDWR, 0o600)',
+        'try:',
+        '    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)',
+        'except BlockingIOError:',
+        '    print("BUSY", flush=True)',
+        '    sys.exit(0)',
+        'print("LOCKED", flush=True)',
+        'sys.stdin.buffer.read()',
+    ].join('\n');
+    const child = spawn(
+        'python3',
+        ['-u', '-c', script, `${lock}.reclaim-guard`],
+        {
+            stdio: ['pipe', 'pipe', 'pipe'],
+        },
+    );
+    let stderr = '';
+    child.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+    });
+    const exited = new Promise<number | null>((resolve, reject) => {
+        child.once('error', reject);
+        child.once('exit', resolve);
+    });
+    void exited.catch(() => {});
+    let status: string;
+    try {
+        status = await new Promise<string>((resolve, reject) => {
+            let output = '';
+            const timer = setTimeout(
+                () => reject(new Error('guard startup timed out')),
+                2000,
+            );
+            const finish = (result: string | Error) => {
+                clearTimeout(timer);
+                if (result instanceof Error) reject(result);
+                else resolve(result);
+            };
+            child.stdout.on('data', (data: Buffer) => {
+                output += data.toString();
+                const line = output.indexOf('\n');
+                if (line >= 0) finish(output.slice(0, line));
+            });
+            child.once('error', (error) => finish(error));
+            child.once('exit', (code) =>
+                finish(
+                    new Error(
+                        `guard exited (${code ?? 'signal'}): ${stderr.trim()}`,
+                    ),
+                ),
+            );
+        });
+    } catch (error) {
+        child.stdin.destroy();
+        if (child.pid) child.kill('SIGKILL');
+        await exited.catch(() => {});
+        throw new Error(
+            `python3 is required to inspect a contended ldenv lock: ${error instanceof Error ? error.message : String(error)}`,
+        );
+    }
+    if (status === 'BUSY') {
+        child.stdin.end();
+        await exited;
+        return null;
+    }
+    if (status !== 'LOCKED') {
+        child.stdin.end();
+        await exited;
+        throw new Error(`Invalid python3 reclaim guard response: ${status}`);
+    }
+    return {
+        release: async () => {
+            child.stdin.end();
+            const code = await exited;
+            if (code !== 0)
+                throw new Error(
+                    `python3 reclaim guard failed (${code ?? 'signal'}): ${stderr.trim()}`,
+                );
+        },
+    };
+}
+function sameLock(a: LockSnapshot, b: LockSnapshot): boolean {
+    return a.dev === b.dev && a.ino === b.ino && a.rawOwner === b.rawOwner;
+}
+async function lockSnapshot(lock: string): Promise<LockSnapshot | null> {
+    let before;
+    try {
+        before = await lstat(lock);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+        throw error;
+    }
+    if (!before.isDirectory())
+        throw new Error(`Lock path is not a directory: ${lock}`);
+    let rawOwner: string | null = null;
+    try {
+        rawOwner = await readFile(path.join(lock, 'owner.json'), 'utf8');
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    const after = await lstat(lock).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return null;
+        throw error;
+    });
+    if (!after || before.dev !== after.dev || before.ino !== after.ino)
+        return null;
+    let owner: LockOwner | null = null;
+    if (rawOwner !== null) {
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(rawOwner);
+        } catch {
+            throw new Error(`Lock owner record is invalid: ${lock}/owner.json`);
+        }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+            throw new Error(`Lock owner record is invalid: ${lock}/owner.json`);
+        owner = parsed as LockOwner;
+        if (
+            !Number.isSafeInteger(owner.pid) ||
+            owner.pid < 1 ||
+            typeof owner.startedAt !== 'string' ||
+            !Number.isFinite(Date.parse(owner.startedAt))
+        )
+            throw new Error(`Lock owner record is invalid: ${lock}/owner.json`);
+    }
+    return {
+        dev: before.dev,
+        ino: before.ino,
+        rawOwner,
+        owner,
+        modifiedAt: before.mtimeMs,
+    };
+}
+function pidAlive(pid: number): boolean | null {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false;
+        if ((error as NodeJS.ErrnoException).code === 'EPERM') return true;
+        return null;
+    }
+}
+async function reclaimCandidate(
+    lock: string,
+): Promise<{ snapshot: LockSnapshot | null; reason: string | null }> {
+    const snapshot = await lockSnapshot(lock);
+    if (!snapshot) return { snapshot: null, reason: null };
+    const acquiredAt = snapshot.owner
+        ? Date.parse(snapshot.owner.startedAt)
+        : snapshot.modifiedAt;
+    if (Date.now() - acquiredAt < staleLockGraceMs)
+        return { snapshot, reason: 'lock is too new to reclaim' };
+    if (snapshot.owner) {
+        const live = pidAlive(snapshot.owner.pid);
+        if (live === null)
+            return { snapshot, reason: 'cannot verify lock owner' };
+        if (live) {
+            const current = await processIdentity(snapshot.owner.pid);
+            if (!current)
+                return { snapshot, reason: 'cannot verify lock owner' };
+            if (snapshot.owner.processStart) {
+                if (current.start === snapshot.owner.processStart) {
+                    return {
+                        snapshot,
+                        reason:
+                            commandHash(current.command) ===
+                            snapshot.owner.commandHash
+                                ? `pid ${snapshot.owner.pid} is still running`
+                                : 'cannot verify lock owner command',
+                    };
+                }
+            } else {
+                const processStart = Date.parse(current.start);
+                if (!Number.isFinite(processStart))
+                    return {
+                        snapshot,
+                        reason: 'cannot verify lock owner start time',
+                    };
+                if (processStart <= acquiredAt + 1000)
+                    return {
+                        snapshot,
+                        reason: `pid ${snapshot.owner.pid} may still own the lock`,
+                    };
+            }
+        }
+    }
+    return { snapshot, reason: null };
+}
+async function reclaimLock(lock: string): Promise<string | null> {
+    const preliminary = await reclaimCandidate(lock);
+    if (preliminary.reason || !preliminary.snapshot) return preliminary.reason;
+    const guard = await reclaimGuard(lock);
+    if (!guard) return 'another lock reclaimer is active';
+    try {
+        const guarded = await reclaimCandidate(lock);
+        if (guarded.reason || !guarded.snapshot) return guarded.reason;
+        const snapshot = guarded.snapshot;
+        const latest = await lockSnapshot(lock);
+        if (!latest || !sameLock(snapshot, latest)) return null;
+        const retired = `${lock}.stale-${process.pid}-${randomUUID()}`;
+        try {
+            await rename(lock, retired);
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+            throw error;
+        }
+        const moved = await lockSnapshot(retired);
+        if (!moved || !sameLock(snapshot, moved))
+            throw new Error(
+                `Lock changed during reclamation; inspect ${retired} before recovery`,
+            );
+        await rm(retired, { recursive: true });
+        return null;
+    } finally {
+        await guard.release();
+    }
+}
 export async function withLock<T>(
     name: string,
     work: () => Promise<T>,
@@ -48,31 +323,67 @@ export async function withLock<T>(
         options.timeoutMs === null
             ? Infinity
             : Date.now() + (options.timeoutMs ?? (shared ? 60000 : 0));
+    let busyReason = 'lock is held';
     while (true) {
         try {
             await mkdir(lock);
             break;
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            busyReason = (await reclaimLock(lock)) ?? 'lock changed; retry';
+            if (busyReason === 'lock changed; retry') continue;
             if (Date.now() >= deadline)
                 throw new Error(
-                    `ldenv is busy: ${name}. Inspect ${lock}/owner.json before removing a stale lock.`,
+                    `ldenv is busy: ${name}. ${busyReason}; inspect ${lock}/owner.json.`,
                 );
             await delay(25);
             await yieldBeforeLock();
         }
     }
+    const acquired = await lockSnapshot(lock);
+    if (!acquired) throw new Error(`New lock disappeared: ${lock}`);
+    const identity = await currentProcessIdentity();
+    const owner: LockOwner = {
+        id: randomUUID(),
+        pid: process.pid,
+        startedAt: new Date().toISOString(),
+        processStart: identity?.start ?? null,
+        commandHash: identity ? commandHash(identity.command) : null,
+    };
+    const release = async () => {
+        const current = await lockSnapshot(lock);
+        if (
+            !current ||
+            current.dev !== acquired.dev ||
+            current.ino !== acquired.ino ||
+            current.owner?.id !== owner.id
+        )
+            throw new Error(`Lock ownership changed before release: ${lock}`);
+        const released = `${lock}.released-${process.pid}-${randomUUID()}`;
+        await rename(lock, released);
+        const moved = await lockSnapshot(released);
+        if (!moved || !sameLock(current, moved))
+            throw new Error(
+                `Lock changed during release; inspect ${released} before recovery`,
+            );
+        await rm(released, { recursive: true });
+    };
     try {
-        await writeJson(path.join(lock, 'owner.json'), {
-            pid: process.pid,
-            startedAt: new Date().toISOString(),
-        });
+        await writeJson(path.join(lock, 'owner.json'), owner);
+        const verified = await lockSnapshot(lock);
+        if (
+            !verified ||
+            verified.dev !== acquired.dev ||
+            verified.ino !== acquired.ino ||
+            verified.owner?.id !== owner.id
+        )
+            throw new Error(`Lock ownership changed before work: ${lock}`);
         return await sharedLock.run(
             shared || Boolean(sharedLock.getStore()),
             work,
         );
     } finally {
-        await rm(lock, { recursive: true });
+        await release();
     }
 }
 const priority = new AsyncLocalStorage<'foreground' | 'background'>();
