@@ -63,6 +63,14 @@ export type Parent = {
 export type Instance = {
     processStartedAt?: string;
     viteCache?: ViteCacheReport;
+    readyWorktree?: {
+        branch: string;
+        head: string;
+        parentBuiltAt: string;
+        publication?: 'pending' | 'published';
+        retiring?: { branch: string; at: string; hiddenAt?: string };
+    };
+    claim?: { at: string; reason: string; pid: number | null };
     kind: 'worktree' | 'warming' | 'spare' | 'claimed';
     id: string;
     worktree: string;

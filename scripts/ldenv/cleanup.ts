@@ -20,7 +20,13 @@ export type CleanupEntry = {
     reason: string;
 };
 type ToolRecord = { directory: string; previousDirectory?: string | null };
-type Worktree = { directory: string; detached: boolean; locked: boolean };
+type Worktree = {
+    directory: string;
+    detached: boolean;
+    locked: boolean;
+    branch?: string;
+    head?: string;
+};
 export function worktreeRecords(output: string): Worktree[] {
     return output
         .split('\0\0')
@@ -31,6 +37,12 @@ export function worktreeRecords(output: string): Worktree[] {
                 directory: fields[0].replace(/^worktree /, ''),
                 detached: fields.includes('detached'),
                 locked: fields.some((field) => /^locked(?: |$)/.test(field)),
+                branch: fields
+                    .find((field) => field.startsWith('branch '))
+                    ?.slice(7),
+                head: fields
+                    .find((field) => field.startsWith('HEAD '))
+                    ?.slice(5),
             };
         });
 }
@@ -39,6 +51,8 @@ export type CleanupRuntime = {
     worktrees: () => Promise<Worktree[]>;
     status: (directory: string) => Promise<string>;
     remove: (directory: string) => Promise<void>;
+    refHead?: (ref: string) => Promise<string>;
+    deleteBranch?: (ref: string, head: string) => Promise<void>;
 };
 function runtime(root: string): CleanupRuntime {
     return {
@@ -66,6 +80,10 @@ function runtime(root: string): CleanupRuntime {
             ]),
         remove: async (directory) => {
             await git(root, ['worktree', 'remove', '--force', directory]);
+        },
+        refHead: (ref) => git(root, ['rev-parse', '--verify', ref]),
+        deleteBranch: async (ref, head) => {
+            await git(root, ['update-ref', '-d', ref, head]);
         },
     };
 }
@@ -98,6 +116,7 @@ async function inspectCandidate(
     references: string,
     worktrees: Worktree[],
     io: CleanupRuntime,
+    instance?: Instance,
 ): Promise<CleanupEntry> {
     const result = (remove: boolean, reason: string) => ({
         directory,
@@ -113,13 +132,90 @@ async function inspectCandidate(
     const worktree = worktrees.find((item) => item.directory === directory);
     if (!worktree)
         return result(false, 'Not a registered worktree; inspect manually');
-    if (worktree.locked || !worktree.detached)
+    if (worktree.locked)
+        return result(false, 'Locked or branch worktree may belong to a user');
+    if (instance?.readyWorktree) {
+        const { branch, head, publication, retiring } = instance.readyWorktree;
+        const expectedBranch = retiring?.hiddenAt ? retiring.branch : branch;
+        const pendingDetached = publication === 'pending' && worktree.detached;
+        if (retiring && !retiring.hiddenAt)
+            return result(false, 'Ready branch retirement is not hidden');
+        if (
+            (instance.kind !== 'spare' && instance.kind !== 'warming') ||
+            worktree.head !== head ||
+            (!pendingDetached &&
+                worktree.branch !== `refs/heads/${expectedBranch}`)
+        )
+            return result(false, 'Ready branch or HEAD changed');
+        if (!pendingDetached) {
+            if (io.refHead) {
+                let currentHead: string;
+                try {
+                    currentHead = await io.refHead(
+                        `refs/heads/${expectedBranch}`,
+                    );
+                } catch {
+                    return result(false, 'Ready branch ref is missing');
+                }
+                if (currentHead !== head)
+                    return result(false, 'Ready branch ref changed');
+            }
+        } else {
+            if (
+                worktrees.some(
+                    (item) =>
+                        item.directory !== directory &&
+                        (item.branch === `refs/heads/${branch}` ||
+                            item.branch === `refs/heads/${retiring?.branch}`),
+                )
+            )
+                return result(
+                    false,
+                    'Ready branch is used by another worktree',
+                );
+            if (io.refHead) {
+                let pendingRefHead: string | null = null;
+                try {
+                    pendingRefHead = await io.refHead(`refs/heads/${branch}`);
+                } catch {
+                    pendingRefHead = null;
+                }
+                if (pendingRefHead !== null && pendingRefHead !== head)
+                    return result(false, 'Ready branch ref changed');
+            }
+        }
+    } else if (!worktree.detached)
         return result(false, 'Locked or branch worktree may belong to a user');
     if (references.includes(directory))
         return result(false, 'Referenced by a process or open file');
     if (unexpectedEdits(await io.status(directory)))
         return result(false, 'Worktree has user edits');
-    return result(true, 'Unreferenced ldenv-owned detached worktree');
+    return result(true, 'Unreferenced ldenv-owned worktree');
+}
+
+export async function assertOwnedWarmForTeardown(
+    instance: Instance,
+    root: string,
+    base = home,
+    io = runtime(root),
+): Promise<void> {
+    assertInstance(instance);
+    if (!isOwnedWarm(instance, base) || !existsSync(instance.worktree))
+        throw new Error(
+            `Warm worktree retained: ${instance.worktree}: Ownership is not proven`,
+        );
+    const checked = await inspectCandidate(
+        instance.worktree,
+        'warm',
+        '',
+        await io.worktrees(),
+        io,
+        instance,
+    );
+    if (!checked.remove)
+        throw new Error(
+            `Warm worktree retained: ${instance.worktree}: ${checked.reason}`,
+        );
 }
 export async function cleanupPlan(
     root: string,
@@ -242,10 +338,37 @@ export async function removeOwnedWarm(
         await io.references(),
         await io.worktrees(),
         io,
+        instance,
     );
     if (!checked.remove)
         throw new Error(
             `Warm worktree retained: ${instance.worktree}: ${checked.reason}`,
         );
+    const pendingDetached =
+        instance.readyWorktree?.publication === 'pending' &&
+        (await io.worktrees()).find(
+            (item) => item.directory === instance.worktree,
+        )?.detached;
+    const ownedRef = instance.readyWorktree
+        ? `refs/heads/${!pendingDetached && instance.readyWorktree.retiring?.hiddenAt ? instance.readyWorktree.retiring.branch : instance.readyWorktree.branch}`
+        : null;
+    let deleteOwnedRef = false;
+    if (ownedRef && io.refHead) {
+        try {
+            deleteOwnedRef =
+                (await io.refHead(ownedRef)) === instance.readyWorktree?.head;
+        } catch {
+            deleteOwnedRef = false;
+        }
+    }
     await io.remove(instance.worktree);
+    if (instance.readyWorktree && ownedRef && deleteOwnedRef) {
+        const { head } = instance.readyWorktree;
+        const removeBranch =
+            io.deleteBranch ??
+            (async (ref: string, expected: string) => {
+                await git(root, ['update-ref', '-d', ref, expected]);
+            });
+        await removeBranch(ownedRef, head);
+    }
 }
