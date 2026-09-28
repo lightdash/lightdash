@@ -7,6 +7,7 @@ import type {
     ItemsMap,
     MetricQuery,
     ParametersValuesMap,
+    ResultRow,
     StackType,
 } from '@lightdash/common';
 import type { Map as LeafletMap } from 'leaflet';
@@ -28,6 +29,11 @@ export type SavedChartReference = {
     chartConfig: ChartConfig;
 };
 
+export type VizSubtotalSource = {
+    dimensions: string[];
+    get: (intent: unknown) => Promise<{ rows: ResultRow[] }>;
+};
+
 type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact | null>;
@@ -38,6 +44,7 @@ type VisualizationContext = {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
               resolvedTimezone?: string;
+              vizSubtotals?: VizSubtotalSource;
           })
         | undefined;
     isLoading: boolean;

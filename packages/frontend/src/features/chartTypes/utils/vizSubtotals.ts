@@ -6,8 +6,6 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 
-// Public helper consumed by the subsequent chart integration layer.
-// ts-unused-exports:disable-next-line
 export const getVizHierarchyDimensions = (
     schema: DataAppVizSchema | null | undefined,
     mapping: DataAppVizFieldMapping,

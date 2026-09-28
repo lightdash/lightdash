@@ -377,6 +377,13 @@
         "metrics.compareMetricTooltip": "„{metric}“-ის სხვა მეტრიკასთან შედარება",
         "metrics.comparisonMetric": "შესადარებელი მეტრიკა",
         "filters.closeFacet": "{filter} ფილტრის დახურვა",
-        "metrics.ownerDetails": "მფლობელის დეტალები: {owner}"
+        "metrics.ownerDetails": "მფლობელის დეტალები: {owner}",
+        "chartTypes.hierarchy.bindDimensions": "ამ დიაგრამის გასაშვებად იერარქიის ველს მიანიჭეთ ერთი ან რამდენიმე უნიკალური განზომილება.",
+        "chartTypes.hierarchy.configureHint": "ველების შესაბამისობის შესაცვლელად გახსენით კონფიგურაცია.",
+        "chartTypes.generating": "მორგებული დიაგრამის ტიპი ჯერ კიდევ იქმნება.",
+        "chartTypes.unavailable": "მორგებული დიაგრამის ტიპის წინასწარი ხედი მიუწვდომელია.",
+        "chartTypes.failed": "მორგებული დიაგრამის ტიპის შექმნა ვერ მოხერხდა.",
+        "chartTypes.hierarchy.mergeUnsupported": "გაშლადი შუალედური ჯამების დიაგრამის ტიპებს გაერთიანებული მოთხოვნების გამოყენება არ შეუძლიათ.",
+        "chartTypes.metadataError": "მორგებული დიაგრამის ტიპის მეტამონაცემები ვერ ჩაიტვირთა. შეამოწმეთ დიაგრამის ტიპი და სცადეთ ხელახლა."
     }
 }

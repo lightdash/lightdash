@@ -12,6 +12,18 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'chartTypes.hierarchy.bindDimensions':
+        'Bind the hierarchy field to one or more unique dimensions to run this chart.',
+    'chartTypes.hierarchy.configureHint':
+        'Open Configure to update the field mapping.',
+    'chartTypes.generating': 'Custom chart type is still generating.',
+    'chartTypes.unavailable': 'Custom chart type preview is unavailable.',
+    'chartTypes.failed': 'Custom chart type failed to generate.',
+    'chartTypes.hierarchy.mergeUnsupported':
+        'Expandable subtotal chart types cannot use merged queries.',
+    'chartTypes.metadataError':
+        'Custom chart type metadata could not be loaded. Check the chart type and try again.',
+
     'skillMenu.header': 'Skills',
     'skillMenu.noneAvailable': 'No skills available for this agent',
     'skillMenu.noMatch':

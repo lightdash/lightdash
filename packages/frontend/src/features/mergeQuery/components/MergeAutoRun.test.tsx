@@ -5,6 +5,7 @@ import {
     type MergeQueryError,
     type SortField,
 } from '@lightdash/common';
+import { MantineProvider } from '@mantine/core';
 import { render } from '@testing-library/react';
 import { MergeAutoRun } from './MergeAutoRun';
 
@@ -22,6 +23,7 @@ type MergeQueryStub = Partial<MergeQuery> & Pick<MergeQuery, 'sources'>;
 const state = vi.hoisted(() => ({
     merge: {
         wasRestored: true,
+        isMerging: true,
         isRunning: false,
         mergeResults: null as MergeResultsStub | null,
         lastRunMergeQuery: null as MergeQuery | null,
@@ -34,6 +36,8 @@ const state = vi.hoisted(() => ({
         setupStep: null as string | null,
         joinKeyErrors: [] as MergeQueryError[],
         fanOut: [] as FanOut[],
+        unsupportedHierarchy: false,
+        hierarchyMetadataError: false,
     },
 }));
 
@@ -52,7 +56,10 @@ const fanOut: FanOut[] = [
 describe('MergeAutoRun', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        state.setup.unsupportedHierarchy = false;
+        state.setup.hierarchyMetadataError = false;
         state.merge.wasRestored = true;
+        state.merge.isMerging = true;
         state.merge.isRunning = false;
         state.merge.mergeResults = null;
         state.merge.lastRunMergeQuery = null;
@@ -77,6 +84,52 @@ describe('MergeAutoRun', () => {
         render(<MergeAutoRun />);
 
         expect(state.merge.refuseRestoredRun).toHaveBeenCalledTimes(1);
+        expect(state.setup.handleRun).not.toHaveBeenCalled();
+    });
+
+    it('refuses an opted-in hierarchy merge with a visible explanation', () => {
+        state.setup.canRun = false;
+        state.setup.unsupportedHierarchy = true;
+
+        const { getByText } = render(
+            <MantineProvider>
+                <MergeAutoRun />
+            </MantineProvider>,
+        );
+
+        expect(getByText(/cannot use merged queries/i)).toBeTruthy();
+        expect(state.merge.refuseRestoredRun).toHaveBeenCalledTimes(1);
+        expect(state.setup.handleRun).not.toHaveBeenCalled();
+    });
+
+    it('refuses a restored merge when chart type metadata fails', () => {
+        state.setup.canRun = false;
+        state.setup.hierarchyMetadataError = true;
+
+        const { getByText } = render(
+            <MantineProvider>
+                <MergeAutoRun />
+            </MantineProvider>,
+        );
+
+        expect(getByText(/metadata could not be loaded/i)).toBeTruthy();
+        expect(state.merge.refuseRestoredRun).toHaveBeenCalledTimes(1);
+        expect(state.setup.handleRun).not.toHaveBeenCalled();
+    });
+
+    it('does not show a merge error for an ordinary hierarchy chart', () => {
+        state.merge.wasRestored = false;
+        state.merge.isMerging = false;
+        state.setup.mergeQuery = null;
+        state.setup.unsupportedHierarchy = true;
+
+        const { queryByText } = render(
+            <MantineProvider>
+                <MergeAutoRun />
+            </MantineProvider>,
+        );
+
+        expect(queryByText(/cannot use merged queries/i)).toBeNull();
         expect(state.setup.handleRun).not.toHaveBeenCalled();
     });
 

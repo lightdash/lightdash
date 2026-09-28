@@ -17,8 +17,11 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useExplore } from '../../../hooks/useExplore';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useExplorerVizSchema } from '../../chartTypes/hooks/useExplorerVizSchema';
 import {
     selectMetricQuery,
     selectParameters,
@@ -50,11 +53,29 @@ import { useMergeSourceNames } from './useMergeSourceNames';
  * it".
  */
 export const useMergeSetup = () => {
+    const getUiString = useUiStrings();
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const parameters = useExplorerSelector(selectParameters);
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const projectUuid = useProjectUuid();
+    const { vizUuid, metadata: vizMetadata } = useExplorerVizSchema({
+        projectUuid,
+        savedQueryUuid: undefined,
+    });
+    const hierarchyMetadataError =
+        vizUuid !== null &&
+        (!!vizMetadata.error ||
+            vizMetadata.data?.state === 'failed' ||
+            vizMetadata.data?.state === 'unavailable');
+    const hierarchyPending =
+        vizUuid !== null &&
+        vizMetadata.data?.state !== 'ready' &&
+        !hierarchyMetadataError;
+    const unsupportedHierarchy =
+        vizMetadata.data?.state === 'ready' &&
+        !!vizMetadata.data.schema.hierarchy;
     const mergeContext = useMergeSafe();
     const {
         isMerging,
@@ -655,6 +676,12 @@ export const useMergeSetup = () => {
     const isIncomplete = setupStep !== null;
 
     const blockingReason =
+        (hierarchyMetadataError
+            ? getUiString('chartTypes.metadataError')
+            : null) ??
+        (unsupportedHierarchy
+            ? getUiString('chartTypes.hierarchy.mergeUnsupported')
+            : null) ??
         setupStep ??
         (joinKeyErrors.length > 0
             ? 'These queries cannot be joined on that field'
@@ -663,6 +690,9 @@ export const useMergeSetup = () => {
               : null);
 
     const canRun =
+        !hierarchyPending &&
+        !hierarchyMetadataError &&
+        !unsupportedHierarchy &&
         mergeFlag?.enabled === true &&
         !!mergeQuery &&
         completeParts.length > 0 &&
@@ -673,9 +703,24 @@ export const useMergeSetup = () => {
         fanOut.length === 0;
 
     const handleRun = useCallback(() => {
-        if (mergeFlag?.enabled === true && mergeQuery)
+        if (
+            !hierarchyPending &&
+            !hierarchyMetadataError &&
+            !unsupportedHierarchy &&
+            mergeFlag?.enabled === true &&
+            mergeQuery
+        )
             run?.(mergeQuery, parameters, unsavedChartVersion);
-    }, [mergeFlag?.enabled, mergeQuery, run, parameters, unsavedChartVersion]);
+    }, [
+        hierarchyPending,
+        hierarchyMetadataError,
+        unsupportedHierarchy,
+        mergeFlag?.enabled,
+        mergeQuery,
+        run,
+        parameters,
+        unsavedChartVersion,
+    ]);
     return {
         // state passed through, so callers need only this hook
         isMerging,
@@ -710,6 +755,8 @@ export const useMergeSetup = () => {
         setupStep,
         isIncomplete,
         blockingReason,
+        unsupportedHierarchy,
+        hierarchyMetadataError,
         canRun,
         handleRun,
         mergeQuery,

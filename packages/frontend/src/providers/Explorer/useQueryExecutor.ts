@@ -64,9 +64,14 @@ export const useQueryExecutor = (
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [query.data]);
 
+    const resultQueryUuid = queryArgs?.subtotalLevel
+        ? query.isPreviousData
+            ? undefined
+            : query.data?.queryUuid
+        : queryUuidHistory[queryUuidHistory.length - 1];
     const queryResults = useInfiniteQueryResults(
-        queryArgs?.projectUuid,
-        queryUuidHistory[queryUuidHistory.length - 1],
+        enabled ? queryArgs?.projectUuid : undefined,
+        enabled ? resultQueryUuid : undefined,
     );
 
     // Return with setQueryUuidHistory for backward compatibility

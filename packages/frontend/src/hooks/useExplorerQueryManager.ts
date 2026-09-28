@@ -2,6 +2,12 @@ import { getMissingRequiredParameters, type FieldId } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import { useChartVersionPreview } from '../features/apps/ChartVersionPreview/useChartVersionPreview';
+import { useExplorerVizSchema } from '../features/chartTypes/hooks/useExplorerVizSchema';
+import {
+    buildVizSubtotalRequest,
+    getVizSubtotalDimensions,
+} from '../features/chartTypes/utils/vizSubtotals';
 import {
     explorerActions,
     selectIsEditMode,
@@ -85,9 +91,12 @@ export const useExplorerQueryManager = ({
         params.savedQueryUuid;
     const projectUuid =
         explicitProjectUuid || embed?.projectUuid || routeProjectUuid!;
+    const chartVersionUuid = useChartVersionPreview();
     const viewModeQueryArgs = useMemo(() => {
-        return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
-    }, [savedQueryUuid]);
+        return savedQueryUuid
+            ? { chartUuid: savedQueryUuid, chartVersionUuid }
+            : undefined;
+    }, [savedQueryUuid, chartVersionUuid]);
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
@@ -100,6 +109,16 @@ export const useExplorerQueryManager = ({
         }),
         [unsavedChartVersion.chartConfig, unsavedChartVersion.pivotConfig],
     );
+    const { vizUuid, schema: vizSchema } = useExplorerVizSchema({
+        projectUuid,
+        savedQueryUuid,
+    });
+    const subtotalDimensions = getVizSubtotalDimensions(
+        unsavedChartVersion.chartConfig,
+        vizSchema,
+    );
+    const waitingForVizMetadata = vizUuid !== null && vizSchema === null;
+    const invalidVizHierarchy = !!vizSchema?.hierarchy && !subtotalDimensions;
 
     // Get explore data and pivot configuration
     const { data: explore } = useExploreByProjectUuid(tableName, projectUuid, {
@@ -153,9 +172,19 @@ export const useExplorerQueryManager = ({
 
     // Main query executor - creates TanStack Query subscriptions
     const [mainQueryExecutor] = useQueryExecutor(
-        validQueryArgs,
+        subtotalDimensions && validQueryArgs
+            ? {
+                  ...validQueryArgs,
+                  subtotalLevel: buildVizSubtotalRequest(subtotalDimensions, {
+                      level: 0,
+                      parentValues: [],
+                  }),
+                  pivotResults: false,
+                  pivotConfiguration: undefined,
+              }
+            : validQueryArgs,
         missingRequiredParameters,
-        !mergeReplacesQuery,
+        !mergeReplacesQuery && !waitingForVizMetadata && !invalidVizHierarchy,
         queryUuidHistory,
         setQueryUuidHistory,
     );
@@ -241,6 +270,7 @@ export const useExplorerQueryManager = ({
         activeFields,
         missingRequiredParameters,
         validQueryArgs,
+        subtotalDimensions,
         tableName,
         projectUuid,
         explore,

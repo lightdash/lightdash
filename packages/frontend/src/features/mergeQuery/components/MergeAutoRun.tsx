@@ -1,5 +1,7 @@
 import { resolveMergeSorts, type SortField } from '@lightdash/common';
+import { Alert } from '@mantine/core';
 import { useEffect, useRef, type FC } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeChangeSinceRun } from '../hooks/useMergeChangeSinceRun';
 import { useMergeSetup } from '../hooks/useMergeSetup';
@@ -22,9 +24,18 @@ const sortsKey = (sorts: SortField[]) =>
  * the chart and results stop waiting for a run that will never start.
  */
 export const MergeAutoRun: FC = () => {
+    const getUiString = useUiStrings();
     const merge = useMergeSafe();
-    const { canRun, handleRun, mergeQuery, setupStep, joinKeyErrors, fanOut } =
-        useMergeSetup();
+    const {
+        canRun,
+        handleRun,
+        mergeQuery,
+        setupStep,
+        joinKeyErrors,
+        fanOut,
+        unsupportedHierarchy,
+        hierarchyMetadataError,
+    } = useMergeSetup();
     const wasRestored = merge?.wasRestored ?? false;
     const isRunning = merge?.isRunning ?? false;
     const mergeResults = merge?.mergeResults ?? null;
@@ -33,7 +44,10 @@ export const MergeAutoRun: FC = () => {
     const isRefused =
         mergeQuery !== null &&
         setupStep === null &&
-        (joinKeyErrors.length > 0 || fanOut.length > 0);
+        (joinKeyErrors.length > 0 ||
+            fanOut.length > 0 ||
+            unsupportedHierarchy ||
+            hierarchyMetadataError);
 
     const hasAutoRun = useRef(false);
     useEffect(() => {
@@ -84,5 +98,11 @@ export const MergeAutoRun: FC = () => {
         handleRun();
     }, [sinceLastRun, mergeResults, isRunning, canRun, isRefused, handleRun]);
 
-    return null;
+    return hierarchyMetadataError && (merge?.isMerging || wasRestored) ? (
+        <Alert color="red">{getUiString('chartTypes.metadataError')}</Alert>
+    ) : unsupportedHierarchy && (merge?.isMerging || wasRestored) ? (
+        <Alert color="red">
+            {getUiString('chartTypes.hierarchy.mergeUnsupported')}
+        </Alert>
+    ) : null;
 };

@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
                   version: number;
                   latestBuildInProgress: boolean;
                   schema: {
+                      hierarchy?: { field: string };
                       fields: Array<{
                           name: string;
                           label: string;
@@ -341,6 +342,40 @@ describe('DataAppVizRenderer', () => {
         mocks.track.mockClear();
         mocks.trackingContext.current = { track: mocks.track };
     });
+
+    it.each([
+        ['empty', [], 'dimension'],
+        ['duplicate', ['orders_country', 'orders_country'], 'dimension'],
+        ['non-dimension slot', ['orders_country'], 'metric'],
+    ])(
+        'asks for a valid hierarchy binding for an %s mapping',
+        (_name, binding, fieldType) => {
+            mocks.metadata.current = {
+                ...readyMetadata(),
+                schema: {
+                    ...readyMetadata().schema,
+                    hierarchy: { field: 'path' },
+                    fields: [
+                        {
+                            name: 'path',
+                            label: 'Path',
+                            type: fieldType as 'dimension' | 'metric',
+                            required: true,
+                            multiple: true,
+                        },
+                    ],
+                },
+            };
+            mocks.fieldMapping.current = { path: binding };
+
+            renderRenderer();
+
+            expect(
+                screen.getByText(/bind.*hierarchy.*dimension/i),
+            ).toBeTruthy();
+            expect(mocks.iframePreview).not.toHaveBeenCalled();
+        },
+    );
 
     it('prompts for a visualization when none is selected', () => {
         mocks.dataAppVizUuid.current = null;

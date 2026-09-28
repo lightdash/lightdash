@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { useVizSubtotalSource } from '../../../features/chartTypes/hooks/useVizSubtotalSource';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { executeSubtotalQueryAndGetRows } from '../../../hooks/useQueryResults';
 
 /**
  * The results the Explorer's chart renders: the primary query, or the merge
@@ -14,7 +16,22 @@ export const useExplorerResultsData = () => {
         getDownloadQueryUuid,
         validQueryArgs,
         missingRequiredParameters,
+        subtotalDimensions,
     } = useExplorerQuery();
+    const rootQueryUuid = query.isPreviousData
+        ? undefined
+        : query.data?.queryUuid;
+    const vizSubtotals = useVizSubtotalSource({
+        dimensions: validQueryArgs ? subtotalDimensions : null,
+        rootKey: rootQueryUuid,
+        fetchRows: (subtotalLevel) =>
+            executeSubtotalQueryAndGetRows({
+                ...validQueryArgs!,
+                subtotalLevel,
+                pivotResults: false,
+                pivotConfiguration: undefined,
+            }),
+    });
     // A configured merge replaces the query it was built from: its result is
     // the chart's result, so running both would cost two warehouse queries to
     // show one of them.
@@ -43,6 +60,15 @@ export const useExplorerResultsData = () => {
           queryResults.isFetchingRows;
 
     const resultsData = useMemo(() => {
+        if (mergeResults && subtotalDimensions) {
+            return {
+                ...mergeResults.results,
+                rows: [],
+                metricQuery: undefined,
+                fields: undefined,
+                resolvedTimezone: undefined,
+            };
+        }
         if (mergeResults) {
             return {
                 ...mergeResults.results,
@@ -56,7 +82,7 @@ export const useExplorerResultsData = () => {
         // chart config validates its layout against whatever fields it is
         // given, and primary-source fields would fail the saved merged layout and
         // rebuild it from defaults — silently discarding the saved config.
-        if (suppressPrimaryResults) {
+        if (suppressPrimaryResults || (subtotalDimensions && !rootQueryUuid)) {
             return {
                 ...queryResults,
                 rows: [],
@@ -70,8 +96,17 @@ export const useExplorerResultsData = () => {
             metricQuery: query.data?.metricQuery,
             fields: query.data?.fields,
             resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
+            vizSubtotals,
         };
-    }, [query.data, queryResults, mergeResults, suppressPrimaryResults]);
+    }, [
+        query.data,
+        queryResults,
+        mergeResults,
+        suppressPrimaryResults,
+        subtotalDimensions,
+        rootQueryUuid,
+        vizSubtotals,
+    ]);
 
     return {
         query,

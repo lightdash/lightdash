@@ -377,6 +377,13 @@
         "metrics.compareMetricTooltip": "Comparar «{metric}» con otra métrica",
         "metrics.comparisonMetric": "Métrica de comparación",
         "filters.closeFacet": "Cerrar filtro {filter}",
-        "metrics.ownerDetails": "Detalles del propietario {owner}"
+        "metrics.ownerDetails": "Detalles del propietario {owner}",
+        "chartTypes.hierarchy.bindDimensions": "Asigna una o más dimensiones únicas al campo de jerarquía para ejecutar este gráfico.",
+        "chartTypes.hierarchy.configureHint": "Abre Configurar para actualizar la asignación de campos.",
+        "chartTypes.generating": "El tipo de gráfico personalizado todavía se está generando.",
+        "chartTypes.unavailable": "La vista previa del tipo de gráfico personalizado no está disponible.",
+        "chartTypes.failed": "No se pudo generar el tipo de gráfico personalizado.",
+        "chartTypes.hierarchy.mergeUnsupported": "Los tipos de gráficos con subtotales expandibles no pueden usar consultas combinadas.",
+        "chartTypes.metadataError": "No se pudieron cargar los metadatos del tipo de gráfico personalizado. Comprueba el tipo de gráfico e inténtalo de nuevo."
     }
 }

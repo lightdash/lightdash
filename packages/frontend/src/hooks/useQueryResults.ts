@@ -276,8 +276,6 @@ export const collectSubtotalRows = async (
     return rows;
 };
 
-// Public helper consumed by the subsequent chart integration layer.
-// ts-unused-exports:disable-next-line
 export const executeSubtotalQueryAndGetRows = async (
     data: QueryResultsProps,
 ): Promise<ResultRow[]> =>

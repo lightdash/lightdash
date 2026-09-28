@@ -22,6 +22,7 @@ import {
 import { Link, useLocation } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
@@ -34,6 +35,7 @@ import {
 import { useDataAppVizResolvedColors } from '../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { captureChartTypeError } from '../../features/chartTypes/utils/captureChartTypeError';
+import { getVizHierarchyDimensions } from '../../features/chartTypes/utils/vizSubtotals';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
@@ -128,6 +130,7 @@ const getTerminalRequestErrorMessage = (
 
 const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const projectUuid = useProjectUuid();
+    const getUiString = useUiStrings();
     const {
         visualizationConfig,
         resultsData,
@@ -180,6 +183,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const fieldMapping = config?.fieldMapping;
     const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
+    const vizSubtotals = resultsData?.vizSubtotals;
     const pivotDetails = resultsData?.pivotDetails ?? null;
 
     const chartVersionUuid = useChartVersionPreview();
@@ -219,6 +223,9 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         );
     const readyMetadata =
         renderMetadata?.state === 'ready' ? renderMetadata : undefined;
+    const invalidHierarchyBinding =
+        !!readyMetadata?.schema.hierarchy &&
+        !getVizHierarchyDimensions(readyMetadata.schema, fieldMapping ?? {});
     useEffect(() => {
         if (
             !isEditMode ||
@@ -264,7 +271,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         !hasCustomBinDimension(metricQuery) &&
         !embedToken &&
         !minimal &&
-        !pivotDetails;
+        !pivotDetails &&
+        !vizSubtotals;
 
     const { data: explore } = useExplore(metricQuery?.exploreName, {
         refetchOnMount: false,
@@ -315,6 +323,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         !embedToken &&
         !minimal &&
         !pivotDetails &&
+        !vizSubtotals &&
         !!openDrillDownModal &&
         !!reconciledFieldMapping;
 
@@ -458,6 +467,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     // Any single action available ⇒ the menu is worth offering.
     const pointMenuEnabled =
+        !vizSubtotals &&
         !!reconciledFieldMapping &&
         !embedToken &&
         !minimal &&
@@ -515,6 +525,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             colorPalette,
             ...resolvedColors,
             pivotDetails,
+            ...(vizSubtotals && {
+                subtotals: {
+                    enabled: true,
+                    dimensions: vizSubtotals.dimensions,
+                },
+            }),
             underlyingData: {
                 enabled: underlyingDataEnabled,
                 openEnabled: underlyingDataOpenEnabled,
@@ -531,6 +547,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         colorPalette,
         resolvedColors,
         pivotDetails,
+        vizSubtotals,
         underlyingDataEnabled,
         underlyingDataOpenEnabled,
         drillDownEnabled,
@@ -573,7 +590,8 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         !!terminalRequestErrorMessage ||
         renderMetadata?.state === 'building' ||
         renderMetadata?.state === 'unavailable' ||
-        renderMetadata?.state === 'failed';
+        renderMetadata?.state === 'failed' ||
+        invalidHierarchyBinding;
     useEffect(() => {
         if (isTerminalPlaceholder) signalScreenshotReady();
     }, [isTerminalPlaceholder, signalScreenshotReady]);
@@ -767,7 +785,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                         : renderSavedChartUuid &&
                             config?.dataAppVizVersion !== undefined
                           ? 'The saved custom chart type version is unavailable.'
-                          : 'Custom chart type preview is unavailable.'
+                          : getUiString('chartTypes.unavailable')
                 }
                 hint={
                     pinnedChartlessArtifact
@@ -780,7 +798,16 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
 
     if (renderMetadata.state === 'failed') {
         return (
-            <DataAppVizPlaceholder message="Custom chart type failed to generate." />
+            <DataAppVizPlaceholder message={getUiString('chartTypes.failed')} />
+        );
+    }
+
+    if (invalidHierarchyBinding) {
+        return (
+            <DataAppVizPlaceholder
+                message={getUiString('chartTypes.hierarchy.bindDimensions')}
+                hint={getUiString('chartTypes.hierarchy.configureHint')}
+            />
         );
     }
 
@@ -830,6 +857,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     onVizUnderlyingDataIntent={onVizUnderlyingDataIntent}
                     onVizDrillDownIntent={onVizDrillDownIntent}
                     onVizPointMenuIntent={onVizPointMenuIntent}
+                    onVizSubtotalsIntent={vizSubtotals?.get}
                 />
             </Box>
             {pointMenuState && (

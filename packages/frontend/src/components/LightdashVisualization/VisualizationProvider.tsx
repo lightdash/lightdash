@@ -46,6 +46,7 @@ import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import Context, {
     type EmbeddedDashboardInteractivity,
     type SavedChartReference,
+    type VizSubtotalSource,
 } from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
@@ -72,6 +73,7 @@ export type VisualizationProviderProps = {
         resolvedTimezone?: string;
         /** Where each field came from when the results are a merge. */
         fieldOrigins?: MergeFieldOrigins;
+        vizSubtotals?: VizSubtotalSource;
     };
     parameters?: ParametersValuesMap;
     isLoading: boolean;
