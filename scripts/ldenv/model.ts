@@ -112,6 +112,12 @@ export function json<T>(source: string): T {
     }
 }
 
+export function pm2Inventory<T>(output: string): T[] {
+    const start = output.search(/\[\s*(?:\{|\])/);
+    if (start < 0) throw new Error('PM2 inventory is not JSON');
+    return json<T[]>(output.slice(start));
+}
+
 function object(value: unknown): Record<string, unknown> {
     if (!value || typeof value !== 'object' || Array.isArray(value))
         throw new Error('Expected a recipe table');

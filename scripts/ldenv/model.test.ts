@@ -12,6 +12,7 @@ import {
     instanceId,
     matchingTiers,
     parseRecipe,
+    pm2Inventory,
     selectParent,
     tierEnvironment,
     type Parent,
@@ -221,4 +222,16 @@ test('separates warehouse loading from the application seed without changing the
         () => seedCommands('unknown recipe'),
         /Expected the Rainbow seed recipe/,
     );
+});
+
+test('pm2 inventory skips the out-of-date daemon warning', () => {
+    const warning =
+        '\u001b[31m\u001b[1m>>>> In-memory PM2 is out-of-date, do:\u001b[22m\u001b[39m\n' +
+        'In memory PM2 version: \u001b[34m\u001b[1m6.0.14\u001b[22m\u001b[39m\n\n';
+    assert.deepEqual(
+        pm2Inventory<{ name: string }>(`${warning}[{"name":"api"}]`),
+        [{ name: 'api' }],
+    );
+    assert.deepEqual(pm2Inventory(`${warning}[]`), []);
+    assert.throws(() => pm2Inventory(warning), /PM2 inventory is not JSON/);
 });

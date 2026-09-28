@@ -25,6 +25,7 @@ import {
     savedBackendMode,
     json,
     parseRecipe,
+    pm2Inventory,
     type Instance,
     type Environment,
     type Ports,
@@ -70,9 +71,7 @@ export async function ownedProcesses(
 ): Promise<ProcessInfo[]> {
     assertInstance(instance);
     const output = await pm2(['jlist']);
-    const start = output.search(/\[\s*(?:\{|\])/);
-    if (start < 0) throw new Error('PM2 inventory is not JSON');
-    const all = json<ProcessInfo[]>(output.slice(start));
+    const all = pm2Inventory<ProcessInfo>(output);
     const owned = all.filter((item) =>
         item.name.startsWith(processName(instance.id, '')),
     );

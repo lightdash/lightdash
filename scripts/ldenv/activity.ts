@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { readlink, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { json, type Instance } from './model';
+import { pm2Inventory, type Instance } from './model';
 import { processName } from './namespace';
 import { pm2 } from './processes';
 
@@ -219,15 +219,11 @@ async function listPm2Roots(instances: Instance[]): Promise<number[]> {
         return pm2Cache.roots;
     const roots = (async () => {
         const output = await pm2(['jlist']);
-        const start = output.search(/\[\s*(?:\{|\])/);
-        if (start < 0) throw new Error('PM2 inventory is not JSON');
-        const entries = json<
-            {
-                name: string;
-                pid: number;
-                pm2_env: { pm_cwd: string };
-            }[]
-        >(output.slice(start));
+        const entries = pm2Inventory<{
+            name: string;
+            pid: number;
+            pm2_env: { pm_cwd: string };
+        }>(output);
         return entries
             .filter((entry) =>
                 instances.some(

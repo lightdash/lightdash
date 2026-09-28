@@ -17,7 +17,7 @@ import {
     writeJson,
 } from './io';
 import { instances } from './lifecycle';
-import { instanceId, json, type Instance } from './model';
+import { instanceId, pm2Inventory, type Instance } from './model';
 import { canonicalHome, pm2Prefix } from './namespace';
 import { background, currentState, pm2, processPriority } from './processes';
 import { claimedWorkBranch } from './ready-branches';
@@ -286,9 +286,7 @@ type MonitorProcess = {
 export async function ensurePoolMonitor(root: string): Promise<void> {
     await withLock('pool-monitor-install', async () => {
         const output = await pm2(['jlist']);
-        const processes = json<MonitorProcess[]>(
-            output.slice(output.indexOf('[')),
-        );
+        const processes = pm2Inventory<MonitorProcess>(output);
         const current = processes.find((item) => item.name === monitorName);
         const owner = canonicalHome(home);
         const bundle = path.join(controlRoot, 'scripts/ldenv/index.bundle.cjs');
@@ -358,7 +356,7 @@ export async function poolMonitorStatus(): Promise<{
           }>(monitorFile)
         : null;
     const output = await pm2(['jlist']);
-    const processes = json<MonitorProcess[]>(output.slice(output.indexOf('[')));
+    const processes = pm2Inventory<MonitorProcess>(output);
     const processMatches = processes.some(
         (item) =>
             item.pid === state?.pid &&
