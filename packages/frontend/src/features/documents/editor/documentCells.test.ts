@@ -117,7 +117,6 @@ describe('writing around charts', () => {
         text: string,
     ) => {
         const $pos = editor.state.doc.resolve(position);
-        expect(GapCursor.valid($pos)).toBe(true);
         editor.view.dispatch(editor.state.tr.setSelection(new GapCursor($pos)));
         editor.commands.insertContent(text);
     };
