@@ -21,6 +21,9 @@ type Props = {
     workspace: ChartTypeBuilderWorkspaceState;
     /** What the preview renders with; null renders the app bare. */
     previewContext: DataAppVizContext | null;
+    onVizSubtotalsIntent?: (
+        intent: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     /** Bounded sample of the host's current rows, even before a schema exists. */
     sampleRows?: Record<string, string>[];
     currentBuildContext?: VizBuildRequest['context'];
@@ -46,6 +49,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     projectUuid,
     workspace,
     previewContext,
+    onVizSubtotalsIntent,
     sampleRows = [],
     currentBuildContext,
     savedChartSource = null,
@@ -143,6 +147,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 isClarifyRoundOpen={isClarifyRoundOpen}
                                 clarifierUnavailable={clarification.fellThrough}
                                 previewContext={previewContext}
+                                onVizSubtotalsIntent={onVizSubtotalsIntent}
                                 configurePanel={configurePanel}
                                 onPickExample={onPickExample}
                                 onSdkManifest={onSdkManifest}

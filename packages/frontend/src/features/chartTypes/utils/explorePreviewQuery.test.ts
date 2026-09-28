@@ -127,4 +127,28 @@ describe('executeExplorePreviewQuery', () => {
             }),
         );
     });
+
+    it('starts a hierarchy preview at its root with the source query fields', async () => {
+        vi.mocked(pollForResults).mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            rows: [],
+            pivotDetails: null,
+            columns: { orders_date: {}, orders_count: {} },
+        } as unknown as Awaited<ReturnType<typeof pollForResults>>);
+        const subtotalLevel = {
+            subtotalDimensions: ['orders_date'],
+            parent: [],
+        };
+        const result = await executeExplorePreviewQuery({
+            projectUuid: 'project-1',
+            query,
+            subtotalLevel,
+        });
+
+        expect(result.resultColumnIds).toEqual(['orders_date', 'orders_count']);
+        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        expect(
+            JSON.parse(String(vi.mocked(lightdashApi).mock.calls[0][0].body)),
+        ).toMatchObject({ query, subtotalLevel });
+    });
 });

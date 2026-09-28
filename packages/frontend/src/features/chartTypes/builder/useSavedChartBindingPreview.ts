@@ -64,7 +64,7 @@ export const useSavedChartBindingPreview = ({
             return null;
         const { sourceChart, itemsMap, pivotDetails } = source.data;
         const pivotConfiguration =
-            schema && sourceChart
+            schema && sourceChart && !schema.hierarchy
                 ? deriveDataAppVizPivotConfiguration(
                       fieldMapping,
                       deriveDataAppVizPivotConfig(schema.fields, fieldMapping),
@@ -80,6 +80,7 @@ export const useSavedChartBindingPreview = ({
             sourceRanAt: source.data.ranAt.getTime(),
             reuseSource:
                 !schema ||
+                Boolean(schema.hierarchy) ||
                 !sourceChart ||
                 matchesPivot(pivotConfiguration, pivotDetails),
         };

@@ -21,18 +21,26 @@ import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppea
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
-import { type QueryResultsProps } from '../../../hooks/useQueryResults';
+import {
+    executeSubtotalQueryAndGetRows,
+    type QueryResultsProps,
+} from '../../../hooks/useQueryResults';
 import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
 import {
     buildTestMetricQuery,
     isMappingComplete,
 } from '../components/dataAppVizTestQuery';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
+import {
+    buildVizSubtotalRequest,
+    getVizHierarchyDimensions,
+} from '../utils/vizSubtotals';
 import { useDataAppVizResolvedColors } from './useDataAppVizResolvedColors';
 
 type Run = {
     args: QueryResultsProps;
     fieldMapping: DataAppVizFieldMapping;
+    hierarchyDimensions: string[] | null;
 };
 
 const EMPTY_FIELD_MAPPING = {};
@@ -60,6 +68,9 @@ export type DataAppVizTestContextState = {
     /** The same selected light/dark palette delivered to the test iframe. */
     colorPalette: string[];
     handleRun: () => void;
+    onVizSubtotalsIntent: (
+        intent: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     /** Every required declared field is mapped and an explore is picked. */
     complete: boolean;
     isRunning: boolean;
@@ -166,6 +177,14 @@ export const useDataAppVizTestContext = ({
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
                 pointMenu: { enabled: false },
+                ...(run.hierarchyDimensions
+                    ? {
+                          subtotals: {
+                              enabled: true,
+                              dimensions: run.hierarchyDimensions,
+                          },
+                      }
+                    : {}),
             });
         }
     }, [
@@ -229,22 +248,57 @@ export const useDataAppVizTestContext = ({
             schema.fields,
             fieldMapping,
         );
+        const hierarchyDimensions = getVizHierarchyDimensions(
+            schema,
+            fieldMapping,
+        );
+        if (schema.hierarchy && !hierarchyDimensions) return;
         setRun({
             args: {
                 projectUuid,
                 tableId: exploreName,
                 query: metricQuery,
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
-                pivotConfiguration: deriveDataAppVizPivotConfiguration(
-                    fieldMapping,
-                    pivotConfig,
-                    metricQuery,
-                    itemsMap,
-                ),
+                ...(hierarchyDimensions
+                    ? {
+                          subtotalLevel: buildVizSubtotalRequest(
+                              hierarchyDimensions,
+                              { level: 0, parentValues: [] },
+                          ),
+                      }
+                    : {
+                          pivotConfiguration:
+                              deriveDataAppVizPivotConfiguration(
+                                  fieldMapping,
+                                  pivotConfig,
+                                  metricQuery,
+                                  itemsMap,
+                              ),
+                      }),
             },
             fieldMapping,
+            hierarchyDimensions,
         });
     }, [exploreName, schema, fieldMapping, projectUuid, itemsMap]);
+
+    const onVizSubtotalsIntent = useCallback(
+        async (intent: unknown) => {
+            if (!run?.hierarchyDimensions) {
+                throw new Error('No hierarchy test query is ready');
+            }
+            const subtotalLevel = buildVizSubtotalRequest(
+                run.hierarchyDimensions,
+                intent,
+            );
+            return {
+                rows: await executeSubtotalQueryAndGetRows({
+                    ...run.args,
+                    subtotalLevel,
+                }),
+            };
+        },
+        [run],
+    );
 
     const exploreOptions = useMemo(
         () =>
@@ -276,6 +330,7 @@ export const useDataAppVizTestContext = ({
         palettes,
         colorPalette,
         handleRun,
+        onVizSubtotalsIntent,
         complete,
         isRunning,
         error,

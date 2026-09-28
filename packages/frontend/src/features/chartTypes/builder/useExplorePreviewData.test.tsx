@@ -208,6 +208,91 @@ describe('useExplorePreviewData', () => {
         );
     });
 
+    it('runs the root subtotal for a hierarchy schema without a pivot', async () => {
+        vi.mocked(
+            explorePreviewQuery.executeExplorePreviewQuery,
+        ).mockResolvedValue(result('root'));
+        const hierarchySchema: DataAppVizSchema = {
+            ...schema,
+            hierarchy: { field: 'category' },
+            fields: schema.fields.map((field) =>
+                field.name === 'category'
+                    ? { ...field, multiple: true }
+                    : field,
+            ),
+        };
+        const hierarchyMapping = {
+            ...initialMapping,
+            category: ['orders_date', 'orders_region'],
+        };
+        const { result: hook } = renderHook(
+            () =>
+                useExplorePreviewData({
+                    projectUuid: 'project-1',
+                    explore: explore(),
+                    schema: hierarchySchema,
+                    fieldMapping: hierarchyMapping,
+                    isPickingFields: false,
+                }),
+            { wrapper: createWrapper() },
+        );
+        await vi.waitFor(() => expect(hook.current.run.status).toBe('ready'));
+        expect(
+            explorePreviewQuery.executeExplorePreviewQuery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                subtotalLevel: {
+                    subtotalDimensions: ['orders_date'],
+                    parent: [],
+                },
+            }),
+        );
+    });
+
+    it('hides prior hierarchy rows when the required hierarchy slot loses its binding', async () => {
+        vi.mocked(
+            explorePreviewQuery.executeExplorePreviewQuery,
+        ).mockResolvedValue(result('root'));
+        const hierarchySchema: DataAppVizSchema = {
+            ...schema,
+            hierarchy: { field: 'category' },
+            fields: schema.fields.map((field) =>
+                field.name === 'category'
+                    ? { ...field, multiple: true }
+                    : field,
+            ),
+        };
+        const { result: hook, rerender } = renderHook(
+            ({ fieldMapping }) =>
+                useExplorePreviewData({
+                    projectUuid: 'project-1',
+                    explore: explore(),
+                    schema: hierarchySchema,
+                    fieldMapping,
+                    isPickingFields: false,
+                }),
+            {
+                initialProps: {
+                    fieldMapping: {
+                        ...initialMapping,
+                        category: ['orders_date', 'orders_region'],
+                    } as DataAppVizFieldMapping,
+                },
+                wrapper: createWrapper(),
+            },
+        );
+        await vi.waitFor(() => expect(hook.current.run.status).toBe('ready'));
+
+        rerender({ fieldMapping: { ...initialMapping, category: [] } });
+        expect(hook.current.run.status).toBe('idle');
+        expect(hook.current.isRunning).toBe(false);
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(hook.current.run.status).toBe('idle');
+        expect(
+            explorePreviewQuery.executeExplorePreviewQuery,
+        ).toHaveBeenCalledTimes(1);
+    });
+
     it('does not rerun for an equivalent binding object', async () => {
         vi.mocked(
             explorePreviewQuery.executeExplorePreviewQuery,

@@ -2,6 +2,7 @@ import {
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     getDataAppVizFieldIds,
+    getFields,
     getItemId,
     getVisibleFields,
     isDimension,
@@ -22,6 +23,10 @@ import {
 } from '../utils/explorePreviewQuery';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
 import { type SavedChartPreviewQueryResult } from '../utils/savedChartPreviewQuery';
+import {
+    buildVizSubtotalRequest,
+    getVizHierarchyDimensions,
+} from '../utils/vizSubtotals';
 import { type ExploreFieldOption } from './exploreSource';
 
 /** How long a change to the field set settles before the query re-runs. */
@@ -87,10 +92,12 @@ export const useAttachedExplore = ({
     projectUuid,
     exploreName,
     enabled,
+    includeHidden = false,
 }: {
     projectUuid: string | undefined;
     exploreName: string | null;
     enabled: boolean;
+    includeHidden?: boolean;
 }): AttachedExploreData => {
     const { data, error, refetch } = useExploreByProjectUuid(
         enabled ? (exploreName ?? undefined) : undefined,
@@ -99,7 +106,9 @@ export const useAttachedExplore = ({
 
     const explore = useMemo<LoadedExplore | null>(() => {
         if (!data || data.name !== exploreName) return null;
-        const fields = getVisibleFields(data)
+        const fields = (
+            includeHidden ? getFields(data) : getVisibleFields(data)
+        )
             .map((item) => toFieldOption(item, data.baseTable))
             .sort(
                 (a, b) =>
@@ -116,7 +125,7 @@ export const useAttachedExplore = ({
                 fields.map((field) => [field.id, field.item]),
             ),
         };
-    }, [data, exploreName]);
+    }, [data, exploreName, includeHidden]);
 
     return useMemo(
         () => ({
@@ -161,6 +170,7 @@ export const useExplorePreviewData = ({
         return JSON.stringify({
             exploreName: explore.name,
             fields: schema.fields,
+            hierarchy: schema.hierarchy,
             fieldMapping: mappedFields,
         });
     }, [explore, fieldMapping, schema]);
@@ -180,6 +190,7 @@ export const useExplorePreviewData = ({
     const bindingRequest = useMemo<{
         exploreName: string;
         fields: DataAppVizSchema['fields'];
+        hierarchy: DataAppVizSchema['hierarchy'];
         fieldMapping: DataAppVizFieldMapping;
     } | null>(
         () =>
@@ -208,16 +219,30 @@ export const useExplorePreviewData = ({
               ),
           ].filter((id) => explore && id in explore.itemsMap)
         : [];
+    const bindingRequestSchema =
+        bindingRequest && schema
+            ? {
+                  ...schema,
+                  fields: bindingRequest.fields,
+                  hierarchy: bindingRequest.hierarchy,
+              }
+            : null;
 
     const canRun =
         Boolean(projectUuid) &&
         explore !== null &&
         bindingRequest?.exploreName === exploreName &&
-        debouncedFieldIds.length > 0;
+        debouncedFieldIds.length > 0 &&
+        (!bindingRequest?.hierarchy ||
+            getVizHierarchyDimensions(
+                bindingRequestSchema,
+                bindingRequest.fieldMapping,
+            ) !== null);
     const query = useQuery<
         SavedChartPreviewQueryResult & {
             exploreName: string;
             fieldMapping: DataAppVizFieldMapping;
+            bindingRequestKey: string;
         },
         Error
     >({
@@ -233,6 +258,12 @@ export const useExplorePreviewData = ({
                 debouncedFieldIds,
             );
             const appliedFieldMapping = bindingRequest?.fieldMapping ?? {};
+            const hierarchyDimensions = bindingRequest?.hierarchy
+                ? getVizHierarchyDimensions(
+                      bindingRequestSchema,
+                      appliedFieldMapping,
+                  )
+                : null;
             const pivotConfig = deriveDataAppVizPivotConfig(
                 bindingRequest?.fields ?? [],
                 appliedFieldMapping,
@@ -241,6 +272,14 @@ export const useExplorePreviewData = ({
                 ...(await executeExplorePreviewQuery({
                     projectUuid: projectUuid ?? '',
                     query: metricQuery,
+                    ...(hierarchyDimensions
+                        ? {
+                              subtotalLevel: buildVizSubtotalRequest(
+                                  hierarchyDimensions,
+                                  { level: 0, parentValues: [] },
+                              ),
+                          }
+                        : {}),
                     pivotConfiguration: deriveDataAppVizPivotConfiguration(
                         appliedFieldMapping,
                         pivotConfig,
@@ -250,6 +289,7 @@ export const useExplorePreviewData = ({
                 })),
                 exploreName: bindingRequest?.exploreName ?? '',
                 fieldMapping: appliedFieldMapping,
+                bindingRequestKey: debouncedBindingRequestKey,
             };
         },
         enabled: canRun,
@@ -260,12 +300,18 @@ export const useExplorePreviewData = ({
     });
 
     const { error, refetch, isFetching, dataUpdatedAt } = query;
+    const hasRequiredHierarchyBinding =
+        !schema?.hierarchy ||
+        getVizHierarchyDimensions(schema, fieldMapping) !== null;
     // Rows kept from an earlier set only count while they belong to this
     // explore and something is still bound.
     const data =
         query.data &&
         query.data.exploreName === exploreName &&
-        currentFieldIds.length > 0
+        currentFieldIds.length > 0 &&
+        hasRequiredHierarchyBinding &&
+        (!schema?.hierarchy ||
+            query.data.bindingRequestKey === liveBindingRequestKey)
             ? query.data
             : null;
 
@@ -279,7 +325,7 @@ export const useExplorePreviewData = ({
             (bindingRequestKey !== debouncedBindingRequestKey ||
                 isFetching ||
                 (!data && !error));
-        if (currentFieldIds.length === 0) {
+        if (currentFieldIds.length === 0 || !hasRequiredHierarchyBinding) {
             return { run: { status: 'idle' }, isRunning: false, retry };
         }
         if (
@@ -295,12 +341,18 @@ export const useExplorePreviewData = ({
         }
         if (!data) return { run: { status: 'running' }, isRunning, retry };
         const { dimensions, metrics } = getDataAppVizFieldItems(data.itemsMap);
+        const resultColumns = data.resultColumnIds
+            ? new Set(data.resultColumnIds)
+            : null;
         return {
             run: {
                 status: 'ready',
                 rows: data.rows,
                 itemsMap: data.itemsMap,
-                columns: [...dimensions, ...metrics],
+                columns: [...dimensions, ...metrics].filter(
+                    (item) =>
+                        !resultColumns || resultColumns.has(getItemId(item)),
+                ),
                 pivotDetails: data.pivotDetails,
                 rowCount: data.rows.length,
                 ranAt: new Date(dataUpdatedAt),
@@ -317,6 +369,7 @@ export const useExplorePreviewData = ({
         error,
         bindingRequestKey,
         currentFieldIds.length,
+        hasRequiredHierarchyBinding,
         isFetching,
         projectUuid,
         refetch,

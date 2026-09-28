@@ -12,11 +12,12 @@ import {
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartColorMappingContext } from '../../../hooks/useChartColorConfig/context';
+import type * as queryResultsModule from '../../../hooks/useQueryResults';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizTestPanel from './DataAppVizTestPanel';
 import { buildTestMetricQuery, isMappingComplete } from './dataAppVizTestQuery';
@@ -90,11 +91,16 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../../../providers/Explorer/useQueryExecutor', () => ({
     useQueryExecutor: queryExecutorMock,
 }));
+vi.mock('../../../hooks/useQueryResults', async (importOriginal) => ({
+    ...(await importOriginal<typeof queryResultsModule>()),
+    executeSubtotalQueryAndGetRows: vi.fn(),
+}));
 
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
+import { executeSubtotalQueryAndGetRows } from '../../../hooks/useQueryResults';
 import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
 
 const schema: DataAppVizSchema = {
@@ -308,6 +314,7 @@ describe('buildTestMetricQuery', () => {
 
 describe('DataAppVizTestPanel', () => {
     beforeEach(() => {
+        vi.mocked(executeSubtotalQueryAndGetRows).mockReset();
         fieldSelectItems.length = 0;
         vi.mocked(useExplores).mockReturnValue({
             data: [
@@ -384,6 +391,108 @@ describe('DataAppVizTestPanel', () => {
 
         return user;
     };
+
+    it('runs a hierarchy root and executes child expansion with the same source query', async () => {
+        const hierarchySchema: DataAppVizSchema = {
+            fields: [
+                {
+                    name: 'path',
+                    label: 'Path',
+                    type: 'dimension',
+                    multiple: true,
+                    required: true,
+                },
+            ],
+            hierarchy: { field: 'path' },
+            configOptions: [],
+            colorPalette: null,
+        };
+        const explore = {
+            ...exploreWithHiddenFields,
+            tables: {
+                ...exploreWithHiddenFields.tables,
+                orders: {
+                    ...exploreWithHiddenFields.tables.orders,
+                    dimensions: {
+                        ...exploreWithHiddenFields.tables.orders.dimensions,
+                        second: makeDimension('second', false),
+                    },
+                },
+            },
+        } as Explore;
+        exploreByProjectMock.mockReturnValue({ data: explore });
+        vi.mocked(useQueryExecutor).mockReturnValue([
+            {
+                query: {
+                    data: { queryUuid: 'root-query' },
+                    isFetching: false,
+                    error: null,
+                },
+                queryResults: {
+                    rows: resultRows,
+                    queryUuid: 'root-query',
+                    isFetchingFirstPage: false,
+                    error: null,
+                },
+            },
+            vi.fn(),
+        ] as unknown as ReturnType<typeof useQueryExecutor>);
+        const onContextChange = vi.fn();
+        const onVizSubtotalsIntentChange = vi.fn();
+        renderWithProviders(
+            <TestDataAppVizPanel
+                projectUuid="p1"
+                schema={hierarchySchema}
+                onContextChange={onContextChange}
+                onVizSubtotalsIntentChange={onVizSubtotalsIntentChange}
+            />,
+        );
+        const user = userEvent.setup();
+        await user.click(screen.getByPlaceholderText('Select a table'));
+        await user.click(await screen.findByText('Orders'));
+        await user.click(screen.getByRole('button', { name: 'Add path' }));
+        await user.click(screen.getByRole('button', { name: 'Add path' }));
+        await user.click(
+            screen.getByRole('button', { name: /run test query/i }),
+        );
+
+        expect(useQueryExecutor).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                subtotalLevel: {
+                    subtotalDimensions: ['orders_visible'],
+                    parent: [],
+                },
+            }),
+            [],
+            true,
+        );
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    subtotals: {
+                        enabled: true,
+                        dimensions: ['orders_visible', 'orders_second'],
+                    },
+                }),
+            ),
+        );
+        vi.mocked(executeSubtotalQueryAndGetRows).mockResolvedValue([]);
+        const handler = onVizSubtotalsIntentChange.mock.calls
+            .map(([value]) => value)
+            .reverse()
+            .find((value) => typeof value === 'function');
+        await act(async () => handler({ level: 1, parentValues: ['Retail'] }));
+        expect(executeSubtotalQueryAndGetRows).toHaveBeenCalledWith(
+            expect.objectContaining({
+                subtotalLevel: {
+                    subtotalDimensions: ['orders_second'],
+                    parent: [
+                        { dimensionId: 'orders_visible', value: 'Retail' },
+                    ],
+                },
+            }),
+        );
+    });
 
     it('lists the declared fields and the explore picker up-front', () => {
         renderWithProviders(

@@ -4,7 +4,7 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { Button, Card, Group, Stack, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizOptionTabs from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionTabs';
@@ -15,6 +15,13 @@ type Props = {
     projectUuid: string;
     schema: DataAppVizSchema;
     onContextChange: (ctx: DataAppVizContext | null) => void;
+    onVizSubtotalsIntentChange?: (
+        handler:
+            | ((
+                  intent: unknown,
+              ) => Promise<{ rows: DataAppVizContext['rows'] }>)
+            | null,
+    ) => void;
 };
 
 // Interactive panel below the viz result card: pick an explore, map each
@@ -25,6 +32,7 @@ const DataAppVizTestPanel: FC<Props> = ({
     projectUuid,
     schema,
     onContextChange,
+    onVizSubtotalsIntentChange,
 }) => {
     const state = useDataAppVizTestContext({
         projectUuid,
@@ -44,6 +52,16 @@ const DataAppVizTestPanel: FC<Props> = ({
         isRunning,
         error,
     } = state;
+    useEffect(() => {
+        onVizSubtotalsIntentChange?.(
+            schema.hierarchy ? state.onVizSubtotalsIntent : null,
+        );
+        return () => onVizSubtotalsIntentChange?.(null);
+    }, [
+        onVizSubtotalsIntentChange,
+        schema.hierarchy,
+        state.onVizSubtotalsIntent,
+    ]);
 
     return (
         <Card radius="md" p="sm">

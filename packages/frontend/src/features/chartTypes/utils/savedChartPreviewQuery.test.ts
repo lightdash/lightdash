@@ -1,15 +1,22 @@
 import {
     QueryExecutionContext,
     QueryHistoryStatus,
+    FieldType,
+    DimensionType,
+    MetricType,
     VizAggregationOptions,
     type ApiExecuteAsyncMetricQueryResults,
+    type ItemsMap,
+    type MetricQuery,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
 import { pollForResults } from '../../queryRunner/executeQuery';
+import { reconcileDataAppVizFieldMapping } from './autoMapDataAppVizFields';
 import {
     SAVED_CHART_PREVIEW_ROW_LIMIT,
     executeSavedChartPreviewQuery,
+    getSavedChartSourceItemsMap,
 } from './savedChartPreviewQuery';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
@@ -95,11 +102,55 @@ describe('executeSavedChartPreviewQuery', () => {
         );
     });
 
+    it.each([undefined, { subtotalDimensions: ['orders_status'], parent: [] }])(
+        'retains selected hidden result fields as bindable metadata (%j)',
+        async (subtotalLevel) => {
+            vi.mocked(lightdashApi).mockResolvedValue({
+                queryUuid: 'preview-query',
+                metricQuery: executedMetricQuery,
+                fields: {
+                    orders_status: { name: 'status', hidden: true },
+                    orders_private: { name: 'private', hidden: true },
+                    orders_orders_count: { name: 'orders_count', hidden: true },
+                    orders_child: { name: 'child', hidden: true },
+                },
+            } as unknown as ApiExecuteAsyncMetricQueryResults);
+            vi.mocked(pollForResults).mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+                rows: [],
+                columns: { orders_status: {} },
+                pivotDetails: null,
+            } as unknown as Awaited<ReturnType<typeof pollForResults>>);
+            const result = await executeSavedChartPreviewQuery({
+                projectUuid: 'project-1',
+                chartUuid: 'chart-1',
+                subtotalLevel,
+                sourceMetricQuery: {
+                    ...executedMetricQuery,
+                    dimensions: ['orders_status', 'orders_child'],
+                },
+            });
+            expect(result.itemsMap.orders_child).toMatchObject({
+                hidden: !subtotalLevel,
+            });
+            expect(result.itemsMap.orders_status).toMatchObject({
+                hidden: false,
+            });
+            expect(result.itemsMap.orders_orders_count).toMatchObject({
+                hidden: false,
+            });
+            expect(result.itemsMap.orders_private).toMatchObject({
+                hidden: true,
+            });
+        },
+    );
+
     it('sends an explicit preview pivot without changing the saved chart', async () => {
         vi.mocked(pollForResults).mockResolvedValue({
             status: QueryHistoryStatus.READY,
             rows: [],
             pivotDetails: null,
+            columns: { orders_region: {}, orders_count: {} },
         } as unknown as Awaited<ReturnType<typeof pollForResults>>);
         const pivotConfiguration = {
             sortBy: [],
@@ -124,6 +175,38 @@ describe('executeSavedChartPreviewQuery', () => {
             chartUuid: 'chart-1',
             pivotResults: false,
             pivotConfiguration,
+        });
+    });
+
+    it('starts a hierarchy preview from the root subtotal without a detail query', async () => {
+        vi.mocked(pollForResults).mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            rows: [],
+            pivotDetails: null,
+            columns: { orders_region: {}, orders_count: {} },
+        } as unknown as Awaited<ReturnType<typeof pollForResults>>);
+        const subtotalLevel = {
+            subtotalDimensions: ['orders_region'],
+            parent: [],
+        };
+
+        const result = await executeSavedChartPreviewQuery({
+            projectUuid: 'project-1',
+            chartUuid: 'chart-1',
+            subtotalLevel,
+        });
+
+        expect(result.resultColumnIds).toEqual([
+            'orders_region',
+            'orders_count',
+        ]);
+        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        expect(
+            JSON.parse(String(vi.mocked(lightdashApi).mock.calls[0][0].body)),
+        ).toMatchObject({
+            chartUuid: 'chart-1',
+            pivotResults: false,
+            subtotalLevel,
         });
     });
 
@@ -159,5 +242,86 @@ describe('executeSavedChartPreviewQuery', () => {
                 chartUuid: 'chart-1',
             }),
         ).rejects.toThrow('The warehouse is unavailable');
+    });
+});
+
+describe('getSavedChartSourceItemsMap', () => {
+    it('retains a selected hidden dimension as a hierarchy binding', () => {
+        const itemsMap = getSavedChartSourceItemsMap(
+            {
+                orders_hidden: {
+                    table: 'orders',
+                    name: 'hidden',
+                    label: 'Hidden',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: true,
+                },
+            } as unknown as ItemsMap,
+            {
+                dimensions: ['orders_hidden'],
+                metrics: [],
+                tableCalculations: [],
+            } as unknown as MetricQuery,
+        );
+        expect(
+            reconcileDataAppVizFieldMapping(
+                [
+                    {
+                        name: 'levels',
+                        label: 'Levels',
+                        type: 'dimension',
+                        multiple: true,
+                        required: true,
+                    },
+                ],
+                itemsMap,
+                { levels: ['orders_hidden'] },
+            ),
+        ).toEqual({ levels: ['orders_hidden'] });
+    });
+
+    it('keeps only selected source fields and includes saved custom fields before a row query', () => {
+        const status = { table: 'orders', name: 'status' };
+        const hidden = { table: 'orders', name: 'hidden', hidden: true };
+        const unselected = { table: 'orders', name: 'unselected' };
+        const custom = { id: 'custom_tier', name: 'Tier', type: 'sql' };
+        const metric = {
+            table: 'orders',
+            name: 'custom_revenue',
+            type: MetricType.SUM,
+            sql: '${TABLE}.revenue',
+        };
+        const calculation = { name: 'profit', displayName: 'Profit', sql: '1' };
+        const query = {
+            dimensions: ['orders_status', 'orders_hidden', 'custom_tier'],
+            metrics: ['orders_custom_revenue'],
+            tableCalculations: [calculation],
+            customDimensions: [custom],
+            additionalMetrics: [metric],
+        } as unknown as MetricQuery;
+
+        expect(
+            getSavedChartSourceItemsMap(
+                {
+                    orders_status: status,
+                    orders_hidden: hidden,
+                    orders_unselected: unselected,
+                } as unknown as ItemsMap,
+                query,
+            ),
+        ).toEqual({
+            orders_status: status,
+            orders_hidden: { ...hidden, hidden: false },
+            custom_tier: custom,
+            orders_custom_revenue: {
+                ...metric,
+                fieldType: FieldType.METRIC,
+                label: 'custom_revenue',
+                tableLabel: 'orders',
+                hidden: false,
+            },
+            profit: calculation,
+        });
     });
 });

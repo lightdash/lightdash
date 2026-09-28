@@ -13,6 +13,7 @@ import {
     type MetricQueryRequest,
     type PivotConfiguration,
     type SortField,
+    type SubtotalLevelRequest,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { pollForResults } from '../../queryRunner/executeQuery';
@@ -59,10 +60,12 @@ export const executeExplorePreviewQuery = async ({
     projectUuid,
     query,
     pivotConfiguration,
+    subtotalLevel,
 }: {
     projectUuid: string;
     query: Omit<MetricQueryRequest, 'csvLimit'>;
     pivotConfiguration?: PivotConfiguration;
+    subtotalLevel?: SubtotalLevelRequest;
 }): Promise<SavedChartPreviewQueryResult> => {
     try {
         const started = await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
@@ -72,7 +75,10 @@ export const executeExplorePreviewQuery = async ({
             body: JSON.stringify({
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
                 query,
-                pivotConfiguration,
+                pivotConfiguration: subtotalLevel
+                    ? undefined
+                    : pivotConfiguration,
+                ...(subtotalLevel ? { subtotalLevel } : {}),
             } satisfies ExecuteAsyncMetricQueryRequestParams),
         });
 
@@ -86,6 +92,9 @@ export const executeExplorePreviewQuery = async ({
 
         return {
             rows: results.rows,
+            ...(subtotalLevel
+                ? { resultColumnIds: Object.keys(results.columns) }
+                : {}),
             itemsMap: started.fields,
             pivotDetails: results.pivotDetails,
         };

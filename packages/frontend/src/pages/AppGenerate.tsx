@@ -1317,6 +1317,20 @@ const AppGenerate: FC = () => {
     // data-app-viz renders with real result rows instead of mock data.
     const [testVizContext, setTestVizContext] =
         useState<DataAppVizContext | null>(null);
+    const [testVizSubtotalsIntent, setTestVizSubtotalsIntent] = useState<
+        | ((intent: unknown) => Promise<{ rows: DataAppVizContext['rows'] }>)
+        | null
+    >(null);
+    const handleTestVizSubtotalsIntentChange = useCallback(
+        (
+            handler:
+                | ((
+                      intent: unknown,
+                  ) => Promise<{ rows: DataAppVizContext['rows'] }>)
+                | null,
+        ) => setTestVizSubtotalsIntent(() => handler),
+        [],
+    );
     const [sampleDataConsent, setSampleDataConsent] = useState<{
         context: DataAppVizContext;
         appUuid: string | null;
@@ -2410,6 +2424,9 @@ const AppGenerate: FC = () => {
                                                                     onContextChange={
                                                                         setTestVizContext
                                                                     }
+                                                                    onVizSubtotalsIntentChange={
+                                                                        handleTestVizSubtotalsIntentChange
+                                                                    }
                                                                 />
                                                             ) : (
                                                                 <DataAppVizResultCard
@@ -3366,6 +3383,12 @@ const AppGenerate: FC = () => {
                                         }
                                         dataAppVizContext={
                                             testVizContext ?? undefined
+                                        }
+                                        onVizSubtotalsIntent={
+                                            testVizContext?.subtotals?.enabled
+                                                ? (testVizSubtotalsIntent ??
+                                                  undefined)
+                                                : undefined
                                         }
                                         dataAppVizMode={isVizBuilder}
                                         onSdkManifest={handleSdkManifest}

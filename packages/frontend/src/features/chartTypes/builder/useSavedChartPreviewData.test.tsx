@@ -74,6 +74,39 @@ describe('useSavedChartPreviewData', () => {
         },
     );
 
+    it('waits for saved source metadata before executing subtotal rows', async () => {
+        let resolveMetadata!: (value: unknown) => void;
+        mockedLightdashApi.mockReturnValue(
+            new Promise((resolve) => {
+                resolveMetadata = resolve;
+            }) as never,
+        );
+        const metricQuery = {
+            dimensions: ['orders_status', 'orders_child'],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const { result } = renderHook(
+            () =>
+                useSavedChartPreviewData({
+                    projectUuid: 'project-1',
+                    savedChartUuid: 'chart-a',
+                    enabled: true,
+                    subtotalLevel: {
+                        subtotalDimensions: ['orders_status'],
+                        parent: [],
+                    },
+                }),
+            { wrapper: createWrapper() },
+        );
+        expect(mockedExecuteSavedChartPreviewQuery).not.toHaveBeenCalled();
+        await act(async () => resolveMetadata({ name: 'Orders', metricQuery }));
+        await waitFor(() => expect(result.current.data.status).toBe('ready'));
+        expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ sourceMetricQuery: metricQuery }),
+        );
+    });
+
     it('exposes the saved layout and pivot with the ready query results', async () => {
         const chartConfig = {
             type: ChartType.CARTESIAN,
@@ -127,6 +160,91 @@ describe('useSavedChartPreviewData', () => {
             projectUuid: 'project-1',
             chartUuid: 'chart-a',
         });
+    });
+
+    it('waits for hierarchy bindings and starts only the root subtotal', async () => {
+        const root = {
+            subtotalDimensions: ['orders_region'],
+            parent: [],
+        };
+        const { result, rerender } = renderHook(
+            ({ subtotalLevel }) =>
+                useSavedChartPreviewData({
+                    projectUuid: 'project-1',
+                    savedChartUuid: 'chart-a',
+                    enabled: true,
+                    subtotalLevel,
+                }),
+            {
+                initialProps: { subtotalLevel: null as typeof root | null },
+                wrapper: createWrapper(),
+            },
+        );
+        expect(result.current.data.status).toBe('running');
+        expect(mockedExecuteSavedChartPreviewQuery).not.toHaveBeenCalled();
+
+        rerender({ subtotalLevel: root });
+        await waitFor(() => expect(result.current.data.status).toBe('ready'));
+        expect(
+            mockedExecuteSavedChartPreviewQuery,
+        ).toHaveBeenCalledExactlyOnceWith({
+            projectUuid: 'project-1',
+            chartUuid: 'chart-a',
+            subtotalLevel: root,
+        });
+    });
+
+    it('reports and retries a metadata failure while hierarchy bindings are pending', async () => {
+        mockedLightdashApi
+            .mockRejectedValueOnce(new Error('Chart metadata unavailable'))
+            .mockResolvedValue({ name: 'Orders' } as never);
+        const { result } = renderHook(
+            () =>
+                useSavedChartPreviewData({
+                    projectUuid: 'project-1',
+                    savedChartUuid: 'chart-a',
+                    enabled: true,
+                    subtotalLevel: null,
+                }),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() =>
+            expect(result.current.data).toMatchObject({
+                status: 'error',
+                message: 'Chart metadata unavailable',
+            }),
+        );
+        expect(mockedExecuteSavedChartPreviewQuery).not.toHaveBeenCalled();
+
+        act(() => result.current.retry());
+        await waitFor(() =>
+            expect(mockedLightdashApi).toHaveBeenCalledTimes(2),
+        );
+    });
+
+    it('reports and retries a source Explore failure before hierarchy bindings resolve', async () => {
+        const retrySourceMetadata = vi.fn();
+        const { result } = renderHook(
+            () =>
+                useSavedChartPreviewData({
+                    projectUuid: 'project-1',
+                    savedChartUuid: 'chart-a',
+                    enabled: true,
+                    subtotalLevel: null,
+                    sourceMetadataError: 'Explore metadata unavailable',
+                    retrySourceMetadata,
+                }),
+            { wrapper: createWrapper() },
+        );
+
+        expect(result.current.data).toMatchObject({
+            status: 'error',
+            message: 'Explore metadata unavailable',
+        });
+        act(() => result.current.retry());
+        expect(retrySourceMetadata).toHaveBeenCalledOnce();
+        expect(mockedExecuteSavedChartPreviewQuery).not.toHaveBeenCalled();
     });
 
     it('waits for source bindings even when the row query finishes first', async () => {

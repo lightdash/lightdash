@@ -1,5 +1,6 @@
 import {
     getErrorMessage,
+    getItemId,
     isApiError,
     type Item,
     type ItemsMap,
@@ -7,6 +8,7 @@ import {
     type SavedChart,
     type ReadyQueryResultsPage,
     type ResultRow,
+    type SubtotalLevelRequest,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -58,6 +60,10 @@ type Args = {
     enabled: boolean;
     /** The saved chart the session runs against; null runs nothing. */
     savedChartUuid: string | null;
+    /** Null waits for hierarchy bindings; undefined runs the legacy preview. */
+    subtotalLevel?: SubtotalLevelRequest | null;
+    sourceMetadataError?: string | null;
+    retrySourceMetadata?: () => void;
 };
 
 /**
@@ -71,24 +77,39 @@ export const useSavedChartPreviewData = ({
     projectUuid,
     savedChartUuid,
     enabled: canPreview,
+    subtotalLevel,
+    sourceMetadataError,
+    retrySourceMetadata,
 }: Args): SavedChartPreviewRun => {
-    const enabled =
+    const metadataEnabled =
         canPreview && Boolean(projectUuid) && savedChartUuid !== null;
     const savedChart = useSavedQuery({
         uuidOrSlug: savedChartUuid ?? undefined,
         projectUuid,
-        useQueryOptions: { enabled },
+        useQueryOptions: { enabled: metadataEnabled },
     });
+    const enabled =
+        metadataEnabled &&
+        subtotalLevel !== null &&
+        (!subtotalLevel || !!savedChart.data);
     const run = useQuery<SavedChartPreviewQueryResult, Error>({
         queryKey: [
             'chart-type-saved-chart-preview',
             projectUuid,
             savedChartUuid,
+            subtotalLevel,
+            subtotalLevel ? savedChart.data?.metricQuery : undefined,
         ],
         queryFn: () =>
             executeSavedChartPreviewQuery({
                 projectUuid: projectUuid ?? '',
                 chartUuid: savedChartUuid ?? '',
+                ...(subtotalLevel
+                    ? {
+                          subtotalLevel,
+                          sourceMetricQuery: savedChart.data?.metricQuery,
+                      }
+                    : {}),
             }),
         enabled,
         retry: false,
@@ -104,13 +125,12 @@ export const useSavedChartPreviewData = ({
 
     return useMemo(() => {
         const retry = () => {
-            if (enabled) {
-                void refetch();
-                void refetchMetadata();
-            }
+            if (metadataEnabled) void refetchMetadata();
+            if (metadataEnabled) retrySourceMetadata?.();
+            if (enabled) void refetch();
         };
-        if (!enabled) return { data: { status: 'notRun' }, retry };
-        if (error || metadataError)
+        if (!metadataEnabled) return { data: { status: 'notRun' }, retry };
+        if (error || metadataError || sourceMetadataError)
             return {
                 data: {
                     status: 'error',
@@ -118,10 +138,16 @@ export const useSavedChartPreviewData = ({
                     spaceName,
                     message:
                         error?.message ??
+                        sourceMetadataError ??
                         (isApiError(metadataError)
                             ? metadataError.error.message
                             : getErrorMessage(metadataError)),
                 },
+                retry,
+            };
+        if (!enabled)
+            return {
+                data: { status: 'running', chartName, spaceName },
                 retry,
             };
         if (!data || !savedChart.data)
@@ -130,6 +156,9 @@ export const useSavedChartPreviewData = ({
                 retry,
             };
         const { dimensions, metrics } = getDataAppVizFieldItems(data.itemsMap);
+        const resultColumns = data.resultColumnIds
+            ? new Set(data.resultColumnIds)
+            : null;
         return {
             data: {
                 status: 'ready',
@@ -143,7 +172,10 @@ export const useSavedChartPreviewData = ({
                 },
                 rows: data.rows,
                 itemsMap: data.itemsMap,
-                columns: [...dimensions, ...metrics],
+                columns: [...dimensions, ...metrics].filter(
+                    (item) =>
+                        !resultColumns || resultColumns.has(getItemId(item)),
+                ),
                 pivotDetails: data.pivotDetails,
                 rowCount: data.rows.length,
                 ranAt: new Date(ranAt),
@@ -152,6 +184,7 @@ export const useSavedChartPreviewData = ({
         };
     }, [
         enabled,
+        metadataEnabled,
         chartName,
         spaceName,
         data,
@@ -161,5 +194,7 @@ export const useSavedChartPreviewData = ({
         savedChart.data,
         metadataError,
         refetchMetadata,
+        sourceMetadataError,
+        retrySourceMetadata,
     ]);
 };

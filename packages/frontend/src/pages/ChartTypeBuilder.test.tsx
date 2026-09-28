@@ -375,6 +375,19 @@ describe('ChartTypeBuilder', () => {
         } as unknown as ReturnType<typeof useUpgradeApp>);
     });
 
+    it('does not block legacy saved previews on source Explore metadata errors', () => {
+        vi.mocked(useAttachedExplore).mockReturnValue({
+            explore: null,
+            error: 'Explore unavailable',
+            retry: vi.fn(),
+        });
+        renderBuilder('/projects/p1/chart-studio/new?savedChartUuid=chart-1');
+        expect(
+            vi.mocked(useSavedChartPreviewData).mock.lastCall?.[0]
+                .sourceMetadataError,
+        ).toBeNull();
+    });
+
     it('redirects home when data apps are disabled', () => {
         setFlag(false);
         renderBuilder('/projects/p1/chart-studio/new');
@@ -435,11 +448,13 @@ describe('ChartTypeBuilder', () => {
 
         renderBuilder(`${path}?savedChartUuid=${savedChartUuid}`);
 
-        expect(useSavedChartPreviewData).toHaveBeenCalledWith({
-            projectUuid: 'p1',
-            savedChartUuid,
-            enabled: false,
-        });
+        expect(useSavedChartPreviewData).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'p1',
+                savedChartUuid,
+                enabled: false,
+            }),
+        );
     });
 
     it('sends users who cannot create back to the gallery', () => {
@@ -794,11 +809,13 @@ describe('ChartTypeBuilder', () => {
             ),
         );
 
-        expect(useSavedChartPreviewData).toHaveBeenLastCalledWith({
-            projectUuid: 'p1',
-            savedChartUuid,
-            enabled: true,
-        });
+        expect(useSavedChartPreviewData).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                projectUuid: 'p1',
+                savedChartUuid,
+                enabled: true,
+            }),
+        );
         expect(screen.getByTestId('location')).toHaveTextContent(
             `?savedChartUuid=${savedChartUuid}`,
         );

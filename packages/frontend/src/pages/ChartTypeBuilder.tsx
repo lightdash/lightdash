@@ -6,6 +6,7 @@ import {
     FeatureFlags,
     getDataAppVizFieldIds,
     getItemLabelWithoutTableName,
+    QueryExecutionContext,
     type CreateSavedChartVersion,
     type AppChartReference,
     type DataAppVizFieldMapping,
@@ -66,6 +67,7 @@ import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSave
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
@@ -75,7 +77,12 @@ import { buildExplorePreviewMetricQuery } from '../features/chartTypes/utils/exp
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { mapSavedChartPreviewFields } from '../features/chartTypes/utils/savedChartPreviewFieldMapping';
+import { getSavedChartSourceItemsMap } from '../features/chartTypes/utils/savedChartPreviewQuery';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
+import {
+    buildVizSubtotalRequest,
+    getVizHierarchyDimensions,
+} from '../features/chartTypes/utils/vizSubtotals';
 import {
     MERGE_URL_PARAM,
     serializeMergeState,
@@ -90,6 +97,8 @@ import {
 } from '../hooks/useExplorerRoute';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { executeSubtotalQueryAndGetRows } from '../hooks/useQueryResults';
+import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';
 
@@ -163,12 +172,19 @@ const ChartTypeBuilder: FC = () => {
 
     const [searchParams] = useSearchParams();
     const savedChartUuid = searchParams.get(SAVED_CHART_PARAM);
-    const savedChartPreview = useSavedChartPreviewData({
+    const savedChartMetadata = useSavedQuery({
+        uuidOrSlug: savedChartUuid ?? undefined,
         projectUuid,
-        savedChartUuid,
-        enabled: canPreviewSavedChart,
+        useQueryOptions: {
+            enabled: canPreviewSavedChart && savedChartUuid !== null,
+        },
     });
-    const sourcePreviewData = savedChartPreview.data;
+    const savedChartExplore = useAttachedExplore({
+        projectUuid,
+        exploreName: savedChartMetadata.data?.tableName ?? null,
+        enabled: canPreviewSavedChart && savedChartUuid !== null,
+        includeHidden: true,
+    });
     const exploreName =
         savedChartUuid === null ? searchParams.get(EXPLORE_PARAM) : null;
     const attachedExplore = useAttachedExplore({
@@ -179,6 +195,10 @@ const ChartTypeBuilder: FC = () => {
     const loadedExplore = attachedExplore.explore;
     const [isRowsModalOpen, setIsRowsModalOpen] = useState(false);
     const [sourceRevision, setSourceRevision] = useState(0);
+    const [savedRunItemsMap, setSavedRunItemsMap] = useState<{
+        savedChartUuid: string;
+        itemsMap: ItemsMap;
+    } | null>(null);
     // Slots the author rebound by hand, layered over the automap.
     const [fieldMappingOverrides, setFieldMappingOverrides] =
         useState<DataAppVizFieldMapping>(NO_MAPPING);
@@ -192,15 +212,29 @@ const ChartTypeBuilder: FC = () => {
                 : undefined,
         [savedChartUuid],
     );
+    const savedSourceItemsMap = useMemo(
+        () =>
+            savedChartMetadata.data
+                ? getSavedChartSourceItemsMap(
+                      savedChartExplore.explore?.itemsMap ?? NO_ITEMS,
+                      savedChartMetadata.data.metricQuery,
+                  )
+                : NO_ITEMS,
+        [savedChartExplore.explore?.itemsMap, savedChartMetadata.data],
+    );
 
     const workspace = useChartTypeBuilderWorkspace({
         projectUuid,
         dataAppVizUuid: activeVizUuid ?? null,
         creationExperience: 'chart_type_builder',
         itemsMap:
-            sourcePreviewData.status === 'ready'
-                ? sourcePreviewData.itemsMap
-                : (loadedExplore?.itemsMap ?? NO_ITEMS),
+            (savedRunItemsMap?.savedChartUuid === savedChartUuid
+                ? savedRunItemsMap.itemsMap
+                : savedChartUuid !== null
+                  ? savedSourceItemsMap
+                  : null) ??
+            loadedExplore?.itemsMap ??
+            NO_ITEMS,
         chartReference,
     });
     const { build, history, isBuilding, isHistoryOpen, setIncludeSampleData } =
@@ -268,6 +302,74 @@ const ChartTypeBuilder: FC = () => {
         panel.colorPaletteUuid,
     );
     const schema = workspace.dataAppViz?.schema ?? null;
+    const savedSourceChart = useMemo(
+        () =>
+            savedChartMetadata.data
+                ? {
+                      ...savedChartMetadata.data,
+                      originalMetricQuery: savedChartMetadata.data.metricQuery,
+                  }
+                : null,
+        [savedChartMetadata.data],
+    );
+    const savedSourceFieldMapping = useMemo(() => {
+        if (!schema || !savedSourceChart) return NO_MAPPING;
+        return reconcileDataAppVizFieldMapping(
+            schema.fields,
+            savedSourceItemsMap,
+            {
+                ...mapSavedChartPreviewFields({
+                    fields: schema.fields,
+                    itemsMap: savedSourceItemsMap,
+                    sourceChart: savedSourceChart,
+                    dataAppVizUuid: activeVizUuid ?? null,
+                }),
+                ...fieldMappingOverrides,
+            },
+        );
+    }, [
+        schema,
+        savedSourceChart,
+        savedSourceItemsMap,
+        activeVizUuid,
+        fieldMappingOverrides,
+    ]);
+    const savedHierarchyDimensions = getVizHierarchyDimensions(
+        schema,
+        savedSourceFieldMapping,
+    );
+    const savedChartPreview = useSavedChartPreviewData({
+        projectUuid,
+        savedChartUuid,
+        sourceMetadataError: schema?.hierarchy ? savedChartExplore.error : null,
+        retrySourceMetadata: schema?.hierarchy
+            ? savedChartExplore.retry
+            : undefined,
+        enabled:
+            canPreviewSavedChart &&
+            (schema !== null ||
+                urlVizUuid === undefined ||
+                claimedVizUuid !== null),
+        ...(schema?.hierarchy
+            ? {
+                  subtotalLevel: savedHierarchyDimensions
+                      ? buildVizSubtotalRequest(savedHierarchyDimensions, {
+                            level: 0,
+                            parentValues: [],
+                        })
+                      : null,
+              }
+            : {}),
+    });
+    const sourcePreviewData = savedChartPreview.data;
+    useEffect(() => {
+        if (savedChartUuid && sourcePreviewData.status === 'ready') {
+            setSavedRunItemsMap({
+                savedChartUuid,
+                itemsMap: sourcePreviewData.itemsMap,
+            });
+        }
+    }, [savedChartUuid, sourcePreviewData]);
 
     // With an explore attached, the bindings are the query. They bind against
     // the explore's whole field list, never the run's columns, so the field
@@ -356,18 +458,21 @@ const ChartTypeBuilder: FC = () => {
     const sourceChart =
         sourcePreviewData.status === 'ready'
             ? sourcePreviewData.sourceChart
-            : null;
+            : savedSourceChart;
     // Source bindings first, then whatever the author rebound in the sidebar. An
     // explore's bindings keep only the fields its latest run returned.
     const previewFieldMapping = useMemo(() => {
-        if (!schema || !sourceRun) return NO_MAPPING;
+        if (!schema) return NO_MAPPING;
         if (exploreName !== null) {
+            if (!sourceRun) return exploreFieldMapping;
             return reconcileDataAppVizFieldMapping(
                 schema.fields,
                 sourceRun.itemsMap,
                 exploreFieldMapping,
             );
         }
+        if (schema.hierarchy) return savedSourceFieldMapping;
+        if (!sourceRun) return NO_MAPPING;
         const automapped = mapSavedChartPreviewFields({
             fields: schema.fields,
             itemsMap: sourceRun.itemsMap,
@@ -390,6 +495,7 @@ const ChartTypeBuilder: FC = () => {
         fieldMappingOverrides,
         sourceChart,
         activeVizUuid,
+        savedSourceFieldMapping,
     ]);
     const {
         data: previewData,
@@ -460,6 +566,10 @@ const ChartTypeBuilder: FC = () => {
         workspace.history.versions.find(
             (version) => version.version === workspace.previewVersion,
         )?.resources?.vizPreview ?? null;
+    const previewHierarchyDimensions = getVizHierarchyDimensions(
+        schema,
+        renderedFieldMapping,
+    );
     // Real rows when the saved chart's query has run; the fabricated sample
     // otherwise (tuned by the version's vizPreview resource when present).
     // Rebuilt on any option or palette edit.
@@ -474,7 +584,7 @@ const ChartTypeBuilder: FC = () => {
                 vizPreviewData,
             );
         }
-        return buildExplorerVizContext({
+        const context = buildExplorerVizContext({
             schema,
             itemsMap: liveRun.itemsMap,
             persistedFieldMapping: renderedFieldMapping,
@@ -484,6 +594,15 @@ const ChartTypeBuilder: FC = () => {
             optionValues: panel.optionValues,
             resolvedColors,
         });
+        return previewHierarchyDimensions
+            ? {
+                  ...context,
+                  subtotals: {
+                      enabled: true,
+                      dimensions: previewHierarchyDimensions,
+                  },
+              }
+            : context;
     }, [
         schema,
         savedChartUuid,
@@ -494,7 +613,52 @@ const ChartTypeBuilder: FC = () => {
         resolvedColors,
         renderedFieldMapping,
         vizPreviewData,
+        previewHierarchyDimensions,
     ]);
+
+    const hierarchyPreview = useVizSubtotalSource({
+        dimensions: projectUuid && liveRun ? previewHierarchyDimensions : null,
+        rootKey: liveRun
+            ? JSON.stringify({
+                  savedChartUuid,
+                  exploreName,
+                  renderedFieldMapping,
+                  ranAt: liveRun.ranAt.getTime(),
+              })
+            : undefined,
+        fetchRows: async (subtotalLevel) => {
+            if (savedChartUuid && sourceChart) {
+                return executeSubtotalQueryAndGetRows({
+                    projectUuid: projectUuid!,
+                    tableId: sourceChart.originalMetricQuery.exploreName,
+                    chartUuid: savedChartUuid,
+                    context: QueryExecutionContext.DATA_APP_SAMPLE,
+                    pivotResults: false,
+                    subtotalLevel,
+                });
+            }
+            if (!loadedExplore || !exploreName) {
+                throw new Error('No live hierarchy source is attached');
+            }
+            return executeSubtotalQueryAndGetRows({
+                projectUuid: projectUuid!,
+                tableId: loadedExplore.name,
+                query: buildExplorePreviewMetricQuery(
+                    loadedExplore.name,
+                    loadedExplore.itemsMap,
+                    [
+                        ...new Set(
+                            Object.values(renderedFieldMapping).flatMap(
+                                getDataAppVizFieldIds,
+                            ),
+                        ),
+                    ],
+                ),
+                context: QueryExecutionContext.DATA_APP_SAMPLE,
+                subtotalLevel,
+            });
+        },
+    });
 
     // What the next build is told it is changing: the schema on screen, bound
     // to the columns the run returned.
@@ -559,6 +723,13 @@ const ChartTypeBuilder: FC = () => {
         if (exploreName !== null) {
             const label = loadedExplore?.label ?? exploreName;
             const { run } = explorePreview;
+            if (attachedExplore.error)
+                return {
+                    kind: 'error',
+                    chartName: label,
+                    message: attachedExplore.error,
+                };
+            if (!loadedExplore) return { kind: 'loading', chartName: label };
             switch (run.status) {
                 case 'idle':
                     return { kind: 'sample' };
@@ -606,7 +777,13 @@ const ChartTypeBuilder: FC = () => {
                     'Unknown saved chart preview status',
                 );
         }
-    }, [previewData, exploreName, explorePreview, loadedExplore]);
+    }, [
+        previewData,
+        exploreName,
+        explorePreview,
+        loadedExplore,
+        attachedExplore.error,
+    ]);
 
     // One object for every surface that offers the saved chart: the canvas
     // card, the composer chip and the sidebar.
@@ -1119,6 +1296,11 @@ const ChartTypeBuilder: FC = () => {
                     projectUuid={projectUuid}
                     workspace={workspace}
                     previewContext={previewContext}
+                    onVizSubtotalsIntent={
+                        previewContext?.subtotals?.enabled
+                            ? hierarchyPreview?.get
+                            : undefined
+                    }
                     sampleRows={sampleRows}
                     currentBuildContext={currentBuildContext}
                     savedChartSource={savedChartSource}

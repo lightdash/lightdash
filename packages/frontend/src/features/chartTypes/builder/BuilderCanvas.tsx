@@ -33,6 +33,9 @@ type Props = {
     clarifierUnavailable: boolean;
     /** Sample data plus configuration from the panel; null renders the app bare. */
     previewContext: DataAppVizContext | null;
+    onVizSubtotalsIntent?: (
+        intent: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     /** The card's configuration column; null until a version declares a schema. */
     configurePanel: ReactNode;
     /** Fills the composer with a starter prompt; null while no composer is
@@ -105,6 +108,7 @@ const BuilderCanvas: FC<Props> = ({
     isClarifyRoundOpen,
     clarifierUnavailable,
     previewContext,
+    onVizSubtotalsIntent,
     configurePanel,
     onPickExample,
     onSdkManifest,
@@ -162,6 +166,7 @@ const BuilderCanvas: FC<Props> = ({
                                 version={previewVersion}
                                 refreshKey={0}
                                 dataAppVizContext={previewContext ?? undefined}
+                                onVizSubtotalsIntent={onVizSubtotalsIntent}
                                 dataAppVizMode
                                 {...elementPickerProps}
                                 onScreenshotAvailabilityChange={
