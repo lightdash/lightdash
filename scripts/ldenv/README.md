@@ -69,13 +69,19 @@ last error, last readiness time, live health, timings and process RSS. A dead
 monitor with a starting phase means readiness has not been established. Logs
 are in `~/.ldenv/logs`; credentials are redacted from command logs.
 
-Readiness requires backend health, a visible `#root > *` on `/login`, a seeded
-chart query that returns rows through the API with the dev PAT, and successful
-warm routes from `rainbow.toml`. Vite starts after dependencies are ready and warms
-its entry module graph while the remaining preparation runs. Package and route
-watchers must finish their initial scan before the API starts. Documentation files
+Fork readiness requires backend health, a successful frontend HTTP response, a
+seeded chart query that returns rows through the API with the dev PAT, and warm
+routes from `rainbow.toml`. Headless `/login` paint runs in the background after
+ready. Status shows `verification.state: pending`, then `passed` or `failed`; a
+paint failure marks the instance `degraded`. A stopped or restarted instance
+cannot be overwritten by its old paint verifier. Pool spares pass paint before
+they become eligible for a claim.
+
+Vite warms its entry module graph while preparation runs. Package and route
+watchers finish their initial scan before the API starts. Documentation files
 are ignored; the route watcher generates only after controller edits. Readiness
-waits for frontend warmup and repeats its checks if the API restarts during them. The API runs the full core and EE scheduler task set, so
+waits for frontend warmup and repeats its foreground checks if the API restarts.
+The API runs the full core and EE scheduler task set, so
 ldenv does not start a duplicate scheduler process by default. To opt in, export
 `LDENV_STANDALONE_SCHEDULER=true` before `up`, or set it in the instance's local
 env file before `stop` / `start`. The optional scheduler watches backend changes
@@ -87,10 +93,10 @@ claim requires a restart and uses full readiness. Export `LDENV_TRACING=false`
 before a restart to return to the fast default.
 
 The headline `timeToReady` measures the current fork, fill, claim or restart until
-all readiness checks pass. For a fresh instance it is `readyAt - createdAt`;
+the foreground readiness checks pass. For a fresh instance it is `readyAt - createdAt`;
 claims and restarts start a new clock. `total` also includes the scheduler tail
-and RSS collection, so it can exceed time to usable. The latency targets apply
-to `timeToReady`.
+and RSS collection, so it can exceed time to usable. Background paint has separate
+verification timings. The latency targets apply to `timeToReady`.
 
 ## Prerequisites
 
@@ -175,7 +181,10 @@ opt-in and its result persists per machine. Matching global-store parents use th
 the measured winner; before a measurement they use the global store. Normal parent builds do not benchmark. Package
 `dist` and build metadata travel with the clone. External dependency paths in
 TypeScript metadata are relocated, so worktrees at different directory depths do
-not trigger a full initial watcher build. When no tier needs to run, watcher
+not trigger a full initial watcher build. Matching global-store forks copy
+dependency links and build artifacts concurrently, then relocate build metadata
+after both finish. Fallback installs wait for copying before running hooks.
+When no tier needs to run, watcher
 settling and the dbt-path update overlap frontend cache restore and process launch.
 The parent stores the seeded project UUID so a path update avoids loading the
 common package.
@@ -191,7 +200,10 @@ The frontend version comes from its target package, independent of the calling
 shell. Console forwarding is explicitly enabled so Vite's automatic agent
 detection cannot change the plugin list between parent builds and T3 startup.
 Status records the cache hit or miss, reason, and compared keys. Cache
-misses remain valid cold starts and are never counted as hits.
+misses remain valid cold starts and are never counted as hits. The `profile`
+fingerprint records the code that produced a snapshot for diagnosis; it is not
+an extra compatibility gate. Matching resolved inputs and validated artifact
+checksums determine reuse, so a tooling-only change can retain a valid snapshot.
 Node uses the persistent `~/.ldenv/cache/node` compile cache. Parent builds and
 pool fills warm the backend import graph before boot. tsx keeps its default disk
 cache. Absolute source paths can limit reuse between worktrees.
@@ -287,7 +299,8 @@ Runtime acceptance is separate: measure a warm claim, a fresh matching fork,
 a fork with a real common change and a new migration, concurrent environments,
 coexistence with the existing bootstrap, then complete teardown. Use the installed
 launcher from a fresh worktree without dependencies, at a different directory
-depth from the parent. Include the first browser paint. Require zero API restarts
+depth from the parent. Record foreground readiness and background first paint
+separately; require background verification to pass. Require zero API restarts
 from process launch through 60 seconds after ready; a Markdown edit during that
 window must not restart the API. Report parent,
 claim, fork, backend health, paint, chart, scheduler and RSS measurements. Target
