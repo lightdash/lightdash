@@ -219,6 +219,12 @@
         height: 30rem;
         margin: 0;
     }
+
+    /* Short tables shrink to their rows; long ones scroll inside the cap */
+    .chartTile.chartTileFitContent {
+        height: auto;
+        max-height: 30rem;
+    }
 }
 
 .reportNarrative {
@@ -284,6 +290,24 @@
         min-height: 0;
         min-width: 0;
         flex: 1;
+    }
+}
+
+/* Tables hug their rows: every wrapper between the tile and the table's own
+   scroller would otherwise fill the tile through inline heights */
+.chartTileFitContent {
+    > * {
+        flex: 0 1 auto;
+    }
+
+    div:has(table):not(:has(> table)) {
+        display: flex;
+        flex-direction: column;
+        flex: 0 1 auto;
+        height: auto !important;
+        min-height: 0 !important;
+        /* The card's own padding already frames the table */
+        padding-bottom: 0 !important;
     }
 }
 
@@ -511,6 +535,12 @@
                 border-top: 1px solid var(--mantine-color-default-border);
             }
 
+            /* The resets above zero every margin, so restate the gap between
+               consecutive top-level blocks; nested blocks stay tight */
+            > * + :is(p, ul, ol, blockquote, pre) {
+                margin-top: var(--mantine-spacing-sm);
+            }
+
             /* Embedded blocks sit a full step away from surrounding text */
             > :global(.tableWrapper),
             > :global(.node-documentChart),
@@ -583,6 +613,10 @@
     }
     .reportEvidence .chartTile {
         height: 24rem;
+    }
+    .reportEvidence .chartTile.chartTileFitContent {
+        height: auto;
+        max-height: 24rem;
     }
     .documentLayout {
         .report,

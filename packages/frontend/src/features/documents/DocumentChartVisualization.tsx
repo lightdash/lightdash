@@ -97,6 +97,12 @@ const DocumentChartVisualization = ({
             title={showTitle ? chart.name : undefined}
             description={showTitle ? undefined : chart.description}
             actions={actions}
+            // Tables hug their rows; other charts need a fixed canvas to draw in
+            fit={
+                !isLoading && chart.chartConfig.type === ChartType.TABLE
+                    ? 'content'
+                    : 'fixed'
+            }
         >
             {isLoading ? (
                 <EmptyStateLoader title="Loading live chart data" />
