@@ -9,7 +9,7 @@ RUN apt-get update \
 
 RUN npm install -g sfw
 
-RUN sfw npm install -g @anthropic-ai/claude-code
+RUN sfw npm install -g @anthropic-ai/claude-code@2.1.284
 
 # The service pins the CLI to the server version at run start; this is a fallback.
 RUN sfw npm install -g @lightdash/cli

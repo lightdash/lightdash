@@ -85,7 +85,7 @@ RUN python3 -m venv /usr/local/dbt1.8 \
 # Install it first, then route every npm/pnpm install through it.
 RUN npm install -g sfw
 
-RUN sfw npm install -g @anthropic-ai/claude-code
+RUN sfw npm install -g @anthropic-ai/claude-code@2.1.284
 
 RUN sfw npm install -g @lightdash/cli
 

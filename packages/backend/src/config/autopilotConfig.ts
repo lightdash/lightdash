@@ -18,6 +18,7 @@ export const DEFAULT_AUTOPILOT_VALIDATED_MODELS: AutopilotValidatedModel[] = [
     { provider: 'anthropic', model: 'claude-opus-5', mode: 'cleanup' },
     { provider: 'anthropic', model: 'claude-opus-4-8', mode: 'cleanup' },
     { provider: 'anthropic', model: 'claude-opus-4-7', mode: 'cleanup' },
+    { provider: 'anthropic', model: 'claude-sonnet-5-5', mode: 'cleanup' },
     { provider: 'anthropic', model: 'claude-sonnet-5', mode: 'cleanup' },
     { provider: 'bedrock', model: 'anthropic.claude-opus-5', mode: 'cleanup' },
     {
