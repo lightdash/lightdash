@@ -561,7 +561,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                     role: SpaceMemberRole.VIEWER,
                     grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
                 }),
-            ).rejects.toThrow('not found');
+            ).rejects.toThrow('does not have access to the project');
             await grant(document.documentUuid);
             await expect(
                 transaction.transaction(async (savepoint) => {
@@ -575,7 +575,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             ).rejects.toMatchObject({ code: '23505' });
             await transaction.raw('UPDATE users SET is_active=false');
             await expect(grant(document.documentUuid)).rejects.toThrow(
-                'not found',
+                'does not have access to the project',
             );
         });
 

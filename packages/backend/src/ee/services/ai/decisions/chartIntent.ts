@@ -266,6 +266,7 @@ export const CHART_INTENT_THRESHOLDS = {
     intent: 0.45,
     multiple: 0.7,
     wants: 0.7,
+    replacesUnsure: 0.5,
     nonEdit: 0.5,
     field: 0.5,
     option: 0.5,
@@ -844,7 +845,7 @@ export const buildChartIntentQuestions = ({
         questions.sortField = {
             type: 'choice',
             instructions:
-                'If the user wants the chart sorted or limited, which field does the order use?',
+                "If the user wants the chart sorted or limited, which field's values decide the order? When rows are ranked by an amount, pick the field holding that amount, not the field that names the rows.",
             criteria: {
                 ...fieldCriteria(context.currentFields, {
                     withDescriptions: false,
@@ -1026,6 +1027,11 @@ export const buildChartIntentQuestions = ({
                 }),
                 none: 'The compared number is not in this list',
             },
+        };
+        questions.thresholdPerRecord = {
+            type: 'noul',
+            instructions:
+                'If the user wants only rows or groups above, below or between stated amounts, is the amount compared with the value of each individual underlying record, rather than with a total, average or count that the chart shows for each of its groups?',
         };
         questions.comparison = {
             type: 'choice',
@@ -1222,6 +1228,18 @@ const CHART_TYPE_NAMES: Record<ChartTypeOption, string> = {
     table: 'a table',
 };
 
+/** The top or bottom N row count the user states, if any. */
+const statedRowLimit = (
+    answers: DecisionAnswers,
+    numbers: number[],
+    thresholds: ChartIntentThresholds,
+): number | null => {
+    const stated = confident(answers.number, thresholds.option);
+    return stated && stated !== 'none' && numbers.includes(Number(stated))
+        ? Number(stated)
+        : null;
+};
+
 const resolveSort = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -1241,11 +1259,13 @@ const resolveSort = (
     let sortField: string | null = null;
     if (split.type === 'pick') sortField = split.fieldId;
     else if (named) sortField = confident(answers.sortField, field);
-    const stated = confident(answers.number, option);
-    const limit =
-        stated && stated !== 'none' && numbers.includes(Number(stated))
-            ? Number(stated)
-            : null;
+    const limit = statedRowLimit(answers, numbers, thresholds);
+    // With several dimensions a row limit keeps N combinations, not the top N of one of them.
+    if (
+        limit !== null &&
+        context.artifact.config.queryConfig.dimensions.length > 1
+    )
+        return { type: 'unresolved', reason: 'sort-limit' };
     if (direction && split.type === 'clarify') {
         const order =
             direction === 'descending' ? 'highest first' : 'lowest first';
@@ -1390,6 +1410,40 @@ const resolveDateRange = (
 const isNumberComparison = (value: string | null): value is NumberComparison =>
     NUMBER_COMPARISONS.some((comparison) => comparison === value);
 
+const isChartMetric = (context: ChartIntentContext, fieldId: string) =>
+    context.chartMetrics.some(({ id }) => id === fieldId);
+
+/** The compared field; when a per-record value and a chart total both fit, the per-record reading decides or the agent does. */
+const pickThresholdField = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): FieldCandidate | null => {
+    const answer = answers.thresholdField;
+    const chosen = confident(answer, thresholds.field);
+    const picked = context.thresholdFields.find(({ id }) => id === chosen);
+    if (!picked || answer?.type !== 'choice') return null;
+    const pickedIsMetric = isChartMetric(context, picked.id);
+    const [rival] = Object.entries(answer.probabilities)
+        .filter(
+            ([id, probability]) =>
+                probability >= thresholds.clarifyRunnerUp &&
+                id !== picked.id &&
+                context.thresholdFields.some((field) => field.id === id) &&
+                isChartMetric(context, id) !== pickedIsMetric,
+        )
+        .sort(([, a], [, b]) => b - a)
+        .map(([id]) =>
+            context.thresholdFields.find((field) => field.id === id),
+        );
+    if (!rival) return picked;
+    const perRecord = decisionProbability(answers.thresholdPerRecord) ?? 0.5;
+    if (perRecord >= thresholds.wants) return pickedIsMetric ? rival : picked;
+    if (perRecord <= 1 - thresholds.wants)
+        return pickedIsMetric ? picked : rival;
+    return null;
+};
+
 const resolveThreshold = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -1400,8 +1454,7 @@ const resolveThreshold = (
         type: 'unresolved',
         reason: 'filter-threshold',
     } as const;
-    const chosen = confident(answers.thresholdField, thresholds.field);
-    const field = context.thresholdFields.find(({ id }) => id === chosen);
+    const field = pickThresholdField(answers, context, thresholds);
     const comparison = confident(answers.comparison, thresholds.option);
     const low = pickStated(answers.amountLow, amounts, thresholds.option);
     if (!field || !isNumberComparison(comparison) || low === null)
@@ -1672,6 +1725,56 @@ const pickNew = (
     return fields.find(({ id }) => id === chosen) ?? null;
 };
 
+const MAX_CHOICES = 3;
+
+/** The breakdown a new field goes in place of, when JEV is sure the user wants a swap. */
+const replacedBreakdown = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    thresholds: ChartIntentThresholds,
+): FieldCandidate | null =>
+    (decisionProbability(answers.replacesField) ?? 0) >= thresholds.wants
+        ? pickCurrent(
+              answers.fieldToRemove,
+              context.chartDimensions,
+              thresholds.field,
+          )
+        : null;
+
+/** Adding the field or putting it in place of each non-date breakdown, as clickable choices. */
+const breakdownChoices = (
+    field: FieldCandidate,
+    context: ChartIntentContext,
+): Extract<ChartIntentResolution, { type: 'clarify' }> | null => {
+    const breakdowns = context.chartDimensions.filter(({ isDate }) => !isDate);
+    if (breakdowns.length === 0) return null;
+    const options: ChartChoice[] = [
+        {
+            label: `Add ${field.label}`,
+            prompt: `Also break down by ${field.label}`,
+            intent: {
+                kind: 'add_field' as const,
+                fieldId: field.id,
+                chartType: null,
+            },
+        },
+        ...breakdowns.map((current) => ({
+            label: `Replace ${current.label}`,
+            prompt: `Break down by ${field.label} instead of ${current.label}`,
+            intent: {
+                kind: 'swap_field' as const,
+                fromFieldId: current.id,
+                toFieldId: field.id,
+            },
+        })),
+    ].slice(0, MAX_CHOICES);
+    return {
+        type: 'clarify',
+        question: `How should I use ${field.label}?`,
+        options,
+    };
+};
+
 const resolveAddField = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -1684,15 +1787,23 @@ const resolveAddField = (
         thresholds,
     );
     if (split.type === 'clarify') {
+        const replaced =
+            chartType === null
+                ? replacedBreakdown(answers, context, thresholds)
+                : null;
         const presentation = chartType
             ? ` as ${CHART_TYPE_NAMES[chartType]}`
             : '';
         return {
             type: 'clarify',
-            question: 'Which field should I add?',
+            question: replaced
+                ? `Which field should replace ${replaced.label}?`
+                : 'Which field should I add?',
             options: split.labels.map((label) => ({
                 label,
-                prompt: `Add ${label} to the chart${presentation}`,
+                prompt: replaced
+                    ? `Break down by ${label} instead of ${replaced.label}`
+                    : `Add ${label} to the chart${presentation}`,
                 intent: null,
             })),
         };
@@ -1701,25 +1812,30 @@ const resolveAddField = (
         split.type === 'pick'
             ? split.fieldId
             : confident(answers.addField, thresholds.field);
-    if (!fieldId || fieldId === 'none')
-        return { type: 'unresolved', reason: 'add-field' };
-    if ((decisionProbability(answers.replacesField) ?? 0) < thresholds.wants)
+    const field = context.addableFields.find(({ id }) => id === fieldId);
+    if (!field) return { type: 'unresolved', reason: 'add-field' };
+    const replaces = decisionProbability(answers.replacesField) ?? 0;
+    if (replaces < thresholds.replacesUnsure)
         return {
             type: 'intent',
-            intent: { kind: 'add_field', fieldId, chartType },
+            intent: { kind: 'add_field', fieldId: field.id, chartType },
         };
-    const from = pickCurrent(
-        answers.fieldToRemove,
-        context.chartDimensions,
-        thresholds.field,
-    );
+    // Leaning towards a replacement without being sure: ask rather than add.
+    if (replaces < thresholds.wants)
+        return (
+            (chartType === null ? breakdownChoices(field, context) : null) ?? {
+                type: 'unresolved',
+                reason: 'swap-field',
+            }
+        );
+    const from = replacedBreakdown(answers, context, thresholds);
     return from && chartType === null
         ? {
               type: 'intent',
               intent: {
                   kind: 'swap_field',
                   fromFieldId: from.id,
-                  toFieldId: fieldId,
+                  toFieldId: field.id,
               },
           }
         : { type: 'unresolved', reason: 'swap-field' };
@@ -1979,14 +2095,12 @@ const resolveCompound = (
     };
 };
 
-const MAX_CHOICES = 3;
-
 /** When the user names a field but not what to do with it, the edits that field allows. */
 const resolveFieldChoices = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
     thresholds: ChartIntentThresholds,
-): Extract<ChartIntentResolution, { type: 'clarify' }> | null => {
+): ChartIntentResolution | null => {
     const { intent } = answers;
     if (intent?.type !== 'choice') return null;
     const newQuestion = intent.probabilities.new_question ?? 1;
@@ -2036,33 +2150,22 @@ const resolveFieldChoices = (
         return null;
     const fieldId = confident(answers.addField, thresholds.field);
     const field = context.addableFields.find(({ id }) => id === fieldId);
-    const breakdowns = context.chartDimensions.filter(({ isDate }) => !isDate);
-    if (!field || breakdowns.length === 0) return null;
-    const options: ChartChoice[] = [
-        {
-            label: `Add ${field.label}`,
-            prompt: `Also break down by ${field.label}`,
-            intent: {
-                kind: 'add_field' as const,
-                fieldId: field.id,
-                chartType: null,
-            },
-        },
-        ...breakdowns.map((current) => ({
-            label: `Replace ${current.label}`,
-            prompt: `Break down by ${field.label} instead of ${current.label}`,
-            intent: {
-                kind: 'swap_field' as const,
-                fromFieldId: current.id,
-                toFieldId: field.id,
-            },
-        })),
-    ].slice(0, MAX_CHOICES);
-    return {
-        type: 'clarify',
-        question: `How should I use ${field.label}?`,
-        options,
-    };
+    if (!field) return null;
+    const choices = breakdownChoices(field, context);
+    // The replacement question already settles which of the choices the user means.
+    const replaced = choices
+        ? replacedBreakdown(answers, context, thresholds)
+        : null;
+    return replaced
+        ? {
+              type: 'intent',
+              intent: {
+                  kind: 'swap_field',
+                  fromFieldId: replaced.id,
+                  toFieldId: field.id,
+              },
+          }
+        : choices;
 };
 
 const storedChoiceIntentSchema = z.union([
@@ -2146,7 +2249,13 @@ export const interpretChartIntent = ({
     if ((decisionProbability(answers.nonEdit) ?? 1) >= thresholds.nonEdit)
         return { type: 'unresolved', reason: 'non-edit' };
     const numbers = extractNumberCandidates(prompt);
-    const extras = extraEdits(answers, intent, thresholds);
+    const requested = extraEdits(answers, intent, thresholds);
+    // Keeping only the top or bottom N rows also reads as restricting the chart.
+    const extras =
+        [intent, ...requested].includes('sort') &&
+        statedRowLimit(answers, numbers, thresholds) !== null
+            ? requested.filter((kind) => kind !== 'filter')
+            : requested;
     const multiple =
         (decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple;
     if (extras.length > 0 || multiple) {

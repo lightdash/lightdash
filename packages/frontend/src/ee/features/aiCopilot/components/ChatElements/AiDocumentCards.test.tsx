@@ -18,6 +18,15 @@ vi.mock('../../../../../hooks/useProjects', () => ({
 vi.mock('../../../../../hooks/useProjectRoute', () => ({
     useOptionalProjectRoute: mocks.projectRoute,
 }));
+const structuredContent = {
+    type: 'dashboard' as const,
+    href: DOCUMENT_HREF,
+    uuid: DOCUMENT_UUID,
+    slug: 'hello-world',
+    name: 'Hello World',
+    content: {},
+    warnings: [],
+};
 const metadata = {
     status: 'success' as const,
     uuid: DOCUMENT_UUID,
@@ -54,7 +63,7 @@ const streamPart = {
             tabs: [],
         },
     },
-    toolResult: { result: '', metadata },
+    toolResult: { result: '', metadata, structuredContent },
 } satisfies StreamPart;
 
 const renderCards = (
@@ -208,6 +217,12 @@ describe('native Document result cards', () => {
                                 before: 'version-1',
                                 after: 'version-2',
                             },
+                        },
+                        structuredContent: {
+                            type: 'dashboard',
+                            href: DOCUMENT_HREF,
+                            content: {},
+                            warnings: [],
                         },
                     },
                 },

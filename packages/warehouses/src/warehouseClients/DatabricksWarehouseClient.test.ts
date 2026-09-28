@@ -274,12 +274,13 @@ describe('DatabricksWarehouseClient', () => {
                 table: string,
             ) => { COLUMN_NAME: string; TYPE_NAME: string }[],
             lostTables: Set<string>,
+            lostError: () => StatusError = sessionLostError,
         ) =>
             createSession({
                 executeStatement: vi.fn(async (sql: string) => {
                     const table = describedTable(sql);
                     return lostTables.has(table)
-                        ? Promise.reject(sessionLostError())
+                        ? Promise.reject(lostError())
                         : createOperation({
                               fetchAll: vi.fn(async () =>
                                   jsonDescription(resolve(table)),
@@ -664,6 +665,42 @@ describe('DatabricksWarehouseClient', () => {
                 ),
             ).toEqual(['table_two', 'table_three']);
         });
+
+        // Seen on the session opened right after a retried startup error
+        it.each([
+            'No API URL found in Unity Scope',
+            'Query rejected: cannot handle query since max capacity reached [statementId=01f19fd1-ac81-1e09-bb7c-357018ed26f1]',
+        ])(
+            'resumes the remaining tables on a new session after: %s',
+            async (message) => {
+                const firstSession = columnsSession(
+                    () => columns('id', 'BIGINT'),
+                    new Set(['table_two']),
+                    () => statusError(message),
+                );
+                const secondSession = columnsSession(
+                    () => columns('name', 'STRING'),
+                    new Set(),
+                );
+                mocks.openSession
+                    .mockResolvedValueOnce(firstSession)
+                    .mockResolvedValueOnce(secondSession);
+                const warehouse = new DatabricksWarehouseClient(credentials);
+
+                const catalog = await withTimers(() =>
+                    warehouse.getCatalog([
+                        tableRequest('table_one'),
+                        tableRequest('table_two'),
+                    ]),
+                );
+
+                expect(catalog.DEFAULT.schema).toEqual({
+                    table_one: { id: 'number' },
+                    table_two: { name: 'string' },
+                });
+                expect(mocks.openSession).toHaveBeenCalledTimes(2);
+            },
+        );
 
         it('lets the in-flight batch settle before closing the lost session', async () => {
             const order: string[] = [];

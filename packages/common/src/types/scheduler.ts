@@ -962,6 +962,7 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
 
 export type ExportContentFormat =
     | SchedulerFormat.IMAGE
+    | SchedulerFormat.PDF
     | SchedulerFormat.CSV
     | SchedulerFormat.XLSX;
 

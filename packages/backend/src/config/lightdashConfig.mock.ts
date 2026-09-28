@@ -290,6 +290,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        underlyingDataMaxDimensions: 50,
         maxPageSize: 2500,
         maxLimit: 5000,
         defaultLimit: 500,

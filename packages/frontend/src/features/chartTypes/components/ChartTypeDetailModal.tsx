@@ -172,7 +172,8 @@ const ChartTypeDetailModal: FC<Props> = ({
                                   Fork to customize
                               </Button>
                           )
-                        : dataAppsEnabled && (
+                        : dataAppsEnabled &&
+                          canEdit && (
                               <Button
                                   component={Link}
                                   to={chartTypeBuilderPath(

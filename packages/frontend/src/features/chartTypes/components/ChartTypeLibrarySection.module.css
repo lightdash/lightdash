@@ -9,3 +9,11 @@
 .updateTile:hover {
     background-color: var(--mantine-color-default-hover);
 }
+
+/* One title line tall, so the icon centres on the name, not the whole tile. */
+.updateTileIcon {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    height: calc(var(--mantine-font-size-xs) * var(--mantine-line-height-xs));
+}

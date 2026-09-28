@@ -8,17 +8,18 @@ type Props = {
 };
 
 /** Options JEV offered when it could not tell which edit was meant; a click sends that option. */
-export const JevChoiceChips: FC<Props> = ({ choices, onSelect }) => (
-    <Group gap="xs" aria-label="Suggested answers">
-        {choices.map((choice) => (
-            <Button
-                key={choice.prompt}
-                size="xs"
-                variant="default"
-                onClick={() => onSelect(choice.prompt)}
-            >
-                {choice.label}
-            </Button>
-        ))}
-    </Group>
-);
+export const JevChoiceChips: FC<Props> = ({ choices, onSelect }) =>
+    choices.length === 0 ? null : (
+        <Group gap="xs" aria-label="Suggested answers">
+            {choices.map((choice) => (
+                <Button
+                    key={choice.prompt}
+                    size="xs"
+                    variant="default"
+                    onClick={() => onSelect(choice.prompt)}
+                >
+                    {choice.label}
+                </Button>
+            ))}
+        </Group>
+    );

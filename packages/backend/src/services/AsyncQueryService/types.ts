@@ -199,6 +199,8 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
     references?: Record<string, UUID>;
+    /** Pivots the result over the columns discovered from the SQL. */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
@@ -329,6 +331,8 @@ export type DuckdbQueryColumns =
           mode: 'discover';
           limit: number | undefined;
           parameters: ParametersValuesMap;
+          /** Composed over the discovered columns. */
+          pivotConfiguration: PivotConfiguration | undefined;
       }
     | SuppliedDuckdbQueryColumns;
 
@@ -413,7 +417,7 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
     references?: Record<string, UUID>;
-    /** The node's own pivot stage; only a supplied plan can compose it. */
+    /** The node's own pivot stage, composed by a supplied plan or over discovered columns. */
     pivotConfiguration?: PivotConfiguration;
     plan: DuckdbQueryPlan;
 };

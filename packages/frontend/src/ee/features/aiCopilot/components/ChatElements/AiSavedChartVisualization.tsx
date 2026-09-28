@@ -112,7 +112,9 @@ const AiSavedChartVisualizationContent: FC<Props> = ({
                         />
                     )}
                     <UnderlyingDataModal />
-                    <DrillDownModal />
+                    <DrillDownModal
+                        customSqlProvenanceChartUuid={savedChart.uuid}
+                    />
                 </Box>
             </VisualizationProvider>
         </MetricQueryDataProvider>

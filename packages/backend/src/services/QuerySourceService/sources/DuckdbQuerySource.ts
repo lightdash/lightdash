@@ -33,7 +33,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
             'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on. At least one reference is required: the query runs on a session that can reach only the results it references.',
     };
 
-    readonly supportsPivot = false;
+    readonly supportsPivot = true;
 
     private readonly asyncQueryService: AsyncQueryService;
 
@@ -115,10 +115,10 @@ export class DuckdbQuerySource implements QuerySourceClient {
      * references.
      *
      * Without a plan the query takes the public compose SQL path, which
-     * carries its own flag and ability gates and cannot pivot: raw SQL has no
-     * fields to pivot on. With a plan it goes straight to the execution
-     * tail, where the plan's composer owns the pivot stage; the caller that
-     * built the plan owns authorization.
+     * carries its own flag and ability gates and pivots over the columns it
+     * discovers. With a plan it goes straight to the execution tail, where
+     * the plan's composer owns the pivot stage; the caller that built the
+     * plan owns authorization.
      */
     async submitQuery({
         account,
@@ -132,11 +132,6 @@ export class DuckdbQuerySource implements QuerySourceClient {
         plan,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
-        if (pivotConfiguration !== null && plan === null) {
-            throw new ParameterError(
-                `${QuerySourceType.DUCKDB} queries do not support pivotConfiguration yet`,
-            );
-        }
 
         const normalized = DuckdbQuerySource.normalizeReferences(
             sourceQuery.references,
@@ -159,13 +154,13 @@ export class DuckdbQuerySource implements QuerySourceClient {
             context,
             parameters,
             invalidateCache,
+            pivotConfiguration: pivotConfiguration ?? undefined,
         };
         const { queryUuid } =
             plan === null
                 ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
                 : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
                       ...args,
-                      pivotConfiguration: pivotConfiguration ?? undefined,
                       plan: DuckdbQuerySource.resolvePlanReferences(
                           plan,
                           resolvedReferences,

@@ -1,8 +1,17 @@
 import { DimensionType } from '../../types/field';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import { type RawResultRow, type ResultColumn } from '../../types/results';
-import { VizIndexType } from '../../visualizations/types';
-import { buildComposerChartData, getComposerVizPlan } from './composerViz';
+import { ChartKind } from '../../types/savedCharts';
+import {
+    VizAggregationOptions,
+    VizIndexType,
+    type AllVizChartConfig,
+} from '../../visualizations/types';
+import {
+    buildComposerChartData,
+    getComposerSeriesSplitLayout,
+    getComposerVizPlan,
+} from './composerViz';
 
 const column = (reference: string, type: DimensionType): ResultColumn => ({
     reference,
@@ -18,9 +27,9 @@ const plan = (
     columns: ResultColumn[],
     rows: RawResultRow[] = twoRows,
     node: SourceQuery | null = null,
-) => getComposerVizPlan({ columns, rows, node });
+) => getComposerVizPlan({ columns, rows, node, vizConfig: null });
 
-const CARTESIAN = ['table', 'bar', 'horizontal', 'line'];
+const CARTESIAN = ['table', 'bar', 'line'];
 
 describe('getComposerVizPlan', () => {
     test.each<{
@@ -51,14 +60,14 @@ describe('getComposerVizPlan', () => {
             kinds: CARTESIAN,
         },
         {
-            name: 'string + number opens as bar and offers pie and funnel',
+            name: 'string + number opens as bar and offers pie',
             columns: [
                 column('status', DimensionType.STRING),
                 column('n', DimensionType.NUMBER),
             ],
             defaultKind: 'bar',
             x: 'status',
-            kinds: [...CARTESIAN, 'pie', 'funnel'],
+            kinds: [...CARTESIAN, 'pie'],
         },
         {
             name: 'boolean + number opens as bar',
@@ -79,7 +88,7 @@ describe('getComposerVizPlan', () => {
             ],
             defaultKind: 'line',
             x: 'day',
-            kinds: [...CARTESIAN, 'pie', 'funnel'],
+            kinds: [...CARTESIAN, 'pie'],
         },
         {
             name: 'string wins over boolean for x',
@@ -90,7 +99,7 @@ describe('getComposerVizPlan', () => {
             ],
             defaultKind: 'bar',
             x: 'status',
-            kinds: [...CARTESIAN, 'pie', 'funnel'],
+            kinds: [...CARTESIAN, 'pie'],
         },
     ])('$name', ({ columns, defaultKind, x, kinds }) => {
         const result = plan(columns);
@@ -98,7 +107,6 @@ describe('getComposerVizPlan', () => {
         expect(result.availableKinds).toEqual(kinds);
         expect(result.axes.bar?.x?.reference).toBe(x);
         expect(result.axes.bar?.y.reference).toBe('n');
-        expect(result.axes.horizontal).toEqual(result.axes.bar);
         expect(result.axes.line).toEqual(result.axes.bar);
     });
 
@@ -111,6 +119,13 @@ describe('getComposerVizPlan', () => {
                 column('day', DimensionType.DATE),
             ],
         },
+        {
+            name: 'only numeric columns',
+            columns: [
+                column('a', DimensionType.NUMBER),
+                column('b', DimensionType.NUMBER),
+            ],
+        },
     ])('$name offers table only', ({ columns }) => {
         expect(plan(columns)).toEqual({
             availableKinds: ['table'],
@@ -119,40 +134,7 @@ describe('getComposerVizPlan', () => {
         });
     });
 
-    test('only numeric columns offer scatter over the first two, table by default', () => {
-        const result = plan([
-            column('a', DimensionType.NUMBER),
-            column('b', DimensionType.NUMBER),
-            column('c', DimensionType.NUMBER),
-        ]);
-        expect(result.availableKinds).toEqual(['table', 'scatter']);
-        expect(result.defaultKind).toBe('table');
-        expect(result.axes.scatter).toEqual({
-            x: column('a', DimensionType.NUMBER),
-            y: column('b', DimensionType.NUMBER),
-        });
-    });
-
-    test('scatter needs two numeric columns', () => {
-        expect(
-            plan([
-                column('status', DimensionType.STRING),
-                column('n', DimensionType.NUMBER),
-            ]).axes.scatter,
-        ).toBeUndefined();
-        expect(
-            plan([
-                column('status', DimensionType.STRING),
-                column('n', DimensionType.NUMBER),
-                column('m', DimensionType.NUMBER),
-            ]).axes.scatter,
-        ).toEqual({
-            x: column('n', DimensionType.NUMBER),
-            y: column('m', DimensionType.NUMBER),
-        });
-    });
-
-    test('duplicate x values default to table, keep bar and line, and drop pie and funnel', () => {
+    test('duplicate x values default to table, keep bar and line, and drop pie', () => {
         const result = plan(
             [
                 column('status', DimensionType.STRING),
@@ -167,7 +149,7 @@ describe('getComposerVizPlan', () => {
         expect(result.availableKinds).toEqual(CARTESIAN);
     });
 
-    test('pie and funnel follow the string column, not a date x', () => {
+    test('pie follows the string column, not a date x', () => {
         const columns = [
             column('day', DimensionType.DATE),
             column('status', DimensionType.STRING),
@@ -200,12 +182,12 @@ describe('getComposerVizPlan', () => {
         expect(result.availableKinds).toEqual([
             ...CARTESIAN,
             'pie',
-            'funnel',
             'big_number',
         ]);
         expect(result.axes.big_number).toEqual({
             x: null,
             y: column('n', DimensionType.NUMBER),
+            seriesSplit: null,
         });
     });
 
@@ -260,6 +242,209 @@ describe('getComposerVizPlan', () => {
             });
             expect(result.axes.bar?.x?.reference).toBe('orders_created_day');
             expect(result.axes.bar?.y.reference).toBe('orders_count');
+        });
+    });
+});
+
+describe('getComposerVizPlan seeded from a stored viz config', () => {
+    const columns = [
+        column('order_id', DimensionType.NUMBER),
+        column('status', DimensionType.STRING),
+        column('month', DimensionType.DATE),
+        column('revenue', DimensionType.NUMBER),
+    ];
+    const rows = [
+        { order_id: 1, status: 'a', month: '2024-01-01', revenue: 10 },
+        { order_id: 2, status: 'b', month: '2024-02-01', revenue: 20 },
+    ];
+    const cartesian = (
+        type: ChartKind.VERTICAL_BAR | ChartKind.LINE,
+        x: string,
+        y: string,
+        groupBy: string | null = null,
+    ): AllVizChartConfig => ({
+        type,
+        metadata: { version: 1 },
+        fieldConfig: {
+            x: { reference: x, type: VizIndexType.CATEGORY },
+            y: [
+                {
+                    reference: y,
+                    aggregation: groupBy
+                        ? VizAggregationOptions.SUM
+                        : VizAggregationOptions.ANY,
+                },
+            ],
+            groupBy: groupBy ? [{ reference: groupBy }] : [],
+        },
+        display: undefined,
+    });
+    const seeded = (vizConfig: AllVizChartConfig | null, rowsIn = rows) =>
+        getComposerVizPlan({ columns, rows: rowsIn, node: null, vizConfig });
+
+    test('opens on the stored kind and axes', () => {
+        const result = seeded(
+            cartesian(ChartKind.VERTICAL_BAR, 'status', 'revenue'),
+        );
+        expect(result.defaultKind).toBe('bar');
+        expect(result.axes.bar?.x?.reference).toBe('status');
+        expect(result.axes.bar?.y.reference).toBe('revenue');
+    });
+
+    test('switching kind keeps the stored axes where the kind can use them', () => {
+        const result = seeded(cartesian(ChartKind.LINE, 'status', 'revenue'));
+        expect(result.defaultKind).toBe('line');
+        expect(result.axes.bar).toEqual(result.axes.line);
+        expect(result.axes.pie?.x?.reference).toBe('status');
+        expect(result.axes.pie?.y.reference).toBe('revenue');
+    });
+
+    test('the column-type default fills kinds the stored axes cannot serve', () => {
+        const result = seeded(cartesian(ChartKind.LINE, 'month', 'revenue'));
+        expect(result.axes.line?.x?.reference).toBe('month');
+        expect(result.axes.pie?.x?.reference).toBe('status');
+        expect(result.axes.pie?.y.reference).toBe('order_id');
+    });
+
+    test('a stored big number uses the stored value', () => {
+        const result = seeded(
+            {
+                type: ChartKind.BIG_NUMBER,
+                metadata: { version: 1 },
+                fieldConfig: {
+                    x: undefined,
+                    y: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupBy: [],
+                },
+                display: undefined,
+            },
+            [rows[0]],
+        );
+        expect(result.defaultKind).toBe('big_number');
+        expect(result.axes.big_number).toEqual({
+            x: null,
+            y: columns[3],
+            seriesSplit: null,
+        });
+    });
+
+    test('a stored table opens as the table', () => {
+        const result = seeded({
+            type: ChartKind.TABLE,
+            metadata: { version: 1 },
+            columns: {
+                status: {
+                    visible: true,
+                    reference: 'status',
+                    label: 'status',
+                    frozen: false,
+                },
+            },
+            display: undefined,
+        });
+        expect(result.defaultKind).toBe('table');
+        expect(result.availableKinds).toContain('bar');
+    });
+
+    test('falls back to the column-type default when null or its columns are gone', () => {
+        const columnTypeDefault = seeded(null);
+        expect(columnTypeDefault.defaultKind).toBe('line');
+        expect(
+            seeded(cartesian(ChartKind.VERTICAL_BAR, 'region', 'revenue')),
+        ).toEqual(columnTypeDefault);
+        expect(
+            seeded(cartesian(ChartKind.VERTICAL_BAR, 'status', 'profit')),
+        ).toEqual(columnTypeDefault);
+    });
+
+    describe('series split', () => {
+        const byRegion = [
+            { region: 'eu', month: '2024-01-01', revenue: 10 },
+            { region: 'us', month: '2024-01-01', revenue: 20 },
+            { region: 'eu', month: '2024-02-01', revenue: 30 },
+        ];
+        const splitColumns = [
+            column('region', DimensionType.STRING),
+            column('month', DimensionType.DATE),
+            column('revenue', DimensionType.NUMBER),
+        ];
+        const splitSeeded = (vizConfig: AllVizChartConfig) =>
+            getComposerVizPlan({
+                columns: splitColumns,
+                rows: byRegion,
+                node: null,
+                vizConfig,
+            });
+
+        test('a stored line with groupBy opens as line split by that column, despite duplicate x values', () => {
+            const result = splitSeeded(
+                cartesian(ChartKind.LINE, 'month', 'revenue', 'region'),
+            );
+            expect(result.defaultKind).toBe('line');
+            expect(result.axes.line).toEqual({
+                x: splitColumns[1],
+                y: splitColumns[2],
+                seriesSplit: {
+                    groupBy: splitColumns[0],
+                    aggregation: VizAggregationOptions.SUM,
+                },
+            });
+            expect(result.axes.bar).toEqual(result.axes.line);
+            expect(getComposerSeriesSplitLayout(result.axes.line!)).toEqual({
+                x: { reference: 'month', type: VizIndexType.TIME },
+                y: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupBy: [{ reference: 'region' }],
+            });
+        });
+
+        test('the pivot layout takes the stored y aggregation', () => {
+            const result = splitSeeded({
+                type: ChartKind.LINE,
+                metadata: { version: 1 },
+                fieldConfig: {
+                    x: { reference: 'month', type: VizIndexType.TIME },
+                    y: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.MAX,
+                        },
+                    ],
+                    groupBy: [{ reference: 'region' }],
+                },
+                display: undefined,
+            });
+            expect(getComposerSeriesSplitLayout(result.axes.line!)?.y).toEqual([
+                {
+                    reference: 'revenue',
+                    aggregation: VizAggregationOptions.MAX,
+                },
+            ]);
+        });
+
+        test('a stored groupBy whose column is gone falls back to the column-type default', () => {
+            const result = splitSeeded(
+                cartesian(ChartKind.LINE, 'month', 'revenue', 'country'),
+            );
+            expect(result).toEqual(
+                getComposerVizPlan({
+                    columns: splitColumns,
+                    rows: byRegion,
+                    node: null,
+                    vizConfig: null,
+                }),
+            );
+            expect(result.defaultKind).toBe('table');
+            expect(getComposerSeriesSplitLayout(result.axes.line!)).toBeNull();
         });
     });
 });

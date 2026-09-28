@@ -1,6 +1,14 @@
-import { DimensionType, type ResultColumn } from '@lightdash/common';
+import {
+    DimensionType,
+    VizAggregationOptions,
+    VizIndexType,
+    type ResultColumn,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { buildComposerChartSpec } from './composerChartSpec';
+import {
+    buildComposerChartSpec,
+    buildComposerSeriesSplitSpec,
+} from './composerChartSpec';
 
 const column = (reference: string, type: DimensionType): ResultColumn => ({
     reference,
@@ -8,11 +16,10 @@ const column = (reference: string, type: DimensionType): ResultColumn => ({
 });
 const status = column('status', DimensionType.STRING);
 const n = column('n', DimensionType.NUMBER);
-const m = column('m', DimensionType.NUMBER);
-const columns = [status, n, m];
+const columns = [status, n];
 const rows = [
-    { status: 'a', n: 3, m: 30 },
-    { status: 'b', n: 1, m: 10 },
+    { status: 'a', n: 3 },
+    { status: 'b', n: 1 },
 ];
 const colors = ['#111', '#222'];
 
@@ -21,12 +28,7 @@ const build = (kind: Parameters<typeof buildComposerChartSpec>[0]['kind']) =>
         kind,
         columns,
         rows,
-        axes:
-            kind === 'big_number'
-                ? { x: null, y: n }
-                : kind === 'scatter'
-                  ? { x: n, y: m }
-                  : { x: status, y: n },
+        axes: kind === 'big_number' ? { x: null, y: n } : { x: status, y: n },
         colors,
     });
 
@@ -48,31 +50,10 @@ describe('buildComposerChartSpec', () => {
         ]);
     });
 
-    it('draws a horizontal bar with the category axis down the side', async () => {
-        const option = await echarts('horizontal');
-        expect(option.series).toHaveLength(1);
-        expect(option.series[0].type).toBe('bar');
-        expect(option.yAxis.type).toBe('category');
-        expect(option.xAxis.type).toBe('value');
-        expect(option.series[0].encode).toEqual({ x: 'n', y: 'status' });
-    });
-
     it('draws a line series', async () => {
         const option = await echarts('line');
         expect(option.series.map((s: { type: string }) => s.type)).toEqual([
             'line',
-        ]);
-    });
-
-    it('draws a scatter over a numeric x axis', async () => {
-        const option = await echarts('scatter');
-        expect(option.series.map((s: { type: string }) => s.type)).toEqual([
-            'scatter',
-        ]);
-        expect(option.xAxis.type).toBe('value');
-        expect(option.dataset.source).toEqual([
-            { n: 3, m: 30 },
-            { n: 1, m: 10 },
         ]);
     });
 
@@ -83,15 +64,6 @@ describe('buildComposerChartSpec', () => {
         expect(option.series[0].data).toEqual([
             expect.objectContaining({ name: 'a', value: 3 }),
             expect.objectContaining({ name: 'b', value: 1 }),
-        ]);
-    });
-
-    it('draws one funnel stage per row', async () => {
-        const option = await echarts('funnel');
-        expect(option.series[0].type).toBe('funnel');
-        expect(option.series[0].data).toEqual([
-            { name: 'a', value: 3 },
-            { name: 'b', value: 1 },
         ]);
     });
 
@@ -107,5 +79,69 @@ describe('buildComposerChartSpec', () => {
             kind: 'big_number',
             spec: expect.objectContaining({ value: 3, label: 'n' }),
         });
+    });
+});
+
+describe('buildComposerSeriesSplitSpec', () => {
+    it('draws one line per groupBy value from the pivoted result', async () => {
+        const valuesColumn = (region: string) => ({
+            referenceField: 'revenue',
+            pivotColumnName: `revenue_sum_region_${region}`,
+            aggregation: VizAggregationOptions.SUM,
+            pivotValues: [{ referenceField: 'region', value: region }],
+        });
+        const option = await buildComposerSeriesSplitSpec({
+            kind: 'line',
+            result: {
+                pivotChartData: {
+                    queryUuid: 'q',
+                    fileUrl: undefined,
+                    results: [
+                        {
+                            month: '2024-01-01',
+                            revenue_sum_region_eu: 10,
+                            revenue_sum_region_us: 20,
+                        },
+                        {
+                            month: '2024-02-01',
+                            revenue_sum_region_eu: 30,
+                            revenue_sum_region_us: null,
+                        },
+                    ],
+                    indexColumn: {
+                        reference: 'month',
+                        type: VizIndexType.TIME,
+                    },
+                    valuesColumns: [valuesColumn('eu'), valuesColumn('us')],
+                    columns: [
+                        { reference: 'month' },
+                        { reference: 'revenue_sum_region_eu' },
+                        { reference: 'revenue_sum_region_us' },
+                    ],
+                    columnCount: 3,
+                },
+                originalColumns: {
+                    month: column('month', DimensionType.DATE),
+                    region: column('region', DimensionType.STRING),
+                    revenue: column('revenue', DimensionType.NUMBER),
+                },
+            },
+            layout: {
+                x: { reference: 'month', type: VizIndexType.TIME },
+                y: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupBy: [{ reference: 'region' }],
+            },
+            colors,
+        });
+        expect(option.series.map((s: { type: string }) => s.type)).toEqual([
+            'line',
+            'line',
+        ]);
+        expect(option.dataset.source).toHaveLength(2);
     });
 });

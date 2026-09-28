@@ -5,7 +5,7 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { Box, Center } from '@mantine/core';
-import { useCallback, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import useUnderlyingDataColumns from '../../hooks/useUnderlyingDataColumns';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
@@ -16,7 +16,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
-import { type HeaderProps, type TableColumn } from '../common/Table/types';
+import { type HeaderProps } from '../common/Table/types';
 import CellContextMenu from './CellContextMenu';
 import UnderlyingDataHeaderContextMenu from './UnderlyingDataHeaderContextMenu';
 
@@ -25,10 +25,7 @@ const UnderlyingDataResultsTable: FC<{
     resultsData: ApiQueryResults | undefined;
     isLoading: boolean;
     hasJoins?: boolean;
-    sortByUnderlyingValues: (
-        columnA: TableColumn,
-        columnB: TableColumn,
-    ) => number;
+    columnOrder: string[];
     sorts: SortField[];
     onSortChange: (sorts: SortField[]) => void;
 }> = ({
@@ -36,7 +33,7 @@ const UnderlyingDataResultsTable: FC<{
     resultsData,
     isLoading,
     hasJoins,
-    sortByUnderlyingValues,
+    columnOrder,
     sorts,
     onSortChange,
 }) => {
@@ -60,6 +57,16 @@ const UnderlyingDataResultsTable: FC<{
         fieldsMap,
         columnHeader,
     });
+
+    const sortedColumns = useMemo(
+        () =>
+            [...columns].sort(
+                (a, b) =>
+                    columnOrder.indexOf(a.id ?? '') -
+                    columnOrder.indexOf(b.id ?? ''),
+            ),
+        [columns, columnOrder],
+    );
 
     const headerContextMenu = useCallback<
         FC<React.PropsWithChildren<HeaderProps>>
@@ -91,7 +98,7 @@ const UnderlyingDataResultsTable: FC<{
                     totalRowsCount={resultsData?.rows.length || 0}
                     isFetchingRows={false}
                     fetchMoreRows={() => undefined}
-                    columns={columns.sort(sortByUnderlyingValues)}
+                    columns={sortedColumns}
                     pagination={{
                         show: true,
                         defaultScroll: true,

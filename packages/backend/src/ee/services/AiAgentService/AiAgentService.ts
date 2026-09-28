@@ -292,7 +292,7 @@ import {
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
-import { type DbAiPromptDecision } from '../../database/entities/ai';
+import { type DbAiPromptTurnDecisionOutcome } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
@@ -441,6 +441,7 @@ import {
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
     RecordMcpToolCallFn,
+    RecordPromptDecisionFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
@@ -2063,14 +2064,22 @@ export class AiAgentService extends BaseService {
         );
     }
 
-    // Battle mode can only switch JEV off for the baseline side, never on past the master flag.
-    private async getBattleDecisionClient(
+    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
+    private async getPromptDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-        battleProfile: AiAgentBattleProfile | null,
+        {
+            battleProfile,
+            enableFastDecisions,
+        }: {
+            battleProfile: AiAgentBattleProfile | null;
+            enableFastDecisions: boolean;
+        },
     ) {
-        return battleProfile === 'baseline'
-            ? undefined
-            : this.getDecisionClient(user);
+        const enabled =
+            battleProfile === null
+                ? enableFastDecisions
+                : battleProfile === 'fast';
+        return enabled ? this.getDecisionClient(user) : undefined;
     }
 
     private async getPromptErrorMessage(
@@ -6951,11 +6960,13 @@ export class AiAgentService extends BaseService {
             resetErrorForStreamRetry = false,
             expectedDeepResearchRunUuid,
             deferCurrentVerifiedExamples = false,
+            enableFastDecisions = true,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
+            enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
             deferCurrentVerifiedExamples?: boolean;
             onPromptResolved?: (
@@ -7117,10 +7128,10 @@ export class AiAgentService extends BaseService {
                 this.getIsVerifiedArtifactsEnabled(),
             currentPromptUuid: prompt.promptUuid,
             userUuid: user.userUuid,
-            fastDecisionsEnabled: !!(await this.getBattleDecisionClient(
-                user,
-                prompt.battleProfile,
-            )),
+            fastDecisionsEnabled: !!(await this.getPromptDecisionClient(user, {
+                battleProfile: prompt.battleProfile,
+                enableFastDecisions,
+            })),
         };
         // Fast decisions only need the conversation; the example lookup embeds the
         // prompt, so it starts now and the agent awaits it only if it runs.
@@ -7304,6 +7315,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            enableFastDecisions = true,
             autoApproveSql,
             toolHints,
             runtimeOptions,
@@ -7311,6 +7323,7 @@ export class AiAgentService extends BaseService {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
@@ -7340,6 +7353,7 @@ export class AiAgentService extends BaseService {
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
                 deferCurrentVerifiedExamples: true,
+                enableFastDecisions,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -7405,6 +7419,7 @@ export class AiAgentService extends BaseService {
                         stream: true,
                         canManageAgent,
                         enableSqlMode,
+                        enableFastDecisions,
                         autoApproveSql,
                         toolHints,
                         runtimeOptions,
@@ -12938,6 +12953,31 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private async recordPromptDecision({
+        promptUuid,
+        decisions,
+        decision,
+    }: {
+        promptUuid: string;
+        decisions: AiDecisionClient;
+        decision: Parameters<RecordPromptDecisionFn>[0];
+    }): Promise<void> {
+        try {
+            await this.aiAgentModel.createPromptDecision({
+                ...decision,
+                ai_prompt_uuid: promptUuid,
+                reason: null,
+                fallback_reason: null,
+                simple_data_answer: false,
+                jev_model: decisions.modelName,
+            });
+        } catch (error) {
+            Logger.warn(
+                `Unable to record AI ${decision.operation} decision: ${String(error)}`,
+            );
+        }
+    }
+
     private async recordTurnDecision({
         promptUuid,
         decisions,
@@ -12959,7 +12999,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         instantReply: InstantReplyKind | null;
     }): Promise<void> {
         const { chart } = turn.decision;
-        let outcome: DbAiPromptDecision['outcome'] = 'routed';
+        let outcome: DbAiPromptTurnDecisionOutcome = 'routed';
         let reason: string | null = null;
         let intent: object | null = null;
         if (turn.answers === null) outcome = 'unavailable';
@@ -13013,6 +13053,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             stream: true;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
@@ -13082,6 +13123,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             suppressWritebackPreview?: boolean;
             dbtSourceUuid?: string;
@@ -13148,17 +13190,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const battleProfile = isSlackPrompt(prompt)
             ? null
             : prompt.battleProfile;
-        const decisionClient = await this.getBattleDecisionClient(
-            user,
+        const decisionClient = await this.getPromptDecisionClient(user, {
             battleProfile,
-        );
+            enableFastDecisions: options.enableFastDecisions ?? true,
+        });
         const decisionUsage = decisionClient
             ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
             : undefined;
         const decisions = decisionUsage
             ? decisionClient?.withUsage(decisionUsage)
             : undefined;
-        // AiAgentFastDecisions is the master gate; battle mode can only disable it per side.
+        // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
         const fastExperienceEnabled = decisions !== undefined;
         let forceChartMutationRouting = false;
         let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
@@ -13970,6 +14012,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const args: AiAgentArgs = {
             decisions,
             decisionUsage,
+            recordPromptDecision: decisions
+                ? (decision) =>
+                      this.recordPromptDecision({
+                          promptUuid: prompt.promptUuid,
+                          decisions,
+                          decision,
+                      })
+                : undefined,
             toolCallModel,
             enableDataAnswerFastResponse,
             forceChartMutationRouting,
@@ -14580,6 +14630,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             promptUuid,
             humanScore,
             humanFeedback,
+            // The modal can submit before this vote finishes saving.
+            preserveHumanFeedback:
+                humanScore === -1 && humanFeedback === undefined,
         });
 
         const promptContext =
@@ -16822,6 +16875,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }
 
                 const { promptUuid, score } = parsed.data;
+                if (score < 0) {
+                    await AiAgentService.openDownvoteFeedbackModal(
+                        client,
+                        body.trigger_id,
+                        promptUuid,
+                    );
+                }
+
                 await this.updateHumanScoreForSlackPrompt(
                     body.user.id,
                     organizationUuid,
@@ -16850,17 +16911,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         newBlock,
                     ),
                 });
-
-                if (score < 0) {
-                    await client.views.open({
-                        trigger_id: body.trigger_id,
-                        view: AiAgentService.buildDownvoteFeedbackModalView(
-                            promptUuid,
-                        ),
-                    });
-                }
             },
         );
+    }
+
+    // Must run before any slow work: Slack trigger_id expires in ~3s.
+    private static async openDownvoteFeedbackModal(
+        client: WebClient,
+        triggerId: string,
+        promptUuid: string,
+    ) {
+        try {
+            await client.views.open({
+                trigger_id: triggerId,
+                view: AiAgentService.buildDownvoteFeedbackModalView(promptUuid),
+            });
+        } catch (error) {
+            Logger.error('Failed to open Slack downvote feedback modal', error);
+        }
     }
 
     public handlePromptDownvote(app: App) {
@@ -16905,6 +16973,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!promptUuid) {
                             return;
                         }
+                        await AiAgentService.openDownvoteFeedbackModal(
+                            client,
+                            body.trigger_id,
+                            promptUuid,
+                        );
+
                         await this.updateHumanScoreForSlackPrompt(
                             user.id,
                             organizationUuid,
@@ -16925,13 +16999,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 ),
                             });
                         }
-
-                        await client.views.open({
-                            trigger_id: body.trigger_id,
-                            view: AiAgentService.buildDownvoteFeedbackModalView(
-                                promptUuid,
-                            ),
-                        });
                     }
                 }
             },

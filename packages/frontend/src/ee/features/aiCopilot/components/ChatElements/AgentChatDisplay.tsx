@@ -22,6 +22,7 @@ import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import { useDeepResearchThreadRunRegistrations } from '../../hooks/useDeepResearch';
 import { useAgentAiMcpServers } from '../../hooks/useProjectAiMcpServers';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
+import { getJevChoices } from '../Battle/jevDecision';
 import { DeepResearchThreadRuns } from '../DeepResearch/DeepResearchThreadRuns';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
@@ -266,15 +267,11 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                         )}
                                         {onChoiceSelect &&
                                             i === xs.length - 1 &&
-                                            message.status === 'idle' &&
-                                            message.jevDecision &&
-                                            message.jevDecision.choices.length >
-                                                0 && (
+                                            message.status === 'idle' && (
                                                 <JevChoiceChips
-                                                    choices={
-                                                        message.jevDecision
-                                                            .choices
-                                                    }
+                                                    choices={getJevChoices(
+                                                        message.jevDecision,
+                                                    )}
                                                     onSelect={onChoiceSelect}
                                                 />
                                             )}

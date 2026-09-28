@@ -2,8 +2,10 @@ import {
     ChartType,
     LightdashAppPreviewTokenHeader,
     LightdashCustomSqlProvenanceChartUuidHeader,
+    LightdashRequestMethodHeader,
     MergeJoinType,
     QueryExecutionContext,
+    RequestMethod,
     VizAggregationOptions,
     VizIndexType,
     type ApiExecuteAsyncMergeQueryRequest,
@@ -12,6 +14,61 @@ import express from 'express';
 import { QueryController } from './QueryController';
 
 describe('QueryController', () => {
+    it.each([
+        [
+            RequestMethod.GSHEETS_ADDON,
+            undefined,
+            QueryExecutionContext.GSHEETS_ADDON,
+        ],
+        [undefined, undefined, QueryExecutionContext.API],
+        ['future-client', undefined, QueryExecutionContext.API],
+        [RequestMethod.CLI, undefined, QueryExecutionContext.CLI],
+        [
+            RequestMethod.GSHEETS_ADDON,
+            QueryExecutionContext.FILTER_AUTOCOMPLETE,
+            QueryExecutionContext.FILTER_AUTOCOMPLETE,
+        ],
+    ])(
+        'attributes metric queries from %s with explicit context %s to %s',
+        async (method, context, expectedContext) => {
+            const executeAsyncMetricQuery = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+            const controller = new QueryController({
+                getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+            } as unknown as ConstructorParameters<typeof QueryController>[0]);
+            const req = {
+                account: {},
+                headers: {},
+                header: (name: string) =>
+                    name === LightdashRequestMethodHeader ? method : undefined,
+            } as unknown as express.Request;
+
+            await controller.executeAsyncMetricQuery(
+                {
+                    query: {
+                        exploreName: 'orders',
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_count'],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
+                    context,
+                },
+                'project-uuid',
+                req,
+            );
+
+            expect(executeAsyncMetricQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: expectedContext,
+                }),
+            );
+        },
+    );
+
     it('forwards merge execution to the one-call service interface', async () => {
         const executeAsyncMergeQuery = vi.fn().mockResolvedValue({
             outcome: 'started',

@@ -5,7 +5,9 @@ import {
     hashFieldReference,
     isDimension,
     VizAggregationOptions,
+    type CustomDimension,
     type EChartsSeries,
+    type Field,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
@@ -153,4 +155,30 @@ export const getDataFromChartClick = (
         fieldValues,
         pivotReference,
     };
+};
+
+/**
+ * Orders underlying-data field ids by their position in `show_underlying_values`
+ * (or the table's `default_show_underlying_values`). The modal table and its
+ * CSV/XLSX export both use this order so they stay in sync.
+ */
+export const getUnderlyingDataColumnOrder = (
+    fieldIds: string[],
+    showUnderlyingValues: string[] | undefined,
+    allFields: Array<Field | CustomDimension>,
+): string[] => {
+    if (showUnderlyingValues === undefined) return fieldIds;
+
+    const indexOfUnderlyingValue = (fieldId: string): number => {
+        const field = allFields.find((f) => getItemId(f) === fieldId);
+        if (field === undefined) return -1;
+        const index = showUnderlyingValues.indexOf(field.name);
+        return index !== -1
+            ? index
+            : showUnderlyingValues.indexOf(`${field.table}.${field.name}`);
+    };
+
+    return [...fieldIds].sort(
+        (a, b) => indexOfUnderlyingValue(a) - indexOfUnderlyingValue(b),
+    );
 };

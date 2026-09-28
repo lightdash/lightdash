@@ -13,6 +13,10 @@ const DATABRICKS_WAREHOUSE_STARTING_MESSAGES: readonly RegExp[] = [
     /is not ready to accept connections \(current state: STARTING\)/,
     // Pro/classic STARTING: 503 until up; the driver gives up after ~30s of HTTP retries
     /^Hive driver: 503 when connecting to resource/,
+    // Returned on the session opened right after one of the above while the
+    // warehouse is still scaling or queueing under load
+    /No API URL found in Unity Scope/,
+    /Query rejected: cannot handle query since max capacity reached/,
 ];
 
 export const isDatabricksWarehouseStartingError = (

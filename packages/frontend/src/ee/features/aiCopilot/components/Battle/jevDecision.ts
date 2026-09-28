@@ -1,4 +1,8 @@
-import { assertUnreachable, type AiAgentJevDecision } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type AiAgentJevChoice,
+    type AiAgentJevDecision,
+} from '@lightdash/common';
 
 const EDIT_LABELS: Record<string, string> = {
     chart_type: 'chart type',
@@ -126,3 +130,8 @@ export const describeJevDecision = (
             return assertUnreachable(decision.outcome, 'Unknown JEV outcome');
     }
 };
+
+// An API node from before choices existed omits the field during a rolling deploy.
+export const getJevChoices = (
+    decision: AiAgentJevDecision | null,
+): AiAgentJevChoice[] => decision?.choices ?? [];

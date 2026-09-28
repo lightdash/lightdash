@@ -41,3 +41,25 @@
 .name {
     max-width: 280px;
 }
+
+/* Holds the generated name's place while the first build names it. */
+.namePlaceholder {
+    width: 160px;
+    height: 16px;
+}
+
+@keyframes ldEnter {
+    from {
+        opacity: 0;
+    }
+}
+
+.enter {
+    animation: ldEnter 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .enter {
+        animation: none;
+    }
+}

@@ -490,6 +490,7 @@ export enum RequestMethod {
     CLI_CI = 'CLI_CI',
     WEB_APP = 'WEB_APP',
     SDK = 'SDK',
+    GSHEETS_ADDON = 'GSHEETS_ADDON',
     HEADLESS_BROWSER = 'HEADLESS_BROWSER',
     UNKNOWN = 'UNKNOWN',
     BACKEND = 'BACKEND',

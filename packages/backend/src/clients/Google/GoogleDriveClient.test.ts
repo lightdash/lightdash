@@ -409,7 +409,7 @@ describe('GoogleDriveClient', () => {
 
     // gaxios never retries our requests (nothing sets `retry`/`retryConfig`
     // on them) — Retry-After only reaches the caller if we extract it here.
-    describe('quota errors', () => {
+    describe('error classification', () => {
         const makeClient = () =>
             new GoogleDriveClient({
                 lightdashConfig: {
@@ -477,6 +477,108 @@ describe('GoogleDriveClient', () => {
             expect(
                 (caught as GoogleSheetsQuotaError).data.retryAfterMs,
             ).toBeUndefined();
+        });
+
+        // gaxios 5 / node-fetch 2 surface a network-level failure (no HTTP
+        // response) as a FetchError with a system errno; token refresh too.
+        const fetchError = (
+            message: string,
+            props: { type: string; code?: string },
+        ) =>
+            Object.assign(new Error(message), { name: 'FetchError', ...props });
+
+        test.each([
+            fetchError(
+                'request to https://oauth2.googleapis.com/token failed, reason: socket hang up',
+                { type: 'system', code: 'ECONNRESET' },
+            ),
+            fetchError(
+                'request to https://sheets.googleapis.com/v4/spreadsheets/x failed, reason: getaddrinfo ENOTFOUND sheets.googleapis.com',
+                { type: 'system', code: 'ENOTFOUND' },
+            ),
+            fetchError(
+                'network timeout at: https://oauth2.googleapis.com/token',
+                {
+                    type: 'request-timeout',
+                },
+            ),
+        ])(
+            'classifies a no-response network failure as GoogleSheetsTransientError: $message',
+            async (networkError) => {
+                const get = vi.fn().mockRejectedValue(networkError);
+                vi.mocked(google.sheets).mockReturnValue({
+                    spreadsheets: { get },
+                } as never);
+
+                await expect(
+                    makeClient().assertFileIsGoogleSheet(
+                        'refresh-token',
+                        'file-id',
+                    ),
+                ).rejects.toMatchObject({
+                    name: 'GoogleSheetsTransientError',
+                    message: networkError.message,
+                });
+            },
+        );
+
+        test('classifies a no-response error carrying a network errno code as GoogleSheetsTransientError', async () => {
+            const get = vi.fn().mockRejectedValue(
+                Object.assign(new Error('read ECONNRESET'), {
+                    code: 'ECONNRESET',
+                }),
+            );
+            vi.mocked(google.sheets).mockReturnValue({
+                spreadsheets: { get },
+            } as never);
+
+            await expect(
+                makeClient().assertFileIsGoogleSheet(
+                    'refresh-token',
+                    'file-id',
+                ),
+            ).rejects.toMatchObject({ name: 'GoogleSheetsTransientError' });
+        });
+
+        test('keeps a non-network error without a response as UnexpectedGoogleSheetsError', async () => {
+            const get = vi
+                .fn()
+                .mockRejectedValue(new TypeError('Cannot read properties'));
+            vi.mocked(google.sheets).mockReturnValue({
+                spreadsheets: { get },
+            } as never);
+
+            await expect(
+                makeClient().assertFileIsGoogleSheet(
+                    'refresh-token',
+                    'file-id',
+                ),
+            ).rejects.toMatchObject({
+                name: 'UnexpectedGoogleSheetsError',
+                message: 'Cannot read properties',
+            });
+        });
+
+        test('keeps an unrecognised error that did get an HTTP response as UnexpectedGoogleSheetsError', async () => {
+            const get = vi.fn().mockRejectedValue(
+                Object.assign(
+                    new Error('Request failed with status code 500'),
+                    {
+                        code: 'ECONNRESET',
+                        response: { status: 500, data: {} },
+                    },
+                ),
+            );
+            vi.mocked(google.sheets).mockReturnValue({
+                spreadsheets: { get },
+            } as never);
+
+            await expect(
+                makeClient().assertFileIsGoogleSheet(
+                    'refresh-token',
+                    'file-id',
+                ),
+            ).rejects.toMatchObject({ name: 'UnexpectedGoogleSheetsError' });
         });
     });
 

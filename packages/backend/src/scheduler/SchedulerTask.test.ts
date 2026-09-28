@@ -17,8 +17,11 @@ import {
     PersistentDownloadFileAccessMode,
     RequestMethod,
     SchedulerFormat,
+    SchedulerJobStatus,
+    SchedulerResourceType,
     sleep,
     ThresholdOperator,
+    UnexpectedGoogleSheetsError,
     VizAggregationOptions,
     VizIndexType,
     type CapturedQuery,
@@ -26,6 +29,7 @@ import {
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
     type EmailNotificationPayload,
+    type ExportContentPayload,
     type Filters,
     type LearnSandboxCommandPayload,
     type MetricQuery,
@@ -40,6 +44,7 @@ import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import type { ExecutionContextInfo } from '../logging/winston';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
+import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 import SchedulerTask, {
     buildItemMapFromColumns,
     buildSchedulerLogContext,
@@ -980,6 +985,10 @@ describe('uploadGsheetFromQuery', () => {
 type TaskDeps = ConstructorParameters<typeof SchedulerTask>[0];
 
 class TestSchedulerTask extends SchedulerTask {
+    public exportContentForTest(payload: ExportContentPayload) {
+        return this.exportContent('export-job', new Date(), payload);
+    }
+
     public sendEmailNotificationForTest(
         jobId: string,
         notification: EmailNotificationPayload,
@@ -993,6 +1002,84 @@ const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
+
+describe('PDF content export', () => {
+    const payload: ExportContentPayload = {
+        resourceType: SchedulerResourceType.DASHBOARD,
+        resourceUuid: 'dashboard-1',
+        format: SchedulerFormat.PDF,
+        options: {},
+        userUuid: 'user-1',
+        projectUuid: 'project-1',
+        organizationUuid: 'org-1',
+        schedulerUuid: undefined,
+        selectedTabs: ['tab-1'],
+        parameters: { region: 'APAC' },
+    };
+
+    const setup = (storageEnabled = true) => {
+        const logSchedulerJob = vi.fn();
+        const getNotificationPageData = vi.fn().mockResolvedValue({
+            pdfFile: {
+                source: 'https://storage.example/export.pdf',
+                fileName: 'export.pdf',
+            },
+        });
+        const task = makeTaskWithDeps({
+            schedulerService: asDep<'schedulerService'>({ logSchedulerJob }),
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => storageEnabled,
+            }),
+        });
+        Object.assign(task, { getNotificationPageData });
+        return { task, logSchedulerJob, getNotificationPageData };
+    };
+
+    it('uses the scheduled PDF path and records a downloadable PDF result', async () => {
+        const { task, logSchedulerJob, getNotificationPageData } = setup();
+        await task.exportContentForTest(payload);
+
+        expect(getNotificationPageData).toHaveBeenCalledWith(
+            expect.objectContaining({
+                format: SchedulerFormat.PDF,
+                selectedTabs: ['tab-1'],
+            }),
+            'export-job',
+            false,
+            undefined,
+            expect.objectContaining({ parameters: payload.parameters }),
+            undefined,
+            undefined,
+            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.COMPLETED,
+                details: expect.objectContaining({
+                    url: 'https://storage.example/export.pdf',
+                    fileType: SchedulerFormat.PDF,
+                    numFailures: 0,
+                }),
+            }),
+        );
+    });
+
+    it('fails when the renderer does not produce a PDF', async () => {
+        const { task, getNotificationPageData } = setup();
+        getNotificationPageData.mockResolvedValue({});
+        await expect(task.exportContentForTest(payload)).rejects.toThrow(
+            'Dashboard PDF export failed',
+        );
+    });
+
+    it('rejects exports without storage before rendering a local-only file', async () => {
+        const { task, getNotificationPageData } = setup(false);
+        await expect(task.exportContentForTest(payload)).rejects.toThrow(
+            'Cloud storage is not enabled',
+        );
+        expect(getNotificationPageData).not.toHaveBeenCalled();
+    });
+});
 
 describe('compileProject', () => {
     it('enqueues custom-field replacement after a successful preview compile without waiting for it', async () => {
@@ -2549,6 +2636,34 @@ describe('uploadGsheets — app branch', () => {
         expect(logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({ status: 'completed' }),
         );
+    });
+
+    // A network-level failure is classified transient by the client; the task
+    // must report it as retryable so the worker never disables the sync.
+    it('reports a persistent transient Google error as a retryable delivery failure', async () => {
+        const { run, uploadMetadata } = setup();
+        uploadMetadata.mockRejectedValue(
+            new GoogleSheetsTransientError(
+                'request to https://oauth2.googleapis.com/token failed, reason: socket hang up',
+            ),
+        );
+
+        await expect(run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: false,
+        } satisfies Partial<SchedulerDeliveryError>);
+    });
+
+    it('reports an unexpected Google error as a non-retryable delivery failure', async () => {
+        const { run, uploadMetadata } = setup();
+        uploadMetadata.mockRejectedValue(
+            new UnexpectedGoogleSheetsError('Unknown object'),
+        );
+
+        await expect(run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: true,
+        } satisfies Partial<SchedulerDeliveryError>);
     });
 
     // The metadata tab must list what was actually written, not the raw

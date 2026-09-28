@@ -115,8 +115,7 @@ export type SemanticLayerSourceQuery = {
     timezone?: string;
     /**
      * Pivots this node's result the way a pivoted chart does. Honoured by
-     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
-     * the join node owns the pivot stage.
+     * semanticLayer, sql and duckdb nodes; external nodes refuse it.
      */
     pivotConfiguration?: PivotConfiguration;
 };
@@ -134,8 +133,7 @@ export type SqlSourceQuery = {
     limit?: number;
     /**
      * Pivots this node's result the way a pivoted chart does. Honoured by
-     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
-     * the join node owns the pivot stage.
+     * semanticLayer, sql and duckdb nodes; external nodes refuse it.
      */
     pivotConfiguration?: PivotConfiguration;
 };
@@ -174,10 +172,8 @@ export type DuckdbSourceQuery = {
         | QueryNodeId[]
         | Record<QuerySourceTableName, QueryResultReference>;
     /**
-     * Pivots this node's result the way a pivoted chart does. Refused on
-     * this endpoint: raw SQL has no fields to pivot on. A duckdb node
-     * submitted inside the server with an execution plan, such as a merge's
-     * join, pivots through that plan.
+     * Pivots this node's result over the columns its SQL returns; checked at
+     * submission. Results carry pivotDetails. Omit for an unpivoted result.
      */
     pivotConfiguration?: PivotConfiguration;
 };
@@ -204,8 +200,7 @@ export type ExternalSourceQuery = {
         | Record<QuerySourceTableName, ExternalSourceTableReference>;
     /**
      * Pivots this node's result the way a pivoted chart does. Honoured by
-     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
-     * the join node owns the pivot stage.
+     * semanticLayer, sql and duckdb nodes; external nodes refuse it.
      */
     pivotConfiguration?: PivotConfiguration;
 };

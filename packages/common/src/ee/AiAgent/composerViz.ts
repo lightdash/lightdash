@@ -1,23 +1,32 @@
 import { DimensionType } from '../../types/field';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import { type RawResultRow, type ResultColumn } from '../../types/results';
+import { ChartKind } from '../../types/savedCharts';
+import assertUnreachable from '../../utils/assertUnreachable';
 import {
     getColumnAxisType,
     VizAggregationOptions,
+    type AllVizChartConfig,
     type PivotChartData,
     type PivotChartLayout,
 } from '../../visualizations/types';
-import { type AiAgentChartTypeOption } from './chartConfig/web/types';
 
 /** How a displayed node result renders: the table or a chart kind. */
-export type ComposerVizKind = AiAgentChartTypeOption | 'big_number';
+export type ComposerVizKind = 'table' | 'bar' | 'line' | 'pie' | 'big_number';
 
 export type ComposerChartKind = Exclude<ComposerVizKind, 'table'>;
+
+/** A bar/line series split: one series per groupBy value, y aggregated per x and series. */
+export type ComposerSeriesSplit = {
+    groupBy: ResultColumn;
+    aggregation: VizAggregationOptions;
+};
 
 /** Columns a chart kind draws from; x is null for a big number. */
 export type ComposerVizAxes = {
     x: ResultColumn | null;
     y: ResultColumn;
+    seriesSplit: ComposerSeriesSplit | null;
 };
 
 export type ComposerVizPlan = {
@@ -31,16 +40,14 @@ export type ComposerVizPlan = {
 const KIND_ORDER: ComposerVizKind[] = [
     'table',
     'bar',
-    'horizontal',
     'line',
-    'scatter',
     'pie',
-    'funnel',
     'big_number',
 ];
 
-const isNumeric = (column: ResultColumn) =>
+export const isComposerNumericColumn = (column: ResultColumn) =>
     column.type === DimensionType.NUMBER;
+const isNumeric = isComposerNumericColumn;
 const isTemporal = (column: ResultColumn) =>
     column.type === DimensionType.DATE ||
     column.type === DimensionType.TIMESTAMP;
@@ -91,16 +98,11 @@ const hasDuplicateValues = (rows: RawResultRow[], reference: string) => {
     });
 };
 
-/** Kinds a node result can render as and the one it opens with, from column types and row shape alone. */
-export const getComposerVizPlan = ({
-    columns,
-    rows,
-    node,
-}: {
-    columns: ResultColumn[];
-    rows: RawResultRow[];
-    node: SourceQuery | null;
-}): ComposerVizPlan => {
+const getColumnTypeVizPlan = (
+    columns: ResultColumn[],
+    rows: RawResultRow[],
+    node: SourceQuery | null,
+): ComposerVizPlan => {
     const semantic = pickSemanticAxes(columns, node);
     const x = semantic?.x ?? pickX(columns);
     const y = semantic?.y ?? pickY(columns, x);
@@ -108,18 +110,14 @@ export const getComposerVizPlan = ({
     const axes: ComposerVizPlan['axes'] = {};
 
     if (x && y) {
-        axes.bar = { x, y };
-        axes.horizontal = { x, y };
-        axes.line = { x, y };
-    }
-    if (numerics.length >= 2) {
-        axes.scatter = { x: numerics[0], y: numerics[1] };
+        axes.bar = { x, y, seriesSplit: null };
+        axes.line = { x, y, seriesSplit: null };
     }
     const category =
         x?.type === DimensionType.STRING
             ? x
             : firstOfType(columns, DimensionType.STRING);
-    // Pie and funnel slice the string column; y stays unless it is that column.
+    // Pie slices the string column; y stays unless it is that column.
     const categoryValue = ((): ResultColumn | undefined => {
         if (!category) return undefined;
         if (y && y.reference !== category.reference) return y;
@@ -130,11 +128,10 @@ export const getComposerVizPlan = ({
         categoryValue &&
         !hasDuplicateValues(rows, category.reference)
     ) {
-        axes.pie = { x: category, y: categoryValue };
-        axes.funnel = { x: category, y: categoryValue };
+        axes.pie = { x: category, y: categoryValue, seriesSplit: null };
     }
     if (rows.length === 1 && numerics.length >= 1) {
-        axes.big_number = { x: null, y: y ?? numerics[0] };
+        axes.big_number = { x: null, y: y ?? numerics[0], seriesSplit: null };
     }
 
     const availableKinds = KIND_ORDER.filter(
@@ -149,6 +146,189 @@ export const getComposerVizPlan = ({
     return { availableKinds, defaultKind, axes };
 };
 
+const getComposerChartKind = (
+    vizConfig: Exclude<AllVizChartConfig, { type: ChartKind.TABLE }>,
+): ComposerChartKind => {
+    switch (vizConfig.type) {
+        case ChartKind.VERTICAL_BAR:
+            return 'bar';
+        case ChartKind.LINE:
+            return 'line';
+        case ChartKind.PIE:
+            return 'pie';
+        case ChartKind.BIG_NUMBER:
+            return 'big_number';
+        default:
+            return assertUnreachable(vizConfig, 'Unknown viz config type');
+    }
+};
+
+export const getComposerVizKind = (
+    vizConfig: AllVizChartConfig,
+): ComposerVizKind =>
+    vizConfig.type === ChartKind.TABLE
+        ? 'table'
+        : getComposerChartKind(vizConfig);
+
+/** Stored axes drive every kind that can use them; the column-type plan fills the rest. Null when the viz config no longer fits the columns. */
+const seedFromVizConfig = (
+    plan: ComposerVizPlan,
+    vizConfig: AllVizChartConfig,
+    columns: ResultColumn[],
+    rows: RawResultRow[],
+): ComposerVizPlan | null => {
+    const byReference = new Map(
+        columns.map((column) => [column.reference, column]),
+    );
+    if (vizConfig.type === ChartKind.TABLE) {
+        const known = Object.keys(vizConfig.columns).every((reference) =>
+            byReference.has(reference),
+        );
+        return known ? { ...plan, defaultKind: 'table' } : null;
+    }
+    const layout = vizConfig.fieldConfig;
+    const yReference = layout?.y[0]?.reference;
+    const y =
+        yReference === undefined ? undefined : byReference.get(yReference);
+    if (!y || !isNumeric(y)) return null;
+    const xReference = layout?.x?.reference;
+    const x =
+        xReference === undefined ? null : (byReference.get(xReference) ?? null);
+    if (xReference !== undefined && (!x || x.reference === y.reference))
+        return null;
+    // Only bar/line split series; a split's duplicate x values are expected.
+    const isCartesian =
+        vizConfig.type === ChartKind.VERTICAL_BAR ||
+        vizConfig.type === ChartKind.LINE;
+    const groupByReference = isCartesian
+        ? layout?.groupBy?.[0]?.reference
+        : undefined;
+    const groupBy =
+        groupByReference === undefined
+            ? null
+            : (byReference.get(groupByReference) ?? null);
+    if (
+        groupByReference !== undefined &&
+        (!groupBy ||
+            groupBy.reference === x?.reference ||
+            groupBy.reference === y.reference)
+    )
+        return null;
+    const seriesSplit =
+        groupBy && layout
+            ? { groupBy, aggregation: layout.y[0].aggregation }
+            : null;
+
+    const axes: ComposerVizPlan['axes'] = { ...plan.axes };
+    if (x) {
+        axes.bar = { x, y, seriesSplit };
+        axes.line = { x, y, seriesSplit };
+        if (
+            x.type === DimensionType.STRING &&
+            !hasDuplicateValues(rows, x.reference)
+        ) {
+            axes.pie = { x, y, seriesSplit: null };
+        }
+    }
+    if (rows.length === 1) axes.big_number = { x: null, y, seriesSplit: null };
+
+    const defaultKind = getComposerChartKind(vizConfig);
+    if (!axes[defaultKind]) return null;
+    return {
+        availableKinds: KIND_ORDER.filter(
+            (kind) => kind === 'table' || axes[kind] !== undefined,
+        ),
+        defaultKind,
+        axes,
+    };
+};
+
+/**
+ * Kinds a node result can render as and the one it opens with: seeded from
+ * the stored viz config when it still fits, else from column types and row shape.
+ */
+export const getComposerVizPlan = ({
+    columns,
+    rows,
+    node,
+    vizConfig,
+}: {
+    columns: ResultColumn[];
+    rows: RawResultRow[];
+    node: SourceQuery | null;
+    vizConfig: AllVizChartConfig | null;
+}): ComposerVizPlan => {
+    const plan = getColumnTypeVizPlan(columns, rows, node);
+    if (!vizConfig) return plan;
+    return seedFromVizConfig(plan, vizConfig, columns, rows) ?? plan;
+};
+
+/** Field config for axes: x typed by its column; y as-is (node results are already aggregated) unless series split. */
+export const getComposerFieldConfig = ({
+    x,
+    y,
+    seriesSplit,
+}: ComposerVizAxes): PivotChartLayout => ({
+    x: x
+        ? { reference: x.reference, type: getColumnAxisType(x.type) }
+        : undefined,
+    y: [
+        {
+            reference: y.reference,
+            aggregation: seriesSplit?.aggregation ?? VizAggregationOptions.ANY,
+        },
+    ],
+    groupBy: seriesSplit ? [{ reference: seriesSplit.groupBy.reference }] : [],
+});
+
+/** Field config for the pivoted re-run of a series split; null without one. */
+export const getComposerSeriesSplitLayout = (
+    axes: ComposerVizAxes,
+): PivotChartLayout | null =>
+    axes.x && axes.seriesSplit ? getComposerFieldConfig(axes) : null;
+
+export const buildComposerVizConfig = ({
+    kind,
+    fieldConfig,
+}: {
+    kind: ComposerChartKind;
+    fieldConfig: PivotChartLayout;
+}): AllVizChartConfig => {
+    const metadata = { version: 1 };
+    switch (kind) {
+        case 'bar':
+            return {
+                type: ChartKind.VERTICAL_BAR,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        case 'line':
+            return {
+                type: ChartKind.LINE,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        case 'pie':
+            return {
+                type: ChartKind.PIE,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        case 'big_number':
+            return {
+                type: ChartKind.BIG_NUMBER,
+                metadata,
+                fieldConfig,
+                display: undefined,
+            };
+        default:
+            return assertUnreachable(kind, 'Unknown composer chart kind');
+    }
+};
+
 /** Chart data straight from the fetched rows: x as the index (none for a big number), y as the value. No aggregation, no server call. */
 export const buildComposerChartData = ({
     rows,
@@ -156,7 +336,10 @@ export const buildComposerChartData = ({
     y,
 }: {
     rows: RawResultRow[];
-} & ComposerVizAxes): { data: PivotChartData; layout: PivotChartLayout } => {
+} & Pick<ComposerVizAxes, 'x' | 'y'>): {
+    data: PivotChartData;
+    layout: PivotChartLayout;
+} => {
     const index = x
         ? { reference: x.reference, type: getColumnAxisType(x.type) }
         : undefined;

@@ -367,6 +367,10 @@ const onboardingModel = {
             callback: (transaction: object) => Promise<unknown>,
         ) => callback({}),
     ),
+    runInTrainingCopyLock: vi.fn(
+        async (_userUuid: string, callback: () => Promise<unknown>) =>
+            callback(),
+    ),
 };
 const savedChartModel = {
     getInfoForAvailableFilters: vi.fn(),
@@ -2545,6 +2549,153 @@ describe('ProjectService', () => {
                     expect(
                         schedulerClient.compileProject,
                     ).not.toHaveBeenCalled();
+                }
+            },
+        );
+    });
+
+    describe('training project connection lock', () => {
+        const trainingProject = {
+            ...projectWithSensitiveFields,
+            type: ProjectType.TRAINING,
+            provisioningSource: 'training',
+        };
+        const snowflakeConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'snowflake-account',
+            user: 'snowflake-user',
+            password: 'snowflake-password',
+            database: 'analytics',
+            warehouse: 'transforming',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+        };
+        const embeddedConnection = {
+            type: WarehouseTypes.DUCKDB as const,
+            connectionType: DuckdbConnectionType.EMBEDDED as const,
+            dataset: 'jaffle_shop',
+        };
+        const learner: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.VIEWER,
+            organizationUuid: trainingProject.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: defineUserAbility(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: trainingProject.organizationUuid,
+                    role: OrganizationMemberRole.VIEWER,
+                },
+                [],
+            ),
+        };
+        const managedMessage =
+            'The training project keeps the sample data it shipped with';
+
+        beforeEach(() => {
+            projectModel.update.mockClear();
+            jobModel.create.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+        });
+
+        test('refuses a warehouse credential update on the training project', async () => {
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                trainingProject,
+            );
+            await expect(
+                service.updateWarehouseCredentials(
+                    trainingProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection: snowflakeConnection },
+                ),
+            ).rejects.toThrow(managedMessage);
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('refuses an update-and-compile on the training project', async () => {
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                trainingProject,
+            );
+            await expect(
+                service.updateAndScheduleAsyncWork(
+                    trainingProject.projectUuid,
+                    developerAccount,
+                    {
+                        name: trainingProject.name,
+                        dbtConnection: trainingProject.dbtConnection,
+                        dbtVersion: trainingProject.dbtVersion,
+                        warehouseConnection: snowflakeConnection,
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(managedMessage);
+            expect(jobModel.create).not.toHaveBeenCalled();
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('refuses a connection write through the shared policy check', () => {
+            expect(() =>
+                service.assertCanWriteWarehouseConnection(
+                    developerAccount,
+                    {
+                        organizationUuid: trainingProject.organizationUuid,
+                        provisioningSource: 'training',
+                    },
+                    { warehouseConnection: snowflakeConnection },
+                ),
+            ).toThrow(managedMessage);
+        });
+
+        test.each([
+            {
+                reason: 'the upstream connection is not the shipped sample data',
+                credentials: snowflakeConnection,
+                organizationWarehouseCredentialsUuid: undefined,
+            },
+            {
+                reason: 'the upstream is bound to organization credentials',
+                credentials: embeddedConnection,
+                organizationWarehouseCredentialsUuid: 'org-creds-uuid',
+            },
+        ])(
+            'refuses a training copy when $reason',
+            async ({ credentials, organizationWarehouseCredentialsUuid }) => {
+                const learnService = getMockedProjectService(
+                    lightdashConfigMock,
+                    {
+                        featureFlagModel: {
+                            get: vi.fn(async () => ({
+                                id: FeatureFlags.EnableLearn,
+                                enabled: true,
+                            })),
+                        } as unknown as FeatureFlagModel,
+                    },
+                );
+                projectModel.get.mockResolvedValueOnce({
+                    ...trainingProject,
+                    organizationWarehouseCredentialsUuid,
+                });
+                projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+                projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                    credentials,
+                );
+                const deletePreviews = vi
+                    .spyOn(learnService, 'deleteTrainingPreviews')
+                    .mockResolvedValue({ deleted: 0 });
+                try {
+                    await expect(
+                        learnService.createTrainingPreview(
+                            learner,
+                            trainingProject.projectUuid,
+                        ),
+                    ).rejects.toThrow(managedMessage);
+                    expect(deletePreviews).not.toHaveBeenCalled();
+                    expect(
+                        projectModel.createWithOptionalCredentials,
+                    ).not.toHaveBeenCalled();
+                } finally {
+                    deletePreviews.mockRestore();
                 }
             },
         );
@@ -7335,6 +7486,99 @@ describe('ProjectService', () => {
                     projectWithSnowflakeAuth(authenticationType),
                 ),
             ).not.toThrowError();
+        });
+
+        const projectWithBigqueryKeyfile = (
+            keyfileContents: { [key: string]: string },
+            authenticationType?: BigqueryAuthenticationType,
+        ): UpdateProject => ({
+            name: 'test-project',
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DefaultSupportedDbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'test-gcp-project',
+                dataset: 'test-dataset',
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+                keyfileContents,
+                authenticationType,
+            },
+        });
+
+        const serviceAccountKeyfile = {
+            type: 'service_account',
+            client_email: 'sa@example.com',
+            private_key: 'test-private-key',
+        };
+        // What the CLI sends for a dbt `method: oauth` gcloud user login
+        const authorizedUserKeyfile = {
+            type: 'authorized_user',
+            client_id: 'oauth-client',
+            client_secret: 'oauth-secret',
+            refresh_token: 'user-refresh-token',
+        };
+
+        it.each([undefined, BigqueryAuthenticationType.PRIVATE_KEY])(
+            'allows a service account keyfile with %s authentication type',
+            (authenticationType) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(
+                            serviceAccountKeyfile,
+                            authenticationType,
+                        ),
+                    ),
+                ).not.toThrowError();
+            },
+        );
+
+        it.each([undefined, BigqueryAuthenticationType.PRIVATE_KEY])(
+            'allows an authorized_user keyfile with %s authentication type',
+            (authenticationType) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(
+                            authorizedUserKeyfile,
+                            authenticationType,
+                        ),
+                    ),
+                ).not.toThrowError();
+            },
+        );
+
+        it.each<{ [key: string]: string }>([
+            {},
+            { type: 'service_account', client_email: 'sa@example.com' },
+            { type: 'authorized_user', client_id: 'oauth-client' },
+            { refresh_token: 'user-refresh-token' },
+        ])(
+            'rejects a keyfile without a private key or user refresh token: %o',
+            (keyfileContents) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(keyfileContents),
+                    ),
+                ).toThrowError(
+                    'Bigquery key file is required for private key authentication',
+                );
+            },
+        );
+
+        it('still requires a refresh token for SSO authentication', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile(
+                        serviceAccountKeyfile,
+                        BigqueryAuthenticationType.SSO,
+                    ),
+                ),
+            ).toThrowError(
+                'Bigquery refresh token is required for SSO authentication',
+            );
         });
     });
 

@@ -1,6 +1,7 @@
 import {
     SchedulerFormat,
     type Dashboard,
+    type ExportContentFormat,
     type SchedulerCsvOptions,
 } from '@lightdash/common';
 import {
@@ -17,6 +18,7 @@ import {
 import {
     IconCsv,
     IconFileExport,
+    IconFileTypePdf,
     IconFileTypeXls,
     IconHelpCircle,
     IconLayoutDashboard,
@@ -50,9 +52,12 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     gridWidth,
     dashboard,
 }) => {
-    const [exportType, setExportType] = useState<
-        SchedulerFormat.IMAGE | SchedulerFormat.CSV | SchedulerFormat.XLSX
-    >(SchedulerFormat.IMAGE);
+    const [exportType, setExportType] = useState<ExportContentFormat>(
+        SchedulerFormat.IMAGE,
+    );
+    const isDataExport =
+        exportType === SchedulerFormat.CSV ||
+        exportType === SchedulerFormat.XLSX;
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardContext((c) => c.allFilters);
     const dateZoomGranularity = useDashboardContext(
@@ -133,8 +138,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportDashboardContentMutation.mutate({
             dashboard,
             format: exportType,
-            options:
-                exportType === SchedulerFormat.IMAGE ? {} : getCsvOptions(),
+            options: isDataExport ? getCsvOptions() : {},
             dashboardFilters,
             dateZoomGranularity,
             parameters: parameterValues,
@@ -153,6 +157,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportSelectedTabs,
         exportType,
         getCsvOptions,
+        isDataExport,
         onClose,
         parameterValues,
         previewChoice,
@@ -202,6 +207,19 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     ]);
 
     const renderActions = () => {
+        if (exportType === SchedulerFormat.PDF) {
+            return (
+                <Button
+                    loading={exportDashboardContentMutation.isLoading}
+                    onClick={handleAsyncExport}
+                    disabled={!hasTilesInSelectedTabs()}
+                    leftSection={<MantineIcon icon={IconFileTypePdf} />}
+                >
+                    Export PDF
+                </Button>
+            );
+        }
+
         if (exportType === SchedulerFormat.CSV) {
             return (
                 <Button
@@ -259,21 +277,17 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     <SegmentedControl
                         data={[
                             { label: 'Image', value: SchedulerFormat.IMAGE },
+                            { label: 'PDF', value: SchedulerFormat.PDF },
                             { label: '.csv', value: SchedulerFormat.CSV },
                             { label: '.xlsx', value: SchedulerFormat.XLSX },
                         ]}
                         w="min-content"
                         value={exportType}
                         onChange={(value) =>
-                            setExportType(
-                                value as
-                                    | SchedulerFormat.IMAGE
-                                    | SchedulerFormat.CSV
-                                    | SchedulerFormat.XLSX,
-                            )
+                            setExportType(value as ExportContentFormat)
                         }
                     />
-                    {exportType !== SchedulerFormat.IMAGE && (
+                    {isDataExport && (
                         <Text fs="italic" fz="sm" c="dimmed">
                             Charts from the selected tabs will be exported as
                             tables
@@ -285,7 +299,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     )}
                 </Stack>
 
-                {exportType !== SchedulerFormat.IMAGE && (
+                {isDataExport && (
                     <Stack gap="xs">
                         {!!dateZoomGranularity && (
                             <Callout

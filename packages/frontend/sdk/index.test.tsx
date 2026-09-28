@@ -55,26 +55,57 @@ vi.mock('../src/ee/pages/EmbedChart', async () => {
     };
 });
 
-vi.mock('../src/ee/pages/EmbedExplore', () => ({
-    default: ({
-        allowChartUpdate,
-        isEditMode,
-        chartView,
-    }: {
-        allowChartUpdate?: boolean;
-        isEditMode?: boolean;
-        chartView?: boolean;
-    }) => (
-        <div
-            data-testid={
-                chartView === undefined ? 'embed-explore' : 'embed-chart-edit'
-            }
-            data-allow-chart-update={allowChartUpdate}
-            data-edit-mode={isEditMode}
-            data-chart-view={chartView}
-        />
-    ),
-}));
+vi.mock('../src/ee/pages/EmbedExplore', async () => {
+    const { default: useEmbed } =
+        await import('../src/ee/providers/Embed/useEmbed');
+
+    return {
+        default: function MockEmbedExplore({
+            exploreId,
+            savedChart,
+            allowChartUpdate,
+            isEditMode,
+            chartView,
+        }: {
+            exploreId?: string;
+            savedChart?: { uuid?: string };
+            allowChartUpdate?: boolean;
+            isEditMode?: boolean;
+            chartView?: boolean;
+        }) {
+            const { onExplore, onBackToDashboard } = useEmbed();
+            return (
+                <div
+                    data-testid={
+                        chartView === undefined
+                            ? 'embed-explore'
+                            : 'embed-chart-edit'
+                    }
+                    data-explore-id={exploreId}
+                    data-saved-chart-uuid={savedChart?.uuid}
+                    data-allow-chart-update={allowChartUpdate}
+                    data-edit-mode={isEditMode}
+                    data-chart-view={chartView}
+                >
+                    <button
+                        data-testid="explore-drill-down"
+                        onClick={() =>
+                            onExplore({
+                                chart: { tableName: 'orders' } as never,
+                            })
+                        }
+                    />
+                    {onBackToDashboard && (
+                        <button
+                            data-testid="explore-back"
+                            onClick={onBackToDashboard}
+                        />
+                    )}
+                </div>
+            );
+        },
+    };
+});
 
 // Mock react-router hooks
 const mockNavigate = vi.fn();
@@ -229,6 +260,7 @@ import {
     AiAgent,
     Chart,
     Dashboard,
+    Explore,
     MetricsCatalog,
     createLightdashApiClient,
 } from './index';
@@ -453,6 +485,49 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             expect(getByTestId('embed-explore')).toBeTruthy();
             expect(window.location.pathname).toBe('/test');
         });
+    });
+
+    it('drills in place inside the SDK explore and returns to the saved chart', async () => {
+        const onExplore = vi.fn();
+        const { getByTestId, queryByTestId } = render(
+            <Explore
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId="payments"
+                savedChart={
+                    { uuid: 'saved-chart-uuid', tableName: 'payments' } as never
+                }
+                onExplore={onExplore}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'saved-chart-uuid',
+            );
+        });
+        expect(queryByTestId('explore-back')).toBeNull();
+
+        fireEvent.click(getByTestId('explore-drill-down'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'orders',
+            );
+        });
+        expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+            undefined,
+        );
+        expect(onExplore).not.toHaveBeenCalled();
+
+        fireEvent.click(getByTestId('explore-back'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.exploreId).toBe(
+                'payments',
+            );
+        });
+        expect(queryByTestId('explore-back')).toBeNull();
     });
 });
 

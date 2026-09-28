@@ -161,7 +161,7 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
     );
 };
 
-// A SQL answer renders like a composer node result: same default-viz rule,
+// A SQL answer renders like a composer node result but opens as a table;
 // same switcher, charts from the fetched rows.
 export const AiSqlArtifactVisualization: FC<ContentProps> = ({
     projectUuid,
@@ -171,7 +171,8 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
 }) => {
     const { columns, rows } = useArtifactResultRows(results);
     const plan = useMemo(
-        () => getComposerVizPlan({ columns, rows, node: null }),
+        () =>
+            getComposerVizPlan({ columns, rows, node: null, vizConfig: null }),
         [columns, rows],
     );
     const [chosenKind, setChosenKind] = useState<ComposerVizKind>();
@@ -180,8 +181,9 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
         <AiVizSwitchedResult
             projectUuid={projectUuid}
             results={results}
+            seriesSplitQueryUuid={null}
             plan={plan}
-            kind={pickVizKind(plan, chosenKind)}
+            kind={pickVizKind(plan, chosenKind ?? 'table')}
             onKindChange={setChosenKind}
             headerContent={headerContent}
             loadingMessage={LOADING_MESSAGE}

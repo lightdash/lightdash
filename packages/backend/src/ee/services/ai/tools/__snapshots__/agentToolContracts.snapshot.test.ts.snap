@@ -959,34 +959,163 @@ Parameters:
     "name": "describeWarehouseTable",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "not_found",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "not_found",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "not_found",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "columnCount": {
+                  "description": "Number of columns returned.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "columns": {
+                  "description": "Column names and warehouse types; empty when the table was not found or has no cached metadata.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                      },
+                      "type": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "type",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "qualifiedName": {
+                  "description": "Table name as resolved in the warehouse, e.g. "database.schema.table"; the schema part is "(default schema)" when none was given or resolved.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "qualifiedName",
+                "columnCount",
+                "columns",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "not_found",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
@@ -1589,10 +1718,184 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "dashboard",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "chart",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "document",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "versionUuid": {
+                      "description": "Latest Document version UUID, required for content edits.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                    "versionUuid",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
@@ -1844,10 +2147,133 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "aiAugmentationAttached": {
+                  "description": "Whether an AI-written message is generated on each send.",
+                  "type": "boolean",
+                },
+                "cron": {
+                  "description": "5-part cron expression the delivery runs on.",
+                  "type": "string",
+                },
+                "enabled": {
+                  "description": "true = live and firing; false = created paused.",
+                  "type": "boolean",
+                },
+                "href": {
+                  "description": "Link to the delivery's settings page, to share with the user as a markdown link whose text is the delivery name.",
+                  "type": "string",
+                },
+                "name": {
+                  "description": "Delivery name.",
+                  "type": "string",
+                },
+                "schedulerUuid": {
+                  "description": "Uuid of the created delivery.",
+                  "type": "string",
+                },
+                "targets": {
+                  "description": "Slack channels and email recipients the delivery sends to.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "channel": {
+                            "description": "Slack channel ID (preferred, e.g. "C0123ABCDEF") or channel name. The Lightdash Slack app must be able to join it.",
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "type": {
+                            "const": "slack",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "type",
+                          "channel",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "recipient": {
+                            "description": "Email address of the recipient.",
+                            "minLength": 3,
+                            "type": "string",
+                          },
+                          "type": {
+                            "const": "email",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "type",
+                          "recipient",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+                "timezone": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "IANA timezone the cron runs in; null = project default.",
+                },
+                "warnings": {
+                  "description": "Non-fatal issues raised while creating the delivery.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "schedulerUuid",
+                "name",
+                "cron",
+                "timezone",
+                "targets",
+                "enabled",
+                "aiAugmentationAttached",
+                "href",
+                "warnings",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
@@ -2049,10 +2475,115 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The dashboard or chart as code after the edit",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash link to the edited content",
+                      "type": "string",
+                    },
+                    "type": {
+                      "enum": [
+                        "dashboard",
+                        "chart",
+                      ],
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Validation warnings about the persisted content; empty when there are none",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The Document as code after the edit",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash link to the edited content",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "document",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the edited Document",
+                      "type": "string",
+                    },
+                    "versionUuid": {
+                      "description": "Version UUID after the edit; required as baseVersionUuid for the next content edit",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Validation warnings about the persisted content; empty when there are none",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "versionUuid",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
@@ -2118,33 +2649,824 @@ Usage tips:
     "name": "findContent",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "searchResults": {
+                  "description": "One entry per search query, in the order given.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "content": {
+                        "description": "Matches for this query, verified content first.",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "contentType": {
+                                  "const": "document",
+                                  "type": "string",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "href": {
+                                  "type": "string",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "href",
+                                "description",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "appCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "chartCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "childSpaceCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "contentType": {
+                                  "const": "space",
+                                  "type": "string",
+                                },
+                                "dashboardCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "directAccess": {
+                                  "description": "Whether the user has direct access to this space.",
+                                  "type": "boolean",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "breadcrumb": {
+                                      "description": "Space path from the root, space names joined by " / ".",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "breadcrumb",
+                                  ],
+                                  "type": "object",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "chartCount",
+                                "dashboardCount",
+                                "childSpaceCount",
+                                "appCount",
+                                "directAccess",
+                                "space",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "contentType": {
+                                  "const": "data_app",
+                                  "type": "string",
+                                },
+                                "createdBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "href": {
+                                  "description": "Canonical viewer URL of the Data App.",
+                                  "type": "string",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "breadcrumb": {
+                                          "description": "Space path from the root, space names joined by " / ".",
+                                          "type": "string",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "slug": {
+                                          "type": "string",
+                                        },
+                                        "uuid": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "uuid",
+                                        "name",
+                                        "slug",
+                                        "breadcrumb",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "spaceUuid": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Null for personal apps that live outside any space.",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                                "viewsCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "spaceUuid",
+                                "viewsCount",
+                                "href",
+                                "space",
+                                "description",
+                                "createdBy",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "charts": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "count": {
+                                      "description": "Total number of charts on the dashboard.",
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "preview": {
+                                      "description": "First few charts, verified first; use readContent for the full list.",
+                                      "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "chartType": {
+                                            "type": "string",
+                                          },
+                                          "description": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                              },
+                                              {
+                                                "type": "null",
+                                              },
+                                            ],
+                                            "description": "Description truncated to the tool limit, or null when empty.",
+                                          },
+                                          "name": {
+                                            "type": "string",
+                                          },
+                                          "uuid": {
+                                            "type": "string",
+                                          },
+                                          "verification": {
+                                            "anyOf": [
+                                              {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                  "verifiedAt": {
+                                                    "description": "ISO 8601 verification timestamp.",
+                                                    "type": "string",
+                                                  },
+                                                  "verifiedBy": {
+                                                    "description": "Full name of the admin who verified the content.",
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "verifiedBy",
+                                                  "verifiedAt",
+                                                ],
+                                                "type": "object",
+                                              },
+                                              {
+                                                "type": "null",
+                                              },
+                                            ],
+                                            "description": "Admin verification, or null when the content is unverified.",
+                                          },
+                                        },
+                                        "required": [
+                                          "uuid",
+                                          "name",
+                                          "chartType",
+                                          "description",
+                                          "verification",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "type": "array",
+                                    },
+                                  },
+                                  "required": [
+                                    "count",
+                                    "preview",
+                                  ],
+                                  "type": "object",
+                                },
+                                "contentType": {
+                                  "const": "dashboard",
+                                  "type": "string",
+                                },
+                                "createdBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "firstViewedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "href": {
+                                  "description": "Canonical URL of the dashboard.",
+                                  "type": "string",
+                                },
+                                "lastModified": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "lastUpdatedBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "breadcrumb": {
+                                      "description": "Space path from the root, space names joined by " / ".",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "breadcrumb",
+                                  ],
+                                  "type": "object",
+                                },
+                                "spaceUuid": {
+                                  "type": "string",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                                "validationErrorCount": {
+                                  "description": "Number of validation errors; dashboards with errors are deprioritized.",
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "verification": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "verifiedAt": {
+                                          "description": "ISO 8601 verification timestamp.",
+                                          "type": "string",
+                                        },
+                                        "verifiedBy": {
+                                          "description": "Full name of the admin who verified the content.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "verifiedBy",
+                                        "verifiedAt",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Admin verification, or null when the content is unverified.",
+                                },
+                                "viewsCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "spaceUuid",
+                                "viewsCount",
+                                "href",
+                                "space",
+                                "description",
+                                "verification",
+                                "firstViewedAt",
+                                "lastModified",
+                                "createdBy",
+                                "lastUpdatedBy",
+                                "charts",
+                                "validationErrorCount",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "chartSource": {
+                                  "description": ""saved" for explore charts, "sql" for SQL Runner charts.",
+                                  "enum": [
+                                    "saved",
+                                    "sql",
+                                  ],
+                                  "type": "string",
+                                },
+                                "chartType": {
+                                  "type": "string",
+                                },
+                                "contentType": {
+                                  "const": "chart",
+                                  "type": "string",
+                                },
+                                "createdBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "firstViewedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "href": {
+                                  "description": "Canonical URL of the chart.",
+                                  "type": "string",
+                                },
+                                "lastModified": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "lastUpdatedBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "breadcrumb": {
+                                      "description": "Space path from the root, space names joined by " / ".",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "breadcrumb",
+                                  ],
+                                  "type": "object",
+                                },
+                                "spaceUuid": {
+                                  "type": "string",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                                "verification": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "verifiedAt": {
+                                          "description": "ISO 8601 verification timestamp.",
+                                          "type": "string",
+                                        },
+                                        "verifiedBy": {
+                                          "description": "Full name of the admin who verified the content.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "verifiedBy",
+                                        "verifiedAt",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Admin verification, or null when the content is unverified.",
+                                },
+                                "viewsCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "chartType",
+                                "chartSource",
+                                "spaceUuid",
+                                "viewsCount",
+                                "href",
+                                "space",
+                                "description",
+                                "verification",
+                                "firstViewedAt",
+                                "lastModified",
+                                "createdBy",
+                                "lastUpdatedBy",
+                              ],
+                              "type": "object",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                      "count": {
+                        "description": "Number of matches for this query.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "note": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Guidance when a verifiedOnly search matched nothing; null otherwise.",
+                      },
+                      "searchQuery": {
+                        "type": "string",
+                      },
+                      "verifiedOnly": {
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "searchQuery",
+                      "verifiedOnly",
+                      "count",
+                      "note",
+                      "content",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "searchResults",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
@@ -2184,33 +3506,210 @@ Output:
     "name": "findCustomChartTypes",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "matches": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "count": {
+                      "description": "Number of matching custom chart types (0 when none).",
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    "note": {
+                      "description": "Guidance for using the matches, or why there are none and what to try next.",
+                      "type": "string",
+                    },
+                    "results": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "description": {
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "schema": {
+                            "description": "Serialized schema: field slots to bind query fields to (name, label, type, required) and the config options it accepts.",
+                            "type": "string",
+                          },
+                          "slug": {
+                            "description": "Identifies the type when rendering through it.",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "description",
+                          "schema",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "note",
+                    "results",
+                  ],
+                  "type": "object",
+                },
+                "request": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "Keyword terms searched against type names and descriptions.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "query",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "slug": {
+                          "description": "Exact slug that was fetched.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "slug",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                  "description": "The lookup that ran: a keyword search or an exact slug fetch.",
+                },
+              },
+              "required": [
+                "request",
+                "matches",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
@@ -5016,235 +6515,276 @@ Parameters:
     "name": "editDbtProject",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "oneOf": [
-            {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "aiWritebackRunUuid": {
+                          "type": "string",
+                        },
+                        "status": {
+                          "const": "pending",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "aiWritebackRunUuid",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "additions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "commitSha": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "dbtSourceOptions": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "branch": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "isPrimary": {
+                                    "type": "boolean",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "projectDbtSourceUuid": {
+                                    "type": "string",
+                                  },
+                                  "projectSubPath": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "repository": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "projectDbtSourceUuid",
+                                  "name",
+                                  "isPrimary",
+                                  "repository",
+                                  "branch",
+                                  "projectSubPath",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "deletions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "needsDbtSourceSelection": {
+                          "anyOf": [
+                            {
+                              "type": "boolean",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prAction": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "opened",
+                                "updated",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "previewUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "steps": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "read",
+                                      "edit",
+                                      "search",
+                                      "compile",
+                                      "stage",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "kind",
+                                  "label",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "prUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "github_not_installed",
+                                "gitlab_not_installed",
+                                "bitbucket_token_missing",
+                                "unsupported_source_control",
+                                "pull_request_not_open",
+                                "git_write_permission",
+                                "unknown",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "error",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "pending",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
               "additionalProperties": false,
               "properties": {
-                "aiWritebackRunUuid": {
-                  "type": "string",
-                },
                 "status": {
                   "const": "pending",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-                "aiWritebackRunUuid",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "additions": {
-                  "anyOf": [
-                    {
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "commitSha": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "dbtSourceOptions": {
-                  "anyOf": [
-                    {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "branch": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                          },
-                          "isPrimary": {
-                            "type": "boolean",
-                          },
-                          "name": {
-                            "type": "string",
-                          },
-                          "projectDbtSourceUuid": {
-                            "type": "string",
-                          },
-                          "projectSubPath": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                          },
-                          "repository": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                          },
-                        },
-                        "required": [
-                          "projectDbtSourceUuid",
-                          "name",
-                          "isPrimary",
-                          "repository",
-                          "branch",
-                          "projectSubPath",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "deletions": {
-                  "anyOf": [
-                    {
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "needsDbtSourceSelection": {
-                  "anyOf": [
-                    {
-                      "type": "boolean",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "prAction": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "opened",
-                        "updated",
-                      ],
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "prUrl": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "previewUrl": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "status": {
-                  "const": "success",
-                  "type": "string",
-                },
-                "steps": {
-                  "anyOf": [
-                    {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "kind": {
-                            "enum": [
-                              "read",
-                              "edit",
-                              "search",
-                              "compile",
-                              "stage",
-                            ],
-                            "type": "string",
-                          },
-                          "label": {
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "kind",
-                          "label",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-              },
-              "required": [
-                "status",
-                "prUrl",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "errorCode": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "github_not_installed",
-                        "gitlab_not_installed",
-                        "bitbucket_token_missing",
-                        "unsupported_source_control",
-                        "pull_request_not_open",
-                        "git_write_permission",
-                        "unknown",
-                      ],
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "status": {
-                  "const": "error",
+                  "description": "The change has started in the background; the pull request is opened later and this tool must not be called again to check on it.",
                   "type": "string",
                 },
               },
@@ -5253,17 +6793,298 @@ Parameters:
               ],
               "type": "object",
             },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
           ],
+          "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "aiWritebackRunUuid": {
+                          "type": "string",
+                        },
+                        "status": {
+                          "const": "pending",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "aiWritebackRunUuid",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "additions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "commitSha": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "dbtSourceOptions": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "branch": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "isPrimary": {
+                                    "type": "boolean",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "projectDbtSourceUuid": {
+                                    "type": "string",
+                                  },
+                                  "projectSubPath": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "repository": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "projectDbtSourceUuid",
+                                  "name",
+                                  "isPrimary",
+                                  "repository",
+                                  "branch",
+                                  "projectSubPath",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "deletions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "needsDbtSourceSelection": {
+                          "anyOf": [
+                            {
+                              "type": "boolean",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prAction": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "opened",
+                                "updated",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "previewUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "steps": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "read",
+                                      "edit",
+                                      "search",
+                                      "compile",
+                                      "stage",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "kind",
+                                  "label",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "prUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "github_not_installed",
+                                "gitlab_not_installed",
+                                "bitbucket_token_missing",
+                                "unsupported_source_control",
+                                "pull_request_not_open",
+                                "git_write_permission",
+                                "unknown",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "error",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
@@ -5450,10 +7271,59 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "description": "The entry sentence written to the project context.",
+                  "type": "string",
+                },
+                "op": {
+                  "description": "Whether the pull request adds a new project-context entry or updates an existing one.",
+                  "enum": [
+                    "create",
+                    "update",
+                  ],
+                  "type": "string",
+                },
+                "prAction": {
+                  "description": "Whether a new pull request was opened or the existing one was updated.",
+                  "enum": [
+                    "opened",
+                    "updated",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "prAction",
+                "op",
+                "content",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
@@ -5664,10 +7534,62 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "agentSummary": {
+                  "description": "The coding agent's own summary of the change it made.",
+                  "type": "string",
+                },
+                "pullRequestAction": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "opened",
+                        "updated",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Whether the run opened a new pull request or updated an existing one; null when it made no file changes, so no pull request was opened.",
+                },
+                "repository": {
+                  "description": "The repository the change targeted, as "owner/repo".",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "repository",
+                "pullRequestAction",
+                "agentSummary",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
@@ -5764,33 +7686,132 @@ Parameters:
     "name": "exploreRepo",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "output": {
+                  "description": "The command output exactly as shown in \`result\`: stdout (clamped to the output limit), followed by any stderr diagnostic and truncation notes.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "output",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
@@ -5804,33 +7825,156 @@ Parameters:
     "name": "discoverRepos",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "repos": {
+                  "description": "Repositories readable through the connected GitHub App installation; pass \`owner/repo\` as the exploreRepo \`target\`. Empty when none are accessible.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "defaultBranch": {
+                        "type": "string",
+                      },
+                      "owner": {
+                        "type": "string",
+                      },
+                      "private": {
+                        "type": "boolean",
+                      },
+                      "repo": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "owner",
+                      "repo",
+                      "defaultBranch",
+                      "private",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "repos",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
@@ -5903,33 +8047,138 @@ Parameters:
     "name": "closePullRequest",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "prUrl": {
+                  "description": "URL of the pull request that was closed.",
+                  "type": "string",
+                },
+                "state": {
+                  "const": "closed",
+                  "description": "State of the pull request on the provider after the call.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "prUrl",
+                "state",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {

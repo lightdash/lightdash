@@ -4,6 +4,7 @@ import {
     type DirectAccessAssignment,
     type DirectAccessGroupPrincipal,
     type DirectAccessPrincipalType,
+    type DirectAccessUserPrincipal,
     type SpaceMemberRole,
 } from '@lightdash/common';
 import {
@@ -18,6 +19,7 @@ import useApp from '../../../providers/App/useApp';
 import {
     getDirectAccessAssignments,
     getDirectAccessGroups,
+    getDirectAccessUsers,
     resetDirectAccess,
     revokeDirectAccessAssignment,
     upsertDirectAccessAssignment,
@@ -56,6 +58,16 @@ export const useDirectAccessGroups = (
     useQuery<DirectAccessGroupPrincipal[], ApiError>({
         queryKey: [...directAccessQueryKey(projectUuid, ref), 'groups'],
         queryFn: () => getDirectAccessGroups(projectUuid, ref),
+        retry: false,
+    });
+
+export const useDirectAccessUsers = (
+    projectUuid: string,
+    ref: DirectAccessResourceRef,
+) =>
+    useQuery<DirectAccessUserPrincipal[], ApiError>({
+        queryKey: [...directAccessQueryKey(projectUuid, ref), 'users'],
+        queryFn: () => getDirectAccessUsers(projectUuid, ref),
         retry: false,
     });
 

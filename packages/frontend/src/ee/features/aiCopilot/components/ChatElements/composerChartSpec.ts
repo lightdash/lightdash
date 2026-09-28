@@ -4,17 +4,17 @@ import {
     buildComposerChartData,
     CartesianChartDataModel,
     ChartKind,
-    getLegendStyle,
-    getTooltipStyle,
     PieChartDataModel,
     type AnyType,
     type BigNumberSpec,
     type ComposerChartKind,
     type ComposerVizAxes,
+    type PivotChartLayout,
     type RawResultRow,
     type ResultColumn,
 } from '@lightdash/common';
 import { SqlChartResultsRunner } from '../../../../../features/sqlRunner/runners/SqlRunnerResultsRunnerFrontend';
+import { type ComposerSeriesSplitResult } from './useComposerSeriesSplit';
 
 type EChartsSpec = Record<string, AnyType>;
 
@@ -22,81 +22,36 @@ export type ComposerChartSpec =
     | { kind: 'echarts'; option: EChartsSpec }
     | { kind: 'big_number'; spec: BigNumberSpec | undefined };
 
-/** Vertical bar spec with the axes swapped: categories down the side. */
-const toHorizontalSpec = (spec: EChartsSpec): EChartsSpec => {
-    const [valueAxis] = spec.yAxis as EChartsSpec[];
-    return {
-        ...spec,
-        xAxis: {
-            ...valueAxis,
-            position: 'bottom',
-            nameRotate: 0,
-            nameGap: 30,
-        },
-        yAxis: {
-            ...(spec.xAxis as EChartsSpec),
-            nameRotate: 90,
-            nameGap: 50,
-            inverse: true,
-        },
-        series: (spec.series as EChartsSpec[]).map((series) => ({
-            ...series,
-            encode: { x: series.encode.y, y: series.encode.x },
-            yAxisIndex: undefined,
-            // Corner radius was computed for upright bars.
-            itemStyle: undefined,
-        })),
-    };
-};
+export type ComposerCartesianKind = Extract<ComposerChartKind, 'bar' | 'line'>;
 
-/** Line spec drawn as points over a numeric x axis. */
-const toScatterSpec = (spec: EChartsSpec): EChartsSpec => ({
-    ...spec,
-    xAxis: { ...(spec.xAxis as EChartsSpec), type: 'value' },
-    series: (spec.series as EChartsSpec[]).map((series) => ({
-        ...series,
-        type: 'scatter',
-        symbolSize: 10,
-        showSymbol: undefined,
-    })),
+const chartQuery = (limit: number) => ({
+    sql: '',
+    limit,
+    sortBy: [],
+    filters: [],
 });
 
-/** One funnel stage per row, largest at the top. */
-const buildFunnelSpec = ({
-    rows,
-    x,
-    y,
+const buildCartesianSpec = async ({
+    resultsRunner,
+    layout,
+    kind,
     colors,
+    limit,
 }: {
-    rows: RawResultRow[];
-    x: ResultColumn;
-    y: ResultColumn;
+    resultsRunner: SqlChartResultsRunner;
+    layout: PivotChartLayout;
+    kind: ComposerCartesianKind;
     colors: string[];
-}): EChartsSpec => ({
-    color: colors,
-    legend: {
-        show: true,
-        orient: 'horizontal',
-        type: 'scroll',
-        left: 'center',
-        top: 'top',
-        ...getLegendStyle('square'),
-    },
-    tooltip: { trigger: 'item', ...getTooltipStyle() },
-    series: [
-        {
-            type: 'funnel',
-            sort: 'descending',
-            gap: 3,
-            label: { show: true, position: 'inside' },
-            data: rows.map((row) => ({
-                name: String(row[x.reference] ?? ''),
-                value: Number(row[y.reference]),
-            })),
-        },
-    ],
-    textStyle: { fontFamily: 'Inter, sans-serif' },
-});
+    limit: number;
+}): Promise<EChartsSpec> => {
+    const model = new CartesianChartDataModel({
+        resultsRunner,
+        fieldConfig: layout,
+        type: kind === 'bar' ? ChartKind.VERTICAL_BAR : ChartKind.LINE,
+    });
+    await model.getPivotedChartData(chartQuery(limit));
+    return model.getSpec(undefined, colors);
+};
 
 /**
  * Builds the chart of a node result from rows already fetched, through the
@@ -112,7 +67,7 @@ export const buildComposerChartSpec = async ({
     kind: ComposerChartKind;
     columns: ResultColumn[];
     rows: RawResultRow[];
-    axes: ComposerVizAxes;
+    axes: Pick<ComposerVizAxes, 'x' | 'y'>;
     colors: string[];
 }): Promise<ComposerChartSpec> => {
     const { data, layout } = buildComposerChartData({ rows, ...axes });
@@ -122,37 +77,20 @@ export const buildComposerChartSpec = async ({
             columns.map((column) => [column.reference, column]),
         ),
     });
-    const query = { sql: '', limit: rows.length, sortBy: [], filters: [] };
-
-    const cartesian = async (type: ChartKind.VERTICAL_BAR | ChartKind.LINE) => {
-        const model = new CartesianChartDataModel({
-            resultsRunner,
-            fieldConfig: layout,
-            type,
-        });
-        await model.getPivotedChartData(query);
-        return model.getSpec(undefined, colors);
-    };
+    const query = chartQuery(rows.length);
 
     switch (kind) {
         case 'bar':
-            return {
-                kind: 'echarts',
-                option: await cartesian(ChartKind.VERTICAL_BAR),
-            };
-        case 'horizontal':
-            return {
-                kind: 'echarts',
-                option: toHorizontalSpec(
-                    await cartesian(ChartKind.VERTICAL_BAR),
-                ),
-            };
         case 'line':
-            return { kind: 'echarts', option: await cartesian(ChartKind.LINE) };
-        case 'scatter':
             return {
                 kind: 'echarts',
-                option: toScatterSpec(await cartesian(ChartKind.LINE)),
+                option: await buildCartesianSpec({
+                    resultsRunner,
+                    layout,
+                    kind,
+                    colors,
+                    limit: rows.length,
+                }),
             };
         case 'pie': {
             const model = new PieChartDataModel({
@@ -165,12 +103,6 @@ export const buildComposerChartSpec = async ({
                 option: { color: colors, ...model.getSpec() },
             };
         }
-        case 'funnel':
-            if (!axes.x) throw new Error('A funnel needs a category column');
-            return {
-                kind: 'echarts',
-                option: buildFunnelSpec({ rows, x: axes.x, y: axes.y, colors }),
-            };
         case 'big_number': {
             const model = new BigNumberDataModel({
                 resultsRunner,
@@ -183,3 +115,23 @@ export const buildComposerChartSpec = async ({
             return assertUnreachable(kind, 'Unknown composer chart kind');
     }
 };
+
+/** Multi-series bar/line from a server-pivoted result; one series per groupBy value. */
+export const buildComposerSeriesSplitSpec = async ({
+    kind,
+    result,
+    layout,
+    colors,
+}: {
+    kind: ComposerCartesianKind;
+    result: ComposerSeriesSplitResult;
+    layout: PivotChartLayout;
+    colors: string[];
+}): Promise<EChartsSpec> =>
+    buildCartesianSpec({
+        resultsRunner: new SqlChartResultsRunner(result),
+        layout,
+        kind,
+        colors,
+        limit: result.pivotChartData.results.length,
+    });

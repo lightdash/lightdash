@@ -102,9 +102,11 @@ read-only. Writes are parsed as YAML before they are accepted, so a broken file 
 than surfacing as a confusing command failure.
 
 `LearnSandboxService` runs the command as the learner. It mints a short-lived personal access token for the run,
-passes it to the child, and deletes it when the command ends, so nothing durable is left behind; the scheduler
-sweeps any token an interrupted run orphaned. The child's environment is an explicit allowlist rather than a copy
-of the server's, because a learner's dbt YAML can read the environment back out through `env_var()`. One command
+writes it to the CLI's own config file inside the workspace (`$HOME/.config/lightdash/config.yaml`, owner-only),
+and deletes it when the command ends, so nothing durable is left behind; the scheduler sweeps any token an
+interrupted run orphaned. The token never enters the child's environment, and that environment is an explicit
+allowlist rather than a copy of the server's, because a learner's dbt YAML can read the environment back out
+through `env_var()` and `lightdash deploy` would carry the rendered value into a description. One command
 runs at a time per copy, enforced both in the service and by a partial unique index on `learn_commands`. The
 subcommand allowlist is short on purpose: `lightdash compile|deploy|validate|lint|download|upload` and
 `dbt parse|compile|ls`. Nothing that executes SQL against the warehouse is on it, so `dbt run` is refused.
@@ -157,7 +159,10 @@ child talks to, which otherwise defaults to `siteUrl`; set it when the address t
 the backend host can reach itself. The child also receives `LIGHTDASH_API_TIMEOUT_MS=30000`, so a stalled API fails one CLI request with a clear
 message inside the command's 120 s limit rather than pinning the command until it is killed. `LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS` (default 4) caps how many sandbox commands run at once on a worker: commands are
 spread over that many scheduler queues by project, each queue runs serially, so a project's commands never overlap and the
-worker never hosts more dbt processes than the cap. `PLAYGROUND_DATA_DIR` continues to name the directory holding
+worker never hosts more dbt processes than the cap. Those queues are shared by every organization on the instance, so
+`enqueueCommand` also refuses, with a 429 the terminal prints, once a learner has `LEARN_SANDBOX_MAX_ACTIVE_PER_USER`
+(default 1) commands queued or running, or their organization has `LEARN_SANDBOX_MAX_ACTIVE_PER_ORG` (default 4); a
+running row older than the command timeout is a crashed worker's leftover and is not counted. `PLAYGROUND_DATA_DIR` continues to name the directory holding
 `jaffle_shop.duckdb`, and the sandbox passes it through to the child, since the CLI accepts a local DuckDB
 profile only when the file sits directly inside it.
 

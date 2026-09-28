@@ -2,13 +2,18 @@ import {
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
+    toolErrorStructuredContentSchema,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { isAgentRecoverableError, toolErrorHandler } from './toolErrorHandler';
+import {
+    isAgentRecoverableError,
+    toolErrorHandler,
+    toolErrorOutput,
+} from './toolErrorHandler';
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
@@ -96,5 +101,22 @@ describe('toolErrorHandler', () => {
         const incident = new Error('plain');
         toolErrorHandler(incident, 'Error.', { captureToSentry: false });
         expect(captureException).not.toHaveBeenCalled();
+    });
+});
+
+describe('toolErrorOutput', () => {
+    it('mirrors the model-facing text as structured content', () => {
+        const output = toolErrorOutput(
+            new WarehouseQueryError('bad sql'),
+            'Error running SQL query.',
+        );
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.structuredContent.error).toBe(output.result);
+        expect(output.result).toContain('bad sql');
+        expect(
+            toolErrorStructuredContentSchema.safeParse(output.structuredContent)
+                .success,
+        ).toBe(true);
     });
 });

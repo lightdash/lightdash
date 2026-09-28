@@ -9,6 +9,7 @@ import {
     ParameterError,
     ProjectType,
     RequestMethod,
+    TooManyRequestsError,
     type Account,
     type LearnCommandOutput,
     type LearnCommandStatus,
@@ -37,12 +38,14 @@ import {
     detectSandboxRuntime,
     LEARN_SANDBOX_COMMAND_TIMEOUT_MS,
     resolveSandboxRuntime,
+    type LearnSandboxActiveCommandLimits,
 } from './runtime';
 import {
     isEditablePath,
     loadLearnBundle,
     materialiseWorkspace,
     validateYaml,
+    writeCliConfig,
 } from './workspace';
 
 const MAX_FILE_BYTES = 64 * 1024;
@@ -106,6 +109,7 @@ type LearnSandboxServiceArguments = {
     execa?: typeof execaDefault;
     workspaceRoot?: string;
     commandTimeoutMs?: number;
+    activeCommandLimits?: LearnSandboxActiveCommandLimits;
 };
 
 export class LearnSandboxService extends BaseService {
@@ -135,6 +139,8 @@ export class LearnSandboxService extends BaseService {
 
     private readonly commandTimeoutMs: number;
 
+    private readonly activeCommandLimits: LearnSandboxActiveCommandLimits;
+
     constructor(args: LearnSandboxServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -150,6 +156,9 @@ export class LearnSandboxService extends BaseService {
             path.join(os.tmpdir(), 'lightdash-learn', 'ws');
         this.commandTimeoutMs =
             args.commandTimeoutMs ?? LEARN_SANDBOX_COMMAND_TIMEOUT_MS;
+        this.activeCommandLimits =
+            args.activeCommandLimits ??
+            resolveSandboxRuntime().activeCommandLimits;
     }
 
     private async assertSandboxAccess(
@@ -311,11 +320,11 @@ export class LearnSandboxService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const staleCutoff =
+            Date.now() - (this.commandTimeoutMs + STALE_RUNNING_GRACE_MS);
         const active =
             await this.learnWorkspaceModel.findActiveCommand(projectUuid);
         if (active) {
-            const staleCutoff =
-                Date.now() - (this.commandTimeoutMs + STALE_RUNNING_GRACE_MS);
             const isStaleRunning =
                 active.status === 'running' &&
                 active.started_at !== null &&
@@ -336,6 +345,25 @@ export class LearnSandboxService extends BaseService {
             );
             await Promise.all(
                 staleRows.map((row) => this.sweepCommandToken(row)),
+            );
+        }
+        // The scheduler queues are shared by every tenant on the instance;
+        // a learner with several copies, or one busy org, must not be able
+        // to hold all of them.
+        const limits = this.activeCommandLimits;
+        const counts = await this.learnWorkspaceModel.countActiveCommands({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            staleCutoff: new Date(staleCutoff),
+        });
+        if (counts.forUser >= limits.perUser) {
+            throw new TooManyRequestsError(
+                'You already have a command running in another training copy. Wait for it to finish and try again',
+            );
+        }
+        if (counts.forOrganization >= limits.perOrganization) {
+            throw new TooManyRequestsError(
+                'Your organization has reached its limit of running Learn commands. Try again in a moment',
             );
         }
         const result = buildArgv(
@@ -475,13 +503,19 @@ export class LearnSandboxService extends BaseService {
                 profiles: { databasePath: runtime.databasePath },
             });
             const projectDir = path.join(workspaceDir, 'project');
+            const serverUrl = runtime.apiUrl ?? this.lightdashConfig.siteUrl;
+            await writeCliConfig({
+                workspaceDir,
+                apiKey: token,
+                serverUrl,
+                projectUuid: command.project_uuid,
+            });
             const env = buildSandboxEnvironment({
                 processEnvironment: process.env,
                 pathPrefix: runtime.pathPrefix,
                 apiUrl: runtime.apiUrl,
                 siteUrl: this.lightdashConfig.siteUrl,
                 projectUuid: command.project_uuid,
-                apiKey: token,
                 workspaceDir,
                 projectDir,
                 databasePath: runtime.databasePath,

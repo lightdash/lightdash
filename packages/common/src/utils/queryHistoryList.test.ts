@@ -31,6 +31,9 @@ describe('query trigger taxonomy', () => {
         expect(getQueryTrigger(QueryExecutionContext.API)).toBe(
             QueryTrigger.INTERACTIVE,
         );
+        expect(getQueryTrigger(QueryExecutionContext.GSHEETS_ADDON)).toBe(
+            QueryTrigger.INTERACTIVE,
+        );
         expect(getQueryTrigger(QueryExecutionContext.MCP_RUN_SQL)).toBe(
             QueryTrigger.INTERACTIVE,
         );

@@ -20,19 +20,37 @@ const RUNTIME_DETECTION_CACHE_MS = 60_000;
  */
 export const DEFAULT_MAX_CONCURRENT_COMMANDS = 4;
 
+/**
+ * How many commands one learner, and one organization, may have queued or
+ * running at once. The scheduler's queues are shared by every tenant on the
+ * instance, so without these a single org could hold every slot.
+ */
+export const DEFAULT_MAX_ACTIVE_COMMANDS_PER_USER = 1;
+export const DEFAULT_MAX_ACTIVE_COMMANDS_PER_ORGANIZATION = 4;
+
+export type LearnSandboxActiveCommandLimits = {
+    perUser: number;
+    perOrganization: number;
+};
+
 export type LearnSandboxRuntime = {
     pathPrefix: string[];
     apiUrl: string | undefined;
     databasePath: string;
     maxConcurrentCommands: number;
+    activeCommandLimits: LearnSandboxActiveCommandLimits;
 };
 
-const parseMaxConcurrent = (raw: string | undefined): number => {
+const parsePositiveInteger = (
+    raw: string | undefined,
+    fallback: number,
+): number => {
     const value = Number.parseInt(raw ?? '', 10);
-    return Number.isFinite(value) && value >= 1
-        ? value
-        : DEFAULT_MAX_CONCURRENT_COMMANDS;
+    return Number.isFinite(value) && value >= 1 ? value : fallback;
 };
+
+const parseMaxConcurrent = (raw: string | undefined): number =>
+    parsePositiveInteger(raw, DEFAULT_MAX_CONCURRENT_COMMANDS);
 
 /** Deterministic queue name for a project: `learn-sandbox-<0..max-1>`. */
 export const learnSandboxQueueName = (
@@ -63,6 +81,16 @@ export const resolveSandboxRuntime = (
         maxConcurrentCommands: parseMaxConcurrent(
             env.LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS,
         ),
+        activeCommandLimits: {
+            perUser: parsePositiveInteger(
+                env.LEARN_SANDBOX_MAX_ACTIVE_PER_USER,
+                DEFAULT_MAX_ACTIVE_COMMANDS_PER_USER,
+            ),
+            perOrganization: parsePositiveInteger(
+                env.LEARN_SANDBOX_MAX_ACTIVE_PER_ORG,
+                DEFAULT_MAX_ACTIVE_COMMANDS_PER_ORGANIZATION,
+            ),
+        },
     };
 };
 
@@ -149,7 +177,6 @@ export type BuildSandboxEnvironmentArgs = {
     apiUrl: string | undefined;
     siteUrl: string;
     projectUuid: string;
-    apiKey: string;
     workspaceDir: string;
     projectDir: string;
     databasePath: string;
@@ -172,7 +199,8 @@ export const buildSandboxEnvironment = (
             .join(':'),
         LIGHTDASH_URL: args.apiUrl ?? args.siteUrl,
         LIGHTDASH_PROJECT: args.projectUuid,
-        LIGHTDASH_API_KEY: args.apiKey,
+        // No LIGHTDASH_API_KEY here: the token goes through the CLI config
+        // file in HOME (see writeCliConfig) so dbt's env_var() cannot read it.
         // The CLI only accepts a local .duckdb profile when the file sits
         // directly inside PLAYGROUND_DATA_DIR, and it reads that from its own
         // environment. Set it from the resolved runtime rather than

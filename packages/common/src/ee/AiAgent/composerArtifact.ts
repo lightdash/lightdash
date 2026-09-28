@@ -3,6 +3,7 @@ import {
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { type AllVizChartConfig } from '../../visualizations/types';
 
 /** Per node: the queryUuid of its last run. */
 export type ComposerNodeResults = Record<QueryNodeId, { queryUuid: string }>;
@@ -23,6 +24,8 @@ export type AiComposerChartArtifactConfig = {
     lastQueryUuid: string;
     /** One entry per node in `queries`; optional only for rows written before this field existed. */
     nodeResults?: ComposerNodeResults;
+    /** The terminal node's viz config; null when not decided. Absent on rows written before it existed. */
+    vizConfig?: AllVizChartConfig | null;
 };
 
 export const isAiComposerChartArtifactConfig = (

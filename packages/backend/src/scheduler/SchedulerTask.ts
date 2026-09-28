@@ -6169,6 +6169,15 @@ export default class SchedulerTask {
                     );
                 }
 
+                if (
+                    payload.format === SchedulerFormat.PDF &&
+                    !this.fileStorageClient.isEnabled()
+                ) {
+                    throw new MissingConfigError(
+                        'Cloud storage is not enabled',
+                    );
+                }
+
                 const scheduler = {
                     name: 'Content export',
                     createdBy: payload.userUuid,
@@ -6212,6 +6221,20 @@ export default class SchedulerTask {
                         ? PersistentDownloadFileAccessMode.SIGNED
                         : PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
                 );
+
+                if (payload.format === SchedulerFormat.PDF) {
+                    if (!page.pdfFile) {
+                        throw new UnexpectedServerError(
+                            'Dashboard PDF export failed',
+                        );
+                    }
+
+                    return {
+                        url: page.pdfFile.source,
+                        fileType: payload.format,
+                        numFailures: page.failures?.length ?? 0,
+                    };
+                }
 
                 if (payload.format === SchedulerFormat.IMAGE) {
                     if (!page.imageUrl) {

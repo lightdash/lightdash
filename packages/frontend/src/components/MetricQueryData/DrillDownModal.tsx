@@ -12,10 +12,12 @@ import {
     type MetricQuery,
     type PivotReference,
     type ResultValue,
+    type UUID,
 } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import useEmbedDrillDownExplore from '../../ee/providers/Embed/useEmbedDrillDownExplore';
 import { useExplore } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -95,11 +97,21 @@ const getDrillDownExplore = ({
 };
 
 type DrillDownModalProps = {
+    // Overrides the embed default, which drills in place inside an embed
     onExplore?: (options: { chart: CreateSavedChartVersion }) => void;
+    // The saved chart the drilled query derives from, for embed drills
+    customSqlProvenanceChartUuid?: UUID;
 };
 
-export const DrillDownModal: FC<DrillDownModalProps> = ({ onExplore }) => {
+export const DrillDownModal: FC<DrillDownModalProps> = ({
+    onExplore: onExploreOverride,
+    customSqlProvenanceChartUuid,
+}) => {
     const projectUuid = useProjectUuid();
+    const onEmbedExplore = useEmbedDrillDownExplore(
+        customSqlProvenanceChartUuid,
+    );
+    const onExplore = onExploreOverride ?? onEmbedExplore;
 
     const [selectedDimension, setSelectedDimension] =
         useState<CompiledDimension>();

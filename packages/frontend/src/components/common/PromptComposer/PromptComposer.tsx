@@ -113,6 +113,8 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         const shouldBlockSubmitRef = useRef(shouldBlockSubmit);
         shouldBlockSubmitRef.current = shouldBlockSubmit;
         const editorRef = useRef<Editor | null>(null);
+        const placeholderRef = useRef(placeholder);
+        placeholderRef.current = placeholder;
 
         const [isEmpty, setIsEmpty] = useState(!defaultValue);
 
@@ -134,7 +136,8 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 // so the editor must not also emit one — a CSS-only override
                 // is fragile here, an empty attr is not.
                 Placeholder.configure({
-                    placeholder: variant === 'inline' ? '' : placeholder,
+                    placeholder: () =>
+                        variant === 'inline' ? '' : placeholderRef.current,
                 }),
                 ...extensions,
             ],
@@ -183,6 +186,14 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
         useEffect(() => {
             editor?.setEditable(!disabled);
         }, [editor, disabled]);
+
+        // Decorations only recompute on a transaction, so a new placeholder
+        // needs an empty one to repaint without touching the draft.
+        useEffect(() => {
+            if (editor && !editor.isDestroyed) {
+                editor.view.dispatch(editor.state.tr);
+            }
+        }, [editor, placeholder]);
 
         const onEditorReadyRef = useRef(onEditorReady);
         onEditorReadyRef.current = onEditorReady;

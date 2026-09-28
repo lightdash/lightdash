@@ -115,6 +115,26 @@ const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
         }),
     });
 
+const byStatus: AiSemanticChartArtifactConfig = structuredClone(artifact);
+byStatus.config.queryConfig.dimensions = ['orders_status'];
+
+const interpretByStatus = (prompt: string, answers: Partial<DecisionAnswers>) =>
+    interpretChartIntent({
+        answers: {
+            multiple: noul(0.05),
+            nonEdit: noul(0.05),
+            ...answers,
+        } as DecisionAnswers,
+        prompt,
+        context: buildChartIntentContext({
+            filterRules: [],
+            prompt,
+            artifact: byStatus,
+            explore,
+            usage: noUsage,
+        }),
+    });
+
 describe('interpretChartIntent', () => {
     it('leaves new questions to the agent', () => {
         expect(
@@ -375,7 +395,7 @@ describe('interpretChartIntent', () => {
 
     it('applies every edit a request names, never just the primary one', () => {
         expect(
-            interpret('top 3 as horizontal bars', {
+            interpretByStatus('top 3 as horizontal bars', {
                 intent: choice('chart_type'),
                 chartType: choice('horizontal'),
                 wantsSort: noul(0.95),
@@ -401,6 +421,46 @@ describe('interpretChartIntent', () => {
                 },
             ],
         });
+    });
+
+    it('keeps the top N rows without reading the limit as a separate filter', () => {
+        expect(
+            interpretByStatus('only the 3 biggest', {
+                intent: choice('sort'),
+                wantsSort: noul(0.95),
+                wantsFilter: noul(0.9),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.2),
+                number: choice('3'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'sort',
+                fieldId: null,
+                descending: true,
+                limit: 3,
+            },
+        });
+    });
+
+    it('never limits the rows of a chart with several dimensions', () => {
+        expect(
+            interpret('top 3 statuses', {
+                intent: choice('sort'),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.2),
+                number: choice('3'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'sort-limit' });
+        expect(
+            interpret('sort by count', {
+                intent: choice('sort'),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.9),
+                sortField: choice('orders_count'),
+            }),
+        ).toMatchObject({ type: 'intent', intent: { kind: 'sort' } });
     });
 
     it('falls back when any part of a compound request is unresolved', () => {
@@ -847,6 +907,61 @@ describe('metric, breakdown and grain edits', () => {
         });
     });
 
+    it('asks whether to add or replace when a replacement is likely but not sure', () => {
+        expect(
+            run({
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.6),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toMatchObject({
+            type: 'clarify',
+            question: 'How should I use Region?',
+            options: [
+                { intent: { kind: 'add_field', fieldId: 'orders_region' } },
+                {
+                    intent: {
+                        kind: 'swap_field',
+                        fromFieldId: 'orders_status',
+                        toFieldId: 'orders_region',
+                    },
+                },
+            ],
+        });
+    });
+
+    it('asks which new field replaces the breakdown when two fit', () => {
+        expect(
+            run({
+                intent: choice('add_field'),
+                addField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.55,
+                    probabilities: { orders_region: 0.55, orders_city: 0.4 },
+                },
+                replacesField: noul(0.9),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toEqual({
+            type: 'clarify',
+            question: 'Which field should replace Status?',
+            options: [
+                {
+                    label: 'Region',
+                    prompt: 'Break down by Region instead of Status',
+                    intent: null,
+                },
+                {
+                    label: 'City',
+                    prompt: 'Break down by City instead of Status',
+                    intent: null,
+                },
+            ],
+        });
+    });
+
     it('adds the breakdown alongside when it does not replace one', () => {
         expect(
             run({
@@ -952,6 +1067,34 @@ describe('choices when the user names a field but not the edit', () => {
                 },
             ],
         });
+    });
+
+    it('swaps the breakdown when JEV is sure the named field replaces it', () => {
+        expect(
+            run({
+                intent: unsure(0.1),
+                metricToAdd: choice('none'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.85),
+                fieldToRemove: choice('orders_status'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'swap_field',
+                fromFieldId: 'orders_status',
+                toFieldId: 'orders_region',
+            },
+        });
+        expect(
+            run({
+                intent: unsure(0.1),
+                metricToAdd: choice('none'),
+                addField: choice('orders_region'),
+                replacesField: noul(0.85),
+                fieldToRemove: choice('orders_status', 0.4),
+            }),
+        ).toMatchObject({ type: 'clarify' });
     });
 
     it('asks when a new question only narrowly wins over edits', () => {
@@ -1147,6 +1290,93 @@ describe('date ranges and thresholds', () => {
                 comparison: 'gt',
                 values: [1000],
             },
+        });
+    });
+
+    describe('per-record values and chart totals of the same quantity', () => {
+        const withAmount = structuredClone(explore);
+        Object.assign(withAmount.tables.orders.dimensions, {
+            amount: dimension('amount', DimensionType.NUMBER, 'Amount'),
+        });
+        const split = {
+            type: 'choice' as const,
+            choice: 'orders_count',
+            confidence: 0.6,
+            probabilities: { orders_count: 0.6, orders_amount: 0.38 },
+        };
+        const threshold = (answers: Partial<DecisionAnswers>) =>
+            interpretChartIntent({
+                answers: {
+                    multiple: noul(0.05),
+                    nonEdit: noul(0.05),
+                    intent: choice('filter'),
+                    filterKind: choice('number_threshold'),
+                    comparison: choice('gt'),
+                    amountLow: choice('500'),
+                    ...answers,
+                } as DecisionAnswers,
+                prompt: 'over 500',
+                context: buildChartIntentContext({
+                    filterRules: [],
+                    prompt: 'over 500',
+                    artifact,
+                    explore: withAmount,
+                    usage: noUsage,
+                }),
+            });
+
+        it('filters the per-record field when the amount applies to each record', () => {
+            expect(
+                threshold({
+                    thresholdField: split,
+                    thresholdPerRecord: noul(0.85),
+                }),
+            ).toEqual({
+                type: 'intent',
+                intent: {
+                    kind: 'filter_number',
+                    fieldId: 'orders_amount',
+                    comparison: 'gt',
+                    values: [500],
+                },
+            });
+        });
+
+        it('filters the chart metric when the amount applies to each group', () => {
+            expect(
+                threshold({
+                    thresholdField: split,
+                    thresholdPerRecord: noul(0.2),
+                }),
+            ).toMatchObject({
+                type: 'intent',
+                intent: { kind: 'filter_number', fieldId: 'orders_count' },
+            });
+        });
+
+        it('leaves the filter to the agent when either reading fits', () => {
+            expect(
+                threshold({
+                    thresholdField: split,
+                    thresholdPerRecord: noul(0.55),
+                }),
+            ).toEqual({ type: 'unresolved', reason: 'filter-threshold' });
+            expect(threshold({ thresholdField: split })).toEqual({
+                type: 'unresolved',
+                reason: 'filter-threshold',
+            });
+        });
+
+        it('keeps a clear pick when no field of the other kind competes', () => {
+            expect(
+                threshold({
+                    thresholdField: choice('orders_amount'),
+                    thresholdPerRecord: noul(0.5),
+                }),
+            ).toMatchObject({
+                type: 'intent',
+                intent: { kind: 'filter_number', fieldId: 'orders_amount' },
+            });
         });
     });
 

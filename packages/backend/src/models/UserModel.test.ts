@@ -656,6 +656,27 @@ describe('UserModel', () => {
                     }),
                 ),
             ).toBe(false);
+            // The job grant is bound to the copy, not handed out globally.
+            expect(
+                ability.can(
+                    'create',
+                    subject('Job', {
+                        organizationUuid: humanDetails.organization_uuid,
+                        projectUuid: 'copy',
+                    }),
+                ),
+            ).toBe(true);
+            ['training', 'someone-elses-project'].forEach((projectUuid) => {
+                expect(
+                    ability.can(
+                        'create',
+                        subject('Job', {
+                            organizationUuid: humanDetails.organization_uuid,
+                            projectUuid,
+                        }),
+                    ),
+                ).toBe(false);
+            });
         });
 
         it('unions org and project extra roles into a human user ability', async () => {

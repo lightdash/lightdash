@@ -35,6 +35,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
+    IconBolt,
     IconBook2,
     IconCode,
     IconId,
@@ -523,126 +524,153 @@ export const AiAgentFormSetup = ({
                         id="behaviour"
                         icon={IconSparkles}
                         title="Behaviour"
-                        description="How the agent answers, and which model it thinks with."
+                        description="How the agent acts on every request, the workflows it can follow, and the model it thinks with."
                     >
-                        <CommitOnBlurTextarea
-                            key={`instruction-${
-                                form.values.instruction != null
-                            }`}
-                            variant="subtle"
-                            label="Instructions"
-                            description="Set the overall behavior and task for the agent. This defines how it should respond and what its purpose is."
-                            placeholder="You are a marketing analytics expert. Focus on campaign performance, customer acquisition costs, and ROI metrics. Always use bar charts and tables to visualize data."
-                            resize="vertical"
-                            autosize
-                            minRows={3}
-                            maxRows={8}
-                            // Typed anchor for scope walkthroughs, read first
-                            // as a look at what instructions do.
-                            data-tour-anchor="agent-instructions"
-                            data-tour-hint="Write the instructions"
-                            data-tour-input="true"
-                            data-tour-suggest="You are the analyst for a jaffle shop. Answer questions about customers, orders and payments, and prefer charts over tables."
-                            data-tour-scope="manage:AiAgent"
-                            data-tour-look="3"
-                            data-tour-after='[data-tour-anchor="agent-name"]'
-                            data-tour-label="Instructions shape every answer"
-                            data-tour-docs="agents/set-up-agents.mdx#instructions:1"
-                            error={form.errors.instruction}
-                            defaultValue={form.values.instruction ?? ''}
-                            onCommit={(value) =>
-                                form.setFieldValue(
-                                    'instruction',
-                                    value ? value : null,
-                                )
-                            }
-                        />
-                        <Stack gap="sm">
-                            <Box>
-                                <Title
-                                    order={6}
-                                    c="ldGray.7"
-                                    size="sm"
-                                    fw={500}
-                                >
-                                    Guidelines
-                                </Title>
+                        <AgentSettingsSubsection
+                            title="Instructions"
+                            description="Always applied. Guidance for the agent's role, behaviour, priorities, and response style."
+                        >
+                            <CommitOnBlurTextarea
+                                key={`instruction-${
+                                    form.values.instruction != null
+                                }`}
+                                variant="subtle"
+                                aria-label="Instructions"
+                                placeholder="You are a marketing analytics expert. Focus on campaign performance, customer acquisition costs, and ROI metrics. Always use bar charts and tables to visualize data."
+                                resize="vertical"
+                                autosize
+                                minRows={3}
+                                maxRows={8}
+                                // Typed anchor for scope walkthroughs, read first
+                                // as a look at what instructions do.
+                                data-tour-anchor="agent-instructions"
+                                data-tour-hint="Write the instructions"
+                                data-tour-input="true"
+                                data-tour-suggest="You are the analyst for a jaffle shop. Answer questions about customers, orders and payments, and prefer charts over tables."
+                                data-tour-scope="manage:AiAgent"
+                                data-tour-look="3"
+                                data-tour-after='[data-tour-anchor="agent-name"]'
+                                data-tour-label="Instructions shape every answer"
+                                data-tour-docs="agents/set-up-agents.mdx#instructions:1"
+                                error={form.errors.instruction}
+                                defaultValue={form.values.instruction ?? ''}
+                                onCommit={(value) =>
+                                    form.setFieldValue(
+                                        'instruction',
+                                        value ? value : null,
+                                    )
+                                }
+                            />
+                            <Stack gap="sm">
+                                <Box>
+                                    <Title
+                                        order={6}
+                                        c="ldGray.7"
+                                        size="sm"
+                                        fw={500}
+                                    >
+                                        Guidelines
+                                    </Title>
+                                    <Text c="dimmed" size="xs">
+                                        When writing instructions, consider the
+                                        following guidelines to help the agent
+                                        perform its tasks effectively.
+                                    </Text>
+                                </Box>
+                                <InstructionsGuidelines />
                                 <Text c="dimmed" size="xs">
-                                    When writing instructions, consider the
-                                    following guidelines to help the agent
-                                    perform its tasks effectively.
+                                    Visit our{' '}
+                                    <Anchor
+                                        href="https://docs.lightdash.com/guides/ai-agents#writing-effective-instructions"
+                                        target="_blank"
+                                    >
+                                        docs
+                                    </Anchor>{' '}
+                                    to learn more about instructions and how
+                                    they work.
                                 </Text>
-                            </Box>
-                            <InstructionsGuidelines />
-                            <Text c="dimmed" size="xs">
-                                Visit our{' '}
-                                <Anchor
-                                    href="https://docs.lightdash.com/guides/ai-agents#writing-effective-instructions"
-                                    target="_blank"
-                                >
-                                    docs
-                                </Anchor>{' '}
-                                to learn more about instructions and how they
-                                work.
-                            </Text>
-                        </Stack>
+                            </Stack>
+                        </AgentSettingsSubsection>
+
+                        {customSkillsFlagQuery.data?.enabled &&
+                        user.data?.organizationUuid ? (
+                            <>
+                                <Divider />
+                                <AiAgentSkillsSection
+                                    agentUuid={agentUuid ?? null}
+                                    projectUuid={projectUuid}
+                                    organizationUuid={
+                                        user.data.organizationUuid
+                                    }
+                                />
+                            </>
+                        ) : null}
 
                         <Divider />
 
-                        <Select
-                            variant="subtle"
-                            label="Default model"
+                        <AgentSettingsSubsection
+                            title="Default model"
                             description="Used for new chats with this agent. Users can still change it in each chat."
-                            value={selectedModelKey}
-                            disabled={isSavingAgent || !modelOptions?.length}
-                            placeholder={organizationDefaultModelLabel}
-                            clearable
-                            data={visibleModelOptions.map((model) => ({
-                                value: getModelKey(model),
-                                label: model.displayName,
-                            }))}
-                            onChange={(modelKey) => {
-                                const model = getModelOptionByKey(
-                                    modelOptions,
-                                    modelKey,
-                                );
-                                form.setFieldValue(
-                                    'modelConfig',
-                                    model
-                                        ? (getAiAgentModelConfig(
-                                              model,
-                                              form.values.modelConfig
-                                                  ?.reasoning ??
-                                                  aiOrganizationSettings
-                                                      ?.defaultAiAgentModelConfig
-                                                      ?.reasoning ??
-                                                  false,
-                                          ) ?? null)
-                                        : null,
-                                );
-                            }}
-                        />
-
-                        {showReasoningDefault && (
-                            <Switch
+                        >
+                            <Select
                                 variant="subtle"
-                                label="High reasoning"
-                                description="Use high reasoning for new chats with this agent."
-                                checked={
-                                    form.values.modelConfig?.reasoning === true
+                                aria-label="Default model"
+                                value={selectedModelKey}
+                                disabled={
+                                    isSavingAgent || !modelOptions?.length
                                 }
-                                disabled={isSavingAgent}
-                                onChange={(event) => {
-                                    if (!selectedModel) return;
-                                    form.setFieldValue('modelConfig', {
-                                        ...form.values.modelConfig,
-                                        modelName: selectedModel.name,
-                                        modelProvider: selectedModel.provider,
-                                        reasoning: event.currentTarget.checked,
-                                    });
+                                placeholder={organizationDefaultModelLabel}
+                                clearable
+                                data={visibleModelOptions.map((model) => ({
+                                    value: getModelKey(model),
+                                    label: model.displayName,
+                                }))}
+                                onChange={(modelKey) => {
+                                    const model = getModelOptionByKey(
+                                        modelOptions,
+                                        modelKey,
+                                    );
+                                    form.setFieldValue(
+                                        'modelConfig',
+                                        model
+                                            ? (getAiAgentModelConfig(
+                                                  model,
+                                                  form.values.modelConfig
+                                                      ?.reasoning ??
+                                                      aiOrganizationSettings
+                                                          ?.defaultAiAgentModelConfig
+                                                          ?.reasoning ??
+                                                      false,
+                                              ) ?? null)
+                                            : null,
+                                    );
                                 }}
                             />
-                        )}
+
+                            {showReasoningDefault && (
+                                <Switch
+                                    variant="subtle"
+                                    label="High reasoning"
+                                    description="Use high reasoning for new chats with this agent."
+                                    checked={
+                                        form.values.modelConfig?.reasoning ===
+                                        true
+                                    }
+                                    disabled={isSavingAgent}
+                                    onChange={(event) => {
+                                        if (!selectedModel) return;
+                                        form.setFieldValue('modelConfig', {
+                                            ...form.values.modelConfig,
+                                            modelName: selectedModel.name,
+                                            modelProvider:
+                                                selectedModel.provider,
+                                            reasoning:
+                                                event.currentTarget.checked,
+                                        });
+                                    }}
+                                />
+                            )}
+                        </AgentSettingsSubsection>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
@@ -653,7 +681,7 @@ export const AiAgentFormSetup = ({
                     >
                         <AgentSettingsSubsection
                             title="Reference documents"
-                            description="Retrieved when relevant, or always included per file. A short summary is generated for each file."
+                            description="Consulted when relevant. Business context and source material the agent can retrieve, or include on every request. A short summary is generated for each file."
                         >
                             {agentUuid ? (
                                 <AiAgentKnowledgeFilesSection
@@ -670,20 +698,6 @@ export const AiAgentFormSetup = ({
                                 </Paper>
                             )}
                         </AgentSettingsSubsection>
-
-                        {customSkillsFlagQuery.data?.enabled &&
-                        user.data?.organizationUuid ? (
-                            <>
-                                <Divider />
-                                <AiAgentSkillsSection
-                                    agentUuid={agentUuid ?? null}
-                                    projectUuid={projectUuid}
-                                    organizationUuid={
-                                        user.data.organizationUuid
-                                    }
-                                />
-                            </>
-                        ) : null}
 
                         <Divider />
 
@@ -789,135 +803,134 @@ export const AiAgentFormSetup = ({
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
-                        id="permissions"
-                        icon={IconLock}
-                        title="Permissions"
-                        description="What the agent may do, and who may use it."
+                        id="capabilities"
+                        icon={IconBolt}
+                        title="Capabilities"
+                        description="What the agent may do with your data."
                     >
-                        <AgentSettingsSubsection title="The agent can">
-                            <Stack gap="md">
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <SwitchLabel
-                                            text="Read the rows behind a chart"
-                                            help="When enabled, the agent can analyze chart data and provide insights. When disabled, it only builds visualizations, without reading the data behind them."
-                                            badge={null}
-                                        />
-                                    }
-                                    description={
-                                        <>
-                                            Query the underlying data, not just
-                                            the chart.{' '}
-                                            <Anchor
-                                                href="https://docs.lightdash.com/guides/ai-agents#data-access-control"
-                                                target="_blank"
-                                                size="xs"
-                                                className={classes.switchLink}
-                                            >
-                                                Learn more
-                                            </Anchor>
-                                        </>
-                                    }
-                                    {...form.getInputProps('enableDataAccess', {
-                                        type: 'checkbox',
-                                    })}
-                                    onChange={(event) => {
-                                        const enabled =
-                                            event.currentTarget.checked;
+                        <Stack gap="md">
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <SwitchLabel
+                                        text="Read the rows behind a chart"
+                                        help="When enabled, the agent can analyze chart data and provide insights. When disabled, it only builds visualizations, without reading the data behind them."
+                                        badge={null}
+                                    />
+                                }
+                                description={
+                                    <>
+                                        Query the underlying data, not just the
+                                        chart.{' '}
+                                        <Anchor
+                                            href="https://docs.lightdash.com/guides/ai-agents#data-access-control"
+                                            target="_blank"
+                                            size="xs"
+                                            className={classes.switchLink}
+                                        >
+                                            Learn more
+                                        </Anchor>
+                                    </>
+                                }
+                                {...form.getInputProps('enableDataAccess', {
+                                    type: 'checkbox',
+                                })}
+                                onChange={(event) => {
+                                    const enabled = event.currentTarget.checked;
 
+                                    form.setFieldValue(
+                                        'enableDataAccess',
+                                        enabled,
+                                    );
+
+                                    if (!enabled) {
                                         form.setFieldValue(
-                                            'enableDataAccess',
-                                            enabled,
+                                            'enableContentTools',
+                                            false,
                                         );
+                                    }
+                                }}
+                            />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <SwitchLabel
+                                        text="Create and edit content"
+                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        badge={<BetaBadge />}
+                                    />
+                                }
+                                description="Build or change dashboards, charts and scheduled deliveries."
+                                {...form.getInputProps('enableContentTools', {
+                                    type: 'checkbox',
+                                })}
+                                disabled={!form.values.enableDataAccess}
+                            />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <SwitchLabel
+                                        text="Run SQL against the warehouse"
+                                        help="SQL Runner is only available to users whose role includes SQL Runner access (project developers and admins by default). This setting never grants permission: users without access cannot use SQL Runner, whether this is on or off."
+                                        badge={null}
+                                    />
+                                }
+                                description={
+                                    <>
+                                        On by default in new chats; users can
+                                        switch it off per conversation.{' '}
+                                        <Anchor
+                                            component={Link}
+                                            to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
+                                            size="xs"
+                                            className={classes.switchLink}
+                                        >
+                                            Configure which schemas and tables
+                                            it can query
+                                        </Anchor>
+                                    </>
+                                }
+                                {...form.getInputProps('enableSqlMode', {
+                                    type: 'checkbox',
+                                })}
+                            />
+                        </Stack>
 
-                                        if (!enabled) {
-                                            form.setFieldValue(
-                                                'enableContentTools',
-                                                false,
-                                            );
-                                        }
-                                    }}
-                                />
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <SwitchLabel
-                                            text="Create and edit content"
-                                            help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
-                                            badge={<BetaBadge />}
-                                        />
-                                    }
-                                    description="Build or change dashboards, charts and scheduled deliveries."
-                                    {...form.getInputProps(
-                                        'enableContentTools',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                    disabled={!form.values.enableDataAccess}
-                                />
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <SwitchLabel
-                                            text="Run SQL against the warehouse"
-                                            help="SQL Runner is only available to users whose role includes SQL Runner access (project developers and admins by default). This setting never grants permission: users without access cannot use SQL Runner, whether this is on or off."
-                                            badge={null}
-                                        />
-                                    }
-                                    description={
-                                        <>
-                                            On by default in new chats; users
-                                            can switch it off per conversation.{' '}
-                                            <Anchor
-                                                component={Link}
-                                                to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
-                                                size="xs"
-                                                className={classes.switchLink}
-                                            >
-                                                Configure which schemas and
-                                                tables it can query
-                                            </Anchor>
-                                        </>
-                                    }
-                                    {...form.getInputProps('enableSqlMode', {
-                                        type: 'checkbox',
-                                    })}
-                                />
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <SwitchLabel
-                                            text="See user information"
-                                            help="Only applies when the agent knows who is asking — on Slack this requires the OAuth requirement to be enabled in the organization's Slack settings."
-                                            badge={null}
-                                        />
-                                    }
-                                    description="Shares the requesting user's name, role and group memberships, so answers can be tailored to who is asking."
-                                    {...form.getInputProps(
-                                        'enableUserContext',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                />
-                            </Stack>
+                        <Text size="xs" c="dimmed">
+                            Which explores, spaces and documents it can read is
+                            set in{' '}
+                            <Anchor
+                                component="button"
+                                type="button"
+                                size="xs"
+                                onClick={scrollToKnowledgeAndData}
+                            >
+                                Knowledge &amp; data
+                            </Anchor>
+                            .
+                        </Text>
+                    </AgentSettingsSection>
 
-                            <Text size="xs" c="dimmed">
-                                Which explores, spaces and documents it can read
-                                is set in{' '}
-                                <Anchor
-                                    component="button"
-                                    type="button"
-                                    size="xs"
-                                    onClick={scrollToKnowledgeAndData}
-                                >
-                                    Knowledge &amp; data
-                                </Anchor>
-                                .
-                            </Text>
-                        </AgentSettingsSubsection>
+                    <AgentSettingsSection
+                        id="access-and-privacy"
+                        icon={IconLock}
+                        title="Access & privacy"
+                        description="What the agent knows about the person asking, how long threads are kept, and who can use it."
+                    >
+                        <Switch
+                            variant="subtle"
+                            label={
+                                <SwitchLabel
+                                    text="Use user information"
+                                    help="Only applies when the agent knows who is asking — on Slack this requires the OAuth requirement to be enabled in the organization's Slack settings."
+                                    badge={null}
+                                />
+                            }
+                            description="Shares the requesting user's name, role and group memberships, so answers can be tailored to who is asking."
+                            {...form.getInputProps('enableUserContext', {
+                                type: 'checkbox',
+                            })}
+                        />
 
                         {threadRetentionFlagQuery.data?.enabled && (
                             <>
@@ -950,7 +963,7 @@ export const AiAgentFormSetup = ({
 
                         <Divider />
 
-                        <AgentSettingsSubsection title="Who can use it">
+                        <AgentSettingsSubsection title="Who can use the agent">
                             <Stack gap="md">
                                 <Radio.Group
                                     value={accessMode}
@@ -1056,10 +1069,10 @@ export const AiAgentFormSetup = ({
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
-                        id="integrations"
+                        id="connections"
                         icon={IconPlug}
-                        title="Integrations"
-                        description="Where people reach this agent, and what it can reach."
+                        title="Connections"
+                        description="Where people reach this agent, and which external tools it can reach."
                     >
                         <AgentSettingsSubsection
                             title="Slack"

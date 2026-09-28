@@ -50,6 +50,20 @@ const parseFieldValuesLimit = (limit: unknown, maxLimit: number): number => {
     return limit;
 };
 
+/**
+ * Field ids are `${table}_${name}`. When a join alias resolves to the aliased
+ * model's own explore, ids that carry the alias prefix must be rewritten to
+ * that explore's base table or they will not be found in it.
+ */
+const remapJoinAliasFieldId = (
+    fieldId: string,
+    alias: string,
+    baseTable: string,
+): string =>
+    fieldId.startsWith(`${alias}_`)
+        ? `${baseTable}_${fieldId.slice(alias.length + 1)}`
+        : fieldId;
+
 export async function getFieldValuesMetricQuery({
     projectUuid,
     table,
@@ -96,13 +110,19 @@ export async function getFieldValuesMetricQuery({
         table,
     );
     let fieldId = initialFieldId;
+    let joinAliasBaseTable: string | undefined;
     if (!explore) {
         explore = await exploreResolver.findJoinAliasExplore(
             projectUuid,
             table,
         );
         if (explore && !isExploreError(explore)) {
-            fieldId = initialFieldId.replace(table, explore.baseTable);
+            joinAliasBaseTable = explore.baseTable;
+            fieldId = remapJoinAliasFieldId(
+                initialFieldId,
+                table,
+                joinAliasBaseTable,
+            );
         }
     }
     if (!explore) {
@@ -265,7 +285,26 @@ export async function getFieldValuesMetricQuery({
                 'Filters must include an "and" array of filter rules',
             );
         }
-        const filtersCompatibleWithExplore = filters.and.filter(
+        // Sibling dashboard filters arrive with the same join alias prefix as
+        // the value field, so they need the same remap to survive the check.
+        const siblingFilters = joinAliasBaseTable
+            ? filters.and.map((filter) =>
+                  isFilterRule(filter)
+                      ? {
+                            ...filter,
+                            target: {
+                                ...filter.target,
+                                fieldId: remapJoinAliasFieldId(
+                                    filter.target.fieldId,
+                                    table,
+                                    joinAliasBaseTable,
+                                ),
+                            },
+                        }
+                      : filter,
+              )
+            : filters.and;
+        const filtersCompatibleWithExplore = siblingFilters.filter(
             (filter) =>
                 isFilterRule(filter) &&
                 findFieldByIdInExplore(

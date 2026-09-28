@@ -5,7 +5,7 @@ import {
     ScopeGroup,
 } from '@lightdash/common';
 import { CURRICULUM } from '../scopeTours/curriculum';
-import { SCOPE_TOURS } from '../scopeTours/generated';
+import { tourFor } from '../scopeTours/tourFor';
 import { ROLE_LABELS, SYSTEM_ROLE_SCOPES } from './access';
 import { COMING_SOON_SCOPES } from './comingSoon';
 import { SANDBOX_LESSONS } from './sandboxLessons';
@@ -111,7 +111,7 @@ const stripBold = (text: string) => text.replace(/\*\*/g, '');
 /** One module per lesson, in declaration order; the tour under the lesson id names it. */
 const docsModules = (): LearnModule[] =>
     SANDBOX_LESSONS.map((lesson) => {
-        const tour = SCOPE_TOURS[lesson.id];
+        const tour = tourFor(lesson.id);
         return {
             kind: 'docs',
             scope: lesson.id,
@@ -139,11 +139,11 @@ export const buildLearnCatalogue = (): LearnModule[] => {
             (scope) =>
                 trainee.has(scope.name) &&
                 !scope.name.includes('@') &&
-                (SCOPE_TOURS[scope.name] !== undefined ||
+                (tourFor(scope.name) !== undefined ||
                     comingSoon.has(scope.name)),
         )
         .map((scope) => {
-            const tour = SCOPE_TOURS[scope.name];
+            const tour = tourFor(scope.name);
             const minRole =
                 SYSTEM_ROLE_SCOPES.find((system) => system.held.has(scope.name))
                     ?.role ?? null;

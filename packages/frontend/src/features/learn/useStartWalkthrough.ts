@@ -9,7 +9,7 @@ import useApp from '../../providers/App/useApp';
 import { type LearnStartSource } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { SCOPE_TOURS } from '../scopeTours/generated';
+import { tourFor } from '../scopeTours/tourFor';
 import {
     createTrainingPreview,
     tourUrlInCopy,
@@ -54,7 +54,7 @@ export const useStartWalkthrough = (
     });
     const start = useCallback(
         (scope: string, source: LearnStartSource) => {
-            if (!trainingProjectUuid || opening || !SCOPE_TOURS[scope]) return;
+            if (!trainingProjectUuid || opening || !tourFor(scope)) return;
             // Recorded together: the progress the learner sees, and
             // the event that says who started what, and from where.
             markScopeStarted(scope);

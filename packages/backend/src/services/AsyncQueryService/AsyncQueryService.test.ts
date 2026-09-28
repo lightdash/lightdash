@@ -574,6 +574,121 @@ type JwtDashboardQueryContextTestService = {
     ) => Promise<{ dashboardUuid: string | undefined }>;
 };
 
+describe('underlying data dimension selection', () => {
+    it.each([
+        [50, 50, undefined],
+        [100, 100, undefined],
+        [1, 1, undefined],
+        [50, 101, 'table'],
+        [50, 101, 'metric'],
+    ] as const)(
+        'with limit %i, selects %i dimensions (explicit list: %s)',
+        async (limit, expected, explicitList) => {
+            const dimensions = Object.fromEntries(
+                Array.from({ length: 101 }, (_, index) => {
+                    const name = `column${index + 1}`;
+                    return [
+                        name,
+                        {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            name,
+                            compiledSql: `"a"."${name}"`,
+                        },
+                    ];
+                }),
+            );
+            const fieldList = [...Object.keys(dimensions), 'met1'];
+            let defaultShowUnderlyingValues: string[] | undefined;
+            if (explicitList === 'table') {
+                defaultShowUnderlyingValues = fieldList;
+            } else if (explicitList === 'metric') {
+                defaultShowUnderlyingValues = ['column1'];
+            }
+            const explore: Explore = {
+                ...validExplore,
+                joinedTables: [],
+                tables: {
+                    a: {
+                        ...validExplore.tables.a,
+                        defaultShowUnderlyingValues,
+                        metrics: {
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                showUnderlyingValues:
+                                    explicitList === 'metric'
+                                        ? fieldList
+                                        : undefined,
+                            },
+                        },
+                        dimensions: {
+                            missingParameter: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                name: 'missingParameter',
+                                parameterReferences: ['missing'],
+                            },
+                            hidden: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                name: 'hidden',
+                                hidden: true,
+                            },
+                            ...dimensions,
+                        },
+                    },
+                },
+            };
+            const service = getMockedAsyncQueryService(
+                {
+                    ...lightdashConfigMock,
+                    query: {
+                        ...lightdashConfigMock.query,
+                        underlyingDataMaxDimensions: limit,
+                    },
+                    natsWorker: {
+                        ...lightdashConfigMock.natsWorker,
+                        enabled: true,
+                    },
+                },
+                {
+                    projectModel: {
+                        ...projectModel,
+                        findExploresFromCache: vi.fn(async () => ({
+                            [explore.name]: explore,
+                        })),
+                    },
+                } as never,
+            );
+            vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
+                queryUuid: 'source-query',
+                metricQuery: metricQueryMock,
+                fields: { a_met1: explore.tables.a.metrics.met1 },
+                requestParameters: {},
+            } as unknown as QueryHistory);
+
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'all' },
+            ]);
+            const result = await service.executeAsyncUnderlyingDataQuery({
+                account,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'source-query',
+                underlyingDataItemId: 'a_met1',
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+            });
+
+            expect(result.metricQuery.dimensions).toHaveLength(expected);
+            expect(result.metricQuery.dimensions[0]).toBe('a_column1');
+            expect(result.metricQuery.dimensions.at(-1)).toBe(
+                `a_column${expected}`,
+            );
+            expect(result.metricQuery.metrics).toEqual(
+                explicitList ? ['a_met1'] : [],
+            );
+        },
+    );
+});
+
 describe('AsyncQueryService', () => {
     describe('saved query execution metadata', () => {
         it.each([
@@ -1266,6 +1381,165 @@ describe('AsyncQueryService', () => {
             expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
                 storage: 'results',
                 scope: null,
+            });
+        });
+
+        describe('a pivot on a planless compose query', () => {
+            const pivotReference = '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11';
+            const pivotedSourceHistory = {
+                ...referencedQueryHistory,
+                columns: {
+                    month: { reference: 'month', type: DimensionType.DATE },
+                    status: { reference: 'status', type: DimensionType.STRING },
+                    revenue: {
+                        reference: 'revenue',
+                        type: DimensionType.NUMBER,
+                    },
+                },
+            } as unknown as QueryHistory;
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn: { reference: 'month', type: VizIndexType.TIME },
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: undefined,
+            };
+
+            const buildService = (config: LightdashConfig) => {
+                const streamQuery = vi.fn(
+                    async (
+                        _sql: string,
+                        callback: (chunk: {
+                            fields: Record<string, { type: DimensionType }>;
+                            rows: Record<string, unknown>[];
+                        }) => void,
+                    ) => {
+                        callback({
+                            fields: {
+                                month: { type: DimensionType.DATE },
+                                status: { type: DimensionType.STRING },
+                                revenue: { type: DimensionType.NUMBER },
+                            },
+                            rows: [],
+                        });
+                    },
+                );
+                const service = getMockedAsyncQueryService(config, {
+                    featureFlagModel: composeFlags,
+                    composeEngineClient: {
+                        createExecutionWarehouseClient: vi.fn(() => ({
+                            ...warehouseClientMock,
+                            streamQuery,
+                        })),
+                    } as unknown as ComposeEngineClient,
+                    queryHistoryModel: inMemoryDuckdbHistory({
+                        queryUuid: 'pivoted-uuid',
+                        account: sessionAccount,
+                        overrides: {
+                            get: vi.fn(async () => pivotedSourceHistory),
+                            pollForQueryCompletion: vi.fn(
+                                async () => pivotedSourceHistory,
+                            ),
+                        },
+                    }),
+                    resultsStorageClient: {
+                        isEnabled: true,
+                        configuration: { bucket: 'mock_bucket' },
+                    } as unknown as S3ResultsFileStorageClient,
+                } as never);
+                const runAsyncWarehouseSpy = vi
+                    .spyOn(service, 'runAsyncWarehouseQuery')
+                    .mockResolvedValue(undefined);
+                return { service, streamQuery, runAsyncWarehouseSpy };
+            };
+
+            const submit = (
+                service: AsyncQueryService,
+                pivot: PivotConfiguration,
+            ) =>
+                service.executeAsyncComposeSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    sql: 'SELECT * FROM prev',
+                    references: { prev: pivotReference },
+                    pivotConfiguration: pivot,
+                });
+
+            test('is accepted, recorded on the row and composed over the discovered columns', async () => {
+                const { service, runAsyncWarehouseSpy } =
+                    buildService(lightdashConfigMock);
+
+                const result = await submit(service, pivotConfiguration);
+
+                expect(result.queryUuid).toBe('pivoted-uuid');
+                expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                    sessionAccount,
+                    expect.objectContaining({ pivotConfiguration }),
+                );
+                // The run is rebuilt from the row, so the pivot reaches it
+                // only through the row
+                await vi.waitFor(() =>
+                    expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
+                );
+                expect(runAsyncWarehouseSpy.mock.calls[0][0]).toMatchObject({
+                    pivotConfiguration,
+                    originalColumns: {
+                        month: { reference: 'month' },
+                        status: { reference: 'status' },
+                        revenue: { reference: 'revenue' },
+                    },
+                    query: expect.stringContaining('group_by_query'),
+                });
+            });
+
+            test('naming a column the SQL does not return is refused before any row exists', async () => {
+                const { service } = buildService(lightdashConfigMock);
+
+                await expect(
+                    submit(service, {
+                        ...pivotConfiguration,
+                        groupByColumns: [{ reference: 'region' }],
+                    }),
+                ).rejects.toThrow(
+                    new ParameterError(
+                        'Pivot references unknown column(s): region. Available columns: month, status, revenue',
+                    ),
+                );
+                expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+            });
+
+            test('with more value columns than the column limit is refused before any row exists', async () => {
+                const { service, streamQuery } = buildService({
+                    ...lightdashConfigMock,
+                    pivotTable: { maxColumnLimit: 1 },
+                });
+
+                await expect(
+                    submit(service, {
+                        ...pivotConfiguration,
+                        valuesColumns: [
+                            {
+                                reference: 'revenue',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                            {
+                                reference: 'revenue',
+                                aggregation: VizAggregationOptions.AVERAGE,
+                            },
+                        ],
+                    }),
+                ).rejects.toThrow(
+                    new ParameterError(
+                        'Pivot has 2 value columns, more than the column limit of 1',
+                    ),
+                );
+                expect(streamQuery).not.toHaveBeenCalled();
+                expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
             });
         });
 
@@ -9135,7 +9409,12 @@ describe('runDuckdbQuery', () => {
         queryUuid: 'duckdb-query-uuid',
         sql: 'SELECT 1 AS one',
         references: { kind: 'bound', referenceCtes: [] },
-        columns: { mode: 'discover', limit: undefined, parameters: {} },
+        columns: {
+            mode: 'discover',
+            limit: undefined,
+            parameters: {},
+            pivotConfiguration: undefined,
+        },
         storedCompiledSql: null,
         engine: { kind: 'client', warehouseClient: warehouseClientMock },
         queryTags: {} as AnyType,

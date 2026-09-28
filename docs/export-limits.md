@@ -130,3 +130,24 @@ can't be bypassed with a direct `PATCH`. The other org-settings fields (schedule
 | Model + service validation | `OrganizationSettingsModel.ts`, `OrganizationSettingsService.ts` |
 | Limit resolution helper | `services/OrganizationSettingsService/resolveExportLimits.ts` |
 | Frontend panel | `packages/frontend/src/components/UserSettings/LimitsPanel/`, gated route/nav in `pages/Settings.tsx` |
+
+## Underlying data dimension selection
+
+`LIGHTDASH_UNDERLYING_DATA_MAX_DIMENSIONS` controls how many eligible dimensions
+`AsyncQueryService.executeAsyncUnderlyingDataQuery` automatically selects for
+**View underlying data** when neither the metric's `show_underlying_values` nor
+the base table's `default_show_underlying_values` provides an explicit field list.
+It defaults to **50** and is read into `lightdashConfig.query.underlyingDataMaxDimensions`
+at startup. Set a positive integer and restart the Lightdash backend to apply it,
+for example:
+
+```sh
+LIGHTDASH_UNDERLYING_DATA_MAX_DIMENSIONS=100
+```
+
+This is an **instance-wide** setting, not a project, table, or organization override.
+Explicit field lists retain their existing precedence (metric before base table)
+and are not capped by this setting. Hidden dimensions and dimensions with missing
+parameters remain excluded from automatic selection. Increasing the limit does not
+change data access permissions or the independent row/export-cell limits above;
+wider queries may increase warehouse work and result sizes.

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
+import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
 
 export const TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION = ({
@@ -124,9 +125,51 @@ const toolCreateScheduledDeliveryMetadataSchema = z.discriminatedUnion(
     ],
 );
 
+export const toolCreateScheduledDeliveryStructuredContentSchema = z.object({
+    schedulerUuid: z.string().describe('Uuid of the created delivery.'),
+    name: z.string().describe('Delivery name.'),
+    cron: z.string().describe('5-part cron expression the delivery runs on.'),
+    timezone: z
+        .string()
+        .nullable()
+        .describe('IANA timezone the cron runs in; null = project default.'),
+    targets: z
+        .array(
+            z.discriminatedUnion('type', [
+                slackTargetSchema,
+                emailTargetSchema,
+            ]),
+        )
+        .describe('Slack channels and email recipients the delivery sends to.'),
+    enabled: z
+        .boolean()
+        .describe('true = live and firing; false = created paused.'),
+    aiAugmentationAttached: z
+        .boolean()
+        .describe('Whether an AI-written message is generated on each send.'),
+    href: z
+        .string()
+        .describe(
+            "Link to the delivery's settings page, to share with the user as a markdown link whose text is the delivery name.",
+        ),
+    warnings: z
+        .array(z.string())
+        .describe('Non-fatal issues raised while creating the delivery.'),
+});
+
+export type ToolCreateScheduledDeliveryStructuredContent = z.infer<
+    typeof toolCreateScheduledDeliveryStructuredContentSchema
+>;
+
+// Same envelope as `structuredToolOutputSchema`, which only accepts object
+// metadata; this tool's metadata is a discriminated union on status.
 export const toolCreateScheduledDeliveryOutputSchema = z.object({
     result: z.string(),
     metadata: toolCreateScheduledDeliveryMetadataSchema,
+    structuredContent: z.union([
+        toolCreateScheduledDeliveryStructuredContentSchema,
+        toolErrorStructuredContentSchema,
+    ]),
 });
 
 export type ToolCreateScheduledDeliveryOutput = z.infer<

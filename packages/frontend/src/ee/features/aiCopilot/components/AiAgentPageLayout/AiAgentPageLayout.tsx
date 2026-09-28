@@ -147,11 +147,14 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         return () => cancelAnimationFrame(frame);
     }, [preview, isMobile, setIsAgentSidebarCollapsed]);
 
+    // The pane id is the splitter layout key; when it changes (e.g. an
+    // artifact resolves as a composer one) sizes reset, so re-apply collapse.
+    const previewPaneId = previewPane?.id;
     useLayoutEffect(() => {
         if (Sidebar && !isMobile && isAgentSidebarCollapsed) {
             splitterRef.current?.collapse(0);
         }
-    }, [Sidebar, isMobile, isAgentSidebarCollapsed, preview?.type]);
+    }, [Sidebar, isMobile, isAgentSidebarCollapsed, previewPaneId]);
 
     return (
         <div

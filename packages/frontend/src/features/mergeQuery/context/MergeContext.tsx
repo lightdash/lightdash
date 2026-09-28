@@ -365,6 +365,11 @@ export const MergeProvider: FC<
         // chart in view mode is not being modified; its merge lives in the
         // chart, and echoing it into the URL says otherwise.
         if (readOnly) return;
+        // Nothing to mirror: a replace here would still navigate and could
+        // clobber a URL change committed in the same event (e.g. a drill).
+        if (!isMerging && !searchParams.has(MERGE_URL_PARAM)) {
+            return;
+        }
         setSearchParams(
             (current) => {
                 const next = new URLSearchParams(current);
@@ -398,6 +403,7 @@ export const MergeProvider: FC<
         joinType,
         repeatValuesSourceIds,
         tableCalculations,
+        searchParams,
         setSearchParams,
     ]);
 

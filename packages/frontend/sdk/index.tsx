@@ -210,16 +210,8 @@ const getDashboardContainerStyles = (
         (theme ? 'var(--mantine-color-body)' : undefined),
 });
 
-const getSavedChartExploreHandler = (onExplore: BaseProps['onExplore']) =>
-    onExplore
-        ? ({ chart }: { chart: EmbedExploreChart }) => {
-              if ('uuid' in chart) {
-                  onExplore({ chart });
-              }
-          }
-        : undefined;
-
-const useDashboardExploreNavigation = (onExplore: BaseProps['onExplore']) => {
+// Saved charts go to the host; derived charts (drill-downs) render in place.
+const useEmbedExploreNavigation = (onExplore: BaseProps['onExplore']) => {
     const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
 
     const handleExplore = useCallback(
@@ -445,7 +437,7 @@ const Dashboard: FC<DashboardProps> = ({
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
     const { exploreChart, handleExplore, handleBackToDashboard } =
-        useDashboardExploreNavigation(onExplore);
+        useEmbedExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -610,7 +602,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
     const { exploreChart, handleExplore, handleBackToDashboard } =
-        useDashboardExploreNavigation(onExplore);
+        useEmbedExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -672,6 +664,8 @@ const Explore: FC<
     savedChart,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useEmbedExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -689,11 +683,14 @@ const Explore: FC<
                 filters={filters}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
-                onExplore={getSavedChartExploreHandler(onExplore)}
+                onExplore={handleExplore}
+                onBackToDashboard={
+                    exploreChart ? handleBackToDashboard : undefined
+                }
             >
                 <EmbedExplore
-                    exploreId={exploreId}
-                    savedChart={savedChart}
+                    exploreId={exploreChart?.tableName ?? exploreId}
+                    savedChart={exploreChart ?? savedChart}
                     containerStyles={{
                         width: '100%',
                         height: '100%',

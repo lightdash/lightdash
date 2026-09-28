@@ -29103,6 +29103,66 @@
                                                 "type": "object"
                                             },
                                             {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
@@ -29380,18 +29440,66 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success",
-                                                            "not_found"
-                                                        ]
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -29727,156 +29835,216 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "aiWritebackRunUuid": {
-                                                        "type": "string"
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "aiWritebackRunUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "aiWritebackRunUuid",
+                                                            "status"
+                                                        ],
+                                                        "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["pending"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": [
-                                                    "aiWritebackRunUuid",
-                                                    "status"
-                                                ],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
-                                                "properties": {
-                                                    "dbtSourceOptions": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "projectSubPath": {
-                                                                    "type": "string",
-                                                                    "nullable": true
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "dbtSourceOptions": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "projectSubPath": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "branch": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "repository": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "isPrimary": {
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "projectDbtSourceUuid": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "projectSubPath",
+                                                                        "branch",
+                                                                        "repository",
+                                                                        "isPrimary",
+                                                                        "name",
+                                                                        "projectDbtSourceUuid"
+                                                                    ],
+                                                                    "type": "object"
                                                                 },
-                                                                "branch": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
-                                                                "isPrimary": {
-                                                                    "type": "boolean"
-                                                                },
-                                                                "name": {
-                                                                    "type": "string"
-                                                                },
-                                                                "projectDbtSourceUuid": {
-                                                                    "type": "string"
-                                                                }
+                                                                "type": "array",
+                                                                "nullable": true
                                                             },
-                                                            "required": [
-                                                                "projectSubPath",
-                                                                "branch",
-                                                                "repository",
-                                                                "isPrimary",
-                                                                "name",
-                                                                "projectDbtSourceUuid"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "needsDbtSourceSelection": {
-                                                        "type": "boolean",
-                                                        "nullable": true
-                                                    },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "label": {
-                                                                    "type": "string"
-                                                                },
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "stage",
-                                                                        "compile",
-                                                                        "edit",
-                                                                        "read",
-                                                                        "search"
-                                                                    ]
-                                                                }
+                                                            "needsDbtSourceSelection": {
+                                                                "type": "boolean",
+                                                                "nullable": true
                                                             },
-                                                            "required": [
-                                                                "label",
-                                                                "kind"
-                                                            ],
-                                                            "type": "object"
+                                                            "steps": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                                "stage",
+                                                                                "compile",
+                                                                                "edit",
+                                                                                "read",
+                                                                                "search"
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "label",
+                                                                        "kind"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
+                                                            "previewUrl": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "deletions": {
+                                                                "type": "number",
+                                                                "format": "double",
+                                                                "nullable": true
+                                                            },
+                                                            "additions": {
+                                                                "type": "number",
+                                                                "format": "double",
+                                                                "nullable": true
+                                                            },
+                                                            "commitSha": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "prAction": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "opened",
+                                                                    "updated",
+                                                                    null
+                                                                ],
+                                                                "nullable": true
+                                                            },
+                                                            "prUrl": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
                                                         },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "previewUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "deletions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "additions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "commitSha": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "prAction": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "opened",
-                                                            "updated",
-                                                            null
+                                                        "required": [
+                                                            "prUrl",
+                                                            "status"
                                                         ],
-                                                        "nullable": true
+                                                        "type": "object"
                                                     },
-                                                    "prUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["prUrl", "status"],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
-                                                "properties": {
-                                                    "errorCode": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "unknown",
-                                                            "bitbucket_token_missing",
-                                                            "git_write_permission",
-                                                            "github_not_installed",
-                                                            "gitlab_not_installed",
-                                                            "pull_request_not_open",
-                                                            "unsupported_source_control",
-                                                            null
-                                                        ],
-                                                        "nullable": true
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "errorCode": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "unknown",
+                                                                    "bitbucket_token_missing",
+                                                                    "git_write_permission",
+                                                                    "github_not_installed",
+                                                                    "gitlab_not_installed",
+                                                                    "pull_request_not_open",
+                                                                    "unsupported_source_control",
+                                                                    null
+                                                                ],
+                                                                "nullable": true
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["error"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -31215,6 +31383,10 @@
                     "autoApproveSql": {
                         "type": "boolean",
                         "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                    },
+                    "enableFastDecisions": {
+                        "type": "boolean",
+                        "description": "Per-user Fast mode opt-out. `false` turns fast decisions off for this\nstream; it can never turn them on past the org feature flag."
                     },
                     "enableSqlMode": {
                         "type": "boolean",
@@ -49236,7 +49408,8 @@
                     "compactUsageEvents",
                     "pollEmailWhitelabelVerification",
                     "cleanWarehouseConnectCodes",
-                    "backfillDefaultUserSpaces"
+                    "backfillDefaultUserSpaces",
+                    "learnSandboxCommand"
                 ]
             },
             "BaseSchedulerLog": {
@@ -60975,6 +61148,186 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "LearnWorkspaceFileSummary": {
+                "properties": {
+                    "editable": {
+                        "type": "boolean"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["editable", "path"],
+                "type": "object"
+            },
+            "ApiLearnWorkspaceFilesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/LearnWorkspaceFileSummary"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "LearnWorkspaceFile": {
+                "properties": {
+                    "editable": {
+                        "type": "boolean"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["editable", "content", "path"],
+                "type": "object"
+            },
+            "ApiLearnWorkspaceFileResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LearnWorkspaceFile"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiLearnCommandCreatedResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "commandUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["commandUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "LearnSandboxTool": {
+                "type": "string",
+                "enum": ["lightdash", "dbt"]
+            },
+            "LearnSandboxCommandRequest": {
+                "properties": {
+                    "args": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "subcommand": {
+                        "type": "string"
+                    },
+                    "tool": {
+                        "$ref": "#/components/schemas/LearnSandboxTool"
+                    }
+                },
+                "required": ["args", "subcommand", "tool"],
+                "type": "object"
+            },
+            "LearnCommandStatus": {
+                "type": "string",
+                "enum": ["queued", "running", "done", "error", "timeout"]
+            },
+            "LearnCommandOutputChunk": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "stream": {
+                        "type": "string",
+                        "enum": ["stdout", "stderr"]
+                    },
+                    "seq": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["text", "stream", "seq"],
+                "type": "object"
+            },
+            "LearnCommandOutput": {
+                "properties": {
+                    "finishedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chunks": {
+                        "items": {
+                            "$ref": "#/components/schemas/LearnCommandOutputChunk"
+                        },
+                        "type": "array"
+                    },
+                    "argv": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "exitCode": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/LearnCommandStatus"
+                    },
+                    "commandUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "finishedAt",
+                    "startedAt",
+                    "chunks",
+                    "argv",
+                    "exitCode",
+                    "status",
+                    "commandUuid"
+                ],
+                "type": "object"
+            },
+            "ApiLearnCommandOutputResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LearnCommandOutput"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
                 "properties": {
                     "results": {
@@ -61214,6 +61567,20 @@
             "SemanticChartAsCode": {
                 "$ref": "#/components/schemas/Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
+            "DocumentSemanticChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/SemanticChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["semantic"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "MergeChartAsCode": {
                 "allOf": [
                     {
@@ -61230,35 +61597,27 @@
                     }
                 ]
             },
+            "DocumentMergeChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/MergeChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["merge"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "DocumentChartContent": {
                 "anyOf": [
                     {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/SemanticChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["semantic"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DocumentSemanticChartContent"
                     },
                     {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/MergeChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["merge"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DocumentMergeChartContent"
                     }
                 ]
             },
@@ -62374,7 +62733,7 @@
                 "properties": {
                     "pivotConfiguration": {
                         "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
                     },
                     "timezone": {
                         "type": "string",
@@ -62486,7 +62845,7 @@
                 "properties": {
                     "pivotConfiguration": {
                         "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
                     },
                     "limit": {
                         "type": "number",
@@ -62531,7 +62890,7 @@
                 "properties": {
                     "pivotConfiguration": {
                         "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Refused on\nthis endpoint: raw SQL has no fields to pivot on. A duckdb node\nsubmitted inside the server with an execution plan, such as a merge's\njoin, pivots through that plan."
+                        "description": "Pivots this node's result over the columns its SQL returns; checked at\nsubmission. Results carry pivotDetails. Omit for an unpivoted result."
                     },
                     "references": {
                         "anyOf": [
@@ -62595,7 +62954,7 @@
                 "properties": {
                     "pivotConfiguration": {
                         "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
                     },
                     "tables": {
                         "anyOf": [
@@ -62669,6 +63028,7 @@
                     "scheduledDelivery",
                     "csvDownload",
                     "gsheets",
+                    "gsheetsAddon",
                     "scheduledGsheetsChart",
                     "scheduledGsheetsDashboard",
                     "scheduledGsheetsSqlChart",
@@ -64783,6 +65143,23 @@
                 ],
                 "type": "object"
             },
+            "ApiDirectAccessUsersResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DirectAccessUserPrincipal"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "DirectAccessPrincipal": {
                 "anyOf": [
                     {
@@ -64946,6 +65323,9 @@
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/SchedulerFormat.IMAGE"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerFormat.PDF"
                     },
                     {
                         "$ref": "#/components/schemas/SchedulerFormat.CSV"
@@ -66648,7 +67028,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.341.0",
+        "version": "2.351.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -103563,6 +103943,268 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/learn/workspace/files": {
+            "get": {
+                "operationId": "ListLearnWorkspaceFiles",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnWorkspaceFilesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the files in the learner's sandbox workspace",
+                "summary": "List workspace files",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/learn/workspace/files/{path}": {
+            "get": {
+                "operationId": "GetLearnWorkspaceFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnWorkspaceFileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the content of a single file in the learner's sandbox workspace.\nThe path is URL-encoded (e.g. `models%2Forders.yml`); tsoa/Express\ndecode it (including any encoded slashes) before it reaches this\nhandler, so `path` already holds the plain file path.",
+                "summary": "Get workspace file",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "SaveLearnWorkspaceFile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Save the content of a single file in the learner's sandbox workspace.\nThe path is URL-encoded (e.g. `models%2Forders.yml`); tsoa/Express\ndecode it (including any encoded slashes) before it reaches this\nhandler, so `path` already holds the plain file path.",
+                "summary": "Save workspace file",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "content": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["content"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/learn/workspace/commands": {
+            "post": {
+                "operationId": "RunLearnWorkspaceCommand",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnCommandCreatedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Queue a lightdash or dbt command to run in the learner's sandbox\nworkspace",
+                "summary": "Run workspace command",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LearnSandboxCommandRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/learn/workspace/commands/{commandUuid}": {
+            "get": {
+                "operationId": "GetLearnWorkspaceCommandOutput",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnCommandOutputResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the status and output of a previously queued sandbox command.\nPass `after` (the highest `seq` already received) to page through\noutput as it streams in.",
+                "summary": "Get workspace command output",
+                "tags": ["Learn"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "commandUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "after",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellIndex}/query": {
             "post": {
                 "operationId": "ExecuteDocumentCellQuery",
@@ -106579,6 +107221,63 @@
                 },
                 "description": "List project groups eligible for sharing this resource. Requires the\nsame permission as managing its direct access assignments.",
                 "summary": "List groups eligible for direct access",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/direct-access/{resourceType}/{resourceUuid}/users": {
+            "get": {
+                "operationId": "List direct access users",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDirectAccessUsersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List users eligible for sharing this resource: active users with\ncurrent access to the project. Requires the same permission as managing\nits direct access assignments.",
+                "summary": "List users eligible for direct access",
                 "tags": ["v2", "Direct Access"],
                 "security": [],
                 "parameters": [

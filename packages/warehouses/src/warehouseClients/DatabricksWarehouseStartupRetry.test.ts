@@ -26,6 +26,12 @@ const diskDirectoryError = statusError(
 const warehouseStartingError = statusError(
     'SQL warehouse xyz is not ready to accept connections (current state: STARTING)',
 );
+// Returned on the session opened right after a retried startup error, while the
+// warehouse keeps reporting not-ready conditions under load
+const unityScopeError = statusError('No API URL found in Unity Scope');
+const maxCapacityError = statusError(
+    'Query rejected: cannot handle query since max capacity reached [statementId=01f19fd1-ac81-1e09-bb7c-357018ed26f1]',
+);
 // Pro/classic warehouse in STARTING: 503s until the driver's own HTTP retries give up
 const driverRetriesExhaustedError = new HiveDriverError(
     'Hive driver: 503 when connecting to resource. Max retry count exceeded.',
@@ -45,6 +51,8 @@ describe('isDatabricksWarehouseStartingError', () => {
         expect(
             isDatabricksWarehouseStartingError(driverRetriesExhaustedError),
         ).toBe(true);
+        expect(isDatabricksWarehouseStartingError(unityScopeError)).toBe(true);
+        expect(isDatabricksWarehouseStartingError(maxCapacityError)).toBe(true);
     });
 
     it('does not match other HTTP failures the driver gave up on', () => {
@@ -58,11 +66,26 @@ describe('isDatabricksWarehouseStartingError', () => {
     });
 
     it('matches the same messages when the operation fails during polling', () => {
-        const error = new OperationStateError(OperationStateErrorCode.Error, {
-            displayMessage: diskDirectoryError.message,
-        } as ConstructorParameters<typeof OperationStateError>[1]);
+        const failedWith = (message: string) =>
+            new OperationStateError(OperationStateErrorCode.Error, {
+                displayMessage: message,
+            } as ConstructorParameters<typeof OperationStateError>[1]);
 
-        expect(isDatabricksWarehouseStartingError(error)).toBe(true);
+        expect(
+            isDatabricksWarehouseStartingError(
+                failedWith(diskDirectoryError.message),
+            ),
+        ).toBe(true);
+        expect(
+            isDatabricksWarehouseStartingError(
+                failedWith(unityScopeError.message),
+            ),
+        ).toBe(true);
+        expect(
+            isDatabricksWarehouseStartingError(
+                failedWith(maxCapacityError.message),
+            ),
+        ).toBe(true);
         expect(
             isDatabricksWarehouseStartingError(
                 new OperationStateError(OperationStateErrorCode.Timeout),
@@ -96,6 +119,11 @@ describe('isDatabricksWarehouseStartingError', () => {
         expect(
             isDatabricksWarehouseStartingError(
                 new Error(sessionHandleError.message),
+            ),
+        ).toBe(false);
+        expect(
+            isDatabricksWarehouseStartingError(
+                new Error(unityScopeError.message),
             ),
         ).toBe(false);
     });

@@ -522,6 +522,66 @@ describe('getFieldValuesMetricQuery', () => {
         expect(result.fieldId).toBe('a_dim1');
     });
 
+    test('keeps cascading filters targeting join-alias fields when the aliased explore is resolved', async () => {
+        // Regression: the value field is remapped from the join alias to the
+        // aliased explore's base table, but sibling dashboard filters keep the
+        // alias prefix and are dropped as "not in explore", so the dropdown
+        // never narrows.
+        const exploreWithSiblingDimension: Explore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    dimensions: {
+                        ...validExplore.tables.a.dimensions,
+                        dim2: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            name: 'dim2',
+                            label: 'dim2',
+                        },
+                    },
+                },
+            },
+        };
+        mockExploreResolver.findExploreByTableName.mockResolvedValue(undefined);
+        mockExploreResolver.findJoinAliasExplore.mockResolvedValue(
+            exploreWithSiblingDimension,
+        );
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'alias_table',
+            initialFieldId: 'alias_table_dim1',
+            search: '',
+            limit: 10,
+            maxLimit: 5000,
+            filters: {
+                id: 'filter-group',
+                and: [
+                    {
+                        id: 'sibling-filter',
+                        operator: FilterOperator.EQUALS,
+                        values: ['foo'],
+                        target: { fieldId: 'alias_table_dim2' },
+                    },
+                ],
+            },
+            exploreResolver: mockExploreResolver,
+        });
+
+        expect(result.fieldId).toBe('a_dim1');
+        const dims = result.metricQuery.filters?.dimensions;
+        const filterRules = dims && 'and' in dims ? dims.and : [];
+        // 2 autocomplete filters + the remapped sibling filter
+        expect(filterRules).toHaveLength(3);
+        expect(filterRules[2]).toMatchObject({
+            operator: FilterOperator.EQUALS,
+            values: ['foo'],
+            target: { fieldId: 'a_dim2' },
+        });
+    });
+
     test('falls back to an explore containing a joined-only table', async () => {
         mockExploreResolver.findExploreByTableName.mockResolvedValue(undefined);
         mockExploreResolver.findJoinAliasExplore.mockResolvedValue(undefined);

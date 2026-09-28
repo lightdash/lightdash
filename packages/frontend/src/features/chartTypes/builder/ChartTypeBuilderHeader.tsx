@@ -4,6 +4,7 @@ import {
     Box,
     Button,
     Group,
+    Skeleton,
     Text,
     Title,
     Tooltip,
@@ -41,6 +42,8 @@ type Props = {
     isHistoryOpen: boolean;
     /** Clearing agent context is refused while a build runs. */
     isBuilding: boolean;
+    /** A first build is running, so the details it generates are on the way. */
+    isCreating: boolean;
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     onUpgradeStarted: () => void;
     onToggleHistory: () => void;
@@ -58,6 +61,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     hasHistory,
     isHistoryOpen,
     isBuilding,
+    isCreating,
     upgrade,
     onUpgradeStarted,
     onToggleHistory,
@@ -70,6 +74,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     const upgradeAvailable =
         upgrade?.status === 'stale' || upgrade?.status === 'legacy';
     const hasName = !!app?.name.trim();
+    const isNamePending = isCreating && !hasName;
 
     return (
         <Box className={classes.header} component="header">
@@ -85,7 +90,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 >
                     {backLink.label}
                 </Button>
-                {app && (
+                {(app || isCreating) && (
                     <>
                         <Text
                             className={classes.studioLabel}
@@ -95,16 +100,19 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         >
                             Chart Studio
                         </Text>
-                        {hasName && <Box className={classes.divider} />}
+                        {(hasName || isNamePending) && (
+                            <Box className={classes.divider} />
+                        )}
                         <Box className={classes.nameCluster}>
-                            {hasName && (
+                            {app && hasName ? (
                                 <>
                                     <MantineIcon
+                                        className={classes.enter}
                                         icon={getChartTypeIcon(app.icon)}
                                         color="dimmed"
                                     />
                                     <Title
-                                        className={classes.name}
+                                        className={`${classes.name} ${classes.enter}`}
                                         order={6}
                                         lineClamp={1}
                                     >
@@ -114,8 +122,15 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                                         )}
                                     </Title>
                                 </>
+                            ) : (
+                                isNamePending && (
+                                    <Skeleton
+                                        className={classes.namePlaceholder}
+                                        radius="sm"
+                                    />
+                                )
                             )}
-                            {app.description && (
+                            {app?.description && (
                                 <Tooltip w={280} label={app.description}>
                                     <ActionIcon
                                         size="sm"
@@ -125,15 +140,19 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            <Tooltip label="Edit details">
-                                <ActionIcon
-                                    size="sm"
-                                    aria-label="Edit chart type details"
-                                    onClick={() => setIsEditingDetails(true)}
-                                >
-                                    <MantineIcon icon={IconPencil} />
-                                </ActionIcon>
-                            </Tooltip>
+                            {app && (
+                                <Tooltip label="Edit details">
+                                    <ActionIcon
+                                        size="sm"
+                                        aria-label="Edit chart type details"
+                                        onClick={() =>
+                                            setIsEditingDetails(true)
+                                        }
+                                    >
+                                        <MantineIcon icon={IconPencil} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
                         </Box>
                     </>
                 )}
@@ -160,18 +179,22 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         disabled={isBuilding}
                     />
                 )}
-                {hasHistory && (
-                    <Button
-                        size="xs"
-                        variant={isHistoryOpen ? 'light' : 'default'}
-                        color="gray"
-                        leftSection={
-                            <MantineIcon icon={IconHistory} size={15} />
-                        }
-                        onClick={onToggleHistory}
-                    >
-                        History
-                    </Button>
+                {(hasHistory || isCreating) && (
+                    // Sized by the button it stands in for until history exists.
+                    <Skeleton visible={!hasHistory} w="auto" radius="md">
+                        <Button
+                            size="xs"
+                            variant={isHistoryOpen ? 'light' : 'default'}
+                            color="gray"
+                            leftSection={
+                                <MantineIcon icon={IconHistory} size={15} />
+                            }
+                            onClick={onToggleHistory}
+                            inert={!hasHistory}
+                        >
+                            History
+                        </Button>
+                    </Skeleton>
                 )}
                 {latestReadyVersion !== null &&
                     (previewInExplorerLink ? (

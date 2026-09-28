@@ -50,10 +50,16 @@ describe('EventStreamSink', () => {
         vi.clearAllMocks();
     });
 
-    it('projects a successful query.completed event', () => {
+    it.each([
+        QueryExecutionContext.EXPLORE,
+        QueryExecutionContext.GSHEETS_ADDON,
+    ])('projects a successful query.completed event from %s', (context) => {
         const writer = createWriterMock();
         const sink = new EventStreamSink(eventStreamRegistry, writer);
-        sink.handle(queryCompletedEvent);
+        sink.handle({
+            ...queryCompletedEvent,
+            properties: { ...queryCompletedEvent.properties, context },
+        });
         expect(writer.push).toHaveBeenCalledTimes(1);
         const [stream, row] = writer.push.mock.calls[0];
         expect(stream).toBe('query_events');
@@ -65,7 +71,7 @@ describe('EventStreamSink', () => {
             project_id: 'project-1',
             query_id: 'query-1',
             status: 'success',
-            context: QueryExecutionContext.EXPLORE,
+            context,
             explore_name: 'orders',
             chart_id: 'chart-1',
             dashboard_id: 'dashboard-1',

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const TOOL_FIND_EXPLORES_DESCRIPTION = ({
     toolName,
@@ -154,12 +155,19 @@ export const findExploresResultSchema = z.object({
         .optional(),
 });
 
+export const toolFindExploresMetadataSchema = baseOutputMetadataSchema.extend({
+    ranking: findExploresRankingMetadataSchema.optional(),
+});
+
 export const toolFindExploresOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema.extend({
-        ranking: findExploresRankingMetadataSchema.optional(),
-    }),
+    metadata: toolFindExploresMetadataSchema,
 });
+
+export const isToolFindExploresResult = makeBuiltInToolResultGuard(
+    'findExplores',
+    toolFindExploresMetadataSchema,
+);
 
 export type ToolFindExploresArgsV1 = z.infer<
     typeof toolFindExploresArgsSchemaV1

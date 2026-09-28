@@ -1,4 +1,8 @@
-import { isAiAgentToolName, toolRunQueryOutputSchema } from '@lightdash/common';
+import {
+    isAiAgentToolName,
+    toolRunQueryOutputSchema,
+    type ApiAiAgentThreadStreamRequest,
+} from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import {
     DefaultChatTransport,
@@ -11,6 +15,7 @@ import { useCallback } from 'react';
 import { z } from 'zod';
 import { lightdashApiStream } from '../../../../api';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
+import { readAiAgentFastMode } from '../hooks/useAiAgentFastMode';
 import {
     addReasoning,
     addToolCall,
@@ -97,12 +102,18 @@ const getAgentThreadReadableStream = async (
     toolHints: string[],
     { signal }: { signal: AbortSignal },
 ) => {
+    const request: ApiAiAgentThreadStreamRequest = {
+        enableSqlMode,
+        enableFastDecisions: readAiAgentFastMode(),
+        autoApproveSql,
+        toolHints,
+    };
     const res = await lightdashApiStream({
         url: `${getAiAgentApiBase(
             projectUuid,
         )}/${agentUuid}/threads/${threadUuid}/stream`,
         method: 'POST',
-        body: JSON.stringify({ enableSqlMode, autoApproveSql, toolHints }),
+        body: JSON.stringify(request),
         signal,
     });
 
