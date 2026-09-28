@@ -1496,6 +1496,9 @@ const findAndOverrideChartFilter = (
                   settings: overridingDashboardFilter.settings,
               }),
               operator: overridingDashboardFilter.operator,
+              // Set unconditionally: the chart rule's own includeNull must not
+              // survive an override that doesn't ask for null.
+              includeNull: overridingDashboardFilter.includeNull,
           }
         : item;
 };
@@ -1596,6 +1599,9 @@ const convertDashboardFilterRuleToFilterRule = (
     }),
     ...(dashboardFilterRule.disabled && {
         disabled: dashboardFilterRule.disabled,
+    }),
+    ...(dashboardFilterRule.includeNull === true && {
+        includeNull: dashboardFilterRule.includeNull,
     }),
 });
 
