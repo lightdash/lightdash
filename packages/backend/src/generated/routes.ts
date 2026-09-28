@@ -30774,6 +30774,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 toolHints: { dataType: 'array', array: { dataType: 'string' } },
                 autoApproveSql: { dataType: 'boolean' },
+                enableFastDecisions: { dataType: 'boolean' },
                 enableSqlMode: { dataType: 'boolean' },
             },
             validators: {},

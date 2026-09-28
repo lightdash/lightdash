@@ -1,3 +1,10 @@
+# [2.350.0](https://github.com/lightdash/lightdash/compare/2.349.0...2.350.0) (2026-09-28)
+
+
+### Features
+
+* **ai-agents:** add Fast mode toggle to opt in or out of fast decisions ([#30064](https://github.com/lightdash/lightdash/issues/30064)) ([7c35748](https://github.com/lightdash/lightdash/commit/7c35748c06f9a314bcd9e1610ff9652dde948181))
+
 # [2.349.0](https://github.com/lightdash/lightdash/compare/2.348.1...2.349.0) (2026-09-28)
 
 

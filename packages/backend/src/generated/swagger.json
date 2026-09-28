@@ -31276,6 +31276,10 @@
                         "type": "boolean",
                         "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
                     },
+                    "enableFastDecisions": {
+                        "type": "boolean",
+                        "description": "Per-user Fast mode opt-out. `false` turns fast decisions off for this\nstream; it can never turn them on past the org feature flag."
+                    },
                     "enableSqlMode": {
                         "type": "boolean",
                         "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to the agent-level default when omitted."
@@ -66916,7 +66920,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.349.0",
+        "version": "2.350.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
