@@ -25,7 +25,7 @@ import {
 } from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
 import LockedFilter from '../LockedFilter';
-import { isLockedDashboardFilterRule } from '../lockedFilters';
+import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import Filter from './Filter';
 
 interface ActiveFiltersProps {
@@ -43,13 +43,8 @@ const UnresolvedFilter: FC<{
     filterRule: DashboardFilterRule;
     onRemove: () => void;
 }> = (props) => {
-    const filterableFieldsByTileUuid = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
-    );
-    return isLockedDashboardFilterRule(
-        props.filterRule,
-        filterableFieldsByTileUuid,
-    ) ? (
+    const isLocked = useIsLockedDashboardFilterRule();
+    return isLocked(props.filterRule) ? (
         <LockedFilter {...props} />
     ) : (
         <InvalidFilter {...props} />

@@ -1497,6 +1497,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             : {};
     }, [dashboardAvailableFiltersData]);
 
+    const hiddenFilterableFieldIds = useMemo(
+        () => new Set(dashboardAvailableFiltersData?.hiddenFilterableFieldIds),
+        [dashboardAvailableFiltersData],
+    );
+
     const allFilterableMetricsMap = useMemo(() => {
         return dashboardAvailableFiltersData?.allFilterableMetrics &&
             dashboardAvailableFiltersData.allFilterableMetrics.length > 0
@@ -1829,12 +1834,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             excludeLockedFilterRequirements(
                 getUnmetFilterRequirements(dashboardFilters),
                 (filterRule) =>
-                    isLockedDashboardFilterRule(
-                        filterRule,
+                    isLockedDashboardFilterRule(filterRule, {
                         filterableFieldsByTileUuid,
-                    ),
+                        hiddenFilterableFieldIds,
+                    }),
             ),
-        [dashboardFilters, filterableFieldsByTileUuid],
+        [
+            dashboardFilters,
+            filterableFieldsByTileUuid,
+            hiddenFilterableFieldIds,
+        ],
     );
 
     const value = {
@@ -1875,6 +1884,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setHaveFiltersChanged,
         allFilterableFieldsMap,
         allFilterableMetricsMap,
+        hiddenFilterableFieldIds,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
         allFilterableMetrics:
             dashboardAvailableFiltersData?.allFilterableMetrics,

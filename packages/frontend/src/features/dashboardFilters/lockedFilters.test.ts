@@ -33,14 +33,17 @@ const rule = (
     label: undefined,
 });
 
-const fieldsByTile = { 'tile-1': [statusField] };
+const availability = {
+    filterableFieldsByTileUuid: { 'tile-1': [statusField] },
+    hiddenFilterableFieldIds: new Set(['orders_hidden']),
+};
 
 describe('isLockedDashboardFilterRule', () => {
-    it('locks a rule whose field no tile offers', () => {
+    it('locks a rule on a hidden field that no tile offers', () => {
         expect(
             isLockedDashboardFilterRule(
                 rule('a', { fieldId: 'orders_hidden', tableName: 'orders' }),
-                fieldsByTile,
+                availability,
             ),
         ).toBe(true);
     });
@@ -49,7 +52,7 @@ describe('isLockedDashboardFilterRule', () => {
         expect(
             isLockedDashboardFilterRule(
                 rule('a', { fieldId: 'orders_status', tableName: 'orders' }),
-                fieldsByTile,
+                availability,
             ),
         ).toBe(false);
         expect(
@@ -64,7 +67,7 @@ describe('isLockedDashboardFilterRule', () => {
                         },
                     },
                 ),
-                fieldsByTile,
+                availability,
             ),
         ).toBe(false);
     });
@@ -77,13 +80,22 @@ describe('isLockedDashboardFilterRule', () => {
                     tableName: 'sql',
                     isSqlColumn: true,
                 }),
-                fieldsByTile,
+                availability,
             ),
         ).toBe(false);
         expect(
             isLockedDashboardFilterRule(
                 rule('a', { fieldId: 'orders_hidden', tableName: 'orders' }),
-                undefined,
+                { ...availability, filterableFieldsByTileUuid: undefined },
+            ),
+        ).toBe(false);
+    });
+
+    it('does not lock a rule on a deleted field', () => {
+        expect(
+            isLockedDashboardFilterRule(
+                rule('a', { fieldId: 'orders_deleted', tableName: 'orders' }),
+                availability,
             ),
         ).toBe(false);
     });
@@ -99,7 +111,7 @@ describe('excludeLockedFilterRequirements', () => {
         tableName: 'orders',
     });
     const isLocked = (filterRule: DashboardFilterRule) =>
-        isLockedDashboardFilterRule(filterRule, fieldsByTile);
+        isLockedDashboardFilterRule(filterRule, availability);
 
     it('drops single and all-locked group requirements', () => {
         expect(

@@ -24,14 +24,6 @@ const unmetRule: DashboardFilterRule = {
     label: undefined,
 };
 
-const firstNameField = {
-    fieldType: FieldType.DIMENSION,
-    type: DimensionType.STRING,
-    name: 'first_name',
-    table: 'customers',
-    label: 'First name',
-} as unknown as DashboardFilterableField;
-
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
@@ -79,7 +71,8 @@ describe('GuidedFilterSetupOverlay', () => {
                 tableCalculations: [],
             },
             dashboardTiles: [],
-            filterableFieldsByTileUuid: { 'tile-1': [firstNameField] },
+            filterableFieldsByTileUuid: {},
+            hiddenFilterableFieldIds: new Set<string>(),
             allFilterableFieldsMap: {},
             requiredFiltersNote: 'Pick a customer to get started',
             activeTab: undefined,
@@ -180,7 +173,7 @@ describe('GuidedFilterSetupOverlay', () => {
         },
     );
 
-    it('leaves out a rule whose field no tile offers', () => {
+    it('leaves out a rule on a hidden field', () => {
         const lockedRule: DashboardFilterRule = {
             ...unmetRule,
             id: 'filter-locked',
@@ -194,6 +187,7 @@ describe('GuidedFilterSetupOverlay', () => {
         Object.assign(mockDashboardContext.current, {
             dashboardFilters: filters,
             allFilters: filters,
+            hiddenFilterableFieldIds: new Set(['customers_hidden']),
         });
 
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);

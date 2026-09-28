@@ -5,7 +5,7 @@ import { useMemo, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import { isLockedDashboardFilterRule } from '../lockedFilters';
+import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import GuidedFilterSetup, {
     GuidedFilterSetupProgress,
 } from './GuidedFilterSetup';
@@ -37,22 +37,14 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
         (c) => c.requiredFiltersNote,
     );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const filterableFieldsByTileUuid = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
-    );
+    const isLocked = useIsLockedDashboardFilterRule();
 
     const rules = useMemo(
         () =>
             getFilterRequirementRules(dashboardFilters).filter(
-                (rule) =>
-                    !rule.members.every((member) =>
-                        isLockedDashboardFilterRule(
-                            member,
-                            filterableFieldsByTileUuid,
-                        ),
-                    ),
+                (rule) => !rule.members.every(isLocked),
             ),
-        [dashboardFilters, filterableFieldsByTileUuid],
+        [dashboardFilters, isLocked],
     );
 
     // Until the filterable fields arrive every member resolves an undefined

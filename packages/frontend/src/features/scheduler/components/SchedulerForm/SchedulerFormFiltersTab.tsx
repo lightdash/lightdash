@@ -12,7 +12,7 @@ import useDashboardContext from '../../../../providers/Dashboard/useDashboardCon
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
 import LockedFilter from '../../../dashboardFilters/LockedFilter';
-import { isLockedDashboardFilterRule } from '../../../dashboardFilters/lockedFilters';
+import { useIsLockedDashboardFilterRule } from '../../../dashboardFilters/useIsLockedDashboardFilterRule';
 import {
     hasSchedulerFilterChanged,
     withDerivedDisabledState,
@@ -80,6 +80,8 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
+
+    const isLocked = useIsLockedDashboardFilterRule();
 
     const tileNamesById = useDashboardTileStatusContext((c) => c.tileNamesById);
 
@@ -209,12 +211,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                     )}
                     {currentDashboardFilters.dimensions.map(
                         (dashboardFilterRule) => {
-                            if (
-                                isLockedDashboardFilterRule(
-                                    dashboardFilterRule,
-                                    filterableFieldsByTileUuid,
-                                )
-                            ) {
+                            if (isLocked(dashboardFilterRule)) {
                                 return (
                                     <Box key={dashboardFilterRule.id}>
                                         <LockedFilter

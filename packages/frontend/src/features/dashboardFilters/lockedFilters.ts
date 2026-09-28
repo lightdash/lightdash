@@ -5,28 +5,40 @@ import {
     type UnmetFilterRequirement,
 } from '@lightdash/common';
 
+export type DashboardFilterFieldAvailability = {
+    filterableFieldsByTileUuid:
+        | Record<string, DashboardFilterableField[]>
+        | undefined;
+    hiddenFilterableFieldIds: ReadonlySet<string>;
+};
+
 /**
- * A saved rule whose field no tile offers in its pickers, e.g. a field with
- * `hidden: true`. The server still applies it, so the UI shows it read-only.
- * SQL column rules resolve against tile columns instead and are never locked.
+ * A saved rule on a field with `hidden: true` that no tile offers in its
+ * pickers. The server still applies it, so the UI shows it read-only. Rules on
+ * fields that no longer exist are not locked; they stay invalid.
  */
 export const isLockedDashboardFilterRule = (
     filterRule: DashboardFilterRule,
-    filterableFieldsByTileUuid:
-        | Record<string, DashboardFilterableField[]>
-        | undefined,
+    {
+        filterableFieldsByTileUuid,
+        hiddenFilterableFieldIds,
+    }: DashboardFilterFieldAvailability,
 ): boolean => {
     if (!filterableFieldsByTileUuid || filterRule.target.isSqlColumn) {
         return false;
     }
-    const fieldIds = new Set([
+    const fieldIds = [
         filterRule.target.fieldId,
         ...Object.values(filterRule.tileTargets ?? {}).flatMap((target) =>
             target ? [target.fieldId] : [],
         ),
-    ]);
-    return !Object.values(filterableFieldsByTileUuid).some((fields) =>
-        fields.some((field) => fieldIds.has(getItemId(field))),
+    ];
+    const isOfferedByATile = Object.values(filterableFieldsByTileUuid).some(
+        (fields) => fields.some((field) => fieldIds.includes(getItemId(field))),
+    );
+    return (
+        !isOfferedByATile &&
+        fieldIds.some((fieldId) => hiddenFilterableFieldIds.has(fieldId))
     );
 };
 

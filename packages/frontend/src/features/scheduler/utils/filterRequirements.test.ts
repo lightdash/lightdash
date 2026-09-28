@@ -180,6 +180,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         tabUuids: ['tab-1', 'tab-2'],
         selectedTabs,
         filterableFieldsByTileUuid,
+        hiddenFilterableFieldIds: new Set(['orders_hidden']),
     });
 
     // One required filter per tab, each targeting only its own tab's tile
@@ -227,7 +228,6 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         const unmatchedFilter = rule({
             id: 'unmatched',
             required: true,
-            target: { fieldId: 'orders_tab1', tableName: 'orders' },
             tileTargets: {
                 'tile-1': false,
                 'tile-2': false,
@@ -318,11 +318,11 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 'tile-1': [field('automatic')],
                 'data-app-1': [],
             },
+            hiddenFilterableFieldIds: new Set<string>(),
         };
         const automaticFilter = rule({
             id: 'automatic',
             required: true,
-            target: { fieldId: 'orders_automatic', tableName: 'orders' },
             tileTargets: undefined,
         });
 
@@ -348,7 +348,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         ).toEqual([]);
     });
 
-    it('does not block on a required filter whose field no tile offers', () => {
+    it('does not block on a required filter on a hidden field', () => {
         const hiddenFieldFilter = rule({
             id: 'hidden',
             required: true,
@@ -365,7 +365,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         ).toEqual(['tab2']);
     });
 
-    it('keeps a group unmet while a member with an offered field is valueless', () => {
+    it('keeps a group with a hidden member unmet while a visible member is valueless', () => {
         const group = [
             rule({
                 id: 'hidden',
@@ -404,6 +404,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 tabUuids: ['tab-1', 'tab-2'],
                 selectedTabs: ['tab-2'],
                 filterableFieldsByTileUuid: undefined,
+                hiddenFilterableFieldIds: new Set<string>(),
             }).filtersWithUnmetRequirements.map((f) => f.id),
         ).toEqual(['tab1', 'tab2']);
     });

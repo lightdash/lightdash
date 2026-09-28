@@ -108,10 +108,11 @@ const Harness = ({
 };
 
 describe('SchedulerFormFiltersTab', () => {
-    it('shows a filter whose field no tile offers as a locked chip', () => {
+    it('shows a filter on a hidden field as a locked chip', () => {
         dashboardContext.filterableFieldsByTileUuid = {
             'tile-1': [paymentField],
         };
+        dashboardContext.hiddenFilterableFieldIds = new Set(['orders_status']);
         try {
             renderWithProviders(
                 <Harness initialFilters={[statusFilter, paymentFilter]} />,
@@ -125,6 +126,7 @@ describe('SchedulerFormFiltersTab', () => {
             ).toHaveLength(1);
         } finally {
             delete dashboardContext.filterableFieldsByTileUuid;
+            delete dashboardContext.hiddenFilterableFieldIds;
         }
     });
 

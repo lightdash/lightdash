@@ -31,6 +31,7 @@ export type SchedulerFilterableTiles = {
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;
+    hiddenFilterableFieldIds: ReadonlySet<string>;
 };
 
 /**
@@ -104,10 +105,8 @@ export const getSchedulerFilterRequirements = (
     const unmetRequirements = excludeLockedFilterRequirements(
         getUnmetFilterRequirements(scopedFilters),
         (filter) =>
-            isLockedDashboardFilterRule(
-                filter,
-                tabScope?.filterableFieldsByTileUuid,
-            ),
+            tabScope !== undefined &&
+            isLockedDashboardFilterRule(filter, tabScope),
     );
     const seenFilterIds = new Set<string>();
     const filtersWithUnmetRequirements = unmetRequirements

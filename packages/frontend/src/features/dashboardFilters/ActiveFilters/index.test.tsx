@@ -162,7 +162,7 @@ describe('ActiveFilters metric tab visibility', () => {
     );
 });
 
-describe('ActiveFilters saved filter on a field no tile offers', () => {
+describe('ActiveFilters saved filter on a hidden field', () => {
     const hiddenFieldFilter: DashboardFilterRule = {
         id: 'hidden-filter',
         target: { fieldId: 'orders_status', tableName: 'orders' },
@@ -171,11 +171,7 @@ describe('ActiveFilters saved filter on a field no tile offers', () => {
         label: undefined,
     };
 
-    const setHiddenFieldContext = (
-        filterableFieldsByTileUuid:
-            | Record<string, DashboardFilterableField[]>
-            | undefined,
-    ) => {
+    const setHiddenFieldContext = (hiddenFieldIds: string[]) => {
         setMetricFilterLocation('saved');
         mockDashboardContext.current = {
             ...mockDashboardContext.current,
@@ -185,7 +181,8 @@ describe('ActiveFilters saved filter on a field no tile offers', () => {
                 tableCalculations: [],
             },
             dashboardTabs: [],
-            filterableFieldsByTileUuid,
+            filterableFieldsByTileUuid: { 'tile-1': [metricField] },
+            hiddenFilterableFieldIds: new Set(hiddenFieldIds),
         };
     };
 
@@ -201,7 +198,7 @@ describe('ActiveFilters saved filter on a field no tile offers', () => {
         );
 
     it('shows a locked chip with the rule and no editor for viewers', () => {
-        setHiddenFieldContext({ 'tile-1': [metricField] });
+        setHiddenFieldContext(['orders_status']);
         renderFilters(false);
 
         const chip = screen.getByTestId('locked-dashboard-filter');
@@ -213,7 +210,7 @@ describe('ActiveFilters saved filter on a field no tile offers', () => {
     });
 
     it('shows a valueless locked filter as any value', () => {
-        setHiddenFieldContext({ 'tile-1': [metricField] });
+        setHiddenFieldContext(['orders_status']);
         mockDashboardContext.current.dashboardFilters = {
             dimensions: [{ ...hiddenFieldFilter, values: [], disabled: true }],
             metrics: [],
@@ -226,8 +223,18 @@ describe('ActiveFilters saved filter on a field no tile offers', () => {
         );
     });
 
+    it('keeps a filter on a deleted field invalid', () => {
+        setHiddenFieldContext([]);
+        renderFilters(false);
+
+        expect(screen.getByText('Invalid filter')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('locked-dashboard-filter'),
+        ).not.toBeInTheDocument();
+    });
+
     it('lets editors remove the locked filter', () => {
-        setHiddenFieldContext({ 'tile-1': [metricField] });
+        setHiddenFieldContext(['orders_status']);
         renderFilters(true);
 
         screen.getByRole('button', { name: 'Remove filter' }).click();

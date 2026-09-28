@@ -36,7 +36,7 @@ import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import LockedFilter from '../LockedFilter';
-import { isLockedDashboardFilterRule } from '../lockedFilters';
+import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import classes from './GuidedFilterSetup.module.css';
 import OperatorPicker from './OperatorPicker';
 import { AndSeparator, OrSeparator } from './RuleSeparators';
@@ -215,6 +215,7 @@ const GuidedFilterSetup: FC<Props> = ({
     const [expandedRuleIds, setExpandedRuleIds] = useState<string[]>([]);
 
     const getField = useDashboardFilterField();
+    const isLocked = useIsLockedDashboardFilterRule();
 
     // Keep the first unmet rule in view as the viewer works down the list;
     // scrollIntoView targets the modal body's scroll area
@@ -347,9 +348,8 @@ const GuidedFilterSetup: FC<Props> = ({
                                                                 0 && (
                                                                 <OrSeparator />
                                                             )}
-                                                            {isLockedDashboardFilterRule(
+                                                            {isLocked(
                                                                 member,
-                                                                filterableFieldsByTileUuid,
                                                             ) ? (
                                                                 <LockedFilter
                                                                     isEditMode={
