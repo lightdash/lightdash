@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import { readAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
 
@@ -191,6 +192,28 @@ describe('AgentChatInput Deep Research mode', () => {
 
         expect(inputClick).toHaveBeenCalledOnce();
         inputClick.mockRestore();
+    });
+
+    it('saves the Fast mode choice from the composer toolbar', async () => {
+        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
+        renderInput({ enableCsvAttachment: true });
+        const user = userEvent.setup();
+        const fastButton = await screen.findByRole('button', { name: 'Fast' });
+        expect(fastButton).toHaveAttribute('aria-pressed', 'true');
+
+        await user.click(fastButton);
+
+        expect(fastButton).toHaveAttribute('aria-pressed', 'false');
+        expect(readAiAgentFastMode()).toBe(false);
+        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
+    });
+
+    it('hides Fast mode when fast decisions are off', () => {
+        renderInput({ onSqlModeChange: vi.fn() });
+
+        expect(
+            screen.queryByRole('button', { name: 'Fast' }),
+        ).not.toBeInTheDocument();
     });
 
     it('toggles SQL Runner from the action menu', async () => {

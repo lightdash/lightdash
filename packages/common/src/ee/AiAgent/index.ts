@@ -886,6 +886,11 @@ export type ApiAiAgentThreadStreamRequest = {
      */
     enableSqlMode?: boolean;
     /**
+     * Per-user Fast mode opt-out. `false` turns fast decisions off for this
+     * stream; it can never turn them on past the org feature flag.
+     */
+    enableFastDecisions?: boolean;
+    /**
      * Skips the SQL human-approval gate for this stream. Used by the review
      * remediation workspace so Continue PR turns run frictionlessly. Defaults
      * to false — normal chat still asks the user to approve SQL.
