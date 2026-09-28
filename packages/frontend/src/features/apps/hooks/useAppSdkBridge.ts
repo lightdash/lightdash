@@ -9,6 +9,7 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
+    APP_SDK_VIZ_SUBTOTALS_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     extractAppSdkRouteProjectUuid,
@@ -331,6 +332,9 @@ export type UseAppSdkBridgeParams = {
      * Absent = the capability is reported unavailable to the iframe.
      */
     onVizPointMenuIntent?: (intentBody: unknown) => { shown: boolean };
+    onVizSubtotalsIntent?: (
+        intentBody: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
@@ -388,6 +392,7 @@ export function useAppSdkBridge({
     onVizUnderlyingDataIntent,
     onVizDrillDownIntent,
     onVizPointMenuIntent,
+    onVizSubtotalsIntent,
     onUrlStateChange,
     onSdkManifest,
     onVizRendered,
@@ -947,6 +952,30 @@ export function useAppSdkBridge({
                 return;
             }
 
+            if (path === APP_SDK_VIZ_SUBTOTALS_PATH) {
+                if (
+                    !dataAppVizMode ||
+                    method.toUpperCase() !== 'POST' ||
+                    !onVizSubtotalsIntent
+                ) {
+                    respond({
+                        error: 'Subtotals are not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    respond({ result: await onVizSubtotalsIntent(body) });
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid subtotal request.',
+                    });
+                }
+                return;
+            }
+
             if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
@@ -1307,6 +1336,7 @@ export function useAppSdkBridge({
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onVizPointMenuIntent,
+            onVizSubtotalsIntent,
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,

@@ -147,6 +147,9 @@ type Props = {
         intentBody: unknown,
         iframeRect: DOMRect | null,
     ) => { shown: boolean };
+    onVizSubtotalsIntent?: (
+        intentBody: unknown,
+    ) => Promise<{ rows: DataAppVizContext['rows'] }>;
     // Round-trip the app's `useUrlState` controls through the page's `?state=`
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
@@ -217,6 +220,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onVizPointMenuIntent,
+            onVizSubtotalsIntent,
             urlStateSync,
             onSdkManifest,
             onVizRendered,
@@ -341,6 +345,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onVizPointMenuIntent: handleVizPointMenuIntent,
+            onVizSubtotalsIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             onVizRendered,

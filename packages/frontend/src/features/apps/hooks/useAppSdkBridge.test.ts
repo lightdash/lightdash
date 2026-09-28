@@ -2257,6 +2257,54 @@ describe('viz point-menu virtual route', () => {
     });
 });
 
+describe('viz subtotal virtual route', () => {
+    it('answers from the host without granting iframe query access', async () => {
+        const rows = [
+            {
+                orders_country: {
+                    value: { raw: 'Portugal', formatted: 'Portugal' },
+                },
+            },
+        ];
+        const onVizSubtotalsIntent = vi.fn().mockResolvedValue({ rows });
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        const fetchSpy = vi.fn();
+        vi.stubGlobal('fetch', fetchSpy);
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                dataAppVizMode: true,
+                onVizSubtotalsIntent,
+            }),
+        );
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        const intent = { level: 1, parentValues: ['Portugal'] };
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: '/__sdk/viz/subtotals',
+            body: intent,
+        });
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ id: POST_ID, result: { rows } }),
+                '*',
+            ),
+        );
+        expect(onVizSubtotalsIntent).toHaveBeenCalledWith(intent);
+        expect(fetchSpy).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+    });
+});
+
 describe('viz underlying-data host dialog virtual route', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());

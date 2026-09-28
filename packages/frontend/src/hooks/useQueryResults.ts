@@ -23,6 +23,7 @@ import {
     type PivotConfiguration,
     type ReadyQueryResultsPage,
     type ResultRow,
+    type SubtotalLevelRequest,
     type UUID,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,7 @@ export type QueryResultsProps = {
     parameters?: ParametersValuesMap;
     pivotConfiguration?: PivotConfiguration;
     pivotResults?: boolean;
+    subtotalLevel?: SubtotalLevelRequest;
     customSqlProvenanceChartUuid?: UUID;
 };
 
@@ -170,6 +172,7 @@ const executeAsyncQuery = (
                 invalidateCache: data.invalidateCache,
                 parameters: data.parameters,
                 pivotResults: data.pivotResults,
+                subtotalLevel: data.subtotalLevel,
             },
             { signal },
         );
@@ -183,6 +186,7 @@ const executeAsyncQuery = (
                 invalidateCache: data.invalidateCache,
                 parameters: data.parameters,
                 pivotResults: data.pivotResults,
+                subtotalLevel: data.subtotalLevel,
             },
             { signal },
         );
@@ -217,6 +221,7 @@ const executeAsyncQuery = (
                 usePreAggregateCache: data.usePreAggregateCache,
                 parameters: data.parameters,
                 pivotConfiguration: data.pivotConfiguration,
+                subtotalLevel: data.subtotalLevel,
             },
             {
                 signal,
@@ -249,6 +254,37 @@ export const executeQueryAndWaitForResults = async (
 
     return results;
 };
+
+export const collectSubtotalRows = async (
+    projectUuid: string,
+    firstPage: ReadyQueryResultsPage,
+): Promise<ResultRow[]> => {
+    const rows = [...firstPage.rows];
+    let nextPage = firstPage.nextPage;
+    while (nextPage !== undefined) {
+        const page = await getResultsPage(
+            projectUuid,
+            firstPage.queryUuid,
+            nextPage,
+        );
+        if (page.status !== QueryHistoryStatus.READY) {
+            throw new Error('The subtotal query did not finish');
+        }
+        rows.push(...page.rows);
+        nextPage = page.nextPage;
+    }
+    return rows;
+};
+
+// Public helper consumed by the subsequent chart integration layer.
+// ts-unused-exports:disable-next-line
+export const executeSubtotalQueryAndGetRows = async (
+    data: QueryResultsProps,
+): Promise<ResultRow[]> =>
+    collectSubtotalRows(
+        data.projectUuid,
+        await executeQueryAndWaitForResults(data),
+    );
 
 /**
  * @param data - The query data to execute
