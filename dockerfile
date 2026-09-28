@@ -471,6 +471,9 @@ RUN printf '#!/bin/sh\nexec node /usr/app/packages/cli/dist/index.js "$@"\n' > /
     && chmod 755 /usr/local/bin/lightdash
 
 # Runs as the base image's `node` user (uid 1000); the app tree stays root-owned.
+# Writable dirs for LIGHTDASH_LOG_OUTPUTS=file (default path and docs/audit-logging.md).
+RUN mkdir -p /usr/app/packages/backend/logs /var/log/lightdash \
+    && chown 1000:1000 /usr/app/packages/backend/logs /var/log/lightdash
 ENV HOME=/home/node
 
 # The runtime working directory is set here, not after the application layers.

@@ -252,6 +252,8 @@ EXPOSE 8080
 WORKDIR /usr/app/packages/backend
 
 # Mirrors the production image: the base image's `node` user, app tree root-owned.
+RUN mkdir -p /usr/app/packages/backend/logs /var/log/lightdash \
+    && chown 1000:1000 /usr/app/packages/backend/logs /var/log/lightdash
 ENV HOME=/home/node
 USER 1000:1000
 
