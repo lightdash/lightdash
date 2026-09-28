@@ -14,6 +14,8 @@ import {
     sourceHashes,
     sourceHash,
 } from './cache';
+import { cleanupOrphans, removeOwnedWarm } from './cleanup';
+import { restoreInstanceEnv, writeInstanceEnv } from './env';
 import {
     claimPorts,
     compose,
@@ -38,7 +40,6 @@ import {
     hashFile,
     home,
     listJson,
-    readJson,
     runner,
     saveInstance,
     statePath,
@@ -74,7 +75,6 @@ import {
     stopProcesses,
 } from './processes';
 import { waitForCompilers } from './readiness';
-import { cleanupOrphans, removeOwnedWarm } from './cleanup';
 import { populateViteCache, restoreViteCache } from './vite';
 
 export const controlRoot = path.resolve(__dirname, '../..');
@@ -529,25 +529,6 @@ export async function up(
 ): Promise<Instance> {
     return foregroundWork(() => upInstance(...args));
 }
-export async function writeInstanceEnv(
-    instance: Instance,
-    env: Environment,
-): Promise<void> {
-    const backup = path.join(home, 'env-backups', `${instance.id}.json`);
-    const file = path.join(instance.worktree, '.env.development.local');
-    if (!existsSync(backup))
-        await writeJson(backup, {
-            previous: existsSync(file) ? await readFile(file, 'utf8') : null,
-            writtenHash: null,
-        });
-    await atomicWrite(file, dotenvText(env));
-    const record = await readJson<{
-        previous: string | null;
-        writtenHash: string | null;
-    }>(backup);
-    record.writtenHash = await hashFile(file);
-    await writeJson(backup, record);
-}
 async function upInstance(
     root: string,
     requested: string | null,
@@ -788,22 +769,11 @@ export async function down(instance: Instance): Promise<void> {
     await ensurePostgres(controlRoot);
     await dropDatabase(controlRoot, instance.database);
     await releasePorts(controlRoot, instance.id, instance.worktree);
-    const backup = path.join(home, 'env-backups', `${instance.id}.json`);
-    if (existsSync(backup)) {
-        const original = await readJson<{
-            previous: string | null;
-            writtenHash: string | null;
-        }>(backup);
-        const envFile = path.join(instance.worktree, '.env.development.local');
-        if (
-            existsSync(envFile) &&
-            (await hashFile(envFile)) === original.writtenHash
-        ) {
-            if (original.previous === null) await rm(envFile);
-            else await atomicWrite(envFile, original.previous);
-        }
-        await rm(backup);
-    }
+    const retainedBackup = await restoreInstanceEnv(instance);
+    if (retainedBackup)
+        process.stdout.write(
+            `ENV RESTORE SKIPPED: current env differs; original retained at ${retainedBackup}\n`,
+        );
     await removeOwnedWarm(instance, controlRoot);
     await rm(statePath(instance.id));
 }

@@ -4,10 +4,10 @@ import { mkdir, readFile, symlink } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
+import { writeTracingEnv } from './env';
 import { containers, dotenv, sql } from './infra';
 import {
     home,
-    atomicWrite,
     runner,
     waitUntil,
     saveInstance,
@@ -18,7 +18,6 @@ import {
 } from './io';
 import {
     assertInstance,
-    dotenvText,
     json,
     parseRecipe,
     type Instance,
@@ -169,12 +168,7 @@ export async function startProcesses(
         path.join(instance.worktree, '.env.development.local'),
     );
     if (process.env.LDENV_TRACING !== undefined) {
-        env.LDENV_TRACING = process.env.LDENV_TRACING;
-        env.OTEL_SDK_DISABLED = env.LDENV_TRACING === 'true' ? 'false' : 'true';
-        await atomicWrite(
-            path.join(instance.worktree, '.env.development.local'),
-            dotenvText(env),
-        );
+        await writeTracingEnv(instance, env, process.env.LDENV_TRACING);
     }
     const suffixes =
         stage === 'watchers'
