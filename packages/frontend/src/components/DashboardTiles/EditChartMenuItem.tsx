@@ -2,6 +2,7 @@ import { type DashboardChartTile, type SavedChart } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useChartPermissions } from '../../hooks/useChartPermissions';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
@@ -23,6 +24,8 @@ type Props = LinkMenuItemProps & {
 };
 
 const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
+    const { mode } = useParams<{ mode?: string }>();
+    const navigate = useNavigate();
     const authoringEnabled = useContentAuthoringEnabled();
     const { user } = useApp();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -61,6 +64,24 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
         );
     }
 
+    const href = `/projects/${projectUrlIdentifier}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboard?.uuid}`;
+
+    if (mode === 'edit') {
+        return (
+            <Menu.Item
+                {...props}
+                leftSection={<MantineIcon icon={IconFilePencil} />}
+                onClick={() => {
+                    void navigate(href, {
+                        state: { saveDashboardBeforeChartEdit: true },
+                    });
+                }}
+            >
+                Edit chart
+            </Menu.Item>
+        );
+    }
+
     return (
         <LinkMenuItem
             leftSection={<MantineIcon icon={IconFilePencil} />}
@@ -79,7 +100,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, chart, ...props }) => {
                     );
                 }
             }}
-            href={`/projects/${projectUrlIdentifier}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboard?.uuid}`}
+            href={href}
             {...props}
         >
             Edit chart
