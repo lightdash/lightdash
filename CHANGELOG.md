@@ -1,3 +1,11 @@
+# [2.357.0](https://github.com/lightdash/lightdash/compare/2.356.0...2.357.0) (2026-09-28)
+
+
+### Features
+
+* **dashboards:** allow chart editing with save-before-navigation prompt ([#30088](https://github.com/lightdash/lightdash/issues/30088)) ([7371097](https://github.com/lightdash/lightdash/commit/7371097083b1374aac817bd2ccbc5a164341d77f))
+* **dashboards:** edit tile content from dashboard view mode ([#30107](https://github.com/lightdash/lightdash/issues/30107)) ([4950104](https://github.com/lightdash/lightdash/commit/49501042ac9b686e3326ec2bf0932a6afea6a0da)), closes [#30088](https://github.com/lightdash/lightdash/issues/30088) [#24611](https://github.com/lightdash/lightdash/issues/24611)
+
 # [2.356.0](https://github.com/lightdash/lightdash/compare/2.355.0...2.356.0) (2026-09-28)
 
 
