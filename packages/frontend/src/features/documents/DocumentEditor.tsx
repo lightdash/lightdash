@@ -38,6 +38,7 @@ import {
 } from './editor/documentChartNode';
 import { DocumentEditorProvider } from './editor/DocumentEditorContext';
 import { useDocumentEditor } from './editor/useDocumentEditor';
+import { useTopDropZone } from './editor/useTopDropZone';
 import { useTopGapClick } from './editor/useTopGapClick';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
 import styles from './presentation/ReportPresentation.module.css';
@@ -110,6 +111,7 @@ const DocumentEditor = ({
             : null,
     });
     useTopGapClick(editor);
+    useTopDropZone(editor);
     // The Edit button unmounts on entry, so place focus deliberately: an
     // empty document is ready to type into, otherwise Cancel takes Edit's spot
     const cancelRef = useRef<HTMLButtonElement>(null);

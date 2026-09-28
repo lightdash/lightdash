@@ -159,6 +159,10 @@ describe('writing around charts', () => {
             last,
             markdown('After'),
         ]);
+        editor.destroy();
+    });
+});
+
 describe('moving charts', () => {
     /** Moves the top-level node at `from` so it ends up at index `to`, like a drop does. */
     const moveTopLevel = (

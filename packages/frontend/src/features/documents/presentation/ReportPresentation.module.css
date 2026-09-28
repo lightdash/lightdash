@@ -629,6 +629,12 @@
                 cursor: text;
             }
 
+            /* Drop indicator for a chart released above the body */
+            &[data-drop-at-start] {
+                box-shadow: 0 calc(var(--mantine-spacing-two) * -1) 0
+                    var(--mantine-color-text);
+            }
+
             /* Where text will go between or around charts: it opens an empty
                line with the usual block spacing, showing a caret and the
                writing hint. flow-root keeps margins from collapsing through */
