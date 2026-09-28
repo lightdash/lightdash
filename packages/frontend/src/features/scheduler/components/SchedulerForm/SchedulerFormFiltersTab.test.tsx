@@ -108,6 +108,58 @@ const Harness = ({
 };
 
 describe('SchedulerFormFiltersTab', () => {
+    it('shows a changed override on a hidden-field filter and reverts it', async () => {
+        dashboardContext.filterableFieldsByTileUuid = {
+            'tile-1': [paymentField],
+        };
+        dashboardContext.hiddenFilterableFieldIds = new Set(['orders_status']);
+        try {
+            const onDraftChange = vi.fn();
+            renderWithProviders(
+                <Harness
+                    initialFilters={[
+                        { ...statusFilter, values: ['pending'] },
+                        paymentFilter,
+                    ]}
+                    isEditMode
+                    savedFilters={[
+                        { ...statusFilter, values: ['pending'] },
+                        paymentFilter,
+                    ]}
+                    onDraftChange={onDraftChange}
+                />,
+            );
+
+            expect(
+                screen.getByTestId('locked-dashboard-filter'),
+            ).toHaveTextContent(/^Orders status\s*is pending$/);
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Revert to the dashboard value',
+                }),
+            );
+
+            expect(onDraftChange).toHaveBeenLastCalledWith([
+                expect.objectContaining({
+                    id: 'filter-status',
+                    values: ['completed'],
+                }),
+                paymentFilter,
+            ]);
+            expect(
+                screen.getByTestId('locked-dashboard-filter'),
+            ).toHaveTextContent(/^Orders status\s*is completed$/);
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Revert to the dashboard value',
+                }),
+            ).not.toBeInTheDocument();
+        } finally {
+            delete dashboardContext.filterableFieldsByTileUuid;
+            delete dashboardContext.hiddenFilterableFieldIds;
+        }
+    });
+
     it('shows a filter on a hidden field as a locked chip', () => {
         dashboardContext.filterableFieldsByTileUuid = {
             'tile-1': [paymentField],

@@ -4,9 +4,20 @@ import {
     type FilterableDimension,
     type UnmetFilterRequirement,
 } from '@lightdash/common';
-import { Box, Center, Loader, Stack, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Center,
+    Group,
+    Loader,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import FiltersProvider from '../../../../components/common/Filters/FiltersProvider';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
@@ -211,19 +222,61 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                     )}
                     {currentDashboardFilters.dimensions.map(
                         (dashboardFilterRule) => {
-                            if (isLocked(dashboardFilterRule)) {
-                                return (
-                                    <Box key={dashboardFilterRule.id}>
-                                        <LockedFilter
-                                            isEditMode={false}
-                                            filterRule={dashboardFilterRule}
-                                        />
-                                    </Box>
-                                );
-                            }
                             const draftFilter = draftFilters?.find(
                                 (f) => f.id === dashboardFilterRule.id,
                             );
+
+                            if (isLocked(dashboardFilterRule)) {
+                                const override =
+                                    draftFilter &&
+                                    hasSchedulerFilterChanged(
+                                        draftFilter,
+                                        dashboardFilterRule,
+                                    )
+                                        ? draftFilter
+                                        : undefined;
+                                return (
+                                    <Group
+                                        key={dashboardFilterRule.id}
+                                        gap="xs"
+                                        wrap="nowrap"
+                                    >
+                                        <LockedFilter
+                                            isEditMode={false}
+                                            filterRule={
+                                                override ?? dashboardFilterRule
+                                            }
+                                        />
+                                        {override && (
+                                            <>
+                                                <Text fz="xs" c="dimmed">
+                                                    Differs from the dashboard
+                                                </Text>
+                                                <Tooltip
+                                                    label="Revert to the dashboard value"
+                                                    fz="xs"
+                                                >
+                                                    <ActionIcon
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        aria-label="Revert to the dashboard value"
+                                                        onClick={() =>
+                                                            handleUpdateSchedulerFilter(
+                                                                dashboardFilterRule,
+                                                                dashboardFilterRule,
+                                                            )
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconRotate2}
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            </>
+                                        )}
+                                    </Group>
+                                );
+                            }
 
                             if (!draftFilter) {
                                 return (
