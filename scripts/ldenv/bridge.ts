@@ -91,15 +91,27 @@ async function updateDbtPath(root: string): Promise<void> {
 
 type Page = {
     goto: (url: string, options: Record<string, unknown>) => Promise<unknown>;
+    screenshot: (options: Record<string, unknown>) => Promise<unknown>;
     waitForSelector: (
         selector: string,
         options: Record<string, unknown>,
     ) => Promise<unknown>;
+    waitForFunction: (
+        predicate: () => boolean,
+        argument: null,
+        options: Record<string, unknown>,
+    ) => Promise<unknown>;
 };
 type Browser = {
-    newContext: () => Promise<{
+    newContext: (options?: Record<string, unknown>) => Promise<{
         newPage: () => Promise<Page>;
         close: () => Promise<void>;
+        request: {
+            post: (
+                url: string,
+                options: Record<string, unknown>,
+            ) => Promise<{ ok: () => boolean; status: () => number }>;
+        };
     }>;
     close: () => Promise<void>;
 };
@@ -148,6 +160,78 @@ async function paint(root: string): Promise<void> {
         await browser.close();
     }
 }
+async function screenshot(root: string): Promise<void> {
+    const requireBackend = createRequire(
+        path.join(root, 'packages/backend/package.json'),
+    );
+    const { chromium } = requireBackend('playwright') as {
+        chromium: {
+            launch: (options: Record<string, unknown>) => Promise<Browser>;
+        };
+    };
+    const options = json<{
+        route: string;
+        out: string;
+        signedOut: boolean;
+        fullPage: boolean;
+        width: number;
+        height: number;
+    }>(process.env.LDENV_SCREENSHOT_OPTIONS!);
+    const browser = await chromium.launch({ headless: true });
+    const frontend = `http://localhost:${process.env.LDENV_SCREENSHOT_FRONTEND_PORT}`;
+    const api = `http://localhost:${process.env.LDENV_SCREENSHOT_API_PORT}`;
+    try {
+        const context = await browser.newContext({
+            viewport: { width: options.width, height: options.height },
+        });
+        try {
+            if (!options.signedOut) {
+                const response = await context.request.post(`${api}/api/v1/login`, {
+                    data: {
+                        email: 'demo@lightdash.com',
+                        password: 'demo_password!',
+                    },
+                    timeout: 10000,
+                });
+                if (!response.ok())
+                    throw new Error(`Dev sign-in failed (HTTP ${response.status()})`);
+            }
+            const page = await context.newPage();
+            await page.goto(`${frontend}${options.route}`, {
+                waitUntil: 'domcontentloaded',
+                timeout: 30000,
+            });
+            if (options.signedOut)
+                await page.waitForSelector('input[type="email"]:visible', {
+                    state: 'visible',
+                    timeout: 30000,
+                });
+            else
+                await page.waitForFunction(
+                    () => {
+                        const main = document.querySelector('main');
+                        return (
+                            window.location.pathname !== '/login' &&
+                            Boolean(main) &&
+                            (main?.textContent?.trim().length ?? 0) > 40 &&
+                            !main?.querySelector('[role="progressbar"]')
+                        );
+                    },
+                    null,
+                    { timeout: 30000 },
+                );
+            await page.screenshot({
+                path: options.out,
+                fullPage: options.fullPage,
+                animations: 'disabled',
+            });
+        } finally {
+            await context.close();
+        }
+    } finally {
+        await browser.close();
+    }
+}
 const root = process.env.LDENV_WORKTREE;
 if (!root) throw new Error('LDENV_WORKTREE is required');
 const operation = process.argv[2];
@@ -156,6 +240,8 @@ const work =
         ? updateDbtPath(root)
         : operation === 'paint'
           ? paint(root)
+          : operation === 'screenshot'
+            ? screenshot(root)
           : Promise.reject(new Error('Unknown bridge command'));
 work.catch((error: unknown) => {
     runner.protect(
