@@ -18,7 +18,22 @@ export type DbAiCreditRateCard = {
     created_at: Date;
 };
 
+export type DbAiCreditRateCardInsert = Omit<
+    DbAiCreditRateCard,
+    | 'ai_credit_rate_card_uuid'
+    | 'created_at'
+    | 'input_credits_per_mtok'
+    | 'output_credits_per_mtok'
+    | 'cache_read_credits_per_mtok'
+    | 'cache_write_credits_per_mtok'
+> & {
+    input_credits_per_mtok: number;
+    output_credits_per_mtok: number;
+    cache_read_credits_per_mtok: number;
+    cache_write_credits_per_mtok: number;
+};
+
 export type AiCreditRateCardTable = Knex.CompositeTableType<
     DbAiCreditRateCard,
-    Omit<DbAiCreditRateCard, 'ai_credit_rate_card_uuid' | 'created_at'>
+    DbAiCreditRateCardInsert
 >;

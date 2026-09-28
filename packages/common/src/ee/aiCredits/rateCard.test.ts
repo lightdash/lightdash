@@ -61,6 +61,8 @@ describe('normalizeAiCreditPricingKey', () => {
             'anthropic.claude-opus-5',
             '__default__',
         ],
+        ['bedrock', 'openai.gpt-5.6-sol', 'openai.gpt-5.6-sol', '__default__'],
+        ['bedrock', 'us.openai.gpt-5.6-sol', 'openai.gpt-5.6-sol', 'us'],
         [
             'bedrock',
             'arn:aws:bedrock:eu-west-1::inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0',

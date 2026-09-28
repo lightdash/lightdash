@@ -29,9 +29,7 @@ export class AiCreditRateCardModel {
     }
 
     async getAll(): Promise<AiCreditRateCardRow[]> {
-        const rows = await this.database<DbAiCreditRateCard>(
-            AiCreditRateCardTableName,
-        )
+        const rows = await this.database(AiCreditRateCardTableName)
             .select('*')
             .orderBy([
                 'provider',

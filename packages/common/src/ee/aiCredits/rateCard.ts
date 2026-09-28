@@ -4,10 +4,7 @@ export type AiCreditModelTier = (typeof AI_CREDIT_MODEL_TIERS)[number];
 export const AI_CREDIT_DEFAULT_PRICING_SCOPE = '__default__';
 export const AI_CREDIT_DEFAULT_MODEL_KEY = '__default__';
 
-/**
- * One rate card row: what a model costs in credits per million tokens of each
- * class, from `effectiveFrom` until a later-dated row for the same key exists.
- */
+// A row prices calls from effectiveFrom until a later-dated row for the same key exists.
 export type AiCreditRateCardRow = {
     provider: string;
     pricingScope: string;
@@ -20,16 +17,12 @@ export type AiCreditRateCardRow = {
     effectiveFrom: Date;
 };
 
-export type AiCreditPricingKey = {
+type AiCreditPricingKey = {
     modelKey: string;
     pricingScope: string;
 };
 
-/**
- * `inputTokens` is the cache-inclusive total the providers report; uncached
- * input is derived by subtracting the cache classes. Null means the provider
- * did not report that class.
- */
+// inputTokens is the cache-inclusive total providers report; null means unreported.
 export type AiCreditTokenCounts = {
     inputTokens: number | null;
     outputTokens: number | null;
@@ -43,20 +36,26 @@ const CLI_ALIAS_MODEL_KEYS: Record<string, string> = {
     haiku: 'claude-haiku',
 };
 
-const BEDROCK_ROUTING_PREFIX = /^[a-z-]+\.[a-z0-9-]+\./;
+// Bedrock model ids start with the vendor; anything before it is a routing prefix.
+const BEDROCK_VENDORS = new Set([
+    'anthropic',
+    'openai',
+    'amazon',
+    'meta',
+    'mistral',
+    'cohere',
+    'ai21',
+    'deepseek',
+    'google',
+    'stability',
+]);
 const BEDROCK_VERSION_SUFFIX = /-v\d+:\d+$/;
 const DATED_SNAPSHOT_SUFFIX = /-(20\d{6}|\d{4}-\d{2}-\d{2})$/;
 
 const stripDatedSnapshot = (model: string): string =>
     model.replace(DATED_SNAPSHOT_SUFFIX, '');
 
-/**
- * Reduces a raw model id to the key the rate card is indexed by. Mirrors the
- * warehouse rule so the app and the internal cost model agree on every model:
- * dated snapshot suffixes are dropped, bare CLI aliases map to a tier key, and
- * Bedrock inference-profile ids lose their routing prefix and version suffix
- * while keeping the vendor. The routing prefix becomes the pricing scope.
- */
+// Must agree with the warehouse's model-key normalisation so both price the same row.
 export const normalizeAiCreditPricingKey = (
     provider: string,
     model: string,
@@ -75,9 +74,11 @@ export const normalizeAiCreditPricingKey = (
         };
     }
     const pricingModel = model.slice(model.lastIndexOf('/') + 1);
-    const routingPrefix = BEDROCK_ROUTING_PREFIX.test(pricingModel)
-        ? pricingModel.slice(0, pricingModel.indexOf('.'))
-        : null;
+    const segments = pricingModel.split('.');
+    const routingPrefix =
+        segments.length >= 3 && !BEDROCK_VENDORS.has(segments[0])
+            ? segments[0]
+            : null;
     const withoutPrefix =
         routingPrefix === null
             ? pricingModel
@@ -103,11 +104,7 @@ const latestInForce = (
         null,
     );
 
-/**
- * The rate in force for a call: the exact model in its pricing scope, else the
- * scope's default row, else the provider's default row. Null when the provider
- * has no rows at all, which callers must surface as unpriced rather than free.
- */
+// Exact model in scope, else the scope default, else the provider default; null means unpriced, not free.
 export const findAiCreditRate = (
     rows: AiCreditRateCardRow[],
     { provider, model, at }: { provider: string; model: string; at: Date },
@@ -140,10 +137,6 @@ export const findAiCreditRate = (
     );
 };
 
-/**
- * Credits for one call at a given rate. Each token class is priced at its own
- * rate; cache reads and writes are carved out of the inclusive input total.
- */
 export const calculateAiCredits = (
     tokens: AiCreditTokenCounts,
     rate: AiCreditRateCardRow,
