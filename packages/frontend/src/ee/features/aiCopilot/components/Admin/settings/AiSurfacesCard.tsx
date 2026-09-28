@@ -13,7 +13,6 @@ import {
     IconApps,
     IconBrandSlack,
     IconLayoutDashboard,
-    IconPlugConnected,
     IconSparkles,
     type Icon,
 } from '@tabler/icons-react';
@@ -49,7 +48,6 @@ const SurfaceRow: FC<{
 
 type AiSurfacesCardProps = {
     aiAgentsVisible: boolean;
-    mcpAgentsEnabled: boolean;
     // Rolled out per org by feature flag; hidden until then.
     showDataAppRuntimeAi: boolean;
     slackInstallation: SlackSettings | undefined;
@@ -58,13 +56,11 @@ type AiSurfacesCardProps = {
     disabled: boolean;
     isUpdatingSlack: boolean;
     onUpdateAiAgentsVisible: (checked: boolean) => void;
-    onUpdateMcpAgentsEnabled: (checked: boolean) => void;
     onUpdateSlackAgentsEnabled: (checked: boolean) => void;
 };
 
 export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     aiAgentsVisible,
-    mcpAgentsEnabled,
     showDataAppRuntimeAi,
     slackInstallation,
     slackAgentsEnabled,
@@ -72,7 +68,6 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     disabled,
     isUpdatingSlack,
     onUpdateAiAgentsVisible,
-    onUpdateMcpAgentsEnabled,
     onUpdateSlackAgentsEnabled,
 }) => {
     const hasSlack = !!slackInstallation?.organizationUuid;
@@ -109,15 +104,6 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                     checked={aiAgentsVisible}
                     disabled={disabled}
                     onChange={onUpdateAiAgentsVisible}
-                />
-                <Divider />
-                <SurfaceRow
-                    icon={IconPlugConnected}
-                    name="MCP"
-                    description="Agent tools and context for MCP."
-                    checked={mcpAgentsEnabled}
-                    disabled={disabled}
-                    onChange={onUpdateMcpAgentsEnabled}
                 />
                 {showDataAppRuntimeAi && (
                     <>

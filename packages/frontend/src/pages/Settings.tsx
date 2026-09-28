@@ -81,6 +81,7 @@ import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin
 import { AiSettingsProviders } from '../ee/features/aiCopilot/components/Admin/settings/AiSettingsProviders';
 import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiThreadsSettingsPage';
 import { McpActivitySettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpActivitySettingsPage';
+import { McpGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpGeneralSettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
@@ -100,6 +101,17 @@ import { PageName } from '../types/Events';
 import classes from './Settings.module.css';
 
 const SETTINGS_SIDEBAR_COLLAPSED_STORAGE_KEY = 'settings:sidebar-collapsed';
+
+const McpActivityRedirect = () => {
+    const location = useLocation();
+
+    return (
+        <Navigate
+            to={`/generalSettings/mcp/analytics${location.search}${location.hash}`}
+            replace
+        />
+    );
+};
 
 const AiReviewsToIssuesRedirect = ({
     itemRoute = false,
@@ -730,6 +742,29 @@ const Settings: FC = () => {
             });
             allowedRoutes.push({
                 path: '/ai/mcp',
+                element: <McpActivityRedirect />,
+            });
+            allowedRoutes.push({
+                path: '/mcp',
+                element: (
+                    <Navigate
+                        to={
+                            canManageOrgAiAgent
+                                ? '/generalSettings/mcp/general'
+                                : '/generalSettings/mcp/analytics'
+                        }
+                        replace
+                    />
+                ),
+            });
+            if (canManageOrgAiAgent) {
+                allowedRoutes.push({
+                    path: '/mcp/general',
+                    element: <McpGeneralSettingsPage />,
+                });
+            }
+            allowedRoutes.push({
+                path: '/mcp/analytics',
                 element: (
                     <AiSettingsProviders>
                         <McpActivitySettingsPage />
@@ -912,7 +947,7 @@ const Settings: FC = () => {
                 location.pathname,
             ) &&
             !matchPath(
-                { path: '/generalSettings/ai/mcp' },
+                { path: '/generalSettings/mcp/analytics' },
                 location.pathname,
             ) &&
             !matchPath(
@@ -946,13 +981,14 @@ const Settings: FC = () => {
         );
     }, [location.pathname]);
 
-    // Only block on AI org settings while actually navigating to an AI route, so
-    // its dynamic routes (e.g. /ai/reviews) register before the catch-all redirect
-    // fires on a hard refresh. Scoping it here means a failure of that query no
-    // longer blanks the entire Settings surface — every non-AI route still renders.
+    // Wait for AI and MCP routes to register before the catch-all redirect on
+    // a hard refresh, without blocking unrelated settings pages.
     const isAwaitingAiSettingsRoute =
         isAiOrganizationSettingsLoading &&
-        Boolean(matchPath('/generalSettings/ai/*', location.pathname));
+        Boolean(
+            matchPath('/generalSettings/ai/*', location.pathname) ||
+            matchPath('/generalSettings/mcp/*', location.pathname),
+        );
     const isAwaitingDataAppsRoute =
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
