@@ -286,6 +286,11 @@ test('bundle generation rejects stale ownership, nonready builds and dead childr
         await apiProcessGeneration(instance, api, operations),
         initial,
     );
+    state = { ...ready, launchedRevision: 0 };
+    assert.equal(
+        await apiProcessGeneration(instance, api, operations),
+        `100:${api.pm2_env.pm_uptime}:101:${started}:0:1`,
+    );
     for (const delta of [
         { state: 'building' as const },
         { state: 'failed' as const },
@@ -295,7 +300,7 @@ test('bundle generation rejects stale ownership, nonready builds and dead childr
         { apiPid: 100 },
         { supervisorPid: 999 },
         { worktree: '/another/worktree' },
-        { launchedRevision: 0 },
+        { launchedRevision: -1 },
         { generation: 0 },
         { apiStartedAt: null },
         { apiStartedAt: 'invalid' },

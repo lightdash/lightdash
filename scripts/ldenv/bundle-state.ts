@@ -58,7 +58,7 @@ export async function apiProcessGeneration(
         Date.parse(state.apiStartedAt) < Date.parse(processEpoch(instance)) ||
         Date.parse(state.apiStartedAt) < api.pm2_env.pm_uptime ||
         !Number.isSafeInteger(state.launchedRevision) ||
-        state.launchedRevision <= 0 ||
+        state.launchedRevision < 0 ||
         !Number.isSafeInteger(state.generation) ||
         state.generation <= 0
     )
