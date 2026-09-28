@@ -34,12 +34,20 @@ const sharedLock = new AsyncLocalStorage<boolean>();
 export async function withLock<T>(
     name: string,
     work: () => Promise<T>,
+    options: { timeoutMs?: number | null; yieldToForeground?: boolean } = {},
 ): Promise<T> {
     const lock = path.join(home, 'locks', name);
     await mkdir(path.dirname(lock), { recursive: true, mode: 0o700 });
     const shared = ['postgres', 'parents', 'pool'].includes(name);
-    await yieldToForeground();
-    const deadline = Date.now() + (shared ? 60000 : 0);
+    const yieldBeforeLock = () =>
+        options.yieldToForeground === false
+            ? Promise.resolve()
+            : yieldToForeground();
+    await yieldBeforeLock();
+    const deadline =
+        options.timeoutMs === null
+            ? Infinity
+            : Date.now() + (options.timeoutMs ?? (shared ? 60000 : 0));
     while (true) {
         try {
             await mkdir(lock);
@@ -51,7 +59,7 @@ export async function withLock<T>(
                     `ldenv is busy: ${name}. Inspect ${lock}/owner.json before removing a stale lock.`,
                 );
             await delay(25);
-            await yieldToForeground();
+            await yieldBeforeLock();
         }
     }
     try {

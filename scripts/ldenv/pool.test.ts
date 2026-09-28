@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
+import { promisify } from 'node:util';
 import { home } from './io';
 import { newInstance, type Instance, type Parent } from './model';
-import { claimInstance } from './pool';
+import { claimInstance, publishSpare, retireStalePoolInstances } from './pool';
 
 const tracing = process.env.LDENV_TRACING;
 before(() => {
@@ -14,10 +19,10 @@ after(() => {
     else process.env.LDENV_TRACING = tracing;
 });
 
-function fixture() {
+function fixture(name = '12345678-abc') {
     const parentSha = 'a'.repeat(40);
     const targetSha = 'b'.repeat(40);
-    const worktree = path.join(home, 'warm', '12345678-abc');
+    const worktree = path.join(home, 'warm', name);
     const spare = newInstance(worktree, parentSha, 'spare');
     spare.phase = 'ready';
     spare.verification = {
@@ -174,6 +179,7 @@ function fixture() {
         events,
         saved,
         downKinds,
+        operations,
         claim: () =>
             claimInstance('/fixture/root', 'feature/test', 'HEAD', operations),
     };
@@ -186,6 +192,338 @@ test('claim rejects a checked-out branch before reserving a spare and schedules 
     assert.equal(f.saved.length, 0);
     assert.equal(f.events.includes('lock pool'), false);
     assert(f.events.includes('background pool fill --size 1'));
+});
+
+function deferred() {
+    let resolve!: () => void;
+    const promise = new Promise<void>((done) => {
+        resolve = done;
+    });
+    return { promise, resolve };
+}
+
+function mutex() {
+    const held = new Set<string>();
+    const tails = new Map<string, Promise<void>>();
+    const context = new AsyncLocalStorage<string[]>();
+    const withLock: NonNullable<
+        Parameters<typeof claimInstance>[3]
+    >['withLock'] = async (name, work) => {
+        const nesting = context.getStore() ?? [];
+        if (name === 'pool')
+            assert.equal(nesting.length, 0, 'instance-to-pool lock inversion');
+        const previous = tails.get(name) ?? Promise.resolve();
+        const released = deferred();
+        tails.set(name, released.promise);
+        await previous;
+        held.add(name);
+        try {
+            return await context.run([...nesting, name], work);
+        } finally {
+            held.delete(name);
+            released.resolve();
+        }
+    };
+    return { withLock, held };
+}
+
+test('a deep claim permits another reservation and spare publication while its build is pending', async () => {
+    const f = fixture();
+    const second = fixture('87654321-abc');
+    const warming = fixture('abcdef01-234').spare;
+    warming.kind = 'warming';
+    const registry = [f.spare, second.spare, warming];
+    const locks = mutex();
+    const entered = deferred();
+    const release = deferred();
+    f.state.deep = true;
+    f.operations.withLock = locks.withLock;
+    second.operations.withLock = locks.withLock;
+    f.operations.instances = second.operations.instances = async () => registry;
+    f.operations.runTiers = async () => {
+        entered.resolve();
+        await release.promise;
+    };
+    f.operations.start = async (instance) => {
+        instance.phase = 'ready';
+        return instance;
+    };
+    const claim = f.claim();
+    try {
+        await entered.promise;
+        assert.equal(locks.held.has(f.spare.id), true);
+        assert.equal(locks.held.has('pool'), false);
+        const other = await second.claim();
+        assert.equal(other.id, second.spare.id);
+        assert.equal(other.kind, 'claimed');
+        assert.equal(locks.held.has(f.spare.id), true);
+        await publishSpare(warming, {
+            withLock: locks.withLock,
+            instances: async () => registry,
+            saveInstance: async () => {},
+            down: async () => {
+                throw new Error('unexpected down');
+            },
+            alive: () => false,
+        });
+        assert.equal(warming.kind, 'spare');
+        assert.equal(locks.held.has(f.spare.id), true);
+    } finally {
+        release.resolve();
+        await claim;
+    }
+});
+
+test('spare publication waits without a deadline and bypasses foreground yielding', async () => {
+    const f = fixture();
+    f.spare.kind = 'warming';
+    const locks = mutex();
+    const held = deferred();
+    const release = deferred();
+    const contention = locks.withLock('pool', async () => {
+        held.resolve();
+        await release.promise;
+    });
+    await held.promise;
+    let published = false;
+    const publication = publishSpare(f.spare, {
+        withLock: async (name, work, options) => {
+            assert.equal(options?.timeoutMs, null);
+            if (name === 'pool')
+                assert.equal(options?.yieldToForeground, false);
+            return locks.withLock(name, work, options);
+        },
+        instances: f.operations.instances,
+        saveInstance: async () => {
+            published = true;
+        },
+        down: f.operations.down,
+        alive: () => false,
+    });
+    assert.equal(published, false);
+    release.resolve();
+    await Promise.all([contention, publication]);
+    assert.equal(published, true);
+    assert.equal(f.spare.kind, 'spare');
+});
+
+test('spare publication does not resurrect an instance changed while waiting', async () => {
+    for (const change of ['missing', 'stopped', 'epoch', 'kind']) {
+        const f = fixture();
+        f.spare.kind = 'warming';
+        const current = structuredClone(f.spare);
+        if (change === 'stopped') current.phase = 'stopped';
+        if (change === 'epoch') current.startedAt = 'another-start';
+        if (change === 'kind') current.kind = 'claimed';
+        await assert.rejects(
+            publishSpare(f.spare, {
+                withLock: mutex().withLock,
+                instances: async () => (change === 'missing' ? [] : [current]),
+                saveInstance: async () => {
+                    throw new Error('must not write changed instance');
+                },
+                down: f.operations.down,
+                alive: () => false,
+            }),
+            /changed before publication/,
+        );
+        assert.equal(f.spare.kind, 'warming');
+    }
+});
+
+test('pool retirement catches abandoned warming-ready instances but preserves live monitors and active claims', async () => {
+    const f = fixture();
+    const abandoned = structuredClone(f.spare);
+    abandoned.kind = 'warming';
+    const dead = { ...abandoned, id: 'dead', monitorPid: 99 };
+    const live = { ...abandoned, id: 'live', monitorPid: 123 };
+    const building = {
+        ...abandoned,
+        id: 'building',
+        phase: 'starting' as const,
+    };
+    const claimed = { ...abandoned, id: 'claimed', kind: 'claimed' as const };
+    const retired: string[] = [];
+    await retireStalePoolInstances(f.spare.parent, {
+        withLock: mutex().withLock,
+        instances: async () => [
+            abandoned,
+            dead,
+            live,
+            building,
+            claimed,
+            f.spare,
+        ],
+        down: async (instance) => {
+            retired.push(instance.id);
+        },
+        saveInstance: f.operations.saveInstance,
+        alive: (pid) => pid === 123,
+    });
+    assert.deepEqual(retired, [abandoned.id, 'dead']);
+});
+
+test('slow stale teardown leaves the pool available for claims and publication', async () => {
+    const f = fixture();
+    const stale = fixture('abcdef01-234').spare;
+    stale.kind = 'warming';
+    const warming = fixture('abcdef01-567').spare;
+    warming.kind = 'warming';
+    warming.monitorPid = 123;
+    const registry = [f.spare, stale, warming];
+    const locks = mutex();
+    const entered = deferred();
+    const release = deferred();
+    const operations = {
+        withLock: locks.withLock,
+        instances: async () => registry,
+        saveInstance: f.operations.saveInstance,
+        alive: (pid: number | null) => pid === 123,
+        down: async (instance: Instance) => {
+            assert.equal(instance.id, stale.id);
+            entered.resolve();
+            await release.promise;
+        },
+    };
+    const teardown = retireStalePoolInstances(f.spare.parent, operations);
+    try {
+        await entered.promise;
+        assert.equal(stale.phase, 'failed');
+        assert.equal(locks.held.has('pool'), false);
+        assert.equal(locks.held.has(stale.id), true);
+        f.operations.withLock = locks.withLock;
+        f.operations.instances = operations.instances;
+        assert.equal((await f.claim()).id, f.spare.id);
+        await publishSpare(warming, operations);
+        assert.equal(warming.kind, 'spare');
+        assert.equal(locks.held.has(stale.id), true);
+    } finally {
+        release.resolve();
+        await teardown;
+    }
+});
+
+test('stale teardown rechecks generation and state after releasing the pool lock', async () => {
+    for (const change of ['missing', 'phase', 'epoch', 'updated', 'kind']) {
+        const f = fixture();
+        f.spare.kind = 'warming';
+        let registry: Instance[] = [f.spare];
+        const locks = mutex();
+        let acquired = 0;
+        let removed = false;
+        await retireStalePoolInstances(f.spare.parent, {
+            withLock: async (name, work, options) => {
+                if (name === f.spare.id && ++acquired === 2) {
+                    assert.equal(locks.held.has('pool'), false);
+                    assert.equal(f.spare.phase, 'failed');
+                    const changed = structuredClone(f.spare);
+                    if (change === 'phase') changed.phase = 'ready';
+                    if (change === 'epoch') changed.startedAt = 'another-start';
+                    if (change === 'updated')
+                        changed.updatedAt = 'another-write';
+                    if (change === 'kind') changed.kind = 'claimed';
+                    registry = change === 'missing' ? [] : [changed];
+                }
+                return locks.withLock(name, work, options);
+            },
+            instances: async () => registry,
+            saveInstance: f.operations.saveInstance,
+            alive: () => false,
+            down: async () => {
+                removed = true;
+            },
+        });
+        assert.equal(removed, false, change);
+    }
+});
+
+test('production publication outwaits contention and finishes during a foreground lease', async () => {
+    const directory = await mkdtemp(
+        path.join(os.tmpdir(), 'ldenv-publication-'),
+    );
+    try {
+        const script = `
+            const assert = require('node:assert/strict');
+            const path = require('node:path');
+            const { setTimeout: delay } = require('node:timers/promises');
+            const { home, saveInstance, foregroundWork, foregroundActive, backgroundWork, withLock, readJson, statePath } = require(${JSON.stringify(path.join(__dirname, 'io.ts'))});
+            const { newInstance } = require(${JSON.stringify(path.join(__dirname, 'model.ts'))});
+            const { publishSpare } = require(${JSON.stringify(path.join(__dirname, 'pool.ts'))});
+            (async () => {
+                const instance = newInstance(path.join(home, 'warm/12345678-abc'), 'a'.repeat(40), 'warming');
+                instance.phase = 'ready';
+                await saveInstance(instance);
+                const now = Date.now;
+                await foregroundWork(async () => {
+                    let entered;
+                    let release;
+                    const held = new Promise(resolve => { entered = resolve; });
+                    const gate = new Promise(resolve => { release = resolve; });
+                    const holder = withLock('pool', async () => { entered(); await gate; });
+                    await held;
+                    const publication = backgroundWork(() => publishSpare(instance));
+                    publication.catch(() => {});
+                    try {
+                        await delay(75);
+                        Date.now = () => now() + 120000;
+                        await delay(75);
+                        release();
+                        await holder;
+                        let timer;
+                        try {
+                            await Promise.race([
+                                publication,
+                                new Promise((_, reject) => {
+                                    timer = setTimeout(() => reject(new Error('publication blocked by foreground lease')), 2000);
+                                }),
+                            ]);
+                        } finally { clearTimeout(timer); }
+                        assert.equal(await foregroundActive(), true);
+                        assert.equal((await readJson(statePath(instance.id))).kind, 'spare');
+                    } finally { Date.now = now; release(); }
+                });
+            })().catch(error => { console.error(error); process.exit(1); });
+        `;
+        await promisify(execFile)(
+            process.execPath,
+            ['--require', require.resolve('tsx/cjs'), '-e', script],
+            {
+                env: { ...process.env, LDENV_HOME: directory },
+                timeout: 8000,
+            },
+        );
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});
+
+test('claim rechecks its reservation after releasing the pool lock', async () => {
+    for (const change of ['missing', 'phase', 'epoch', 'kind']) {
+        const f = fixture();
+        const locks = mutex();
+        let acquisitions = 0;
+        let registered: Instance[] = [f.spare];
+        f.operations.instances = async () => registered;
+        f.operations.withLock = async (name, work, options) => {
+            if (name === f.spare.id && ++acquisitions === 2) {
+                assert.equal(locks.held.has('pool'), false);
+                assert.equal(options?.timeoutMs, null);
+                const other = structuredClone(f.spare);
+                if (change === 'phase') other.phase = 'stopped';
+                if (change === 'epoch') other.startedAt = 'another-start';
+                if (change === 'kind') other.kind = 'worktree';
+                registered = change === 'missing' ? [] : [other];
+            }
+            return locks.withLock(name, work, options);
+        };
+        await assert.rejects(f.claim(), /Claim reservation changed/);
+        assert.equal(
+            f.events.some((event) => event.startsWith('git switch')),
+            false,
+        );
+        assert.equal(f.events.includes('down'), false);
+        assert(f.events.includes('background pool fill --size 1'));
+    }
 });
 
 test('claim restores an unchanged healthy spare after checkout fails and schedules refill', async () => {

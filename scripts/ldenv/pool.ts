@@ -8,6 +8,7 @@ import { isOwnedWarm } from './cleanup';
 import { diskGuard, dotenv, localSecrets } from './infra';
 import {
     git,
+    alive,
     backgroundWork,
     foregroundWork,
     yieldToForeground,
@@ -65,6 +66,89 @@ export async function poolSettings(source: string): Promise<PoolSettings> {
         ? readJson<PoolSettings>(file)
         : { size: Number(process.env.LDENV_POOL_SIZE ?? 1), source };
 }
+const poolStateOperations = { withLock, instances, saveInstance, down, alive };
+
+export async function publishSpare(
+    instance: Instance,
+    operations = poolStateOperations,
+): Promise<void> {
+    const current = await operations.withLock(
+        'pool',
+        () =>
+            operations.withLock(
+                instance.id,
+                async () => {
+                    const registered = (await operations.instances()).find(
+                        (item) => item.id === instance.id,
+                    );
+                    if (
+                        !registered ||
+                        registered.kind !== 'warming' ||
+                        registered.phase !== 'ready' ||
+                        registered.startedAt !== instance.startedAt
+                    )
+                        throw new Error(
+                            `Warm instance changed before publication: ${instance.worktree}`,
+                        );
+                    registered.kind = 'spare';
+                    await operations.saveInstance(registered);
+                    return registered;
+                },
+                { timeoutMs: null },
+            ),
+        { timeoutMs: null, yieldToForeground: false },
+    );
+    Object.assign(instance, current);
+}
+
+export async function retireStalePoolInstances(
+    parent: string,
+    operations = poolStateOperations,
+): Promise<void> {
+    const stale = (instance: Instance) =>
+        (instance.kind === 'spare' || instance.kind === 'warming') &&
+        (instance.parent !== parent ||
+            instance.phase === 'failed' ||
+            (instance.kind === 'warming' &&
+                instance.phase === 'ready' &&
+                !operations.alive(instance.monitorPid)));
+    const reserved = await operations.withLock('pool', async () => {
+        const records: Instance[] = [];
+        for (const instance of (await operations.instances()).filter(stale))
+            await operations.withLock(instance.id, async () => {
+                const current = (await operations.instances()).find(
+                    (item) => item.id === instance.id,
+                );
+                if (!current || !stale(current)) return;
+                current.phase = 'failed';
+                await operations.saveInstance(current);
+                records.push(structuredClone(current));
+            });
+        return records;
+    });
+    for (const instance of reserved)
+        await operations.withLock(
+            instance.id,
+            async () => {
+                const current = (await operations.instances()).find(
+                    (item) => item.id === instance.id,
+                );
+                if (
+                    !current ||
+                    current.phase !== 'failed' ||
+                    current.kind !== instance.kind ||
+                    current.startedAt !== instance.startedAt ||
+                    current.updatedAt !== instance.updatedAt ||
+                    current.worktree !== instance.worktree ||
+                    current.parent !== instance.parent
+                )
+                    return;
+                await operations.down(current);
+            },
+            { timeoutMs: null },
+        );
+}
+
 export async function fillPool(
     root: string,
     requestedSize: number | null,
@@ -90,17 +174,7 @@ export async function fillPool(
             const secrets = await localSecrets(root);
             if (!secrets.LIGHTDASH_LICENSE_KEY)
                 Object.assign(secrets, await localSecrets(parent.path));
-            await withLock('pool', async () => {
-                const stale = (await instances()).filter(
-                    (instance) =>
-                        (instance.kind === 'spare' ||
-                            instance.kind === 'warming') &&
-                        (instance.parent !== parent.sha ||
-                            instance.phase === 'failed'),
-                );
-                for (const instance of stale)
-                    await withLock(instance.id, () => down(instance));
-            });
+            await retireStalePoolInstances(parent.sha);
             const spares = (await instances()).filter(
                 (instance) =>
                     instance.kind === 'spare' &&
@@ -133,10 +207,7 @@ export async function fillPool(
                     'warming',
                     secrets,
                 );
-                await withLock('pool', async () => {
-                    instance.kind = 'spare';
-                    await saveInstance(instance);
-                });
+                await publishSpare(instance);
                 spares.push(instance);
             }
             return spares;
@@ -230,7 +301,18 @@ export async function claimInstance(
             '--verify',
             `${existingBranch ? `refs/heads/${branch}` : base}^{commit}`,
         ]);
-        instance = await withLock('pool', async () => {
+        const status = (worktree: string) =>
+            git(worktree, [
+                'status',
+                '--porcelain',
+                '--untracked-files=normal',
+                '--',
+                '.',
+                ':!packages/backend/src/generated',
+                ':!packages/common/src/schemas/json',
+                ':!packages/formula/src/grammar/parser.js',
+            ]);
+        const reservation = await withLock('pool', async () => {
             const available = (await instances()).filter(
                 (item) => item.kind === 'spare' && item.phase === 'ready',
             );
@@ -246,18 +328,20 @@ export async function claimInstance(
             );
             const spare = available.find((item) => item.parent === parent.sha)!;
             return withLock(spare.id, async () => {
-                const status = () =>
-                    git(spare.worktree, [
-                        'status',
-                        '--porcelain',
-                        '--untracked-files=normal',
-                        '--',
-                        '.',
-                        ':!packages/backend/src/generated',
-                        ':!packages/common/src/schemas/json',
-                        ':!packages/formula/src/grammar/parser.js',
-                    ]);
-                if (await status())
+                const current = (await instances()).find(
+                    (item) => item.id === spare.id,
+                );
+                if (
+                    !current ||
+                    current.kind !== 'spare' ||
+                    current.phase !== 'ready' ||
+                    current.parent !== parent.sha
+                )
+                    throw new Error(
+                        `Spare changed before reservation: ${spare.worktree}`,
+                    );
+                Object.assign(spare, current);
+                if (await status(spare.worktree))
                     throw new Error(
                         `Spare has user edits: ${spare.worktree}; refusing to switch it`,
                     );
@@ -270,17 +354,49 @@ export async function claimInstance(
                     'branch',
                     '--show-current',
                 ]);
+                spare.kind = 'claimed';
+                spare.phase = 'starting';
+                spare.readyAt = null;
+                spare.startedAt = new Date(started).toISOString();
+                spare.timings = spare.timings.rssBytes
+                    ? { rssBytes: spare.timings.rssBytes }
+                    : {};
+                await saveInstance(spare);
+                return {
+                    spare,
+                    previous,
+                    previousHead,
+                    previousBranch,
+                    parent,
+                };
+            });
+        });
+        instance = await withLock(
+            reservation.spare.id,
+            async () => {
+                const {
+                    spare,
+                    previous,
+                    previousHead,
+                    previousBranch,
+                    parent,
+                } = reservation;
+                const current = (await instances()).find(
+                    (item) => item.id === spare.id,
+                );
+                if (
+                    !current ||
+                    current.kind !== 'claimed' ||
+                    current.phase !== 'starting' ||
+                    current.startedAt !== spare.startedAt
+                )
+                    throw new Error(
+                        `Claim reservation changed for ${spare.worktree}; refusing to overwrite it`,
+                    );
+                Object.assign(spare, current);
                 let checkoutLanded = false;
                 try {
                     await processPriority(spare, false);
-                    spare.kind = 'claimed';
-                    spare.phase = 'starting';
-                    spare.readyAt = null;
-                    spare.startedAt = new Date(started).toISOString();
-                    spare.timings = spare.timings.rssBytes
-                        ? { rssBytes: spare.timings.rssBytes }
-                        : {};
-                    await saveInstance(spare);
                     const delta = (
                         await git(root, [
                             'diff',
@@ -362,7 +478,7 @@ export async function claimInstance(
                                 'branch',
                                 '--show-current',
                             ])) === previousBranch &&
-                            !(await status());
+                            !(await status(spare.worktree));
                         if (unchanged) {
                             Object.assign(spare, previous, {
                                 kind: 'claimed',
@@ -407,8 +523,9 @@ export async function claimInstance(
                         `${reason}; failed warm instance stopped and released${spare.kind === 'claimed' ? `; worktree retained at ${spare.worktree}` : ''}`,
                     );
                 }
-            });
-        });
+            },
+            { timeoutMs: null },
+        );
     } catch (error) {
         failure = error;
     }
