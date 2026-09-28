@@ -47,9 +47,29 @@ export type SandboxLesson = {
         /** Which field list the learner finds it in at the end. */
         kind: 'metric' | 'dimension';
     };
-    /** Citation on the final look. */
+    /** Citation on the look at the new field. */
     resultDocs: DocsCitation;
+    /**
+     * Citation for a closing step on how the change ships in a team (a pull
+     * request whose CI builds the preview); titled from its docs heading.
+     */
+    shipDocs?: DocsCitation;
 };
+
+/*
+ * Both lessons end in a preview, not a deploy: a team's changes reach
+ * production through a pull request and CI, so the learner previews the
+ * change (the training copy is itself a preview project) and the last step
+ * says how a pull request does that for them.
+ */
+const PREVIEW_COMMAND_DOCS: DocsCitation =
+    'workflow/preview-projects.mdx#lightdash-cli-tool-local:1';
+const PREVIEW_OUTPUT_DOCS: DocsCitation = [
+    'workflow/preview-projects.mdx#intro:p2:1',
+    'workflow/preview-projects.mdx#intro:li1',
+];
+const PREVIEW_SHIP_DOCS: DocsCitation =
+    'workflow/set-up-ci-cd.mdx#add-previews-to-pull-requests:1';
 
 export const SANDBOX_LESSONS: SandboxLesson[] = [
     {
@@ -70,18 +90,16 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
         // The section's second paragraph: the first is a glossary entry with
         // no subject once it leaves the page ("Takes the average...").
         snippetDocs: 'semantic-layer/metrics.mdx#average:p2:1',
-        command: 'lightdash deploy',
-        commandDocs: 'workflow/cli/deploy.mdx#intro:1',
-        outputDocs: [
-            'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li2',
-            'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
-        ],
+        command: 'lightdash start-preview',
+        commandDocs: PREVIEW_COMMAND_DOCS,
+        outputDocs: PREVIEW_OUTPUT_DOCS,
         result: {
             explore: 'payments',
             field: 'average_payment_amount',
             kind: 'metric',
         },
         resultDocs: 'explore/explore-view.mdx#the-explore-page:li1',
+        shipDocs: PREVIEW_SHIP_DOCS,
     },
     {
         id: 'docs:semantic-layer/dimensions',
@@ -100,17 +118,15 @@ export const SANDBOX_LESSONS: SandboxLesson[] = [
         // which the sandbox terminal does not offer yet.
         snippetDocs:
             'semantic-layer/dimensions.mdx#adding-dimensions-to-your-project:1',
-        command: 'lightdash deploy',
-        commandDocs: 'workflow/cli/deploy.mdx#intro:1',
-        outputDocs: [
-            'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li2',
-            'workflow/cli/deploy.mdx#option-1-deploy-via-the-cli:li3',
-        ],
+        command: 'lightdash start-preview',
+        commandDocs: PREVIEW_COMMAND_DOCS,
+        outputDocs: PREVIEW_OUTPUT_DOCS,
         result: {
             explore: 'fm_buildings',
             field: 'number_of_floors',
             kind: 'dimension',
         },
         resultDocs: 'explore/explore-view.mdx#the-explore-page:li1',
+        shipDocs: PREVIEW_SHIP_DOCS,
     },
 ];

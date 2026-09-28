@@ -144,13 +144,15 @@ const Workspace: FC<WorkspaceProps> = ({
         isAwaitingFirstPoll ||
         isRunPending;
 
-    // A deploy rewrites the project's explores, and the learner opens the
-    // new field straight afterwards: a cached explore list would not have it.
+    // A deploy (or a start-preview, which updates this copy the same way)
+    // rewrites the project's explores, and the learner opens the new field
+    // straight afterwards: a cached explore list would not have it.
     useEffect(() => {
         if (output.status !== 'done') return;
         if (
             activeCommand?.tool !== 'lightdash' ||
-            activeCommand.subcommand !== 'deploy'
+            (activeCommand.subcommand !== 'deploy' &&
+                activeCommand.subcommand !== 'start-preview')
         )
             return;
         void queryClient.invalidateQueries(EXPLORE_QUERY_KEY);
