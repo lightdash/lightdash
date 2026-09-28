@@ -62,6 +62,7 @@ import {
     type Parent,
     type Ports,
 } from './model';
+import { retireParent } from './parent-gc';
 import {
     background,
     bridge,
@@ -808,35 +809,21 @@ export async function parentGc(root: string, keep: number): Promise<void> {
             const all = (await parents()).sort((a, b) =>
                 b.builtAt.localeCompare(a.builtAt),
             );
-            for (const parent of all
-                .slice(keep)
-                .filter((item) => !pinned.has(item.sha))) {
-                const paths = [parent.path, ...(parent.retiredPaths ?? [])];
-                if (
-                    paths.some(
-                        (directory) =>
-                            path.dirname(directory) !==
-                                path.join(home, 'parents') ||
-                            !new RegExp(
-                                `^${parent.sha.slice(0, 12)}(-cache-[0-9]+)?$`,
-                            ).test(path.basename(directory)),
-                    ) ||
-                    parent.database !== `ldp_${parent.sha.slice(0, 12)}`
-                )
-                    throw new Error('Invalid parent ownership record');
-                await ensurePostgres(root);
-                await dropDatabase(root, parent.database);
-                for (const directory of paths)
-                    await git(root, [
-                        'worktree',
-                        'remove',
-                        '--force',
-                        directory,
-                    ]);
-                await rm(path.join(manifests, `${parent.sha}.json`));
+            const retired = await listJson<Parent>(
+                path.join(manifests, 'retired'),
+            );
+            for (const parent of [...all.slice(keep), ...retired].filter(
+                (item) => !pinned.has(item.sha),
+            )) {
+                await retireParent(root, parent);
                 if (
                     parent.warehouseDatabase &&
-                    !(await parents()).some(
+                    ![
+                        ...(await parents()),
+                        ...(await listJson<Parent>(
+                            path.join(manifests, 'retired'),
+                        )),
+                    ].some(
                         (item) =>
                             item.warehouseDatabase === parent.warehouseDatabase,
                     )
