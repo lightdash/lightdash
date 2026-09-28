@@ -18,6 +18,35 @@ export type DocumentChartAttributes = {
 
 const CONTENT_ATTRIBUTE = 'data-document-chart';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Pasted HTML can carry any attribute value, so check the fields rendering
+ * reads; the server validates the full chart when the Document is saved.
+ */
+const isDocumentChartContent = (
+    value: unknown,
+): value is DocumentChartContent => {
+    if (
+        !isRecord(value) ||
+        (value.source !== 'semantic' && value.source !== 'merge') ||
+        !isRecord(value.chart)
+    ) {
+        return false;
+    }
+    const { name, tableName, metricQuery, chartConfig } = value.chart;
+    return (
+        typeof name === 'string' &&
+        typeof tableName === 'string' &&
+        isRecord(metricQuery) &&
+        typeof metricQuery.exploreName === 'string' &&
+        isRecord(chartConfig) &&
+        typeof chartConfig.type === 'string' &&
+        (value.source === 'semantic' || isRecord(value.chart.merge))
+    );
+};
+
 const parseContentAttribute = (
     value: string | null,
 ): DocumentChartContent | null => {
@@ -25,7 +54,8 @@ const parseContentAttribute = (
         return null;
     }
     try {
-        return JSON.parse(value) as DocumentChartContent;
+        const parsed: unknown = JSON.parse(value);
+        return isDocumentChartContent(parsed) ? parsed : null;
     } catch {
         return null;
     }

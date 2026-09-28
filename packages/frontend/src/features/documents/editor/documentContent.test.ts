@@ -1,5 +1,6 @@
 import { ChartType, type DocumentCell } from '@lightdash/common';
 import { Editor } from '@tiptap/core';
+import { DOMParser } from '@tiptap/pm/model';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
 import { getDocumentHeadings } from './DocumentHeadingIds';
@@ -142,5 +143,53 @@ describe('getDocumentHeadings', () => {
             ['document-heading-1', '', null],
         ]);
         editor.destroy();
+    });
+});
+
+describe('pasted chart HTML', () => {
+    // Paste parses clipboard HTML with ProseMirror's DOM parser
+    const parsedContent = (attribute: string) => {
+        const editor = createEditor();
+        const element = document.createElement('div');
+        const chartElement = document.createElement('div');
+        chartElement.setAttribute('data-document-chart', attribute);
+        element.appendChild(chartElement);
+        const doc = DOMParser.fromSchema(editor.schema).parse(element);
+        let content: unknown = 'no chart node';
+        doc.forEach((node) => {
+            if (node.type.name === 'documentChart') {
+                content = node.attrs.content;
+            }
+        });
+        editor.destroy();
+        return content;
+    };
+
+    it('keeps a well-formed chart', () => {
+        expect(parsedContent(JSON.stringify(chart.content))).toStrictEqual(
+            chart.content,
+        );
+    });
+
+    it.each([
+        ['not JSON', '{broken'],
+        ['a bare string', JSON.stringify('chart')],
+        [
+            'a chart without a name',
+            JSON.stringify({
+                source: 'semantic',
+                chart: { tableName: 'orders' },
+            }),
+        ],
+        [
+            'an unknown source',
+            JSON.stringify({ ...chart.content, source: 'sql' }),
+        ],
+        [
+            'a merge chart without its merge',
+            JSON.stringify({ ...chart.content, source: 'merge' }),
+        ],
+    ])('drops %s instead of rendering it', (_label, attribute) => {
+        expect(parsedContent(attribute)).toBeNull();
     });
 });
