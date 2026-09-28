@@ -227,6 +227,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         const unmatchedFilter = rule({
             id: 'unmatched',
             required: true,
+            target: { fieldId: 'orders_tab1', tableName: 'orders' },
             tileTargets: {
                 'tile-1': false,
                 'tile-2': false,
@@ -321,6 +322,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         const automaticFilter = rule({
             id: 'automatic',
             required: true,
+            target: { fieldId: 'orders_automatic', tableName: 'orders' },
             tileTargets: undefined,
         });
 
@@ -343,6 +345,55 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 [],
                 scope,
             ).filtersWithUnmetRequirements,
+        ).toEqual([]);
+    });
+
+    it('does not block on a required filter whose field no tile offers', () => {
+        const hiddenFieldFilter = rule({
+            id: 'hidden',
+            required: true,
+            target: { fieldId: 'orders_hidden', tableName: 'orders' },
+            tileTargets: undefined,
+        });
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([hiddenFieldFilter, tab2Filter]),
+                [],
+                tabScope(null),
+            ).filtersWithUnmetRequirements.map((filter) => filter.id),
+        ).toEqual(['tab2']);
+    });
+
+    it('keeps a group unmet while a member with an offered field is valueless', () => {
+        const group = [
+            rule({
+                id: 'hidden',
+                requiredGroupId: 'g1',
+                target: { fieldId: 'orders_hidden', tableName: 'orders' },
+                tileTargets: undefined,
+            }),
+            rule({
+                id: 'visible',
+                requiredGroupId: 'g1',
+                target: { fieldId: 'orders_tab1', tableName: 'orders' },
+                tileTargets: undefined,
+            }),
+        ];
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters(group),
+                [],
+                tabScope(null),
+            ).unmetRequirements,
+        ).toEqual([{ type: 'group', groupId: 'g1', filters: group }]);
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([group[0]]),
+                [],
+                tabScope(null),
+            ).unmetRequirements,
         ).toEqual([]);
     });
 

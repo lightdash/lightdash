@@ -24,6 +24,14 @@ const unmetRule: DashboardFilterRule = {
     label: undefined,
 };
 
+const firstNameField = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: 'first_name',
+    table: 'customers',
+    label: 'First name',
+} as unknown as DashboardFilterableField;
+
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
@@ -71,7 +79,7 @@ describe('GuidedFilterSetupOverlay', () => {
                 tableCalculations: [],
             },
             dashboardTiles: [],
-            filterableFieldsByTileUuid: {},
+            filterableFieldsByTileUuid: { 'tile-1': [firstNameField] },
             allFilterableFieldsMap: {},
             requiredFiltersNote: 'Pick a customer to get started',
             activeTab: undefined,
@@ -171,6 +179,28 @@ describe('GuidedFilterSetupOverlay', () => {
             ).not.toBeInTheDocument();
         },
     );
+
+    it('leaves out a rule whose field no tile offers', () => {
+        const lockedRule: DashboardFilterRule = {
+            ...unmetRule,
+            id: 'filter-locked',
+            target: { fieldId: 'customers_hidden', tableName: 'customers' },
+        };
+        const filters = {
+            dimensions: [unmetRule, lockedRule],
+            metrics: [],
+            tableCalculations: [],
+        };
+        Object.assign(mockDashboardContext.current, {
+            dashboardFilters: filters,
+            allFilters: filters,
+        });
+
+        renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
+
+        expect(screen.getByText('0 of 1 set')).toBeInTheDocument();
+        expect(screen.queryByText(/customers_hidden/)).not.toBeInTheDocument();
+    });
 
     it('dismisses from the close button but not from clicks inside the card', async () => {
         const onDismiss = vi.fn();

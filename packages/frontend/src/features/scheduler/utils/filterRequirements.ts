@@ -14,6 +14,10 @@ import {
     type UnmetFilterRequirement,
 } from '@lightdash/common';
 import { doesFilterApplyToTile } from '../../dashboardFilters/FilterConfiguration/utils';
+import {
+    excludeLockedFilterRequirements,
+    isLockedDashboardFilterRule,
+} from '../../dashboardFilters/lockedFilters';
 
 export type SchedulerFilterRequirements = {
     unmetRequirements: UnmetFilterRequirement[];
@@ -97,7 +101,14 @@ export const getSchedulerFilterRequirements = (
         dimensions: effectiveFilters.dimensions.filter(appliesToDelivery),
         metrics: effectiveFilters.metrics.filter(appliesToDelivery),
     };
-    const unmetRequirements = getUnmetFilterRequirements(scopedFilters);
+    const unmetRequirements = excludeLockedFilterRequirements(
+        getUnmetFilterRequirements(scopedFilters),
+        (filter) =>
+            isLockedDashboardFilterRule(
+                filter,
+                tabScope?.filterableFieldsByTileUuid,
+            ),
+    );
     const seenFilterIds = new Set<string>();
     const filtersWithUnmetRequirements = unmetRequirements
         .flatMap((requirement) =>

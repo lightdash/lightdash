@@ -62,6 +62,10 @@ import {
     type useDashboardCommentsCheck,
 } from '../../features/comments';
 import { hasSavedFilterValueChanged } from '../../features/dashboardFilters/FilterConfiguration/utils';
+import {
+    excludeLockedFilterRequirements,
+    isLockedDashboardFilterRule,
+} from '../../features/dashboardFilters/lockedFilters';
 import { useParameters } from '../../features/parameters';
 import {
     useDashboardQuery,
@@ -1821,8 +1825,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     ]);
 
     const unmetFilterRequirements = useMemo(
-        () => getUnmetFilterRequirements(dashboardFilters),
-        [dashboardFilters],
+        () =>
+            excludeLockedFilterRequirements(
+                getUnmetFilterRequirements(dashboardFilters),
+                (filterRule) =>
+                    isLockedDashboardFilterRule(
+                        filterRule,
+                        filterableFieldsByTileUuid,
+                    ),
+            ),
+        [dashboardFilters, filterableFieldsByTileUuid],
     );
 
     const value = {

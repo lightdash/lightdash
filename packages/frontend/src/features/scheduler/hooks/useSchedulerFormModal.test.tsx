@@ -1,6 +1,9 @@
 import {
+    DimensionType,
+    FieldType,
     FilterOperator,
     type Dashboard,
+    type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
@@ -27,6 +30,13 @@ const tab1Filter: DashboardFilterRule = {
         'tile-2': false,
     },
 };
+
+const tab1Field = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: 'tab1',
+    table: 'orders',
+} as unknown as DashboardFilterableField;
 
 const dashboard = {
     projectUuid: 'project-uuid',
@@ -126,7 +136,7 @@ describe('useSchedulerFormModal tab-scoped requirements', () => {
                     emailTargets: ['recipient@example.com'],
                     selectedTabs: ['tab-2'],
                 },
-                filterableFieldsByTileUuid: {},
+                filterableFieldsByTileUuid: { 'tile-1': [tab1Field] },
             }),
         );
 
