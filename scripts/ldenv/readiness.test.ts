@@ -24,7 +24,7 @@ import {
     type CompilerState,
 } from './readiness';
 
-const require = createRequire(import.meta.url);
+const require = createRequire(__filename);
 const { compilerWatchArgs } = require('./compiler-watch-args.cjs') as {
     compilerWatchArgs: (args: string[], platform: string) => string[];
 };
