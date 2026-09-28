@@ -71,6 +71,9 @@ finishes the readiness checks. Status reports the monitor PID, current phase,
 last error, last readiness time, live health, timings and process RSS. A dead
 monitor with a starting phase means readiness has not been established. Logs
 are in `~/.ldenv/logs`; credentials are redacted from command logs.
+`up` probes owned API/frontend processes and health before reusing a saved READY
+record. It restarts an instance whose processes are gone. Claims skip dead spares
+and request replacement through the pool refill.
 
 Fork readiness requires backend health, a successful frontend HTTP response, a
 seeded chart query that returns rows through the API with the dev PAT, and warm
@@ -107,7 +110,9 @@ Use the Node and pnpm versions pinned by the repository, plus Docker, `sfw`,
 `lsof`, Python 3 and the existing dbt 1.12 environment. Like `dev-fast-start`, ldenv reads
 `LIGHTDASH_LICENSE_KEY` from `.env.development.local`; an exported key also works.
 It never fetches a licence or prints its value. The seed requires EE migrations.
-The optional offline licence certificate follows the same path.
+The optional offline licence certificate follows the same path. If no licence is
+set for the target, parent fallback supplies only the licence key and certificate;
+it does not copy the parent's tracing, scheduler or feature flags.
 
 Shared infrastructure must already exist under the `ld-shared` Compose project.
 `ldenv` reads `docker/docker-compose.dev.shared.yml` and `.env.development` to find
@@ -136,15 +141,29 @@ volume. Existing resources with mismatched ownership or configuration are refuse
 
 `stop` keeps the database, files and port reservation. `down` terminates only the
 instance's connections, drops its database, deletes its PM2 entries and releases
-its slot. It restores the old local env file only if the generated file has not
-been edited. It keeps the worktree and dependencies. `gc` removes registrations
-whose worktrees no longer exist; `up` also runs it. Neither command removes a
-parent or another tool's instances. The shared PostgreSQL container and volume
-remain for parents and future clones.
+its slot. It restores the original local env file when the last ldenv-written file
+is intact. If the user edited it, down keeps the backup and prints its path.
+Tracing rewrites update that backup record without losing the original content.
+User and claimed worktrees remain. Detached ldenv-owned spare/warming worktrees
+are removed only after ownership and live-use checks.
+
+`gc --dry-run` lists missing registrations and eligible orphan warm/tool
+checkouts before deletion. `gc` skips a failed instance cleanup and reports why.
+It preserves branch-attached or edited worktrees, live process references, the
+active tool and its previous version. Claimed warm paths remain retained even
+after down. Run GC explicitly; an unrelated stale instance cannot block `up`.
+The shared PostgreSQL container and volume remain for parents and future clones.
+The shared `dev-ports.sh` probe suppresses lsof warnings, can use `ss` when lsof
+is absent, and stops with a probe error instead of treating inspection failure
+as either a free port or repeated port conflicts.
 
 Parent GC retains the newest two parents by default and any parent pinned by a
-registered instance. Never remove a lock just because it is old. Inspect its
-`owner.json` and confirm that the owner and its child commands have exited first.
+registered instance. It moves each selected manifest out of parent selection
+before dropping resources. Partial retirements are retried on the next parent GC.
+Locks are reclaimed only after checking an old owner's process identity; age
+alone is not proof. A live or unverifiable owner stays protected, with a specific
+busy message. Contended lock recovery uses Python's kernel file lock on macOS
+and Linux so two reclaimers cannot steal a fresh owner's lock.
 
 ## What is cached
 
