@@ -27,7 +27,10 @@ import path from 'node:path';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LearnSandboxService } from './LearnSandboxService';
-import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from './runtime';
+import {
+    LEARN_SANDBOX_COMMAND_TIMEOUT_MS,
+    resetSandboxDbtVersionCache,
+} from './runtime';
 
 const user: SessionUser = {
     ...defaultSessionUser,
@@ -812,6 +815,7 @@ describe('LearnSandboxService.runCommand', () => {
         );
         bin = await mkdtemp(path.join(tmpdir(), 'learn-bin-'));
         process.env.LEARN_SANDBOX_PATH_PREFIX = bin;
+        resetSandboxDbtVersionCache();
     });
 
     afterEach(async () => {
@@ -979,6 +983,57 @@ describe('LearnSandboxService.runCommand', () => {
         );
         const text = appended.map((c) => c.text).join('');
         expect(text).toContain('project=copy');
+    });
+
+    const runWithFakeDbt = async (script: string[]) => {
+        await writeFile(path.join(bin, 'dbt'), [...script, ''].join('\n'), {
+            mode: 0o755,
+        });
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c-v',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: ['dbt', 'parse'],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        const appended: { text: string }[] = [];
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
+        await buildService().service.runCommand({
+            commandUuid: 'c-v',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        return appended.map((c) => c.text).join('');
+    };
+
+    it('tells the child the detected dbt version so the CLI need not ask dbt', async () => {
+        const text = await runWithFakeDbt([
+            '#!/bin/sh',
+            'if [ "$1" = "--version" ]; then',
+            '  printf "Core:\\n  - installed: 1.12.3\\n"',
+            '  exit 0',
+            'fi',
+            'echo "dbt_version=${LIGHTDASH_DBT_VERSION:-unset}"',
+        ]);
+        expect(text).toContain('dbt_version=1.12.3');
+    });
+
+    it('leaves LIGHTDASH_DBT_VERSION unset when the version cannot be detected', async () => {
+        const text = await runWithFakeDbt([
+            '#!/bin/sh',
+            'if [ "$1" = "--version" ]; then exit 1; fi',
+            'echo "dbt_version=${LIGHTDASH_DBT_VERSION:-unset}"',
+        ]);
+        expect(text).toContain('dbt_version=unset');
+        expect(files.updateCommand).toHaveBeenLastCalledWith(
+            'c-v',
+            expect.objectContaining({ status: 'done', exit_code: 0 }),
+        );
     });
 
     it('marks a non-zero exit as error and still revokes the PAT', async () => {
