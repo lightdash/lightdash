@@ -258,6 +258,8 @@ import {
     WarehouseConnectionError,
     WarehouseConnectionTestResults,
     WarehouseCredentials,
+    WarehouseCredentialsOwner,
+    WarehouseCredentialsOwnership,
     WarehouseDatabaseListing,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
@@ -390,6 +392,10 @@ import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import {
+    attributeWarehouseTokenError,
+    withWarehouseTokenErrorOwnership,
+} from '../../utils/warehouseTokenErrorOwnership';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import {
@@ -484,6 +490,43 @@ type RefreshTokenRotationSource =
           project: WarehouseConnectionProject;
           warehouseConnectionUuid: string;
       };
+
+// `credentialsOwnership` records which credential was chosen so token errors can
+// say who must reconnect; it is informational and must not drive access control
+export type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
+    userWarehouseCredentialsUuid: string | undefined;
+    credentialsOwnership: WarehouseCredentialsOwnership;
+};
+
+const getRotationSourceOwnership = (
+    source: RefreshTokenRotationSource,
+): WarehouseCredentialsOwnership => {
+    switch (source.kind) {
+        case 'project':
+            return {
+                credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                userWarehouseCredentialsUuid: null,
+            };
+        case 'organization':
+            return {
+                credentialsOwner: WarehouseCredentialsOwner.ORGANIZATION,
+                userWarehouseCredentialsUuid: null,
+            };
+        case 'user':
+            return {
+                credentialsOwner: WarehouseCredentialsOwner.USER,
+                userWarehouseCredentialsUuid:
+                    source.userWarehouseCredentialsUuid,
+            };
+        case 'warehouseConnection':
+            return {
+                credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                userWarehouseCredentialsUuid: null,
+            };
+        default:
+            return assertUnreachable(source, 'Unknown source kind');
+    }
+};
 
 /**
  * Projects created by Lightdash itself rather than by a user: the onboarding
@@ -1663,7 +1706,15 @@ export class ProjectService extends BaseService {
     ): Promise<T> {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
-        const refreshed = await this.refreshCredentials(args, userUuid);
+        let refreshed: T;
+        try {
+            refreshed = await this.refreshCredentials(args, userUuid);
+        } catch (error) {
+            throw attributeWarehouseTokenError(
+                error,
+                getRotationSourceOwnership(source),
+            );
+        }
 
         const newRefreshToken =
             ProjectService.getCredentialsRefreshToken(refreshed);
@@ -1893,6 +1944,12 @@ export class ProjectService extends BaseService {
             ),
         } as CreateWarehouseCredentials;
         let userWarehouseCredentialsUuid: string | undefined;
+        let credentialsOwnership: WarehouseCredentialsOwnership = {
+            credentialsOwner: organizationWarehouseCredentialsUuid
+                ? WarehouseCredentialsOwner.ORGANIZATION
+                : WarehouseCredentialsOwner.PROJECT,
+            userWarehouseCredentialsUuid: null,
+        };
 
         if (purpose === 'compile') {
             return {
@@ -1907,6 +1964,7 @@ export class ProjectService extends BaseService {
                         : connectionRotationSource,
                 )),
                 userWarehouseCredentialsUuid,
+                credentialsOwnership,
             };
         }
 
@@ -1976,10 +2034,18 @@ export class ProjectService extends BaseService {
                     },
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+                credentialsOwnership = {
+                    credentialsOwner: WarehouseCredentialsOwner.USER,
+                    userWarehouseCredentialsUuid: userWarehouseCredentials.uuid,
+                };
             } else if (credentials.requireUserCredentials) {
                 if (credentials.type === WarehouseTypes.DATABRICKS) {
                     throw new DatabricksTokenError(
                         'Please authenticate to access Databricks',
+                        {
+                            credentialsOwner: WarehouseCredentialsOwner.USER,
+                            userWarehouseCredentialsUuid: null,
+                        },
                     );
                 }
                 throw new MissingWarehouseCredentialsError(
@@ -2012,6 +2078,7 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            credentialsOwnership,
         };
     }
 
@@ -2398,7 +2465,7 @@ export class ProjectService extends BaseService {
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
-    }) {
+    }): Promise<ResolvedWarehouseCredentials> {
         // Use preloaded config if available, otherwise fetch it
         const organizationWarehouseCredentialsUuid =
             preloadedOrgWarehouseCredentialsUuid !== undefined
@@ -2415,6 +2482,12 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
+        let credentialsOwnership: WarehouseCredentialsOwnership = {
+            credentialsOwner: organizationWarehouseCredentialsUuid
+                ? WarehouseCredentialsOwner.ORGANIZATION
+                : WarehouseCredentialsOwner.PROJECT,
+            userWarehouseCredentialsUuid: null,
+        };
 
         if (
             credentials.type === WarehouseTypes.DUCKDB &&
@@ -2430,7 +2503,11 @@ export class ProjectService extends BaseService {
                 project.organizationUuid,
             );
             await this.assertAnalyticsProjectAccess(user, project);
-            return { ...credentials, userWarehouseCredentialsUuid };
+            return {
+                ...credentials,
+                userWarehouseCredentialsUuid,
+                credentialsOwnership,
+            };
         }
 
         if (
@@ -2507,6 +2584,10 @@ export class ProjectService extends BaseService {
                     },
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+                credentialsOwnership = {
+                    credentialsOwner: WarehouseCredentialsOwner.USER,
+                    userWarehouseCredentialsUuid: userWarehouseCredentials.uuid,
+                };
             } else if (credentials.requireUserCredentials) {
                 this.logger.warn(
                     `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled, host mismatch: ${!!hostMismatch})`,
@@ -2514,6 +2595,10 @@ export class ProjectService extends BaseService {
                 if (credentials.type === WarehouseTypes.DATABRICKS) {
                     throw new DatabricksTokenError(
                         'Please authenticate to access Databricks',
+                        {
+                            credentialsOwner: WarehouseCredentialsOwner.USER,
+                            userWarehouseCredentialsUuid: null,
+                        },
                     );
                 }
                 throw new MissingWarehouseCredentialsError(
@@ -2552,6 +2637,7 @@ export class ProjectService extends BaseService {
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
+            credentialsOwnership,
         };
     }
 
@@ -2578,6 +2664,32 @@ export class ProjectService extends BaseService {
     }
 
     async _getWarehouseClient(
+        projectUuid: string,
+        credentials: ResolvedWarehouseCredentials,
+        overrides?: {
+            snowflakeVirtualWarehouse?: string;
+            databricksCompute?: string;
+        },
+    ): Promise<{
+        warehouseClient: WarehouseClient;
+        sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        tunnelConnectMs: number | null;
+    }> {
+        const connection = await this.getOrCreateWarehouseClient(
+            projectUuid,
+            credentials,
+            overrides,
+        );
+        return {
+            ...connection,
+            warehouseClient: withWarehouseTokenErrorOwnership(
+                connection.warehouseClient,
+                credentials.credentialsOwnership,
+            ),
+        };
+    }
+
+    private async getOrCreateWarehouseClient(
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         overrides?: {
@@ -11171,7 +11283,7 @@ export class ProjectService extends BaseService {
 
     private async withConnectionWarehouseClient<T>(
         projectUuid: string,
-        credentials: CreateWarehouseCredentials,
+        credentials: ResolvedWarehouseCredentials,
         run: (warehouseClient: WarehouseClient) => Promise<T>,
     ): Promise<T> {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -11188,7 +11300,7 @@ export class ProjectService extends BaseService {
     private async listConnectionSqlRunnerDatabases(
         projectUuid: string,
         connection: WarehouseConnection,
-        credentials: CreateWarehouseCredentials,
+        credentials: ResolvedWarehouseCredentials,
     ): Promise<WarehouseDatabaseListing> {
         return listConnectionDatabases({
             connection,
@@ -14410,7 +14522,7 @@ export class ProjectService extends BaseService {
                 ['model', 'seed'].includes(node.resource_type) && node.meta,
         ) as DbtRawModelNode[];
 
-        const { warehouseClient } = await this._getWarehouseClient(
+        const { warehouseClient } = await this.getOrCreateWarehouseClient(
             projectUuid,
             project.warehouseConnection,
         );

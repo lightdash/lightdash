@@ -48,6 +48,7 @@ import {
     SessionUser,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
+    WarehouseCredentialsOwner,
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
@@ -143,7 +144,10 @@ import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
-import { ProjectService } from './ProjectService';
+import {
+    ProjectService,
+    type ResolvedWarehouseCredentials,
+} from './ProjectService';
 import {
     allExplores,
     buildAccount,
@@ -1098,6 +1102,15 @@ describe('ProjectService', () => {
     });
 
     describe('MotherDuck instance cache enablement', () => {
+        const resolvedWarehouseCredentialsMock = {
+            ...warehouseClientMock.credentials,
+            userWarehouseCredentialsUuid: undefined,
+            credentialsOwnership: {
+                credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                userWarehouseCredentialsUuid: null,
+            },
+        };
+
         test.each([
             {
                 name: 'fails closed for a project on Lightdash Cloud when the allowlist is empty',
@@ -1178,7 +1191,7 @@ describe('ProjectService', () => {
 
                 await configuredService._getWarehouseClient(
                     targetProjectUuid,
-                    warehouseClientMock.credentials,
+                    resolvedWarehouseCredentialsMock,
                 );
 
                 expect(
@@ -1206,7 +1219,7 @@ describe('ProjectService', () => {
 
             await configuredService._getWarehouseClient(
                 projectUuid,
-                warehouseClientMock.credentials,
+                resolvedWarehouseCredentialsMock,
             );
 
             expect(
@@ -3913,6 +3926,10 @@ describe('ProjectService', () => {
                     expect(await getCredentials()).toEqual({
                         ...sharedCredentials,
                         userWarehouseCredentialsUuid: undefined,
+                        credentialsOwnership: {
+                            credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                            userWarehouseCredentialsUuid: null,
+                        },
                     });
                     expect(findPersonalCredentials).not.toHaveBeenCalled();
                 },
@@ -3962,6 +3979,102 @@ describe('ProjectService', () => {
                 expect(await getCredentials()).toEqual({
                     ...projectCredentials,
                     userWarehouseCredentialsUuid: undefined,
+                    credentialsOwnership: {
+                        credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                        userWarehouseCredentialsUuid: null,
+                    },
+                });
+            });
+
+            test('attributes an organization connection to the organization', async () => {
+                expect(await getCredentials(true, 'org-credentials')).toEqual(
+                    expect.objectContaining({
+                        credentialsOwnership: {
+                            credentialsOwner:
+                                WarehouseCredentialsOwner.ORGANIZATION,
+                            userWarehouseCredentialsUuid: null,
+                        },
+                    }),
+                );
+            });
+
+            describe('extra warehouse connections', () => {
+                const findExtraConnectionUserCredentials =
+                    vi.fn<
+                        () => Promise<
+                            UserWarehouseCredentialsWithSecrets | undefined
+                        >
+                    >();
+                const getExtraConnectionCredentials = (
+                    organizationWarehouseCredentialsUuid: string | null,
+                ) => {
+                    const internals = service as unknown as {
+                        warehouseConnectionModel: Partial<WarehouseConnectionModel>;
+                        findUserCredentialsForExtraConnection: typeof findExtraConnectionUserCredentials;
+                        getExtraConnectionWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            warehouseConnectionUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                        }) => Promise<ResolvedWarehouseCredentials>;
+                    };
+                    internals.warehouseConnectionModel = {
+                        getProject: vi.fn().mockResolvedValue({ projectUuid }),
+                        getExtraCredentialSource: vi.fn().mockResolvedValue({
+                            credentials: projectCredentials,
+                            organizationWarehouseCredentialsUuid,
+                        }),
+                    };
+                    internals.findUserCredentialsForExtraConnection =
+                        findExtraConnectionUserCredentials;
+                    return internals.getExtraConnectionWarehouseCredentials({
+                        projectUuid,
+                        warehouseConnectionUuid: 'extra-connection',
+                        userId: sessionAccount.user.id,
+                        isRegisteredUser: true,
+                    });
+                };
+
+                beforeEach(() => {
+                    findExtraConnectionUserCredentials.mockReset();
+                    findExtraConnectionUserCredentials.mockResolvedValue(
+                        undefined,
+                    );
+                });
+
+                test('attributes the connection credential to the project', async () => {
+                    expect(
+                        (await getExtraConnectionCredentials(null))
+                            .credentialsOwnership,
+                    ).toEqual({
+                        credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                        userWarehouseCredentialsUuid: null,
+                    });
+                });
+
+                test('attributes an organization connection to the organization', async () => {
+                    expect(
+                        (await getExtraConnectionCredentials('org-credentials'))
+                            .credentialsOwnership,
+                    ).toEqual({
+                        credentialsOwner:
+                            WarehouseCredentialsOwner.ORGANIZATION,
+                        userWarehouseCredentialsUuid: null,
+                    });
+                });
+
+                test('attributes personal credentials to the user', async () => {
+                    findExtraConnectionUserCredentials.mockResolvedValue(
+                        personalCredentials,
+                    );
+
+                    expect(
+                        (await getExtraConnectionCredentials(null))
+                            .credentialsOwnership,
+                    ).toEqual({
+                        credentialsOwner: WarehouseCredentialsOwner.USER,
+                        userWarehouseCredentialsUuid: personalCredentials.uuid,
+                    });
                 });
             });
 
@@ -3973,6 +4086,11 @@ describe('ProjectService', () => {
                         keyfileContents:
                             personalCredentials.credentials.keyfileContents,
                         userWarehouseCredentialsUuid: personalCredentials.uuid,
+                        credentialsOwnership: {
+                            credentialsOwner: WarehouseCredentialsOwner.USER,
+                            userWarehouseCredentialsUuid:
+                                personalCredentials.uuid,
+                        },
                     }),
                 );
             });
@@ -4023,6 +4141,10 @@ describe('ProjectService', () => {
                 expect(await getCredentials(false)).toEqual({
                     ...projectCredentials,
                     userWarehouseCredentialsUuid: undefined,
+                    credentialsOwnership: {
+                        credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                        userWarehouseCredentialsUuid: null,
+                    },
                 });
                 expect(findPersonalCredentials).not.toHaveBeenCalled();
             });
@@ -4559,7 +4681,98 @@ describe('ProjectService', () => {
                     'valid_explore',
                     null,
                 ),
-            ).rejects.toThrow('Error refreshing snowflake token');
+            ).rejects.toMatchObject({
+                name: 'SnowflakeTokenError',
+                message: 'Error refreshing snowflake token',
+                data: {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    credentialsOwner: WarehouseCredentialsOwner.USER,
+                    userWarehouseCredentialsUuid: 'user-creds-uuid',
+                },
+            });
+        });
+
+        test('attributes a failed Snowflake refresh of the project connection to the project', async () => {
+            service.warehouseClients = {};
+            vi.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockRejectedValue(new Error('invalid_grant'));
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockImplementation(async () => ({
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                authenticationType: 'sso',
+                refreshToken: 'project-refresh-token',
+                requireUserCredentials: false,
+            }));
+
+            await expect(
+                service.runExploreQuery(
+                    sessionAccount,
+                    metricQueryMock,
+                    projectUuid,
+                    'valid_explore',
+                    null,
+                ),
+            ).rejects.toMatchObject({
+                name: 'SnowflakeTokenError',
+                data: {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                    userWarehouseCredentialsUuid: null,
+                },
+            });
+        });
+
+        test('attributes a BigQuery token rejection at query time to the project connection', async () => {
+            service.warehouseClients = {};
+            const projectBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                project: 'shared-project',
+                dataset: 'analytics',
+                keyfileContents: { type: 'authorized_user' },
+                requireUserCredentials: false,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockImplementation(async () => projectBigqueryCredentials);
+            (
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                credentials: projectBigqueryCredentials,
+                runQuery: vi.fn(async () => {
+                    throw BigqueryTokenError.fromRejectedRefreshToken(
+                        'invalid_grant',
+                    );
+                }),
+            }));
+
+            const error = await service
+                .runExploreQuery(
+                    sessionAccount,
+                    metricQueryMock,
+                    projectUuid,
+                    'valid_explore',
+                    null,
+                )
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(BigqueryTokenError);
+            expect((error as BigqueryTokenError).data).toEqual({
+                warehouseType: WarehouseTypes.BIGQUERY,
+                credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+                userWarehouseCredentialsUuid: null,
+            });
+            expect((error as BigqueryTokenError).message).toContain(
+                "this project's connection",
+            );
         });
 
         test('should use project refreshToken when requireUserCredentials is false for Snowflake', async () => {

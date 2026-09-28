@@ -3,6 +3,7 @@ import {
     BigqueryTokenError,
     ParameterError,
     SnowflakeAuthenticationType,
+    WarehouseCredentialsOwner,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -271,6 +272,26 @@ describe('UserWarehouseCredentialsModel', () => {
                     WarehouseTypes.BIGQUERY,
                 ),
             ).rejects.toThrow(BigqueryTokenError);
+        });
+
+        test('attributes the validation error to the broken personal credential', async () => {
+            const model = createModel({
+                preferredRow: makeRow('broken', brokenBigqueryCredentials),
+                fallbackRows: [makeRow('broken', brokenBigqueryCredentials)],
+            });
+            await expect(
+                model.findForProjectWithSecrets(
+                    'project-1',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                ),
+            ).rejects.toMatchObject({
+                data: {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    credentialsOwner: WarehouseCredentialsOwner.USER,
+                    userWarehouseCredentialsUuid: 'broken',
+                },
+            });
         });
 
         test('falls back to a valid credential when the preferred one cannot be decrypted', async () => {

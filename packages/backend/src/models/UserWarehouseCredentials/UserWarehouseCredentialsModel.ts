@@ -6,6 +6,7 @@ import {
     DatabricksAuthenticationType,
     databricksOauthU2mUserCredentialsSchema,
     DatabricksTokenError,
+    isWarehouseTokenError,
     LightdashError,
     NotFoundError,
     ParameterError,
@@ -20,6 +21,7 @@ import {
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
+    WarehouseCredentialsOwner,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -507,7 +509,15 @@ export class UserWarehouseCredentialsModel {
                     validationError.message
                 }`,
             );
-            firstError = firstError ?? validationError;
+            firstError =
+                firstError ??
+                (isWarehouseTokenError(validationError)
+                    ? validationError.withCredentialsOwner({
+                          credentialsOwner: WarehouseCredentialsOwner.USER,
+                          userWarehouseCredentialsUuid:
+                              credentialsWithSecrets.uuid,
+                      })
+                    : validationError);
         }
 
         if (firstError) {

@@ -718,7 +718,7 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
             BigqueryTokenError,
         );
         await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
-            'Google rejected the BigQuery refresh token (invalid_grant: Token has been expired or revoked.; invalid_rapt). Reconnect your BigQuery account in personal settings.',
+            'Google rejected the BigQuery refresh token. Reconnect BigQuery to keep running queries. (invalid_grant: Token has been expired or revoked.; invalid_rapt)',
         );
     });
 
@@ -746,7 +746,7 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
         );
 
         await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
-            'Google rejected the BigQuery refresh token (invalid_grant). Reconnect your BigQuery account in personal settings.',
+            'Google rejected the BigQuery refresh token. Reconnect BigQuery to keep running queries. (invalid_grant)',
         );
     });
 

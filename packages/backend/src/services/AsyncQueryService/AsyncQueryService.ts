@@ -260,6 +260,7 @@ import { convertDashboardParametersToValuesMap } from '../ProjectService/paramet
 import {
     ProjectService,
     type ProjectServiceArguments,
+    type ResolvedWarehouseCredentials,
 } from '../ProjectService/ProjectService';
 import {
     getNextAndPreviousPage,
@@ -468,10 +469,6 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
           })
         | undefined
     >;
-};
-
-type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
-    userWarehouseCredentialsUuid: string | undefined;
 };
 
 /**

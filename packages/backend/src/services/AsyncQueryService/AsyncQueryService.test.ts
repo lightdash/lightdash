@@ -39,6 +39,7 @@ import {
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
+    WarehouseCredentialsOwner,
     WarehouseTypes,
     type Document,
     type DocumentQueryReference,
@@ -208,6 +209,10 @@ vi.mock('@lightdash/warehouses', async () => ({
 const warehouseCredentialsMock = {
     ...warehouseClientMock.credentials,
     userWarehouseCredentialsUuid: undefined,
+    credentialsOwnership: {
+        credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+        userWarehouseCredentialsUuid: null,
+    },
 };
 
 // Execute reads query/context data off the composer — mock the getter surface
@@ -5555,7 +5560,7 @@ describe('AsyncQueryService', () => {
                 // THEN: _getWarehouseClient called with original credentials
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
-                    originalCredentials,
+                    expect.objectContaining(originalCredentials),
                     undefined,
                 );
 

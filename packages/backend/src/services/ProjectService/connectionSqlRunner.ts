@@ -171,10 +171,12 @@ export const findListedCatalogDatabase = (
     return listedDatabase;
 };
 
-export const credentialsForListedDatabase = (
-    credentials: CreateWarehouseCredentials,
+export const credentialsForListedDatabase = <
+    T extends CreateWarehouseCredentials,
+>(
+    credentials: T,
     listedDatabase: WarehouseListedDatabase,
-): CreateWarehouseCredentials => {
+): T => {
     if (
         credentials.type !== WarehouseTypes.POSTGRES ||
         listedDatabase.database === credentials.dbname

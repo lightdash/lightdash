@@ -1,6 +1,8 @@
+import assertUnreachable from '../utils/assertUnreachable';
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
+import { WarehouseTypes } from './projects';
 
 type LightdashErrorData = {
     /**
@@ -804,45 +806,96 @@ export class AiAgentValidatorError extends LightdashError {
     }
 }
 
-/* This specific error will be used in the frontend
-to show a "reauthenticate" button in the UI
-*/
-export class SnowflakeTokenError extends LightdashError {
-    constructor(message: string) {
+/**
+ * Whose credential a warehouse query ran with. A descriptive label for error
+ * messages and reconnect UX only; never use it for authorization decisions.
+ */
+export enum WarehouseCredentialsOwner {
+    USER = 'user',
+    PROJECT = 'project',
+    ORGANIZATION = 'organization',
+}
+
+/** Label only: credential selection and access checks happen before this is set. */
+export type WarehouseCredentialsOwnership = {
+    credentialsOwner: WarehouseCredentialsOwner;
+    userWarehouseCredentialsUuid: string | null;
+};
+
+/** `credentialsOwner` is null until the backend attributes the failure to a credential. */
+export type WarehouseTokenErrorData = {
+    warehouseType: WarehouseTypes;
+    credentialsOwner: WarehouseCredentialsOwner | null;
+    userWarehouseCredentialsUuid: string | null;
+};
+
+export type WarehouseTokenErrorOwnership = Omit<
+    WarehouseTokenErrorData,
+    'warehouseType'
+>;
+
+const UNATTRIBUTED_OWNERSHIP: WarehouseTokenErrorOwnership = {
+    credentialsOwner: null,
+    userWarehouseCredentialsUuid: null,
+};
+
+/* Raised when a warehouse sign-in token is expired or revoked. The frontend
+uses the error name to show a "reauthenticate" prompt. */
+export abstract class WarehouseTokenError extends LightdashError {
+    declare data: WarehouseTokenErrorData;
+
+    constructor({
+        message,
+        name,
+        data,
+    }: {
+        message: string;
+        name: string;
+        data: WarehouseTokenErrorData;
+    }) {
+        super({ message, name, statusCode: 401, data });
+    }
+
+    abstract withCredentialsOwner(
+        ownership: WarehouseCredentialsOwnership,
+    ): WarehouseTokenError;
+}
+
+export const isWarehouseTokenError = (
+    error: unknown,
+): error is WarehouseTokenError => error instanceof WarehouseTokenError;
+
+export class SnowflakeTokenError extends WarehouseTokenError {
+    constructor(
+        message: string,
+        ownership: WarehouseTokenErrorOwnership = UNATTRIBUTED_OWNERSHIP,
+    ) {
         super({
             message,
             name: 'SnowflakeTokenError',
-            statusCode: 401,
-            data: {},
+            data: { warehouseType: WarehouseTypes.SNOWFLAKE, ...ownership },
         });
+    }
+
+    withCredentialsOwner(ownership: WarehouseCredentialsOwnership) {
+        return new SnowflakeTokenError(this.message, ownership);
     }
 }
 
-/* This specific error will be used in the frontend
-to show a "reauthenticate" button in the UI
-*/
-export class DatabricksTokenError extends LightdashError {
-    constructor(message: string) {
+export class DatabricksTokenError extends WarehouseTokenError {
+    constructor(
+        message: string,
+        ownership: WarehouseTokenErrorOwnership = UNATTRIBUTED_OWNERSHIP,
+    ) {
         super({
             message,
             name: 'DatabricksTokenError',
-            statusCode: 401,
-            data: {},
+            data: { warehouseType: WarehouseTypes.DATABRICKS, ...ownership },
         });
     }
-}
 
-/* This specific error will be used in the frontend
-to show a "reauthenticate" button in the UI
-*/
-export class BigqueryTokenError extends LightdashError {
-    constructor(message: string) {
-        super({
-            message,
-            name: 'BigqueryTokenError',
-            statusCode: 401,
-            data: {},
-        });
+    withCredentialsOwner(ownership: WarehouseCredentialsOwnership) {
+        return new DatabricksTokenError(this.message, ownership);
     }
 }
 
@@ -852,17 +905,80 @@ export const BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER =
 export const isBigqueryTokenErrorMessage = (message: string): boolean =>
     message.includes(BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER);
 
-/* This specific error will be used in the frontend
-to show a "reauthenticate" button in the UI
-*/
-export class RedshiftIamTokenError extends LightdashError {
-    constructor(message: string) {
+const getBigqueryRejectedTokenMessage = (
+    credentialsOwner: WarehouseCredentialsOwner | null,
+    providerDetail: string,
+): string => {
+    const details = `(${providerDetail})`;
+    if (credentialsOwner === null) {
+        return `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}. Reconnect BigQuery to keep running queries. ${details}`;
+    }
+    switch (credentialsOwner) {
+        case WarehouseCredentialsOwner.USER:
+            return `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} for your account. Sign in to BigQuery again to keep running queries. ${details}`;
+        case WarehouseCredentialsOwner.PROJECT:
+            return `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} for this project's connection. Ask someone who can manage this project to reconnect BigQuery in the project connection settings. ${details}`;
+        case WarehouseCredentialsOwner.ORGANIZATION:
+            return `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} for your organization's shared connection. Ask an organization administrator to reconnect BigQuery. ${details}`;
+        default:
+            return assertUnreachable(
+                credentialsOwner,
+                'Unknown warehouse credentials owner',
+            );
+    }
+};
+
+export class BigqueryTokenError extends WarehouseTokenError {
+    /** Google's rejection reason, kept so the message can be rebuilt once the owner is known. */
+    readonly providerDetail: string | null;
+
+    constructor(
+        message: string,
+        ownership: WarehouseTokenErrorOwnership = UNATTRIBUTED_OWNERSHIP,
+        providerDetail: string | null = null,
+    ) {
+        super({
+            message,
+            name: 'BigqueryTokenError',
+            data: { warehouseType: WarehouseTypes.BIGQUERY, ...ownership },
+        });
+        this.providerDetail = providerDetail;
+    }
+
+    static fromRejectedRefreshToken(providerDetail: string) {
+        return new BigqueryTokenError(
+            getBigqueryRejectedTokenMessage(null, providerDetail),
+            UNATTRIBUTED_OWNERSHIP,
+            providerDetail,
+        );
+    }
+
+    withCredentialsOwner(ownership: WarehouseCredentialsOwnership) {
+        const message =
+            this.providerDetail === null
+                ? this.message
+                : getBigqueryRejectedTokenMessage(
+                      ownership.credentialsOwner,
+                      this.providerDetail,
+                  );
+        return new BigqueryTokenError(message, ownership, this.providerDetail);
+    }
+}
+
+export class RedshiftIamTokenError extends WarehouseTokenError {
+    constructor(
+        message: string,
+        ownership: WarehouseTokenErrorOwnership = UNATTRIBUTED_OWNERSHIP,
+    ) {
         super({
             message,
             name: 'RedshiftIamTokenError',
-            statusCode: 401,
-            data: {},
+            data: { warehouseType: WarehouseTypes.REDSHIFT, ...ownership },
         });
+    }
+
+    withCredentialsOwner(ownership: WarehouseCredentialsOwnership) {
+        return new RedshiftIamTokenError(this.message, ownership);
     }
 }
 

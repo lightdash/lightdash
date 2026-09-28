@@ -12,8 +12,10 @@ import {
     ParameterError,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
+    WarehouseCredentialsOwner,
     WarehouseTypes,
     type CreateWarehouseCredentials,
+    type WarehouseCredentialsOwnership,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
@@ -33,6 +35,11 @@ import {
     type MigratedTestDatabase,
 } from './migratedTestDatabase';
 
+const projectOwnership = {
+    credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+    userWarehouseCredentialsUuid: null,
+};
+
 const SECRET = 'warehouse-connection-credentials-test-secret';
 
 type CredentialCall = {
@@ -44,6 +51,7 @@ type CredentialCall = {
 
 type CredentialsResult = CreateWarehouseCredentials & {
     userWarehouseCredentialsUuid: string | undefined;
+    credentialsOwnership: WarehouseCredentialsOwnership;
 };
 
 type ProjectServiceCredentials = {
@@ -746,6 +754,10 @@ describe('Extra connection credentials on the real schema', () => {
                 assumeRoleExternalId: 'project-external-id',
                 requireUserCredentials: true,
                 userWarehouseCredentialsUuid: personalUuid,
+                credentialsOwnership: {
+                    credentialsOwner: WarehouseCredentialsOwner.USER,
+                    userWarehouseCredentialsUuid: personalUuid,
+                },
             });
         });
     });
@@ -810,6 +822,7 @@ describe('Extra connection credentials on the real schema', () => {
             expect(compile).toEqual({
                 ...withRequire({ ...postgres, host: 'extra-host' }, true),
                 userWarehouseCredentialsUuid: undefined,
+                credentialsOwnership: projectOwnership,
             });
         });
 
@@ -922,14 +935,18 @@ describe('Extra connection credentials on the real schema', () => {
                 });
                 await main.adapter.destroy();
                 await main.sshTunnel.disconnect();
-                const { userWarehouseCredentialsUuid, ...compiled } =
-                    await compileCredentials(
-                        multiProject,
-                        extra,
-                        organization.userUuid,
-                    );
+                const {
+                    userWarehouseCredentialsUuid,
+                    credentialsOwnership,
+                    ...compiled
+                } = await compileCredentials(
+                    multiProject,
+                    extra,
+                    organization.userUuid,
+                );
 
                 expect(userWarehouseCredentialsUuid).toBeUndefined();
+                expect(credentialsOwnership).toEqual(projectOwnership);
                 expect(compiled).toEqual(main.warehouseCredentials);
             },
         );

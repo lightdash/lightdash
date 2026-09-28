@@ -1,9 +1,11 @@
 import {
     NotFoundError,
     NotImplementedError,
+    WarehouseCredentialsOwner,
     WarehouseTypes,
     type CreatePostgresCredentials,
     type CreateWarehouseCredentials,
+    type WarehouseCredentialsOwnership,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { readFileSync } from 'node:fs';
@@ -21,10 +23,16 @@ import {
 } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 
+const projectOwnership = {
+    credentialsOwner: WarehouseCredentialsOwner.PROJECT,
+    userWarehouseCredentialsUuid: null,
+};
+
 const SECRET = 'warehouse-connection-credential-routing-test-secret';
 
 type CredentialsResult = CreateWarehouseCredentials & {
     userWarehouseCredentialsUuid: string | undefined;
+    credentialsOwnership: WarehouseCredentialsOwnership;
 };
 
 type RoutedCredentials = {
@@ -449,6 +457,7 @@ describe('Credential reads by connection binding on the real schema', () => {
                 ).resolves.toEqual({
                     ...originalCredentials,
                     userWarehouseCredentialsUuid: undefined,
+                    credentialsOwnership: projectOwnership,
                 });
                 await expect(
                     projectModel.getWarehouseCredentialsForBinding(
@@ -612,6 +621,7 @@ describe('Credential reads by connection binding on the real schema', () => {
             ).resolves.toEqual({
                 ...originalCredentials,
                 userWarehouseCredentialsUuid: undefined,
+                credentialsOwnership: projectOwnership,
             });
             await expect(
                 projectModel.getWarehouseCredentialsForBinding(
@@ -637,6 +647,7 @@ describe('Credential reads by connection binding on the real schema', () => {
             ).resolves.toEqual({
                 ...originalCredentials,
                 userWarehouseCredentialsUuid: undefined,
+                credentialsOwnership: projectOwnership,
             });
         });
 
@@ -657,6 +668,7 @@ describe('Credential reads by connection binding on the real schema', () => {
             ).resolves.toEqual({
                 ...originalCredentials,
                 userWarehouseCredentialsUuid: undefined,
+                credentialsOwnership: projectOwnership,
             });
         });
 
@@ -772,6 +784,7 @@ describe('Credential reads by connection binding on the real schema', () => {
                 ).resolves.toEqual({
                     ...originalCredentials,
                     userWarehouseCredentialsUuid: undefined,
+                    credentialsOwnership: projectOwnership,
                 });
             },
         );
@@ -793,6 +806,7 @@ describe('Credential reads by connection binding on the real schema', () => {
             ).resolves.toEqual({
                 ...originalCredentials,
                 userWarehouseCredentialsUuid: undefined,
+                credentialsOwnership: projectOwnership,
             });
         });
     });

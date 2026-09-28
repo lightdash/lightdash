@@ -14,7 +14,6 @@ import {
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     AnyType,
-    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
     BigqueryDataset,
     BigqueryProject,
@@ -487,9 +486,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         ].join('; ');
 
         if (this.usesUserRefreshToken()) {
-            return new BigqueryTokenError(
-                `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} (${details}). Reconnect your BigQuery account in personal settings.`,
-            );
+            return BigqueryTokenError.fromRejectedRefreshToken(details);
         }
         return new WarehouseConnectionError(
             `Google rejected the BigQuery credentials (${details}).`,
