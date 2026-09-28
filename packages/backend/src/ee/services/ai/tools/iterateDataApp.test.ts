@@ -1,4 +1,7 @@
-import { NotFoundError } from '@lightdash/common';
+import {
+    NotFoundError,
+    toolIterateDataAppOutputSchema,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getIterateDataApp } from './iterateDataApp';
 
@@ -16,18 +19,12 @@ vi.mock('../../../../logging/logger', () => ({
 const captureException = Sentry.captureException as import('vitest').Mock;
 
 type IterateDataAppTool = ReturnType<typeof getIterateDataApp>;
-type IterateDataAppOutput = {
-    result: string;
-    metadata: {
-        status: string;
-        appUuid?: string | null;
-        version?: number;
-        message?: string;
-    };
-};
 
-const executeIterateDataApp = (tool: IterateDataAppTool) =>
-    tool.execute!(
+const executeIterateDataApp = async (tool: IterateDataAppTool) => {
+    if (!tool.execute) {
+        throw new Error('iterateDataApp tool has no execute');
+    }
+    const output = await tool.execute(
         {
             appSlug: 'revenue-app',
             prompt: 'Add a filter for order status',
@@ -36,7 +33,10 @@ const executeIterateDataApp = (tool: IterateDataAppTool) =>
             themeSlug: null,
         },
         { messages: [], toolCallId: 'tool-call-1', context: {} },
-    ) as Promise<IterateDataAppOutput>;
+    );
+    expect(toolIterateDataAppOutputSchema.safeParse(output).success).toBe(true);
+    return toolIterateDataAppOutputSchema.parse(output);
+};
 
 describe('getIterateDataApp', () => {
     beforeEach(() => {
@@ -65,6 +65,12 @@ describe('getIterateDataApp', () => {
             appUuid: 'app-1',
             version: 3,
         });
+        expect(output.result).toContain('Started the data app build');
+        expect(output.structuredContent).toEqual({
+            status: 'pending',
+            appUuid: 'app-1',
+            version: 3,
+        });
     });
 
     it('reports an unknown app slug as an error naming it, without paging Sentry', async () => {
@@ -85,6 +91,8 @@ describe('getIterateDataApp', () => {
             message: 'Data app "no-such-app" was not found',
         });
         expect(output.result).toContain('No new version was created');
+        expect(output.result).toContain('Data app "no-such-app" was not found');
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(captureException).not.toHaveBeenCalled();
     });
 
@@ -103,6 +111,7 @@ describe('getIterateDataApp', () => {
             reason: 'failed',
             message: 'database down',
         });
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(captureException).toHaveBeenCalledTimes(1);
     });
 });
