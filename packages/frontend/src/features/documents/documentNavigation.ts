@@ -21,3 +21,14 @@ export const getDocumentReturnUrl = (
         return fallback;
     }
 };
+
+/** Router state that opens a Document straight into the editor, e.g. right after creating it. */
+export type DocumentNavigationState = { startEditing: true };
+
+export const isStartEditingState = (
+    state: unknown,
+): state is DocumentNavigationState =>
+    typeof state === 'object' &&
+    state !== null &&
+    'startEditing' in state &&
+    state.startEditing === true;

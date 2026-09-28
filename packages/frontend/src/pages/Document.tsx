@@ -5,13 +5,23 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Button, Tooltip } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
-import { lazy, Suspense, useRef, useState } from 'react';
-import { Link, Navigate, useParams, useSearchParams } from 'react-router';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import {
+    Link,
+    Navigate,
+    useLocation,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DocumentActions from '../features/documents/DocumentActions';
-import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
+import {
+    getDocumentReturnUrl,
+    isStartEditingState,
+} from '../features/documents/documentNavigation';
 import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
 import { useCanEditDocument } from '../features/documents/useCanEditDocument';
@@ -25,8 +35,11 @@ const DocumentEditor = lazy(
 );
 
 const DocumentWorkspace = ({ document }: { document: Document }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const startEditing = isStartEditingState(location.state);
     const [editingDocument, setEditingDocument] = useState<Document | null>(
-        null,
+        startEditing ? document : null,
     );
     const canEdit = useCanEditDocument(document);
     // Reading and editing are separate layouts; carry the scroll offset across
@@ -35,6 +48,15 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
     const trackScroll = (top: number) => {
         scrollTop.current = top;
     };
+    // One-shot: a reload or shared link opens the reader, not the editor
+    useEffect(() => {
+        if (startEditing) {
+            void navigate(
+                { pathname: location.pathname, search: location.search },
+                { replace: true, state: null },
+            );
+        }
+    }, [startEditing, navigate, location.pathname, location.search]);
     if (editingDocument && canEdit) {
         return (
             <Suspense

@@ -18,6 +18,11 @@ vi.mock('../api', () => ({ lightdashApi: mocks.api }));
 vi.mock('../features/documents/useCanEditDocument', () => ({
     useCanEditDocument: () => true,
 }));
+vi.mock('../features/documents/DocumentEditor', () => ({
+    default: ({ onClose }: { onClose: () => void }) => (
+        <button onClick={onClose}>Close editor</button>
+    ),
+}));
 vi.mock('../features/documents/DocumentActions', () => ({
     default: () => null,
 }));
@@ -119,6 +124,7 @@ const document: Document = {
 const renderPage = (
     returnTo?: string,
     documentIdentifier = 'document-uuid',
+    state: unknown = null,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, cacheTime: 0 } },
@@ -145,7 +151,14 @@ const renderPage = (
         ],
         {
             initialEntries: [
-                `/projects/project-slug/documents/${documentIdentifier}${returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`,
+                {
+                    pathname: `/projects/project-slug/documents/${documentIdentifier}`,
+                    search:
+                        returnTo === undefined
+                            ? ''
+                            : `?returnTo=${encodeURIComponent(returnTo)}`,
+                    state,
+                },
             ],
         },
     );
@@ -162,6 +175,23 @@ const renderPage = (
 describe('Document page', () => {
     test('offers editing for an authorized document author', async () => {
         renderPage();
+        expect(
+            await screen.findByRole('button', { name: 'Edit document' }),
+        ).toBeInTheDocument();
+    });
+
+    test('opens straight into the editor after creation, only once', async () => {
+        const { router } = renderPage(undefined, 'document-uuid', {
+            startEditing: true,
+        });
+        expect(
+            await screen.findByRole('button', { name: 'Close editor' }),
+        ).toBeInTheDocument();
+        await waitFor(() => expect(router.state.location.state).toBeNull());
+        expect(router.state.location.pathname).toBe(
+            '/projects/project-slug/documents/document-uuid',
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
         expect(
             await screen.findByRole('button', { name: 'Edit document' }),
         ).toBeInTheDocument();

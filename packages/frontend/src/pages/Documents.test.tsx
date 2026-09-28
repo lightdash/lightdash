@@ -1,6 +1,6 @@
 import { ContentType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { type ComponentProps, type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import type InfiniteResourceTable from '../components/common/ResourceView/InfiniteResourceTable';
@@ -10,6 +10,8 @@ import Documents from './Documents';
 
 const mocks = vi.hoisted(() => ({
     table: vi.fn(),
+    canCreate: true,
+    authoring: true,
     flag: { data: { enabled: true }, isInitialLoading: false, isError: false },
 }));
 
@@ -18,6 +20,19 @@ vi.mock('../hooks/useProjectUuid', () => ({
 }));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => mocks.flag,
+}));
+vi.mock('../hooks/user/useCreateInAnySpaceAccess', () => ({
+    default: () => mocks.canCreate,
+}));
+vi.mock('../hooks/useContentAuthoringEnabled', () => ({
+    useContentAuthoringEnabled: () => mocks.authoring,
+}));
+vi.mock('../features/documents/DocumentCreateModal', () => ({
+    default: ({ onClose }: { onClose: () => void }) => (
+        <div role="dialog" aria-label="Create document">
+            <button onClick={onClose}>Close create</button>
+        </div>
+    ),
 }));
 vi.mock('../components/common/Page/Page', () => ({
     default: ({ children }: { children: ReactNode }) => <main>{children}</main>,
@@ -61,6 +76,8 @@ const renderPage = () => {
 describe('Documents page', () => {
     beforeEach(() => {
         mocks.table.mockClear();
+        mocks.canCreate = true;
+        mocks.authoring = true;
         mocks.flag = {
             data: { enabled: true },
             isInitialLoading: false,
@@ -86,6 +103,27 @@ describe('Documents page', () => {
         });
         expect(
             screen.queryByRole('button', { name: /create/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    test('opens the create dialog from New document', () => {
+        renderPage();
+        fireEvent.click(screen.getByRole('button', { name: 'New document' }));
+        expect(
+            screen.getByRole('dialog', { name: 'Create document' }),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Close create' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    test.each([
+        { canCreate: false, authoring: true },
+        { canCreate: true, authoring: false },
+    ])('hides New document without create rights or authoring: %j', (state) => {
+        Object.assign(mocks, state);
+        renderPage();
+        expect(
+            screen.queryByRole('button', { name: 'New document' }),
         ).not.toBeInTheDocument();
     });
 
