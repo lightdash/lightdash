@@ -15,7 +15,6 @@ import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
-import { McpInstallationCard } from './McpInstallationCard';
 
 export const McpGeneralSettingsPage = () => {
     const {
@@ -30,7 +29,7 @@ export const McpGeneralSettingsPage = () => {
 
     return (
         <SettingsPage
-            title="MCP"
+            title="General"
             description="Configure how MCP (Model Context Protocol) clients access Lightdash agents and content."
         >
             {isError ? (
@@ -51,7 +50,6 @@ export const McpGeneralSettingsPage = () => {
                 </Group>
             ) : (
                 <>
-                    <McpInstallationCard />
                     <SettingsCard>
                         <Group
                             justify="space-between"

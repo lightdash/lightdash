@@ -81,6 +81,7 @@ import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin
 import { AiSettingsProviders } from '../ee/features/aiCopilot/components/Admin/settings/AiSettingsProviders';
 import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiThreadsSettingsPage';
 import { McpActivitySettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpActivitySettingsPage';
+import { McpConnectSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpConnectSettingsPage';
 import { McpGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpGeneralSettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
@@ -683,6 +684,17 @@ const Settings: FC = () => {
             });
         }
 
+        allowedRoutes.push(
+            {
+                path: '/mcp',
+                element: <Navigate to="/generalSettings/mcp/connect" replace />,
+            },
+            {
+                path: '/mcp/connect',
+                element: <McpConnectSettingsPage />,
+            },
+        );
+
         if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             allowedRoutes.push({
                 path: '/ai',
@@ -743,19 +755,6 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/ai/mcp',
                 element: <McpActivityRedirect />,
-            });
-            allowedRoutes.push({
-                path: '/mcp',
-                element: (
-                    <Navigate
-                        to={
-                            canManageOrgAiAgent
-                                ? '/generalSettings/mcp/general'
-                                : '/generalSettings/mcp/analytics'
-                        }
-                        replace
-                    />
-                ),
             });
             if (canManageOrgAiAgent) {
                 allowedRoutes.push({
@@ -987,7 +986,8 @@ const Settings: FC = () => {
         isAiOrganizationSettingsLoading &&
         Boolean(
             matchPath('/generalSettings/ai/*', location.pathname) ||
-            matchPath('/generalSettings/mcp/*', location.pathname),
+            matchPath('/generalSettings/mcp/general', location.pathname) ||
+            matchPath('/generalSettings/mcp/analytics', location.pathname),
         );
     const isAwaitingDataAppsRoute =
         isDataAppsFlagLoading &&

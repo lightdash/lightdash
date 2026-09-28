@@ -597,8 +597,33 @@ export const useSettingsNavigation = (
                 keywords: ['copilot', 'agents', 'ai'],
                 children: aiChildren,
             });
+        }
 
-            const mcpChildren: SettingsNavigationItem[] = [];
+        const mcpChildren: SettingsNavigationItem[] = [
+            {
+                label: 'Connect',
+                to: '/generalSettings/mcp/connect',
+                icon: IconPlugConnected,
+                keywords: ['mcp', 'setup', 'installation', 'connect'],
+                pageSections: [
+                    {
+                        title: 'Client setup',
+                        keywords: [
+                            'setup',
+                            'connect',
+                            'http',
+                            'claude',
+                            'codex',
+                            'cursor',
+                            'vscode',
+                        ],
+                    },
+                ],
+                children: [],
+                exact: true,
+            },
+        ];
+        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             if (canManageOrgAiAgent) {
                 mcpChildren.push({
                     label: 'General',
@@ -625,18 +650,6 @@ export const useSettingsNavigation = (
                                 'edit',
                             ],
                         },
-                        {
-                            title: 'Client setup',
-                            keywords: [
-                                'setup',
-                                'connect',
-                                'http',
-                                'claude',
-                                'codex',
-                                'cursor',
-                                'vscode',
-                            ],
-                        },
                     ],
                     children: [],
                     exact: true,
@@ -657,14 +670,14 @@ export const useSettingsNavigation = (
                 children: [],
                 exact: true,
             });
-            organizationItems.push({
-                label: 'MCP',
-                to: '/generalSettings/mcp',
-                icon: IconPlugConnected,
-                keywords: ['model context protocol', 'claude', 'cursor'],
-                children: mcpChildren,
-            });
         }
+        organizationItems.push({
+            label: 'MCP',
+            to: '/generalSettings/mcp',
+            icon: IconPlugConnected,
+            keywords: ['model context protocol', 'claude', 'cursor'],
+            children: mcpChildren,
+        });
 
         if (
             isOrganizationRoadmapEnabled &&
