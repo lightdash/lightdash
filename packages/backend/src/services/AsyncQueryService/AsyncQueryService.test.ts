@@ -3298,13 +3298,27 @@ describe('AsyncQueryService', () => {
                 ).toThrow(NotSupportedError);
             });
 
-            test('rejects a pivoted source', () => {
-                expect(() =>
+            test('retains sorts on pivot series dimensions', () => {
+                expect(
                     getConfiguration(
-                        { ...source, pivotDimensions: ['orders_region'] },
+                        {
+                            ...source,
+                            pivotDimensions: ['orders_region'],
+                            sorts: [
+                                { fieldId: 'orders_region', descending: false },
+                            ],
+                        },
                         { subtotalDimensions: ['orders_city'], parent: [] },
                     ),
-                ).toThrow(NotSupportedError);
+                ).toEqual(
+                    expect.objectContaining({
+                        subtotalLevel: expect.objectContaining({
+                            sorts: [
+                                { fieldId: 'orders_region', descending: false },
+                            ],
+                        }),
+                    }),
+                );
             });
 
             test('starts one subtotal query and preserves source field metadata and request context', async () => {
@@ -7388,11 +7402,15 @@ describe('AsyncQueryService', () => {
             },
         ])(
             '$producer subtotal uses warehouse routing and formats source dimensions',
-            async ({ run }) => {
+            async ({ run, producer }) => {
                 const { service, execute } = buildService();
                 const source: MetricQuery = {
                     ...metricQueryMock,
                     dimensions: ['a_dim1', 'a_dim2'],
+                    sorts: [{ fieldId: 'a_dim2', descending: false }],
+                    ...(producer === 'direct'
+                        ? { pivotDimensions: ['a_dim2'] }
+                        : {}),
                     dimensionOverrides: {
                         a_dim2: {
                             formatOptions: {
@@ -7407,6 +7425,7 @@ describe('AsyncQueryService', () => {
                 ).mockResolvedValue({
                     ...savedChart,
                     metricQuery: source,
+                    pivotConfig: { columns: ['a_dim2'] },
                 });
                 (service as AnyType).getMetricQueryFields = vi
                     .fn()
@@ -7435,6 +7454,22 @@ describe('AsyncQueryService', () => {
 
                 const result = await run(service, source);
 
+                expect(
+                    (service as AnyType).prepareMetricQueryAsyncQueryArgs,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        totalConfiguration: expect.objectContaining({
+                            subtotalLevel: expect.objectContaining({
+                                sorts: [
+                                    { fieldId: 'a_dim2', descending: false },
+                                ],
+                            }),
+                        }),
+                        ...(producer === 'direct'
+                            ? {}
+                            : { pivotDimensions: ['a_dim2'] }),
+                    }),
+                );
                 expect(routing).toHaveBeenCalledWith(
                     expect.objectContaining({ forceWarehouse: true }),
                 );

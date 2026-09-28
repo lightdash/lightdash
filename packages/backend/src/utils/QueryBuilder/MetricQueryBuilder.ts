@@ -483,6 +483,9 @@ export class MetricQueryBuilder {
             const collapsed = new TotalQueryBuilder({
                 metricQuery: {
                     ...args.compiledMetricQuery,
+                    pivotDimensions:
+                        args.pivotDimensions ??
+                        args.compiledMetricQuery.pivotDimensions,
                     // CompiledMetricQuery omits the uncompiled custom
                     // dimensions; restore them so the collapsed query
                     // re-compiles with its custom dimensions intact.

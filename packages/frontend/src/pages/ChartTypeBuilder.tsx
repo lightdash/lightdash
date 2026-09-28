@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartType,
     deriveDataAppVizPivotConfig,
+    deriveDataAppVizPivotConfiguration,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
     getDataAppVizFieldIds,
@@ -633,26 +634,36 @@ const ChartTypeBuilder: FC = () => {
                     tableId: sourceChart.originalMetricQuery.exploreName,
                     chartUuid: savedChartUuid,
                     context: QueryExecutionContext.DATA_APP_SAMPLE,
-                    pivotResults: false,
+                    pivotResults: true,
                     subtotalLevel,
                 });
             }
-            if (!loadedExplore || !exploreName) {
+            if (!schema || !loadedExplore || !exploreName) {
                 throw new Error('No live hierarchy source is attached');
             }
+            const metricQuery = buildExplorePreviewMetricQuery(
+                loadedExplore.name,
+                loadedExplore.itemsMap,
+                [
+                    ...new Set(
+                        Object.values(renderedFieldMapping).flatMap(
+                            getDataAppVizFieldIds,
+                        ),
+                    ),
+                ],
+            );
             return executeSubtotalQueryAndGetRows({
                 projectUuid: projectUuid!,
                 tableId: loadedExplore.name,
-                query: buildExplorePreviewMetricQuery(
-                    loadedExplore.name,
+                query: metricQuery,
+                pivotConfiguration: deriveDataAppVizPivotConfiguration(
+                    renderedFieldMapping,
+                    deriveDataAppVizPivotConfig(
+                        schema.fields,
+                        renderedFieldMapping,
+                    ),
+                    metricQuery,
                     loadedExplore.itemsMap,
-                    [
-                        ...new Set(
-                            Object.values(renderedFieldMapping).flatMap(
-                                getDataAppVizFieldIds,
-                            ),
-                        ),
-                    ],
                 ),
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
                 subtotalLevel,

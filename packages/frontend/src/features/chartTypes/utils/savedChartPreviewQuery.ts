@@ -107,10 +107,8 @@ export const executeSavedChartPreviewQuery = async ({
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
                 chartUuid,
                 limit: SAVED_CHART_PREVIEW_ROW_LIMIT,
-                pivotResults: subtotalLevel ? false : pivotResults,
-                pivotConfiguration: subtotalLevel
-                    ? undefined
-                    : pivotConfiguration,
+                pivotResults,
+                pivotConfiguration,
                 ...(subtotalLevel ? { subtotalLevel } : {}),
             } satisfies ExecuteAsyncSavedChartRequestParams),
         });

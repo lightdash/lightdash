@@ -3,9 +3,7 @@ import { useCallback } from 'react';
 import { Limit } from '../components/ExportResults/types';
 import {
     explorerActions,
-    selectUnpivotedQueryArgs,
     useExplorerDispatch,
-    useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
 import {
@@ -27,15 +25,18 @@ import {
 export const useExplorerQuery = () => {
     // Get all state and runQuery from manager (single source of truth)
     const manager = useExplorerQueryManager();
-    const { queryResults, validQueryArgs, unpivotedQueryResults } = manager;
+    const {
+        queryResults,
+        validQueryArgs,
+        unpivotedQueryResults,
+        unpivotedEnabled,
+    } = manager;
 
     // Redux dispatch and query client for actions
     const dispatch = useExplorerDispatch();
     const queryClient = useQueryClient();
 
     const projectUuid = manager.projectUuid;
-    const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
-    const unpivotedEnabled = !!unpivotedQueryArgs;
 
     // Action: Reset query results
     const resetQueryResults = useCallback(() => {
@@ -127,8 +128,6 @@ export const useExplorerQuery = () => {
     }, [queryClient, queryResults.queryUuid, cancelQueryMutation]);
 
     return {
-        unpivotedEnabled,
-
         // Spread all state from manager
         ...manager,
 

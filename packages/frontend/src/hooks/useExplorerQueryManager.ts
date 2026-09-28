@@ -179,8 +179,7 @@ export const useExplorerQueryManager = ({
                       level: 0,
                       parentValues: [],
                   }),
-                  pivotResults: false,
-                  pivotConfiguration: undefined,
+                  pivotResults: true,
               }
             : validQueryArgs,
         missingRequiredParameters,
@@ -191,7 +190,8 @@ export const useExplorerQueryManager = ({
     const { query, queryResults } = mainQueryExecutor;
 
     // Unpivoted query executor for results table
-    const unpivotedEnabled = !!unpivotedQueryArgs;
+    const unpivotedEnabled =
+        !!unpivotedQueryArgs && !waitingForVizMetadata && !vizSchema?.hierarchy;
     const [unpivotedQueryExecutor] = useQueryExecutor(
         unpivotedQueryArgs,
         missingRequiredParameters,
@@ -264,6 +264,7 @@ export const useExplorerQueryManager = ({
         queryResults,
         unpivotedQuery,
         unpivotedQueryResults,
+        unpivotedEnabled,
 
         // Computed state
         isLoading,

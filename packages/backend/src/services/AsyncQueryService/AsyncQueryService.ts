@@ -5332,18 +5332,14 @@ export class AsyncQueryService extends ProjectService {
         subtotalLevel: SubtotalLevelRequest,
         maxLimit: number,
         pivotConfiguration?: PivotConfiguration,
+        pivotDimensions = metricQuery.pivotDimensions,
     ): TotalConfiguration {
-        if (pivotConfiguration || metricQuery.pivotDimensions?.length) {
-            throw new NotSupportedError(
-                'Subtotal levels over pivoted queries are not supported',
-            );
-        }
         const { subtotalDimensions: dimensions, parent } = subtotalLevel;
         const limit = Math.min(metricQuery.limit, maxLimit);
         // TotalQueryBuilder validates the level, its parents and the limit.
         const totalableQuery = new TotalQueryBuilder({
-            metricQuery,
-            pivotConfiguration: null,
+            metricQuery: { ...metricQuery, pivotDimensions },
+            pivotConfiguration: pivotConfiguration ?? null,
             kind: 'columnSubtotal',
             subtotalDimensions: dimensions,
             subtotalLevel: { parent, sorts: [], limit },
@@ -6353,11 +6349,6 @@ export class AsyncQueryService extends ProjectService {
                   ),
               }
             : storedChart;
-        if (subtotalLevel && savedChart.pivotConfig?.columns.length) {
-            throw new NotSupportedError(
-                'Subtotal levels over pivoted charts are not supported',
-            );
-        }
         const {
             uuid: savedChartUuid,
             organizationUuid: savedChartOrganizationUuid,
@@ -6610,6 +6601,7 @@ export class AsyncQueryService extends ProjectService {
                   subtotalLevel,
                   maxLimit,
                   pivotConfiguration,
+                  savedChart.pivotConfig?.columns,
               )
             : undefined;
 
@@ -7172,11 +7164,6 @@ export class AsyncQueryService extends ProjectService {
         const savedChart = includeUnpublishedDraft
             ? await this.applyOpenChartDraft(account, publishedChart)
             : publishedChart;
-        if (subtotalLevel && savedChart.pivotConfig?.columns.length) {
-            throw new NotSupportedError(
-                'Subtotal levels over pivoted charts are not supported',
-            );
-        }
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
 
@@ -7430,6 +7417,7 @@ export class AsyncQueryService extends ProjectService {
                   subtotalLevel,
                   maxLimit,
                   pivotConfiguration,
+                  savedChart.pivotConfig?.columns,
               )
             : undefined;
 

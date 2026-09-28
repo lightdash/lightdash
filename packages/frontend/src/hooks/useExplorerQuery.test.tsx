@@ -61,6 +61,7 @@ const buildManagerMock = (overrides: Partial<ManagerMock> = {}): ManagerMock =>
             isFetchingAllPages: false,
             error: null,
         },
+        unpivotedEnabled: false,
         unpivotedQuery: { isFetched: false, isFetching: false },
         unpivotedQueryResults: {
             queryUuid: null,
@@ -186,6 +187,35 @@ describe('useExplorerQuery', () => {
             pivotConfiguration,
         } as never;
 
+        it('uses flat hierarchy rows when stale auxiliary query args remain in state', async () => {
+            vi.mocked(useExplorerQueryManager).mockReturnValue(
+                buildManagerMock({
+                    validQueryArgs,
+                    unpivotedEnabled: false,
+                    queryResults: {
+                        queryUuid: 'hierarchy-root',
+                        totalResults: 2,
+                    } as never,
+                    unpivotedQueryResults: {
+                        queryUuid: 'stale-detail',
+                        totalResults: 2,
+                    } as never,
+                }),
+            );
+            const store = createExplorerStore();
+            store.dispatch(
+                explorerActions.setUnpivotedQueryArgs(validQueryArgs),
+            );
+            const { result } = renderHook(() => useExplorerQuery(), {
+                wrapper: createWrapper(store),
+            });
+            expect(result.current.unpivotedEnabled).toBe(false);
+            await expect(result.current.getDownloadQueryUuid(2)).resolves.toBe(
+                'hierarchy-root',
+            );
+            expect(executeQueryAndWaitForResults).not.toHaveBeenCalled();
+        });
+
         it('reuses the visible pivot query only for flat table rows', async () => {
             vi.mocked(useExplorerQueryManager).mockReturnValue(
                 buildManagerMock({
@@ -194,6 +224,7 @@ describe('useExplorerQuery', () => {
                         queryUuid: 'visible-query',
                         totalResults: 2,
                     } as never,
+                    unpivotedEnabled: true,
                     unpivotedQueryResults: {
                         queryUuid: 'raw-query',
                         totalResults: 2,

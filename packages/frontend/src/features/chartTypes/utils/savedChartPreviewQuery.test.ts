@@ -205,7 +205,7 @@ describe('executeSavedChartPreviewQuery', () => {
             JSON.parse(String(vi.mocked(lightdashApi).mock.calls[0][0].body)),
         ).toMatchObject({
             chartUuid: 'chart-1',
-            pivotResults: false,
+            pivotResults: true,
             subtotalLevel,
         });
     });

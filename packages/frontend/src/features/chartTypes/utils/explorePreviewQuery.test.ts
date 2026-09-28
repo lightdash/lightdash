@@ -139,9 +139,23 @@ describe('executeExplorePreviewQuery', () => {
             subtotalDimensions: ['orders_date'],
             parent: [],
         };
+        const pivotConfiguration = {
+            sortBy: undefined,
+            indexColumn: [
+                { reference: 'orders_date', type: VizIndexType.CATEGORY },
+            ],
+            groupByColumns: [{ reference: 'orders_status' }],
+            valuesColumns: [
+                {
+                    reference: 'orders_count',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+        };
         const result = await executeExplorePreviewQuery({
             projectUuid: 'project-1',
             query,
+            pivotConfiguration,
             subtotalLevel,
         });
 
@@ -149,6 +163,13 @@ describe('executeExplorePreviewQuery', () => {
         expect(lightdashApi).toHaveBeenCalledTimes(1);
         expect(
             JSON.parse(String(vi.mocked(lightdashApi).mock.calls[0][0].body)),
-        ).toMatchObject({ query, subtotalLevel });
+        ).toMatchObject({
+            query,
+            subtotalLevel,
+            pivotConfiguration: expect.objectContaining({
+                groupByColumns: pivotConfiguration.groupByColumns,
+                valuesColumns: pivotConfiguration.valuesColumns,
+            }),
+        });
     });
 });

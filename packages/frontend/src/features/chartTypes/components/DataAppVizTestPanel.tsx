@@ -52,16 +52,13 @@ const DataAppVizTestPanel: FC<Props> = ({
         isRunning,
         error,
     } = state;
+    const subtotalsIntent = schema.hierarchy
+        ? state.onVizSubtotalsIntent
+        : null;
     useEffect(() => {
-        onVizSubtotalsIntentChange?.(
-            schema.hierarchy ? state.onVizSubtotalsIntent : null,
-        );
+        onVizSubtotalsIntentChange?.(subtotalsIntent);
         return () => onVizSubtotalsIntentChange?.(null);
-    }, [
-        onVizSubtotalsIntentChange,
-        schema.hierarchy,
-        state.onVizSubtotalsIntent,
-    ]);
+    }, [onVizSubtotalsIntentChange, subtotalsIntent]);
 
     return (
         <Card radius="md" p="sm">

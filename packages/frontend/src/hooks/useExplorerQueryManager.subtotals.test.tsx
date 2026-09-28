@@ -1,4 +1,8 @@
-import { ChartType } from '@lightdash/common';
+import {
+    ChartType,
+    VizIndexType,
+    VizAggregationOptions,
+} from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -102,6 +106,18 @@ describe('Explorer subtotal startup', () => {
         projectUuid: 'project-1',
         tableId: 'orders',
         chartUuid: 'chart-1',
+        pivotConfiguration: {
+            indexColumn: [
+                { reference: 'orders_country', type: VizIndexType.CATEGORY },
+            ],
+            groupByColumns: [{ reference: 'orders_status' }],
+            valuesColumns: [
+                {
+                    reference: 'orders_amount',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+        },
     };
 
     beforeEach(() => {
@@ -129,10 +145,17 @@ describe('Explorer subtotal startup', () => {
         mocks.selectorValues.set('selectValidQueryArgs', originalArgs);
     });
 
-    it('holds the detail query while metadata is pending, then starts roots only', () => {
+    it('holds both detail executors while metadata is pending, then starts roots only', () => {
+        mocks.selectorValues.set('selectUnpivotedQueryArgs', {
+            ...originalArgs,
+            chartUuid: undefined,
+            query: metricQuery,
+            pivotConfiguration: undefined,
+        });
         mocks.metadata.mockReturnValue({ data: undefined });
         const rendered = renderHook(() => useExplorerQueryManager());
         expect(vi.mocked(useQueryExecutor).mock.calls[0][2]).toBe(false);
+        expect(vi.mocked(useQueryExecutor).mock.calls[1][2]).toBe(false);
 
         vi.mocked(useQueryExecutor).mockClear();
         mocks.metadata.mockReturnValue({
@@ -161,9 +184,24 @@ describe('Explorer subtotal startup', () => {
                 subtotalDimensions: ['orders_country'],
                 parent: [],
             },
-            pivotResults: false,
+            pivotResults: true,
         });
         expect(vi.mocked(useQueryExecutor).mock.calls[0][2]).toBe(true);
+        expect(vi.mocked(useQueryExecutor).mock.calls[1][2]).toBe(false);
+        expect(rendered.result.current.unpivotedEnabled).toBe(false);
+    });
+
+    it('still enables raw results for legacy pivot charts without a hierarchy', () => {
+        mocks.selectorValues.set('selectUnpivotedQueryArgs', originalArgs);
+        mocks.metadata.mockReturnValue({
+            data: {
+                state: 'ready',
+                schema: { fields: [], configOptions: [], colorPalette: null },
+            },
+        });
+        const { result } = renderHook(() => useExplorerQueryManager());
+        expect(vi.mocked(useQueryExecutor).mock.calls[1][2]).toBe(true);
+        expect(result.current.unpivotedEnabled).toBe(true);
     });
 
     it.each([

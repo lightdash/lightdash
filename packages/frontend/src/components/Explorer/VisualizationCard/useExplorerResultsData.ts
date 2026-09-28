@@ -28,8 +28,7 @@ export const useExplorerResultsData = () => {
             executeSubtotalQueryAndGetRows({
                 ...validQueryArgs!,
                 subtotalLevel,
-                pivotResults: false,
-                pivotConfiguration: undefined,
+                pivotResults: true,
             }),
     });
     // A configured merge replaces the query it was built from: its result is

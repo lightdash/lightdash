@@ -75,9 +75,7 @@ export const executeExplorePreviewQuery = async ({
             body: JSON.stringify({
                 context: QueryExecutionContext.DATA_APP_SAMPLE,
                 query,
-                pivotConfiguration: subtotalLevel
-                    ? undefined
-                    : pivotConfiguration,
+                pivotConfiguration,
                 ...(subtotalLevel ? { subtotalLevel } : {}),
             } satisfies ExecuteAsyncMetricQueryRequestParams),
         });

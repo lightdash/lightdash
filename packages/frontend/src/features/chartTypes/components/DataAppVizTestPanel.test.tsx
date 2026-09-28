@@ -53,7 +53,13 @@ vi.mock('../../../components/common/FieldSelect', () => ({
                 data-testid="field-select"
                 aria-label={ariaLabel}
                 aria-describedby={ariaDescribedBy}
-                onClick={() => onChange(items[0])}
+                onClick={() =>
+                    onChange(
+                        ariaLabel === 'Series'
+                            ? items[items.length - 1]
+                            : items[0],
+                    )
+                }
             >
                 {placeholder}
             </button>
@@ -402,6 +408,18 @@ describe('DataAppVizTestPanel', () => {
                     multiple: true,
                     required: true,
                 },
+                {
+                    name: 'series',
+                    label: 'Series',
+                    type: 'series',
+                    required: true,
+                },
+                {
+                    name: 'amount',
+                    label: 'Amount',
+                    type: 'metric',
+                    required: true,
+                },
             ],
             hierarchy: { field: 'path' },
             configOptions: [],
@@ -416,6 +434,7 @@ describe('DataAppVizTestPanel', () => {
                     dimensions: {
                         ...exploreWithHiddenFields.tables.orders.dimensions,
                         second: makeDimension('second', false),
+                        status: makeDimension('status', false),
                     },
                 },
             },
@@ -452,12 +471,17 @@ describe('DataAppVizTestPanel', () => {
         await user.click(await screen.findByText('Orders'));
         await user.click(screen.getByRole('button', { name: 'Add path' }));
         await user.click(screen.getByRole('button', { name: 'Add path' }));
+        await user.click(screen.getByRole('button', { name: 'Series' }));
+        await user.click(screen.getByRole('button', { name: 'Amount' }));
         await user.click(
             screen.getByRole('button', { name: /run test query/i }),
         );
 
         expect(useQueryExecutor).toHaveBeenLastCalledWith(
             expect.objectContaining({
+                pivotConfiguration: expect.objectContaining({
+                    groupByColumns: [{ reference: 'orders_status' }],
+                }),
                 subtotalLevel: {
                     subtotalDimensions: ['orders_visible'],
                     parent: [],
@@ -484,6 +508,9 @@ describe('DataAppVizTestPanel', () => {
         await act(async () => handler({ level: 1, parentValues: ['Retail'] }));
         expect(executeSubtotalQueryAndGetRows).toHaveBeenCalledWith(
             expect.objectContaining({
+                pivotConfiguration: expect.objectContaining({
+                    groupByColumns: [{ reference: 'orders_status' }],
+                }),
                 subtotalLevel: {
                     subtotalDimensions: ['orders_second'],
                     parent: [

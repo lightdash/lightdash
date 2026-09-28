@@ -231,17 +231,12 @@ export class TotalQueryBuilder {
     }
 
     private validateSubtotalLevel(): void {
-        const {
-            kind,
-            metricQuery,
-            pivotConfiguration,
-            subtotalDimensions,
-            subtotalLevel,
-        } = this.args;
+        const { kind, metricQuery, subtotalDimensions, subtotalLevel } =
+            this.args;
         if (!subtotalLevel) return;
-        if (kind !== 'columnSubtotal' || pivotConfiguration) {
+        if (kind !== 'columnSubtotal') {
             throw new NotSupportedError(
-                'Subtotal level queries require a non-pivoted column subtotal',
+                'Subtotal level queries require a column subtotal',
             );
         }
         const sourceDimensions = new Set(metricQuery.dimensions);
@@ -291,6 +286,7 @@ export class TotalQueryBuilder {
         );
         const sortFields = new Set([
             ...groupingDimensions,
+            ...this.getSubtotalPivotDimensions(),
             ...keptMetrics,
             ...getTotalableTableCalculations(metricQuery, keptMetrics).map(
                 (calc) => calc.name,
@@ -482,14 +478,23 @@ export class TotalQueryBuilder {
         };
     }
 
+    private getSubtotalPivotDimensions(): string[] {
+        return (
+            this.args.pivotConfiguration?.groupByColumns?.map(
+                (column) => column.reference,
+            ) ??
+            this.args.metricQuery.pivotDimensions ??
+            []
+        );
+    }
+
     // Subtotals collapse the inner row dimensions while keeping the pivot
     // columns, so we re-run grouped by `subtotalDimensions` plus the pivot
     // `groupByColumns` and emit a flat (non-pivoted) result: one row per
     // subtotal-group × pivot value. Correct for every metric type. The treemap
     // (no pivot) case just groups by `subtotalDimensions`.
     private buildColumnSubtotalQuery(): TotalQueryResult {
-        const { metricQuery, pivotConfiguration } = this.args;
-        const { subtotalLevel } = this.args;
+        const { metricQuery, subtotalLevel } = this.args;
         const subtotalDimensions = this.args.subtotalDimensions ?? [];
         if (subtotalDimensions.length === 0) {
             throw new NotSupportedError(
@@ -497,9 +502,7 @@ export class TotalQueryBuilder {
             );
         }
 
-        const groupByFieldIds = (pivotConfiguration?.groupByColumns ?? []).map(
-            (g) => g.reference,
-        );
+        const groupByFieldIds = this.getSubtotalPivotDimensions();
 
         const sourceDimensionIds = new Set(metricQuery.dimensions);
         const missing = [...subtotalDimensions, ...groupByFieldIds].filter(

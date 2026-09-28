@@ -1,4 +1,8 @@
-import { ChartType, QueryExecutionContext } from '@lightdash/common';
+import {
+    ChartType,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+} from '@lightdash/common';
 import type * as LightdashCommon from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
@@ -11,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     metadata: vi.fn(),
     chart: vi.fn(),
     markTileLoaded: vi.fn(),
+    poll: vi.fn(),
 }));
 
 vi.mock('@lightdash/common', async (importOriginal) => ({
@@ -25,6 +30,9 @@ vi.mock('@lightdash/common', async (importOriginal) => ({
     getAvailableParametersFromTables: () => [],
     hasReservedParameterReference: () => false,
     resolveTileDateZoom: () => undefined,
+}));
+vi.mock('../../features/queryRunner/executeQuery', () => ({
+    pollForResults: mocks.poll,
 }));
 vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
 vi.mock('../../features/chartTypes/hooks/useDataAppVizRender', () => ({
@@ -148,7 +156,7 @@ describe('dashboard subtotal startup', () => {
                 subtotalDimensions: ['orders_country'],
                 parent: [],
             },
-            pivotResults: false,
+            pivotResults: true,
         });
     });
 
@@ -163,6 +171,60 @@ describe('dashboard subtotal startup', () => {
             parent: [],
         });
     });
+
+    it.each([QueryExecutionContext.DASHBOARD, QueryExecutionContext.EMBED])(
+        'preserves source pivot grouping for %s roots and children',
+        async (context) => {
+            mocks.metadata.mockReturnValue(readyMetadata);
+            const rows = [
+                {
+                    orders_city: {
+                        value: { raw: 'Porto', formatted: 'Porto' },
+                    },
+                    orders_status: {
+                        value: { raw: 'paid', formatted: 'Paid' },
+                    },
+                },
+                {
+                    orders_city: {
+                        value: { raw: 'Porto', formatted: 'Porto' },
+                    },
+                    orders_status: {
+                        value: { raw: 'pending', formatted: 'Pending' },
+                    },
+                },
+            ];
+            mocks.poll.mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+                rows,
+            });
+            const { result } = setup(context);
+            await waitFor(() =>
+                expect(result.current.vizSubtotals).toBeDefined(),
+            );
+            await expect(
+                result.current.vizSubtotals!.get({
+                    level: 1,
+                    parentValues: ['Portugal'],
+                }),
+            ).resolves.toEqual({ rows });
+            expect(mocks.api).toHaveBeenCalledTimes(2);
+            for (const [request] of mocks.api.mock.calls) {
+                expect(JSON.parse(request.body).pivotResults).toBe(true);
+                expect(request.url).toBe(
+                    context === QueryExecutionContext.EMBED
+                        ? '/embed/project-1/query/dashboard-tile'
+                        : '/projects/project-1/query/dashboard-chart',
+                );
+            }
+            expect(
+                JSON.parse(mocks.api.mock.calls[1][0].body).subtotalLevel,
+            ).toEqual({
+                subtotalDimensions: ['orders_city'],
+                parent: [{ dimensionId: 'orders_country', value: 'Portugal' }],
+            });
+        },
+    );
 
     it.each([
         ['building', 'still generating'],

@@ -266,15 +266,13 @@ export const useDataAppVizTestContext = ({
                               { level: 0, parentValues: [] },
                           ),
                       }
-                    : {
-                          pivotConfiguration:
-                              deriveDataAppVizPivotConfiguration(
-                                  fieldMapping,
-                                  pivotConfig,
-                                  metricQuery,
-                                  itemsMap,
-                              ),
-                      }),
+                    : {}),
+                pivotConfiguration: deriveDataAppVizPivotConfiguration(
+                    fieldMapping,
+                    pivotConfig,
+                    metricQuery,
+                    itemsMap,
+                ),
             },
             fieldMapping,
             hierarchyDimensions,

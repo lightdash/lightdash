@@ -352,7 +352,7 @@ export const useDashboardChartReadyQuery = (
             dateZoom: tileDateZoom,
             invalidateCache,
             parameters: parameterValues,
-            pivotResults: subtotalLevel === undefined,
+            pivotResults: true,
             subtotalLevel,
         };
         if (isEmbedContext) {
