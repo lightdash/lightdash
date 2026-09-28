@@ -58,6 +58,7 @@ function fixture(name = '12345678-abc') {
         head: parentSha,
         branch: '',
         deep: false,
+        backend: false,
         dirtyAfterFailure: false,
         switched: false,
         canonicalPath: worktree,
@@ -86,7 +87,11 @@ function fixture(name = '12345678-abc') {
                 case 'branch':
                     return state.branch;
                 case 'diff':
-                    return state.deep ? 'package.json\0' : '';
+                    return state.deep
+                        ? 'package.json\0'
+                        : state.backend
+                          ? 'packages/backend/src/services/TestService.ts\0'
+                          : '';
                 case 'switch':
                     state.switched = true;
                     if (
@@ -138,6 +143,13 @@ function fixture(name = '12345678-abc') {
             events.push('stop');
             state.healthFails = true;
         },
+        stopClaimApi: async () => {
+            events.push('stop-api');
+            return 1000;
+        },
+        startClaimApi: async () => {
+            events.push('start-api');
+        },
         dotenv: async () => ({}),
         dependencies: async () => {
             throw new Error('unexpected dependencies');
@@ -147,7 +159,8 @@ function fixture(name = '12345678-abc') {
         start: async () => {
             throw new Error('start failed');
         },
-        cheapReady: async (instance) => {
+        cheapReady: async (instance, settleApi) => {
+            if (settleApi) events.push('stable-health');
             events.push('health');
             if (state.healthFails) throw new Error('health failed');
             instance.phase = 'ready';
@@ -664,4 +677,28 @@ test('claim success keeps the claimed instance and schedules verification and re
     assert(f.events.includes(`background verify ${f.spare.id}`));
     assert(f.events.includes('background pool fill --size 1'));
     assert.equal(f.events.includes('down'), false);
+});
+
+test('watched backend claim replaces only the API around checkout before its readiness gate', async () => {
+    const f = fixture();
+    f.state.backend = true;
+    await f.claim();
+    const checkout = f.events.indexOf('git switch feature/test');
+    assert(f.events.indexOf('stop-api') >= 0);
+    assert(f.events.indexOf('stop-api') < checkout);
+    assert(f.events.indexOf('start-api') > checkout);
+    assert(f.events.indexOf('stable-health') > f.events.indexOf('start-api'));
+    assert.equal(f.events.includes('stop'), false);
+});
+
+test('shallow claim keeps its physical process epoch when resetting claim timing', async () => {
+    const f = fixture();
+    const physical = '2026-09-01T00:00:00.000Z';
+    f.spare.startedAt = physical;
+    delete f.spare.processStartedAt;
+    await f.claim();
+    assert.equal(f.spare.processStartedAt, physical);
+    assert.notEqual(f.spare.startedAt, physical);
+    assert.equal(f.events.includes('stop-api'), false);
+    assert.equal(f.events.includes('stable-health'), false);
 });

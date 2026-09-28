@@ -4,6 +4,7 @@ import { mkdir, readFile, symlink } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { writeTracingEnv } from './env';
 import { containers, dotenv, sql } from './infra';
 import {
@@ -26,6 +27,7 @@ import {
 } from './model';
 import {
     compilerDirectory,
+    processEpoch,
     stableReadiness,
     waitForCompilers,
 } from './readiness';
@@ -36,7 +38,12 @@ export type ProcessInfo = {
     name: string;
     pid: number;
     monit: { memory: number };
-    pm2_env: { pm_cwd: string; status: string; pm_uptime: number };
+    pm2_env: {
+        pm_cwd: string;
+        status: string;
+        pm_uptime: number;
+        watch_delay?: number;
+    };
 };
 export async function pm2(
     args: string[],
@@ -78,6 +85,7 @@ export async function ownedProcesses(
             pm_cwd: pm2_env.pm_cwd,
             status: pm2_env.status,
             pm_uptime: pm2_env.pm_uptime,
+            watch_delay: pm2_env.watch_delay,
         },
     }));
 }
@@ -195,7 +203,7 @@ export async function startProcesses(
             ...env,
             LDENV_WORKTREE: instance.worktree,
             LDENV_WATCH_STATE_DIR: compilerDirectory(instance),
-            LDENV_START_EPOCH: instance.startedAt,
+            LDENV_START_EPOCH: processEpoch(instance),
             LDENV_VITE_WARM_MARKER: path.join(
                 compilerDirectory(instance),
                 'frontend.json',
@@ -203,6 +211,37 @@ export async function startProcesses(
         },
     );
     if (instance.kind === 'warming') await processPriority(instance, true);
+}
+export async function stopClaimApi(
+    instance: Instance,
+    operations = { ownedProcesses, pm2 },
+): Promise<number> {
+    const api = (await operations.ownedProcesses(instance)).find(
+        (item) => item.name === `${instance.id}-api`,
+    );
+    if (!api) throw new Error('Claim API process is missing');
+    await operations.pm2(['delete', api.name]);
+    if (
+        (await operations.ownedProcesses(instance)).some(
+            (item) => item.name === api.name,
+        )
+    )
+        throw new Error('Claim API teardown verification failed');
+    return Math.max(1000, api.pm2_env.watch_delay ?? 500);
+}
+
+export async function startClaimApi(
+    instance: Instance,
+    debounceMs: number,
+    operations = {
+        delay: (ms: number) => delay(ms),
+        waitForCompilers,
+        startProcesses,
+    },
+): Promise<void> {
+    await operations.delay(debounceMs);
+    await operations.waitForCompilers(instance);
+    await operations.startProcesses(instance, 'api');
 }
 export async function dbtEnvironment(root: string): Promise<Environment> {
     const cache = path.join(os.homedir(), '.lightdash/dev-venv-1.12/bin/dbt');
@@ -410,9 +449,12 @@ export async function checkReady(instance: Instance): Promise<void> {
     await checkPaintReady(instance);
     instance.timings.ready = Date.now() - started;
 }
-export async function waitForFrontend(instance: Instance): Promise<void> {
+export async function waitForFrontend(
+    instance: Instance,
+    operations = { ownedProcesses },
+): Promise<void> {
     const started = Date.now();
-    const frontend = (await ownedProcesses(instance)).find(
+    const frontend = (await operations.ownedProcesses(instance)).find(
         (item) => item.name === `${instance.id}-frontend`,
     );
     if (!frontend) throw new Error('Frontend process is missing');
@@ -432,7 +474,7 @@ export async function waitForFrontend(instance: Instance): Promise<void> {
             if (
                 !marker ||
                 marker.pid !== frontend.pid ||
-                marker.startedAt < Date.parse(instance.startedAt)
+                marker.startedAt < Date.parse(processEpoch(instance))
             )
                 return false;
             if (marker.status === 'failed')
@@ -447,26 +489,40 @@ export async function waitForFrontend(instance: Instance): Promise<void> {
     );
     instance.timings.viteWarmWait = Date.now() - started;
 }
-async function settledApiGeneration(instance: Instance): Promise<string> {
-    await waitForCompilers(instance);
-    await waitUntil(
-        () => health(instance.ports!.api),
-        120000,
-        'settled backend health',
-    );
+export async function apiGeneration(
+    instance: Instance,
+): Promise<string | null> {
     const api = (await ownedProcesses(instance)).find(
         (item) => item.name === `${instance.id}-api`,
     );
-    if (!api || api.pm2_env.status !== 'online')
-        throw new Error('API is not online after its watchers settled');
-    return `${api.pid}:${api.pm2_env.pm_uptime}`;
+    return api && api.pid > 0 && api.pm2_env.status === 'online'
+        ? `${api.pid}:${api.pm2_env.pm_uptime}`
+        : null;
 }
-async function stableReady(
+async function settledApiGeneration(instance: Instance): Promise<string> {
+    await waitForCompilers(instance);
+    let generation: string | null = null;
+    await waitUntil(
+        async () => {
+            const before = await apiGeneration(instance);
+            if (!before || !(await health(instance.ports!.api))) return false;
+            generation = await apiGeneration(instance);
+            return generation === before;
+        },
+        120000,
+        'settled backend health',
+    );
+    return generation!;
+}
+export async function stableReady(
     instance: Instance,
     check: () => Promise<void>,
+    operations = { waitForFrontend, settledApiGeneration },
 ): Promise<void> {
-    await waitForFrontend(instance);
-    await stableReadiness(check, () => settledApiGeneration(instance));
+    await operations.waitForFrontend(instance);
+    await stableReadiness(check, () =>
+        operations.settledApiGeneration(instance),
+    );
 }
 function markReady(instance: Instance, verified: boolean): void {
     instance.phase = 'ready';
@@ -535,16 +591,26 @@ export async function checkClaimEndpoints(
         );
     return timings;
 }
-export async function cheapReady(instance: Instance): Promise<void> {
+export async function cheapReady(
+    instance: Instance,
+    settleApi = false,
+): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
+    const ports = instance.ports;
     const started = Date.now();
     const env = await dotenv(
         path.join(instance.worktree, '.env.development.local'),
     );
-    Object.assign(
-        instance.timings,
-        await checkClaimEndpoints(instance.ports, env.LDPAT),
-    );
+    const check = async () =>
+        Object.assign(
+            instance.timings,
+            await checkClaimEndpoints(ports, env.LDPAT),
+        );
+    if (settleApi)
+        await stableReady(instance, async () => {
+            await check();
+        });
+    else await check();
     instance.phase = 'ready';
     instance.readyAt = new Date().toISOString();
     instance.timings.cheapGate = Date.now() - started;
@@ -559,44 +625,149 @@ export async function cheapReady(instance: Instance): Promise<void> {
     instance.error = null;
     await saveInstance(instance);
 }
-export async function verifyClaim(instance: Instance): Promise<void> {
-    let failure: string | null = null;
-    const probe = { ...instance, timings: {} as Record<string, number> };
-    try {
-        await checkReady(probe);
-    } catch (error) {
-        failure = runner.redact(
-            error instanceof Error ? error.message : String(error),
-        );
-    }
-    await lockedInstanceState(instance.id, async () => {
-        const current = await currentState(instance.id);
-        if (
-            !current ||
-            current.startedAt !== instance.startedAt ||
-            !['ready', 'degraded'].includes(current.phase)
-        )
-            return;
-        current.verification = {
+export function claimVerificationUpdate(
+    current: Instance,
+    attempt: Instance,
+    failure: string | null,
+    timings: Record<string, number>,
+    checkedAt: string,
+): Instance | null {
+    if (
+        current.id !== attempt.id ||
+        current.startedAt !== attempt.startedAt ||
+        processEpoch(current) !== processEpoch(attempt) ||
+        current.readyAt !== attempt.readyAt ||
+        current.monitorPid !== attempt.monitorPid ||
+        !['ready', 'degraded'].includes(current.phase) ||
+        current.verification?.state !== 'pending'
+    )
+        return null;
+    return {
+        ...current,
+        phase:
+            failure || current.error || current.phase === 'degraded'
+                ? 'degraded'
+                : 'ready',
+        error: failure
+            ? [
+                  current.error,
+                  `Background readiness verification failed: ${failure}`,
+              ]
+                  .filter(Boolean)
+                  .join('; ')
+            : current.error,
+        monitorPid: null,
+        timings: {
+            ...current.timings,
+            timeToVerified:
+                Date.parse(checkedAt) - Date.parse(current.startedAt),
+        },
+        verification: {
             state: failure ? 'failed' : 'passed',
-            checkedAt: new Date().toISOString(),
+            checkedAt,
             error: failure,
             timings: {
-                paint: probe.timings.paint ?? 0,
-                chart: probe.timings.chart ?? 0,
-                ready: probe.timings.ready ?? 0,
+                paint: timings.paint ?? 0,
+                chart: timings.chart ?? 0,
+                ready: timings.ready ?? 0,
             },
-        };
-        if (failure) {
-            current.phase = 'degraded';
-            current.error = `Background readiness verification failed: ${failure}`;
-        } else {
-            current.phase = 'ready';
-            current.error = null;
+        },
+    };
+}
+const claimVerificationOperations = {
+    stableReady,
+    checkReady,
+    apiGeneration,
+    lockedInstanceState,
+    currentState,
+    saveInstance,
+};
+export async function verifyClaim(
+    instance: Instance,
+    operations = claimVerificationOperations,
+): Promise<void> {
+    const attempt = await operations.lockedInstanceState(
+        instance.id,
+        async () => {
+            const current = await operations.currentState(instance.id);
+            if (
+                !current ||
+                current.startedAt !== instance.startedAt ||
+                current.monitorPid !== process.pid ||
+                !['ready', 'degraded'].includes(current.phase) ||
+                current.verification?.state !== 'pending'
+            )
+                return null;
+            return current;
+        },
+    );
+    if (!attempt) return;
+    for (let pass = 0; pass < 4; pass += 1) {
+        let failure: string | null = null;
+        let generation: string | null = null;
+        const probe = { ...attempt, timings: {} as Record<string, number> };
+        try {
+            await operations.stableReady(probe, async () => {
+                generation = await operations.apiGeneration(probe);
+                await operations.checkReady(probe);
+            });
+        } catch (error) {
+            failure = runner.redact(
+                error instanceof Error ? error.message : String(error),
+            );
         }
-        current.monitorPid = null;
-        await saveInstance(current);
-    });
+        let retry = false;
+        await operations.lockedInstanceState(instance.id, async () => {
+            const current = await operations.currentState(instance.id);
+            if (
+                !current ||
+                !claimVerificationUpdate(
+                    current,
+                    attempt,
+                    failure,
+                    probe.timings,
+                    new Date().toISOString(),
+                )
+            )
+                return;
+            if (generation !== null) {
+                let changed = false;
+                try {
+                    changed =
+                        generation !==
+                        (await operations.apiGeneration(current));
+                } catch (error) {
+                    failure = [
+                        failure,
+                        `Cannot inspect API generation: ${runner.redact(String(error))}`,
+                    ]
+                        .filter(Boolean)
+                        .join('; ');
+                }
+                if (changed) {
+                    if (pass < 3) {
+                        retry = true;
+                        return;
+                    }
+                    failure = [
+                        failure,
+                        'API keeps restarting before readiness can be published',
+                    ]
+                        .filter(Boolean)
+                        .join('; ');
+                }
+            }
+            const updated = claimVerificationUpdate(
+                current,
+                attempt,
+                failure,
+                probe.timings,
+                new Date().toISOString(),
+            );
+            if (updated) await operations.saveInstance(updated);
+        });
+        if (!retry) return;
+    }
 }
 type PaintAttempt = Pick<Instance, 'id' | 'startedAt' | 'readyAt'> & {
     monitorPid: number;

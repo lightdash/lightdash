@@ -735,6 +735,7 @@ async function startInstance(
     assertInstance(instance);
     if (instance.phase === 'stopped' || instance.phase === 'failed') {
         instance.startedAt = new Date().toISOString();
+        instance.processStartedAt = instance.startedAt;
         instance.timings = {};
     }
     await ensurePostgres(controlRoot);

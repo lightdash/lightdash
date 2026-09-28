@@ -51,6 +51,7 @@ export type Parent = {
     arch: string;
 };
 export type Instance = {
+    processStartedAt?: string;
     viteCache?: ViteCacheReport;
     kind: 'worktree' | 'warming' | 'spare' | 'claimed';
     id: string;
@@ -314,6 +315,7 @@ export function newInstance(
         phase: 'preparing',
         createdAt: now,
         startedAt: now,
+        processStartedAt: now,
         updatedAt: now,
         timings: {},
         error: null,

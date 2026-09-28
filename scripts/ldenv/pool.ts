@@ -40,7 +40,10 @@ import {
     cheapReady,
     processPriority,
     stopProcesses,
+    stopClaimApi,
+    startClaimApi,
 } from './processes';
+import { claimChangesApi, processEpoch } from './readiness';
 
 export async function availableMemory(root: string): Promise<number> {
     if (process.platform === 'darwin') {
@@ -225,6 +228,8 @@ const claimOperations = {
     saveInstance,
     recipeAt,
     stopProcesses,
+    stopClaimApi,
+    startClaimApi,
     dotenv,
     dependencies,
     runTiers,
@@ -254,6 +259,8 @@ export async function claimInstance(
         saveInstance,
         recipeAt,
         stopProcesses,
+        stopClaimApi,
+        startClaimApi,
         dotenv,
         dependencies,
         runTiers,
@@ -357,6 +364,7 @@ export async function claimInstance(
                 spare.kind = 'claimed';
                 spare.phase = 'starting';
                 spare.readyAt = null;
+                spare.processStartedAt = processEpoch(spare);
                 spare.startedAt = new Date(started).toISOString();
                 spare.timings = spare.timings.rssBytes
                     ? { rssBytes: spare.timings.rssBytes }
@@ -413,7 +421,12 @@ export async function claimInstance(
                         matchingTiers(recipe.tiers, delta).some(
                             (tier) => tier.run || tier.preset,
                         );
-                    if (deep) await stopProcesses(spare, true);
+                    let apiDebounce: number | null = null;
+                    if (deep) {
+                        await stopProcesses(spare, true);
+                        spare.processStartedAt = spare.startedAt;
+                    } else if (claimChangesApi(delta))
+                        apiDebounce = await stopClaimApi(spare);
                     await timed(spare.timings, 'checkout', async () => {
                         await git(
                             spare.worktree,
@@ -450,7 +463,9 @@ export async function claimInstance(
                         );
                         await start(spare, false);
                     } else {
-                        await cheapReady(spare);
+                        if (apiDebounce !== null)
+                            await startClaimApi(spare, apiDebounce);
+                        await cheapReady(spare, apiDebounce !== null);
                         spare.monitorPid = await background(
                             ['verify', spare.id],
                             `${spare.id}-verify`,
@@ -483,6 +498,7 @@ export async function claimInstance(
                             Object.assign(spare, previous, {
                                 kind: 'claimed',
                                 phase: 'starting',
+                                processStartedAt: processEpoch(previous),
                             });
                             await cheapReady(spare);
                             await processPriority(spare, true);

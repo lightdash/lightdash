@@ -14,12 +14,44 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { waitUntil } from './io';
-import { json } from './model';
+import { json, newInstance } from './model';
 import {
     compilersSettled,
     stableReadiness,
+    processEpoch,
+    claimChangesApi,
     type CompilerState,
 } from './readiness';
+
+test('claim API changes match watched backend code and skip ignored or unrelated files', () => {
+    for (const file of [
+        'packages/backend/src/services/Service.ts',
+        'packages/backend/src/generated/routes.ts',
+        'packages/common/dist/cjs/.tsbuildinfo',
+    ])
+        assert.equal(claimChangesApi([file]), true, file);
+    for (const file of [
+        'packages/backend/src/generated/swagger.json',
+        'packages/backend/src/services/Service.test.ts',
+        'packages/backend/src/services/Service.test.tsx',
+        'packages/backend/src/readme.md',
+        'packages/backend/src/doc.mdx',
+        'packages/backend/src/app.js.map',
+        'packages/backend/src/sub/node_modules/dependency/index.js',
+        'packages/frontend/src/App.tsx',
+    ])
+        assert.equal(claimChangesApi([file]), false, file);
+    assert.equal(claimChangesApi([]), false);
+});
+
+test('process epoch falls back for legacy instances and remains independent of claim timing', () => {
+    const instance = newInstance('/tmp/ldenv-epoch', 'a'.repeat(40));
+    delete instance.processStartedAt;
+    assert.equal(processEpoch(instance), instance.startedAt);
+    instance.processStartedAt = instance.startedAt;
+    instance.startedAt = 'next-claim';
+    assert.notEqual(processEpoch(instance), instance.startedAt);
+});
 
 test('initial watcher work and the PM2 debounce must finish before readiness', () => {
     const settled: CompilerState = {

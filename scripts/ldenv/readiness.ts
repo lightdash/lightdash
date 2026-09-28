@@ -9,6 +9,19 @@ export type CompilerState = {
     at: number;
 };
 export const compilerNames = ['common', 'formula', 'warehouses', 'routes'];
+export const processEpoch = (instance: Instance): string =>
+    instance.processStartedAt ?? instance.startedAt;
+
+export function claimChangesApi(files: string[]): boolean {
+    return files.some(
+        (file) =>
+            file === 'packages/common/dist/cjs/.tsbuildinfo' ||
+            (file.startsWith('packages/backend/src/') &&
+                file !== 'packages/backend/src/generated/swagger.json' &&
+                !file.includes('/node_modules/') &&
+                !/\.(?:md|mdx|map|test\.tsx?)$/.test(file)),
+    );
+}
 export function compilerDirectory(instance: Instance): string {
     return path.join(home, 'watchers', instance.id);
 }
@@ -51,7 +64,7 @@ export async function waitForCompilers(instance: Instance): Promise<void> {
                         }),
                     ),
                 ),
-                instance.startedAt,
+                processEpoch(instance),
                 Date.now(),
             ),
         120000,
