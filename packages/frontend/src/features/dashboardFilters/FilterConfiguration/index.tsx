@@ -669,8 +669,9 @@ const FilterConfiguration: FC<Props> = ({
                 <Callout
                     variant="warning"
                     p="xs"
-                    icon={<MantineIcon icon={IconAlertTriangle} size="sm" />}
+                    icon={<MantineIcon icon={IconAlertTriangle} size="md" />}
                     classNames={{
+                        icon: classes.boundaryWarningIcon,
                         body: classes.boundaryWarningBody,
                         message: classes.boundaryWarningMessage,
                     }}

@@ -32,11 +32,20 @@
     transform: none !important;
 }
 
+.boundaryWarningIcon {
+    flex: 0 0 var(--mantine-spacing-md);
+    width: var(--mantine-spacing-md);
+    height: calc(var(--mantine-font-size-xs) * var(--mantine-line-height-xs));
+    margin-top: 0;
+    margin-inline-end: var(--mantine-spacing-xs);
+}
+
 .boundaryWarningBody {
     min-width: 0;
 }
 
 .boundaryWarningMessage {
+    text-align: start;
     font-size: var(--mantine-font-size-xs);
     line-height: var(--mantine-line-height-xs);
     white-space: normal;
