@@ -1,5 +1,6 @@
 import { ChartType, type DocumentCell } from '@lightdash/common';
 import { Editor } from '@tiptap/core';
+import { GapCursor } from '@tiptap/pm/gapcursor';
 import { getDocumentCells } from './documentCells';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
@@ -105,6 +106,59 @@ describe('getDocumentCells', () => {
     it('returns no cells for an empty document', () => {
         const editor = load([]);
         expect(getDocumentCells(editor)).toStrictEqual([]);
+        editor.destroy();
+    });
+});
+
+describe('writing around charts', () => {
+    const typeAt = (
+        editor: ReturnType<typeof load>,
+        position: number,
+        text: string,
+    ) => {
+        const $pos = editor.state.doc.resolve(position);
+        expect(GapCursor.valid($pos)).toBe(true);
+        editor.view.dispatch(editor.state.tr.setSelection(new GapCursor($pos)));
+        editor.commands.insertContent(text);
+    };
+
+    it('writes above a chart that starts the document', () => {
+        const first = chart('First');
+        const editor = load([first, markdown('After')]);
+        typeAt(editor, 0, 'Intro');
+        expect(getDocumentCells(editor)).toStrictEqual([
+            markdown('Intro'),
+            first,
+            markdown('After'),
+        ]);
+        editor.destroy();
+    });
+
+    it('writes between two adjacent charts', () => {
+        const first = chart('First');
+        const second = chart('Second');
+        const editor = load([first, second]);
+        typeAt(editor, editor.state.doc.firstChild!.nodeSize, 'Between');
+        expect(getDocumentCells(editor)).toStrictEqual([
+            first,
+            markdown('Between'),
+            second,
+        ]);
+        editor.destroy();
+    });
+
+    it('keeps an empty line after a chart that ends the document', () => {
+        const last = chart('Last');
+        const editor = load([markdown('Before'), last]);
+        expect(editor.state.doc.lastChild?.type.name).toBe('paragraph');
+        const end = editor.state.doc.content.size - 1;
+        editor.commands.setTextSelection(end);
+        editor.commands.insertContent('After');
+        expect(getDocumentCells(editor)).toStrictEqual([
+            markdown('Before'),
+            last,
+            markdown('After'),
+        ]);
         editor.destroy();
     });
 });

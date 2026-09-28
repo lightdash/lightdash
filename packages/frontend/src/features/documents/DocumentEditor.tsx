@@ -27,6 +27,7 @@ import {
 } from './editor/documentChartNode';
 import { DocumentEditorProvider } from './editor/DocumentEditorContext';
 import { useDocumentEditor } from './editor/useDocumentEditor';
+import { useTopGapClick } from './editor/useTopGapClick';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
 import styles from './presentation/ReportPresentation.module.css';
 import { useUpdateDocumentContent } from './useUpdateDocumentContent';
@@ -93,6 +94,7 @@ const DocumentEditor = ({
               }
             : null,
     });
+    useTopGapClick(editor);
     const target = useMemo(
         () => ({
             projectUuid: document.projectUuid,

@@ -616,11 +616,35 @@
             /* Editing affordances: a generous click target, placeholder and
                selected table cells */
             &[contenteditable='true'] {
+                position: relative;
                 min-height: calc(var(--mantine-spacing-9xl) * 2);
                 cursor: text;
             }
 
-            > :global(.is-editor-empty:first-child)::before {
+            /* A full-width line where text will go between or around charts.
+               In flow with no height, so it sits where the gap starts;
+               flow-root stops the next block's margin collapsing through it */
+            > :global(.ProseMirror-gapcursor) {
+                position: relative;
+                width: 100%;
+                height: 0;
+                margin: 0;
+            }
+
+            &:global(.ProseMirror-focused) > :global(.ProseMirror-gapcursor) {
+                display: flow-root;
+            }
+
+            > :global(.ProseMirror-gapcursor)::after {
+                top: calc(var(--mantine-spacing-xl) / 2 - 1px);
+                width: 100%;
+                border-top: 2px solid var(--mantine-color-text);
+            }
+
+            /* The hint follows the cursor into any empty paragraph, so the
+               lines kept around charts are discoverable */
+            > :global(.is-editor-empty:first-child)::before,
+            > p:global(.is-empty)::before {
                 content: attr(data-placeholder);
                 float: left;
                 height: 0;
