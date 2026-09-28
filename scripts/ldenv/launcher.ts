@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { chmod, mkdir } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { install } from './cache';
 import { dotenv } from './infra';
@@ -19,6 +20,38 @@ import type { ViteCacheReport } from './vite-cache';
 
 const controlRoot = path.resolve(__dirname, '../..');
 const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+
+export function launcherScript(
+    executable: string,
+    bundle: string,
+    loader: string,
+    entry: string,
+): string {
+    return `#!/bin/sh\nif [ -f ${shellQuote(bundle)} ]; then\n    exec ${shellQuote(executable)} ${shellQuote(bundle)} "$@"\nfi\nexec ${shellQuote(executable)} --import ${shellQuote(loader)} ${shellQuote(entry)} "$@"\n`;
+}
+
+export async function bundleLauncher(
+    directory: string,
+    entry: string,
+    bundle: string,
+): Promise<void> {
+    const requireTool = createRequire(path.join(directory, 'package.json'));
+    const requireTsx = createRequire(requireTool.resolve('tsx'));
+    const esbuild = requireTsx('esbuild') as {
+        build: (options: Record<string, unknown>) => Promise<void>;
+    };
+    await esbuild.build({
+        entryPoints: [entry],
+        outfile: bundle,
+        bundle: true,
+        packages: 'external',
+        platform: 'node',
+        format: 'cjs',
+        target: 'node24',
+        minify: true,
+        logLevel: 'silent',
+    });
+}
 
 export function targetArguments(
     args: string[],
@@ -131,6 +164,7 @@ export async function installLauncher(): Promise<string> {
             await install(directory, true, {}, 'tool-install');
         const loader = path.join(directory, 'node_modules/tsx/dist/loader.mjs');
         const entry = path.join(directory, 'scripts/ldenv/index.ts');
+        const bundle = path.join(directory, 'scripts/ldenv/index.bundle.cjs');
         const executable = path.join(directory, 'node_modules/node/bin/node');
         if (
             !existsSync(loader) ||
@@ -138,11 +172,12 @@ export async function installLauncher(): Promise<string> {
             !existsSync(executable)
         )
             throw new Error('The pinned tool checkout is incomplete');
+        await bundleLauncher(directory, entry, bundle);
         await refreshParentCaches(directory, executable, sha);
         const launcher = path.join(home, 'bin', 'ldenv');
         await atomicWrite(
             launcher,
-            `#!/bin/sh\nexec ${shellQuote(executable)} --import ${shellQuote(loader)} ${shellQuote(entry)} "$@"\n`,
+            launcherScript(executable, bundle, loader, entry),
         );
         await chmod(launcher, 0o755);
         const recordFile = path.join(home, 'tool.json');
