@@ -1,4 +1,5 @@
 import {
+    isDimension,
     isField,
     isMetric,
     type DataAppVizFieldMapping,
@@ -30,5 +31,14 @@ export const resolveVizDrillDownConfig = (
     if (!isField(item) || !isMetric(item)) {
         throw new Error(`"${intent.metric}" is not a metric on this chart.`);
     }
-    return { item, fieldValues: toVizFieldValues(intent.row) };
+    const fieldValues = toVizFieldValues(intent.row);
+    // Dimension-only marks (e.g. a boxplot box) have no metric value to show.
+    const valueLabel =
+        fieldValues[fieldId] === undefined
+            ? Object.entries(fieldValues)
+                  .filter(([id]) => isDimension(args.itemsMap[id]))
+                  .map(([, value]) => value.formatted)
+                  .join(', ') || undefined
+            : undefined;
+    return { item, fieldValues, valueLabel };
 };
