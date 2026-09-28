@@ -1,3 +1,10 @@
+# [2.361.0](https://github.com/lightdash/lightdash/compare/2.360.3...2.361.0) (2026-09-28)
+
+
+### Features
+
+* **sql-runner:** save query/chart with cmd/ctrl+s ([#30099](https://github.com/lightdash/lightdash/issues/30099)) ([deb29e2](https://github.com/lightdash/lightdash/commit/deb29e2e674a0665888f99e7da14ee68427c0837))
+
 ## [2.360.3](https://github.com/lightdash/lightdash/compare/2.360.2...2.360.3) (2026-09-28)
 
 
