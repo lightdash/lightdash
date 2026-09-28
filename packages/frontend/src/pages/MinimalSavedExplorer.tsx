@@ -22,6 +22,7 @@ import { useParams } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
+import { useExplorerResultsData } from '../components/Explorer/VisualizationCard/useExplorerResultsData';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
@@ -67,15 +68,7 @@ const MinimalExplorerContent = memo(() => {
     // Get query state from hook
     const { query, queryResults, explore } = useExplorerQuery();
 
-    const resultsData = useMemo(
-        () => ({
-            ...queryResults,
-            metricQuery: query.data?.metricQuery,
-            fields: query.data?.fields,
-            resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
-        }),
-        [queryResults, query.data],
-    );
+    const { resultsData } = useExplorerResultsData();
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
