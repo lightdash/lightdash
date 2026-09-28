@@ -310,7 +310,11 @@ const DocumentEditor = ({
                                 ? chartEditor.chart
                                 : null
                         }
-                        onClose={() => setChartEditor(null)}
+                        onClose={() => {
+                            setChartEditor(null);
+                            // The modal unmounts without returning focus
+                            editor?.commands.focus();
+                        }}
                         onApply={applyChart}
                     />
                 </Suspense>

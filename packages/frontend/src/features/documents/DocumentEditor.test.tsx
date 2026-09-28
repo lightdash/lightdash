@@ -283,6 +283,10 @@ it('leaves the chart unchanged when its editor is cancelled', async () => {
     expect(
         screen.getByRole('button', { name: 'Save document' }),
     ).toBeDisabled();
+    // Keyboard users land back in the document, not at the top of the page
+    await waitFor(() =>
+        expect(document.activeElement).toHaveClass('ProseMirror'),
+    );
 });
 
 it('adds a chart as a draft node without touching saved charts', async () => {
