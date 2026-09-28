@@ -24,7 +24,9 @@ type Props = {
         [key: `data-${string}`]: string;
     };
     headingSelector?: string;
-    variant?: 'structured' | 'markdown';
+    variant?: 'structured' | 'markdown' | 'document';
+    actions?: ReactNode;
+    metadata?: ReactNode;
 };
 
 const DocumentReportLayout = ({
@@ -37,6 +39,8 @@ const DocumentReportLayout = ({
     headerProps,
     headingSelector,
     variant = 'structured',
+    actions,
+    metadata,
 }: Props) => {
     const contents = useReportContents(headings, headingSelector);
     const entries = [
@@ -53,7 +57,8 @@ const DocumentReportLayout = ({
             <Box
                 className={[
                     styles.reportLayout,
-                    variant === 'structured' && styles.structuredReportLayout,
+                    variant !== 'markdown' && styles.structuredReportLayout,
+                    variant === 'document' && styles.documentLayout,
                 ]
                     .filter(Boolean)
                     .join(' ')}
@@ -100,7 +105,9 @@ const DocumentReportLayout = ({
                                             </Text>
                                         </Group>
                                     ) : (
-                                        heading.label
+                                        <Text component="span" inherit truncate>
+                                            {heading.label}
+                                        </Text>
                                     )}
                                 </UnstyledButton>
                             ))}
@@ -111,12 +118,12 @@ const DocumentReportLayout = ({
                     component="article"
                     className={[
                         styles.report,
-                        variant === 'structured'
+                        variant !== 'markdown'
                             ? styles.structuredReportPage
                             : styles.reportFallback,
                     ].join(' ')}
                 >
-                    <Stack gap="xl">
+                    <Stack gap="xl" className={styles.reportContent}>
                         <Box
                             component="header"
                             ref={contents.headerRef}
@@ -125,13 +132,21 @@ const DocumentReportLayout = ({
                             {eyebrow && (
                                 <Box className={styles.eyebrow}>{eyebrow}</Box>
                             )}
-                            <Title
-                                order={1}
-                                className={styles.reportTitle}
-                                {...headerProps}
-                            >
-                                {title}
-                            </Title>
+                            <Box className={styles.reportTitleRow}>
+                                <Title
+                                    order={1}
+                                    className={styles.reportTitle}
+                                    {...headerProps}
+                                >
+                                    {title}
+                                </Title>
+                                {actions && (
+                                    <Box className={styles.reportActions}>
+                                        {actions}
+                                    </Box>
+                                )}
+                            </Box>
+                            {metadata}
                             {description && (
                                 <Box className={styles.reportProse}>
                                     {description}

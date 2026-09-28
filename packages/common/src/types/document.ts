@@ -4,6 +4,7 @@ import type { ChartAsCode, ChartAsCodeConfig } from './contentAsCode/charts';
 import type { SavedMergeQuery } from './mergeQuery';
 import type { ChartType, DataAppVizOptionValues } from './savedCharts';
 import type { SpaceAccess, SpaceMemberRole } from './space';
+import type { LightdashUser } from './user';
 
 // Keep the published Document contract stable; custom chart types are rejected
 // by parseDocumentContent and their new capabilities belong to saved charts.
@@ -31,20 +32,9 @@ export type MergeChartAsCode = SemanticChartAsCode & {
     merge: SavedMergeQuery;
 };
 
-// Named so API diffs can match each variant instead of anonymous anyOf members.
-export type DocumentSemanticChartContent = {
-    source: 'semantic';
-    chart: SemanticChartAsCode;
-};
-
-export type DocumentMergeChartContent = {
-    source: 'merge';
-    chart: MergeChartAsCode;
-};
-
 type DocumentChartContent =
-    | DocumentSemanticChartContent
-    | DocumentMergeChartContent;
+    | { source: 'semantic'; chart: SemanticChartAsCode }
+    | { source: 'merge'; chart: MergeChartAsCode };
 
 export type DocumentCell =
     | { type: 'markdown'; content: { markdown: string } }
@@ -77,6 +67,10 @@ export type DocumentVersion = {
 };
 
 export type Document = DocumentSummary & {
+    createdBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName' | 'avatarUrl' | 'avatarGradient'
+    > | null;
     version: DocumentVersion;
     pinnedListUuid: string | null;
 };

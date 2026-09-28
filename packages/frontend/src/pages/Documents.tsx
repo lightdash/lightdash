@@ -15,7 +15,7 @@ const Documents = () => {
     const projectUuid = useProjectUuid();
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     if (!projectUuid || flag.isInitialLoading) {
-        return <EmptyStateLoader title="Loading documents" />;
+        return <EmptyStateLoader my="xl" title="Loading documents" />;
     }
     if (flag.isError || !flag.data?.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;

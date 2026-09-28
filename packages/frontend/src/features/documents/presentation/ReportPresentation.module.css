@@ -82,13 +82,6 @@
         var(--report-bottom-padding, 6rem);
 }
 
-.documentCells > :last-child {
-    &:is(section),
-    section:last-child {
-        padding-bottom: 0;
-    }
-}
-
 .reportFallback {
     width: min(100%, 60rem);
 }
@@ -226,6 +219,12 @@
         height: 30rem;
         margin: 0;
     }
+
+    /* Short tables shrink to their rows; long ones scroll inside the cap */
+    .chartTile.chartTileFitContent {
+        height: auto;
+        max-height: 30rem;
+    }
 }
 
 .reportNarrative {
@@ -294,8 +293,303 @@
     }
 }
 
+/* Tables hug their rows: every wrapper between the tile and the table's own
+   scroller would otherwise fill the tile through inline heights */
+.chartTileFitContent {
+    > * {
+        flex: 0 1 auto;
+    }
+
+    div:has(table):not(:has(> table)) {
+        display: flex;
+        flex-direction: column;
+        flex: 0 1 auto;
+        height: auto !important;
+        min-height: 0 !important;
+        /* The card's own padding already frames the table */
+        padding-bottom: 0 !important;
+    }
+}
+
 .chartActions {
     flex: 0 0 auto !important;
+}
+
+.documentLayout {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    width: 100%;
+    max-width: none;
+    /* The scroll viewport's content box has no height, so fill it explicitly
+       to keep the rail full height on short documents */
+    min-height: var(
+        --page-height,
+        calc(100dvh - var(--navbar-height) - 3.75rem)
+    );
+
+    .contentsRail {
+        background: var(--ld-color-page);
+    }
+
+    .contentsNav {
+        padding: var(--mantine-spacing-xxl) var(--mantine-spacing-lg);
+    }
+
+    .contentsList {
+        gap: var(--mantine-spacing-xxs);
+    }
+
+    .contentsControl {
+        display: flex;
+        align-items: center;
+        gap: var(--mantine-spacing-xs);
+        padding: var(--mantine-spacing-xs);
+        border-radius: var(--mantine-radius-md);
+        font-size: var(--mantine-font-size-xs);
+        line-height: var(--mantine-line-height-md);
+
+        &::before {
+            content: '';
+            flex: 0 0 var(--mantine-spacing-two);
+            height: var(--mantine-spacing-md);
+            border-radius: var(--mantine-radius-xs);
+            background: transparent;
+        }
+
+        &[data-active='true']::before {
+            background: var(--mantine-color-text);
+        }
+
+        &:hover {
+            background: var(--mantine-color-default-hover);
+        }
+    }
+
+    .report {
+        min-width: 0;
+        padding: var(--mantine-spacing-3xl) var(--mantine-spacing-5xl)
+            var(--mantine-spacing-emptySpace);
+    }
+
+    .reportContent {
+        min-width: 0;
+        max-width: 48rem;
+        margin-inline: auto;
+    }
+
+    .reportHeader {
+        padding-bottom: var(--mantine-spacing-lg);
+        border-bottom: 1px solid var(--mantine-color-default-border);
+    }
+
+    .reportTitleRow {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--mantine-spacing-xl);
+    }
+
+    .reportTitle {
+        flex: 1 1 50%;
+        min-width: 0;
+        font-size: var(--mantine-h1-font-size);
+        font-weight: 700;
+        line-height: var(--mantine-h1-line-height);
+        letter-spacing: -0.02em;
+        overflow-wrap: anywhere;
+    }
+
+    .reportActions {
+        flex: 0 0 auto;
+    }
+
+    .reportFinding {
+        min-width: 0;
+        padding-block: 0;
+        border-top: 0;
+    }
+
+    .reportEvidence {
+        padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+        border-color: var(--mantine-color-default-border);
+        border-radius: var(--mantine-radius-lg);
+        box-shadow: none;
+    }
+
+    /* One Tiptap document renders the whole body, so every block style
+       targets ProseMirror's DOM; chart cells are React node views. */
+    .documentProse {
+        min-width: 0;
+        color: var(--mantine-color-text);
+        font-size: var(--mantine-font-size-sm);
+        line-height: var(--mantine-line-height-md);
+
+        :global(.ProseMirror) {
+            outline: none;
+
+            > * + * {
+                margin-top: var(--mantine-spacing-sm);
+            }
+
+            > :is(h1, h2, h3, h4, h5, h6) {
+                margin-top: var(--mantine-spacing-xl);
+                margin-bottom: var(--mantine-spacing-sm);
+                font-weight: var(--mantine-h2-font-weight);
+                letter-spacing: normal;
+                scroll-margin-top: var(--mantine-spacing-xl);
+            }
+
+            > :is(h1, h2, h3, h4, h5, h6):first-child {
+                margin-top: 0;
+            }
+
+            /* Title 28 > H1 24 > H2 18 > H3 16 > rest 14: skips the 20px step so
+               each level reads as a distinct drop instead of a 2px nudge */
+            > h1 {
+                font-size: var(--mantine-h2-font-size);
+                line-height: var(--mantine-h2-line-height);
+                letter-spacing: -0.015em;
+            }
+
+            > h2 {
+                font-size: var(--mantine-h4-font-size);
+                line-height: var(--mantine-h4-line-height);
+            }
+
+            > h3 {
+                font-size: var(--mantine-h5-font-size);
+                line-height: var(--mantine-h5-line-height);
+            }
+
+            > :is(h4, h5, h6) {
+                font-size: var(--mantine-h6-font-size);
+                line-height: var(--mantine-h6-line-height);
+            }
+
+            p {
+                margin: 0;
+            }
+
+            strong {
+                font-weight: 600;
+            }
+
+            a {
+                color: var(--mantine-color-anchor);
+                text-decoration: underline;
+                text-decoration-color: var(--mantine-color-ldGray-4);
+                text-underline-offset: 2px;
+
+                &:hover {
+                    text-decoration-color: currentColor;
+                }
+            }
+
+            ul,
+            ol {
+                margin: 0;
+                padding-left: var(--mantine-spacing-xl);
+            }
+
+            li + li {
+                margin-top: var(--mantine-spacing-xxs);
+            }
+
+            li > p + :is(ul, ol) {
+                margin-top: var(--mantine-spacing-xxs);
+            }
+
+            blockquote {
+                margin: 0;
+                padding: var(--mantine-spacing-xxs) 0 var(--mantine-spacing-xxs)
+                    var(--mantine-spacing-sm);
+                border-left: 2px solid var(--mantine-color-ldGray-3);
+                color: var(--mantine-color-dimmed);
+            }
+
+            code {
+                font-family: var(--mantine-font-family-monospace);
+                font-size: 0.875em;
+            }
+
+            :not(pre) > code {
+                padding: 0 var(--mantine-spacing-xxs);
+                border-radius: var(--mantine-radius-xs);
+                background: var(--mantine-color-ldGray-1);
+            }
+
+            pre {
+                margin: 0;
+                padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+                border: 1px solid var(--mantine-color-default-border);
+                border-radius: var(--mantine-radius-md);
+                background: var(--mantine-color-ldGray-0);
+                font-size: var(--mantine-font-size-xs);
+                line-height: var(--mantine-line-height-md);
+                overflow-x: auto;
+            }
+
+            hr {
+                margin-block: var(--mantine-spacing-xl);
+                border: 0;
+                border-top: 1px solid var(--mantine-color-default-border);
+            }
+
+            /* The resets above zero every margin, so restate the gap between
+               consecutive top-level blocks; nested blocks stay tight */
+            > * + :is(p, ul, ol, blockquote, pre) {
+                margin-top: var(--mantine-spacing-sm);
+            }
+
+            /* Embedded blocks sit a full step away from surrounding text */
+            > :global(.tableWrapper),
+            > :global(.node-documentChart),
+            > :global(.tableWrapper) + *,
+            > :global(.node-documentChart) + * {
+                margin-top: var(--mantine-spacing-xl);
+            }
+
+            > :global(.tableWrapper) {
+                overflow-x: auto;
+            }
+
+            /* Nothing sits above the first block, so it needs no leading gap */
+            > :first-child {
+                margin-top: 0;
+            }
+
+            /* Markdown tables only: chart tables bring their own styling */
+            > :global(.tableWrapper) table {
+                width: 100%;
+                margin: 0;
+                border-collapse: separate;
+                border-spacing: 0;
+                border: 1px solid var(--mantine-color-default-border);
+                border-radius: var(--mantine-radius-lg);
+                overflow: hidden;
+                font-size: var(--mantine-font-size-sm);
+            }
+
+            > :global(.tableWrapper) :is(th, td) {
+                padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+                border-bottom: 1px solid var(--mantine-color-ldGray-1);
+                text-align: left;
+                vertical-align: top;
+            }
+
+            > :global(.tableWrapper) th {
+                border-bottom-color: var(--mantine-color-ldGray-2);
+                background: var(--mantine-color-ldGray-0);
+                color: var(--mantine-color-dimmed);
+                font-size: var(--mantine-font-size-xs);
+                font-weight: 500;
+            }
+
+            > :global(.tableWrapper) tr:last-child td {
+                border-bottom: 0;
+            }
+        }
+    }
 }
 
 @media (max-width: 48em) {
@@ -304,6 +598,9 @@
     }
     .contentsRail {
         display: none;
+    }
+    .documentLayout .report {
+        padding: var(--mantine-spacing-xl);
     }
 }
 
@@ -316,6 +613,16 @@
     }
     .reportEvidence .chartTile {
         height: 24rem;
+    }
+    .reportEvidence .chartTile.chartTileFitContent {
+        height: auto;
+        max-height: 24rem;
+    }
+    .documentLayout {
+        .report,
+        .reportEvidence {
+            padding: var(--mantine-spacing-md);
+        }
     }
 }
 
@@ -330,7 +637,8 @@
     .contentsRail {
         display: none;
     }
-    .report {
+    .report,
+    .documentLayout .report {
         width: 100%;
         padding: 0;
     }

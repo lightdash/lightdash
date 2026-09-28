@@ -79,10 +79,11 @@ const semanticCell: Extract<DocumentCell, { type: 'chart' }> = {
     },
 };
 
-const renderChart = (cell = semanticCell) => {
+const renderChart = (cell = semanticCell, showTitle = true) => {
     return render(
         <MantineProvider env="test">
             <DocumentChart
+                showTitle={showTitle}
                 projectUuid="project"
                 spaceUuid="space"
                 documentUuid="document"
@@ -105,9 +106,11 @@ describe('Document chart titles', () => {
         mocks.explore.mockClear();
     });
 
-    test('omits a duplicate frame name while preserving the accessible figure name', () => {
+    test('renders the chart title inside its frame while preserving the accessible figure name', () => {
         renderChart();
-        expect(screen.queryByText('Orders')).not.toBeInTheDocument();
+        const title = screen.getByText('Orders');
+        const figure = screen.getByRole('figure', { name: 'Orders' });
+        expect(figure.parentElement).toContainElement(title);
         expect(
             screen.getByRole('figure', { name: 'Orders' }),
         ).toBeInTheDocument();
@@ -122,6 +125,15 @@ describe('Document chart titles', () => {
             'version',
             2,
         );
+    });
+
+    test('does not repeat the editor cell title when the frame title is hidden', () => {
+        renderChart(semanticCell, false);
+        expect(screen.queryByText('Orders')).not.toBeInTheDocument();
+        expect(screen.getByText('Daily order volume')).toBeInTheDocument();
+        expect(
+            screen.getByRole('figure', { name: 'Orders' }),
+        ).toBeInTheDocument();
     });
 
     test('offers exploration when query context and Explore permission are available', () => {
@@ -221,7 +233,7 @@ describe('Document chart titles', () => {
     });
 
     test.each(['loading', 'error', 'success'])(
-        'preserves the description exactly once while %s',
+        'shows the title without the description in reading mode while %s',
         (state) => {
             if (state === 'loading') {
                 mocks.query.data = undefined;
@@ -230,7 +242,10 @@ describe('Document chart titles', () => {
                 mocks.query.error = { error: { message: 'Query failed' } };
             }
             renderChart();
-            expect(screen.getAllByText('Daily order volume')).toHaveLength(1);
+            expect(screen.getAllByText('Orders')).toHaveLength(1);
+            expect(
+                screen.queryByText('Daily order volume'),
+            ).not.toBeInTheDocument();
         },
     );
 
