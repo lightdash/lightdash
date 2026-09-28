@@ -53,8 +53,10 @@ export const EnableLearnPanel: FC<Props> = ({
                         Learn gives everyone in your organisation a sample
                         project to practise on, with a guided walkthrough for
                         each thing Lightdash can do. Every walkthrough runs in a
-                        fresh copy of that project and the copy is removed when
-                        it ends, so nothing here touches your real projects.
+                        fresh copy of that project, which people can stay in and
+                        explore afterwards and which is thrown away when the
+                        next one starts, so nothing here touches your real
+                        projects.
                     </Text>
                 </Box>
 
