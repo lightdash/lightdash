@@ -1,6 +1,6 @@
 import { type Document, type SemanticChartAsCode } from '@lightdash/common';
 import { ActionIcon, Button, Stack, Text, Tooltip } from '@mantine/core';
-import { IconChartBar, IconCheck, IconX } from '@tabler/icons-react';
+import { IconChartBar, IconCheck, IconDots, IconX } from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router';
@@ -194,6 +194,15 @@ const DocumentEditor = ({
                                 <MantineIcon icon={IconCheck} />
                             </ActionIcon>
                         </Tooltip>
+                        {/* Keeps the group the same width as in reading mode */}
+                        <ActionIcon
+                            variant="default"
+                            size="lg"
+                            aria-label="Document actions are unavailable while editing"
+                            disabled
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
                     </ActionIcon.Group>
                 }
                 metadata={<DocumentByline document={document} />}
