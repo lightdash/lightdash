@@ -1,6 +1,6 @@
 import { type Document, type SemanticChartAsCode } from '@lightdash/common';
-import { Button, Group, Stack, Text } from '@mantine/core';
-import { IconChartBar } from '@tabler/icons-react';
+import { ActionIcon, Button, Stack, Text, Tooltip } from '@mantine/core';
+import { IconChartBar, IconDeviceFloppy, IconX } from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router';
@@ -140,45 +140,62 @@ const DocumentEditor = ({
     };
 
     return (
-        <DocumentPageLayout
-            name={document.name}
-            actions={
-                <Group gap="sm">
-                    {canAuthorCharts && (
-                        <Button
-                            variant="default"
-                            leftSection={<MantineIcon icon={IconChartBar} />}
-                            disabled={busy}
-                            onClick={() =>
-                                setChartEditor({
-                                    mode: 'insert',
-                                    position: null,
-                                })
-                            }
-                        >
-                            Add chart
-                        </Button>
-                    )}
-                    <Button
-                        variant="default"
-                        disabled={busy}
-                        onClick={() =>
-                            dirty ? setConfirmCancel(true) : onClose()
-                        }
-                    >
-                        Cancel
-                    </Button>
-                    <Button loading={busy} disabled={!dirty} onClick={save}>
-                        Save document
-                    </Button>
-                </Group>
-            }
-        >
+        <DocumentPageLayout name={document.name}>
             <DocumentReportLayout
                 title={document.name}
                 contentsLabel={null}
                 headings={headings}
                 variant="document"
+                actions={
+                    <ActionIcon.Group
+                        role="group"
+                        aria-label="Editing controls"
+                    >
+                        {canAuthorCharts && (
+                            <Tooltip label="Add chart">
+                                <ActionIcon
+                                    variant="default"
+                                    size="lg"
+                                    aria-label="Add chart"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        setChartEditor({
+                                            mode: 'insert',
+                                            position: null,
+                                        })
+                                    }
+                                >
+                                    <MantineIcon icon={IconChartBar} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <Tooltip label="Cancel editing">
+                            <ActionIcon
+                                variant="default"
+                                size="lg"
+                                aria-label="Cancel"
+                                disabled={busy}
+                                onClick={() =>
+                                    dirty ? setConfirmCancel(true) : onClose()
+                                }
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Save document">
+                            <ActionIcon
+                                variant="filled"
+                                size="lg"
+                                aria-label="Save document"
+                                loading={busy}
+                                disabled={!dirty}
+                                onClick={save}
+                            >
+                                <MantineIcon icon={IconDeviceFloppy} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </ActionIcon.Group>
+                }
                 metadata={<DocumentByline document={document} />}
             >
                 <Stack gap="lg">
