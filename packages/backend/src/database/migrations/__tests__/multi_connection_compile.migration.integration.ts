@@ -2887,11 +2887,14 @@ describe('Multi-connection compile on the real schema', () => {
             );
         });
 
+        const bindingAnalytics = { track: vi.fn() };
         const bindingService = () =>
             new WarehouseConnectionBindingService({
                 projectModel,
                 warehouseConnectionCompileModel,
+                warehouseConnectionModel,
                 credentialPolicy: new ProjectService({} as never),
+                analytics: bindingAnalytics,
             });
 
         const projectAdmin = async (projectUuid: string) => {
@@ -2939,6 +2942,21 @@ describe('Multi-connection compile on the real schema', () => {
                 fixture.originalConnectionUuid,
             );
             expect(await financeBinding(fixture.projectUuid)).toBeNull();
+            expect(vi.mocked(bindingAnalytics.track)).toHaveBeenCalledWith({
+                event: 'warehouse_connection.dbt_source_rebound',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: account.organization.organizationUuid,
+                    projectId: fixture.projectUuid,
+                    dbtSourceId: fixture.sourceUuids.finance,
+                    warehouseConnectionId: fixture.originalConnectionUuid,
+                    previousWarehouseConnectionId: fixture.extraConnectionUuid,
+                    warehouseType: 'postgres',
+                    connectionKind: 'primary',
+                    credentialSource: null,
+                    connectionCount: 2,
+                },
+            });
 
             await bindingService().bindDbtSource(
                 account,
@@ -2956,10 +2974,11 @@ describe('Multi-connection compile on the real schema', () => {
             const identity = await projectModel.getDbtSourceIdentity(
                 fixture.projectUuid,
             );
+            const account = await projectAdmin(fixture.projectUuid);
 
             await expect(
                 bindingService().bindDbtSource(
-                    await projectAdmin(fixture.projectUuid),
+                    account,
                     fixture.projectUuid,
                     identity.dbtSourceUuid,
                     fixture.extraConnectionUuid,
@@ -2969,6 +2988,21 @@ describe('Multi-connection compile on the real schema', () => {
                     'The primary dbt source always runs on the original connection',
                 ),
             );
+            expect(vi.mocked(bindingAnalytics.track)).toHaveBeenCalledWith({
+                event: 'warehouse_connection.action_refused',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: account.organization.organizationUuid,
+                    projectId: fixture.projectUuid,
+                    warehouseConnectionId: fixture.extraConnectionUuid,
+                    warehouseType: 'postgres',
+                    connectionKind: 'extra',
+                    credentialSource: null,
+                    connectionCount: 2,
+                    operation: 'rebind',
+                    reason: 'primary_source',
+                },
+            });
         });
 
         test('the binding service refuses a dbt source of another project', async () => {

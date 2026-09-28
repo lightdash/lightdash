@@ -507,6 +507,43 @@ type PreparedAsyncQueryArgs = Omit<
 };
 
 export class AsyncQueryService extends ProjectService {
+    private async getQueryConnectionAnalyticsProperties(
+        projectUuid: string,
+        queryUuid: string,
+        warehouseType: WarehouseTypes | null,
+    ) {
+        try {
+            const target =
+                await this.projectModel.resolveWarehouseCredentialRead(
+                    projectUuid,
+                    { kind: 'query', queryUuid },
+                );
+            const properties = await this.getConnectionAnalyticsProperties({
+                projectUuid,
+                warehouseConnectionUuid:
+                    target.kind === 'extra'
+                        ? target.warehouseConnectionUuid
+                        : null,
+                warehouseType,
+            });
+            return {
+                ...properties,
+                connectionWarehouseType: properties.warehouseType,
+            };
+        } catch (error) {
+            this.logger.warn('Failed to resolve query connection analytics', {
+                error: getErrorMessage(error),
+            });
+            return {
+                warehouseConnectionId: null,
+                connectionKind: null,
+                warehouseType,
+                connectionCount: null,
+                connectionWarehouseType: null,
+            };
+        }
+    }
+
     private static sleep(ms: number, signal?: AbortSignal) {
         if (signal?.aborted) {
             throw new Error('Query polling request was aborted');
@@ -3275,6 +3312,12 @@ export class AsyncQueryService extends ProjectService {
         const analyticsIdentity = isRegisteredUser
             ? { userId: userUuid }
             : { anonymousId: 'embed' };
+        const connectionAnalytics =
+            await this.getQueryConnectionAnalyticsProperties(
+                projectUuid,
+                queryUuid,
+                warehouseType,
+            );
         this.analytics.track({
             ...analyticsIdentity,
             event: 'query.error',
@@ -3291,6 +3334,7 @@ export class AsyncQueryService extends ProjectService {
             ...analyticsIdentity,
             event: 'query.completed',
             properties: {
+                ...connectionAnalytics,
                 queryId: queryUuid,
                 organizationId: organizationUuid,
                 projectId: projectUuid,
@@ -3714,6 +3758,11 @@ export class AsyncQueryService extends ProjectService {
                 ...analyticsIdentity,
                 event: 'query.completed',
                 properties: {
+                    ...(await this.getQueryConnectionAnalyticsProperties(
+                        projectUuid,
+                        queryUuid,
+                        warehouseCredentialsType ?? null,
+                    )),
                     queryId: queryUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
@@ -4723,12 +4772,19 @@ export class AsyncQueryService extends ProjectService {
                                   queryHistory,
                               );
                     const historyCreateMs = Date.now() - historyCreateStart;
+                    const connectionAnalytics =
+                        await this.getConnectionAnalyticsProperties({
+                            projectUuid,
+                            warehouseConnectionUuid,
+                            warehouseType: warehouseCredentialsType,
+                        });
                     this.prometheusMetrics?.trackQueryStateTransition(
                         'new',
                         QueryHistoryStatus.PENDING,
                         context,
                     );
                     const queryExecutedProperties = {
+                        ...connectionAnalytics,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
                         context,
@@ -4778,6 +4834,9 @@ export class AsyncQueryService extends ProjectService {
                         this.analytics.trackAccount(account, {
                             event: 'query.completed',
                             properties: {
+                                ...connectionAnalytics,
+                                connectionWarehouseType:
+                                    connectionAnalytics.warehouseType,
                                 queryId: queryHistoryUuid,
                                 organizationId: organizationUuid,
                                 projectId: projectUuid,
@@ -9211,6 +9270,11 @@ export class AsyncQueryService extends ProjectService {
                 : { anonymousId: 'embed' }),
             event: 'query.completed',
             properties: {
+                ...(await this.getQueryConnectionAnalyticsProperties(
+                    projectUuid,
+                    queryUuid,
+                    warehouseType,
+                )),
                 queryId: queryUuid,
                 organizationId: organizationUuid,
                 projectId: projectUuid,

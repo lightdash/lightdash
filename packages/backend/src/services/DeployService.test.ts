@@ -98,6 +98,7 @@ describe('DeployService', () => {
         async ({ complete, dbtModelNames }) => {
             const projectService = {
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
+                trackCliSourceDeploy: vi.fn().mockResolvedValue(undefined),
             };
             const deploySessionModel = {
                 getSession: vi.fn().mockResolvedValue({
@@ -155,6 +156,10 @@ describe('DeployService', () => {
 
     it('passes the dbt source and the dbt target of the CLI to the cache write', async () => {
         const saveDeployExplores = vi.fn().mockResolvedValue('index-job-uuid');
+        const trackCliSourceDeploy = vi.fn().mockResolvedValue(undefined);
+        const updateStatus = vi.fn().mockResolvedValue(undefined);
+        const deleteSession = vi.fn().mockResolvedValue(undefined);
+        const generateValidation = vi.fn().mockResolvedValue(undefined);
         const user = toSessionUser(buildAccount(new Ability()));
         const service = new DeployService({
             deploySessionModel: {
@@ -167,11 +172,11 @@ describe('DeployService', () => {
                     exploreCount: 0,
                     createdAt: new Date(),
                 }),
-                updateStatus: vi.fn().mockResolvedValue(undefined),
+                updateStatus,
                 getDeployData: vi
                     .fn()
                     .mockResolvedValue({ explores: [], complete: true }),
-                deleteSession: vi.fn().mockResolvedValue(undefined),
+                deleteSession,
             },
             projectModel: {
                 getWithSensitiveFields: vi.fn().mockResolvedValue({
@@ -179,9 +184,9 @@ describe('DeployService', () => {
                     warehouseConnection: null,
                 }),
             },
-            projectService: { saveDeployExplores },
+            projectService: { saveDeployExplores, trackCliSourceDeploy },
             schedulerClient: {
-                generateValidation: vi.fn().mockResolvedValue(undefined),
+                generateValidation,
             },
         } as never);
 
@@ -204,6 +209,100 @@ describe('DeployService', () => {
                     target: { database: 'finance' },
                 },
             }),
+        );
+        expect(trackCliSourceDeploy).toHaveBeenCalledExactlyOnceWith(
+            {
+                userUuid: user.userUuid,
+                projectUuid: 'project-uuid',
+                cliDeploy: {
+                    sourceUuid: 'finance-source-uuid',
+                    target: { database: 'finance' },
+                },
+            },
+            { status: 'success' },
+        );
+        expect(
+            vi.mocked(generateValidation).mock.invocationCallOrder[0],
+        ).toBeLessThan(
+            vi.mocked(trackCliSourceDeploy).mock.invocationCallOrder[0],
+        );
+        expect(updateStatus).toHaveBeenCalledWith(
+            'deploy-session-uuid',
+            DeploySessionStatus.COMPLETED,
+        );
+        expect(
+            vi.mocked(deleteSession).mock.invocationCallOrder[0],
+        ).toBeLessThan(
+            vi.mocked(trackCliSourceDeploy).mock.invocationCallOrder[0],
+        );
+    });
+
+    it('tracks a failed selected source deploy when validation fails', async () => {
+        const failure = new Error('validation unavailable');
+        const trackCliSourceDeploy = vi.fn().mockResolvedValue(undefined);
+        const updateStatus = vi.fn().mockResolvedValue(undefined);
+        const user = toSessionUser(buildAccount(new Ability()));
+        const service = new DeployService({
+            deploySessionModel: {
+                getSession: vi.fn().mockResolvedValue({
+                    deploySessionUuid: 'deploy-session-uuid',
+                    projectUuid: 'project-uuid',
+                    userUuid: user.userUuid,
+                    status: DeploySessionStatus.UPLOADING,
+                    batchCount: 1,
+                    exploreCount: 0,
+                    createdAt: new Date(),
+                }),
+                updateStatus,
+                getDeployData: vi
+                    .fn()
+                    .mockResolvedValue({ explores: [], complete: true }),
+                deleteSession: vi.fn().mockResolvedValue(undefined),
+            },
+            projectModel: {
+                getWithSensitiveFields: vi.fn().mockResolvedValue({
+                    organizationUuid: 'org-uuid',
+                    warehouseConnection: null,
+                }),
+            },
+            projectService: {
+                saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
+                trackCliSourceDeploy,
+            },
+            schedulerClient: {
+                generateValidation: vi.fn().mockRejectedValue(failure),
+            },
+        } as never);
+        const cliDeploy = {
+            sourceUuid: 'finance-source-uuid',
+            target: { database: 'finance' },
+        };
+
+        await expect(
+            service.finalizeDeploy(
+                user,
+                'project-uuid',
+                'deploy-session-uuid',
+                undefined,
+                undefined,
+                cliDeploy,
+            ),
+        ).rejects.toBe(failure);
+        expect(trackCliSourceDeploy).toHaveBeenCalledExactlyOnceWith(
+            {
+                userUuid: user.userUuid,
+                projectUuid: 'project-uuid',
+                cliDeploy,
+            },
+            { status: 'error', error: failure },
+        );
+        expect(updateStatus).toHaveBeenCalledWith(
+            'deploy-session-uuid',
+            DeploySessionStatus.FAILED,
+        );
+        expect(updateStatus).not.toHaveBeenCalledWith(
+            'deploy-session-uuid',
+            DeploySessionStatus.COMPLETED,
         );
     });
 });

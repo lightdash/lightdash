@@ -4,6 +4,7 @@ import {
     DbtProjectType,
     ForbiddenError,
     NotFoundError,
+    ParameterError,
     PossibleAbilities,
     PullRequestSource,
     type SessionUser,
@@ -197,6 +198,18 @@ const buildService = (overrides: Overrides = {}) => {
             email: 'author@lightdash.com',
         }),
     };
+    const warehouseConnectionModel = {
+        getProject: vi.fn().mockResolvedValue({
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            connectionMode: 'multi',
+            originalWarehouseType: null,
+        }),
+        list: vi.fn().mockResolvedValue([
+            { warehouseConnectionUuid: 'primary-uuid', isOriginal: true },
+            { warehouseConnectionUuid: 'extra-uuid', isOriginal: false },
+        ]),
+    };
     const service = new ContentAsCodeWritebackService({
         lightdashConfig: { siteUrl: 'https://app.lightdash.dev' } as never,
         analytics: analyticsMock,
@@ -217,6 +230,7 @@ const buildService = (overrides: Overrides = {}) => {
         contentAsCodeWritebackModel: contentAsCodeWritebackModel as never,
         contentDraftModel: contentDraftModel as never,
         userModel: userModel as never,
+        warehouseConnectionModel: warehouseConnectionModel as never,
     });
     return {
         service,
@@ -226,6 +240,7 @@ const buildService = (overrides: Overrides = {}) => {
         contentAsCodeWritebackModel,
         contentDraftModel,
         userModel,
+        warehouseConnectionModel,
     };
 };
 
@@ -1555,6 +1570,45 @@ describe('ContentAsCodeWritebackService', () => {
             expect(
                 coderService.upsertDashboard.mock.calls.map((call) => call[2]),
             ).toEqual(['uses-fine']);
+        });
+
+        it('tracks a connection binding upload refusal without sending the connection name', async () => {
+            const { service, coderService, warehouseConnectionModel } =
+                buildService();
+            const track = vi.mocked(vi.spyOn(analyticsMock, 'track'));
+            coderService.upsertChart.mockRejectedValueOnce(
+                new ParameterError(
+                    'This project has no connection named "private-warehouse".',
+                ),
+            );
+            stubRepo({
+                'lightdash.config.yml': 'content_as_code:\n  sync: true\n',
+                'lightdash/charts/revenue.yml': chart('revenue'),
+            });
+
+            const summary = await service.pullFromGit(user, 'project-uuid');
+
+            expect(summary.failures).toHaveLength(1);
+            expect(warehouseConnectionModel.list).toHaveBeenCalledOnce();
+            expect(track).toHaveBeenCalledWith({
+                event: 'content_as_code.connection_binding_upload_refused',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: 'org-uuid',
+                    projectId: 'project-uuid',
+                    warehouseConnectionId: null,
+                    warehouseType: null,
+                    connectionKind: null,
+                    credentialSource: null,
+                    connectionCount: 2,
+                    contentType: 'chart',
+                    reason: 'connection_not_found',
+                },
+            });
+            expect(JSON.stringify(track.mock.calls)).not.toContain(
+                'private-warehouse',
+            );
+            track.mockRestore();
         });
 
         it("keeps the instance's stamped root when the repo config names no path", async () => {

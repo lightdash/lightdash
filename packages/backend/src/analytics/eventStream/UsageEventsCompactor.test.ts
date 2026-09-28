@@ -223,6 +223,7 @@ describe('buildCompactionSql', () => {
             'COPY (SELECT "event_name", "org_id", "user_id", "event_ts", "schema_version", ' +
                 '"project_id", "query_id", "status", "context", "explore_name", "chart_id", ' +
                 '"dashboard_id", "cache_hit", "execution_source", "warehouse_type", ' +
+                '"connection_warehouse_type", "warehouse_connection_id", "connection_kind", "connection_count", ' +
                 '"warehouse_execution_time_ms", "warehouse_ssh_tunnel_ms", ' +
                 '"warehouse_connect_ms", "warehouse_session_ms", "warehouse_query_ms", ' +
                 '"warehouse_fetch_ms", "total_row_count", "columns_count" ' +
@@ -234,6 +235,7 @@ describe('buildCompactionSql', () => {
                 '"query_id": \'VARCHAR\', "status": \'VARCHAR\', "context": \'VARCHAR\', ' +
                 '"explore_name": \'VARCHAR\', "chart_id": \'VARCHAR\', "dashboard_id": \'VARCHAR\', ' +
                 '"cache_hit": \'BOOLEAN\', "execution_source": \'VARCHAR\', "warehouse_type": \'VARCHAR\', ' +
+                '"connection_warehouse_type": \'VARCHAR\', "warehouse_connection_id": \'VARCHAR\', "connection_kind": \'VARCHAR\', "connection_count": \'INTEGER\', ' +
                 '"warehouse_execution_time_ms": \'BIGINT\', ' +
                 '"warehouse_ssh_tunnel_ms": \'BIGINT\', "warehouse_connect_ms": \'BIGINT\', ' +
                 '"warehouse_session_ms": \'BIGINT\', "warehouse_query_ms": \'BIGINT\', ' +

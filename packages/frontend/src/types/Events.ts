@@ -254,6 +254,11 @@ export enum EventName {
     CHART_TYPE_PREVIEW_IN_EXPLORER = 'chart_type.preview_in_explorer',
     CHART_TYPE_FORK_MODAL_OPENED = 'chart_type.fork_modal_opened',
 
+    SQL_RUNNER_CONNECTION_SWITCHED = 'sql_runner_connection.switched',
+    SQL_RUNNER_CONNECTION_HINT_RESOLVED = 'sql_runner_connection_hint.resolved',
+    SQL_RUNNER_SHARE_LINK_OPENED = 'sql_runner_share_link.opened',
+    OPEN_IN_SQL_RUNNER_CLICKED = 'open_in_sql_runner.clicked',
+
     // Learn: the training library and the walkthroughs started from it
     LEARN_LIBRARY_VIEWED = 'learn_library.viewed',
     LEARN_WALKTHROUGH_STARTED = 'learn_walkthrough.started',

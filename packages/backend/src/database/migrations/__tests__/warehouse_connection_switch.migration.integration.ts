@@ -184,6 +184,7 @@ describe('Enable multiple connections on the real schema', () => {
                 licenseKey: 'licence',
             }),
             credentialPolicy: credentialPolicy(),
+            analytics,
         });
 
     const account = (
@@ -726,7 +727,15 @@ describe('Enable multiple connections on the real schema', () => {
                 properties: {
                     organizationId: fixture.organizationUuid,
                     projectId: fixture.projectUuid,
+                    warehouseConnectionId: result.warehouseConnectionUuid,
                     warehouseType: WarehouseTypes.POSTGRES,
+                    connectionKind: 'extra',
+                    credentialSource: 'project',
+                    connectionCount: 2,
+                    listAllDatabases: false,
+                    additionalDatabaseCount: 0,
+                    originalContentCount: 0,
+                    personalCredentialsUserCount: 0,
                 },
             });
         });
@@ -1033,6 +1042,23 @@ describe('Enable multiple connections on the real schema', () => {
                     },
                 }),
             );
+            expect(vi.mocked(analytics.track)).toHaveBeenCalledWith({
+                event: 'warehouse_connections.switch_preview_failed',
+                userId: fixture.userUuid,
+                properties: {
+                    organizationId: fixture.organizationUuid,
+                    projectId: fixture.projectUuid,
+                    warehouseConnectionId: null,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    connectionKind: null,
+                    credentialSource: 'project',
+                    connectionCount: 1,
+                    reason:
+                        error instanceof ConflictError
+                            ? 'name_conflict'
+                            : 'invalid_request',
+                },
+            });
             expect(await state(fixture.projectUuid)).toEqual(singleState);
         });
 

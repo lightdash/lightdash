@@ -57,6 +57,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setSql } from '../../store/sqlRunnerSlice';
 import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useReportMissingConnection } from '../hooks/useReportMissingConnection';
+import { useTrackedConnectionSwitch } from '../hooks/useTrackedConnectionSwitch';
 import { useWarehouseTree } from '../hooks/useWarehouseTree';
 import { tableClickOutcome } from '../utils/activeConnection';
 import {
@@ -669,12 +670,12 @@ export const MultiConnectionTables: FC = () => {
         activeConnectionUuid,
         activeConnection,
         connectionNameFor,
-        switchConnection,
         hasSeveralConnections,
         isConnectionSettled,
         activeTable,
         setActiveTable,
     } = useActiveConnection();
+    const switchConnection = useTrackedConnectionSwitch();
 
     const isRowExpandedByOverride = useCallback(
         (rowId: string) => overrides[rowId],
@@ -763,7 +764,7 @@ export const MultiConnectionTables: FC = () => {
             }
 
             if (outcome === 'switch-and-insert') {
-                switchConnection(identity.connectionId);
+                switchConnection(identity.connectionId, 'table_click');
                 openTable(identity, partitionColumn);
                 return;
             }
@@ -790,7 +791,7 @@ export const MultiConnectionTables: FC = () => {
 
     const confirmPendingSwitch = useCallback(() => {
         if (!pendingSwitch) return;
-        switchConnection(pendingSwitch.connectionUuid);
+        switchConnection(pendingSwitch.connectionUuid, 'switch_prompt');
         openTable(pendingSwitch.identity, pendingSwitch.partitionColumn);
         setPendingSwitch(null);
     }, [pendingSwitch, switchConnection, openTable]);

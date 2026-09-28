@@ -49,6 +49,7 @@ import {
 } from '../../models/ContentDraftModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../BaseService';
 import { CoderService } from '../CoderService/CoderService';
 import { buildContentAsCodeSnapshot } from '../CoderService/contentAsCodeSnapshot';
@@ -65,6 +66,10 @@ type ContentAsCodeWritebackServiceArguments = {
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
     contentDraftModel: ContentDraftModel;
     userModel: UserModel;
+    warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'list'
+    >;
 };
 
 type WritebackContentType = 'chart' | 'dashboard';
@@ -82,7 +87,6 @@ type RepoContentFile = {
     content: string;
 };
 
-const ANALYTICS_ERROR_MAX_LENGTH = 500;
 const WRITEBACK_BRANCH_PREFIX = 'lightdash/write-back';
 
 // The stored branch column is varchar(255); file-backed git hosts cap a ref
@@ -167,6 +171,11 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly warehouseConnectionModel: Pick<
+        WarehouseConnectionModel,
+        'getProject' | 'list'
+    >;
+
     // The review page polls with refresh; one provider round per project per
     // minute is enough to notice merged or closed PRs
     private static readonly PULL_REQUEST_REFRESH_INTERVAL_MS = 60_000;
@@ -186,6 +195,59 @@ export class ContentAsCodeWritebackService extends BaseService {
         this.contentAsCodeWritebackModel = args.contentAsCodeWritebackModel;
         this.contentDraftModel = args.contentDraftModel;
         this.userModel = args.userModel;
+        this.warehouseConnectionModel = args.warehouseConnectionModel;
+    }
+
+    private async trackConnectionBindingUploadRefusal(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: WritebackContentType,
+        error: unknown,
+    ): Promise<void> {
+        if (!(error instanceof ParameterError)) return;
+        let reason:
+            | 'connection_not_found'
+            | 'connection_outside_project'
+            | null = null;
+        if (error.message.startsWith('This project has no connection named ')) {
+            reason = 'connection_not_found';
+        } else if (
+            error.message ===
+            'Content is bound to a connection that is not in this project.'
+        ) {
+            reason = 'connection_outside_project';
+        }
+        if (reason === null) return;
+        try {
+            const [project, connectionProject] = await Promise.all([
+                this.projectModel.get(projectUuid),
+                this.warehouseConnectionModel.getProject(projectUuid),
+            ]);
+            const connections =
+                await this.warehouseConnectionModel.list(connectionProject);
+            this.analytics.track({
+                event: 'content_as_code.connection_binding_upload_refused',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: project.organizationUuid,
+                    projectId: projectUuid,
+                    warehouseConnectionId: null,
+                    warehouseType: null,
+                    connectionKind: null,
+                    credentialSource: null,
+                    connectionCount: connections.length,
+                    contentType,
+                    reason,
+                },
+            });
+        } catch (trackingError) {
+            this.logger.warn(
+                'Failed to track connection binding upload refusal',
+                {
+                    error: trackingError,
+                },
+            );
+        }
     }
 
     private static toWritebackContentType(
@@ -638,6 +700,12 @@ export class ContentAsCodeWritebackService extends BaseService {
                 summary.charts += 1;
             } catch (error) {
                 failedChartSlugs.add(document.slug);
+                await this.trackConnectionBindingUploadRefusal(
+                    user,
+                    projectUuid,
+                    'chart',
+                    error,
+                );
                 summary.failures.push({
                     file,
                     message: getErrorMessage(error),
@@ -668,6 +736,12 @@ export class ContentAsCodeWritebackService extends BaseService {
                     );
                     summary.dashboards += 1;
                 } catch (error) {
+                    await this.trackConnectionBindingUploadRefusal(
+                        user,
+                        projectUuid,
+                        'dashboard',
+                        error,
+                    );
                     summary.failures.push({
                         file,
                         message: getErrorMessage(error),
@@ -1355,7 +1429,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                     contentType,
                     contentId: target.contentUuid,
                     isDraft: target.contentDraftUuid !== null,
-                    error: message.slice(0, ANALYTICS_ERROR_MAX_LENGTH),
+                    reason: 'writeback_error',
                 },
             });
             throw error;

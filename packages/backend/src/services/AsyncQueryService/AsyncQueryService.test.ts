@@ -700,6 +700,49 @@ describe('underlying data dimension selection', () => {
 });
 
 describe('AsyncQueryService', () => {
+    test('terminal query error carries explicit single-connection dimensions', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const track = vi.spyOn(analyticsMock, 'track');
+        vi.mocked(track).mockClear();
+
+        await (
+            service as unknown as {
+                markAsyncQueryErrored: (
+                    args: Record<string, unknown>,
+                ) => Promise<void>;
+            }
+        ).markAsyncQueryErrored({
+            queryUuid: 'query-uuid',
+            projectUuid,
+            organizationUuid: 'organizationUuid',
+            userUuid: 'user-uuid',
+            isRegisteredUser: true,
+            isPreviewProject: false,
+            onboardingFlow: 'self_service',
+            queryTags: { query_context: QueryExecutionContext.SQL_RUNNER },
+            queryCreatedAt: new Date(),
+            errorMessage: 'warehouse failed',
+            executionSource: 'warehouse',
+            warehouseType: WarehouseTypes.POSTGRES,
+        });
+
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'query.completed',
+                properties: expect.objectContaining({
+                    warehouseConnectionId: null,
+                    connectionKind: null,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    connectionWarehouseType: WarehouseTypes.POSTGRES,
+                    connectionCount: 1,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    status: 'error',
+                }),
+            }),
+        );
+        track.mockRestore();
+    });
+
     describe('saved query execution metadata', () => {
         it.each([
             ['saved', false],

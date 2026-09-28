@@ -17,6 +17,11 @@ import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts'
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { SqlRunnerConnectionScope } from '../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
 import { useSqlRunnerConnections } from '../features/sqlRunner/multiConnection/hooks/useConnectionCatalog';
+import {
+    resolveSharedConnection,
+    shareLinkLoadFailedProperties,
+    shareLinkOpenedProperties,
+} from '../features/sqlRunner/multiConnection/utils/connectionAnalytics';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -41,6 +46,9 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
+import useApp from '../providers/App/useApp';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 
 const SqlRunner = ({
     isEditMode,
@@ -75,10 +83,26 @@ const SqlRunner = ({
             !!share && project?.connectionRoute === 'multi',
         );
     const { showToastError } = useToaster();
+    const { user } = useApp();
+    const { track } = useTracking();
+    const fallbackOrganizationUuid =
+        project?.organizationUuid ?? user.data?.organizationUuid ?? null;
     const appliedShareId = useRef<string | null>(null);
+    const trackedShareId = useRef<string | null>(null);
 
     useEffect(() => {
         if (shareState.error) {
+            if (share && trackedShareId.current !== share) {
+                trackedShareId.current = share;
+                track({
+                    name: EventName.SQL_RUNNER_SHARE_LINK_OPENED,
+                    properties: shareLinkLoadFailedProperties({
+                        organizationId: fallbackOrganizationUuid,
+                        projectId: projectUuid || routeProjectUuid || null,
+                        failureReason: shareState.errorReason,
+                    }),
+                });
+            }
             showToastError({
                 title: `Unable to load shared SQL runner state`,
                 subtitle: shareState.error.message,
@@ -101,14 +125,26 @@ const SqlRunner = ({
                 project.connectionRoute !== 'multi' ||
                 shareConnectionsError?.error.name ===
                     'SingleConnectionProjectError';
-            const hintedConnectionExists = shareConnections?.some(
-                (connection) =>
-                    shareState.warehouseConnectionUuid === null
-                        ? connection.isOriginal
-                        : connection.warehouseConnectionUuid ===
-                          shareState.warehouseConnectionUuid,
-            );
+            const hintedConnectionExists = shareConnections
+                ? resolveSharedConnection(
+                      shareConnections,
+                      shareState.warehouseConnectionUuid,
+                  ) !== undefined
+                : undefined;
             appliedShareId.current = share;
+            trackedShareId.current = share;
+            track({
+                name: EventName.SQL_RUNNER_SHARE_LINK_OPENED,
+                properties: shareLinkOpenedProperties({
+                    organizationId: project.organizationUuid,
+                    projectId: project.projectUuid,
+                    routesSingle,
+                    primaryWarehouseType:
+                        project.warehouseConnection?.type ?? null,
+                    sharedConnectionBinding: shareState.warehouseConnectionUuid,
+                    connections: shareConnections,
+                }),
+            });
             dispatch(
                 setState({
                     ...shareState.sqlRunnerState,
@@ -129,6 +165,10 @@ const SqlRunner = ({
         shareConnectionsError,
         dispatch,
         showToastError,
+        track,
+        fallbackOrganizationUuid,
+        projectUuid,
+        routeProjectUuid,
     ]);
     useUnmount(() => {
         dispatch(resetState());

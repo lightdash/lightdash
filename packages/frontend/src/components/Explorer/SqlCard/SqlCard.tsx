@@ -92,12 +92,10 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
           ? data?.pivotQuery
           : data?.query;
 
+    const warehouseType = project?.warehouseConnection?.type;
     const formattedSql = useMemo(
-        () =>
-            selectedSql
-                ? formatSql(selectedSql, project?.warehouseConnection?.type)
-                : '',
-        [selectedSql, project?.warehouseConnection?.type],
+        () => (selectedSql ? formatSql(selectedSql, warehouseType) : ''),
+        [selectedSql, warehouseType],
     );
 
     return (
@@ -187,6 +185,7 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                                         ? (project.connectionRoute ?? 'single')
                                         : undefined
                                 }
+                                project={project}
                                 disabled={isInitialLoading || !!error}
                             />
                         </Can>

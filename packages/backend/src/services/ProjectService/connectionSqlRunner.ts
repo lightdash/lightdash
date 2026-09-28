@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DuckdbConnectionType,
+    getErrorMessage,
     NotFoundError,
     ParameterError,
     WAREHOUSE_LISTED_DATABASES_LIMIT,
@@ -23,6 +24,18 @@ const DATABASE_LISTING_WAREHOUSE_TYPES: WarehouseTypes[] = [
 export const supportsConnectionDatabaseListing = (
     warehouseType: WarehouseTypes,
 ): boolean => DATABASE_LISTING_WAREHOUSE_TYPES.includes(warehouseType);
+
+export const getDatabaseListFailureReason = (
+    error: unknown,
+    warehouseType: WarehouseTypes,
+): 'athena_glue_list_databases_denied' | 'other' => {
+    if (warehouseType !== WarehouseTypes.ATHENA) return 'other';
+    const message = getErrorMessage(error);
+    return /(?:AccessDenied|not authorized|permission denied)/i.test(message) &&
+        /glue:(?:GetDatabases|ListDatabases)\b/i.test(message)
+        ? 'athena_glue_list_databases_denied'
+        : 'other';
+};
 
 const getCredentialsDatabase = (
     credentials: CreateWarehouseCredentials,

@@ -375,6 +375,37 @@ export class MultiConnectionCompiler {
             } catch (error) {
                 if (error instanceof ManifestCollisionError) throw error;
                 failedConnectionUuids.push(extraPlan.warehouseConnectionUuid);
+                if (analytics) {
+                    try {
+                        const organizationId =
+                            trackingParams?.organizationUuid ??
+                            (await this.projectModel.getSummary(projectUuid))
+                                .organizationUuid;
+                        analytics.track({
+                            event: 'warehouse_connection.compile_warning',
+                            ...(trackingParams?.userUuid
+                                ? { userId: trackingParams.userUuid }
+                                : {}),
+                            properties: {
+                                organizationId,
+                                projectId: projectUuid,
+                                warehouseConnectionId:
+                                    extraPlan.warehouseConnectionUuid,
+                                connectionKind: 'extra',
+                                warehouseType:
+                                    primary.warehouseCredentials.type,
+                                connectionCount: 1 + extraPlans.length,
+                                credentialSource: null,
+                                reason: 'extra_connection_failed',
+                                outcome: 'previous_explores_kept',
+                            },
+                        });
+                    } catch {
+                        Logger.warn(
+                            'Failed to track extra connection compile warning',
+                        );
+                    }
+                }
                 const warning = `Connection "${
                     extraPlan.connectionName
                 }" failed to compile, so its previous explores are kept: ${getErrorMessage(

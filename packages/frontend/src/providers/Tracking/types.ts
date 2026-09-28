@@ -1084,6 +1084,76 @@ type LearnWalkthroughDismissedEvent = {
     };
 };
 
+export type SqlRunnerConnectionKind = 'primary' | 'extra';
+
+type SqlRunnerConnectionProperties = {
+    warehouseConnectionId: string | null;
+    connectionKind: SqlRunnerConnectionKind | null;
+    warehouseType: WarehouseTypes | null;
+};
+
+export type SqlRunnerConnectionSwitchSource =
+    | 'picker'
+    | 'table_click'
+    | 'switch_prompt';
+
+type SqlRunnerConnectionSwitchedEvent = {
+    name: EventName.SQL_RUNNER_CONNECTION_SWITCHED;
+    properties: SqlRunnerConnectionProperties & {
+        organizationId: string | null;
+        projectId: string;
+        connectionCount: number;
+        source: SqlRunnerConnectionSwitchSource;
+        previousWarehouseConnectionId: string | null;
+        previousConnectionKind: SqlRunnerConnectionKind | null;
+        previousWarehouseType: WarehouseTypes | null;
+    };
+};
+
+type SqlRunnerConnectionHintResolvedEvent = {
+    name: EventName.SQL_RUNNER_CONNECTION_HINT_RESOLVED;
+    properties: SqlRunnerConnectionProperties & {
+        organizationId: string | null;
+        projectId: string;
+        connectionCount: number;
+        entryPoint: 'open_in_sql_runner';
+        requestedConnectionKind: SqlRunnerConnectionKind;
+        outcome: 'applied' | 'connection_not_found';
+    };
+};
+
+export type SqlRunnerShareLinkFailureReason =
+    | 'share_fetch_failed'
+    | 'share_parse_failed'
+    | 'connections_fetch_failed'
+    | 'connection_not_carried'
+    | 'connection_not_found';
+
+type SqlRunnerShareLinkOpenedEvent = {
+    name: EventName.SQL_RUNNER_SHARE_LINK_OPENED;
+    properties: SqlRunnerConnectionProperties & {
+        organizationId: string | null;
+        projectId: string | null;
+        connectionCount: number | null;
+        connectionRoute: 'single' | 'multi' | null;
+        carriesConnection: boolean;
+        outcome: 'applied' | 'connection_unresolved' | 'load_failed';
+        failureReason: SqlRunnerShareLinkFailureReason | null;
+    };
+};
+
+type OpenInSqlRunnerClickedEvent = {
+    name: EventName.OPEN_IN_SQL_RUNNER_CLICKED;
+    properties: SqlRunnerConnectionProperties & {
+        organizationId: string | null;
+        projectId: string;
+        connectionCount: number | null;
+        entryPoint: 'explorer_sql_card';
+        connectionRoute: 'single' | 'multi';
+        carriesConnection: boolean;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | DashboardWorkbookEvent
@@ -1181,7 +1251,11 @@ export type EventData =
     | LearnLibraryViewedEvent
     | LearnWalkthroughStartedEvent
     | LearnWalkthroughCompletedEvent
-    | LearnWalkthroughDismissedEvent;
+    | LearnWalkthroughDismissedEvent
+    | SqlRunnerConnectionSwitchedEvent
+    | SqlRunnerConnectionHintResolvedEvent
+    | SqlRunnerShareLinkOpenedEvent
+    | OpenInSqlRunnerClickedEvent;
 
 export type IdentifyData = {
     id: string;

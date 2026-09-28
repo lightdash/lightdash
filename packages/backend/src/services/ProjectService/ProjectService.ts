@@ -428,6 +428,7 @@ import {
     credentialsForListedDatabase,
     findListedCatalogDatabase,
     findListedDatabase,
+    getDatabaseListFailureReason,
     listConnectionDatabases,
     supportsConnectionDatabaseListing,
 } from './connectionSqlRunner';
@@ -1925,6 +1926,14 @@ export class ProjectService extends BaseService {
         }
 
         if (isServiceAccount && credentials.requireUserCredentials) {
+            await this.trackExtraConnectionCredentialsRequired({
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid,
+                warehouseType: credentials.type,
+                userId,
+                reason: 'service_account_requires_personal_credentials',
+            });
             throw new ForbiddenError(
                 'Service accounts cannot run queries when user credentials are required.',
             );
@@ -1977,6 +1986,16 @@ export class ProjectService extends BaseService {
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
+                await this.trackExtraConnectionCredentialsRequired({
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    warehouseConnectionUuid,
+                    warehouseType: credentials.type,
+                    userId,
+                    reason: hostMismatch
+                        ? 'host_mismatch'
+                        : 'missing_personal_credentials',
+                });
                 if (credentials.type === WarehouseTypes.DATABRICKS) {
                     throw new DatabricksTokenError(
                         'Please authenticate to access Databricks',
@@ -2383,6 +2402,126 @@ export class ProjectService extends BaseService {
                 };
             default:
                 return assertUnreachable(target, 'Unknown credential target');
+        }
+    }
+
+    protected async getConnectionAnalyticsProperties({
+        projectUuid,
+        warehouseConnectionUuid,
+        warehouseType,
+    }: {
+        projectUuid: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes | null;
+    }): Promise<{
+        warehouseConnectionId: string | null;
+        connectionKind: 'primary' | 'extra' | null;
+        warehouseType: WarehouseTypes | null;
+        connectionCount: number | null;
+    }> {
+        try {
+            const route = await this.projectModel.getConnectionRoute(
+                projectUuid,
+                {
+                    kind: 'connection',
+                    warehouseConnectionUuid,
+                },
+            );
+            if (route === 'single') {
+                let connectionWarehouseType = warehouseType;
+                if (warehouseType === WarehouseTypes.DUCKDB) {
+                    try {
+                        connectionWarehouseType =
+                            (
+                                await this.warehouseConnectionModel.getProject(
+                                    projectUuid,
+                                )
+                            ).originalWarehouseType ?? warehouseType;
+                    } catch {
+                        connectionWarehouseType = null;
+                    }
+                }
+                return {
+                    warehouseConnectionId: null,
+                    connectionKind: null,
+                    warehouseType: connectionWarehouseType,
+                    connectionCount: 1,
+                };
+            }
+
+            const project =
+                await this.warehouseConnectionModel.getProject(projectUuid);
+            const connections =
+                await this.warehouseConnectionModel.list(project);
+            const connection = warehouseConnectionUuid
+                ? connections.find(
+                      (item) =>
+                          item.warehouseConnectionUuid ===
+                          warehouseConnectionUuid,
+                  )
+                : connections.find((item) => item.isOriginal);
+            let connectionKind: 'primary' | 'extra' | null = null;
+            if (connection) {
+                connectionKind = connection.isOriginal ? 'primary' : 'extra';
+            }
+            return {
+                warehouseConnectionId:
+                    connection?.warehouseConnectionUuid ?? null,
+                connectionKind,
+                warehouseType: connection?.warehouseType ?? warehouseType,
+                connectionCount: connections.length,
+            };
+        } catch (error) {
+            this.logger.warn('Failed to resolve query connection analytics', {
+                error: getErrorMessage(error),
+            });
+            return {
+                warehouseConnectionId: null,
+                connectionKind: null,
+                warehouseType,
+                connectionCount: null,
+            };
+        }
+    }
+
+    private async trackExtraConnectionCredentialsRequired({
+        organizationUuid,
+        projectUuid,
+        warehouseConnectionUuid,
+        warehouseType,
+        userId,
+        reason,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        warehouseConnectionUuid: string;
+        warehouseType: WarehouseTypes;
+        userId: string;
+        reason:
+            | 'missing_personal_credentials'
+            | 'host_mismatch'
+            | 'service_account_requires_personal_credentials';
+    }): Promise<void> {
+        try {
+            const connectionAnalytics =
+                await this.getConnectionAnalyticsProperties({
+                    projectUuid,
+                    warehouseConnectionUuid,
+                    warehouseType,
+                });
+            this.analytics.track({
+                userId,
+                event: 'warehouse_connection.credentials_required',
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    ...connectionAnalytics,
+                    entryPoint: 'query',
+                    reason,
+                },
+            });
+        } catch {
+            this.logger.warn('Failed to track required credentials');
         }
     }
 
@@ -2920,6 +3059,91 @@ export class ProjectService extends BaseService {
             },
         });
         return result.indexCatalogJobUuid;
+    }
+
+    async trackCliSourceDeploy(
+        args: {
+            userUuid: string;
+            projectUuid: string;
+            cliDeploy: CliDeploySelection;
+        },
+        outcome: { status: 'success' } | { status: 'error'; error: unknown },
+    ): Promise<void> {
+        if (args.cliDeploy.sourceUuid === null) return;
+        try {
+            const { organizationUuid } = await this.projectModel.getSummary(
+                args.projectUuid,
+            );
+            const project = await this.warehouseConnectionModel.getProject(
+                args.projectUuid,
+            );
+            const { sourceUuid } = args.cliDeploy;
+            const identity = await this.projectModel.getDbtSourceIdentity(
+                args.projectUuid,
+            );
+            const isPrimary = sourceUuid === identity.dbtSourceUuid;
+            const source = isPrimary
+                ? undefined
+                : (
+                      await this.projectDbtSourcesModel.getSourcesWithBindings(
+                          args.projectUuid,
+                      )
+                  ).find((item) => item.projectDbtSourceUuid === sourceUuid);
+            const connectionAnalytics =
+                await this.getConnectionAnalyticsProperties({
+                    projectUuid: args.projectUuid,
+                    warehouseConnectionUuid:
+                        source?.warehouseConnectionUuid ?? null,
+                    warehouseType: project.originalWarehouseType,
+                });
+            const properties = {
+                organizationId: organizationUuid,
+                projectId: args.projectUuid,
+                ...connectionAnalytics,
+                ...(isPrimary || source
+                    ? undefined
+                    : {
+                          warehouseConnectionId: null,
+                          connectionKind: null,
+                          warehouseType: null,
+                      }),
+                entryPoint: 'cli_source' as const,
+            };
+            if (outcome.status === 'success') {
+                this.analytics.track({
+                    userId: args.userUuid,
+                    event: 'project.deployment_succeeded',
+                    properties: {
+                        ...properties,
+                        reason: null,
+                    },
+                });
+            } else {
+                const message = getErrorMessage(outcome.error);
+                let reason:
+                    | 'source_not_found'
+                    | 'target_mismatch'
+                    | 'incomplete_source'
+                    | 'other' = 'other';
+                if (message.includes('selected dbt source does not belong')) {
+                    reason = 'source_not_found';
+                } else if (message.includes('dbt target compiles against')) {
+                    reason = 'target_mismatch';
+                } else if (message.includes('must send every explore')) {
+                    reason = 'incomplete_source';
+                }
+                this.analytics.track({
+                    userId: args.userUuid,
+                    event: 'project.deployment_failed',
+                    properties: {
+                        ...properties,
+                        reason,
+                    },
+                });
+            }
+        } catch {
+            this.logger.warn('Failed to track CLI source deploy');
+        }
     }
 
     async saveDeployExplores(
@@ -4268,71 +4492,88 @@ export class ProjectService extends BaseService {
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
     ): Promise<ApiDeployExploresResults> {
-        const project =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
-        if (project.provisioningSource === 'analytics')
-            throw new ForbiddenError(
-                'Internal analytics models are managed by the backend',
-            );
-
-        const auditedAbility = this.createAuditedAbility(user);
-
-        // manage:DeployProject for non-preview projects (restrictable via custom roles)
-        // manage:DeployProject@self for preview projects created by the user
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('DeployProject', {
-                    projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: {
-                        createdByUserUuid: project.createdByUserUuid,
-                        type: project.type,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                `User does not have permission to deploy to this project`,
-            );
-        }
-
-        const exploresWithPreAggregates = enhanceExploresForPreAggregates({
-            explores,
-            enabled: this.lightdashConfig.preAggregates.enabled,
-            startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
-        });
-
-        await this.saveDeployExplores({
+        const deployAnalytics = {
             userUuid: user.userUuid,
             projectUuid,
-            explores: exploresWithPreAggregates,
-            // TODO: Do not hardcode CLI information here
-            compilationSource: 'cli_deploy',
-            jobUuid: null,
-            requestMethod: 'cli',
-            cliVersion,
-            complete,
-            dbtModelNames,
             cliDeploy,
-        });
-
-        await this.schedulerClient.generateValidation({
-            userUuid: user.userUuid,
-            projectUuid,
-            context: 'cli',
-            organizationUuid: project.organizationUuid,
-        });
-
-        return {
-            exploreCount: exploresWithPreAggregates.length,
-            warnings: calculateExploreWarningReport({
-                explores: exploresWithPreAggregates,
-            }),
         };
+        try {
+            const project =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
+            if (project.provisioningSource === 'analytics')
+                throw new ForbiddenError(
+                    'Internal analytics models are managed by the backend',
+                );
+
+            const auditedAbility = this.createAuditedAbility(user);
+
+            // manage:DeployProject for non-preview projects (restrictable via custom roles)
+            // manage:DeployProject@self for preview projects created by the user
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('DeployProject', {
+                        projectUuid,
+                        organizationUuid: project.organizationUuid,
+                        upstreamProjectUuid: project.upstreamProjectUuid,
+                        type: project.type,
+                        createdByUserUuid: project.createdByUserUuid,
+                        metadata: {
+                            createdByUserUuid: project.createdByUserUuid,
+                            type: project.type,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `User does not have permission to deploy to this project`,
+                );
+            }
+
+            const exploresWithPreAggregates = enhanceExploresForPreAggregates({
+                explores,
+                enabled: this.lightdashConfig.preAggregates.enabled,
+                startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
+            });
+
+            await this.saveDeployExplores({
+                userUuid: user.userUuid,
+                projectUuid,
+                explores: exploresWithPreAggregates,
+                // TODO: Do not hardcode CLI information here
+                compilationSource: 'cli_deploy',
+                jobUuid: null,
+                requestMethod: 'cli',
+                cliVersion,
+                complete,
+                dbtModelNames,
+                cliDeploy,
+            });
+
+            await this.schedulerClient.generateValidation({
+                userUuid: user.userUuid,
+                projectUuid,
+                context: 'cli',
+                organizationUuid: project.organizationUuid,
+            });
+
+            const result = {
+                exploreCount: exploresWithPreAggregates.length,
+                warnings: calculateExploreWarningReport({
+                    explores: exploresWithPreAggregates,
+                }),
+            };
+            await this.trackCliSourceDeploy(deployAnalytics, {
+                status: 'success',
+            });
+            return result;
+        } catch (error) {
+            await this.trackCliSourceDeploy(deployAnalytics, {
+                status: 'error',
+                error,
+            });
+            throw error;
+        }
     }
 
     /* When editing a project, most fields are optional
@@ -8872,8 +9113,8 @@ export class ProjectService extends BaseService {
                             exploreName,
                         ));
 
-                    const warehouseCredentials =
-                        await this.getWarehouseCredentials({
+                    const { warehouseCredentials, warehouseConnectionUuid } =
+                        await this.getWarehouseCredentialsWithConnection({
                             projectUuid,
                             binding: { kind: 'explore', exploreName },
                             userId: account.user.id,
@@ -9001,6 +9242,11 @@ export class ProjectService extends BaseService {
                     this.analytics.trackAccount(account, {
                         event: 'query.executed',
                         properties: {
+                            ...(await this.getConnectionAnalyticsProperties({
+                                projectUuid,
+                                warehouseConnectionUuid,
+                                warehouseType: warehouseCredentials.type,
+                            })),
                             organizationId: organizationUuid,
                             projectId: projectUuid,
                             context,
@@ -9091,10 +9337,25 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const { warehouseCredentials, warehouseConnectionUuid } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding,
+                userId: user.userUuid,
+                isRegisteredUser: true,
+            });
+        const connectionAnalytics = await this.getConnectionAnalyticsProperties(
+            {
+                projectUuid,
+                warehouseConnectionUuid,
+                warehouseType: warehouseCredentials.type,
+            },
+        );
         this.analytics.track({
             userId: user.userUuid,
             event: 'query.executed',
             properties: {
+                ...connectionAnalytics,
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 context: QueryExecutionContext.SQL_RUNNER,
@@ -9104,12 +9365,7 @@ export class ProjectService extends BaseService {
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                binding,
-                userId: user.userUuid,
-                isRegisteredUser: true,
-            }),
+            warehouseCredentials,
         );
         this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
@@ -9153,10 +9409,25 @@ export class ProjectService extends BaseService {
 
         const query = applyLimitToSqlQuery({ sqlQuery: sql, limit });
 
+        const { warehouseCredentials, warehouseConnectionUuid } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                userId: userUuid,
+                isRegisteredUser: true,
+            });
+        const connectionAnalytics = await this.getConnectionAnalyticsProperties(
+            {
+                projectUuid,
+                warehouseConnectionUuid,
+                warehouseType: warehouseCredentials.type,
+            },
+        );
         this.analytics.track({
             userId: userUuid,
             event: 'query.executed',
             properties: {
+                ...connectionAnalytics,
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 context: context as QueryExecutionContext,
@@ -9170,12 +9441,7 @@ export class ProjectService extends BaseService {
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
-                userId: userUuid,
-                isRegisteredUser: true,
-            }),
+            warehouseCredentials,
         );
         this.logger.debug(`Stream query against warehouse`);
         const queryTags: RunQueryTags = {
@@ -9240,19 +9506,25 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            binding: sqlChartUuid
-                ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
-                : { kind: 'connection', warehouseConnectionUuid: null },
-            userId: userUuid,
-            isRegisteredUser: true,
-        });
+        const { warehouseCredentials, warehouseConnectionUuid } =
+            await this.getWarehouseCredentialsWithConnection({
+                projectUuid,
+                binding: sqlChartUuid
+                    ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                    : { kind: 'connection', warehouseConnectionUuid: null },
+                userId: userUuid,
+                isRegisteredUser: true,
+            });
 
         this.analytics.track({
             userId: userUuid,
             event: 'query.executed',
             properties: {
+                ...(await this.getConnectionAnalyticsProperties({
+                    projectUuid,
+                    warehouseConnectionUuid,
+                    warehouseType: warehouseCredentials.type,
+                })),
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 context: context as QueryExecutionContext,
@@ -11166,7 +11438,7 @@ export class ProjectService extends BaseService {
             userId: account.user.userUuid,
             isRegisteredUser: true,
         });
-        return { connection, credentials };
+        return { connection, credentials, organizationUuid };
     }
 
     private async withConnectionWarehouseClient<T>(
@@ -11243,17 +11515,62 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string,
     ): Promise<WarehouseDatabaseListing> {
-        const { connection, credentials } =
+        const { connection, credentials, organizationUuid } =
             await this.getConnectionSqlRunnerContext(
                 account,
                 projectUuid,
                 warehouseConnectionUuid,
             );
-        return this.listConnectionSqlRunnerDatabases(
-            projectUuid,
-            connection,
-            credentials,
+        const connectionAnalytics = await this.getConnectionAnalyticsProperties(
+            {
+                projectUuid,
+                warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                warehouseType: credentials.type,
+            },
         );
+        const properties = {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            ...connectionAnalytics,
+            entryPoint: 'sql_runner_sidebar' as const,
+        };
+        try {
+            const listing = await this.listConnectionSqlRunnerDatabases(
+                projectUuid,
+                connection,
+                credentials,
+            );
+            try {
+                this.analytics.trackAccount(account, {
+                    event: 'sql_runner.database_list_succeeded',
+                    properties: {
+                        ...properties,
+                        databaseCount: listing.databases.length,
+                        truncated: listing.truncated,
+                        limit: listing.limit,
+                    },
+                });
+            } catch {
+                this.logger.warn('Failed to track database list success');
+            }
+            return listing;
+        } catch (error) {
+            try {
+                this.analytics.trackAccount(account, {
+                    event: 'sql_runner.database_list_failed',
+                    properties: {
+                        ...properties,
+                        reason: getDatabaseListFailureReason(
+                            error,
+                            credentials.type,
+                        ),
+                    },
+                });
+            } catch {
+                this.logger.warn('Failed to track database list failure');
+            }
+            throw error;
+        }
     }
 
     async getConnectionTables(

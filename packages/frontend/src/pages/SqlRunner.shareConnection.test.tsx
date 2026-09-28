@@ -15,9 +15,15 @@ import {
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { runSqlQuery } from '../features/sqlRunner/store/thunks';
 import { renderWithProviders } from '../testing/testUtils';
+import { EventName } from '../types/Events';
 import SqlRunnerNewPage from './SqlRunner';
 
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+
 vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
+}));
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
@@ -151,6 +157,7 @@ const serve = ({
             if (projectGate) await projectGate.promise;
             return {
                 projectUuid,
+                organizationUuid: 'project-org-uuid',
                 connectionRoute: mode.current,
                 warehouseConnection: { type: WarehouseTypes.POSTGRES },
             };
@@ -530,5 +537,105 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
             setTimeout(r, 100);
         });
         expect(vi.mocked(executeSqlQuery).mock.calls).toEqual([]);
+    });
+});
+
+describe('share link analytics', () => {
+    const shareOpenedCalls = () =>
+        track.mock.calls.filter(
+            ([event]) => event.name === EventName.SQL_RUNNER_SHARE_LINK_OPENED,
+        );
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mode.current = 'multi';
+        window.localStorage.clear();
+        store.dispatch(resetState());
+    });
+
+    it.each([
+        [
+            'finance-uuid',
+            {
+                carriesConnection: true,
+                outcome: 'applied',
+                failureReason: null,
+                warehouseConnectionId: 'finance-uuid',
+                connectionKind: 'extra',
+            },
+        ],
+        [
+            'missing-uuid',
+            {
+                carriesConnection: true,
+                outcome: 'connection_unresolved',
+                failureReason: 'connection_not_found',
+                warehouseConnectionId: 'missing-uuid',
+                connectionKind: 'extra',
+            },
+        ],
+        [
+            undefined,
+            {
+                carriesConnection: false,
+                outcome: 'connection_unresolved',
+                failureReason: 'connection_not_carried',
+                warehouseConnectionId: null,
+                connectionKind: null,
+            },
+        ],
+    ] as const)(
+        'tracks a multi-connection share carrying %s once',
+        async (binding, expected) => {
+            const shareGate = gate();
+            serve({ shareGate });
+            renderPage();
+            await act(async () => {
+                shareGate.resolve({ params: shareParams(binding) });
+            });
+            await waitFor(() =>
+                expect(store.getState().sqlRunner.sql).toBe('select 1'),
+            );
+
+            expect(shareOpenedCalls()).toHaveLength(1);
+            expect(shareOpenedCalls()[0][0].properties).toMatchObject({
+                organizationId: 'project-org-uuid',
+                projectId: projectUuid,
+                connectionCount: 2,
+                connectionRoute: 'multi',
+                ...expected,
+            });
+            expect(JSON.stringify(track.mock.calls)).not.toMatch(
+                /select 1|Finance|Warehouse/,
+            );
+        },
+    );
+
+    it('tracks a share that fails to load once', async () => {
+        mockApi.mockImplementation(async ({ url }: { url: string }) => {
+            if (url === `/projects/${projectUuid}`) {
+                return {
+                    projectUuid,
+                    connectionRoute: mode.current,
+                    warehouseConnection: { type: WarehouseTypes.POSTGRES },
+                };
+            }
+            if (url === connectionsUrl) return connections;
+            if (url.startsWith('/share/')) {
+                throw { error: { name: 'NotFoundError', message: 'gone' } };
+            }
+            throw new Error(`Unexpected request ${url}`);
+        });
+        renderPage();
+
+        await waitFor(() => expect(shareOpenedCalls()).toHaveLength(1));
+        expect(shareOpenedCalls()[0][0].properties).toMatchObject({
+            projectId: projectUuid,
+            connectionCount: null,
+            connectionRoute: null,
+            outcome: 'load_failed',
+            failureReason: 'share_fetch_failed',
+            warehouseConnectionId: null,
+        });
     });
 });

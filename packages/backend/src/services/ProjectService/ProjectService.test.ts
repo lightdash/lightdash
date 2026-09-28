@@ -43,6 +43,7 @@ import {
     ParameterError,
     PreAggregateMissReason,
     ProjectType,
+    QueryExecutionContext,
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
@@ -464,6 +465,7 @@ const schedulerClient = {
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
     schedulePreAggregateCronJobs: vi.fn(async () => []),
+    generateValidation: vi.fn(async () => undefined),
 };
 
 const catalogModel = {
@@ -3392,7 +3394,8 @@ describe('ProjectService', () => {
     });
 
     test('should run sql query', async () => {
-        vi.spyOn(analyticsMock, 'track');
+        const track = vi.spyOn(analyticsMock, 'track');
+        vi.mocked(track).mockClear();
         const result = await service.runSqlQuery(
             user,
             projectUuid,
@@ -3408,8 +3411,305 @@ describe('ProjectService', () => {
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: 'query.executed',
+                properties: expect.objectContaining({
+                    organizationId: projectSummary.organizationUuid,
+                    projectId: projectUuid,
+                    warehouseConnectionId: null,
+                    connectionKind: null,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    connectionCount: 1,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                }),
             }),
         );
+    });
+
+    test('tracks a capped sidebar database list without names', async () => {
+        const connection = {
+            warehouseConnectionUuid: 'connection-uuid',
+            listAllDatabases: false,
+            additionalDatabases: Array.from(
+                { length: 100 },
+                (_, index) => `database_${index}`,
+            ),
+        };
+        const credentials: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'warehouse.internal',
+            user: 'user',
+            password: 'password',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'public',
+        };
+        const context = vi.fn(async () => ({
+            connection,
+            credentials,
+            organizationUuid: projectSummary.organizationUuid,
+        }));
+        Object.assign(service, { getConnectionSqlRunnerContext: context });
+        const route = vi
+            .spyOn(
+                projectModel as unknown as Pick<
+                    ProjectModel,
+                    'getConnectionRoute'
+                >,
+                'getConnectionRoute',
+            )
+            .mockResolvedValue('multi');
+        const warehouseConnectionModel = Reflect.get(
+            service,
+            'warehouseConnectionModel',
+        ) as unknown as Record<string, unknown>;
+        Object.assign(warehouseConnectionModel, {
+            getProject: vi.fn(async () => ({
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                originalWarehouseType: WarehouseTypes.POSTGRES,
+            })),
+            list: vi.fn(async () => [
+                {
+                    warehouseConnectionUuid: 'primary-uuid',
+                    isOriginal: true,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+                {
+                    warehouseConnectionUuid: connection.warehouseConnectionUuid,
+                    isOriginal: false,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+            ]),
+        });
+        const track = vi.spyOn(analyticsMock, 'trackAccount');
+        vi.mocked(track).mockClear();
+        try {
+            const listing = await service.getConnectionDatabases(
+                account as RegisteredAccount,
+                projectUuid,
+                connection.warehouseConnectionUuid,
+            );
+            expect(listing.databases).toHaveLength(100);
+            expect(track).toHaveBeenCalledWith(
+                account,
+                expect.objectContaining({
+                    event: 'sql_runner.database_list_succeeded',
+                    properties: expect.objectContaining({
+                        organizationId: projectSummary.organizationUuid,
+                        projectId: projectUuid,
+                        warehouseConnectionId:
+                            connection.warehouseConnectionUuid,
+                        connectionKind: 'extra',
+                        warehouseType: WarehouseTypes.POSTGRES,
+                        connectionCount: 2,
+                        databaseCount: 100,
+                        truncated: true,
+                        limit: 100,
+                    }),
+                }),
+            );
+        } finally {
+            delete (service as unknown as Record<string, unknown>)
+                .getConnectionSqlRunnerContext;
+            delete warehouseConnectionModel.getProject;
+            delete warehouseConnectionModel.list;
+            route.mockRestore();
+            track.mockRestore();
+        }
+    });
+
+    test('preserves a database list result when analytics throws', async () => {
+        const connection = {
+            warehouseConnectionUuid: 'connection-uuid',
+            listAllDatabases: false,
+            additionalDatabases: [],
+        };
+        const credentials: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'warehouse.internal',
+            user: 'user',
+            password: 'password',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'public',
+        };
+        Object.assign(service, {
+            getConnectionSqlRunnerContext: vi.fn(async () => ({
+                connection,
+                credentials,
+                organizationUuid: projectSummary.organizationUuid,
+            })),
+        });
+        const track = vi
+            .spyOn(analyticsMock, 'trackAccount')
+            .mockImplementationOnce(() => {
+                throw new Error('analytics sink failed');
+            });
+        try {
+            await expect(
+                service.getConnectionDatabases(
+                    account as RegisteredAccount,
+                    projectUuid,
+                    connection.warehouseConnectionUuid,
+                ),
+            ).resolves.toMatchObject({
+                databases: [{ name: 'analytics' }],
+            });
+            expect(vi.mocked(track)).toHaveBeenCalledOnce();
+        } finally {
+            delete (service as unknown as Record<string, unknown>)
+                .getConnectionSqlRunnerContext;
+            track.mockRestore();
+        }
+    });
+
+    test('tracks an Athena Glue database-list denial with a safe reason', async () => {
+        const connection = {
+            warehouseConnectionUuid: 'connection-uuid',
+            listAllDatabases: true,
+            additionalDatabases: [],
+        };
+        const credentials: CreateAthenaCredentials = {
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://staging/',
+            authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+            accessKeyId: 'key',
+            secretAccessKey: 'secret',
+        };
+        Object.assign(service, {
+            getConnectionSqlRunnerContext: vi.fn(async () => ({
+                connection,
+                credentials,
+                organizationUuid: projectSummary.organizationUuid,
+            })),
+        });
+        Object.assign(service, {
+            withConnectionWarehouseClient: vi.fn(async () => {
+                throw new Error(
+                    'AccessDeniedException: not authorized for glue:GetDatabases on private catalog',
+                );
+            }),
+        });
+        const track = vi.spyOn(analyticsMock, 'trackAccount');
+        vi.mocked(track).mockClear();
+        try {
+            await expect(
+                service.getConnectionDatabases(
+                    account as RegisteredAccount,
+                    projectUuid,
+                    connection.warehouseConnectionUuid,
+                ),
+            ).rejects.toThrow('AccessDeniedException');
+            expect(track).toHaveBeenCalledWith(
+                account,
+                expect.objectContaining({
+                    event: 'sql_runner.database_list_failed',
+                    properties: expect.objectContaining({
+                        reason: 'athena_glue_list_databases_denied',
+                    }),
+                }),
+            );
+        } finally {
+            delete (service as unknown as Record<string, unknown>)
+                .getConnectionSqlRunnerContext;
+            delete (service as unknown as Record<string, unknown>)
+                .withConnectionWarehouseClient;
+            track.mockRestore();
+        }
+    });
+
+    test('tracks a blocked service account on an extra personal-credential connection', async () => {
+        const warehouseConnectionModel = Reflect.get(
+            service,
+            'warehouseConnectionModel',
+        ) as unknown as Record<string, unknown>;
+        const credentials: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'warehouse.internal',
+            user: 'user',
+            password: 'password',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'public',
+            requireUserCredentials: true,
+        };
+        Object.assign(warehouseConnectionModel, {
+            getProject: vi.fn(async () => ({
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                originalWarehouseType: WarehouseTypes.POSTGRES,
+            })),
+            getExtraCredentialSource: vi.fn(async () => ({
+                credentials,
+                organizationWarehouseCredentialsUuid: null,
+            })),
+            list: vi.fn(async () => [
+                {
+                    warehouseConnectionUuid: 'primary-uuid',
+                    isOriginal: true,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+                {
+                    warehouseConnectionUuid: 'extra-uuid',
+                    isOriginal: false,
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+            ]),
+        });
+        const route = vi
+            .spyOn(
+                projectModel as unknown as Pick<
+                    ProjectModel,
+                    'getConnectionRoute'
+                >,
+                'getConnectionRoute',
+            )
+            .mockResolvedValue('multi');
+        const projectCredentials = vi
+            .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+            .mockResolvedValue(credentials);
+        const track = vi.spyOn(analyticsMock, 'track');
+        vi.mocked(track).mockClear();
+        try {
+            await expect(
+                (
+                    service as unknown as {
+                        getExtraConnectionWarehouseCredentials: (
+                            args: Record<string, unknown>,
+                        ) => Promise<unknown>;
+                    }
+                ).getExtraConnectionWarehouseCredentials({
+                    projectUuid,
+                    warehouseConnectionUuid: 'extra-uuid',
+                    userId: user.userUuid,
+                    isRegisteredUser: true,
+                    isServiceAccount: true,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'warehouse_connection.credentials_required',
+                    properties: expect.objectContaining({
+                        organizationId: projectSummary.organizationUuid,
+                        projectId: projectUuid,
+                        warehouseConnectionId: 'extra-uuid',
+                        connectionKind: 'extra',
+                        warehouseType: WarehouseTypes.POSTGRES,
+                        connectionCount: 2,
+                        reason: 'service_account_requires_personal_credentials',
+                    }),
+                }),
+            );
+        } finally {
+            delete warehouseConnectionModel.getProject;
+            delete warehouseConnectionModel.getExtraCredentialSource;
+            delete warehouseConnectionModel.list;
+            route.mockRestore();
+            projectCredentials.mockRestore();
+            track.mockRestore();
+        }
     });
     test('should get project catalog', async () => {
         const results = await service.getCatalog(user, projectUuid);
@@ -3676,12 +3976,12 @@ describe('ProjectService', () => {
         expect(result).toEqual(tablesConfiguration);
     });
     test('should update tables configuration', async () => {
+        vi.spyOn(analyticsMock, 'track');
         await service.updateTablesConfiguration(
             user,
             projectUuid,
             tablesConfigurationWithNames,
         );
-        vi.spyOn(analyticsMock, 'track');
         expect(projectModel.updateTablesConfiguration).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
@@ -6474,6 +6774,149 @@ describe('ProjectService', () => {
     });
 
     describe('selective deploy model inventory', () => {
+        test('tracks a selected source deploy after validation succeeds', async () => {
+            const deployService = getMockedProjectService(lightdashConfigMock);
+            const warehouseConnectionModel = Reflect.get(
+                deployService,
+                'warehouseConnectionModel',
+            ) as unknown as Record<string, unknown>;
+            Object.assign(warehouseConnectionModel, {
+                getProject: vi.fn(async () => ({
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    originalWarehouseType: WarehouseTypes.POSTGRES,
+                })),
+            });
+            const save = vi
+                .spyOn(deployService, 'saveDeployExplores')
+                .mockResolvedValue('catalog-job');
+            const track = vi.spyOn(analyticsMock, 'track');
+            vi.mocked(track).mockClear();
+            const validation = vi
+                .spyOn(schedulerClient, 'generateValidation')
+                .mockImplementation(async () => {
+                    expect(track).not.toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            event: 'project.deployment_succeeded',
+                        }),
+                    );
+                });
+            const deployUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'DeployProject', action: 'manage' },
+                ]),
+            };
+            try {
+                await expect(
+                    deployService.setExplores(
+                        deployUser,
+                        projectUuid,
+                        [validExplore],
+                        undefined,
+                        undefined,
+                        undefined,
+                        {
+                            sourceUuid: 'primary-source-uuid',
+                            target: null,
+                        },
+                    ),
+                ).resolves.toEqual({
+                    exploreCount: 1,
+                    warnings: {
+                        exploresWithWarnings: [],
+                        warningCount: 0,
+                        warningExploreCount: 0,
+                    },
+                });
+                expect(save).toHaveBeenCalledOnce();
+                expect(validation).toHaveBeenCalledOnce();
+                expect(track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'project.deployment_succeeded',
+                        properties: expect.objectContaining({
+                            organizationId: projectSummary.organizationUuid,
+                            projectId: projectUuid,
+                            warehouseConnectionId: null,
+                            connectionKind: null,
+                            warehouseType: WarehouseTypes.POSTGRES,
+                            connectionCount: 1,
+                            entryPoint: 'cli_source',
+                            reason: null,
+                        }),
+                    }),
+                );
+            } finally {
+                save.mockRestore();
+                validation.mockRestore();
+                delete warehouseConnectionModel.getProject;
+                track.mockRestore();
+            }
+        });
+
+        test('tracks a failed selected source deploy when validation fails', async () => {
+            const deployService = getMockedProjectService(lightdashConfigMock);
+            const warehouseConnectionModel = Reflect.get(
+                deployService,
+                'warehouseConnectionModel',
+            ) as unknown as Record<string, unknown>;
+            Object.assign(warehouseConnectionModel, {
+                getProject: vi.fn(async () => ({
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    originalWarehouseType: WarehouseTypes.POSTGRES,
+                })),
+            });
+            const failure = new Error('validation unavailable');
+            const save = vi
+                .spyOn(deployService, 'saveDeployExplores')
+                .mockResolvedValue('catalog-job');
+            const validation = vi
+                .spyOn(schedulerClient, 'generateValidation')
+                .mockRejectedValue(failure);
+            const track = vi.spyOn(analyticsMock, 'track');
+            vi.mocked(track).mockClear();
+            const deployUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'DeployProject', action: 'manage' },
+                ]),
+            };
+            try {
+                await expect(
+                    deployService.setExplores(
+                        deployUser,
+                        projectUuid,
+                        [validExplore],
+                        undefined,
+                        undefined,
+                        undefined,
+                        { sourceUuid: 'primary-source-uuid', target: null },
+                    ),
+                ).rejects.toBe(failure);
+                expect(save).toHaveBeenCalledOnce();
+                expect(track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'project.deployment_failed',
+                        properties: expect.objectContaining({
+                            entryPoint: 'cli_source',
+                            reason: 'other',
+                        }),
+                    }),
+                );
+                expect(track).not.toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'project.deployment_succeeded',
+                    }),
+                );
+            } finally {
+                save.mockRestore();
+                validation.mockRestore();
+                delete warehouseConnectionModel.getProject;
+                track.mockRestore();
+            }
+        });
+
         test.each([
             {
                 name: 'single-source',

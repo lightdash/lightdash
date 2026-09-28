@@ -20,6 +20,7 @@ import {
     type WarehouseConnectionSwitchAvailability,
     type WarehouseConnectionSwitchPlan,
     type WarehouseConnectionSwitchResult,
+    type WarehouseConnectionTestResults,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import { DatabaseError } from 'pg';
@@ -39,7 +40,12 @@ import {
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
-import { getMultipleConnectionsBlockReason } from '../WarehouseConnectionService/multipleConnectionsGate';
+import {
+    ENTITLEMENT_REASON,
+    getMultipleConnectionsBlockReason,
+    ROLLOUT_REASON,
+    WAREHOUSE_TYPE_REASON,
+} from '../WarehouseConnectionService/multipleConnectionsGate';
 import { type WarehouseCredentialPolicy } from '../WarehouseConnectionService/WarehouseConnectionService';
 
 export const DEFAULT_PROJECT_ONLY_REASON =
@@ -75,6 +81,8 @@ type PreparedSwitch = {
     connectionName: string;
     source: WarehouseConnectionCredentialSource;
     credentials: CreateWarehouseCredentials;
+    extraListAllDatabases: boolean;
+    extraAdditionalDatabaseCount: number;
 };
 
 const sortedJson = (value: unknown): unknown => {
@@ -132,6 +140,8 @@ export class WarehouseConnectionSwitchService extends BaseService {
 
     private readonly analytics: Pick<LightdashAnalytics, 'track'>;
 
+    private readonly trackedTestErrors = new WeakSet<object>();
+
     constructor(args: WarehouseConnectionSwitchServiceArguments) {
         super({ serviceName: 'WarehouseConnectionSwitchService' });
         this.switchModel = args.warehouseConnectionSwitchModel;
@@ -141,6 +151,99 @@ export class WarehouseConnectionSwitchService extends BaseService {
         this.licenseService = args.licenseService;
         this.credentialPolicy = args.credentialPolicy;
         this.analytics = args.analytics;
+    }
+
+    private track(event: Parameters<LightdashAnalytics['track']>[0]): void {
+        try {
+            this.analytics.track(event);
+        } catch (error) {
+            this.logger.warn(
+                'Failed to track warehouse connection switch analytics',
+                {
+                    error,
+                },
+            );
+        }
+    }
+
+    private async trackPreviewFailure(
+        account: RegisteredAccount,
+        projectUuid: string,
+        request: ApiWarehouseConnectionSwitchRequest,
+        error: unknown,
+    ): Promise<void> {
+        const message = error instanceof Error ? error.message : null;
+        if (
+            (error !== null &&
+                typeof error === 'object' &&
+                this.trackedTestErrors.has(error)) ||
+            message === WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE ||
+            message === DEFAULT_PROJECT_ONLY_REASON ||
+            message === ORIGINAL_ORGANIZATION_CREDENTIALS_REASON ||
+            message === ENTITLEMENT_REASON ||
+            message === ROLLOUT_REASON ||
+            message === WAREHOUSE_TYPE_REASON ||
+            message?.startsWith('Warehouse connection test failed')
+        ) {
+            return;
+        }
+        try {
+            const project = await this.switchModel.getProject(projectUuid);
+            const connectionCount =
+                project.connectionMode === 'multi'
+                    ? (await this.connectionModel.list(project)).length
+                    : 1;
+            let credentialSource: 'project' | 'organization' | null = null;
+            if (
+                request.connection.warehouseConnection !== undefined &&
+                request.connection.organizationWarehouseCredentialsUuid ===
+                    undefined
+            ) {
+                credentialSource = 'project';
+            } else if (
+                request.connection.organizationWarehouseCredentialsUuid !==
+                    undefined &&
+                request.connection.warehouseConnection === undefined
+            ) {
+                credentialSource = 'organization';
+            }
+            let previewReason:
+                | 'invalid_request'
+                | 'name_conflict'
+                | 'warehouse_type_mismatch'
+                | 'access_denied'
+                | 'other' = 'other';
+            if (message === WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE) {
+                previewReason = 'name_conflict';
+            } else if (
+                message ===
+                'An extra connection must use the same warehouse type as the original connection.'
+            ) {
+                previewReason = 'warehouse_type_mismatch';
+            } else if (error instanceof ParameterError) {
+                previewReason = 'invalid_request';
+            } else if (error instanceof ForbiddenError) {
+                previewReason = 'access_denied';
+            }
+            this.track({
+                event: 'warehouse_connections.switch_preview_failed',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: project.organizationUuid,
+                    projectId: projectUuid,
+                    warehouseConnectionId: null,
+                    warehouseType: project.originalWarehouseType,
+                    connectionKind: null,
+                    credentialSource,
+                    connectionCount,
+                    reason: previewReason,
+                },
+            });
+        } catch (trackingError) {
+            this.logger.warn('Failed to track switch preview failure', {
+                error: trackingError,
+            });
+        }
     }
 
     private async assertCanManageProject(
@@ -195,8 +298,59 @@ export class WarehouseConnectionSwitchService extends BaseService {
     private async assertCanSwitch(
         account: RegisteredAccount,
         project: WarehouseConnectionSwitchProject,
+        operation: 'switch_preview' | 'switch',
     ): Promise<void> {
         const reason = await this.getBlockReason(account, project);
+        if (reason !== null) {
+            try {
+                const connectionCount =
+                    project.connectionMode === 'multi'
+                        ? (await this.connectionModel.list(project)).length
+                        : 1;
+                let refusalReason:
+                    | 'already_multi'
+                    | 'unsupported_project'
+                    | 'organization_credentials'
+                    | 'license_required'
+                    | 'feature_disabled'
+                    | 'warehouse_type_mismatch' = 'warehouse_type_mismatch';
+                if (reason === WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE) {
+                    refusalReason = 'already_multi';
+                } else if (reason === DEFAULT_PROJECT_ONLY_REASON) {
+                    refusalReason = 'unsupported_project';
+                } else if (
+                    reason === ORIGINAL_ORGANIZATION_CREDENTIALS_REASON
+                ) {
+                    refusalReason = 'organization_credentials';
+                } else if (reason === ENTITLEMENT_REASON) {
+                    refusalReason = 'license_required';
+                } else if (reason === ROLLOUT_REASON) {
+                    refusalReason = 'feature_disabled';
+                }
+                this.track({
+                    event: 'warehouse_connection.action_refused',
+                    userId: account.user.userUuid,
+                    properties: {
+                        organizationId: project.organizationUuid,
+                        projectId: project.projectUuid,
+                        warehouseConnectionId: null,
+                        warehouseType: project.originalWarehouseType,
+                        connectionKind: null,
+                        credentialSource: null,
+                        connectionCount,
+                        operation,
+                        reason: refusalReason,
+                    },
+                });
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to count connections for switch analytics',
+                    {
+                        error,
+                    },
+                );
+            }
+        }
         if (reason === WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE) {
             throw new ConflictError(reason);
         }
@@ -255,14 +409,57 @@ export class WarehouseConnectionSwitchService extends BaseService {
     private async assertConnectionWorks(
         account: RegisteredAccount,
         organizationUuid: string,
+        projectUuid: string,
         credentials: CreateWarehouseCredentials,
+        operation: 'switch_preview' | 'switch',
+        credentialSource: 'project' | 'organization',
     ): Promise<void> {
-        const result =
-            await this.credentialPolicy.testWarehouseConnectionCredentials(
-                account,
-                organizationUuid,
-                credentials,
-            );
+        let result: WarehouseConnectionTestResults;
+        try {
+            result =
+                await this.credentialPolicy.testWarehouseConnectionCredentials(
+                    account,
+                    organizationUuid,
+                    credentials,
+                );
+        } catch (error) {
+            if (error !== null && typeof error === 'object') {
+                this.trackedTestErrors.add(error);
+            }
+            this.track({
+                event: 'warehouse_connection.test_completed',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    warehouseConnectionId: null,
+                    warehouseType: credentials.type,
+                    connectionKind: 'extra',
+                    credentialSource,
+                    connectionCount: 1,
+                    operation,
+                    result: 'failure',
+                    reason: 'connection_test_error',
+                },
+            });
+            throw error;
+        }
+        this.track({
+            event: 'warehouse_connection.test_completed',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                warehouseConnectionId: null,
+                warehouseType: credentials.type,
+                connectionKind: 'extra',
+                credentialSource,
+                connectionCount: 1,
+                operation,
+                result: result.ok ? 'success' : 'failure',
+                reason: result.ok ? null : 'connection_test_failed',
+            },
+        });
         if (!result.ok) {
             const reason = result.hops.find(
                 (hop) => hop.status === 'failed',
@@ -330,6 +527,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         request: ApiWarehouseConnectionSwitchRequest,
+        operation: 'switch_preview' | 'switch',
     ): Promise<PreparedSwitch> {
         const summary = await this.assertCanManageProject(account, projectUuid);
         const source = WarehouseConnectionSwitchService.toSource(
@@ -351,7 +549,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
             throw new ConflictError(WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE);
         }
         const project = await this.switchModel.getProject(projectUuid);
-        await this.assertCanSwitch(account, project);
+        await this.assertCanSwitch(account, project, operation);
         const credentials =
             source.kind === 'project'
                 ? source.credentials
@@ -368,7 +566,10 @@ export class WarehouseConnectionSwitchService extends BaseService {
         await this.assertConnectionWorks(
             account,
             project.organizationUuid,
+            projectUuid,
             credentials,
+            operation,
+            source.kind,
         );
         const [staysOnOriginal, usersWithPersonalCredentials, original] =
             await Promise.all([
@@ -384,6 +585,9 @@ export class WarehouseConnectionSwitchService extends BaseService {
             connectionName,
             source,
             credentials,
+            extraListAllDatabases: request.connection.listAllDatabases ?? false,
+            extraAdditionalDatabaseCount:
+                request.connection.additionalDatabases?.length ?? 0,
             plan: {
                 planHash: WarehouseConnectionSwitchService.planHash({
                     account,
@@ -437,7 +641,47 @@ export class WarehouseConnectionSwitchService extends BaseService {
         request: ApiWarehouseConnectionSwitchRequest,
     ): Promise<WarehouseConnectionSwitchPlan> {
         assertRegisteredAccount(account);
-        return (await this.prepare(account, projectUuid, request)).plan;
+        let prepared: PreparedSwitch;
+        try {
+            prepared = await this.prepare(
+                account,
+                projectUuid,
+                request,
+                'switch_preview',
+            );
+        } catch (error) {
+            await this.trackPreviewFailure(
+                account,
+                projectUuid,
+                request,
+                error,
+            );
+            throw error;
+        }
+        this.track({
+            event: 'warehouse_connections.switch_previewed',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: prepared.organizationUuid,
+                projectId: projectUuid,
+                warehouseConnectionId: null,
+                warehouseType: prepared.credentials.type,
+                connectionKind: 'extra',
+                credentialSource: prepared.source.kind,
+                connectionCount: 1,
+                listAllDatabases: request.connection.listAllDatabases ?? false,
+                additionalDatabaseCount:
+                    request.connection.additionalDatabases?.length ?? 0,
+                originalContentCount:
+                    prepared.plan.staysOnOriginal.explores +
+                    prepared.plan.staysOnOriginal.sqlCharts +
+                    prepared.plan.staysOnOriginal.dbtSources,
+                personalCredentialsUserCount:
+                    prepared.plan.personalCredentials
+                        .usersWithPersonalCredentials,
+            },
+        });
+        return prepared.plan;
     }
 
     private async findRepeatedSwitch(
@@ -463,8 +707,28 @@ export class WarehouseConnectionSwitchService extends BaseService {
             request.idempotencyKey,
         );
         if (repeated) return repeated;
-        const prepared = await this.prepare(account, projectUuid, request);
+        const prepared = await this.prepare(
+            account,
+            projectUuid,
+            request,
+            'switch',
+        );
         if (prepared.plan.planHash !== request.planHash) {
+            this.track({
+                event: 'warehouse_connection.action_refused',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: prepared.organizationUuid,
+                    projectId: projectUuid,
+                    warehouseConnectionId: null,
+                    warehouseType: prepared.credentials.type,
+                    connectionKind: null,
+                    credentialSource: prepared.source.kind,
+                    connectionCount: 1,
+                    operation: 'switch',
+                    reason: 'plan_changed',
+                },
+            });
             throw new ConflictError(
                 WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
             );
@@ -483,7 +747,11 @@ export class WarehouseConnectionSwitchService extends BaseService {
                     if (repeatedInside) return repeatedInside;
                     const lockedProject =
                         await switchModel.getProject(projectUuid);
-                    await this.assertCanSwitch(account, lockedProject);
+                    await this.assertCanSwitch(
+                        account,
+                        lockedProject,
+                        'switch',
+                    );
                     const lockedHash =
                         WarehouseConnectionSwitchService.planHash({
                             account,
@@ -495,6 +763,21 @@ export class WarehouseConnectionSwitchService extends BaseService {
                             credentials: prepared.credentials,
                         });
                     if (lockedHash !== request.planHash) {
+                        this.track({
+                            event: 'warehouse_connection.action_refused',
+                            userId: account.user.userUuid,
+                            properties: {
+                                organizationId: prepared.organizationUuid,
+                                projectId: projectUuid,
+                                warehouseConnectionId: null,
+                                warehouseType: prepared.credentials.type,
+                                connectionKind: null,
+                                credentialSource: prepared.source.kind,
+                                connectionCount: 1,
+                                operation: 'switch',
+                                reason: 'plan_changed',
+                            },
+                        });
                         throw new ConflictError(
                             WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
                         );
@@ -617,21 +900,27 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 },
             );
         }
-        try {
-            this.analytics.track({
-                event: 'warehouse_connections.switched_to_multi',
-                userId: account.user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    warehouseType: prepared.credentials.type,
-                },
-            });
-        } catch (error) {
-            this.logger.warn(
-                'Failed to track the connection switch analytics event',
-                { error },
-            );
-        }
+        this.track({
+            event: 'warehouse_connections.switched_to_multi',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                warehouseConnectionId: result.warehouseConnectionUuid,
+                warehouseType: prepared.credentials.type,
+                connectionKind: 'extra',
+                credentialSource: prepared.source.kind,
+                connectionCount: 2,
+                listAllDatabases: prepared.extraListAllDatabases,
+                additionalDatabaseCount: prepared.extraAdditionalDatabaseCount,
+                originalContentCount:
+                    prepared.plan.staysOnOriginal.explores +
+                    prepared.plan.staysOnOriginal.sqlCharts +
+                    prepared.plan.staysOnOriginal.dbtSources,
+                personalCredentialsUserCount:
+                    prepared.plan.personalCredentials
+                        .usersWithPersonalCredentials,
+            },
+        });
     }
 }

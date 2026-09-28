@@ -1523,6 +1523,8 @@ export class ServiceRepository
                         this.models.getContentAsCodeWritebackModel(),
                     contentDraftModel: this.models.getContentDraftModel(),
                     userModel: this.models.getUserModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                 }),
         );
     }
@@ -2112,6 +2114,7 @@ export class ServiceRepository
                     featureFlagService: this.getFeatureFlagService(),
                     licenseService: this.getLicenseService(),
                     credentialPolicy: this.getProjectService(),
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }
@@ -2142,7 +2145,10 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     warehouseConnectionCompileModel:
                         this.models.getWarehouseConnectionCompileModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                     credentialPolicy: this.getProjectService(),
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }

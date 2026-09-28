@@ -26,6 +26,7 @@ import {
     type WarehouseCredentials,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
@@ -38,7 +39,11 @@ import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
 import { getExtraConnectionRequireUserCredentials } from './extraConnectionUserCredentials';
-import { getMultipleConnectionsBlockReason } from './multipleConnectionsGate';
+import {
+    ENTITLEMENT_REASON,
+    getMultipleConnectionsBlockReason,
+    ROLLOUT_REASON,
+} from './multipleConnectionsGate';
 
 export type WarehouseCredentialPolicy = {
     assertCanWriteWarehouseConnection: (
@@ -72,6 +77,7 @@ type WarehouseConnectionServiceArguments = {
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     licenseService: Pick<LicenseService, 'canHoldMultipleConnections'>;
     credentialPolicy: WarehouseCredentialPolicy;
+    analytics: Pick<LightdashAnalytics, 'track'>;
 };
 
 const NAME_UNIQUE_CONSTRAINT = 'warehouse_connections_project_name_unique';
@@ -144,6 +150,8 @@ export class WarehouseConnectionService extends BaseService {
 
     private readonly credentialPolicy: WarehouseCredentialPolicy;
 
+    private readonly analytics: Pick<LightdashAnalytics, 'track'>;
+
     constructor(args: WarehouseConnectionServiceArguments) {
         super({ serviceName: 'WarehouseConnectionService' });
         this.warehouseConnectionModel = args.warehouseConnectionModel;
@@ -152,6 +160,77 @@ export class WarehouseConnectionService extends BaseService {
         this.featureFlagService = args.featureFlagService;
         this.licenseService = args.licenseService;
         this.credentialPolicy = args.credentialPolicy;
+        this.analytics = args.analytics;
+    }
+
+    private track(event: Parameters<LightdashAnalytics['track']>[0]): void {
+        try {
+            this.analytics.track(event);
+        } catch (error) {
+            this.logger.warn('Failed to track warehouse connection analytics', {
+                error,
+            });
+        }
+    }
+
+    private async trackWithCount(
+        project: WarehouseConnectionProject,
+        buildEvent: (
+            connectionCount: number | null,
+        ) => Parameters<LightdashAnalytics['track']>[0],
+    ): Promise<void> {
+        let connectionCount: number | null = null;
+        try {
+            connectionCount = (
+                await this.warehouseConnectionModel.list(project)
+            ).length;
+        } catch (error) {
+            this.logger.warn(
+                'Failed to count warehouse connections for analytics',
+                {
+                    error,
+                },
+            );
+        }
+        this.track(buildEvent(connectionCount));
+    }
+
+    private async trackRefusal(
+        account: RegisteredAccount,
+        organizationUuid: string,
+        projectUuid: string,
+        operation: 'add' | 'update' | 'remove',
+        reason:
+            | 'feature_disabled'
+            | 'license_required'
+            | 'warehouse_type_mismatch'
+            | 'original_connection'
+            | 'bound_content'
+            | 'name_conflict',
+        warehouseConnectionUuid: string | null,
+        warehouseType: WarehouseTypes | null,
+        project: WarehouseConnectionProject,
+    ): Promise<void> {
+        let connectionKind: 'primary' | 'extra' | null = null;
+        if (warehouseConnectionUuid !== null) {
+            connectionKind =
+                reason === 'original_connection' ? 'primary' : 'extra';
+        }
+        await this.trackWithCount(project, (connectionCount) => ({
+            event: 'warehouse_connection.action_refused',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                warehouseConnectionId: warehouseConnectionUuid,
+                warehouseType,
+                connectionKind,
+                credentialSource: null,
+                connectionCount,
+                operation,
+                reason,
+            },
+        }));
     }
 
     private async assertCanManageProject(
@@ -240,13 +319,53 @@ export class WarehouseConnectionService extends BaseService {
         account: RegisteredAccount,
         project: WarehouseConnectionProject,
         credentials: CreateWarehouseCredentials,
+        operation: 'add' | 'update',
+        warehouseConnectionUuid: string | null,
+        credentialSource: 'project' | 'organization',
     ): Promise<void> {
-        const result =
-            await this.credentialPolicy.testWarehouseConnectionCredentials(
-                account,
-                project.organizationUuid,
-                credentials,
-            );
+        let result: WarehouseConnectionTestResults;
+        try {
+            result =
+                await this.credentialPolicy.testWarehouseConnectionCredentials(
+                    account,
+                    project.organizationUuid,
+                    credentials,
+                );
+        } catch (error) {
+            await this.trackWithCount(project, (connectionCount) => ({
+                event: 'warehouse_connection.test_completed',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: project.organizationUuid,
+                    projectId: project.projectUuid,
+                    warehouseConnectionId: warehouseConnectionUuid,
+                    warehouseType: credentials.type,
+                    connectionKind: 'extra',
+                    credentialSource,
+                    connectionCount,
+                    operation,
+                    result: 'failure',
+                    reason: 'connection_test_error',
+                },
+            }));
+            throw error;
+        }
+        await this.trackWithCount(project, (connectionCount) => ({
+            event: 'warehouse_connection.test_completed',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: project.organizationUuid,
+                projectId: project.projectUuid,
+                warehouseConnectionId: warehouseConnectionUuid,
+                warehouseType: credentials.type,
+                connectionKind: 'extra',
+                credentialSource,
+                connectionCount,
+                operation,
+                result: result.ok ? 'success' : 'failure',
+                reason: result.ok ? null : 'connection_test_failed',
+            },
+        }));
         if (!result.ok) {
             const reason = result.hops.find(
                 (hop) => hop.status === 'failed',
@@ -593,18 +712,56 @@ export class WarehouseConnectionService extends BaseService {
             project,
         );
         if (blockReason !== null) {
+            let refusalReason:
+                | 'license_required'
+                | 'feature_disabled'
+                | 'warehouse_type_mismatch' = 'warehouse_type_mismatch';
+            if (blockReason === ENTITLEMENT_REASON) {
+                refusalReason = 'license_required';
+            } else if (blockReason === ROLLOUT_REASON) {
+                refusalReason = 'feature_disabled';
+            }
+            await this.trackRefusal(
+                account,
+                summary.organizationUuid,
+                projectUuid,
+                'add',
+                refusalReason,
+                null,
+                project.originalWarehouseType,
+                project,
+            );
             throw new ForbiddenError(blockReason);
         }
         const credentials = await this.resolveCredentialSource(project, source);
         this.assertCanWrite(account, summary, source, credentials);
+        if (project.originalWarehouseType !== credentials.type) {
+            await this.trackRefusal(
+                account,
+                summary.organizationUuid,
+                projectUuid,
+                'add',
+                'warehouse_type_mismatch',
+                null,
+                credentials.type,
+                project,
+            );
+        }
         WarehouseConnectionService.assertSameWarehouseType(
             project,
             credentials.type,
         );
-        await this.assertConnectionWorks(account, project, credentials);
+        await this.assertConnectionWorks(
+            account,
+            project,
+            credentials,
+            'add',
+            null,
+            source.kind,
+        );
 
         try {
-            return await this.warehouseConnectionModel.transaction(
+            const created = await this.warehouseConnectionModel.transaction(
                 async (model) => {
                     await model.lockProject(projectUuid);
                     const lockedProject = await model.getProject(projectUuid);
@@ -613,29 +770,63 @@ export class WarehouseConnectionService extends BaseService {
                         lockedProject,
                         credentials.type,
                     );
-                    const created = await model.createExtra(lockedProject, {
-                        name,
-                        warehouseType: credentials.type,
-                        source,
-                        listAllDatabases: request.listAllDatabases ?? false,
-                        additionalDatabases: request.additionalDatabases ?? [],
-                        createdByUserUuid: account.user.userUuid,
-                    });
+                    const newConnection = await model.createExtra(
+                        lockedProject,
+                        {
+                            name,
+                            warehouseType: credentials.type,
+                            source,
+                            listAllDatabases: request.listAllDatabases ?? false,
+                            additionalDatabases:
+                                request.additionalDatabases ?? [],
+                            createdByUserUuid: account.user.userUuid,
+                        },
+                    );
                     await model.insertEvent({
                         projectUuid,
                         actorUserUuid: account.user.userUuid,
                         event: 'connection_added',
                         plan: {
                             warehouseConnectionUuid:
-                                created.warehouseConnectionUuid,
-                            name: created.name,
-                            warehouseType: created.warehouseType,
+                                newConnection.warehouseConnectionUuid,
+                            name: newConnection.name,
+                            warehouseType: newConnection.warehouseType,
                         },
                     });
-                    return created;
+                    return newConnection;
                 },
             );
+            await this.trackWithCount(project, (connectionCount) => ({
+                event: 'warehouse_connection.added',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: summary.organizationUuid,
+                    projectId: projectUuid,
+                    warehouseConnectionId: created.warehouseConnectionUuid,
+                    warehouseType: created.warehouseType,
+                    connectionKind: 'extra',
+                    credentialSource: source.kind,
+                    connectionCount,
+                    listAllDatabases: created.listAllDatabases,
+                    additionalDatabaseCount: created.additionalDatabases.length,
+                    changedCredentials: true,
+                    changedDatabaseSettings: true,
+                },
+            }));
+            return created;
         } catch (error) {
+            if (isNameConflict(error)) {
+                await this.trackRefusal(
+                    account,
+                    summary.organizationUuid,
+                    projectUuid,
+                    'add',
+                    'name_conflict',
+                    null,
+                    credentials.type,
+                    project,
+                );
+            }
             return WarehouseConnectionService.rethrowNameConflict(error);
         }
     }
@@ -715,6 +906,16 @@ export class WarehouseConnectionService extends BaseService {
             (request.warehouseConnection !== undefined ||
                 request.organizationWarehouseCredentialsUuid !== undefined)
         ) {
+            await this.trackRefusal(
+                account,
+                summary.organizationUuid,
+                projectUuid,
+                'update',
+                'original_connection',
+                warehouseConnectionUuid,
+                existing.warehouseType,
+                project,
+            );
             throw new ParameterError(
                 'Edit the original connection in the project settings.',
             );
@@ -744,45 +945,94 @@ export class WarehouseConnectionService extends BaseService {
                 ? null
                 : await this.resolveCredentialSource(project, source);
         this.assertCanWrite(account, summary, effectiveSource, credentials);
-        if (credentials !== null) {
+        if (credentials !== null && source !== null) {
+            if (project.originalWarehouseType !== credentials.type) {
+                await this.trackRefusal(
+                    account,
+                    summary.organizationUuid,
+                    projectUuid,
+                    'update',
+                    'warehouse_type_mismatch',
+                    warehouseConnectionUuid,
+                    credentials.type,
+                    project,
+                );
+            }
             WarehouseConnectionService.assertSameWarehouseType(
                 project,
                 credentials.type,
             );
-            await this.assertConnectionWorks(account, project, credentials);
+            await this.assertConnectionWorks(
+                account,
+                project,
+                credentials,
+                'update',
+                warehouseConnectionUuid,
+                source.kind,
+            );
         }
 
-        return this.warehouseConnectionModel.transaction(async (model) => {
-            await model.lockProject(projectUuid);
-            const lockedProject = await model.getProject(projectUuid);
-            WarehouseConnectionService.assertMultiMode(lockedProject);
-            await model.get(lockedProject, warehouseConnectionUuid);
-            if (source !== null) {
-                await model.updateExtraCredentials(
-                    lockedProject,
-                    warehouseConnectionUuid,
-                    source,
-                );
-            }
-            if (
-                request.listAllDatabases !== undefined ||
-                request.additionalDatabases !== undefined
-            ) {
-                await model.updateListingSettings(
-                    lockedProject,
-                    warehouseConnectionUuid,
-                    {
-                        listAllDatabases:
-                            request.listAllDatabases ??
-                            existing.listAllDatabases,
-                        additionalDatabases:
-                            request.additionalDatabases ??
-                            existing.additionalDatabases,
-                    },
-                );
-            }
-            return model.get(lockedProject, warehouseConnectionUuid);
-        });
+        const updated = await this.warehouseConnectionModel.transaction(
+            async (model) => {
+                await model.lockProject(projectUuid);
+                const lockedProject = await model.getProject(projectUuid);
+                WarehouseConnectionService.assertMultiMode(lockedProject);
+                await model.get(lockedProject, warehouseConnectionUuid);
+                if (source !== null) {
+                    await model.updateExtraCredentials(
+                        lockedProject,
+                        warehouseConnectionUuid,
+                        source,
+                    );
+                }
+                if (
+                    request.listAllDatabases !== undefined ||
+                    request.additionalDatabases !== undefined
+                ) {
+                    await model.updateListingSettings(
+                        lockedProject,
+                        warehouseConnectionUuid,
+                        {
+                            listAllDatabases:
+                                request.listAllDatabases ??
+                                existing.listAllDatabases,
+                            additionalDatabases:
+                                request.additionalDatabases ??
+                                existing.additionalDatabases,
+                        },
+                    );
+                }
+                return model.get(lockedProject, warehouseConnectionUuid);
+            },
+        );
+        await this.trackWithCount(project, (connectionCount) => ({
+            event: 'warehouse_connection.updated',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: summary.organizationUuid,
+                projectId: projectUuid,
+                warehouseConnectionId: updated.warehouseConnectionUuid,
+                warehouseType: updated.warehouseType,
+                connectionKind: updated.isOriginal ? 'primary' : 'extra',
+                credentialSource:
+                    updated.organizationWarehouseCredentialsUuid === null
+                        ? 'project'
+                        : 'organization',
+                connectionCount,
+                listAllDatabases: updated.listAllDatabases,
+                additionalDatabaseCount: updated.additionalDatabases.length,
+                changedCredentials: source !== null,
+                changedDatabaseSettings:
+                    existing.listAllDatabases !== updated.listAllDatabases ||
+                    existing.additionalDatabases.length !==
+                        updated.additionalDatabases.length ||
+                    existing.additionalDatabases.some(
+                        (database, index) =>
+                            database !== updated.additionalDatabases[index],
+                    ),
+            },
+        }));
+        return updated;
     }
 
     async rename(
@@ -791,11 +1041,15 @@ export class WarehouseConnectionService extends BaseService {
         warehouseConnectionUuid: string,
         name: string,
     ): Promise<WarehouseConnection> {
-        const { summary } = await this.getMultiProject(account, projectUuid);
+        assertRegisteredAccount(account);
+        const { summary, project } = await this.getMultiProject(
+            account,
+            projectUuid,
+        );
         this.assertCanWrite(account, summary, null, null);
         const parsedName = WarehouseConnectionService.parseName(name);
         try {
-            return await this.warehouseConnectionModel.transaction(
+            const renamed = await this.warehouseConnectionModel.transaction(
                 async (model) => {
                     await model.lockProject(projectUuid);
                     const lockedProject = await model.getProject(projectUuid);
@@ -809,7 +1063,40 @@ export class WarehouseConnectionService extends BaseService {
                     return model.get(lockedProject, warehouseConnectionUuid);
                 },
             );
+            await this.trackWithCount(project, (connectionCount) => ({
+                event: 'warehouse_connection.renamed',
+                userId: account.user.userUuid,
+                properties: {
+                    organizationId: summary.organizationUuid,
+                    projectId: projectUuid,
+                    warehouseConnectionId: renamed.warehouseConnectionUuid,
+                    warehouseType: renamed.warehouseType,
+                    connectionKind: renamed.isOriginal ? 'primary' : 'extra',
+                    credentialSource:
+                        renamed.organizationWarehouseCredentialsUuid === null
+                            ? 'project'
+                            : 'organization',
+                    connectionCount,
+                    listAllDatabases: renamed.listAllDatabases,
+                    additionalDatabaseCount: renamed.additionalDatabases.length,
+                    changedCredentials: false,
+                    changedDatabaseSettings: false,
+                },
+            }));
+            return renamed;
         } catch (error) {
+            if (isNameConflict(error)) {
+                await this.trackRefusal(
+                    account,
+                    summary.organizationUuid,
+                    projectUuid,
+                    'update',
+                    'name_conflict',
+                    warehouseConnectionUuid,
+                    project.originalWarehouseType,
+                    project,
+                );
+            }
             return WarehouseConnectionService.rethrowNameConflict(error);
         }
     }
@@ -820,9 +1107,13 @@ export class WarehouseConnectionService extends BaseService {
         warehouseConnectionUuid: string,
     ): Promise<void> {
         assertRegisteredAccount(account);
-        const { summary } = await this.getMultiProject(account, projectUuid);
+        const { summary, project } = await this.getMultiProject(
+            account,
+            projectUuid,
+        );
         this.assertCanWrite(account, summary, null, null);
         let connectionName: string | null = null;
+        let removedWarehouseType: WarehouseTypes | null = null;
         await this.warehouseConnectionModel
             .transaction(async (model) => {
                 await model.lockProject(projectUuid);
@@ -833,7 +1124,18 @@ export class WarehouseConnectionService extends BaseService {
                     warehouseConnectionUuid,
                 );
                 connectionName = connection.name;
+                removedWarehouseType = connection.warehouseType;
                 if (connection.isOriginal) {
+                    await this.trackRefusal(
+                        account,
+                        summary.organizationUuid,
+                        projectUuid,
+                        'remove',
+                        'original_connection',
+                        warehouseConnectionUuid,
+                        connection.warehouseType,
+                        lockedProject,
+                    );
                     throw new ConflictError(
                         'The original connection cannot be removed.',
                     );
@@ -842,6 +1144,16 @@ export class WarehouseConnectionService extends BaseService {
                     await model.getBoundContent(warehouseConnectionUuid),
                 );
                 if (bound.length > 0) {
+                    await this.trackRefusal(
+                        account,
+                        summary.organizationUuid,
+                        projectUuid,
+                        'remove',
+                        'bound_content',
+                        warehouseConnectionUuid,
+                        connection.warehouseType,
+                        lockedProject,
+                    );
                     throw new ConflictError(
                         `Connection '${connection.name}' cannot be removed while content uses it. ${bound.join('; ')}.`,
                     );
@@ -861,14 +1173,41 @@ export class WarehouseConnectionService extends BaseService {
                     },
                 });
             })
-            .catch((error: unknown) => {
+            .catch(async (error: unknown) => {
                 if (isBindingConflict(error)) {
+                    await this.trackRefusal(
+                        account,
+                        summary.organizationUuid,
+                        projectUuid,
+                        'remove',
+                        'bound_content',
+                        warehouseConnectionUuid,
+                        removedWarehouseType,
+                        project,
+                    );
                     throw new ConflictError(
                         `Connection '${connectionName}' cannot be removed while content uses it.`,
                     );
                 }
                 throw error;
             });
+        await this.trackWithCount(project, (connectionCount) => ({
+            event: 'warehouse_connection.removed',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: summary.organizationUuid,
+                projectId: projectUuid,
+                warehouseConnectionId: warehouseConnectionUuid,
+                warehouseType: removedWarehouseType,
+                connectionKind: 'extra',
+                credentialSource: null,
+                connectionCount,
+                listAllDatabases: null,
+                additionalDatabaseCount: null,
+                changedCredentials: null,
+                changedDatabaseSettings: null,
+            },
+        }));
     }
 
     async assertBindingsBelongToProject(
