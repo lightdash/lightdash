@@ -101,3 +101,36 @@ test('command errors and private logs redact licence and encryption secrets', as
             !error.message.includes('test-license'),
     );
 });
+
+test('redaction protects real licence, PAT, machine and S3 credentials', () => {
+    const executor = new Runner();
+    const secrets = {
+        LIGHTDASH_LICENSE_KEY: 'real-licence-key-012345',
+        LIGHTDASH_LICENSE_CERTIFICATE: 'real-licence-certificate-012345',
+        LIGHTDASH_SECRET: 'machine-secret-012345',
+        LIGHTDASH_SECRET_FALLBACKS: '["old-machine-secret-012345"]',
+        LDPAT: 'ldpat_real_personal_access_token_012345',
+        S3_SECRET_ACCESS_KEY: 'real-s3-secret-access-key-012345',
+        APPS_S3_ACCESS_KEY_ID: 'real-apps-s3-access-key-012345',
+    };
+    executor.protect(secrets);
+    for (const secret of Object.values(secrets)) {
+        assert.equal(executor.redact(secret), '[REDACTED]');
+        assert.equal(executor.redact(`error: ${secret}`), 'error: [REDACTED]');
+    }
+    assert.equal(executor.redact('old-machine-secret-012345'), '[REDACTED]');
+});
+
+test('redaction leaves fixed dev placeholders, migration names and empty arrays readable', () => {
+    const executor = new Runner();
+    executor.protect({
+        PGPASSWORD: 'password',
+        LIGHTDASH_SECRET_FALLBACKS: '[]',
+        LIGHTDASH_SECRET: '         ',
+        LIGHTDASH_LICENSE_KEY: 'dummy-build-key',
+        LDPAT: 'ldpat_deadbeefdeadbeefdeadbeefdeadbeef',
+    });
+    const message =
+        '20220110110509_add_password_reset_links_table.ts: password authentication failed; fallbacks=[]; license=dummy-build-key; pat=ldpat_deadbeefdeadbeefdeadbeefdeadbeef';
+    assert.equal(executor.redact(message), message);
+});

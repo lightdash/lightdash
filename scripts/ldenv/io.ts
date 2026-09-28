@@ -126,21 +126,54 @@ export type CommandOptions = {
 export class Runner {
     private secrets = new Set<string>();
     protect(env: Environment): void {
+        const genuine = (value: string) => {
+            const normalized = value.trim();
+            return (
+                normalized.length >= 8 &&
+                ![
+                    'password',
+                    'dummy-build-key',
+                    'ldpat_deadbeefdeadbeefdeadbeefdeadbeef',
+                    'undefined',
+                ].includes(normalized) &&
+                !['[]', '{}'].includes(normalized)
+            );
+        };
         Object.entries(env).forEach(([key, value]) => {
+            if (key === 'LIGHTDASH_SECRET_FALLBACKS') {
+                try {
+                    const fallbacks: unknown = JSON.parse(value);
+                    if (Array.isArray(fallbacks))
+                        fallbacks.forEach((fallback: unknown) => {
+                            if (
+                                typeof fallback === 'string' &&
+                                genuine(fallback)
+                            )
+                                this.secrets.add(fallback);
+                        });
+                } catch {
+                    if (genuine(value)) this.secrets.add(value);
+                }
+            }
             if (
-                /SECRET|PASSWORD|TOKEN|LICENSE|PRIVATE_KEY|API_KEY|LDPAT/.test(
+                (/(?:^|_)(?:PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY|LICENSE_KEY|LICENSE_CERTIFICATE|ACCESS_KEY|ACCESS_KEY_ID|SECRET_ACCESS_KEY)$/.test(
                     key,
-                ) &&
-                value
+                ) ||
+                    key === 'PGPASSWORD' ||
+                    key === 'LDPAT' ||
+                    key === 'LIGHTDASH_SECRET_FALLBACKS') &&
+                genuine(value)
             )
                 this.secrets.add(value);
         });
     }
     redact(value: string): string {
         let result = value;
-        this.secrets.forEach((secret) => {
-            result = result.split(secret).join('[REDACTED]');
-        });
+        [...this.secrets]
+            .sort((a, b) => b.length - a.length)
+            .forEach((secret) => {
+                result = result.split(secret).join('[REDACTED]');
+            });
         return result;
     }
     async run(
