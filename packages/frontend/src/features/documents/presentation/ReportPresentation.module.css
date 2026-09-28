@@ -599,7 +599,13 @@
                 border-bottom: 0;
             }
 
-            /* Editing affordances: placeholder and selected table cells */
+            /* Editing affordances: a generous click target, placeholder and
+               selected table cells */
+            &[contenteditable='true'] {
+                min-height: calc(var(--mantine-spacing-9xl) * 2);
+                cursor: text;
+            }
+
             > :global(.is-editor-empty:first-child)::before {
                 content: attr(data-placeholder);
                 float: left;
