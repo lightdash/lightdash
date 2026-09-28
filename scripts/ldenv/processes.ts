@@ -471,13 +471,20 @@ export async function checkBasicReady(instance: Instance): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
     const started = Date.now();
     markTimeline(instance.timings, 'backendHealth', 'start', started);
+    let backendHealthAttempts = 0;
     await waitUntil(
-        () => health(instance.ports!.api),
+        () => {
+            backendHealthAttempts += 1;
+            return health(instance.ports!.api);
+        },
         120000,
         'backend health',
     );
     instance.timings.backendHealth = Date.now() - started;
     markTimeline(instance.timings, 'backendHealth', 'end');
+    if (process.env.LDENV_TIMELINE === '1')
+        instance.timings['trace:backendHealth:attempts'] =
+            backendHealthAttempts;
     const frontendStarted = Date.now();
     markTimeline(
         instance.timings,
@@ -591,19 +598,45 @@ export async function apiGeneration(
     return operations.apiProcessGeneration(instance, api);
 }
 async function settledApiGeneration(instance: Instance): Promise<string> {
-    await waitForCompilers(instance);
-    let generation: string | null = null;
-    await waitUntil(
-        async () => {
-            const before = await apiGeneration(instance);
-            if (!before || !(await health(instance.ports!.api))) return false;
-            generation = await apiGeneration(instance);
-            return generation === before;
-        },
-        120000,
-        'settled backend health',
-    );
-    return generation!;
+    const timings = instance.timings;
+    const check = (timings['trace:generationChecks'] ?? 0) + 1;
+    if (process.env.LDENV_TIMELINE === '1')
+        timings['trace:generationChecks'] = check;
+    return traced(timings, `generationCheck${check}`, async () => {
+        await traced(timings, `generation${check}:compilers`, () =>
+            waitForCompilers(instance),
+        );
+        let generation: string | null = null;
+        let attempts = 0;
+        await waitUntil(
+            async () => {
+                attempts += 1;
+                const before = await traced(
+                    timings,
+                    `generation${check}:before`,
+                    () => apiGeneration(instance),
+                );
+                if (!before) return false;
+                const healthy = await traced(
+                    timings,
+                    `generation${check}:health`,
+                    () => health(instance.ports!.api),
+                );
+                if (!healthy) return false;
+                generation = await traced(
+                    timings,
+                    `generation${check}:after`,
+                    () => apiGeneration(instance),
+                );
+                return generation === before;
+            },
+            120000,
+            'settled backend health',
+        );
+        if (process.env.LDENV_TIMELINE === '1')
+            timings[`trace:generation${check}:attempts`] = attempts;
+        return generation!;
+    });
 }
 export async function stableReady(
     instance: Instance,
@@ -1084,13 +1117,20 @@ export async function finishStart(
     try {
         const apiStarted = Date.now();
         markTimeline(instance.timings, 'bootToHealth', 'start', apiStarted);
+        let bootHealthAttempts = 0;
         const apiHealth = waitUntil(
-            () => health(instance.ports!.api),
+            () => {
+                bootHealthAttempts += 1;
+                return health(instance.ports!.api);
+            },
             120000,
             'backend health',
         ).then(() => {
             instance.timings.bootToHealth = Date.now() - apiStarted;
             markTimeline(instance.timings, 'bootToHealth', 'end');
+            if (process.env.LDENV_TIMELINE === '1')
+                instance.timings['trace:bootHealth:attempts'] =
+                    bootHealthAttempts;
         });
         const watcherStarted = Date.now();
         markTimeline(
