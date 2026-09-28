@@ -90,8 +90,24 @@ const describeOptionChange = ({
     const parts: string[] = [];
     if (before.type !== after.type)
         parts.push(`${before.type} → ${after.type}`);
-    if (before.default !== after.default)
+    if (before.type === 'gradient' && after.type === 'gradient') {
+        const sameDefault =
+            before.default.min === after.default.min &&
+            before.default.max === after.default.max &&
+            before.default.colors.length === after.default.colors.length &&
+            before.default.colors.every(
+                (color, index) => color === after.default.colors[index],
+            );
+        if (!sameDefault)
+            parts.push(describeDefaultChange(before.default, after.default));
+        if ((before.showBounds ?? true) !== (after.showBounds ?? true)) {
+            parts.push(
+                after.showBounds === false ? 'bounds hidden' : 'bounds shown',
+            );
+        }
+    } else if (before.default !== after.default) {
         parts.push(describeDefaultChange(before.default, after.default));
+    }
     if (before.type === 'select' && after.type === 'select') {
         const beforeValues = before.choices.map((c) => c.value);
         const afterValues = after.choices.map((c) => c.value);

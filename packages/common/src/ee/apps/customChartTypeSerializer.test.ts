@@ -251,3 +251,26 @@ it('serializes gradient fixed colors and bounds for the agent', () => {
         }),
     ).toContain(`- scale "Scale" [gradient] default: ${JSON.stringify(value)}`);
 });
+
+it('includes gradient bounds visibility in the agent schema', () => {
+    const type: CustomChartType = {
+        ...cohortWaterfall,
+        schema: {
+            ...cohortWaterfall.schema,
+            configOptions: [
+                {
+                    type: 'gradient',
+                    name: 'scale',
+                    label: 'Scale',
+                    showBounds: false,
+                    default: {
+                        colors: ['#000', '#fff'],
+                        min: 'auto',
+                        max: 'auto',
+                    },
+                },
+            ],
+        },
+    };
+    expect(serializeCustomChartTypeSchema(type)).toContain('showBounds: false');
+});

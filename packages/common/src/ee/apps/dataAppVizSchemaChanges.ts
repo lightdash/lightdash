@@ -41,6 +41,7 @@ const isSameOption = (
     if (a.type === 'gradient' && b.type === 'gradient') {
         return (
             a.label === b.label &&
+            (a.showBounds ?? true) === (b.showBounds ?? true) &&
             a.default.min === b.default.min &&
             a.default.max === b.default.max &&
             a.default.colors.length === b.default.colors.length &&

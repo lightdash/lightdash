@@ -17,6 +17,61 @@ const option: DataAppVizConfigOption = {
 };
 
 describe('gradient option', () => {
+    it.each([undefined, true])(
+        'shows bounds by default or when enabled (%s)',
+        (showBounds) => {
+            renderWithProviders(
+                <DataAppVizOptionControl
+                    option={{ ...option, showBounds }}
+                    value={option.default}
+                    onChange={vi.fn()}
+                />,
+            );
+            expect(screen.getByLabelText('Minimum')).toBeDisabled();
+            expect(screen.getByLabelText('Maximum')).toBeDisabled();
+            expect(
+                screen.getByRole('button', { name: 'Low color' }),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'High color' }),
+            ).toBeVisible();
+        },
+    );
+
+    it('hides bounds for a decorative gradient and preserves them when editing colors', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        const value = { colors: ['#000000', '#ffffff'], min: -10, max: 100 };
+        const { rerender } = renderWithProviders(
+            <DataAppVizOptionControl
+                option={{ ...option, showBounds: false }}
+                value={value}
+                onChange={onChange}
+            />,
+        );
+        expect(screen.queryByLabelText('Minimum')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Maximum')).not.toBeInTheDocument();
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Start color' }),
+        ).toBeVisible();
+        expect(screen.getByRole('button', { name: 'End color' })).toBeVisible();
+        await user.click(screen.getByRole('button', { name: 'Add color' }));
+        expect(onChange).toHaveBeenLastCalledWith({
+            ...value,
+            colors: ['#000000', '#fab005', '#ffffff'],
+        });
+        rerender(
+            <DataAppVizOptionControl
+                option={{ ...option, showBounds: true }}
+                value={value}
+                onChange={onChange}
+            />,
+        );
+        expect(screen.getByLabelText('Minimum')).toHaveValue('-10');
+        expect(screen.getByLabelText('Maximum')).toHaveValue('100');
+    });
+
     it('edits stops and bounds independently and retains saved colours on palette changes', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();

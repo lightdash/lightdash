@@ -312,7 +312,12 @@ applicable fixes separately from features and rebuilding activates them.
 
 ### Gradient chart options
 
-A chart type can declare a chart-wide `gradient` config option:
+A chart type can declare a chart-wide `gradient` config option. The optional
+`showBounds` declaration defaults to `true`. Set it to `false` for a decorative
+gradient: the editor shows Start/End colors without minimum or maximum controls.
+The runtime value still contains `colors`, `min`, and `max`; the chart can use
+`colors` directly for a fill without calling `createGradientColorScale`.
+Hiding the controls does not change stored bounds or the SDK scale behavior.
 
 ```json
 {

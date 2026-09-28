@@ -148,6 +148,8 @@ const GradientOptionControl: FC<{
         <Config.Label>{option.label}</Config.Label>
         <GradientStopsEditor
             colors={value.colors}
+            startLabel={option.showBounds === false ? 'Start' : 'Low'}
+            endLabel={option.showBounds === false ? 'End' : 'High'}
             swatches={
                 colorPalette.length > 0 ? colorPalette : ECHARTS_DEFAULT_COLORS
             }
@@ -178,22 +180,26 @@ const GradientOptionControl: FC<{
                 })
             }
         />
-        <Group gap="xs" wrap="nowrap" align="flex-end">
-            <RangeBoundInput
-                label="Minimum"
-                autoLabel="Auto"
-                value={value.min}
-                onChange={(min) => onChange({ ...value, min })}
-            />
-        </Group>
-        <Group gap="xs" wrap="nowrap" align="flex-end">
-            <RangeBoundInput
-                label="Maximum"
-                autoLabel="Auto"
-                value={value.max}
-                onChange={(max) => onChange({ ...value, max })}
-            />
-        </Group>
+        {option.showBounds !== false && (
+            <>
+                <Group gap="xs" wrap="nowrap" align="flex-end">
+                    <RangeBoundInput
+                        label="Minimum"
+                        autoLabel="Auto"
+                        value={value.min}
+                        onChange={(min) => onChange({ ...value, min })}
+                    />
+                </Group>
+                <Group gap="xs" wrap="nowrap" align="flex-end">
+                    <RangeBoundInput
+                        label="Maximum"
+                        autoLabel="Auto"
+                        value={value.max}
+                        onChange={(max) => onChange({ ...value, max })}
+                    />
+                </Group>
+            </>
+        )}
     </Stack>
 );
 

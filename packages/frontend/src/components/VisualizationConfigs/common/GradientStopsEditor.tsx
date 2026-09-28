@@ -65,6 +65,8 @@ type GradientStopsEditorProps = {
     onRemoveColor: (index: number) => void;
     onColorChange: (index: number, color: string) => void;
     swatches?: string[];
+    startLabel?: string;
+    endLabel?: string;
 };
 
 export const GradientStopsEditor: FC<GradientStopsEditorProps> = ({
@@ -73,6 +75,8 @@ export const GradientStopsEditor: FC<GradientStopsEditorProps> = ({
     onRemoveColor,
     onColorChange,
     swatches = ECHARTS_DEFAULT_COLORS,
+    startLabel = 'Low',
+    endLabel = 'High',
 }) => (
     <>
         <Group gap="xs" align="flex-start">
@@ -84,7 +88,7 @@ export const GradientStopsEditor: FC<GradientStopsEditorProps> = ({
                         key={index}
                         color={color}
                         swatches={swatches}
-                        label={isFirst ? 'Low' : isLast ? 'High' : ''}
+                        label={isFirst ? startLabel : isLast ? endLabel : ''}
                         canRemove={!isFirst && !isLast && colors.length > 2}
                         onColorChange={(newColor) =>
                             onColorChange(index, newColor)
