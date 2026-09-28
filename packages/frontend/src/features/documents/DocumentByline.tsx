@@ -1,10 +1,18 @@
 import { type Document } from '@lightdash/common';
 import { Group, Text } from '@mantine/core';
+import { type ReactNode } from 'react';
 import { LightdashUserAvatar } from '../../components/Avatar';
 import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
 
 /** Original creator beside an independent last-edited time; never attributes the edit to the creator. */
-const DocumentByline = ({ document }: { document: Document }) => {
+const DocumentByline = ({
+    document,
+    status,
+}: {
+    document: Document;
+    /** A short marker shown after the timestamp, e.g. the editing state. */
+    status?: ReactNode;
+}) => {
     const creatorName = document.createdBy
         ? `${document.createdBy.firstName} ${document.createdBy.lastName}`.trim() ||
           'Unknown user'
@@ -41,6 +49,14 @@ const DocumentByline = ({ document }: { document: Document }) => {
                 user={null}
                 partiallyBold={false}
             />
+            {status && (
+                <>
+                    <Text fz="xs" c="dimmed" aria-hidden>
+                        ·
+                    </Text>
+                    {status}
+                </>
+            )}
         </Group>
     );
 };

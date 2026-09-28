@@ -1,5 +1,5 @@
 import { type Document, type SemanticChartAsCode } from '@lightdash/common';
-import { ActionIcon, Button, Stack, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconChartBar, IconCheck, IconDots, IconX } from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
@@ -205,7 +205,16 @@ const DocumentEditor = ({
                         </ActionIcon>
                     </ActionIcon.Group>
                 }
-                metadata={<DocumentByline document={document} />}
+                metadata={
+                    <DocumentByline
+                        document={document}
+                        status={
+                            <Badge size="sm" role="status">
+                                Editing
+                            </Badge>
+                        }
+                    />
+                }
             >
                 <Stack gap="lg">
                     {update.error && (
