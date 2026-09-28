@@ -1,0 +1,9 @@
+.removeColor {
+    z-index: 10;
+    visibility: hidden;
+}
+
+.colorItem:hover .removeColor,
+.colorItem:focus-within .removeColor {
+    visibility: visible;
+}
