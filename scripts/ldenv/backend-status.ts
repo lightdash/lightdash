@@ -1,6 +1,51 @@
-import type { BundleState } from './bundle-state';
+import {
+    apiProcessGeneration,
+    bundleStatus,
+    type BundleState,
+} from './bundle-state';
 import { savedBackendMode, type BackendMode, type Instance } from './model';
-import type { ProcessInfo } from './processes';
+import { health, ownedProcesses, type ProcessInfo } from './processes';
+
+export async function inspectBackendStatus(
+    instance: Instance,
+    savedValue: string | undefined,
+    operations = { ownedProcesses, apiProcessGeneration, bundleStatus, health },
+) {
+    const findApi = (processes: ProcessInfo[]) =>
+        processes.find(
+            (item) =>
+                item.name === `${instance.id}-api` &&
+                item.pm2_env.status === 'online',
+        );
+    const before = await operations.apiProcessGeneration(
+        instance,
+        findApi(await operations.ownedProcesses(instance)),
+    );
+    const healthy = instance.ports
+        ? await operations.health(instance.ports.api)
+        : false;
+    const processes = await operations.ownedProcesses(instance);
+    const api = findApi(processes);
+    const backend = runningBackendMode(savedValue, api);
+    const bundle =
+        backend === 'bundle'
+            ? await operations.bundleStatus(instance, api?.pid ?? null)
+            : null;
+    const after = await operations.apiProcessGeneration(instance, api);
+    return {
+        backend,
+        bundle,
+        processes,
+        healthy,
+        ...backendStatus(
+            instance,
+            backend,
+            bundle,
+            before !== null && before === after ? after : null,
+            healthy,
+        ),
+    };
+}
 
 export function runningBackendMode(
     savedValue: string | undefined,
@@ -23,7 +68,7 @@ export function backendStatus(
     healthy: boolean,
 ): { phase: Instance['phase']; error: string | null; ready: boolean } {
     const bundleReady =
-        backend === 'tsx' || (bundle?.state === 'ready' && generation !== null);
+        generation !== null && (backend === 'tsx' || bundle?.state === 'ready');
     const phase =
         instance.phase === 'ready' && !bundleReady
             ? 'degraded'

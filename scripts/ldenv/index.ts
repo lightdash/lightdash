@@ -1,7 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { backendStatus, runningBackendMode } from './backend-status';
-import { apiProcessGeneration, bundleStatus } from './bundle-state';
+import { inspectBackendStatus } from './backend-status';
 import { cleanupOrphans } from './cleanup';
 import {
     compose,
@@ -36,7 +35,6 @@ import {
     cancelMonitor,
     currentState,
     finishStart,
-    health,
     ownedProcesses,
     stopProcesses,
     verifyClaim,
@@ -239,49 +237,24 @@ async function main(args: string[]): Promise<void> {
             );
             return;
         }
-        const online = instance.ports
-            ? await health(instance.ports.api)
-            : false;
-        const processes = await ownedProcesses(instance);
         const env = await dotenv(
             path.join(instance.worktree, '.env.development.local'),
         );
-        const api = processes.find(
-            (item) =>
-                item.name === `${instance.id}-api` &&
-                item.pm2_env.status === 'online',
-        );
-        const backend = runningBackendMode(env.LDENV_BACKEND, api);
-        const bundle =
-            backend === 'bundle'
-                ? await bundleStatus(instance, api?.pid ?? null)
-                : null;
-        const generation =
-            backend === 'bundle' &&
-            savedBackendMode(api?.pm2_env.LDENV_BACKEND) !== 'bundle'
-                ? null
-                : await apiProcessGeneration(instance, api);
-        const derived = backendStatus(
-            instance,
-            backend,
-            bundle,
-            generation,
-            online,
-        );
+        const derived = await inspectBackendStatus(instance, env.LDENV_BACKEND);
         const status = {
             ...instance,
-            backend,
-            bundle,
+            backend: derived.backend,
+            bundle: derived.bundle,
             phase: derived.phase,
             error: derived.error,
             url: instance.ports
                 ? `http://localhost:${instance.ports.frontend}`
                 : null,
-            healthy: online,
+            healthy: derived.healthy,
             ready: derived.ready,
             timeToReady: instance.timings.timeToReady ?? null,
             monitorAlive: alive(instance.monitorPid),
-            processes,
+            processes: derived.processes,
         };
         process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
         return;
