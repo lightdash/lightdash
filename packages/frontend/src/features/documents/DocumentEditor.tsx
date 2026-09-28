@@ -1,6 +1,6 @@
 import { type Document, type SemanticChartAsCode } from '@lightdash/common';
 import { ActionIcon, Button, Stack, Text, Tooltip } from '@mantine/core';
-import { IconChartBar, IconDeviceFloppy, IconX } from '@tabler/icons-react';
+import { IconChartBar, IconCheck, IconX } from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router';
@@ -151,6 +151,19 @@ const DocumentEditor = ({
                         role="group"
                         aria-label="Editing controls"
                     >
+                        <Tooltip label="Cancel editing">
+                            <ActionIcon
+                                variant="default"
+                                size="lg"
+                                aria-label="Cancel"
+                                disabled={busy}
+                                onClick={() =>
+                                    dirty ? setConfirmCancel(true) : onClose()
+                                }
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </Tooltip>
                         {canAuthorCharts && (
                             <Tooltip label="Add chart">
                                 <ActionIcon
@@ -169,19 +182,6 @@ const DocumentEditor = ({
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <Tooltip label="Cancel editing">
-                            <ActionIcon
-                                variant="default"
-                                size="lg"
-                                aria-label="Cancel"
-                                disabled={busy}
-                                onClick={() =>
-                                    dirty ? setConfirmCancel(true) : onClose()
-                                }
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Tooltip>
                         <Tooltip label="Save document">
                             <ActionIcon
                                 variant="filled"
@@ -191,7 +191,7 @@ const DocumentEditor = ({
                                 disabled={!dirty}
                                 onClick={save}
                             >
-                                <MantineIcon icon={IconDeviceFloppy} />
+                                <MantineIcon icon={IconCheck} />
                             </ActionIcon>
                         </Tooltip>
                     </ActionIcon.Group>
