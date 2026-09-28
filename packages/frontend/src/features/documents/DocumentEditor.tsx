@@ -1,5 +1,13 @@
 import { type Document, type SemanticChartAsCode } from '@lightdash/common';
-import { ActionIcon, Badge, Button, Stack, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Stack,
+    Text,
+    Textarea,
+    Tooltip,
+} from '@mantine/core';
 import { IconChartBar, IconCheck, IconDots, IconX } from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
@@ -22,6 +30,7 @@ import { useDocumentEditor } from './editor/useDocumentEditor';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
 import styles from './presentation/ReportPresentation.module.css';
 import { useUpdateDocumentContent } from './useUpdateDocumentContent';
+import { useUpdateDocumentMetadata } from './useUpdateDocumentMetadata';
 
 const DocumentChartEditorModal = lazy(
     () => import('./DocumentChartEditorModal'),
@@ -51,11 +60,23 @@ const DocumentEditor = ({
         document.projectUuid,
         document.documentUuid,
     );
+    const rename = useUpdateDocumentMetadata(
+        document.projectUuid,
+        document.documentUuid,
+    );
+    const [name, setName] = useState(document.name);
+    const trimmedName = name.trim();
+    const nameChanged = trimmedName !== document.name;
+    const nameValid = trimmedName.length > 0 && trimmedName.length <= 255;
     const onInsertChart = useCallback(
         (position: number) => setChartEditor({ mode: 'insert', position }),
         [],
     );
-    const { editor, headings, dirty } = useDocumentEditor(document, {
+    const {
+        editor,
+        headings,
+        dirty: contentDirty,
+    } = useDocumentEditor(document, {
         onInsertChart: canAuthorCharts ? onInsertChart : null,
         onEditChart: canAuthorCharts
             ? (position, content) => {
@@ -86,7 +107,9 @@ const DocumentEditor = ({
             document.version.versionUuid,
         ],
     );
-    const busy = update.isLoading;
+    const busy = update.isLoading || rename.isLoading;
+    const dirty = contentDirty || nameChanged;
+    const saveError = rename.error ?? update.error;
     const blockNavigation = dirty || busy || chartEditor !== null;
     const blocker = useBlocker(blockNavigation);
     useBeforeUnload((event) => {
@@ -96,17 +119,28 @@ const DocumentEditor = ({
         }
     });
 
-    const save = () => {
-        if (!editor) {
+    // Rename first: it keeps the version, so the content save below still
+    // targets the version this editor loaded
+    const save = async () => {
+        if (!editor || !nameValid || busy) {
             return;
         }
-        update.mutate(
-            {
-                baseVersionUuid: document.version.versionUuid,
-                content: { cells: getDocumentCells(editor) },
-            },
-            { onSuccess: onClose },
-        );
+        update.reset();
+        rename.reset();
+        try {
+            if (nameChanged) {
+                await rename.mutateAsync({ name: trimmedName });
+            }
+            if (contentDirty) {
+                await update.mutateAsync({
+                    baseVersionUuid: document.version.versionUuid,
+                    content: { cells: getDocumentCells(editor) },
+                });
+            }
+            onClose();
+        } catch {
+            // The failed mutation's error is shown above the body
+        }
     };
 
     const applyChart = (chart: SemanticChartAsCode) => {
@@ -142,7 +176,30 @@ const DocumentEditor = ({
     return (
         <DocumentPageLayout name={document.name}>
             <DocumentReportLayout
-                title={document.name}
+                title={
+                    <Textarea
+                        variant="unstyled"
+                        autosize
+                        minRows={1}
+                        aria-label="Document name"
+                        placeholder="Untitled document"
+                        value={name}
+                        disabled={busy}
+                        error={nameValid ? undefined : true}
+                        classNames={{ input: styles.titleInput }}
+                        onChange={(event) =>
+                            setName(
+                                event.currentTarget.value.replace(/\n/g, ''),
+                            )
+                        }
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                editor?.commands.focus('start');
+                            }
+                        }}
+                    />
+                }
                 contentsLabel={null}
                 headings={headings}
                 variant="document"
@@ -189,8 +246,10 @@ const DocumentEditor = ({
                                 className={styles.quietDisabled}
                                 aria-label="Save document"
                                 loading={busy}
-                                disabled={!dirty}
-                                onClick={save}
+                                disabled={!dirty || !nameValid}
+                                onClick={() => {
+                                    void save();
+                                }}
                             >
                                 <MantineIcon icon={IconCheck} />
                             </ActionIcon>
@@ -224,11 +283,11 @@ const DocumentEditor = ({
                 }
             >
                 <Stack gap="lg">
-                    {update.error && (
+                    {saveError && (
                         <Callout variant="danger">
-                            {update.error.error.statusCode === 409
+                            {saveError.error.statusCode === 409
                                 ? 'This document changed while you were editing. Your changes have not been saved. Copy any text you want to keep, then cancel and reopen the editor to load the latest version.'
-                                : update.error.error.message}
+                                : saveError.error.message}
                         </Callout>
                     )}
                     <DocumentEditorProvider value={target}>

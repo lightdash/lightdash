@@ -391,3 +391,94 @@ it('closes without confirmation when nothing changed', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(mocks.close).toHaveBeenCalledOnce();
 });
+
+describe('title', () => {
+    const titleInput = () =>
+        screen.getByRole('textbox', { name: 'Document name' });
+
+    it('renames without writing a new version when only the title changed', async () => {
+        renderEditor();
+        await screen.findByText('Live chart: Orders');
+        expect(titleInput()).toHaveValue('Report');
+        fireEvent.change(titleInput(), { target: { value: '  Renamed ' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
+        await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
+        expect(mocks.api).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                url: '/projects/project/documents/document',
+                method: 'PATCH',
+                body: JSON.stringify({ name: 'Renamed' }),
+            }),
+        );
+    });
+
+    it('renames before saving content against the loaded version', async () => {
+        renderEditor();
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: 'Remove chart Orders',
+            }),
+        );
+        fireEvent.change(titleInput(), { target: { value: 'Renamed' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
+        await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
+        expect(mocks.api.mock.calls.map(([call]) => call.method)).toEqual([
+            'PATCH',
+            'POST',
+        ]);
+        expect(
+            JSON.parse(mocks.api.mock.calls[1][0].body).baseVersionUuid,
+        ).toBe('version');
+    });
+
+    it('blocks saving an empty title', async () => {
+        renderEditor();
+        await screen.findByText('Live chart: Orders');
+        fireEvent.change(titleInput(), { target: { value: '   ' } });
+        expect(
+            screen.getByRole('button', { name: 'Save document' }),
+        ).toBeDisabled();
+    });
+
+    it('keeps editing and skips the content write when the rename fails', async () => {
+        mocks.api.mockRejectedValueOnce({
+            error: {
+                statusCode: 400,
+                message: 'Document name must contain 1–255 characters',
+            },
+        });
+        renderEditor();
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: 'Remove chart Orders',
+            }),
+        );
+        fireEvent.change(titleInput(), { target: { value: 'Renamed' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
+        expect(
+            await screen.findByText(
+                'Document name must contain 1–255 characters',
+            ),
+        ).toBeInTheDocument();
+        expect(mocks.api).toHaveBeenCalledOnce();
+        expect(mocks.close).not.toHaveBeenCalled();
+    });
+
+    it('treats a title change as unsaved when cancelling', async () => {
+        renderEditor();
+        await screen.findByText('Live chart: Orders');
+        fireEvent.change(titleInput(), { target: { value: 'Renamed' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(
+            await screen.findByText('Discard unsaved changes?'),
+        ).toBeInTheDocument();
+        expect(mocks.close).not.toHaveBeenCalled();
+    });
+
+    it('never puts a line break in the title', async () => {
+        renderEditor();
+        await screen.findByText('Live chart: Orders');
+        fireEvent.change(titleInput(), { target: { value: 'Two\nlines' } });
+        expect(titleInput()).toHaveValue('Twolines');
+    });
+});

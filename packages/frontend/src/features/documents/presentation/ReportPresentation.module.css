@@ -409,6 +409,19 @@
         overflow-wrap: anywhere;
     }
 
+    /* The editable title renders exactly like the reading title */
+    .titleInput {
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        letter-spacing: inherit;
+        line-height: inherit;
+        resize: none;
+    }
+
     .reportActions {
         flex: 0 0 auto;
     }
