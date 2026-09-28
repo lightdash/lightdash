@@ -320,7 +320,7 @@
     &:disabled,
     &[data-disabled] {
         border-color: var(--mantine-color-default-border);
-        background-color: var(--mantine-color-body);
+        background-color: var(--mantine-color-default);
         color: var(--mantine-color-dimmed);
     }
 }
