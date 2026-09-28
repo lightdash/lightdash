@@ -184,7 +184,7 @@ const DocumentEditor = ({
                         )}
                         <Tooltip label="Save document">
                             <ActionIcon
-                                variant={dirty ? 'filled' : 'default'}
+                                variant="default"
                                 size="lg"
                                 className={styles.quietDisabled}
                                 aria-label="Save document"
