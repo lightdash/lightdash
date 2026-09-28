@@ -24,6 +24,22 @@ import {
     type CompilerState,
 } from './readiness';
 
+const require = createRequire(import.meta.url);
+const { compilerWatchArgs } = require('./compiler-watch-args.cjs') as {
+    compilerWatchArgs: (args: string[], platform: string) => string[];
+};
+
+test('compiler watchers exclude dependency directories only on macOS', () => {
+    const args = ['--build', '--watch', 'tsconfig.build.json'];
+    assert.deepEqual(compilerWatchArgs(args, 'darwin'), [
+        ...args,
+        '--excludeDirectories',
+        '**/node_modules',
+    ]);
+    assert.deepEqual(compilerWatchArgs(args, 'linux'), args);
+    assert.deepEqual(args, ['--build', '--watch', 'tsconfig.build.json']);
+});
+
 test('API overlap only skips package and route rebuild inputs', () => {
     assert.equal(canStartApiAlongsideWatchers([]), true);
     assert.equal(

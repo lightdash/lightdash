@@ -1,5 +1,6 @@
 const path = require('node:path');
 const { createRequire } = require('node:module');
+const { compilerWatchArgs } = require('./compiler-watch-args.cjs');
 
 const root = process.env.LDENV_WORKTREE;
 if (!root) throw new Error('LDENV_WORKTREE is required');
@@ -46,7 +47,7 @@ if (process.env.LDENV_WATCH_STATE_DIR && process.env.LDENV_START_EPOCH) {
             path.join(process.env.LDENV_WATCH_STATE_DIR, `${name}.json`),
             process.env.LDENV_START_EPOCH,
             command,
-            ...args,
+            ...compilerWatchArgs(args, process.platform),
         ];
     }
 }
