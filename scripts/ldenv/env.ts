@@ -94,3 +94,14 @@ export async function restoreInstanceEnv(
     await rm(backup);
     return null;
 }
+
+export function inheritLicensePair(
+    target: Environment,
+    parent: Environment,
+): void {
+    if (target.LIGHTDASH_LICENSE_KEY || !parent.LIGHTDASH_LICENSE_KEY) return;
+    target.LIGHTDASH_LICENSE_KEY = parent.LIGHTDASH_LICENSE_KEY;
+    if (parent.LIGHTDASH_LICENSE_CERTIFICATE)
+        target.LIGHTDASH_LICENSE_CERTIFICATE =
+            parent.LIGHTDASH_LICENSE_CERTIFICATE;
+}

@@ -96,3 +96,33 @@ test('concurrent tracing rewrites serialize backup and env writes', async () => 
         await rm(root, { recursive: true, force: true });
     }
 });
+
+test('parent fallback supplies only the licence pair and preserves exported flags', async () => {
+    const { inheritLicensePair } = await import('./env.js');
+    const target: Record<string, string> = {
+        LDENV_TRACING: 'true',
+        AI_COPILOT_ENABLED: 'false',
+        LDENV_STANDALONE_SCHEDULER: 'false',
+    };
+    const parent = {
+        LIGHTDASH_LICENSE_KEY: 'parent-key',
+        LIGHTDASH_LICENSE_CERTIFICATE: 'parent-cert',
+        LDENV_TRACING: 'false',
+        AI_COPILOT_ENABLED: 'true',
+        LDENV_STANDALONE_SCHEDULER: 'true',
+    };
+    inheritLicensePair(target, parent);
+    assert.deepEqual(target, {
+        LDENV_TRACING: 'true',
+        AI_COPILOT_ENABLED: 'false',
+        LDENV_STANDALONE_SCHEDULER: 'false',
+        LIGHTDASH_LICENSE_KEY: 'parent-key',
+        LIGHTDASH_LICENSE_CERTIFICATE: 'parent-cert',
+    });
+    inheritLicensePair(target, {
+        LIGHTDASH_LICENSE_KEY: 'another-key',
+        LIGHTDASH_LICENSE_CERTIFICATE: 'another-cert',
+    });
+    assert.equal(target.LIGHTDASH_LICENSE_KEY, 'parent-key');
+    assert.equal(target.LIGHTDASH_LICENSE_CERTIFICATE, 'parent-cert');
+});

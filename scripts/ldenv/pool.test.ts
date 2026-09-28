@@ -873,3 +873,34 @@ test('fill replaces a spare that dies during publication and returns only live r
     assert.equal(f.removed.length, 1);
     assert(result.every((instance) => !f.dead.has(instance.id)));
 });
+
+test('fill inherits only the parent licence pair without replacing target flags', async () => {
+    const f = fillFixture();
+    f.registry.length = 0;
+    const target = {
+        LDENV_TRACING: 'true',
+        AI_COPILOT_ENABLED: 'false',
+        LDENV_STANDALONE_SCHEDULER: 'false',
+    };
+    f.operations.localSecrets = async (root): Promise<Record<string, string>> =>
+        root === '/fixture/root'
+            ? { ...target }
+            : {
+                  LIGHTDASH_LICENSE_KEY: 'parent-key',
+                  LIGHTDASH_LICENSE_CERTIFICATE: 'parent-certificate',
+                  LDENV_TRACING: 'false',
+                  AI_COPILOT_ENABLED: 'true',
+                  LDENV_STANDALONE_SCHEDULER: 'true',
+              };
+    const up = f.operations.up;
+    f.operations.up = async (...args) => {
+        assert.deepEqual(args[4], {
+            ...target,
+            LIGHTDASH_LICENSE_KEY: 'parent-key',
+            LIGHTDASH_LICENSE_CERTIFICATE: 'parent-certificate',
+        });
+        return up(...args);
+    };
+    await fillPool('/fixture/root', 1, f.operations);
+    assert.equal(f.builds(), 1);
+});

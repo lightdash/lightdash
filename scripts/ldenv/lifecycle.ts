@@ -15,7 +15,11 @@ import {
     sourceHash,
 } from './cache';
 import { cleanupOrphans, removeOwnedWarm } from './cleanup';
-import { restoreInstanceEnv, writeInstanceEnv } from './env';
+import {
+    inheritLicensePair,
+    restoreInstanceEnv,
+    writeInstanceEnv,
+} from './env';
 import {
     claimPorts,
     compose,
@@ -549,8 +553,7 @@ async function upInstance(
                 requested,
             );
             const inherited = await localSecrets(parent.path);
-            if (inherited.LIGHTDASH_LICENSE_KEY)
-                secrets.LIGHTDASH_LICENSE_KEY = inherited.LIGHTDASH_LICENSE_KEY;
+            inheritLicensePair(secrets, inherited);
         }
         requireLicense(secrets);
         const pinned = await dotenv(path.join(root, '.env.development.local'));

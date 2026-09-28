@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { changedFiles, dependencies, runTiers } from './cache';
 import { isOwnedWarm } from './cleanup';
+import { inheritLicensePair } from './env';
 import { diskGuard, dotenv, localSecrets } from './infra';
 import {
     git,
@@ -253,7 +254,7 @@ export async function fillPool(
                 throw new Error('Build a parent before filling the pool');
             const secrets = await localSecrets(root);
             if (!secrets.LIGHTDASH_LICENSE_KEY)
-                Object.assign(secrets, await localSecrets(parent.path));
+                inheritLicensePair(secrets, await localSecrets(parent.path));
             while (true) {
                 await retireStalePoolInstances(parent.sha);
                 const { ready, failed } = await inspectReadySpares(parent.sha);
