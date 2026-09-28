@@ -9,6 +9,7 @@ import {
 import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import {
     IconCode,
+    IconHistory,
     IconCopy,
     IconDots,
     IconTrash,
@@ -160,6 +161,16 @@ const DocumentActions = ({ document }: { document: Document }) => {
                             Duplicate
                         </Menu.Item>
                     )}
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconHistory} />}
+                        onClick={() =>
+                            void navigate(
+                                `${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}/history`,
+                            )
+                        }
+                    >
+                        Version history
+                    </Menu.Item>
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconCode} />}
                         onClick={() => setCodeOpen(true)}

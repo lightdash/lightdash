@@ -534,6 +534,15 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
             ),
         }),
     },
+    {
+        path: 'documents/:documentUuidOrSlug/history',
+        lazy: async () => ({
+            Component: await loadLazyRouteDefault(
+                './pages/DocumentHistory',
+                () => import('./pages/DocumentHistory'),
+            ),
+        }),
+    },
     ...SPACES_ROUTES,
     ...METRICS_ROUTES,
     {
