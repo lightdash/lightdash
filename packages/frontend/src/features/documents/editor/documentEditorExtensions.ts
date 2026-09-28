@@ -8,6 +8,7 @@ import { SlashCommand } from '../../../ee/features/homepageBuilder/blocks/markdo
 import { DocumentChartNode, type EditChartHandler } from './documentChartNode';
 import { DocumentHeadingIds } from './DocumentHeadingIds';
 import { createDocumentSlashCommandItems } from './documentSlashCommandItems';
+import { EmptyLineCleanup } from './emptyLineCleanup';
 
 export type DocumentEditorExtensionOptions = {
     projectUuid: string;
@@ -40,6 +41,7 @@ export const createDocumentEditorExtensions = ({
     }),
     ...(editing
         ? [
+              EmptyLineCleanup,
               Placeholder.configure({
                   placeholder: "Write something, or type '/' for blocks…",
               }),
