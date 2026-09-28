@@ -41,6 +41,7 @@ import {
     verifyPaint,
 } from './processes';
 import { screenshot, screenshotOptions } from './screenshot';
+import { sharedBundleGc } from './shared-bundle';
 import { waitForInstance } from './wait';
 
 const help = `ldenv install
@@ -190,12 +191,16 @@ async function main(args: string[]): Promise<void> {
                             (item) => !existsSync(item.worktree),
                         ),
                         worktrees: await cleanupOrphans(root, true),
+                        sharedBundles: await sharedBundleGc(true),
                     },
                     null,
                     2,
                 )}\n`,
             );
-        else await garbageCollect(root, true);
+        else {
+            await garbageCollect(root, true);
+            await sharedBundleGc();
+        }
         return;
     }
     if (command === 'doctor') {

@@ -1,11 +1,19 @@
-import { watchFile, unwatchFile } from 'node:fs';
+import { watch, watchFile, unwatchFile, type FSWatcher } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { createBackendBuilder, type BuildEvent } from './backend-bundle.cjs';
 import { BundleChild } from './bundle-child';
 import { bundleDirectory, type BundleState } from './bundle-state';
-import { runner, writeJson } from './io';
-import { instanceId } from './model';
+import { sourceHash } from './cache';
+import { home, readJson, runner, statePath, writeJson } from './io';
+import { instanceId, type Instance, type Parent } from './model';
+import {
+    backendBundleInputs,
+    publishSharedBundle,
+    readSharedBundle,
+    sharedBundleDirectory,
+    type SharedBundle,
+} from './shared-bundle';
 
 export class BundleSupervisor {
     private closing = false;
@@ -34,6 +42,23 @@ export class BundleSupervisor {
     buildStarted(): Promise<void> {
         return this.enqueue(async () => {
             this.state.state = 'building';
+            await this.write();
+        });
+    }
+
+    startShared(key: string, bundle: SharedBundle, buildMs = 0): Promise<void> {
+        return this.enqueue(async () => {
+            this.state.sharedKey = key;
+            await this.write();
+            await this.child.start();
+            if (this.closing) return;
+            this.state.apiStartedAt = new Date().toISOString();
+            this.state.generation = 1;
+            this.state.launchedRevision = 0;
+            this.state.buildMs = buildMs;
+            this.state.builtAt = bundle.builtAt;
+            this.state.state = 'ready';
+            this.state.error = null;
             await this.write();
         });
     }
@@ -100,6 +125,10 @@ async function main(): Promise<void> {
     );
     const outDir = bundleDirectory(id);
     const statusFile = path.join(outDir, 'status.json');
+    const instance = await readJson<Instance>(statePath(id));
+    const parent = await readJson<Parent>(
+        path.join(home, 'manifests', `${instance.parent}.json`),
+    );
     const state: BundleState = {
         worktree: root,
         supervisorPid: process.pid,
@@ -111,25 +140,49 @@ async function main(): Promise<void> {
         buildMs: null,
         builtAt: null,
         apiStartedAt: null,
+        sharedKey: null,
     };
     let closing = false;
     let builder: Awaited<ReturnType<typeof createBackendBuilder>> | null = null;
+    let sharedWatcher: FSWatcher | null = null;
+    let sourceChanged = false;
+    let sourceEventSeen = false;
+    let sourceKey: string | null = null;
+    let sharedActive = false;
+    let startingPrivate: Promise<void> | null = null;
+    const packageNames = ['common', 'formula', 'warehouses'];
+    const packageHashes = new Map(
+        packageNames.map((name) => [
+            name,
+            parent.sourceHashes[`packages/${name}`],
+        ]),
+    );
     const sentinels = [
         'packages/common/dist/cjs/.tsbuildinfo',
         'packages/formula/dist/.tsbuildinfo',
         'packages/warehouses/dist/.tsbuildinfo',
     ].map((file) => path.join(root, file));
+    const nodeArgs = [
+        '--enable-source-maps',
+        ...(process.env.DEBUG_PORT
+            ? [`--inspect=127.0.0.1:${process.env.DEBUG_PORT}`]
+            : []),
+    ];
+    const privateArgs = [...nodeArgs, path.join(outDir, 'api.cjs')];
     const child = new BundleChild({
         executable: process.execPath,
-        args: [
-            '--enable-source-maps',
-            ...(process.env.DEBUG_PORT
-                ? [`--inspect=127.0.0.1:${process.env.DEBUG_PORT}`]
-                : []),
-            path.join(outDir, 'api.cjs'),
-        ],
+        args: privateArgs,
         cwd: path.join(root, 'packages/backend'),
-        env: process.env,
+        env: {
+            ...process.env,
+            NODE_PATH: [
+                path.join(root, 'packages/backend/node_modules'),
+                path.join(root, 'node_modules'),
+                process.env.NODE_PATH,
+            ]
+                .filter(Boolean)
+                .join(path.delimiter),
+        },
         onExit: (code, signal) => {
             void close(
                 1,
@@ -154,38 +207,127 @@ async function main(): Promise<void> {
     async function close(code: number, error: string | null = null) {
         if (closing) return;
         closing = true;
+        sharedWatcher?.close();
         sentinels.forEach((file) => unwatchFile(file));
         await Promise.all([supervisor.close(error), builder?.dispose()]);
         process.exit(code);
     }
     process.once('SIGINT', () => void close(0));
     process.once('SIGTERM', () => void close(0));
-    await supervisor.buildStarted();
-    const previousGoMemoryLimit = process.env.GOMEMLIMIT;
-    process.env.GOMEMLIMIT = '512MiB';
+    const startPrivate = (): Promise<void> => {
+        if (startingPrivate) return startingPrivate;
+        startingPrivate = (async () => {
+            supervisor.invalidate();
+            await supervisor.buildStarted();
+            const previousGoMemoryLimit = process.env.GOMEMLIMIT;
+            process.env.GOMEMLIMIT = '512MiB';
+            try {
+                builder = await createBackendBuilder({
+                    root,
+                    outDir,
+                    onBuildStart: () => guarded(supervisor.buildStarted()),
+                    onBuild: async (event) => {
+                        if (event.ok) {
+                            child.setArgs(privateArgs);
+                            state.sharedKey = null;
+                        }
+                        await guarded(supervisor.buildFinished(event));
+                        if (!event.ok && state.error)
+                            process.stderr.write(`${state.error}\n`);
+                    },
+                });
+            } finally {
+                if (previousGoMemoryLimit === undefined)
+                    delete process.env.GOMEMLIMIT;
+                else process.env.GOMEMLIMIT = previousGoMemoryLimit;
+            }
+            await builder.watch();
+            sharedWatcher?.close();
+            sharedWatcher = null;
+        })();
+        return startingPrivate;
+    };
+    const sourceEvent = () => {
+        if (closing) return;
+        if (!sourceKey) {
+            sourceEventSeen = true;
+            return;
+        }
+        void backendBundleInputs(root)
+            .then((current) => {
+                if (current.key === sourceKey || closing) return;
+                sourceChanged = true;
+                if (sharedActive) void guarded(startPrivate());
+            })
+            .catch((error: unknown) =>
+                close(
+                    1,
+                    error instanceof Error ? error.message : String(error),
+                ),
+            );
+    };
     try {
-        builder = await createBackendBuilder({
-            root,
-            outDir,
-            onBuildStart: () => guarded(supervisor.buildStarted()),
-            onBuild: async (event) => {
-                await guarded(supervisor.buildFinished(event));
-                if (!event.ok && state.error)
-                    process.stderr.write(`${state.error}\n`);
-            },
-        });
-    } finally {
-        if (previousGoMemoryLimit === undefined) delete process.env.GOMEMLIMIT;
-        else process.env.GOMEMLIMIT = previousGoMemoryLimit;
-    }
-    try {
-        await builder.watch();
-        for (const file of sentinels) {
+        sharedWatcher = watch(
+            path.join(root, 'packages/backend/src'),
+            { recursive: true },
+            sourceEvent,
+        );
+        for (const [index, file] of sentinels.entries()) {
             watchFile(file, { interval: 250 }, (current, previous) => {
                 if (closing || current.mtimeMs === previous.mtimeMs) return;
-                supervisor.invalidate();
-                void builder!.rebuild().catch(() => {});
+                const name = packageNames[index];
+                void sourceHash(root, `packages/${name}`)
+                    .then((hash) => {
+                        if (closing || hash === packageHashes.get(name)) return;
+                        packageHashes.set(name, hash);
+                        supervisor.invalidate();
+                        if (builder) void builder.rebuild().catch(() => {});
+                        else if (sharedActive) void guarded(startPrivate());
+                        else sourceChanged = true;
+                    })
+                    .catch((error: unknown) =>
+                        close(
+                            1,
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                        ),
+                    );
             });
+        }
+        await supervisor.buildStarted();
+        const inputs = await backendBundleInputs(root);
+        sourceKey = inputs.key;
+        const cached = await readSharedBundle(inputs.key);
+        let shared: SharedBundle | null = cached;
+        if (!shared)
+            try {
+                shared = await publishSharedBundle(root, inputs);
+            } catch (error) {
+                if (!sourceChanged) throw error;
+            }
+        if (sourceEventSeen)
+            sourceChanged =
+                sourceChanged ||
+                (await backendBundleInputs(root)).key !== inputs.key;
+        if (sourceChanged) {
+            await startPrivate();
+        } else {
+            if (!shared) throw new Error('Shared bundle publication failed');
+            child.setArgs([
+                ...nodeArgs,
+                path.join(sharedBundleDirectory(inputs.key), 'api.cjs'),
+            ]);
+            await supervisor.startShared(
+                inputs.key,
+                shared,
+                cached ? 0 : shared.buildMs,
+            );
+            sharedActive = true;
+            process.stdout.write(
+                `ldenv bundle shared key=${inputs.key} hit=${Boolean(cached)} buildMs=${cached ? 0 : shared.buildMs}\n`,
+            );
+            if (sourceChanged) await startPrivate();
         }
     } catch (error) {
         await close(1, error instanceof Error ? error.message : String(error));

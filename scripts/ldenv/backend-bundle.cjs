@@ -9,6 +9,7 @@ async function createBackendBuilder({
     outDir,
     role = 'api',
     entry,
+    portable = false,
     onBuildStart = () => {},
     onBuild = () => {},
 }) {
@@ -64,7 +65,7 @@ async function createBackendBuilder({
         tsconfig: tsconfigPath,
         keepNames: true,
         sourcemap: 'linked',
-        sourcesContent: false,
+        sourcesContent: portable,
         write: false,
         metafile: true,
         logLevel: 'silent',
@@ -106,11 +107,18 @@ async function createBackendBuilder({
                                 keepNames: true,
                                 sourcemap: 'inline',
                                 sourcesContent: false,
+                                banner: portable
+                                    ? `const __ldenvDir = process.env.LDENV_WORKTREE + ${JSON.stringify('/' + path.relative(root, path.dirname(filename)))}; const __ldenvFile = process.env.LDENV_WORKTREE + ${JSON.stringify('/' + path.relative(root, filename))};`
+                                    : undefined,
                                 define: {
-                                    __dirname: JSON.stringify(
-                                        path.dirname(filename),
-                                    ),
-                                    __filename: JSON.stringify(filename),
+                                    __dirname: portable
+                                        ? '__ldenvDir'
+                                        : JSON.stringify(
+                                              path.dirname(filename),
+                                          ),
+                                    __filename: portable
+                                        ? '__ldenvFile'
+                                        : JSON.stringify(filename),
                                 },
                             });
                             const result = {

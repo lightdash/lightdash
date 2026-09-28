@@ -19,6 +19,10 @@ export class BundleChild {
         return this.child?.pid ?? null;
     }
 
+    setArgs(args: string[]): void {
+        this.options.args = args;
+    }
+
     async start(): Promise<void> {
         if (this.child) throw new Error('The owned API is already running');
         const child = spawn(this.options.executable, this.options.args, {

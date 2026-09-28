@@ -150,6 +150,64 @@ test('incremental builds preserve assets, names and stacks and recover from erro
     }
 });
 
+test('portable bundle bytes are stable across fork paths and read each fork asset', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'ldenv-portable-'));
+    const bundles: string[] = [];
+    try {
+        for (const name of ['first', 'second']) {
+            const fixture = path.join(directory, name);
+            const backend = path.join(fixture, 'packages/backend');
+            const source = path.join(backend, 'src');
+            await mkdir(source, { recursive: true });
+            await mkdir(path.join(backend, 'node_modules'));
+            await symlink(
+                path.join(root, 'node_modules'),
+                path.join(fixture, 'node_modules'),
+            );
+            await writeFile(
+                path.join(backend, 'tsconfig.json'),
+                '{"compilerOptions":{"target":"ES2022"}}',
+            );
+            await writeFile(
+                path.join(source, 'index.ts'),
+                "import fs from 'node:fs'; import path from 'node:path'; export const asset=fs.readFileSync(path.join(__dirname,'asset.txt'),'utf8');",
+            );
+            await writeFile(path.join(source, 'asset.txt'), name);
+            const builder = await createBackendBuilder({
+                root: fixture,
+                outDir: path.join(directory, `output-${name}`),
+                portable: true,
+            });
+            try {
+                const event = await builder.rebuild();
+                assert(event.ok);
+                bundles.push(builder.outfile);
+                const result = spawnSync(
+                    process.execPath,
+                    [
+                        '-e',
+                        `console.log(require(${JSON.stringify(builder.outfile)}).asset)`,
+                    ],
+                    {
+                        encoding: 'utf8',
+                        env: { ...process.env, LDENV_WORKTREE: fixture },
+                    },
+                );
+                assert.equal(result.status, 0, result.stderr);
+                assert.equal(result.stdout.trim(), name);
+            } finally {
+                await builder.dispose();
+            }
+        }
+        assert.deepEqual(
+            await readFile(bundles[0]),
+            await readFile(bundles[1]),
+        );
+    } finally {
+        await rm(directory, { recursive: true });
+    }
+});
+
 test('owned API shutdown waits and kills a stubborn child without touching a neighbour', async () => {
     const neighbour = spawn(process.execPath, [
         '-e',

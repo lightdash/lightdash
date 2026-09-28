@@ -16,6 +16,7 @@ export type BundleState = {
     buildMs: number | null;
     builtAt: string | null;
     apiStartedAt: string | null;
+    sharedKey?: string | null;
 };
 
 export const bundleDirectory = (id: string) => path.join(home, 'bundles', id);
