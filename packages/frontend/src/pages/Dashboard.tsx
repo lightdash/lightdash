@@ -334,6 +334,19 @@ const Dashboard: FC = () => {
         handleDashboardUpdateSuccess,
     );
 
+    // View-mode tile edits save on their own mutation so the edit-mode
+    // post-save reset (temporary filters, redirect) stays untouched.
+    const { mutate: mutateTileFromView, isLoading: isSavingTileFromView } =
+        useUpdateDashboard(
+            dashboardUuid,
+            projectUuid,
+            false,
+            handleDashboardUpdateSuccess,
+        );
+    const [pendingViewModeTile, setPendingViewModeTile] = useState<
+        IDashboard['tiles'][number] | null
+    >(null);
+
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
         useContentAction(projectUuid);
 
@@ -618,8 +631,42 @@ const Dashboard: FC = () => {
         }
     };
 
+    // Saves one tile against the stored dashboard: view mode has no staged
+    // layout, filters or config to carry along.
+    const saveTileFromView = useCallback(
+        (
+            updatedTile: IDashboard['tiles'][number],
+            preserveVerification?: boolean,
+        ) => {
+            if (!dashboard) return;
+            setPendingViewModeTile(null);
+            mutateTileFromView({
+                tiles: dashboard.tiles.map((tile) =>
+                    tile.uuid === updatedTile.uuid ? updatedTile : tile,
+                ),
+                filters: dashboard.filters,
+                tabs: dashboard.tabs,
+                config: dashboard.config,
+                parameters: dashboard.parameters,
+                ...(preserveVerification !== undefined
+                    ? { preserveVerification }
+                    : {}),
+            });
+        },
+        [dashboard, mutateTileFromView],
+    );
+
     const handleEditTiles = useCallback(
         (updatedTile: IDashboard['tiles'][number]) => {
+            if (!isEditMode) {
+                if (dashboard?.verification) {
+                    setPendingViewModeTile(updatedTile);
+                    saveVerificationModalHandlers.open();
+                } else {
+                    saveTileFromView(updatedTile);
+                }
+                return;
+            }
             setDashboardTiles((currentDashboardTiles) =>
                 currentDashboardTiles?.map((tile) =>
                     tile.uuid === updatedTile.uuid ? updatedTile : tile,
@@ -627,7 +674,14 @@ const Dashboard: FC = () => {
             );
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles, setHaveTilesChanged],
+        [
+            isEditMode,
+            dashboard?.verification,
+            saveVerificationModalHandlers,
+            saveTileFromView,
+            setDashboardTiles,
+            setHaveTilesChanged,
+        ],
     );
 
     const handleCancel = useCallback(() => {
@@ -1254,6 +1308,21 @@ const Dashboard: FC = () => {
         mutate(dashboardUpdate);
     };
 
+    const confirmVerifiedSave = (preserveVerification: boolean) => {
+        saveVerificationModalHandlers.close();
+        if (pendingViewModeTile) {
+            saveTileFromView(pendingViewModeTile, preserveVerification);
+        } else {
+            handleSaveDashboard(preserveVerification);
+        }
+    };
+
+    const closeVerifiedSaveModal = () => {
+        saveVerificationModalHandlers.close();
+        setPendingViewModeTile(null);
+    };
+    const isSavingVerified = isSaving || isSavingTileFromView;
+
     const dashboardHeaderProps = {
         dashboard,
         organizationUuid: organization?.organizationUuid,
@@ -1347,7 +1416,7 @@ const Dashboard: FC = () => {
 
             <MantineModal
                 opened={isSaveVerificationModalOpen}
-                onClose={saveVerificationModalHandlers.close}
+                onClose={closeVerifiedSaveModal}
                 title="Save verified dashboard"
             >
                 {canPreserveVerification ? (
@@ -1358,11 +1427,8 @@ const Dashboard: FC = () => {
                         <Group justify="flex-end">
                             <Button
                                 variant="default"
-                                loading={isSaving}
-                                onClick={() => {
-                                    saveVerificationModalHandlers.close();
-                                    handleSaveDashboard(false);
-                                }}
+                                loading={isSavingVerified}
+                                onClick={() => confirmVerifiedSave(false)}
                             >
                                 Save
                             </Button>
@@ -1371,11 +1437,8 @@ const Dashboard: FC = () => {
                                 leftSection={
                                     <IconCircleCheckFilled size={16} />
                                 }
-                                loading={isSaving}
-                                onClick={() => {
-                                    saveVerificationModalHandlers.close();
-                                    handleSaveDashboard(true);
-                                }}
+                                loading={isSavingVerified}
+                                onClick={() => confirmVerifiedSave(true)}
                             >
                                 Save & verify
                             </Button>
@@ -1391,16 +1454,13 @@ const Dashboard: FC = () => {
                         <Group justify="flex-end">
                             <Button
                                 variant="default"
-                                onClick={saveVerificationModalHandlers.close}
+                                onClick={closeVerifiedSaveModal}
                             >
                                 Cancel
                             </Button>
                             <Button
-                                loading={isSaving}
-                                onClick={() => {
-                                    saveVerificationModalHandlers.close();
-                                    handleSaveDashboard(false);
-                                }}
+                                loading={isSavingVerified}
+                                onClick={() => confirmVerifiedSave(false)}
                             >
                                 Save anyway
                             </Button>
