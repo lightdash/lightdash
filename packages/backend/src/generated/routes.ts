@@ -16113,6 +16113,11 @@ const models: TsoaRoute.Models = {
                 defaultTimeDimensions: {
                     ref: 'Record_string.DashboardFieldTarget_',
                 },
+                hiddenFilterableFieldIds: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 savedQueryMetricFilters: {
                     ref: 'Record_string.number-Array_',
                     required: true,

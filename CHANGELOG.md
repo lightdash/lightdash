@@ -1,3 +1,10 @@
+## [2.352.7](https://github.com/lightdash/lightdash/compare/2.352.6...2.352.7) (2026-09-28)
+
+
+### Bug Fixes
+
+* apply saved dashboard filters on hidden fields ([#29732](https://github.com/lightdash/lightdash/issues/29732)) ([5cf0549](https://github.com/lightdash/lightdash/commit/5cf0549e5c3f1530d13d64a22618098ffc8e58bd))
+
 ## [2.352.6](https://github.com/lightdash/lightdash/compare/2.352.5...2.352.6) (2026-09-28)
 
 
