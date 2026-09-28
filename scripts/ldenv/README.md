@@ -77,6 +77,10 @@ finishes the readiness checks. Status reports the monitor PID, current phase,
 last error, last readiness time, live health, timings and process RSS. A dead
 monitor with a starting phase means readiness has not been established. Logs
 are in `~/.ldenv/logs`; credentials are redacted from command logs.
+Set `LDENV_TIMELINE=1` on `up` to include process, preparation and readiness
+start/end timestamps as `trace:<step>:start` and `trace:<step>:end` values in
+`status --json` timings. Timestamps are Unix milliseconds.
+
 `wait` observes state changes and works if called before `up` starts. It prints
 the frontend URL, API URL and seeded login email. Exit codes are 0 for ready,
 1 for failed or degraded, and 2 for timeout. `--verified` waits for the chart,
@@ -99,8 +103,10 @@ overwritten by its old verifier. Pool spares pass all checks before they become
 eligible for a claim.
 
 Vite warms its entry module graph while preparation runs. When no package or
-route input changed, the API starts after the watchers launch, while their
-initial scan settles. Other forks wait for watcher settlement before API startup.
+route input changed, the API starts after the database, code, dependencies,
+environment and change check are ready. Vite cache restoration, frontend
+startup, warehouse path setup and watcher launch continue while the API boots.
+Other forks wait for package builds and watcher settlement before API startup.
 All forks require settled watchers before READY. Documentation files
 are ignored; the route watcher generates only after controller edits. Readiness
 repeats its foreground checks if the API restarts.
