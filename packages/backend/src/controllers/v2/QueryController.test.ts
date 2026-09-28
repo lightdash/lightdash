@@ -20,6 +20,7 @@ describe('QueryController', () => {
             undefined,
             QueryExecutionContext.GSHEETS_ADDON,
         ],
+        [RequestMethod.DESKTOP, undefined, QueryExecutionContext.DESKTOP],
         [undefined, undefined, QueryExecutionContext.API],
         ['future-client', undefined, QueryExecutionContext.API],
         [RequestMethod.CLI, undefined, QueryExecutionContext.CLI],

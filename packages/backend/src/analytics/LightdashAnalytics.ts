@@ -355,6 +355,8 @@ export const getContextFromHeader = (req: Request) => {
             return QueryExecutionContext.CLI;
         case RequestMethod.GSHEETS_ADDON:
             return QueryExecutionContext.GSHEETS_ADDON;
+        case RequestMethod.DESKTOP:
+            return QueryExecutionContext.DESKTOP;
         case RequestMethod.UNKNOWN:
             return QueryExecutionContext.API;
         default:
