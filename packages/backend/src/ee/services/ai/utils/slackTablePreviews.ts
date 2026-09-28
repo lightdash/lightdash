@@ -33,9 +33,27 @@ const tableCallArgsSchema = z.object({
         .nullish(),
 });
 
+export const isSlackTableArtifact = (artifact: AiArtifact): boolean => {
+    const { chartConfig } = artifact;
+    if (
+        !chartConfig ||
+        isAiSqlChartArtifactConfig(chartConfig) ||
+        isAiComposerChartArtifactConfig(chartConfig)
+    ) {
+        return false;
+    }
+    const args = tableCallArgsSchema.safeParse(chartConfig.config);
+    return (
+        args.success &&
+        (!args.data.chartConfig ||
+            args.data.chartConfig.defaultVizType === 'table')
+    );
+};
+
 export const getSlackTablePreviews = async ({
     enableDataAccess,
     slackLinksOnly,
+    selectedQueryUuids,
     toolCalls,
     toolResults,
     artifacts,
@@ -47,6 +65,7 @@ export const getSlackTablePreviews = async ({
 }: {
     enableDataAccess: boolean;
     slackLinksOnly: boolean;
+    selectedQueryUuids: string[];
     toolCalls: Array<{
         tool_call_id: string;
         tool_name: string;
@@ -75,7 +94,8 @@ export const getSlackTablePreviews = async ({
     }>;
     onLoadError: (toolCallId: string) => void;
 }): Promise<Array<SlackTablePreview & { artifactVersionUuid?: string }>> => {
-    if (!enableDataAccess || slackLinksOnly) return [];
+    if (!enableDataAccess || slackLinksOnly || selectedQueryUuids.length === 0)
+        return [];
 
     const resultsByCall = new Map(
         toolResults
@@ -119,9 +139,22 @@ export const getSlackTablePreviews = async ({
         return [{ call, args: args.data, metadata: metadata.data, artifact }];
     });
 
-    // Bound previews to the existing ten-card limit.
+    const callsByQuery = new Map(
+        tableCalls.map((tableCall) => [
+            tableCall.metadata.queryUuid,
+            tableCall,
+        ]),
+    );
+    // Only the final answer's selected executions are shared. Bound previews
+    // and preserve presentation order, including when a query was reused.
+    const selectedCalls = [...new Set(selectedQueryUuids)].flatMap(
+        (queryUuid) => {
+            const tableCall = callsByQuery.get(queryUuid);
+            return tableCall ? [tableCall] : [];
+        },
+    );
     return Promise.all(
-        tableCalls
+        selectedCalls
             .slice(0, 10)
             .map(async ({ call, args, metadata, artifact }) => {
                 const preview = {
