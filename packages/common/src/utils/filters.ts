@@ -1815,13 +1815,21 @@ export const addDashboardFiltersToMetricQuery = (
     };
 };
 
-// Mirrors the UI's getAvailableFiltersForSavedQueries. Matching on field-id (not tableName) is the source of truth — see getDashboardFilterRulesForTables below for why.
-export const getAvailableFilterFieldIds = (explore: Explore): string[] => [
+// Dashboard pickers (getAvailableFiltersForSavedQueries) omit hidden fields, but a saved rule on a hidden field still applies, as in default_filters.
+// Matching on field-id (not tableName) is the source of truth — see getDashboardFilterRulesForTables below for why.
+export const getExecutableFilterFieldIds = (explore: Explore): string[] => [
     ...Object.entries(getDimensionMapFromTables(explore.tables))
-        .filter(([, field]) => isFilterableDimension(field) && !field.hidden)
+        .filter(([, field]) => isFilterableDimension(field))
+        .map(([fieldId]) => fieldId),
+    ...Object.keys(getMetricsMapFromTables(explore.tables)),
+];
+
+export const getHiddenFilterableFieldIds = (explore: Explore): string[] => [
+    ...Object.entries(getDimensionMapFromTables(explore.tables))
+        .filter(([, field]) => isFilterableDimension(field) && field.hidden)
         .map(([fieldId]) => fieldId),
     ...Object.entries(getMetricsMapFromTables(explore.tables))
-        .filter(([, field]) => !field.hidden)
+        .filter(([, field]) => field.hidden)
         .map(([fieldId]) => fieldId),
 ];
 
@@ -1841,7 +1849,7 @@ export const applyDashboardFiltersForTile = ({
 } => {
     const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
         tileUuid,
-        getAvailableFilterFieldIds(explore),
+        getExecutableFilterFieldIds(explore),
         dashboardFilters,
     );
     return {

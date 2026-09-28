@@ -42,6 +42,7 @@ const SchedulersModal: FC<
         | 'currentParameterValues'
         | 'availableParameters'
         | 'filterableFieldsByTileUuid'
+        | 'hiddenFilterableFieldIds'
     > & {
         name: string;
         onClose?: () => void;
@@ -78,6 +79,7 @@ const SchedulersModal: FC<
     currentParameterValues,
     availableParameters,
     filterableFieldsByTileUuid,
+    hiddenFilterableFieldIds,
     onClose = () => {},
     initialSchedulerUuid,
     defaultCreate = false,
@@ -267,6 +269,7 @@ const SchedulersModal: FC<
                 currentParameterValues={currentParameterValues}
                 availableParameters={availableParameters}
                 filterableFieldsByTileUuid={filterableFieldsByTileUuid}
+                hiddenFilterableFieldIds={hiddenFilterableFieldIds}
             />
         );
     }

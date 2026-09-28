@@ -161,3 +161,86 @@ describe('ActiveFilters metric tab visibility', () => {
         },
     );
 });
+
+describe('ActiveFilters saved filter on a hidden field', () => {
+    const hiddenFieldFilter: DashboardFilterRule = {
+        id: 'hidden-filter',
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['completed'],
+        label: undefined,
+    };
+
+    const setHiddenFieldContext = (hiddenFieldIds: string[]) => {
+        setMetricFilterLocation('saved');
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardFilters: {
+                dimensions: [hiddenFieldFilter],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardTabs: [],
+            filterableFieldsByTileUuid: { 'tile-1': [metricField] },
+            hiddenFilterableFieldIds: new Set(hiddenFieldIds),
+        };
+    };
+
+    const renderFilters = (isEditMode: boolean) =>
+        renderWithProviders(
+            <ActiveFilters
+                isEditMode={isEditMode}
+                activeTabUuid={undefined}
+                openPopoverId={undefined}
+                onPopoverOpen={vi.fn()}
+                onPopoverClose={vi.fn()}
+            />,
+        );
+
+    it('shows a locked chip with the rule and no editor for viewers', () => {
+        setHiddenFieldContext(['orders_status']);
+        renderFilters(false);
+
+        const chip = screen.getByTestId('locked-dashboard-filter');
+        expect(chip).toHaveTextContent(/^Orders status\s*is completed$/);
+        expect(
+            screen.queryByRole('button', { name: 'Remove filter' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Invalid filter')).not.toBeInTheDocument();
+    });
+
+    it('shows a valueless locked filter as any value', () => {
+        setHiddenFieldContext(['orders_status']);
+        mockDashboardContext.current.dashboardFilters = {
+            dimensions: [{ ...hiddenFieldFilter, values: [], disabled: true }],
+            metrics: [],
+            tableCalculations: [],
+        };
+        renderFilters(false);
+
+        expect(screen.getByTestId('locked-dashboard-filter')).toHaveTextContent(
+            /^Orders status\s*is any value$/,
+        );
+    });
+
+    it('keeps a filter on a deleted field invalid', () => {
+        setHiddenFieldContext([]);
+        renderFilters(false);
+
+        expect(screen.getByText('Invalid filter')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('locked-dashboard-filter'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('lets editors remove the locked filter', () => {
+        setHiddenFieldContext(['orders_status']);
+        renderFilters(true);
+
+        screen.getByRole('button', { name: 'Remove filter' }).click();
+
+        expect(
+            mockDashboardContext.current.removeDimensionDashboardFilter,
+        ).toHaveBeenCalledWith(0, false);
+    });
+});

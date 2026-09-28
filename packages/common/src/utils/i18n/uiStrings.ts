@@ -265,6 +265,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.tableLabel': 'Table: ',
     'filters.tablesLabel': 'Tables: ',
     'filters.invalidFilter': 'Invalid filter',
+    'filters.lockedFilterTooltip':
+        'This filter applies to your charts. You cannot change it here.',
     'filters.required.setValueTooltip':
         'Required: set a value to run this dashboard',
     'filters.required.setValueGroupTooltip':
