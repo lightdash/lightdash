@@ -309,16 +309,24 @@ claim latency is under 1 second for the cheap gate; fork targets are 60 seconds 
 
 ## Measured Mac timings
 
-On 28 September 2026, a fresh `origin/main` worktree at T3's directory depth,
-started through the installed launcher with `up --no-wait`, reached readiness in
-**34.5 seconds**, including the first browser paint. Dependencies and artifacts
-took 2.71 s (1.47 s dependency setup, 1.25 s artifacts), DB clone 0.42 s,
-port allocation 0.16 s, Vite cache restore 1.90 s with a verified hit, watcher
-setup 2.93 s, dbt-path update 0.27 s, API health 19.65 s, paint 4.82 s and
-chart query 0.27 s. Frontend preparation, watchers and the path update overlap;
-frontend graph warmup overlaps API boot. Total including RSS collection was 34.8 s.
-The API had zero restarts from launch through 60 seconds after readiness, including
-a Markdown edit. Health stayed available, and Vite did not rebundle dependencies.
+On 28 September 2026, a fresh `origin/main` worktree under T3's real worktree
+path, started through the installed launcher with `up --no-wait` and ordinary
+shell environment markers, reached foreground readiness in **26.6 seconds**.
+The authenticated chart query passed before ready. Background headless paint
+passed at 32.7 s without changing the ready time; its check took 5.86 s.
+Dependencies and artifacts overlapped in 2.00 s (1.78 s dependencies, 1.23 s
+artifact copy, then 0.22 s metadata finalization). DB clone took 0.48 s, ports
+0.17 s, Vite cache restore 1.91 s with a verified hit, watcher setup 2.94 s,
+dbt-path update 0.27 s, API health 17.62 s and chart query 0.54 s. Frontend
+preparation, watchers and the path update overlap; graph warmup overlaps API
+boot. Total including RSS collection was 26.9 s. The API had zero restarts from
+launch through 60 seconds after readiness, including a Markdown edit. Health
+stayed available, and Vite did not rebundle dependencies.
+
+The prior full-paint gate took 30.3 s in an owned T3-path worktree and 30.6 s in
+an actual T3 New worktree run. The latter's in-app preview painted in 1.0 s.
+The 26.6 s sample is above the 24–25 s goal, with API boot accounting for about
+two thirds of its foreground time. These runs have different machine load.
 
 The preceding actual T3 run took 40.6 s with a cache miss, 5.23 s code setup,
 4.64 s watcher setup and 2.44 s path setup. The cache diagnostics later isolated Vite's `vite:forward-console` plugin: its
