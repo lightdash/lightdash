@@ -1,6 +1,7 @@
 import {
     FeatureFlag,
     FeatureFlags,
+    LightdashMode,
     LightdashUser,
     PREVIEW_ENABLED_FEATURE_FLAGS,
 } from '@lightdash/common';
@@ -64,6 +65,15 @@ export class FeatureFlagModel {
                 this.getWithEnvFallback(
                     flagArgs,
                     this.lightdashConfig.results.cacheEnabled,
+                    options,
+                ),
+            // On by default on Lightdash Cloud; self-hosted opts in through
+            // LIGHTDASH_ENABLE_FEATURE_FLAGS. An organization override (or a
+            // stored flag default) still wins, so one org can be turned off.
+            [FeatureFlags.EnableLearn]: (flagArgs, options) =>
+                this.getWithEnvFallback(
+                    flagArgs,
+                    this.lightdashConfig.mode === LightdashMode.CLOUD_BETA,
                     options,
                 ),
         };
