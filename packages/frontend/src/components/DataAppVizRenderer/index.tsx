@@ -1,5 +1,6 @@
 import {
     ChartType,
+    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
     deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     hasCustomBinDimension,
@@ -45,7 +46,10 @@ import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
-import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
+import {
+    RENDER_ACK_FALLBACK_MS,
+    SCREENSHOT_READY_FALLBACK_MS,
+} from './constants';
 import DataAppVizPointMenu from './DataAppVizPointMenu';
 import classes from './DataAppVizRenderer.module.css';
 import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
@@ -666,12 +670,17 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     ]);
 
     const hasVizContext = dataAppVizContext !== undefined;
+    // Set when a render-acknowledging bundle had to be released by the
+    // fallback timer, so the screenshot service can report it.
+    const [renderAckFallbackUsed, setRenderAckFallbackUsed] = useState(false);
     // Legacy bundles have no paint acknowledgement. Give them time after
-    // the SDK, iframe and query load; modern bundles must acknowledge rendering.
+    // the SDK, iframe and query load. Modern bundles acknowledge rendering,
+    // but still get a longer fallback: the acknowledgement relies on
+    // animation frames, which a browser may never run for an iframe it
+    // considers hidden.
     useEffect(() => {
         if (
             !onScreenshotReadyRef.current ||
-            supportsRenderSignal ||
             !sdkReady ||
             !iframeNavigationKey ||
             isPreviewLoading ||
@@ -679,8 +688,14 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         )
             return;
         const timer = setTimeout(
-            signalScreenshotReady,
-            SCREENSHOT_READY_FALLBACK_MS,
+            () => {
+                if (hasSignaledScreenshotReady.current) return;
+                if (supportsRenderSignal) setRenderAckFallbackUsed(true);
+                signalScreenshotReady();
+            },
+            supportsRenderSignal
+                ? RENDER_ACK_FALLBACK_MS
+                : SCREENSHOT_READY_FALLBACK_MS,
         );
         return () => clearTimeout(timer);
     }, [
@@ -778,7 +793,12 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     }
 
     return (
-        <Box className={classes.previewContainer}>
+        <Box
+            className={classes.previewContainer}
+            {...(renderAckFallbackUsed && {
+                [CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE]: `${dataAppVizUuid}@${readyMetadata?.version}`,
+            })}
+        >
             <Box
                 className={classes.previewFrame}
                 inert={isPreviewLoading}

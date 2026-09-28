@@ -4,6 +4,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartType,
+    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
     DashboardTileTypes,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
@@ -1321,6 +1322,38 @@ export class UnfurlService extends BaseService {
      * never mounted the React tree (e.g. JS module-init crash) or pre-dates
      * the progress indicator deploy, both of which are logged distinctly.
      */
+    /**
+     * Custom chart tiles whose bundle never acknowledged its render are
+     * released by a frontend fallback timer and may be captured before they
+     * paint. Log them so we can tell how often that happens.
+     */
+    private async logCustomChartReadyFallbacks(
+        page: Page,
+        url: string,
+        unfurlId: string,
+    ): Promise<void> {
+        try {
+            const fallbacks = await page
+                .locator(SCREENSHOT_SELECTORS.CUSTOM_CHART_READY_FALLBACK)
+                .evaluateAll(
+                    (elements, attribute) =>
+                        elements.map((el) => el.getAttribute(attribute)),
+                    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
+                );
+            if (fallbacks.length > 0) {
+                this.logger.warn(
+                    `Custom chart render acknowledgement fallback used for ${fallbacks.length} tile(s) - unfurlId: ${unfurlId}, url: ${url}, chartTypes: ${JSON.stringify(fallbacks)}`,
+                );
+            }
+        } catch (e) {
+            this.logger.debug(
+                `Failed to check custom chart ready fallbacks - unfurlId: ${unfurlId}, error: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        }
+    }
+
     private async logUnreadyTilesOnTimeout(
         page: Page,
         url: string,
@@ -2174,6 +2207,11 @@ export class UnfurlService extends BaseService {
                             );
                             this.logger.info(
                                 `Screenshot ready indicator found - page is ready - unfurlId: ${imageId}`,
+                            );
+                            await this.logCustomChartReadyFallbacks(
+                                page,
+                                url,
+                                imageId,
                             );
                         } catch (waitError) {
                             // Probe the always-mounted progress indicator to
