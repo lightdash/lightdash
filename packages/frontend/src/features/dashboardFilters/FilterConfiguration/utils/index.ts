@@ -188,6 +188,10 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
         case FilterOperator.IN_PERIOD_TO_DATE:
             return true;
         case FilterOperator.EQUALS:
+            return (
+                filterRule.includeNull === true ||
+                (filterRule.values && filterRule.values.length > 0)
+            );
         case FilterOperator.NOT_EQUALS:
         case FilterOperator.LESS_THAN:
         case FilterOperator.GREATER_THAN:
@@ -250,6 +254,7 @@ export const getFilterRuleRevertableObject = (
     return {
         disabled: filterRule.disabled,
         values: filterRule.values,
+        includeNull: filterRule.includeNull,
         operator: filterRule.operator,
         settings: filterRule.settings,
         label: filterRule.label,

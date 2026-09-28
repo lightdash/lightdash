@@ -207,6 +207,102 @@ describe('FilterConfiguration', () => {
         },
     );
 
+    it('applies a null-only selection and returns to Any Value when it is removed', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode={false}
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={anyValueRule}
+                originalFilterRule={anyValueRule}
+                onSave={onSave}
+            />,
+        );
+
+        const input = document.querySelector(
+            'input[data-autofocus]',
+        ) as HTMLInputElement;
+        await user.click(input);
+        await user.click(
+            screen.getByRole('option', { name: '(null)', hidden: true }),
+        );
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(onSave).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                operator: FilterOperator.EQUALS,
+                values: [],
+                includeNull: true,
+                disabled: false,
+            }),
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Remove (null)' }));
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+        expect(onSave).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                values: [],
+                includeNull: false,
+                disabled: true,
+            }),
+        );
+    });
+
+    it.each([undefined, true])(
+        'resets a changed null selection to its saved state (%s)',
+        async (includeNull) => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onSave = vi.fn();
+            const savedRule: DashboardFilterRule = {
+                ...anyValueRule,
+                values: ['adam'],
+                disabled: false,
+                includeNull,
+            };
+
+            renderWithProviders(
+                <FilterConfiguration
+                    isEditMode={false}
+                    tiles={[]}
+                    tabs={[]}
+                    availableTileFilters={{}}
+                    field={mockField}
+                    defaultFilterRule={savedRule}
+                    originalFilterRule={savedRule}
+                    onSave={onSave}
+                />,
+            );
+
+            const input = document.querySelector(
+                'input[data-autofocus]',
+            ) as HTMLInputElement;
+            await user.click(input);
+            await user.click(
+                screen.getByRole('option', { name: '(null)', hidden: true }),
+            );
+            await user.click(
+                screen.getByRole('button', {
+                    name: 'Reset filter to original value',
+                }),
+            );
+            await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+            expect(onSave).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    values: ['adam'],
+                    includeNull,
+                    disabled: false,
+                }),
+            );
+        },
+    );
+
     it('allows changing between multiple and single values', async () => {
         const user = userEvent.setup();
 
