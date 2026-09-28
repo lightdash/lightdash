@@ -34,6 +34,29 @@ export function worktreeRecords(output: string): Worktree[] {
             };
         });
 }
+export function ancestorPids(table: string, pid: number): Set<string> {
+    const parents = new Map<string, string>();
+    for (const line of table.split('\n')) {
+        const [child, parent] = line.trim().split(/\s+/);
+        if (child && parent) parents.set(child, parent);
+    }
+    const ancestors = new Set<string>();
+    let current: string | undefined = String(pid);
+    while (current && current !== '0' && !ancestors.has(current)) {
+        ancestors.add(current);
+        current = parents.get(current);
+    }
+    return ancestors;
+}
+export function commandsOutside(
+    commands: string,
+    excluded: Set<string>,
+): string {
+    return commands
+        .split('\n')
+        .filter((line) => !excluded.has(line.trim().split(/\s+/)[0]))
+        .join('\n');
+}
 export type CleanupRuntime = {
     references: () => Promise<string>;
     worktrees: () => Promise<Worktree[]>;
@@ -47,11 +70,15 @@ function runtime(root: string): CleanupRuntime {
             const start = inventory.search(/\[\s*(?:\{|\])/);
             if (start < 0) throw new Error('Cannot inspect PM2 before cleanup');
             const processes = json<unknown[]>(inventory.slice(start));
-            const [commands, files] = await Promise.all([
+            const [commands, files, table] = await Promise.all([
                 runner.run('ps', ['-axo', 'pid=,command='], { cwd: root }),
                 runner.run('lsof', ['-w', '-nP', '-F', 'n'], { cwd: root }),
+                runner.run('ps', ['-axo', 'pid=,ppid='], { cwd: root }),
             ]);
-            return `${JSON.stringify(processes)}\n${commands}\n${files}`;
+            return `${JSON.stringify(processes)}\n${commandsOutside(
+                commands,
+                ancestorPids(table, process.pid),
+            )}\n${files}`;
         },
         worktrees: async () =>
             worktreeRecords(

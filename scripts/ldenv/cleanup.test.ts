@@ -4,7 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import {
+    ancestorPids,
     cleanupPlan,
+    commandsOutside,
     removeCleanupEntry,
     removeOwnedWarm,
     worktreeRecords,
@@ -156,4 +158,20 @@ test('cleanup refuses symlinks and parses locked worktrees with spaced paths', a
     } finally {
         await rm(base, { recursive: true, force: true });
     }
+});
+
+test('cleanup ignores the command lines of ldenv and its callers only', () => {
+    const table = ['1 0', '100 1', '200 100', '300 200', '400 1'].join('\n');
+    const excluded = ancestorPids(table, 300);
+    assert.deepEqual([...excluded].sort(), ['1', '100', '200', '300']);
+    const warm = '/home/dev/.ldenv/warm/abc';
+    const commands = [
+        `  300 node ldenv.cjs down --worktree ${warm}`,
+        `  200 /bin/sh -c ldenv down --worktree ${warm}`,
+        `  400 vim ${warm}/package.json`,
+    ].join('\n');
+    const remaining = commandsOutside(commands, excluded);
+    assert.ok(!remaining.includes('ldenv.cjs down'));
+    assert.ok(!remaining.includes('/bin/sh -c'));
+    assert.ok(remaining.includes(`vim ${warm}/package.json`));
 });
