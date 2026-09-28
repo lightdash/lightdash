@@ -621,26 +621,28 @@
                 cursor: text;
             }
 
-            /* Where text will go between or around charts. In flow with no
-               height, so it sits where the gap starts;
-               flow-root stops the next block's margin collapsing through it */
+            /* Where text will go between or around charts: it opens an empty
+               line with the usual block spacing, showing a caret and the
+               writing hint. flow-root keeps margins from collapsing through */
             > :global(.ProseMirror-gapcursor) {
                 position: relative;
                 width: 100%;
-                height: 0;
-                margin: 0;
+                height: 1.5em;
+                margin: var(--mantine-spacing-xl) 0 0;
+            }
+
+            > :global(.ProseMirror-gapcursor):first-child {
+                margin-top: 0;
             }
 
             &:global(.ProseMirror-focused) > :global(.ProseMirror-gapcursor) {
                 display: flow-root;
             }
 
-            /* Looks like an empty line: a normal caret plus the writing hint,
-               centred in the gap so nothing around it moves */
             > :global(.ProseMirror-gapcursor)::before,
             > :global(.ProseMirror-gapcursor)::after {
                 position: absolute;
-                top: calc(var(--mantine-spacing-xl) / 2 - 0.75em);
+                top: 0;
                 left: 0;
                 height: 1.5em;
             }
