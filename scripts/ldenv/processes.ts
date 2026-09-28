@@ -143,15 +143,24 @@ export async function stopProcesses(
 export async function processPriority(
     instance: Instance,
     low: boolean,
+    operations: {
+        ownedProcesses?: typeof ownedProcesses;
+        run?: (command: string, args: string[]) => Promise<string>;
+        platform?: NodeJS.Platform;
+        getuid?: () => number | undefined;
+        setPriority?: (pid: number, priority: number) => void;
+    } = {},
 ): Promise<void> {
     const roots = new Set(
-        (await ownedProcesses(instance))
+        (await (operations.ownedProcesses ?? ownedProcesses)(instance))
             .map((item) => item.pid)
             .filter(Boolean),
     );
-    const rows = (
-        await runner.run('ps', ['-axo', 'pid=,ppid='], { cwd: controlRoot })
-    )
+    const run =
+        operations.run ??
+        ((command: string, args: string[]) =>
+            runner.run(command, args, { cwd: controlRoot }));
+    const rows = (await run('ps', ['-axo', 'pid=,ppid=']))
         .trim()
         .split('\n')
         .map((row) => row.trim().split(/\s+/).map(Number));
@@ -165,16 +174,45 @@ export async function processPriority(
     await Promise.all(
         [...roots].map(async (pid) => {
             try {
-                if (process.platform === 'darwin')
-                    await runner.run(
-                        '/usr/sbin/taskpolicy',
-                        [low ? '-b' : '-B', '-p', String(pid)],
-                        { cwd: controlRoot },
+                if ((operations.platform ?? process.platform) === 'darwin')
+                    await run('/usr/sbin/taskpolicy', [
+                        low ? '-b' : '-B',
+                        '-p',
+                        String(pid),
+                    ]);
+                else if ((operations.getuid ?? process.getuid)?.() === 0)
+                    (operations.setPriority ?? os.setPriority)(
+                        pid,
+                        low ? 10 : 0,
                     );
-                else if (process.getuid?.() === 0)
-                    os.setPriority(pid, low ? 10 : 0);
             } catch (error) {
-                if (alive(pid)) throw error;
+                const code =
+                    error && typeof error === 'object' && 'code' in error
+                        ? error.code
+                        : undefined;
+                const message = String(error);
+                if (
+                    code === 'EPERM' ||
+                    code === 'EACCES' ||
+                    /operation not permitted|permission denied/i.test(
+                        message,
+                    ) ||
+                    (code !== 'ESRCH' &&
+                        !/setpriority\(\): No such process/i.test(message))
+                )
+                    throw error;
+                let status: string;
+                try {
+                    status = await run('ps', ['-axo', 'pid=,stat=']);
+                } catch {
+                    throw error;
+                }
+                const current = status
+                    .split('\n')
+                    .map((line) => line.match(/^\s*(\d+)\s+(\S+)/))
+                    .find((match) => Number(match?.[1]) === pid);
+                if (!current || current[2].startsWith('Z')) return;
+                throw error;
             }
         }),
     );

@@ -19,6 +19,7 @@ import {
 import {
     apiGeneration,
     processStartEnvironment,
+    processPriority,
     startProcesses,
     checkClaimEndpoints,
     checkForegroundReady,
@@ -32,6 +33,77 @@ import {
     startClaimApi,
     type ProcessInfo,
 } from './processes';
+
+function priorityAttempt(
+    failure: Error,
+    state: string,
+    platform: NodeJS.Platform = 'darwin',
+): Promise<void> {
+    const instance = newInstance('/tmp/ldenv-priority-probe', 'a'.repeat(40));
+    const api: ProcessInfo = {
+        name: `${instance.id}-api`,
+        pid: 100,
+        monit: { memory: 0 },
+        pm2_env: {
+            pm_cwd: instance.worktree,
+            status: 'online',
+            pm_uptime: Date.now(),
+        },
+    };
+    return processPriority(instance, true, {
+        ownedProcesses: async () => [api],
+        run: async (command, args) => {
+            if (command === 'ps' && args.some((arg) => arg.includes('ppid=')))
+                return '100 1\n101 100';
+            if (command === 'ps' && args.some((arg) => arg.includes('stat=')))
+                return state;
+            if (command === '/usr/sbin/taskpolicy') {
+                if (args.at(-1) === '101') throw failure;
+                return '';
+            }
+            throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+        },
+        platform,
+        getuid: () => 0,
+        setPriority: (pid) => {
+            if (pid === 101) throw failure;
+        },
+    });
+}
+
+test('process priority skips a vanished or zombie PID after ESRCH', async () => {
+    const missing = new Error(
+        '/usr/sbin/taskpolicy failed (70): taskpolicy: setpriority(): No such process',
+    );
+    await priorityAttempt(missing, '100 S\n101 Z');
+    await priorityAttempt(missing, '100 S');
+    const linuxMissing = Object.assign(new Error('setpriority ESRCH'), {
+        code: 'ESRCH',
+    });
+    await priorityAttempt(linuxMissing, '100 S\n101 Z', 'linux');
+});
+
+test('process priority keeps live failures and permission errors', async () => {
+    const missing = new Error(
+        '/usr/sbin/taskpolicy failed (70): taskpolicy: setpriority(): No such process',
+    );
+    await assert.rejects(
+        priorityAttempt(missing, '100 S\n101 S'),
+        /No such process/,
+    );
+    const denied = new Error(
+        '/usr/sbin/taskpolicy failed (70): taskpolicy: setpriority(): Operation not permitted',
+    );
+    await assert.rejects(
+        priorityAttempt(denied, '100 S'),
+        /Operation not permitted/,
+    );
+    const other = new Error('taskpolicy failed (70): Input/output error');
+    await assert.rejects(
+        priorityAttempt(other, '100 S\n101 Z'),
+        /Input\/output error/,
+    );
+});
 
 test('settled API health reuses one process snapshot and detects a child restart', async () => {
     const instance = newInstance('/tmp/ldenv-generation-probe', 'a'.repeat(40));
