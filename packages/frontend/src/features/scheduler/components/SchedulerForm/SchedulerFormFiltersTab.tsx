@@ -11,6 +11,8 @@ import { useProject } from '../../../../hooks/useProject';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
+import LockedFilter from '../../../dashboardFilters/LockedFilter';
+import { isLockedDashboardFilterRule } from '../../../dashboardFilters/lockedFilters';
 import {
     hasSchedulerFilterChanged,
     withDerivedDisabledState,
@@ -207,6 +209,21 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                     )}
                     {currentDashboardFilters.dimensions.map(
                         (dashboardFilterRule) => {
+                            if (
+                                isLockedDashboardFilterRule(
+                                    dashboardFilterRule,
+                                    filterableFieldsByTileUuid,
+                                )
+                            ) {
+                                return (
+                                    <Box key={dashboardFilterRule.id}>
+                                        <LockedFilter
+                                            isEditMode={false}
+                                            filterRule={dashboardFilterRule}
+                                        />
+                                    </Box>
+                                );
+                            }
                             const draftFilter = draftFilters?.find(
                                 (f) => f.id === dashboardFilterRule.id,
                             );

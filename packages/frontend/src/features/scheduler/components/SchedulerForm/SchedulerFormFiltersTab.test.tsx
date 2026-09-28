@@ -47,7 +47,7 @@ const paymentFilter: DashboardFilterRule = {
     label: undefined,
 };
 
-const dashboardContext = {
+const dashboardContext: Record<string, unknown> = {
     isLoadingDashboardFilters: false,
     allFilters: {
         dimensions: [statusFilter, paymentFilter],
@@ -108,6 +108,26 @@ const Harness = ({
 };
 
 describe('SchedulerFormFiltersTab', () => {
+    it('shows a filter whose field no tile offers as a locked chip', () => {
+        dashboardContext.filterableFieldsByTileUuid = {
+            'tile-1': [paymentField],
+        };
+        try {
+            renderWithProviders(
+                <Harness initialFilters={[statusFilter, paymentFilter]} />,
+            );
+
+            expect(
+                screen.getByTestId('locked-dashboard-filter'),
+            ).toHaveTextContent('orders_status is completed');
+            expect(
+                screen.getAllByRole('button', { name: 'Remove filter' }),
+            ).toHaveLength(1);
+        } finally {
+            delete dashboardContext.filterableFieldsByTileUuid;
+        }
+    });
+
     it('seeds the draft with current dashboard filters on first render', async () => {
         const onDraftChange = vi.fn();
         renderWithProviders(
