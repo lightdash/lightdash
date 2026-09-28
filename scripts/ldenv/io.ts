@@ -467,7 +467,7 @@ export class Runner {
                 }
             }
             if (
-                (/(?:^|_)(?:PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY|LICENSE_KEY|LICENSE_CERTIFICATE|ACCESS_KEY|ACCESS_KEY_ID|SECRET_ACCESS_KEY)$/.test(
+                (/(?:^|_)(?:PASSWORD|SECRET|TOKEN|API_KEY|PRIVATE_KEY|LICENSE_KEY|LICENSE_CERTIFICATE|ACCESS_KEY|ACCESS_KEY_ID|SECRET_ACCESS_KEY|SECRET_KEY|WRITE_KEY)$/.test(
                     key,
                 ) ||
                     key === 'PGPASSWORD' ||

@@ -111,6 +111,10 @@ test('redaction protects real licence, PAT, machine and S3 credentials', () => {
         LIGHTDASH_SECRET_FALLBACKS: '["old-machine-secret-012345"]',
         LDPAT: 'ldpat_real_personal_access_token_012345',
         S3_SECRET_ACCESS_KEY: 'real-s3-secret-access-key-012345',
+        S3_SECRET_KEY: 'real-s3-secret-key-012345',
+        RESULTS_S3_SECRET_KEY: 'real-results-s3-secret-key-012345',
+        APPS_S3_SECRET_KEY: 'real-apps-s3-secret-key-012345',
+        ANALYTICS_WRITE_KEY: 'real-write-key-012345',
         APPS_S3_ACCESS_KEY_ID: 'real-apps-s3-access-key-012345',
     };
     executor.protect(secrets);
