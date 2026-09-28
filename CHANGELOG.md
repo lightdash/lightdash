@@ -1,3 +1,10 @@
+## [2.357.1](https://github.com/lightdash/lightdash/compare/2.357.0...2.357.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **analytics:** link users to their org with a group call ([#30089](https://github.com/lightdash/lightdash/issues/30089)) ([8a033f4](https://github.com/lightdash/lightdash/commit/8a033f4f4bd2a10a0ef65258abf54863957653c6))
+
 # [2.357.0](https://github.com/lightdash/lightdash/compare/2.356.0...2.357.0) (2026-09-28)
 
 
