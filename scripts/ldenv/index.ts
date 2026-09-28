@@ -38,7 +38,12 @@ import {
     postgresPort,
     postgresVolume,
 } from './namespace';
-import { claimSpare, fillPool, poolSettings } from './pool';
+import {
+    claimSpare,
+    fillPool,
+    poolSettings,
+    retireStalePoolInstances,
+} from './pool';
 import {
     cancelMonitor,
     currentState,
@@ -48,12 +53,18 @@ import {
     verifyClaim,
     verifyPaint,
 } from './processes';
+import {
+    claimReadyWorktree,
+    monitorReadyPool,
+    poolMonitorStatus,
+} from './ready';
 import { screenshot, screenshotOptions } from './screenshot';
 import { waitForInstance } from './wait';
 
 const help = `ldenv install
 ldenv [--worktree PATH] new <branch> [--base origin/main] [--backend bundle|tsx]
 ldenv pool fill [--size 1]
+ldenv claim [--worktree PATH]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
 ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing] [--backend bundle|tsx]
 ldenv wait [--timeout S] [--verified]
@@ -121,6 +132,14 @@ async function main(args: string[]): Promise<void> {
         return;
     }
     const root = await rootDirectory(target.worktree);
+    if (command === 'pool' && subcommand === 'monitor') {
+        await monitorReadyPool(root);
+        return;
+    }
+    if (command === 'claim') {
+        await printInstance(await claimReadyWorktree(root));
+        return;
+    }
     if (command === 'gc-stale') {
         await sweepStaleInstances(
             root,
@@ -152,6 +171,13 @@ async function main(args: string[]): Promise<void> {
             process.stdout.write(
                 `PARENT: ${parent.sha}\nTimings (ms): ${JSON.stringify(parent.timings)}\n`,
             );
+            if (subcommand === 'refresh')
+                await retireStalePoolInstances(
+                    parent.sha,
+                    undefined,
+                    undefined,
+                    parent.builtAt,
+                );
             await installLauncher();
             await parentGc(root, Number(option(args, '--keep', '2')));
             if (subcommand === 'refresh') await fillPool(root, null);
@@ -296,19 +322,24 @@ async function main(args: string[]): Promise<void> {
             path.join(instance.worktree, '.env.development.local'),
         );
         const derived = await inspectBackendStatus(instance, env.LDENV_BACKEND);
+        const claimComplete =
+            !instance.claim || instance.timings.readyClaim !== undefined;
         const status = {
             ...instance,
             backend: derived.backend,
             bundle: derived.bundle,
             phase: derived.phase,
-            error: derived.error,
+            error: derived.error ?? instance.error,
             url: instance.ports
                 ? `http://localhost:${instance.ports.frontend}`
                 : null,
-            healthy: derived.healthy,
-            ready: derived.ready,
+            healthy: derived.healthy && claimComplete,
+            ready: derived.ready && claimComplete,
             timeToReady: instance.timings.timeToReady ?? null,
             monitorAlive: alive(instance.monitorPid),
+            poolMonitor: instance.readyWorktree
+                ? await poolMonitorStatus()
+                : null,
             processes: derived.processes,
         };
         process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
