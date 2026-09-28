@@ -10,6 +10,22 @@ import {
     type DataAppVizField,
 } from './types';
 
+/** Drop one input's unbound field values while preserving every other input. */
+export const pruneDataAppVizInputFieldOptions = (
+    fieldName: string,
+    fieldIds: string[],
+    fieldOptionValues: DataAppVizFieldOptionValues,
+): DataAppVizFieldOptionValues => {
+    const bound = new Set(fieldIds);
+    const { [fieldName]: values = {}, ...otherFields } = fieldOptionValues;
+    const kept = Object.fromEntries(
+        Object.entries(values).filter(([fieldId]) => bound.has(fieldId)),
+    );
+    return Object.keys(kept).length > 0
+        ? { ...otherFields, [fieldName]: kept }
+        : otherFields;
+};
+
 /**
  * The stored per-field values that still fit the contract and binding: fields
  * no longer bound, options no longer declared and mistyped values go.

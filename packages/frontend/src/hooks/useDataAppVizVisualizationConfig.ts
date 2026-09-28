@@ -1,5 +1,6 @@
 import {
     getDataAppVizFieldIds,
+    pruneDataAppVizInputFieldOptions,
     type DataAppVizChart,
     type DataAppVizFieldMapping,
     type DataAppVizFieldOptionValues,
@@ -235,22 +236,14 @@ const useDataAppVizVisualizationConfig = (
             } else {
                 fieldMapping[fieldName] = fieldId;
             }
-            // A field unbound from the input takes its per-field values with it.
-            const bound = new Set(
-                getDataAppVizFieldIds(fieldMapping[fieldName]),
-            );
-            const { [fieldName]: byFieldId = {}, ...otherFields } =
-                selected.fieldOptionValues;
-            const keptFieldOptions = Object.fromEntries(
-                Object.entries(byFieldId).filter(([id]) => bound.has(id)),
-            );
             commit({
                 ...selected,
                 fieldMapping,
-                fieldOptionValues:
-                    Object.keys(keptFieldOptions).length > 0
-                        ? { ...otherFields, [fieldName]: keptFieldOptions }
-                        : otherFields,
+                fieldOptionValues: pruneDataAppVizInputFieldOptions(
+                    fieldName,
+                    getDataAppVizFieldIds(fieldMapping[fieldName]),
+                    selected.fieldOptionValues,
+                ),
             });
         },
         [commit],

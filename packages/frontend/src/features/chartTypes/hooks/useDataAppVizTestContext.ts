@@ -4,6 +4,7 @@ import {
     deriveDataAppVizPivotConfiguration,
     getDataAppVizFieldOptions,
     getDataAppVizFieldIds,
+    pruneDataAppVizInputFieldOptions,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
     getItemMap,
@@ -222,20 +223,13 @@ export const useDataAppVizTestContext = ({
                 const next = { ...prev.fieldMapping };
                 if (id !== null) next[name] = id;
                 else delete next[name];
-                const bound = new Set(getDataAppVizFieldIds(next[name]));
-                const { [name]: values = {}, ...otherFields } =
-                    prev.fieldOptionValues;
-                const kept = Object.fromEntries(
-                    Object.entries(values).filter(([fieldId]) =>
-                        bound.has(fieldId),
-                    ),
-                );
                 return {
                     fieldMapping: next,
-                    fieldOptionValues:
-                        Object.keys(kept).length > 0
-                            ? { ...otherFields, [name]: kept }
-                            : otherFields,
+                    fieldOptionValues: pruneDataAppVizInputFieldOptions(
+                        name,
+                        getDataAppVizFieldIds(next[name]),
+                        prev.fieldOptionValues,
+                    ),
                 };
             });
             clearRun();
