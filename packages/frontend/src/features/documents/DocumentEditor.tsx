@@ -184,8 +184,9 @@ const DocumentEditor = ({
                         )}
                         <Tooltip label="Save document">
                             <ActionIcon
-                                variant="filled"
+                                variant={dirty ? 'filled' : 'default'}
                                 size="lg"
+                                className={styles.quietDisabled}
                                 aria-label="Save document"
                                 loading={busy}
                                 disabled={!dirty}
@@ -198,6 +199,7 @@ const DocumentEditor = ({
                         <ActionIcon
                             variant="default"
                             size="lg"
+                            className={styles.quietDisabled}
                             aria-label="Document actions are unavailable while editing"
                             disabled
                         >
@@ -209,7 +211,12 @@ const DocumentEditor = ({
                     <DocumentByline
                         document={document}
                         status={
-                            <Badge size="sm" role="status">
+                            <Badge
+                                size="sm"
+                                variant="filled"
+                                color="blue"
+                                role="status"
+                            >
                                 Editing
                             </Badge>
                         }

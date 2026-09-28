@@ -315,6 +315,16 @@
     flex: 0 0 auto !important;
 }
 
+/* Inert controls keep the group's surface and only dim the glyph */
+.quietDisabled {
+    &:disabled,
+    &[data-disabled] {
+        border-color: var(--mantine-color-default-border);
+        background-color: var(--mantine-color-body);
+        color: var(--mantine-color-dimmed);
+    }
+}
+
 .documentLayout {
     grid-template-columns: 16rem minmax(0, 1fr);
     width: 100%;
