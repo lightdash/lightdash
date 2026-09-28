@@ -1,3 +1,10 @@
+# [2.349.0](https://github.com/lightdash/lightdash/compare/2.348.1...2.349.0) (2026-09-28)
+
+
+### Features
+
+* make the underlying data dimension limit configurable ([#30059](https://github.com/lightdash/lightdash/issues/30059)) ([1149c6a](https://github.com/lightdash/lightdash/commit/1149c6a6628c0e3763811a04ad7d791597526db2))
+
 ## [2.348.1](https://github.com/lightdash/lightdash/compare/2.348.0...2.348.1) (2026-09-28)
 
 
