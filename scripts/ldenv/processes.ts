@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { writeTracingEnv } from './env';
+import { writeInstanceEnv, writeTracingEnv } from './env';
 import { containers, dotenv, sql } from './infra';
 import {
     home,
@@ -19,6 +19,7 @@ import {
 } from './io';
 import {
     assertInstance,
+    backendMode,
     json,
     parseRecipe,
     type Instance,
@@ -175,6 +176,22 @@ export async function startProcesses(
     const env = await dotenv(
         path.join(instance.worktree, '.env.development.local'),
     );
+    const requestedBackend = backendMode(
+        process.env.LDENV_BACKEND ?? env.LDENV_BACKEND,
+    );
+    if (
+        stage === 'frontend' &&
+        requestedBackend !== backendMode(env.LDENV_BACKEND)
+    ) {
+        if (
+            (await ownedProcesses(instance)).some(
+                (item) => item.pm2_env.status === 'online',
+            )
+        )
+            throw new Error('Stop this instance before changing backend mode');
+        env.LDENV_BACKEND = requestedBackend;
+        await writeInstanceEnv(instance, env);
+    }
     if (process.env.LDENV_TRACING !== undefined) {
         await writeTracingEnv(instance, env, process.env.LDENV_TRACING);
     }
@@ -202,6 +219,7 @@ export async function startProcesses(
         {
             ...env,
             LDENV_WORKTREE: instance.worktree,
+            LDENV_HOME: home,
             LDENV_WATCH_STATE_DIR: compilerDirectory(instance),
             LDENV_START_EPOCH: processEpoch(instance),
             LDENV_VITE_WARM_MARKER: path.join(

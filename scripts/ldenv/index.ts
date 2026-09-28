@@ -1,7 +1,10 @@
 import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { bundleStatus } from './bundle-state';
 import { cleanupOrphans } from './cleanup';
 import {
     compose,
+    dotenv,
     containers,
     freeDisk,
     localSecrets,
@@ -20,7 +23,7 @@ import {
     start,
     up,
 } from './lifecycle';
-import { instanceId, type Instance } from './model';
+import { backendMode, instanceId, type Instance } from './model';
 import { claimSpare, fillPool, poolSettings } from './pool';
 import {
     cancelMonitor,
@@ -34,11 +37,11 @@ import {
 } from './processes';
 
 const help = `ldenv install
-ldenv [--worktree PATH] new <branch> [--base origin/main]
+ldenv [--worktree PATH] new <branch> [--base origin/main] [--backend tsx|bundle]
 ldenv pool fill [--size 1]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
-ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing]
-ldenv down [--dry-run] | stop | start [--no-wait] | status [--json] | gc [--dry-run] | doctor`;
+ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing] [--backend tsx|bundle]
+ldenv down [--dry-run] | stop | start [--no-wait] [--backend tsx|bundle] | status [--json] | gc [--dry-run] | doctor`;
 function option(args: string[], name: string, fallback: string): string {
     const index = args.indexOf(name);
     if (index < 0) return fallback;
@@ -67,6 +70,12 @@ async function main(args: string[]): Promise<void> {
     );
     args = target.args;
     const [command, subcommand] = args;
+    if (args.includes('--backend'))
+        process.env.LDENV_BACKEND = backendMode(
+            option(args, '--backend', 'tsx'),
+        );
+    if (process.env.LDENV_BACKEND !== undefined)
+        backendMode(process.env.LDENV_BACKEND);
     if (args.includes('--tracing')) process.env.LDENV_TRACING = 'true';
     if (command === 'install') {
         process.stdout.write(`INSTALLED: ${await installLauncher()}\n`);
@@ -211,16 +220,38 @@ async function main(args: string[]): Promise<void> {
         const online = instance.ports
             ? await health(instance.ports.api)
             : false;
+        const processes = await ownedProcesses(instance);
+        const env = await dotenv(
+            path.join(instance.worktree, '.env.development.local'),
+        );
+        const backend = backendMode(env.LDENV_BACKEND);
+        const bundle =
+            backend === 'bundle'
+                ? await bundleStatus(
+                      instance,
+                      processes.find(
+                          (item) => item.name === `${instance.id}-api`,
+                      )?.pid ?? null,
+                  )
+                : null;
+        const buildFailed = bundle?.state === 'failed';
         const status = {
             ...instance,
+            backend,
+            bundle,
+            phase:
+                buildFailed && instance.phase === 'ready'
+                    ? 'degraded'
+                    : instance.phase,
+            error: buildFailed ? bundle.error : instance.error,
             url: instance.ports
                 ? `http://localhost:${instance.ports.frontend}`
                 : null,
             healthy: online,
-            ready: instance.phase === 'ready' && online,
+            ready: instance.phase === 'ready' && online && !buildFailed,
             timeToReady: instance.timings.timeToReady ?? null,
             monitorAlive: alive(instance.monitorPid),
-            processes: await ownedProcesses(instance),
+            processes,
         };
         process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
         return;

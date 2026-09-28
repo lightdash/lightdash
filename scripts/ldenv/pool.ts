@@ -498,6 +498,7 @@ export async function claimInstance(
                         .filter(Boolean);
                     const recipe = await recipeAt(spare.worktree);
                     const deep =
+                        process.env.LDENV_BACKEND !== undefined ||
                         process.env.LDENV_TRACING === 'true' ||
                         matchingTiers(recipe.tiers, delta).some(
                             (tier) => tier.run || tier.preset,

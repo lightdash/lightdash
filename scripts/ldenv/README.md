@@ -374,3 +374,48 @@ paint 4.36 s). A warm claim took **0.527 seconds**, including restoring the spar
 process priority. Background paint and chart verification passed. Its automatic
 refill waited for the fresh fork to finish starting. All box acceptance instances
 were then removed; the parent, shared warehouse and launcher remain cached.
+
+## Opt-in bundled API
+
+The default backend remains tsx. Select the incremental bundle mode for a new
+instance with either command:
+
+```sh
+ldenv up --backend bundle
+LDENV_BACKEND=bundle ldenv up
+```
+
+For an existing instance, run `ldenv stop`, then `ldenv start --backend bundle`.
+Return to tsx with `ldenv stop` and `ldenv start --backend tsx`. The selection is
+stored in the instance's local environment and survives later starts. A mode
+change on an already running instance is refused. `new --backend bundle` uses
+full readiness after restarting the claimed spare; it does not claim a warm
+bundle without verification.
+
+The existing PM2 API entry owns a supervisor with one esbuild context and one
+API child. Successful changed builds stop and wait for that child before starting
+the new bundle. Concurrent build notifications are serialized and coalesced.
+The frontend, package watchers and other instances keep running. A failed rebuild
+keeps the last good API and output, prints the compiler error, and exposes it in
+`ldenv status` as `bundle.error`, `bundle.state=failed` and a degraded phase. Live
+health can still be true while `ready` is false. Fixing the edit clears the error.
+An initial failed build never launches a saved artifact from an earlier run.
+An unexpected API exit causes PM2 to restart the supervisor.
+
+Bundles preserve names, source asset paths and TypeScript source maps. They keep
+packages external and use the worktree's installed esbuild/get-tsconfig through
+its pinned tsx dependency. The existing Node compile cache is reused. Tracing
+continues to follow `--tracing` / `LDENV_TRACING`; bundle mode does not override it.
+The optional standalone scheduler remains on tsx.
+
+Keep the existing route and package watchers. Controller edits still regenerate
+TSOA routes; common, formula and warehouses build-completion markers cause an API
+restart even when the bundle bytes are unchanged. Restart the instance after
+changes to dependencies, the lockfile or Node. Bundle output and status live in
+`~/.ldenv/bundles/<instance-id>` (or under `LDENV_HOME`); `down` removes only that
+instance's bundle directory. The output refers to the owning worktree and is not
+a portable production build.
+
+The build status includes supervisor/API PIDs, build duration and generation.
+`bundle.state=ready` means compilation succeeded and the API child was launched;
+the top-level `healthy` and `ready` fields also check live API health.

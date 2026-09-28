@@ -602,6 +602,39 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
             ),
         );
         assert.equal(traced.apps[0].env?.OTEL_SDK_DISABLED, 'false');
+        const bundled = json<{
+            apps: {
+                script: string;
+                watch: boolean | string[];
+                node_args: string[];
+                env: { OTEL_SDK_DISABLED: string };
+            }[];
+        }>(
+            await runner.run(
+                process.execPath,
+                [
+                    '-e',
+                    `process.stdout.write(JSON.stringify(require(${JSON.stringify(wrapper)})))`,
+                ],
+                {
+                    cwd: root,
+                    env: {
+                        LDENV_WORKTREE: root,
+                        LDENV_BACKEND: 'bundle',
+                        LDENV_TRACING: 'true',
+                    },
+                },
+            ),
+        );
+        assert.equal(
+            bundled.apps[0].script,
+            path.join(__dirname, 'bundle-runner.ts'),
+        );
+        assert.equal(bundled.apps[0].watch, false);
+        assert.equal(bundled.apps[0].env.OTEL_SDK_DISABLED, 'false');
+        assert.deepEqual(bundled.apps[1].watch, ['src']);
+        assert(bundled.apps[0].node_args.includes('--import'));
+
         assert.deepEqual(result.apps[1].watch, ['src']);
         assert.deepEqual(result.apps[2].args, ['exec', 'bash', '-c', 'watch']);
     } finally {

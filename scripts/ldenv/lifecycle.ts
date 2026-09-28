@@ -773,6 +773,10 @@ export async function down(instance: Instance): Promise<void> {
             `ENV RESTORE SKIPPED: current env differs; original retained at ${retainedBackup}\n`,
         );
     await removeOwnedWarm(instance, controlRoot);
+    await rm(path.join(home, 'bundles', instance.id), {
+        recursive: true,
+        force: true,
+    });
     await rm(statePath(instance.id));
 }
 export async function garbageCollect(
