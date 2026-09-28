@@ -5,6 +5,8 @@ import {
     LearnWorkspaceFilesTableName,
     type DbLearnCommand,
 } from '../database/entities/learnSandbox';
+import { OrganizationTableName } from '../database/entities/organizations';
+import { ProjectTableName } from '../database/entities/projects';
 
 const ACTIVE: DbLearnCommand['status'][] = ['queued', 'running'];
 const FINISHED: DbLearnCommand['status'][] = ['done', 'error', 'timeout'];
@@ -93,6 +95,69 @@ export class LearnWorkspaceModel {
             .where('command_uuid', commandUuid)
             .first();
         return row ? mapCommand(row) : undefined;
+    }
+
+    /**
+     * Live commands (queued, or running since `staleCutoff`) for one learner
+     * and for their whole organization, in one round trip. A running row
+     * older than the cutoff is a crashed worker's leftover, not load, so it
+     * is left out the same way `enqueueCommand` treats it for the workspace.
+     */
+    async countActiveCommands({
+        userUuid,
+        organizationUuid,
+        staleCutoff,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        staleCutoff: Date;
+    }): Promise<{ forUser: number; forOrganization: number }> {
+        const row = await this.database(LearnCommandsTableName)
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${LearnCommandsTableName}.project_uuid`,
+            )
+            .join(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .andWhere((live) =>
+                live
+                    .where(`${LearnCommandsTableName}.status`, 'queued')
+                    .orWhere((running) =>
+                        running
+                            .where(
+                                `${LearnCommandsTableName}.status`,
+                                'running',
+                            )
+                            .andWhere(
+                                `${LearnCommandsTableName}.started_at`,
+                                '>=',
+                                staleCutoff,
+                            ),
+                    ),
+            )
+            .select(
+                this.database.raw(
+                    `count(*) filter (where ${LearnCommandsTableName}.user_uuid = ?) as for_user`,
+                    [userUuid],
+                ),
+                this.database.raw('count(*) as for_organization'),
+            )
+            .first<{
+                for_user: string | number;
+                for_organization: string | number;
+            }>();
+        return {
+            forUser: Number(row?.for_user ?? 0),
+            forOrganization: Number(row?.for_organization ?? 0),
+        };
     }
 
     async findActiveCommand(
