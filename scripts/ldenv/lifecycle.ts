@@ -53,6 +53,7 @@ import {
 import { resumeExistingInstance } from './live';
 import {
     assertInstance,
+    savedBackendMode,
     dotenvText,
     instanceEnvironment,
     instanceId,
@@ -691,7 +692,10 @@ async function upInstance(
             );
             if (preparationFailure?.status === 'rejected')
                 throw preparationFailure.reason;
-            if (kind === 'warming')
+            if (
+                kind === 'warming' &&
+                savedBackendMode(env.LDENV_BACKEND) === 'tsx'
+            )
                 await timed(state.timings, 'compileCacheWarm', () =>
                     warmCompileCache(root, env),
                 );
