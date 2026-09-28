@@ -62,7 +62,7 @@ async function processIdentity(
         const { stdout } = await execFileAsync(
             'ps',
             ['-p', String(pid), '-o', 'lstart=', '-o', 'command='],
-            { timeout: 1000 },
+            { timeout: 1000, env: { ...process.env, LC_ALL: 'C' } },
         );
         const match = stdout.match(
             /^\s*(\w{3}\s+\w{3}\s+\d{1,2}\s+\d\d:\d\d:\d\d\s+\d{4})\s+(.+)$/m,

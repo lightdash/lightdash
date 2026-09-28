@@ -293,6 +293,26 @@ test('owner record hashes the process command', async () => {
     });
 });
 
+test('owner identity does not depend on the caller locale', async () => {
+    const previous = process.env.LANG;
+    process.env.LANG = 'en_GB.UTF-8';
+    try {
+        const { withLock } = await import('./io.js');
+        await withLock('owner-locale', async () => {
+            const owner = JSON.parse(
+                await readFile(
+                    path.join(lockPath('owner-locale'), 'owner.json'),
+                    'utf8',
+                ),
+            ) as { commandHash?: string };
+            assert.match(owner.commandHash ?? '', /^[a-f0-9]{64}$/);
+        });
+    } finally {
+        if (previous === undefined) delete process.env.LANG;
+        else process.env.LANG = previous;
+    }
+});
+
 test('release leaves a replacement owner intact', async () => {
     const { withLock } = await import('./io.js');
     const lock = lockPath('replaced');
