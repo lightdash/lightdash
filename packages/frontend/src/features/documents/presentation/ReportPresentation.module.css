@@ -599,19 +599,13 @@
                 border-bottom: 0;
             }
 
-            /* Editing affordances: placeholder, selected chart, selected cells */
+            /* Editing affordances: placeholder and selected table cells */
             > :global(.is-editor-empty:first-child)::before {
                 content: attr(data-placeholder);
                 float: left;
                 height: 0;
                 color: var(--mantine-color-placeholder);
                 pointer-events: none;
-            }
-
-            > :global(.node-documentChart.ProseMirror-selectednode) > * {
-                outline: 2px solid var(--mantine-color-text);
-                outline-offset: 2px;
-                border-radius: var(--mantine-radius-lg);
             }
 
             :global(.selectedCell)::after {
