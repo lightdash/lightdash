@@ -1,3 +1,12 @@
+# [2.359.0](https://github.com/lightdash/lightdash/compare/2.358.1...2.359.0) (2026-09-28)
+
+
+### Features
+
+* add chart-wide gradient configuration options ([#30095](https://github.com/lightdash/lightdash/issues/30095)) ([4ed19e1](https://github.com/lightdash/lightdash/commit/4ed19e1fa84d20fbc09cdc77240637c1cfe913f0))
+* expose gradient color scales in the chart SDK ([#30096](https://github.com/lightdash/lightdash/issues/30096)) ([da6a1e9](https://github.com/lightdash/lightdash/commit/da6a1e95cce8e5d8dcff940aeffde5cf33f601c2))
+* make gradient bounds controls optional ([#30106](https://github.com/lightdash/lightdash/issues/30106)) ([653e599](https://github.com/lightdash/lightdash/commit/653e599af064a3b9a7f48eccfb487a8b36010952))
+
 ## [2.358.1](https://github.com/lightdash/lightdash/compare/2.358.0...2.358.1) (2026-09-28)
 
 

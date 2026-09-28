@@ -5449,6 +5449,42 @@
                 "$ref": "#/components/schemas/Record_string.string-or-string-Array_",
                 "description": "Maps a viz field name to one query field id or an ordered collection."
             },
+            "DataAppVizGradientValue": {
+                "properties": {
+                    "max": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["auto"]
+                            }
+                        ]
+                    },
+                    "min": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["auto"]
+                            }
+                        ]
+                    },
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["max", "min", "colors"],
+                "type": "object"
+            },
             "DataAppVizOptionValue": {
                 "anyOf": [
                     {
@@ -5460,6 +5496,9 @@
                     },
                     {
                         "type": "string"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppVizGradientValue"
                     }
                 ],
                 "description": "A persisted config value; its shape is set by the option's declared `type`."
@@ -19880,6 +19919,33 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["color"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["default", "label", "name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "default": {
+                                "$ref": "#/components/schemas/DataAppVizGradientValue"
+                            },
+                            "showBounds": {
+                                "type": "boolean",
+                                "description": "Whether the config panel shows bounds controls; defaults to true."
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["gradient"],
                                 "nullable": false
                             }
                         },
@@ -67454,7 +67520,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.358.1",
+        "version": "2.359.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

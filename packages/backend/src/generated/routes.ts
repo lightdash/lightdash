@@ -5193,6 +5193,37 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string.string-or-string-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizGradientValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                max: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: ['auto'] },
+                    ],
+                    required: true,
+                },
+                min: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: ['auto'] },
+                    ],
+                    required: true,
+                },
+                colors: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizOptionValue: {
         dataType: 'refAlias',
         type: {
@@ -5201,6 +5232,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'boolean' },
                 { dataType: 'double' },
                 { dataType: 'string' },
+                { ref: 'DataAppVizGradientValue' },
             ],
             validators: {},
         },
@@ -18600,6 +18632,24 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['color'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        default: {
+                            ref: 'DataAppVizGradientValue',
+                            required: true,
+                        },
+                        showBounds: { dataType: 'boolean' },
+                        group: { dataType: 'string' },
+                        label: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['gradient'],
                             required: true,
                         },
                     },
