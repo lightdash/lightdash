@@ -161,3 +161,65 @@ describe('ActiveFilters metric tab visibility', () => {
         },
     );
 });
+
+describe('ActiveFilters saved filter on a field no tile offers', () => {
+    const hiddenFieldFilter: DashboardFilterRule = {
+        id: 'hidden-filter',
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['completed'],
+        label: undefined,
+    };
+
+    const setHiddenFieldContext = (
+        filterableFieldsByTileUuid:
+            | Record<string, DashboardFilterableField[]>
+            | undefined,
+    ) => {
+        setMetricFilterLocation('saved');
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardFilters: {
+                dimensions: [hiddenFieldFilter],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardTabs: [],
+            filterableFieldsByTileUuid,
+        };
+    };
+
+    const renderFilters = (isEditMode: boolean) =>
+        renderWithProviders(
+            <ActiveFilters
+                isEditMode={isEditMode}
+                activeTabUuid={undefined}
+                openPopoverId={undefined}
+                onPopoverOpen={vi.fn()}
+                onPopoverClose={vi.fn()}
+            />,
+        );
+
+    it('shows a locked chip with the rule and no editor for viewers', () => {
+        setHiddenFieldContext({ 'tile-1': [metricField] });
+        renderFilters(false);
+
+        const chip = screen.getByTestId('locked-dashboard-filter');
+        expect(chip).toHaveTextContent('orders_status is completed');
+        expect(
+            screen.queryByRole('button', { name: 'Remove filter' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Invalid filter')).not.toBeInTheDocument();
+    });
+
+    it('lets editors remove the locked filter', () => {
+        setHiddenFieldContext({ 'tile-1': [metricField] });
+        renderFilters(true);
+
+        screen.getByRole('button', { name: 'Remove filter' }).click();
+
+        expect(
+            mockDashboardContext.current.removeDimensionDashboardFilter,
+        ).toHaveBeenCalledWith(0, false);
+    });
+});
