@@ -41,3 +41,40 @@ test('gc reports one failed stale instance and still cleans the next instance', 
         process.stderr.write = write;
     }
 });
+
+test('automatic gc excludes its protected instance and re-reads candidates under lock', async () => {
+    const candidate = newInstance(
+        path.join(os.tmpdir(), `missing-candidate-${process.pid}`),
+        'a'.repeat(40),
+    );
+    const current = { ...candidate, worktree: process.cwd() };
+    const stale = newInstance(
+        path.join(os.tmpdir(), `missing-stale-${process.pid}`),
+        'a'.repeat(40),
+    );
+    const protectedInstance = newInstance(
+        path.join(os.tmpdir(), `missing-protected-${process.pid}`),
+        'a'.repeat(40),
+    );
+    const cleaned: string[] = [];
+    let reads = 0;
+    await garbageCollect(
+        '/unused',
+        false,
+        {
+            instances: async () => {
+                reads += 1;
+                return reads === 1
+                    ? [candidate, stale, protectedInstance]
+                    : [current, stale, protectedInstance];
+            },
+            down: async (instance) => {
+                cleaned.push(instance.id);
+            },
+            withLock: async (_name, work) => work(),
+            cleanupOrphans: async () => [],
+        },
+        protectedInstance.id,
+    );
+    assert.deepEqual(cleaned, [stale.id]);
+});

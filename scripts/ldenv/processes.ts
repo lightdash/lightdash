@@ -18,6 +18,7 @@ import {
     alive,
     withLock,
 } from './io';
+import { queueReadyGc } from './maintenance';
 import {
     assertInstance,
     backendMode,
@@ -687,6 +688,7 @@ export async function cheapReady(
     };
     instance.error = null;
     await saveInstance(instance);
+    await queueReadyGc(instance);
 }
 export function claimVerificationUpdate(
     current: Instance,
@@ -1056,6 +1058,7 @@ export async function finishStart(
             : null;
         if (inlineBackgroundVerification && !published) return;
         if (!inlineBackgroundVerification) await saveInstance(instance);
+        await queueReadyGc(published ?? instance);
         const env = await dotenv(
             path.join(instance.worktree, '.env.development.local'),
         );

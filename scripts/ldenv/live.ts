@@ -1,5 +1,6 @@
 import { apiProcessGeneration, bundleStatus } from './bundle-state';
 import { alive, saveInstance } from './io';
+import { queueReadyGc } from './maintenance';
 import type { Instance } from './model';
 import {
     health,
@@ -50,11 +51,20 @@ export async function instanceIsLive(
         (await apiProcessGeneration(instance, current, generationOperations))
     );
 }
+type ResumeOperations = {
+    instanceIsLive: typeof instanceIsLive;
+    saveInstance: typeof saveInstance;
+    alive: typeof alive;
+    cancelMonitor: typeof cancelMonitor;
+    stopProcesses: typeof stopProcesses;
+    queueReadyGc?: typeof queueReadyGc;
+};
+
 export async function resumeExistingInstance(
     instance: Instance,
     noWait: boolean,
     start: (instance: Instance, noWait: boolean) => Promise<Instance>,
-    operations = {
+    operations: ResumeOperations = {
         instanceIsLive,
         saveInstance,
         alive,
@@ -63,7 +73,10 @@ export async function resumeExistingInstance(
     },
 ): Promise<Instance> {
     if (instance.phase === 'ready') {
-        if (await operations.instanceIsLive(instance)) return instance;
+        if (await operations.instanceIsLive(instance)) {
+            await (operations.queueReadyGc ?? queueReadyGc)(instance);
+            return instance;
+        }
         await operations.cancelMonitor(instance);
         await operations.stopProcesses(instance, true);
         instance.phase = 'stopped';

@@ -24,6 +24,7 @@ import {
     start,
     up,
 } from './lifecycle';
+import { sweepStaleInstances } from './maintenance';
 import {
     backendMode,
     instanceId,
@@ -109,6 +110,15 @@ async function main(args: string[]): Promise<void> {
         return;
     }
     const root = await rootDirectory(target.worktree);
+    if (command === 'gc-stale') {
+        await sweepStaleInstances(
+            root,
+            args.includes('--exclude-instance')
+                ? option(args, '--exclude-instance', '')
+                : undefined,
+        );
+        return;
+    }
     if (command === 'parent') {
         if (subcommand === 'list') {
             process.stdout.write(
@@ -121,6 +131,7 @@ async function main(args: string[]): Promise<void> {
             return;
         }
         if (subcommand === 'build' || subcommand === 'refresh') {
+            if (subcommand === 'refresh') await sweepStaleInstances(root);
             const parent = await buildParent(
                 root,
                 option(args, '--ref', 'origin/main'),

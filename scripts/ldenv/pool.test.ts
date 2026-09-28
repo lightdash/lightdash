@@ -846,6 +846,7 @@ function fillFixture() {
         writeJson: f.operations.writeJson,
         parents: f.operations.parents,
         localSecrets: async () => ({}),
+        sweepStaleInstances: async () => {},
         retireStalePoolInstances: (parent, mode) =>
             retireStalePoolInstances(parent, stateOperations, mode),
         inspectReadySpares: (parent, mode) =>
@@ -887,6 +888,21 @@ test('fill retires an owned tsx spare before building the default bundle spare',
     assert.equal(f.builds(), 1);
     assert.equal(result.length, 1);
     assert.notEqual(result[0].id, f.spare.id);
+});
+
+test('fill sweeps stale records before acquiring its fill lock', async () => {
+    const f = fillFixture();
+    let swept = false;
+    f.operations.sweepStaleInstances = async () => {
+        swept = true;
+    };
+    const originalLock = f.operations.withLock;
+    f.operations.withLock = async (name, work, options) => {
+        if (name === 'pool-fill') assert(swept);
+        return originalLock(name, work, options);
+    };
+    await fillPool('/fixture/root', 1, f.operations);
+    assert(swept);
 });
 
 test('fill recounts the live registry after publication when a claim consumes an initial spare', async () => {

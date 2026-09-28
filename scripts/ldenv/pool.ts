@@ -31,6 +31,7 @@ import {
     up,
 } from './lifecycle';
 import { instanceIsLive } from './live';
+import { sweepStaleInstances } from './maintenance';
 import {
     assertInstance,
     backendMode,
@@ -232,6 +233,7 @@ const fillOperations = {
     writeJson,
     parents,
     localSecrets,
+    sweepStaleInstances,
     retireStalePoolInstances: (parent: string, mode: BackendMode) =>
         retireStalePoolInstances(parent, poolStateOperations, mode),
     inspectReadySpares: (parent: string, mode: BackendMode) =>
@@ -261,6 +263,7 @@ export async function fillPool(
         writeJson,
         parents,
         localSecrets,
+        sweepStaleInstances,
         retireStalePoolInstances,
         inspectReadySpares,
         diskGuard,
@@ -270,6 +273,7 @@ export async function fillPool(
         up,
         publishSpare,
     } = operations;
+    await sweepStaleInstances(root);
     return backgroundWork(() =>
         withLock('pool-fill', async () => {
             await yieldToForeground();

@@ -147,11 +147,14 @@ Tracing rewrites update that backup record without losing the original content.
 User and claimed worktrees remain. Detached ldenv-owned spare/warming worktrees
 are removed only after ownership and live-use checks.
 
-`gc --dry-run` lists missing registrations and eligible orphan warm/tool
-checkouts before deletion. `gc` skips a failed instance cleanup and reports why.
-It preserves branch-attached or edited worktrees, live process references, the
-active tool and its previous version. Claimed warm paths remain retained even
-after down. Run GC explicitly; an unrelated stale instance cannot block `up`.
+After READY, ldenv queues a background sweep of missing-instance registrations.
+Pool fills and parent refreshes also run that sweep before starting their work.
+The sweep logs cleanup failures and does not delay READY. Run `gc` explicitly to
+prune eligible orphan warm/tool checkouts. `gc --dry-run` lists missing
+registrations and eligible orphans before deletion. `gc` skips a failed instance
+cleanup and reports why. It preserves branch-attached or edited worktrees, live
+process references, the active tool and its previous version. Claimed warm paths
+remain retained even after down. An unrelated stale instance cannot block `up`.
 The shared PostgreSQL container and volume remain for parents and future clones.
 The shared `dev-ports.sh` probe suppresses lsof warnings, can use `ss` when lsof
 is absent, and stops with a probe error instead of treating inspection failure

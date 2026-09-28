@@ -783,17 +783,29 @@ export async function garbageCollect(
     root: string,
     sweepOrphans = false,
     operations = { instances, down, withLock, cleanupOrphans },
+    protectedId?: string,
 ): Promise<void> {
-    for (const instance of await operations.instances()) {
+    for (const candidate of await operations.instances()) {
         try {
-            assertInstance(instance);
-            if (!existsSync(instance.worktree))
-                await operations.withLock(instance.id, () =>
-                    operations.down(instance),
+            assertInstance(candidate);
+            if (candidate.id === protectedId || existsSync(candidate.worktree))
+                continue;
+            await operations.withLock(candidate.id, async () => {
+                const instance = (await operations.instances()).find(
+                    (item) => item.id === candidate.id,
                 );
+                if (
+                    !instance ||
+                    instance.id === protectedId ||
+                    existsSync(instance.worktree)
+                )
+                    return;
+                assertInstance(instance);
+                await operations.down(instance);
+            });
         } catch (error) {
             process.stderr.write(
-                `GC SKIPPED ${instance.id}: ${runner.redact(error instanceof Error ? error.message : String(error))}\n`,
+                `GC SKIPPED ${candidate.id}: ${runner.redact(error instanceof Error ? error.message : String(error))}\n`,
             );
         }
     }

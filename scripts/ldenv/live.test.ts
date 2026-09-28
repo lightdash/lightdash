@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { garbageCollect } from './lifecycle';
 import { instanceIsLive, resumeExistingInstance } from './live';
+import { sweepStaleInstances } from './maintenance';
 import { newInstance, type Instance } from './model';
 import type { ProcessInfo } from './processes';
 
@@ -84,10 +86,54 @@ test('up restarts stale ready state and never reports ready solely from disk', a
         await resumeExistingInstance(instance, true, start, {
             ...operations,
             instanceIsLive: async () => true,
+            queueReadyGc: async () => {},
         }),
         instance,
     );
     assert.equal(events.length, 4);
+});
+
+test('resuming a live ready instance queues protected stale-instance cleanup', async () => {
+    const active = newInstance('/fixture/resume-active', 'a'.repeat(40));
+    active.phase = 'ready';
+    const stale = newInstance('/fixture/resume-stale', 'a'.repeat(40));
+    const registry = [active, stale];
+    const cleaned: string[] = [];
+    let queued: (() => Promise<void>) | undefined;
+    const gcOperations = {
+        instances: async () => registry,
+        down: async (instance: Instance) => {
+            cleaned.push(instance.id);
+        },
+        withLock: async <T>(_name: string, work: () => Promise<T>) => work(),
+        cleanupOrphans: async () => [],
+    };
+    const queueReadyGc = async (instance: Instance) => {
+        queued = () =>
+            sweepStaleInstances('/unused', instance.id, {
+                backgroundWork: async (work) => work(),
+                garbageCollect: async (_root, _sweepOrphans, _operations, id) =>
+                    garbageCollect('/unused', false, gcOperations, id),
+            });
+    };
+    const start = async () => {
+        assert.fail('live ready instances do not restart');
+    };
+    assert.equal(
+        await resumeExistingInstance(active, false, start, {
+            instanceIsLive: async () => true,
+            saveInstance: async () => {},
+            alive: () => false,
+            cancelMonitor: async () => {},
+            stopProcesses: async () => {},
+            queueReadyGc,
+        }),
+        active,
+    );
+    assert.equal(cleaned.length, 0);
+    assert(queued);
+    await queued();
+    assert.deepEqual(cleaned, [stale.id]);
 });
 
 test('live bundle readiness rejects an old healthy child during rebuild and child changes during health', async () => {
