@@ -1383,6 +1383,70 @@ describe('buildPrepareStep worker isolation', () => {
         });
     });
 
+    it('asks Claude Sonnet 5.5 to call the tool instead of forcing tool choice', async () => {
+        const tools = {
+            loadAgentTools: getLoadAgentTools(),
+            exportChartAsCode: {} as never,
+            findContent: {} as never,
+        };
+        const gate = createIntentToolGate(tools, 'chart_export');
+        const args = buildAgentArgs();
+        args.model = {
+            modelId: 'claude-sonnet-5-5',
+        } as AiAgentArgs['model'];
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies: {
+                ...buildAgentDependencies(vi.fn()),
+                consumePromptSteers: vi.fn().mockResolvedValue([]),
+            },
+            tools: gate.tools,
+            mcpToolNames: [],
+            intentToolGate: gate,
+            logger: vi.fn(),
+            invalidToolCallIds: new Set(),
+        });
+
+        const first = await prepareStep({ stepNumber: 0, messages: [] });
+        expect(first).toMatchObject({
+            activeTools: ['exportChartAsCode'],
+        });
+        expect(first).not.toHaveProperty('toolChoice');
+        expect(JSON.stringify(first)).toContain(
+            'You must call the exportChartAsCode tool on this step.',
+        );
+    });
+
+    it('keeps prior messages when Sonnet 5.5 cannot force the hinted tool', async () => {
+        const args = buildAgentArgs();
+        args.forceToolHints = true;
+        args.toolHints = ['submitResearchReport'];
+        args.model = {
+            modelId: 'claude-sonnet-5-5',
+        } as AiAgentArgs['model'];
+        const history = [
+            { role: 'user' as const, content: 'Open the pull request' },
+        ];
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies: {
+                ...buildAgentDependencies(vi.fn()),
+                consumePromptSteers: vi.fn().mockResolvedValue([]),
+            },
+            tools: { submitResearchReport: {} as never },
+            mcpToolNames: [],
+            logger: vi.fn(),
+            invalidToolCallIds: new Set(),
+        });
+
+        const first = await prepareStep({ stepNumber: 0, messages: history });
+        expect(first).not.toHaveProperty('toolChoice');
+        expect(JSON.stringify(first)).toContain('Open the pull request');
+        expect(JSON.stringify(first)).toContain(
+            'You must call the submitResearchReport tool on this step.',
+        );
+    });
+
     it.each([
         ['data_app_create', 'generateDataApp'],
         ['data_app_iterate', 'iterateDataApp'],

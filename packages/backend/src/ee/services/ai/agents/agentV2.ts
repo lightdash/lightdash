@@ -60,6 +60,10 @@ import {
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import { createVizPlanner } from '../decisions/vizPlanner';
+import {
+    omitRejectedToolChoice,
+    withForcedToolNudge,
+} from '../models/forcedToolChoice';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
     getDeferredToolInstructions,
@@ -1453,27 +1457,37 @@ export const buildPrepareStep = ({
             steers.length === 0
                 ? compactChartDiscovery(messages)
                 : messages;
+        const modelId = args.model.modelId;
+        const stepToolChoice =
+            stepBudgetOverride?.toolChoice !== undefined
+                ? stepBudgetOverride.toolChoice
+                : forced.toolChoice;
+        const nudgeMessages = withForcedToolNudge([], stepToolChoice, modelId);
         if (
             stepMessages === messages &&
             extraMessages.length === 0 &&
             activeTools === undefined &&
-            stepBudgetOverride === undefined
+            stepBudgetOverride === undefined &&
+            nudgeMessages.length === 0
         ) {
             return forced;
         }
 
         const stepActiveTools = stepBudgetOverride?.activeTools ?? activeTools;
 
-        return {
-            ...forced,
-            ...(stepActiveTools !== undefined
-                ? { activeTools: stepActiveTools }
-                : {}),
-            ...(stepBudgetOverride?.toolChoice !== undefined
-                ? { toolChoice: stepBudgetOverride.toolChoice }
-                : {}),
-            messages: [...stepMessages, ...extraMessages],
-        };
+        return omitRejectedToolChoice(
+            {
+                ...forced,
+                ...(stepActiveTools !== undefined
+                    ? { activeTools: stepActiveTools }
+                    : {}),
+                ...(stepBudgetOverride?.toolChoice !== undefined
+                    ? { toolChoice: stepBudgetOverride.toolChoice }
+                    : {}),
+                messages: [...stepMessages, ...extraMessages, ...nudgeMessages],
+            },
+            modelId,
+        );
     };
 };
 

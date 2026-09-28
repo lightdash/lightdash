@@ -336,7 +336,7 @@ describe('getModel', () => {
         expect(openrouter.model.modelId).toBe('configured/model');
     });
 
-    it.each(['claude-opus-5', 'claude-opus-5-5'])(
+    it.each(['claude-opus-5', 'claude-opus-5-5', 'claude-sonnet-5-5'])(
         'resolves a pinned Bedrock inference-profile model id for %s',
         (modelName) => {
             const { model } = getModel(
@@ -528,6 +528,80 @@ describe('Opus model lifecycle', () => {
             );
         },
     );
+});
+
+describe('Sonnet model lifecycle', () => {
+    const config = {
+        ...baseCopilotConfig,
+        providers: {
+            anthropic: {
+                apiKey: 'test',
+                modelName: 'claude-sonnet-5',
+                customHeaders: {},
+                supportsStreaming: true,
+            },
+            bedrock: {
+                apiKey: 'test',
+                region: 'us-east-1',
+                modelName: 'claude-sonnet-5',
+                embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                customHeaders: {},
+                supportsStreaming: true,
+            },
+        },
+    };
+
+    it.each(['anthropic', 'bedrock'] as const)(
+        'resolves saved Sonnet 5 configurations and enables adaptive reasoning for Sonnet 5.5 on %s',
+        (provider) => {
+            const oldModel = getModel(config, { provider });
+            expect(oldModel.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-sonnet-5'
+                    : 'us.anthropic.claude-sonnet-5',
+            );
+            expect(oldModel.model.modelId).not.toBe('claude-sonnet-5-5');
+            const newModel = getModel(config, {
+                provider,
+                modelName: 'claude-sonnet-5-5',
+                enableReasoning: true,
+            });
+            expect(newModel.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-sonnet-5-5'
+                    : 'us.anthropic.claude-sonnet-5-5',
+            );
+            expect(newModel.callOptions.temperature).toBeUndefined();
+            expect(newModel.providerOptions).toMatchObject(
+                provider === 'anthropic'
+                    ? {
+                          anthropic: {
+                              thinking: { type: 'adaptive' },
+                              effort: 'medium',
+                          },
+                      }
+                    : {
+                          bedrock: {
+                              reasoningConfig: {
+                                  type: 'adaptive',
+                                  maxReasoningEffort: 'medium',
+                              },
+                          },
+                      },
+            );
+        },
+    );
+
+    it('marks Sonnet 5 deprecated and keeps Sonnet 5.5 selectable', () => {
+        const names = filterModelsForOrg(MODEL_PRESETS.anthropic, {
+            modelVisibility: null,
+            keyAccessibleModelIds: null,
+        })
+            .filter((preset) => !preset.deprecated)
+            .map((preset) => preset.name);
+        expect(names).toContain('claude-sonnet-5-5');
+        expect(names).not.toContain('claude-sonnet-5');
+    });
 });
 
 describe('OpenRouter model options', () => {

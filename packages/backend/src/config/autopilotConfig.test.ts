@@ -48,6 +48,8 @@ describe('Autopilot model qualification', () => {
         ['anthropic', 'claude-opus-5'],
         ['anthropic', 'claude-opus-4-8'],
         ['bedrock', 'us.anthropic.claude-opus-5'],
+        ['anthropic', 'claude-sonnet-5-5'],
+        ['bedrock', 'us.anthropic.claude-sonnet-5-5'],
         ['bedrock', 'anthropic.claude-sonnet-5'],
         ['openai', 'gpt-5.6-sol'],
         ['openai', 'gpt-5.5-2026-04-23'],

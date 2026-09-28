@@ -11,6 +11,7 @@ import { type z } from 'zod';
 import { aiCopilotConfigSchema } from '../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../config/parseConfig';
 import { getModel } from '../models';
+import { rejectsForcedToolChoice } from '../models/forcedToolChoice';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 import { getModelPreset } from '../models/presets';
 import {
@@ -443,6 +444,11 @@ export const runLlmFilterPermutationCase = async ({
     let toolCallCount = 0;
 
     try {
+        // Sonnet 5.5 rejects forced tool choice. The prompt already requires
+        // generateFilters, and activeTools keeps that the only callable tool.
+        const forceGenerateFilters = !rejectsForcedToolChoice(
+            modelOptions.model.modelId,
+        );
         const result = await generateText({
             ...modelOptions.callOptions,
             providerOptions: getProviderOptions(modelOptions.providerOptions),
@@ -452,10 +458,24 @@ export const runLlmFilterPermutationCase = async ({
                 lastAttemptErrors.length === 0 ||
                 attemptResults.length >= MAX_FILTER_PERMUTATION_ATTEMPTS ||
                 steps.length >= MAX_FILTER_PERMUTATION_ATTEMPTS,
-            toolChoice: { type: 'tool', toolName: 'generateFilters' },
+            ...(forceGenerateFilters
+                ? {
+                      toolChoice: {
+                          type: 'tool' as const,
+                          toolName: 'generateFilters',
+                      },
+                  }
+                : {}),
             prepareStep: () => ({
                 activeTools: ['generateFilters'],
-                toolChoice: { type: 'tool', toolName: 'generateFilters' },
+                ...(forceGenerateFilters
+                    ? {
+                          toolChoice: {
+                              type: 'tool' as const,
+                              toolName: 'generateFilters',
+                          },
+                      }
+                    : {}),
             }),
             onStepFinish: (step) => {
                 modelStepResults.push({
