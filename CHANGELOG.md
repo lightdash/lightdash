@@ -1,3 +1,10 @@
+## [2.352.5](https://github.com/lightdash/lightdash/compare/2.352.4...2.352.5) (2026-09-28)
+
+
+### Bug Fixes
+
+* **screenshots:** expand dashboard viewport before waiting for tiles to be ready ([#30068](https://github.com/lightdash/lightdash/issues/30068)) ([8917ab9](https://github.com/lightdash/lightdash/commit/8917ab993814b08bd3ae1a652c49a86fdc759250)), closes [#30061](https://github.com/lightdash/lightdash/issues/30061) [#29646](https://github.com/lightdash/lightdash/issues/29646) [#30069](https://github.com/lightdash/lightdash/issues/30069)
+
 ## [2.352.4](https://github.com/lightdash/lightdash/compare/2.352.3...2.352.4) (2026-09-28)
 
 
