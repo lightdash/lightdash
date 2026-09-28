@@ -1,5 +1,4 @@
 import {
-    getDataAppVizFieldIds,
     getErrorMessage,
     type DataAppVizContext,
     type DataAppVizSchema,
@@ -8,6 +7,7 @@ import { Button, Card, Group, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
+import DataAppVizFieldOptionSections from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldOptionSections';
 import DataAppVizOptionTabs from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionTabs';
 import { useDataAppVizTestContext } from '../hooks/useDataAppVizTestContext';
 import DataAppVizTestFieldOptions from './DataAppVizTestFieldOptions';
@@ -65,28 +65,24 @@ const DataAppVizTestPanel: FC<Props> = ({
                     resolvedColorPalette={colorPalette}
                     fields={schema.fields}
                     fieldMapping={state.fieldMapping}
-                    renderFieldOptions={(group) =>
-                        schema.fields.map(
-                            (field) =>
-                                (field.configOptions ?? []).some(
-                                    (option) => option.group === group,
-                                ) &&
-                                getDataAppVizFieldIds(
-                                    state.fieldMapping[field.name],
-                                ).length > 0 && (
-                                    <Stack key={field.name} gap="xs">
-                                        <Text fz="xs" fw={600}>
-                                            {field.label}
-                                        </Text>
-                                        <DataAppVizTestFieldOptions
-                                            field={field}
-                                            group={group}
-                                            state={state}
-                                        />
-                                    </Stack>
-                                ),
-                        )
-                    }
+                    renderFieldOptions={(group) => (
+                        <DataAppVizFieldOptionSections
+                            fields={schema.fields}
+                            fieldMapping={state.fieldMapping}
+                            group={group}
+                            renderFieldOptions={(
+                                field,
+                                _fieldIds,
+                                optionGroup,
+                            ) => (
+                                <DataAppVizTestFieldOptions
+                                    field={field}
+                                    group={optionGroup}
+                                    state={state}
+                                />
+                            )}
+                        />
+                    )}
                     paletteControl={
                         <PalettePicker
                             label="Color palette"

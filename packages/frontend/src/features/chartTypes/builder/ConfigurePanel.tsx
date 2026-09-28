@@ -12,6 +12,7 @@ import { useMemo, useState, type FC } from 'react';
 import OverflowTabsList from '../../../components/common/OverflowTabsList/OverflowTabsList';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizFieldOptions from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldOptions';
+import DataAppVizFieldOptionSections from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldOptionSections';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import { groupDataAppVizOptions } from '../../../components/VisualizationConfigs/DataAppVizConfig/dataAppVizOptionGroups';
@@ -150,43 +151,33 @@ const ConfigurePanel: FC<Props> = ({
     }, [schema.fields, previewContext, previewDataSource]);
 
     const renderFieldOptions = (group: string | null) =>
-        previewContext &&
-        schema.fields.map((field) => {
-            const fieldIds = getDataAppVizFieldIds(
-                previewContext.fieldMapping[field.name],
-            );
-            const hasOptions = (field.configOptions ?? []).some(
-                (option) => (option.group ?? null) === group,
-            );
-            return (
-                hasOptions &&
-                fieldIds.length > 0 && (
-                    <Stack key={field.name} gap="xs">
-                        <Text fz="xs" fw={600}>
-                            {field.label}
-                        </Text>
-                        <DataAppVizFieldOptions
-                            field={field}
-                            group={group}
-                            fieldIds={fieldIds}
-                            getFieldLabel={(fieldId) =>
-                                previewContext.fields[fieldId]?.label ?? fieldId
-                            }
-                            values={fieldOptionValues[field.name] ?? {}}
-                            colorPalette={resolvedColorPalette}
-                            onChange={(fieldId, optionName, value) =>
-                                onFieldOptionChange(
-                                    field.name,
-                                    fieldId,
-                                    optionName,
-                                    value,
-                                )
-                            }
-                        />
-                    </Stack>
-                )
-            );
-        });
+        previewContext && (
+            <DataAppVizFieldOptionSections
+                fields={schema.fields}
+                fieldMapping={previewContext.fieldMapping}
+                group={group}
+                renderFieldOptions={(field, fieldIds, optionGroup) => (
+                    <DataAppVizFieldOptions
+                        field={field}
+                        group={optionGroup}
+                        fieldIds={fieldIds}
+                        getFieldLabel={(fieldId) =>
+                            previewContext.fields[fieldId]?.label ?? fieldId
+                        }
+                        values={fieldOptionValues[field.name] ?? {}}
+                        colorPalette={resolvedColorPalette}
+                        onChange={(fieldId, optionName, value) =>
+                            onFieldOptionChange(
+                                field.name,
+                                fieldId,
+                                optionName,
+                                value,
+                            )
+                        }
+                    />
+                )}
+            />
+        );
 
     const [selectedTab, setSelectedTab] = useState<string | null>('general');
     // A tab a rebuild stopped declaring must not leave the panel blank.

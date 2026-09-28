@@ -4,7 +4,6 @@ import {
     diffDataAppVizSchema,
     FeatureFlags,
     getAppDisplayName,
-    getDataAppVizFieldIds,
     getEffectiveOptionValues,
     getItemId,
     getItemLabelWithoutTableName,
@@ -46,6 +45,7 @@ import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
 import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizFieldOptions from './DataAppVizFieldOptions';
+import DataAppVizFieldOptionSections from './DataAppVizFieldOptionSections';
 import DataAppVizInputGuidance from './DataAppVizInputGuidance';
 import DataAppVizLibraryUpgradeNotice from './DataAppVizLibraryUpgradeNotice';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
@@ -363,31 +363,14 @@ export const ConfigTabs: FC = memo(() => {
                     paletteControl={<ColorPaletteSection size="xs" />}
                     fields={fields}
                     fieldMapping={effectiveBindings}
-                    renderFieldOptions={(group) =>
-                        fields.map((field) => {
-                            const fieldIds = getDataAppVizFieldIds(
-                                effectiveBindings[field.name],
-                            );
-                            const hasOptions = (field.configOptions ?? []).some(
-                                (option) => (option.group ?? null) === group,
-                            );
-                            return (
-                                hasOptions &&
-                                fieldIds.length > 0 && (
-                                    <Stack key={field.name} gap="xs">
-                                        <Text fz="xs" fw={600}>
-                                            {field.label}
-                                        </Text>
-                                        {renderFieldOptions(
-                                            field,
-                                            fieldIds,
-                                            group,
-                                        )}
-                                    </Stack>
-                                )
-                            );
-                        })
-                    }
+                    renderFieldOptions={(group) => (
+                        <DataAppVizFieldOptionSections
+                            fields={fields}
+                            fieldMapping={effectiveBindings}
+                            group={group}
+                            renderFieldOptions={renderFieldOptions}
+                        />
+                    )}
                 />
             </>
         );

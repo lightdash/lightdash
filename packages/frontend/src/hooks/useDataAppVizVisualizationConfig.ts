@@ -256,6 +256,12 @@ const useDataAppVizVisualizationConfig = (
             const selected = configRef.current;
             if (selected === null || dataAppVizUuid !== selected.dataAppVizUuid)
                 return;
+            if (
+                !getDataAppVizFieldIds(
+                    selected.fieldMapping[fieldName],
+                ).includes(fieldId)
+            )
+                return;
             const byFieldId = selected.fieldOptionValues[fieldName] ?? {};
             commit({
                 ...selected,
