@@ -1,3 +1,11 @@
+# [2.353.0](https://github.com/lightdash/lightdash/compare/2.352.7...2.353.0) (2026-09-28)
+
+
+### Features
+
+* **documents:** edit documents in one WYSIWYG editor with charts as nodes ([#30051](https://github.com/lightdash/lightdash/issues/30051)) ([7ecb523](https://github.com/lightdash/lightdash/commit/7ecb52398d261eb54ce5af721dae02c6acc5ec28)), closes [#30039](https://github.com/lightdash/lightdash/issues/30039) [#29628](https://github.com/lightdash/lightdash/issues/29628) [#29633](https://github.com/lightdash/lightdash/issues/29633) [#29633](https://github.com/lightdash/lightdash/issues/29633)
+* **documents:** render the reading view through a read-only Tiptap editor ([#30039](https://github.com/lightdash/lightdash/issues/30039)) ([1f9384b](https://github.com/lightdash/lightdash/commit/1f9384bb6f3177f8078b93dc77863e5dd26dc1ed)), closes [#29628](https://github.com/lightdash/lightdash/issues/29628) [#29633](https://github.com/lightdash/lightdash/issues/29633)
+
 ## [2.352.7](https://github.com/lightdash/lightdash/compare/2.352.6...2.352.7) (2026-09-28)
 
 

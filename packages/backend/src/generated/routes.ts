@@ -61644,6 +61644,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_LightdashUser.userUuid-or-firstName-or-lastName-or-avatarUrl-or-avatarGradient_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    userUuid: { dataType: 'string', required: true },
+                    firstName: { dataType: 'string', required: true },
+                    lastName: { dataType: 'string', required: true },
+                    avatarUrl: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    avatarGradient: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___':
         {
             dataType: 'refAlias',
@@ -61804,22 +61834,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentSemanticChartContent: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                chart: { ref: 'SemanticChartAsCode', required: true },
-                source: {
-                    dataType: 'enum',
-                    enums: ['semantic'],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MergeChartAsCode: {
         dataType: 'refAlias',
         type: {
@@ -61837,25 +61851,33 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentMergeChartContent: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                chart: { ref: 'MergeChartAsCode', required: true },
-                source: { dataType: 'enum', enums: ['merge'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DocumentChartContent: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
             subSchemas: [
-                { ref: 'DocumentSemanticChartContent' },
-                { ref: 'DocumentMergeChartContent' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chart: { ref: 'SemanticChartAsCode', required: true },
+                        source: {
+                            dataType: 'enum',
+                            enums: ['semantic'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chart: { ref: 'MergeChartAsCode', required: true },
+                        source: {
+                            dataType: 'enum',
+                            enums: ['merge'],
+                            required: true,
+                        },
+                    },
+                },
             ],
             validators: {},
         },
@@ -61961,6 +61983,16 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         version: { ref: 'DocumentVersion', required: true },
+                        createdBy: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    ref: 'Pick_LightdashUser.userUuid-or-firstName-or-lastName-or-avatarUrl-or-avatarGradient_',
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                     },
                 },
             ],
