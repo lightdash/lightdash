@@ -31,6 +31,7 @@ import {
     type Instance,
 } from './model';
 import { claimSpare, fillPool, poolSettings } from './pool';
+import { waitForInstance } from './wait';
 import {
     cancelMonitor,
     currentState,
@@ -46,6 +47,7 @@ ldenv [--worktree PATH] new <branch> [--base origin/main] [--backend bundle|tsx]
 ldenv pool fill [--size 1]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
 ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing] [--backend bundle|tsx]
+ldenv wait [--timeout S] [--verified]
 ldenv down [--dry-run] | stop | start [--no-wait] [--backend bundle|tsx] | status [--json] | gc [--dry-run] | doctor
 Backend defaults to bundle for new instances; use --backend tsx or LDENV_BACKEND=tsx for fallback.`;
 function option(args: string[], name: string, fallback: string): string {
@@ -225,6 +227,26 @@ async function main(args: string[]): Promise<void> {
             );
         }
         process.stdout.write(`${JSON.stringify(checks, null, 2)}\n`);
+        return;
+    }
+    if (command === 'wait') {
+        const result = await waitForInstance(
+            instanceId(root),
+            Number(option(args, '--timeout', '120')),
+            args.includes('--verified'),
+        );
+        if (result.state === 'ready') {
+            const ports = result.instance.ports;
+            if (!ports) throw new Error('Ready instance has no ports');
+            process.stdout.write(
+                `FRONTEND: http://localhost:${ports.frontend}\nAPI: http://localhost:${ports.api}\nLOGIN: demo@lightdash.com\n`,
+            );
+            return;
+        }
+        process.stderr.write(
+            `ldenv wait: ${result.state === 'timeout' ? 'timed out' : result.error}\n`,
+        );
+        process.exitCode = result.state === 'timeout' ? 2 : 1;
         return;
     }
     const instance = await currentState(instanceId(root));
