@@ -47,9 +47,16 @@ const watcher = chokidar.watch('./src/**/controllers/**/*.ts', {
     followSymlinks: false,
     ignored: ['**/node_modules/**', '**/*.test.ts'],
 });
-watcher.on('ready', () => record('settled'));
+let ready = false;
+const isController = (file) =>
+    file.endsWith('.ts') && !file.endsWith('.test.ts');
+watcher.on('ready', () => {
+    ready = true;
+    record('settled');
+});
 watcher.on('error', () => record('failed'));
-watcher.on('all', () => {
+watcher.on('all', (event, file) => {
+    if (!ready || !isController(file)) return;
     record('building');
     clearTimeout(timer);
     timer = setTimeout(run, 300);
