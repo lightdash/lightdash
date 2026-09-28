@@ -34,7 +34,9 @@ test('screenshot options keep route and image settings separate', () => {
             height: 768,
         },
     );
-    assert.throws(() => screenshotOptions(['screenshot', 'https://example.com']));
+    assert.throws(() =>
+        screenshotOptions(['screenshot', 'https://example.com']),
+    );
     assert.throws(() => screenshotOptions(['screenshot', '//example.com']));
     assert.throws(() => screenshotOptions(['screenshot', '--width', '10']));
 });

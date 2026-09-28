@@ -476,19 +476,23 @@ export async function checkBasicReady(instance: Instance): Promise<void> {
     );
     instance.timings.backendHealth = Date.now() - started;
     const frontendStarted = Date.now();
-    await waitUntil(async () => {
-        try {
-            const response = await fetch(
-                `http://localhost:${instance.ports!.frontend}/`,
-                { signal: AbortSignal.timeout(2000) },
-            );
-            if (!response.ok) return false;
-            await response.arrayBuffer();
-            return true;
-        } catch {
-            return false;
-        }
-    }, 120000, 'frontend response');
+    await waitUntil(
+        async () => {
+            try {
+                const response = await fetch(
+                    `http://localhost:${instance.ports!.frontend}/`,
+                    { signal: AbortSignal.timeout(2000) },
+                );
+                if (!response.ok) return false;
+                await response.arrayBuffer();
+                return true;
+            } catch {
+                return false;
+            }
+        },
+        120000,
+        'frontend response',
+    );
     instance.timings.frontendResponse = Date.now() - frontendStarted;
 }
 export async function checkPaintReady(instance: Instance): Promise<void> {
@@ -1071,8 +1075,7 @@ export async function finishStart(
         });
         const watcherStarted = Date.now();
         const compilers =
-            instance.timings.watchersLaunch &&
-            !instance.timings.watchersSettle
+            instance.timings.watchersLaunch && !instance.timings.watchersSettle
                 ? waitForCompilers(instance).then(() => {
                       instance.timings.watchersWait =
                           Date.now() - watcherStarted;

@@ -81,10 +81,7 @@ import {
     seedProjectUuid,
     stopProcesses,
 } from './processes';
-import {
-    canStartApiAlongsideWatchers,
-    waitForCompilers,
-} from './readiness';
+import { canStartApiAlongsideWatchers, waitForCompilers } from './readiness';
 import { populateViteCache, restoreViteCache } from './vite';
 
 export const controlRoot = path.resolve(__dirname, '../..');

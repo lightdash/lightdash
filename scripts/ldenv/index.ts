@@ -31,8 +31,6 @@ import {
     type Instance,
 } from './model';
 import { claimSpare, fillPool, poolSettings } from './pool';
-import { screenshot, screenshotOptions } from './screenshot';
-import { waitForInstance } from './wait';
 import {
     cancelMonitor,
     currentState,
@@ -42,6 +40,8 @@ import {
     verifyClaim,
     verifyPaint,
 } from './processes';
+import { screenshot, screenshotOptions } from './screenshot';
+import { waitForInstance } from './wait';
 
 const help = `ldenv install
 ldenv [--worktree PATH] new <branch> [--base origin/main] [--backend bundle|tsx]
@@ -288,7 +288,9 @@ async function main(args: string[]): Promise<void> {
             'No ldenv instance in this worktree; run ~/.ldenv/bin/ldenv up',
         );
     if (command === 'screenshot') {
-        process.stdout.write(`${await screenshot(instance, screenshotOptions(args))}\n`);
+        process.stdout.write(
+            `${await screenshot(instance, screenshotOptions(args))}\n`,
+        );
         return;
     }
     await withLock(instance.id, async () => {

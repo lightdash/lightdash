@@ -1,8 +1,8 @@
 import { mkdtemp } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { bridge } from './processes';
 import type { Instance } from './model';
+import { bridge } from './processes';
 
 export type ScreenshotOptions = {
     route: string;
@@ -15,7 +15,10 @@ export type ScreenshotOptions = {
 
 export function screenshotOptions(args: string[]): ScreenshotOptions {
     const positional = args.slice(1).filter((value, index, values) => {
-        if (index > 0 && ['--out', '--width', '--height'].includes(values[index - 1]))
+        if (
+            index > 0 &&
+            ['--out', '--width', '--height'].includes(values[index - 1])
+        )
             return false;
         return !value.startsWith('--');
     });
@@ -60,7 +63,10 @@ export async function screenshot(
         throw new Error('Instance is not ready');
     const out =
         options.out ??
-        path.join(await mkdtemp(path.join(os.tmpdir(), 'ldenv-shot-')), 'page.png');
+        path.join(
+            await mkdtemp(path.join(os.tmpdir(), 'ldenv-shot-')),
+            'page.png',
+        );
     await bridge(instance, 'screenshot', {
         LDENV_SCREENSHOT_FRONTEND_PORT: String(instance.ports.frontend),
         LDENV_SCREENSHOT_API_PORT: String(instance.ports.api),

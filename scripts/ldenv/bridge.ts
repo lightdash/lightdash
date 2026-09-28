@@ -192,15 +192,20 @@ async function screenshot(root: string): Promise<void> {
         });
         try {
             if (!options.signedOut) {
-                const response = await context.request.post(`${api}/api/v1/login`, {
-                    data: {
-                        email: 'demo@lightdash.com',
-                        password: 'demo_password!',
+                const response = await context.request.post(
+                    `${api}/api/v1/login`,
+                    {
+                        data: {
+                            email: 'demo@lightdash.com',
+                            password: 'demo_password!',
+                        },
+                        timeout: 10000,
                     },
-                    timeout: 10000,
-                });
+                );
                 if (!response.ok())
-                    throw new Error(`Dev sign-in failed (HTTP ${response.status()})`);
+                    throw new Error(
+                        `Dev sign-in failed (HTTP ${response.status()})`,
+                    );
             }
             const page = await context.newPage();
             await page.goto(`${frontend}${options.route}`, {
@@ -248,7 +253,7 @@ const work =
           ? paint(root)
           : operation === 'screenshot'
             ? screenshot(root)
-          : Promise.reject(new Error('Unknown bridge command'));
+            : Promise.reject(new Error('Unknown bridge command'));
 work.catch((error: unknown) => {
     runner.protect(
         Object.fromEntries(
