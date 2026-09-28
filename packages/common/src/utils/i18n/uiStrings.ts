@@ -20,7 +20,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.boundaries.completedDate':
         'Choose dates within the last {value} completed {unit}.',
     'filters.boundaries.invalidConfiguration':
-        'The filter boundaries are invalid. Ask the dashboard author to correct them.',
+        'The filter boundaries are invalid.',
     'filters.boundaries.selectionRequired':
         'Choose valid filter values within the permitted boundaries before refreshing.',
 

@@ -383,7 +383,7 @@
         "filters.boundaries.fixedDate": "Elige fechas entre {start} y {end}.",
         "filters.boundaries.relativeDate": "Elige fechas dentro de los últimos {value} {unit}.",
         "filters.boundaries.completedDate": "Elige fechas dentro de los últimos {value} {unit} completos.",
-        "filters.boundaries.invalidConfiguration": "Los límites del filtro no son válidos. Pide al autor del panel que los corrija.",
+        "filters.boundaries.invalidConfiguration": "Los límites del filtro no son válidos.",
         "filters.boundaries.selectionRequired": "Elige valores de filtro válidos dentro de los límites permitidos antes de actualizar."
     }
 }

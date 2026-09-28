@@ -383,7 +383,7 @@
         "filters.boundaries.fixedDate": "აირჩიეთ თარიღები {start}-დან {end}-მდე.",
         "filters.boundaries.relativeDate": "აირჩიეთ თარიღები ბოლო {value} {unit}-ის ფარგლებში.",
         "filters.boundaries.completedDate": "აირჩიეთ თარიღები ბოლო {value} დასრულებული {unit}-ის ფარგლებში.",
-        "filters.boundaries.invalidConfiguration": "ფილტრის საზღვრები არასწორია. სთხოვეთ დაფის ავტორს მათი შესწორება.",
+        "filters.boundaries.invalidConfiguration": "ფილტრის საზღვრები არასწორია.",
         "filters.boundaries.selectionRequired": "განახლებამდე აირჩიეთ ფილტრის დასაშვები მნიშვნელობები მითითებულ საზღვრებში."
     }
 }
