@@ -7,7 +7,14 @@ export type DataAppVizConfigOptionType =
     | 'select'
     | 'number'
     | 'text'
-    | 'color';
+    | 'color'
+    | 'gradient';
+
+export type DataAppVizGradientValue = {
+    colors: string[];
+    min: number | 'auto';
+    max: number | 'auto';
+};
 
 // A whole-viz config option rendered as a form control; `group` is an optional tab label.
 export type DataAppVizConfigOption =
@@ -48,10 +55,21 @@ export type DataAppVizConfigOption =
           label: string;
           group?: string;
           default: string;
+      }
+    | {
+          type: 'gradient';
+          name: string;
+          label: string;
+          group?: string;
+          default: DataAppVizGradientValue;
       };
 
 /** A persisted config value; its shape is set by the option's declared `type`. */
-export type DataAppVizOptionValue = boolean | number | string;
+export type DataAppVizOptionValue =
+    | boolean
+    | number
+    | string
+    | DataAppVizGradientValue;
 
 /**
  * Declared by a viz that colours from the resolved Lightdash palette. Not a

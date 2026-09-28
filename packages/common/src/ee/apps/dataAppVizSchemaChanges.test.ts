@@ -214,3 +214,46 @@ describe('diffDataAppVizSchema', () => {
         ).toBe(true);
     });
 });
+
+it('compares gradient defaults structurally after persistence', () => {
+    const schema: DataAppVizSchema = {
+        ...base,
+        configOptions: [
+            {
+                type: 'gradient',
+                name: 'scale',
+                label: 'Scale',
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 100,
+                },
+            },
+        ],
+    };
+    expect(
+        hasDataAppVizSchemaChanges(
+            diffDataAppVizSchema(schema, JSON.parse(JSON.stringify(schema))),
+        ),
+    ).toBe(false);
+    for (const defaultValue of [
+        { colors: ['#ffffff', '#000000'], min: 'auto' as const, max: 100 },
+        { colors: ['#000000', '#ffffff'], min: 0, max: 100 },
+        { colors: ['#000000', '#ffffff'], min: 'auto' as const, max: 200 },
+    ]) {
+        const updated: DataAppVizSchema = {
+            ...schema,
+            configOptions: [
+                {
+                    type: 'gradient',
+                    name: 'scale',
+                    label: 'Scale',
+                    default: defaultValue,
+                },
+            ],
+        };
+        expect(
+            diffDataAppVizSchema(schema, updated).configOptions.changed,
+        ).toHaveLength(1);
+    }
+});

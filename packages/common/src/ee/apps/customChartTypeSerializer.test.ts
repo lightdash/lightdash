@@ -227,3 +227,27 @@ describe('serializeCustomChartTypeSchema', () => {
         ).toBe(serializeCustomChartTypeSchema(minimal));
     });
 });
+
+it('serializes gradient fixed colors and bounds for the agent', () => {
+    const value = {
+        colors: ['#000000', '#ffffff'],
+        min: 'auto' as const,
+        max: 100,
+    };
+    expect(
+        serializeCustomChartTypeSchema({
+            ...cohortWaterfall,
+            schema: {
+                ...cohortWaterfall.schema,
+                configOptions: [
+                    {
+                        type: 'gradient',
+                        name: 'scale',
+                        label: 'Scale',
+                        default: value,
+                    },
+                ],
+            },
+        }),
+    ).toContain(`- scale "Scale" [gradient] default: ${JSON.stringify(value)}`);
+});

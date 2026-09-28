@@ -8,6 +8,8 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBaseTransformed,
     DataAppVizConfigOption,
+    dataAppVizGradientValueSchema,
+    DataAppVizOptionValue,
     DataAppVizSchema,
     dateFilterSchema,
     DEFAULT_FILTER_CASE_SENSITIVE,
@@ -1602,10 +1604,14 @@ export type CustomChartTypeSelectedFields = {
 
 const getOptionValidationError = (
     declaration: DataAppVizConfigOption,
-    value: string | number | boolean,
+    value: DataAppVizOptionValue,
 ): string | null => {
     const received = JSON.stringify(value);
     switch (declaration.type) {
+        case 'gradient':
+            return dataAppVizGradientValueSchema.safeParse(value).success
+                ? null
+                : `Option "${declaration.name}" (gradient) expects 2–5 hex colors (3, 6, or 8 digits) and finite numeric or "auto" min/max bounds, received ${received}.`;
         case 'boolean':
             return typeof value !== 'boolean'
                 ? `Option "${declaration.name}" (boolean) expects true or false, received ${received}.`
