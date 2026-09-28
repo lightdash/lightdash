@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { parse } from 'smol-toml';
+import { instanceDatabase } from './namespace';
 import type { ViteCacheReport } from './vite-cache';
 
 export type Environment = Record<string, string>;
@@ -62,6 +63,14 @@ export type Parent = {
 export type Instance = {
     processStartedAt?: string;
     viteCache?: ViteCacheReport;
+    readyWorktree?: {
+        branch: string;
+        head: string;
+        parentBuiltAt: string;
+        publication?: 'pending' | 'published';
+        retiring?: { branch: string; at: string; hiddenAt?: string };
+    };
+    claim?: { at: string; reason: string; pid: number | null };
     kind: 'worktree' | 'warming' | 'spare' | 'claimed';
     id: string;
     worktree: string;
@@ -301,7 +310,7 @@ export function dotenvText(env: Environment): string {
 export function assertInstance(instance: Instance): void {
     if (
         instance.id !== instanceId(instance.worktree) ||
-        instance.database !== `ld_${instance.id}` ||
+        instance.database !== instanceDatabase(instance.id) ||
         !path.isAbsolute(instance.worktree) ||
         !/^[a-f0-9]{40}$/.test(instance.parent)
     )
@@ -320,7 +329,7 @@ export function newInstance(
         id,
         worktree: root,
         parent,
-        database: `ld_${id}`,
+        database: instanceDatabase(id),
         ports: null,
         phase: 'preparing',
         createdAt: now,

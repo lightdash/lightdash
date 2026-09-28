@@ -2,6 +2,7 @@ import { apiProcessGeneration, bundleStatus } from './bundle-state';
 import { alive, saveInstance } from './io';
 import { queueReadyGc } from './maintenance';
 import type { Instance } from './model';
+import { processName } from './namespace';
 import {
     health,
     ownedProcesses,
@@ -24,14 +25,16 @@ export async function instanceIsLive(
         !['api', 'frontend'].every((suffix) =>
             processes.some(
                 (item) =>
-                    item.name === `${instance.id}-${suffix}` &&
+                    item.name === processName(instance.id, suffix) &&
                     item.pm2_env.status === 'online' &&
                     operations.alive(item.pid),
             ),
         )
     )
         return false;
-    const api = processes.find((item) => item.name === `${instance.id}-api`);
+    const api = processes.find(
+        (item) => item.name === processName(instance.id, 'api'),
+    );
     const generationOperations = {
         alive: operations.alive,
         bundleStatus: operations.bundleStatus ?? bundleStatus,
@@ -44,7 +47,7 @@ export async function instanceIsLive(
     if (!generation || !(await operations.health(instance.ports.api)))
         return false;
     const current = (await operations.ownedProcesses(instance)).find(
-        (item) => item.name === `${instance.id}-api`,
+        (item) => item.name === processName(instance.id, 'api'),
     );
     return (
         generation ===

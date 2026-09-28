@@ -145,7 +145,15 @@ test('cleanup refuses symlinks and parses locked worktrees with spaced paths', a
         worktreeRecords(
             'worktree /tmp/a b\0HEAD abc\0detached\0locked reason\0\0',
         ),
-        [{ directory: '/tmp/a b', detached: true, locked: true }],
+        [
+            {
+                directory: '/tmp/a b',
+                detached: true,
+                locked: true,
+                branch: undefined,
+                head: 'abc',
+            },
+        ],
     );
     const base = await realpath(
         await mkdtemp(path.join(os.tmpdir(), 'ldenv-cleanup-link-')),

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AsyncLocalStorage } from 'node:async_hooks';
+import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -129,6 +129,7 @@ function fixture(name = '12345678-abc') {
         processPriority: async (_instance, low) => {
             events.push(`priority ${low}`);
         },
+        protectReadyWorktree: async () => false,
         saveInstance: async (instance) => {
             events.push(`save ${instance.kind} ${instance.phase}`);
             saved.push(structuredClone(instance));
@@ -209,6 +210,20 @@ function fixture(name = '12345678-abc') {
             claimInstance('/fixture/root', 'feature/test', 'HEAD', operations),
     };
 }
+
+const retirementTestHooks = {
+    hideReadySpare: async (instance: Instance) => {
+        if (instance.readyWorktree)
+            instance.readyWorktree.retiring ??= {
+                branch: `ldenv-retiring/${instance.readyWorktree.branch.slice('ready/'.length)}`,
+                at: new Date().toISOString(),
+                hiddenAt: new Date().toISOString(),
+            };
+        return Boolean(instance.readyWorktree);
+    },
+    waitForGrace: async () => {},
+    assertOwnedWarmForTeardown: async () => {},
+};
 
 test('claim rejects a checked-out branch before reserving a spare and schedules refill', async () => {
     const f = fixture();
@@ -356,6 +371,38 @@ test('spare publication does not resurrect an instance changed while waiting', a
     }
 });
 
+test('publication rejects a refreshed parent generation before creating a ready branch', async () => {
+    const f = fixture();
+    f.spare.kind = 'warming';
+    const parent = (await f.operations.parents())[0];
+    const refreshed = {
+        ...parent,
+        builtAt: new Date(Date.parse(parent.builtAt) + 1000).toISOString(),
+    };
+    let saved = false;
+    await assert.rejects(
+        publishSpare(
+            f.spare,
+            {
+                withLock: f.operations.withLock,
+                instances: async () => [f.spare],
+                saveInstance: async () => {
+                    saved = true;
+                },
+                down: f.operations.down,
+                alive: () => false,
+                parents: async () => [refreshed],
+            },
+            parent.builtAt,
+            { sha: parent.sha, builtAt: parent.builtAt },
+        ),
+        /Parent generation changed/,
+    );
+    assert.equal(saved, false);
+    assert.equal(f.spare.kind, 'warming');
+    assert.equal(f.spare.readyWorktree, undefined);
+});
+
 test('pool retirement catches abandoned warming-ready instances but preserves live monitors and active claims', async () => {
     const f = fixture();
     const abandoned = structuredClone(f.spare);
@@ -370,6 +417,7 @@ test('pool retirement catches abandoned warming-ready instances but preserves li
     const claimed = { ...abandoned, id: 'claimed', kind: 'claimed' as const };
     const retired: string[] = [];
     await retireStalePoolInstances(f.spare.parent, {
+        ...retirementTestHooks,
         withLock: mutex().withLock,
         instances: async () => [
             abandoned,
@@ -389,7 +437,171 @@ test('pool retirement catches abandoned warming-ready instances but preserves li
     assert.deepEqual(retired, [abandoned.id, 'dead']);
 });
 
-test('slow stale teardown leaves the pool available for claims and publication', async () => {
+test('same-SHA parent refresh retires only old named spares and checks user activity before teardown', async () => {
+    const f = fixture();
+    const parent = (await f.operations.parents())[0];
+    const old = structuredClone(f.spare);
+    old.readyWorktree = {
+        branch: 'ready/aaaaaaa-oldoldoldold',
+        head: parent.sha,
+        parentBuiltAt: '2026-09-27T00:00:00.000Z',
+    };
+    const current = structuredClone(f.spare);
+    current.id = 'current';
+    current.worktree = '/fixture/current';
+    current.readyWorktree = {
+        branch: 'ready/aaaaaaa-newnewnewnew',
+        head: parent.sha,
+        parentBuiltAt: parent.builtAt,
+    };
+    const registry = [old, current];
+    const retired: string[] = [];
+    let protectedOld = false;
+    const operations = {
+        ...retirementTestHooks,
+        withLock: f.operations.withLock,
+        instances: async () => registry,
+        saveInstance: async () => {},
+        down: async (instance: Instance) => {
+            retired.push(instance.id);
+        },
+        alive: () => false,
+        spareBackendMode: async () => 'bundle' as const,
+        protectReadyWorktree: async (instance: Instance) => {
+            if (instance.id === old.id && protectedOld) {
+                instance.kind = 'claimed';
+                return true;
+            }
+            return false;
+        },
+    };
+    await retireStalePoolInstances(
+        parent.sha,
+        operations,
+        'bundle',
+        parent.builtAt,
+    );
+    assert.deepEqual(retired, [old.id]);
+    assert.equal(current.phase, 'ready');
+    retired.length = 0;
+    old.kind = 'spare';
+    old.phase = 'ready';
+    protectedOld = true;
+    await retireStalePoolInstances(
+        parent.sha,
+        operations,
+        'bundle',
+        parent.builtAt,
+    );
+    assert.deepEqual(retired, []);
+    assert.equal(old.kind, 'claimed');
+});
+
+test('an agent entering during retirement grace is claimed before runtime teardown', async () => {
+    const f = fixture();
+    const parent = (await f.operations.parents())[0];
+    f.spare.readyWorktree = {
+        branch: 'ready/aaaaaaa-oldoldoldold',
+        head: parent.sha,
+        parentBuiltAt: '2026-09-27T00:00:00.000Z',
+        publication: 'published',
+    };
+    let activity = false;
+    let downCalled = false;
+    await retireStalePoolInstances(
+        parent.sha,
+        {
+            withLock: f.operations.withLock,
+            instances: async () => [f.spare],
+            saveInstance: async () => {},
+            down: async () => {
+                downCalled = true;
+            },
+            alive: () => false,
+            spareBackendMode: async () => 'bundle',
+            protectReadyWorktree: async (instance) => {
+                if (!activity) return false;
+                instance.kind = 'claimed';
+                return true;
+            },
+            hideReadySpare: async (instance: Instance) => {
+                instance.readyWorktree!.retiring = {
+                    branch: 'ldenv-retiring/aaaaaaa-oldoldoldold',
+                    at: new Date().toISOString(),
+                    hiddenAt: new Date().toISOString(),
+                };
+                return true;
+            },
+            waitForGrace: async () => {
+                activity = true;
+            },
+            assertOwnedWarmForTeardown: async () => {},
+        },
+        'bundle',
+        parent.builtAt,
+    );
+    assert.equal(downCalled, false);
+    assert.equal(f.spare.kind, 'claimed');
+    assert.equal(f.spare.phase, 'ready');
+});
+
+test('foreground claim cannot make background retirement wait on itself', async () => {
+    const f = fixture();
+    f.spare.kind = 'warming';
+    const locks = mutex();
+    const shared = new AsyncLocalStorage<boolean>();
+    const foreground = new AsyncResource('foreground-claim');
+    const escape = deferred();
+    const withSharedLock: typeof locks.withLock = (name, work, options) =>
+        locks.withLock(
+            name,
+            () =>
+                shared.run(name === 'pool' || Boolean(shared.getStore()), work),
+            options,
+        );
+    let claim: Promise<void> | null = null;
+    const retirement = retireStalePoolInstances(f.spare.parent, {
+        ...retirementTestHooks,
+        withLock: withSharedLock,
+        instances: async () => [f.spare],
+        saveInstance: async () => {},
+        alive: () => false,
+        spareBackendMode: async () => 'bundle',
+        down: async () => {
+            claim = foreground.runInAsyncScope(() =>
+                withSharedLock('pool', () =>
+                    withSharedLock(f.spare.id, async () => {}),
+                ),
+            );
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            if (!shared.getStore()) await Promise.race([claim, escape.promise]);
+        },
+    });
+    let timedOut = false;
+    try {
+        await Promise.race([
+            retirement,
+            new Promise<never>((_, reject) =>
+                setTimeout(
+                    () => reject(new Error('retirement deadlocked')),
+                    200,
+                ),
+            ),
+        ]);
+    } catch {
+        timedOut = true;
+        escape.resolve();
+        await retirement;
+    }
+    if (claim) await claim;
+    assert.equal(
+        timedOut,
+        false,
+        'background down waited for a claim blocked on its instance lock',
+    );
+});
+
+test('retirement grace leaves the pool available, then teardown holds pool before instance', async () => {
     const f = fixture();
     const stale = fixture('abcdef01-234').spare;
     stale.kind = 'warming';
@@ -398,9 +610,16 @@ test('slow stale teardown leaves the pool available for claims and publication',
     warming.monitorPid = 123;
     const registry = [f.spare, stale, warming];
     const locks = mutex();
+    const graceEntered = deferred();
+    const graceRelease = deferred();
     const entered = deferred();
     const release = deferred();
     const operations = {
+        ...retirementTestHooks,
+        waitForGrace: async () => {
+            graceEntered.resolve();
+            await graceRelease.promise;
+        },
         withLock: locks.withLock,
         instances: async () => registry,
         saveInstance: f.operations.saveInstance,
@@ -414,23 +633,26 @@ test('slow stale teardown leaves the pool available for claims and publication',
     };
     const teardown = retireStalePoolInstances(f.spare.parent, operations);
     try {
-        await entered.promise;
-        assert.equal(stale.phase, 'failed');
+        await graceEntered.promise;
         assert.equal(locks.held.has('pool'), false);
-        assert.equal(locks.held.has(stale.id), true);
         f.operations.withLock = locks.withLock;
         f.operations.instances = operations.instances;
         assert.equal((await f.claim()).id, f.spare.id);
         await publishSpare(warming, operations);
         assert.equal(warming.kind, 'spare');
+        graceRelease.resolve();
+        await entered.promise;
+        assert.equal(stale.phase, 'failed');
+        assert.equal(locks.held.has('pool'), true);
         assert.equal(locks.held.has(stale.id), true);
     } finally {
+        graceRelease.resolve();
         release.resolve();
         await teardown;
     }
 });
 
-test('stale teardown rechecks generation and state after releasing the pool lock', async () => {
+test('stale teardown rechecks generation and state after grace under the pool lock', async () => {
     for (const change of ['missing', 'phase', 'epoch', 'updated', 'kind']) {
         const f = fixture();
         f.spare.kind = 'warming';
@@ -439,12 +661,13 @@ test('stale teardown rechecks generation and state after releasing the pool lock
         let acquired = 0;
         let removed = false;
         await retireStalePoolInstances(f.spare.parent, {
+            ...retirementTestHooks,
             withLock: async (name, work, options) => {
                 if (name === f.spare.id && ++acquired === 2) {
-                    assert.equal(locks.held.has('pool'), false);
-                    assert.equal(f.spare.phase, 'failed');
+                    assert.equal(locks.held.has('pool'), true);
+                    assert.equal(f.spare.phase, 'ready');
                     const changed = structuredClone(f.spare);
-                    if (change === 'phase') changed.phase = 'ready';
+                    if (change === 'phase') changed.phase = 'starting';
                     if (change === 'epoch') changed.startedAt = 'another-start';
                     if (change === 'updated')
                         changed.updatedAt = 'another-write';
@@ -823,6 +1046,8 @@ function fillFixture() {
     const removed: string[] = [];
     let builds = 0;
     const stateOperations = {
+        ...retirementTestHooks,
+        protectReadyWorktree: async () => false,
         withLock: f.operations.withLock,
         instances: async () => registry,
         saveInstance: f.operations.saveInstance,
@@ -864,6 +1089,7 @@ function fillFixture() {
             return instance;
         },
         publishSpare: (instance) => publishSpare(instance, stateOperations),
+        ensurePoolMonitor: async () => {},
     };
     return { ...f, registry, dead, removed, operations, builds: () => builds };
 }
@@ -903,6 +1129,44 @@ test('fill sweeps stale records before acquiring its fill lock', async () => {
     };
     await fillPool('/fixture/root', 1, f.operations);
     assert(swept);
+});
+
+test('a competing fill waits for publication and reuses the spare', async () => {
+    const f = fillFixture();
+    f.registry.length = 0;
+    const locks = mutex();
+    const entered = deferred();
+    const competing = deferred();
+    const release = deferred();
+    const originalUp = f.operations.up;
+    f.operations.withLock = async (name, work, options) => {
+        if (name === 'pool-fill' && locks.held.has(name)) {
+            competing.resolve();
+            if (options?.timeoutMs !== null)
+                throw new Error('ldenv is busy: pool-fill');
+        }
+        return locks.withLock(name, work, options);
+    };
+    f.operations.up = async (...args) => {
+        entered.resolve();
+        await release.promise;
+        return originalUp(...args);
+    };
+    const first = fillPool('/fixture/root', 1, f.operations);
+    await entered.promise;
+    const second = fillPool('/fixture/root', null, f.operations);
+    void second.catch(() => {});
+    try {
+        await competing.promise;
+        release.resolve();
+        const [initial, reused] = await Promise.all([first, second]);
+        assert.equal(initial.length, 1);
+        assert.equal(reused.length, 1);
+        assert.equal(reused[0].id, initial[0].id);
+        assert.equal(f.builds(), 1);
+    } finally {
+        release.resolve();
+    }
 });
 
 test('fill recounts the live registry after publication when a claim consumes an initial spare', async () => {
@@ -965,4 +1229,57 @@ test('fill inherits only the parent licence pair without replacing target flags'
     };
     await fillPool('/fixture/root', 1, f.operations);
     assert.equal(f.builds(), 1);
+});
+
+test('fill rehomes the pool monitor when an existing named spare already meets the target', async () => {
+    const f = fillFixture();
+    const parent = (await f.operations.parents())[0];
+    f.spare.readyWorktree = {
+        branch: 'ready/aaaaaaa-existing0000',
+        head: parent.sha,
+        parentBuiltAt: parent.builtAt,
+    };
+    let monitors = 0;
+    f.operations.ensurePoolMonitor = async () => {
+        monitors += 1;
+    };
+    const result = await fillPool('/fixture/root', 1, f.operations);
+    assert.equal(result.length, 1);
+    assert.equal(f.builds(), 0);
+    assert.equal(monitors, 1);
+});
+
+test('a zero-sized pool retires a current named spare after ownership protection', async () => {
+    const f = fixture();
+    const parent = (await f.operations.parents())[0];
+    f.spare.readyWorktree = {
+        branch: 'ready/aaaaaaa-existing0000',
+        head: parent.sha,
+        parentBuiltAt: parent.builtAt,
+    };
+    const retired: string[] = [];
+    let protectedCount = 0;
+    await retireStalePoolInstances(
+        parent.sha,
+        {
+            ...retirementTestHooks,
+            withLock: f.operations.withLock,
+            instances: async () => [f.spare],
+            saveInstance: async () => {},
+            down: async (instance) => {
+                retired.push(instance.id);
+            },
+            alive: () => false,
+            spareBackendMode: async () => 'bundle',
+            protectReadyWorktree: async () => {
+                protectedCount += 1;
+                return false;
+            },
+        },
+        'bundle',
+        parent.builtAt,
+        0,
+    );
+    assert.deepEqual(retired, [f.spare.id]);
+    assert.equal(protectedCount, 3);
 });

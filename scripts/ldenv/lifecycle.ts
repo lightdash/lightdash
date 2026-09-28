@@ -68,6 +68,11 @@ import {
     type Parent,
     type Ports,
 } from './model';
+import {
+    parentDatabase,
+    postgresPort,
+    warehouseDatabase as warehouseDatabaseName,
+} from './namespace';
 import { retireParent } from './parent-gc';
 import {
     background,
@@ -162,6 +167,7 @@ export async function buildParent(
     refresh = false,
     benchmarkDeps = false,
 ): Promise<Parent> {
+    postgresPort();
     return backgroundWork(() =>
         withLock('parent-build', async () => {
             const sha = await git(root, [
@@ -238,7 +244,7 @@ export async function buildParent(
             await sharedServices(root, await compose(root), true);
             await mkdir(path.dirname(directory), { recursive: true });
             await git(root, ['worktree', 'add', '--detach', directory, sha]);
-            const database = `ldp_${sha.slice(0, 12)}`;
+            const database = parentDatabase(sha);
             const metadata = newInstance(directory, sha);
             metadata.database = database;
             metadata.ports = parentPorts;
@@ -253,7 +259,7 @@ export async function buildParent(
                 directory,
                 'examples/full-jaffle-shop-demo',
             );
-            const warehouseDatabase = `ldj_${warehouseHash.slice(0, 12)}`;
+            const warehouseDatabase = warehouseDatabaseName(warehouseHash);
             const seeds = seedCommands(recipe.seed.run);
             const previous = refresh
                 ? await selectParent(await parents(), (candidate) =>
@@ -537,6 +543,7 @@ async function refreshArtifacts(
 export async function up(
     ...args: Parameters<typeof upInstance>
 ): Promise<Instance> {
+    postgresPort();
     return foregroundWork(() => upInstance(...args));
 }
 async function upInstance(
@@ -547,6 +554,7 @@ async function upInstance(
     inheritedSecrets: Environment | null = null,
 ): Promise<Instance> {
     const upStartedAt = Date.now();
+    postgresPort();
     return withLock(instanceId(root), async () => {
         const existing = await currentState(instanceId(root));
         if (existing) return resumeExistingInstance(existing, noWait, start);
@@ -779,6 +787,7 @@ async function prepareWatchers(instance: Instance): Promise<void> {
 export async function start(
     ...args: Parameters<typeof startInstance>
 ): Promise<Instance> {
+    postgresPort();
     return foregroundWork(() => startInstance(...args));
 }
 async function startInstance(
@@ -788,6 +797,7 @@ async function startInstance(
     apiStarted = false,
 ): Promise<Instance> {
     markTimeline(instance.timings, 'startInstance', 'start');
+    postgresPort();
     assertInstance(instance);
     if (instance.phase === 'stopped' || instance.phase === 'failed') {
         instance.startedAt = new Date().toISOString();
@@ -843,6 +853,7 @@ async function startInstance(
     return instance;
 }
 export async function down(instance: Instance): Promise<void> {
+    postgresPort();
     assertInstance(instance);
     await cancelMonitor(instance);
     await stopProcesses(instance, true);
@@ -894,6 +905,7 @@ export async function garbageCollect(
     if (sweepOrphans) await operations.cleanupOrphans(root, false);
 }
 export async function parentGc(root: string, keep: number): Promise<void> {
+    postgresPort();
     if (!Number.isInteger(keep) || keep < 1)
         throw new Error('--keep must be at least 1');
     await withLock('parent-build', () =>

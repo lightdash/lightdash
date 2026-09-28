@@ -6,6 +6,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { home, readJson, runner, waitUntil, withLock, writeJson } from './io';
 import { json, type Environment, type Machine, type Ports } from './model';
+import {
+    canonicalHome,
+    namespace,
+    matchesHomeLabel,
+    postgresContainer,
+    postgresPort,
+    postgresVolume,
+} from './namespace';
 
 export type ComposeService = {
     ports?: { target: number; published: string }[];
@@ -24,6 +32,7 @@ export type Container = {
         Networks: Record<string, { Gateway: string }>;
     };
 };
+let postgresVerified = false;
 export async function dotenv(file: string): Promise<Environment> {
     return existsSync(file) ? parseEnv(await readFile(file)) : {};
 }
@@ -192,32 +201,45 @@ export async function diskGuard(): Promise<void> {
             `Need ${(floor / 1e9).toFixed(1)} GB free; have ${(available / 1e9).toFixed(1)} GB. Free ${((floor - available) / 1e9).toFixed(1)} GB before building a parent or spare.`,
         );
 }
+async function assertOwnedPostgresVolume(root: string): Promise<void> {
+    if (!namespace) return;
+    const volumes = json<{ Name: string; Labels: Record<string, string> }[]>(
+        await runner.run('docker', ['volume', 'inspect', postgresVolume], {
+            cwd: root,
+        }),
+    );
+    if (
+        volumes.length !== 1 ||
+        volumes[0].Name !== postgresVolume ||
+        !matchesHomeLabel(volumes[0].Labels?.['dev.lightdash.ldenv.home'])
+    )
+        throw new Error('Postgres volume belongs to another LDENV_HOME');
+}
 export async function ensurePostgres(root: string): Promise<Machine> {
+    const requestedPort = postgresPort();
     return withLock('postgres', async () => {
         await mkdir(home, { recursive: true, mode: 0o700 });
         const configFile = path.join(home, 'machine.json');
         const config = existsSync(configFile)
             ? await machine()
             : {
-                  pgPort: Number(process.env.LDENV_PG_PORT ?? 15432),
+                  pgPort: requestedPort,
                   secret: randomBytes(32).toString('hex'),
               };
-        if (
-            !Number.isInteger(config.pgPort) ||
-            config.pgPort < 1024 ||
-            config.pgPort > 65535
-        )
-            throw new Error('Invalid LDENV_PG_PORT');
-        const found = await containers(root, 'name=^/ldenv-pg$');
+        postgresPort(process.env.LDENV_PG_PORT, namespace, config.pgPort);
+        const found = await containers(root, `name=^/${postgresContainer}$`);
         if (found.length) {
             const container = found[0];
             if (
                 !existsSync(configFile) ||
                 container.Config.Labels['dev.lightdash.ldenv'] !== 'postgres' ||
+                !matchesHomeLabel(
+                    container.Config.Labels['dev.lightdash.ldenv.home'],
+                ) ||
                 container.Config.Image !== 'pgvector/pgvector:pg18' ||
                 !container.Mounts.some(
                     (mount) =>
-                        mount.Name === 'ldenv_pg_data' &&
+                        mount.Name === postgresVolume &&
                         mount.Destination === '/var/lib/postgresql',
                 ) ||
                 !container.NetworkSettings.Ports['5432/tcp']?.some(
@@ -227,8 +249,9 @@ export async function ensurePostgres(root: string): Promise<Machine> {
                 )
             )
                 throw new Error(
-                    'ldenv-pg ownership/configuration mismatch; refusing to replace it',
+                    `${postgresContainer} ownership/configuration mismatch; refusing to replace it`,
                 );
+            await assertOwnedPostgresVolume(root);
             if (!container.State.Running)
                 await runner.run('docker', ['start', container.Id], {
                     cwd: root,
@@ -236,7 +259,7 @@ export async function ensurePostgres(root: string): Promise<Machine> {
         } else {
             const volumeIds = await runner.run(
                 'docker',
-                ['volume', 'ls', '-q', '--filter', 'name=^ldenv_pg_data$'],
+                ['volume', 'ls', '-q', '--filter', `name=^${postgresVolume}$`],
                 { cwd: root },
             );
             if (volumeIds && !existsSync(configFile))
@@ -252,19 +275,32 @@ export async function ensurePostgres(root: string): Promise<Machine> {
                         'create',
                         '--label',
                         'dev.lightdash.ldenv=postgres',
-                        'ldenv_pg_data',
+                        ...(namespace
+                            ? [
+                                  '--label',
+                                  `dev.lightdash.ldenv.home=${canonicalHome(home)}`,
+                              ]
+                            : []),
+                        postgresVolume,
                     ],
                     { cwd: root },
                 );
+            await assertOwnedPostgresVolume(root);
             await runner.run(
                 'docker',
                 [
                     'run',
                     '-d',
                     '--name',
-                    'ldenv-pg',
+                    postgresContainer,
                     '--label',
                     'dev.lightdash.ldenv=postgres',
+                    ...(namespace
+                        ? [
+                              '--label',
+                              `dev.lightdash.ldenv.home=${canonicalHome(home)}`,
+                          ]
+                        : []),
                     '--restart',
                     'unless-stopped',
                     '-p',
@@ -272,7 +308,7 @@ export async function ensurePostgres(root: string): Promise<Machine> {
                     '-e',
                     'POSTGRES_PASSWORD=password',
                     '-v',
-                    'ldenv_pg_data:/var/lib/postgresql',
+                    `${postgresVolume}:/var/lib/postgresql`,
                     'pgvector/pgvector:pg18',
                 ],
                 { cwd: root },
@@ -283,7 +319,13 @@ export async function ensurePostgres(root: string): Promise<Machine> {
                 try {
                     await runner.run(
                         'docker',
-                        ['exec', 'ldenv-pg', 'pg_isready', '-U', 'postgres'],
+                        [
+                            'exec',
+                            postgresContainer,
+                            'pg_isready',
+                            '-U',
+                            'postgres',
+                        ],
                         { cwd: root, timeout: 5000 },
                     );
                     return true;
@@ -294,14 +336,21 @@ export async function ensurePostgres(root: string): Promise<Machine> {
             60000,
             'ldenv PostgreSQL',
         );
+        postgresVerified = true;
         return config;
     });
 }
-export function databaseIdentifier(name: string): string {
+export function databaseIdentifier(
+    name: string,
+    selectedNamespace = namespace,
+): string {
+    if (!/^[a-z0-9_]{0,32}$/.test(selectedNamespace))
+        throw new Error('Invalid ldenv namespace');
+    const suffix = selectedNamespace ? `${selectedNamespace}_` : '';
     if (
-        !/^(ldp_[a-f0-9]{12}|ldj_[a-f0-9]{12}|ld_ldenv_[a-f0-9]{16})$/.test(
-            name,
-        )
+        !new RegExp(
+            `^(ldp_${suffix}[a-f0-9]{12}|ldj_${suffix}[a-f0-9]{12}|ld_${suffix}ldenv_[a-f0-9]{16})$`,
+        ).test(name)
     )
         throw new Error(
             'Refusing to operate on a database outside the ldenv namespace',
@@ -313,12 +362,14 @@ export async function sql(
     statement: string,
     database = 'postgres',
 ): Promise<string> {
+    postgresPort();
+    if (namespace && !postgresVerified) await ensurePostgres(root);
     return runner.run(
         'docker',
         [
             'exec',
             '-i',
-            'ldenv-pg',
+            postgresContainer,
             'psql',
             '-X',
             '-U',

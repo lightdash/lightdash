@@ -14,6 +14,12 @@ export function waitDecision(
     verified: boolean,
 ): WaitResult | null {
     if (!instance) return null;
+    if (
+        instance.claim &&
+        instance.timings.readyClaim === undefined &&
+        instance.error?.startsWith('Ready claim failed:')
+    )
+        return { state: 'failed', error: instance.error };
     if (instance.phase === 'failed' || instance.phase === 'stopped')
         return {
             state: 'failed',
@@ -31,6 +37,9 @@ export function waitDecision(
         };
     if (
         instance.phase === 'ready' &&
+        instance.kind !== 'spare' &&
+        instance.kind !== 'warming' &&
+        (!instance.claim || instance.timings.readyClaim !== undefined) &&
         (!verified || instance.verification?.state === 'passed')
     )
         return { state: 'ready', instance };

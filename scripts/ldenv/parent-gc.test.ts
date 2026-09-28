@@ -6,6 +6,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { listJson, writeJson } from './io';
 import type { Parent } from './model';
+import { parentDatabase, warehouseDatabase } from './namespace';
 import { retireParent } from './parent-gc';
 
 test('parent gc retires selection before dropping resources and retries partial removal', async () => {
@@ -15,7 +16,9 @@ test('parent gc retires selection before dropping resources and retries partial 
         const parent = {
             sha,
             path: path.join(base, 'parents', sha.slice(0, 12)),
-            database: `ldp_${sha.slice(0, 12)}`,
+            database: parentDatabase(sha),
+            warehouseHash: 'b'.repeat(64),
+            warehouseDatabase: warehouseDatabase('b'.repeat(64)),
             seedComplete: true,
         } as Parent;
         await mkdir(parent.path, { recursive: true });

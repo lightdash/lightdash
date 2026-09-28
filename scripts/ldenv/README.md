@@ -4,6 +4,15 @@
 It works from a plain shell. All registry data, parent worktrees, caches and logs
 live under `~/.ldenv`. A worktree gets a private `.env.development.local` file.
 
+Set `LDENV_HOME` to use a separate ldenv state directory. A non-default home
+uses a namespace from its sanitised basename: `~/.ldenv-spike` uses `spike`.
+Its Postgres container is `ldenv-pg-spike`, its volume is
+`ldenv_pg_data_spike`, and its databases and PM2 process names include `spike`.
+Set `LDENV_PG_PORT` explicitly for a non-default home. ldenv refuses a missing,
+invalid, or conflicting port and refuses to adopt Docker resources labelled for
+another home. The default home, even when set explicitly, retains the existing
+resource names and port 15432. The shared dev port allocator is unchanged.
+
 ## Install the machine launcher
 
 From a checkout of this branch with dependencies installed, run:
@@ -42,6 +51,58 @@ Prepare a parent and one spare ahead of time:
 ~/.ldenv/bin/ldenv pool fill --size 1
 ~/.ldenv/bin/ldenv new feature/my-change
 ```
+
+## Starting a T3 thread on a ready worktree
+
+Run `ldenv pool fill --size 1` ahead of time. In T3's new-thread composer, open
+the branch picker, type `ready`, and select a `ready/<parent-sha7>-<id>` branch
+tagged **worktree**. Send the task. The app is already running in that checkout;
+T3 does not run its new-worktree project action for this path.
+
+The checkout lives at `~/.ldenv/warm/<id>`. A PM2-supervised pool monitor checks
+for an external process with its working directory inside it. It excludes the
+app's PM2 processes, their children, ldenv workers, and Git inspection commands.
+It also checks for branch, commit, and source changes. On use, it marks the
+instance as claimed, restores foreground priority, and starts a refill in the
+background. It renames an unchanged `ready/...` branch to `work/...` so it no
+longer appears in the ready search. The files and running app processes stay
+in place. Rename the branch to your feature name when convenient.
+
+The explicit fallback is:
+
+```sh
+~/.ldenv/bin/ldenv claim --worktree /path/from/the/branch/picker
+~/.ldenv/bin/ldenv wait --worktree /path/from/the/branch/picker
+```
+
+`wait` returns after the spare becomes user-owned and ready. `status` includes
+`claim` (time, reason, and observed PID), `readyWorktree` (original branch and
+parent generation), and `poolMonitor` (heartbeat and scan errors). To verify a
+real T3 thread, select a ready branch, send a task, then run:
+
+```sh
+~/.ldenv/bin/ldenv status --worktree /path/from/the/branch/picker --json
+```
+
+Expect `kind: "claimed"`, a claim reason of `process cwd`, a healthy pool monitor,
+and unchanged API/frontend PIDs. Process discovery can miss an agent hosted in
+a process whose working directory stays elsewhere; `ldenv claim` covers that
+case. Opening a shell in the checkout also claims it intentionally.
+
+Ready branches are local and must never be pushed. They appear only after full
+spare readiness. A parent refresh replaces unclaimed spares from the previous
+parent generation, including a refreshed parent at the same commit. Cleanup
+requires the recorded branch, commit, path, and absence of user edits or live
+use. Claimed worktrees are user-owned even if their branch is renamed or deleted.
+
+To retire one, commit or preserve your work, run `ldenv down --worktree PATH`,
+then use the normal worktree retirement workflow. `down` keeps claimed files
+and their branch; pool cleanup and `gc` never delete that retained checkout.
+Pool size is a machine-local setting, defaults to one, and can be set to zero,
+one, or two with `pool fill --size N`. A normal T3 **New worktree** followed by
+the **Dev env** action remains the fallback when no ready worktree is available.
+
+## Claim a branch from the shell
 
 `new` prints the worktree path and URL. Open that path in your editor or choose
 **New thread in this worktree** in T3 Code. The directory does not move when a
@@ -167,7 +228,7 @@ instance's connections, drops its database, deletes its PM2 entries and releases
 its slot. It restores the original local env file when the last ldenv-written file
 is intact. If the user edited it, down keeps the backup and prints its path.
 Tracing rewrites update that backup record without losing the original content.
-User and claimed worktrees remain. Detached ldenv-owned spare/warming worktrees
+User and claimed worktrees remain. Detached or recorded ready-branch spares
 are removed only after ownership and live-use checks.
 
 After READY, ldenv queues a background sweep of missing-instance registrations.

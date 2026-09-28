@@ -4,6 +4,7 @@ import path from 'node:path';
 import { dropDatabase, ensurePostgres } from './infra';
 import { git, home } from './io';
 import type { Parent } from './model';
+import { parentDatabase, postgresPort, warehouseDatabase } from './namespace';
 
 export async function retireParent(
     root: string,
@@ -15,8 +16,11 @@ export async function retireParent(
         git: typeof git;
     } = { ensurePostgres, dropDatabase, git },
 ): Promise<void> {
+    postgresPort();
     const paths = [parent.path, ...(parent.retiredPaths ?? [])];
     if (
+        !/^[a-f0-9]{40}$/.test(parent.sha) ||
+        !/^[a-f0-9]{64}$/.test(parent.warehouseHash) ||
         paths.some(
             (directory) =>
                 path.dirname(directory) !== path.join(base, 'parents') ||
@@ -24,7 +28,8 @@ export async function retireParent(
                     `^${parent.sha.slice(0, 12)}(-cache-[0-9]+)?$`,
                 ).test(path.basename(directory)),
         ) ||
-        parent.database !== `ldp_${parent.sha.slice(0, 12)}`
+        parent.database !== parentDatabase(parent.sha) ||
+        parent.warehouseDatabase !== warehouseDatabase(parent.warehouseHash)
     )
         throw new Error('Invalid parent ownership record');
     const manifests = path.join(base, 'manifests');

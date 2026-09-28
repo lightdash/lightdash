@@ -3,8 +3,9 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { changedFiles, dependencies, runTiers } from './cache';
-import { isOwnedWarm } from './cleanup';
+import { assertOwnedWarmForTeardown, isOwnedWarm } from './cleanup';
 import { inheritLicensePair } from './env';
 import { diskGuard, dotenv, localSecrets } from './infra';
 import {
@@ -39,6 +40,7 @@ import {
     savedBackendMode,
     selectParent,
     type BackendMode,
+    type Environment,
     type Instance,
 } from './model';
 import {
@@ -50,6 +52,16 @@ import {
     startClaimApi,
 } from './processes';
 import { claimChangesApi, processEpoch } from './readiness';
+import {
+    hideReadyBranchForRetirement,
+    publishReadyBranch,
+    retireClaimedReadyBranch,
+} from './ready-branches';
+
+const protectReadyWorktree = async (instance: Instance) =>
+    (await import('./ready.js')).protectReadyWorktree(instance);
+const ensurePoolMonitor = async (root: string) =>
+    (await import('./ready.js')).ensurePoolMonitor(root);
 
 export async function availableMemory(root: string): Promise<number> {
     if (process.platform === 'darwin') {
@@ -88,6 +100,7 @@ const poolStateOperations = {
     down,
     alive,
     spareBackendMode,
+    protectReadyWorktree,
 };
 
 async function retainLiveSpare(
@@ -109,6 +122,7 @@ export async function inspectReadySpares(
     parent: string,
     operations = { ...poolStateOperations, instanceIsLive },
     desiredMode?: BackendMode,
+    parentBuiltAt?: string,
 ): Promise<{ ready: Instance[]; failed: number }> {
     return operations.withLock('pool', async () => {
         const ready: Instance[] = [];
@@ -116,7 +130,10 @@ export async function inspectReadySpares(
         const eligible = (instance: Instance) =>
             instance.kind === 'spare' &&
             instance.phase === 'ready' &&
-            instance.parent === parent;
+            !instance.readyWorktree?.retiring &&
+            instance.parent === parent &&
+            (parentBuiltAt === undefined ||
+                instance.readyWorktree?.parentBuiltAt === parentBuiltAt);
         for (const instance of (await operations.instances()).filter(eligible))
             await operations.withLock(instance.id, async () => {
                 const current = (await operations.instances()).find(
@@ -140,8 +157,10 @@ export async function publishSpare(
     instance: Instance,
     operations: Omit<
         typeof poolStateOperations,
-        'spareBackendMode'
-    > = poolStateOperations,
+        'spareBackendMode' | 'protectReadyWorktree'
+    > & { parents?: typeof parents } = poolStateOperations,
+    parentBuiltAt?: string,
+    expectedParent?: { sha: string; builtAt: string },
 ): Promise<void> {
     const current = await operations.withLock(
         'pool',
@@ -161,6 +180,18 @@ export async function publishSpare(
                         throw new Error(
                             `Warm instance changed before publication: ${instance.worktree}`,
                         );
+                    if (expectedParent) {
+                        const latest = (
+                            await (operations.parents ?? parents)()
+                        ).sort((a, b) => b.builtAt.localeCompare(a.builtAt))[0];
+                        if (
+                            latest?.sha !== expectedParent.sha ||
+                            latest.builtAt !== expectedParent.builtAt
+                        )
+                            throw new ParentGenerationChangedError();
+                    }
+                    if (parentBuiltAt)
+                        await publishReadyBranch(registered, parentBuiltAt);
                     registered.kind = 'spare';
                     await operations.saveInstance(registered);
                     return registered;
@@ -172,14 +203,32 @@ export async function publishSpare(
     Object.assign(instance, current);
 }
 
+class ParentGenerationChangedError extends Error {
+    constructor() {
+        super('Parent generation changed before spare publication');
+    }
+}
+
 export async function retireStalePoolInstances(
     parent: string,
-    operations = poolStateOperations,
+    operations: Omit<typeof poolStateOperations, 'protectReadyWorktree'> & {
+        protectReadyWorktree?: typeof protectReadyWorktree;
+        hideReadySpare?: typeof hideReadyBranchForRetirement;
+        waitForGrace?: (milliseconds: number) => Promise<void>;
+        assertOwnedWarmForTeardown?: typeof assertOwnedWarmForTeardown;
+    } = poolStateOperations,
     desiredMode?: BackendMode,
+    parentBuiltAt?: string,
+    targetSize?: number,
 ): Promise<void> {
+    const excessIds = new Set<string>();
     const stale = async (instance: Instance) =>
         (instance.kind === 'spare' || instance.kind === 'warming') &&
-        (instance.parent !== parent ||
+        (excessIds.has(instance.id) ||
+            Boolean(instance.readyWorktree?.retiring) ||
+            instance.parent !== parent ||
+            (parentBuiltAt !== undefined &&
+                instance.readyWorktree?.parentBuiltAt !== parentBuiltAt) ||
             instance.phase === 'failed' ||
             (instance.kind === 'warming' &&
                 instance.phase === 'ready' &&
@@ -187,42 +236,88 @@ export async function retireStalePoolInstances(
             (desiredMode !== undefined &&
                 (await operations.spareBackendMode(instance)) !== desiredMode));
     const reserved = await operations.withLock('pool', async () => {
+        const inventory = await operations.instances();
+        if (targetSize !== undefined) {
+            const current = inventory
+                .filter(
+                    (instance) =>
+                        instance.kind === 'spare' &&
+                        instance.phase === 'ready' &&
+                        !instance.readyWorktree?.retiring &&
+                        instance.parent === parent &&
+                        instance.readyWorktree?.parentBuiltAt === parentBuiltAt,
+                )
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+            for (const instance of current.slice(
+                0,
+                Math.max(0, current.length - targetSize),
+            ))
+                excessIds.add(instance.id);
+        }
         const records: Instance[] = [];
-        for (const instance of await operations.instances()) {
+        for (const instance of inventory) {
             if (!(await stale(instance))) continue;
             await operations.withLock(instance.id, async () => {
                 const current = (await operations.instances()).find(
                     (item) => item.id === instance.id,
                 );
                 if (!current || !(await stale(current))) return;
-                current.phase = 'failed';
-                await operations.saveInstance(current);
+                if (await (operations.protectReadyWorktree?.(current) ?? false))
+                    return;
+                await (
+                    operations.hideReadySpare ?? hideReadyBranchForRetirement
+                )(current);
                 records.push(structuredClone(current));
             });
         }
         return records;
     });
-    for (const instance of reserved)
-        await operations.withLock(
-            instance.id,
-            async () => {
-                const current = (await operations.instances()).find(
-                    (item) => item.id === instance.id,
-                );
-                if (
-                    !current ||
-                    current.phase !== 'failed' ||
-                    current.kind !== instance.kind ||
-                    current.startedAt !== instance.startedAt ||
-                    current.updatedAt !== instance.updatedAt ||
-                    current.worktree !== instance.worktree ||
-                    current.parent !== instance.parent
-                )
-                    return;
-                await operations.down(current);
-            },
-            { timeoutMs: null },
-        );
+    for (const instance of reserved) {
+        await (operations.waitForGrace ?? delay)(2000);
+        const retire = () =>
+            operations.withLock(
+                instance.id,
+                async () => {
+                    const current = (await operations.instances()).find(
+                        (item) => item.id === instance.id,
+                    );
+                    if (
+                        !current ||
+                        current.phase !== instance.phase ||
+                        current.kind !== instance.kind ||
+                        current.startedAt !== instance.startedAt ||
+                        current.updatedAt !== instance.updatedAt ||
+                        current.worktree !== instance.worktree ||
+                        current.parent !== instance.parent ||
+                        current.readyWorktree?.retiring?.hiddenAt !==
+                            instance.readyWorktree?.retiring?.hiddenAt
+                    )
+                        return;
+                    if (
+                        await (operations.protectReadyWorktree?.(current) ??
+                            false)
+                    )
+                        return;
+                    await (
+                        operations.assertOwnedWarmForTeardown ??
+                        assertOwnedWarmForTeardown
+                    )(current, path.resolve(__dirname, '../..'));
+                    if (
+                        await (operations.protectReadyWorktree?.(current) ??
+                            false)
+                    )
+                        return;
+                    current.phase = 'failed';
+                    await operations.saveInstance(current);
+                    await operations.down(current);
+                },
+                { timeoutMs: null },
+            );
+        await operations.withLock('pool', retire, {
+            timeoutMs: null,
+            yieldToForeground: false,
+        });
+    }
 }
 
 const fillOperations = {
@@ -234,13 +329,25 @@ const fillOperations = {
     parents,
     localSecrets,
     sweepStaleInstances,
-    retireStalePoolInstances: (parent: string, mode: BackendMode) =>
-        retireStalePoolInstances(parent, poolStateOperations, mode),
-    inspectReadySpares: (parent: string, mode: BackendMode) =>
+    retireStalePoolInstances: (
+        parent: string,
+        mode: BackendMode,
+        builtAt: string,
+        size: number,
+    ) =>
+        retireStalePoolInstances(
+            parent,
+            poolStateOperations,
+            mode,
+            builtAt,
+            size,
+        ),
+    inspectReadySpares: (parent: string, mode: BackendMode, builtAt: string) =>
         inspectReadySpares(
             parent,
             { ...poolStateOperations, instanceIsLive },
             mode,
+            builtAt,
         ),
     diskGuard,
     availableMemory,
@@ -248,6 +355,7 @@ const fillOperations = {
     git,
     up,
     publishSpare,
+    ensurePoolMonitor,
 };
 
 export async function fillPool(
@@ -272,10 +380,13 @@ export async function fillPool(
         git,
         up,
         publishSpare,
+        ensurePoolMonitor,
     } = operations;
     await sweepStaleInstances(root);
+    const withFillLock = (work: () => Promise<Instance[]>) =>
+        withLock('pool-fill', work, { timeoutMs: null });
     return backgroundWork(() =>
-        withLock('pool-fill', async () => {
+        withFillLock(async () => {
             await yieldToForeground();
             const settings = await poolSettings(root);
             if (requestedSize !== null) settings.size = requestedSize;
@@ -287,26 +398,50 @@ export async function fillPool(
             )
                 throw new Error('Pool size must be 0, 1 or 2');
             await writeJson(path.join(home, 'pool.json'), settings);
-            const parent = (await parents()).sort((a, b) =>
-                b.builtAt.localeCompare(a.builtAt),
-            )[0];
-            if (!parent)
-                throw new Error('Build a parent before filling the pool');
-            const secrets = await localSecrets(root);
+            const sourceSecrets = await localSecrets(root);
             const desiredMode = backendMode(
-                process.env.LDENV_BACKEND ?? secrets.LDENV_BACKEND,
+                process.env.LDENV_BACKEND ?? sourceSecrets.LDENV_BACKEND,
             );
-            secrets.LDENV_BACKEND = desiredMode;
-            if (!secrets.LIGHTDASH_LICENSE_KEY)
-                inheritLicensePair(secrets, await localSecrets(parent.path));
             while (true) {
-                await retireStalePoolInstances(parent.sha, desiredMode);
+                const parent = (await parents()).sort((a, b) =>
+                    b.builtAt.localeCompare(a.builtAt),
+                )[0];
+                if (!parent)
+                    throw new Error('Build a parent before filling the pool');
+                const secrets: Environment = {
+                    ...sourceSecrets,
+                    LDENV_BACKEND: desiredMode,
+                };
+                if (!secrets.LIGHTDASH_LICENSE_KEY)
+                    inheritLicensePair(
+                        secrets,
+                        await localSecrets(parent.path),
+                    );
+                await retireStalePoolInstances(
+                    parent.sha,
+                    desiredMode,
+                    parent.builtAt,
+                    settings.size,
+                );
                 const { ready, failed } = await inspectReadySpares(
                     parent.sha,
                     desiredMode,
+                    parent.builtAt,
                 );
                 if (failed) continue;
-                if (ready.length >= settings.size) return ready;
+                if (ready.length >= settings.size) {
+                    const latest = (await parents()).sort((a, b) =>
+                        b.builtAt.localeCompare(a.builtAt),
+                    )[0];
+                    if (
+                        latest?.sha !== parent.sha ||
+                        latest.builtAt !== parent.builtAt
+                    )
+                        continue;
+                    if (ready.some((instance) => instance.readyWorktree))
+                        await ensurePoolMonitor(root);
+                    return ready;
+                }
                 await diskGuard();
                 if ((await availableMemory(root)) < 3 * 1024 ** 3)
                     throw new Error(
@@ -332,7 +467,16 @@ export async function fillPool(
                     'warming',
                     secrets,
                 );
-                await publishSpare(instance);
+                try {
+                    await publishSpare(instance, undefined, parent.builtAt, {
+                        sha: parent.sha,
+                        builtAt: parent.builtAt,
+                    });
+                } catch (error) {
+                    if (error instanceof ParentGenerationChangedError) continue;
+                    throw error;
+                }
+                await ensurePoolMonitor(root);
             }
         }),
     );
@@ -361,6 +505,7 @@ const claimOperations = {
     down,
     poolSettings,
     writeJson,
+    protectReadyWorktree,
 };
 
 export async function claimInstance(
@@ -392,6 +537,7 @@ export async function claimInstance(
         down,
         poolSettings,
         writeJson,
+        protectReadyWorktree,
     } = operations;
     const started = Date.now();
     const requestedMode = backendMode(process.env.LDENV_BACKEND);
@@ -443,7 +589,10 @@ export async function claimInstance(
             ]);
         const reservation = await withLock('pool', async () => {
             let available = (await instances()).filter(
-                (item) => item.kind === 'spare' && item.phase === 'ready',
+                (item) =>
+                    item.kind === 'spare' &&
+                    item.phase === 'ready' &&
+                    !item.readyWorktree?.retiring,
             );
             while (available.length) {
                 const parent = await selectParent(
@@ -468,6 +617,7 @@ export async function claimInstance(
                         throw new Error(
                             `Spare changed before reservation: ${spare.worktree}`,
                         );
+                    if (await protectReadyWorktree(current)) return null;
                     if (!(await retainLiveSpare(current, operations)))
                         return null;
                     if (
@@ -615,6 +765,18 @@ export async function claimInstance(
                     }
                     spare.timings.claim = Date.now() - started;
                     await saveInstance(spare);
+                    try {
+                        await retireClaimedReadyBranch(
+                            spare,
+                            previousBranch,
+                            previousHead,
+                            git,
+                        );
+                    } catch (retirementError) {
+                        process.stderr.write(
+                            `Ready branch retained after claim: ${runner.redact(String(retirementError))}\n`,
+                        );
+                    }
                     return spare;
                 } catch (error) {
                     const reason = runner.redact(
