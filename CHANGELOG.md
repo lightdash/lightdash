@@ -1,3 +1,10 @@
+## [2.350.1](https://github.com/lightdash/lightdash/compare/2.350.0...2.350.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **learn:** bind the sandbox job grant to the learner's own copy (CS-319) ([#30029](https://github.com/lightdash/lightdash/issues/30029)) ([291505a](https://github.com/lightdash/lightdash/commit/291505aa74b3a7b6da821ed905430fd3cdd3d1bc))
+
 # [2.350.0](https://github.com/lightdash/lightdash/compare/2.349.0...2.350.0) (2026-09-28)
 
 
