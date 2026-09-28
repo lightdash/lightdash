@@ -102,9 +102,11 @@ read-only. Writes are parsed as YAML before they are accepted, so a broken file 
 than surfacing as a confusing command failure.
 
 `LearnSandboxService` runs the command as the learner. It mints a short-lived personal access token for the run,
-passes it to the child, and deletes it when the command ends, so nothing durable is left behind; the scheduler
-sweeps any token an interrupted run orphaned. The child's environment is an explicit allowlist rather than a copy
-of the server's, because a learner's dbt YAML can read the environment back out through `env_var()`. One command
+writes it to the CLI's own config file inside the workspace (`$HOME/.config/lightdash/config.yaml`, owner-only),
+and deletes it when the command ends, so nothing durable is left behind; the scheduler sweeps any token an
+interrupted run orphaned. The token never enters the child's environment, and that environment is an explicit
+allowlist rather than a copy of the server's, because a learner's dbt YAML can read the environment back out
+through `env_var()` and `lightdash deploy` would carry the rendered value into a description. One command
 runs at a time per copy, enforced both in the service and by a partial unique index on `learn_commands`. The
 subcommand allowlist is short on purpose: `lightdash compile|deploy|validate|lint|download|upload` and
 `dbt parse|compile|ls`. Nothing that executes SQL against the warehouse is on it, so `dbt run` is refused.

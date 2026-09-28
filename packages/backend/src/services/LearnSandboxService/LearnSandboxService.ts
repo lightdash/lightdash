@@ -43,6 +43,7 @@ import {
     loadLearnBundle,
     materialiseWorkspace,
     validateYaml,
+    writeCliConfig,
 } from './workspace';
 
 const MAX_FILE_BYTES = 64 * 1024;
@@ -475,13 +476,19 @@ export class LearnSandboxService extends BaseService {
                 profiles: { databasePath: runtime.databasePath },
             });
             const projectDir = path.join(workspaceDir, 'project');
+            const serverUrl = runtime.apiUrl ?? this.lightdashConfig.siteUrl;
+            await writeCliConfig({
+                workspaceDir,
+                apiKey: token,
+                serverUrl,
+                projectUuid: command.project_uuid,
+            });
             const env = buildSandboxEnvironment({
                 processEnvironment: process.env,
                 pathPrefix: runtime.pathPrefix,
                 apiUrl: runtime.apiUrl,
                 siteUrl: this.lightdashConfig.siteUrl,
                 projectUuid: command.project_uuid,
-                apiKey: token,
                 workspaceDir,
                 projectDir,
                 databasePath: runtime.databasePath,
