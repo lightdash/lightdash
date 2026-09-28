@@ -61873,6 +61873,81 @@
                 "required": ["content", "baseVersionUuid"],
                 "type": "object"
             },
+            "Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_": {
+                "properties": {
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["versionUuid", "createdAt", "versionNumber"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentVersionSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_"
+                    },
+                    {
+                        "properties": {
+                            "createdBy": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName-or-avatarUrl-or-avatarGradient_"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Who saved this version; null when the user was deleted or unknown."
+                            }
+                        },
+                        "required": ["createdBy"],
+                        "type": "object"
+                    }
+                ],
+                "description": "One entry in a Document's immutable version history, newest first."
+            },
+            "DocumentVersionList": {
+                "properties": {
+                    "nextOffset": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentVersionSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["nextOffset", "items"],
+                "type": "object"
+            },
+            "ApiSuccess_DocumentVersionList_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DocumentVersionList"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentVersionListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentVersionList_"
+            },
             "DocumentList": {
                 "properties": {
                     "nextOffset": {
@@ -67067,7 +67142,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.354.0",
+        "version": "2.355.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -104675,6 +104750,124 @@
                         }
                     }
                 }
+            },
+            "get": {
+                "operationId": "ListDocumentVersions",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentVersionListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/versions/{versionUuid}": {
+            "get": {
+                "operationId": "GetDocumentVersion",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/as-code": {

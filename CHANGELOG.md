@@ -1,3 +1,11 @@
+# [2.355.0](https://github.com/lightdash/lightdash/compare/2.354.0...2.355.0) (2026-09-28)
+
+
+### Features
+
+* **documents:** browse and preview a Document's version history ([#30084](https://github.com/lightdash/lightdash/issues/30084)) ([5244a5e](https://github.com/lightdash/lightdash/commit/5244a5e889448367f38fbf60305d8f2c0af2ca96)), closes [#30083](https://github.com/lightdash/lightdash/issues/30083)
+* **documents:** read a Document's version history ([#30083](https://github.com/lightdash/lightdash/issues/30083)) ([8e03bd7](https://github.com/lightdash/lightdash/commit/8e03bd7ab96b32aca2925540552df1e63a4a718b)), closes [#30084](https://github.com/lightdash/lightdash/issues/30084)
+
 # [2.354.0](https://github.com/lightdash/lightdash/compare/2.353.0...2.354.0) (2026-09-28)
 
 
