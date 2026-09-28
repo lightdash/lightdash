@@ -1312,6 +1312,7 @@ export class EmbedService extends BaseService {
         pivotResults,
         limit,
         timezone,
+        subtotalLevel,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
@@ -1326,6 +1327,7 @@ export class EmbedService extends BaseService {
         | 'dateZoom'
         | 'parameters'
         | 'limit'
+        | 'subtotalLevel'
     >): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         const { dashboardUuid } = account.access.content;
 
@@ -1422,6 +1424,7 @@ export class EmbedService extends BaseService {
             context: QueryExecutionContext.EMBED,
             parameters: acceptedUserParameters,
             pivotResults,
+            subtotalLevel,
             sessionTimezone: isTimezoneSupportEnabled
                 ? (timezone ?? null)
                 : null,

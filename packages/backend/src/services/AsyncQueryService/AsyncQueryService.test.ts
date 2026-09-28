@@ -5,6 +5,7 @@ import {
     assertUnreachable,
     ChartType,
     CreateWarehouseCredentials,
+    CustomFormatType,
     DimensionType,
     DownloadFileType,
     DuckdbExecutionSpec,
@@ -3168,6 +3169,239 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        describe('direct subtotal levels', () => {
+            const getConfiguration = (
+                query: MetricQuery,
+                subtotalLevel: {
+                    subtotalDimensions: string[];
+                    parent: Array<{
+                        dimensionId: string;
+                        value: string | number | boolean | null;
+                    }>;
+                },
+                pivotConfiguration?: PivotConfiguration,
+            ) =>
+                (AsyncQueryService as AnyType).getSubtotalLevelConfiguration(
+                    query,
+                    subtotalLevel,
+                    500,
+                    pivotConfiguration,
+                );
+            const source: MetricQuery = {
+                ...metricQueryMock,
+                dimensions: ['orders_region', 'orders_city'],
+                metrics: ['orders_count'],
+                sorts: [
+                    { fieldId: 'orders_city', descending: false },
+                    { fieldId: 'orders_count', descending: true },
+                ],
+                limit: 1000,
+            };
+
+            test('derives a root and child from selected source fields without a query UUID', () => {
+                expect(
+                    getConfiguration(source, {
+                        subtotalDimensions: ['orders_region'],
+                        parent: [],
+                    }),
+                ).toEqual({
+                    kind: 'columnSubtotal',
+                    subtotalDimensions: ['orders_region'],
+                    subtotalLevel: {
+                        parent: [],
+                        sorts: [{ fieldId: 'orders_count', descending: true }],
+                        limit: 500,
+                    },
+                });
+                expect(
+                    getConfiguration(source, {
+                        subtotalDimensions: ['orders_city'],
+                        parent: [
+                            { dimensionId: 'orders_region', value: 'EMEA' },
+                        ],
+                    }),
+                ).toEqual({
+                    kind: 'columnSubtotal',
+                    subtotalDimensions: ['orders_city'],
+                    subtotalLevel: {
+                        parent: [
+                            { dimensionId: 'orders_region', value: 'EMEA' },
+                        ],
+                        sorts: source.sorts,
+                        limit: 500,
+                    },
+                });
+            });
+
+            test('keeps sorts on totalable table calculations only', () => {
+                const query: MetricQuery = {
+                    ...source,
+                    tableCalculations: [
+                        {
+                            name: 'metric_ratio',
+                            displayName: 'Metric ratio',
+                            sql: '${orders.count} / ${orders.count}',
+                        },
+                        {
+                            name: 'dimension_calc',
+                            displayName: 'Dimension calc',
+                            sql: '${orders.city}',
+                        },
+                    ],
+                    sorts: [
+                        { fieldId: 'metric_ratio', descending: true },
+                        { fieldId: 'dimension_calc', descending: false },
+                    ],
+                };
+
+                expect(
+                    getConfiguration(query, {
+                        subtotalDimensions: ['orders_region'],
+                        parent: [],
+                    }).subtotalLevel.sorts,
+                ).toEqual([{ fieldId: 'metric_ratio', descending: true }]);
+            });
+
+            test.each([
+                [{ subtotalDimensions: [], parent: [] }, 'empty level'],
+                [
+                    { subtotalDimensions: ['other_field'], parent: [] },
+                    'unselected level',
+                ],
+                [
+                    {
+                        subtotalDimensions: ['orders_region'],
+                        parent: [{ dimensionId: 'other_field', value: 'x' }],
+                    },
+                    'unselected parent',
+                ],
+                [
+                    {
+                        subtotalDimensions: ['orders_region'],
+                        parent: [{ dimensionId: 'orders_region', value: 'x' }],
+                    },
+                    'overlapping parent',
+                ],
+                [
+                    {
+                        subtotalDimensions: ['orders_city'],
+                        parent: [
+                            { dimensionId: 'orders_region', value: 'x' },
+                            { dimensionId: 'orders_region', value: 'y' },
+                        ],
+                    },
+                    'duplicate parent',
+                ],
+            ])('rejects %s (%s)', (level) => {
+                expect(() =>
+                    getConfiguration(source, level as AnyType),
+                ).toThrow(NotSupportedError);
+            });
+
+            test('rejects a pivoted source', () => {
+                expect(() =>
+                    getConfiguration(
+                        { ...source, pivotDimensions: ['orders_region'] },
+                        { subtotalDimensions: ['orders_city'], parent: [] },
+                    ),
+                ).toThrow(NotSupportedError);
+            });
+
+            test('starts one subtotal query and preserves source field metadata and request context', async () => {
+                const formattedSource: MetricQuery = {
+                    ...source,
+                    dimensionOverrides: {
+                        orders_city: {
+                            formatOptions: {
+                                type: CustomFormatType.PERCENT,
+                                round: 1,
+                            },
+                        },
+                    },
+                };
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                service.getExploreWithUserAccessControls = vi
+                    .fn()
+                    .mockResolvedValue({
+                        explore: validExplore,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    });
+                (service as AnyType).getWarehouseCredentials = vi
+                    .fn()
+                    .mockResolvedValue(warehouseClientMock.credentials);
+                service.combineParameters = vi.fn().mockResolvedValue({});
+                (service as AnyType).getMetricQueryFields = vi
+                    .fn()
+                    .mockResolvedValue({
+                        fields: {
+                            orders_region: { name: 'region' },
+                            orders_city: { name: 'city' },
+                        },
+                    });
+                const prepare = vi
+                    .spyOn(
+                        service as AnyType,
+                        'prepareMetricQueryAsyncQueryArgs',
+                    )
+                    .mockResolvedValue(
+                        createQueryComposerMock({
+                            metricQuery: {
+                                ...source,
+                                dimensions: ['orders_region'],
+                            },
+                            fields: {
+                                orders_region: { name: 'region' },
+                            } as AnyType,
+                            userAccessControls: {
+                                userAttributes: {},
+                                intrinsicUserAttributes: {},
+                            },
+                        }),
+                    );
+                const execute = vi.fn().mockResolvedValue({
+                    queryUuid: 'root-subtotal',
+                    cacheMetadata: { cacheHit: false },
+                });
+                service['executeAsyncQuery'] = execute;
+                const subtotalLevel = {
+                    subtotalDimensions: ['orders_region'],
+                    parent: [],
+                };
+
+                const result = await service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: formattedSource,
+                    context: QueryExecutionContext.EXPLORE,
+                    subtotalLevel,
+                });
+
+                expect(prepare).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        metricQuery: formattedSource,
+                        totalConfiguration: expect.objectContaining({
+                            kind: 'columnSubtotal',
+                            subtotalDimensions: ['orders_region'],
+                        }),
+                    }),
+                );
+                expect(execute).toHaveBeenCalledTimes(1);
+                expect(execute.mock.calls[0][1]).toEqual(
+                    expect.objectContaining({
+                        query: formattedSource,
+                        subtotalLevel,
+                    }),
+                );
+                expect(result.fields).toHaveProperty('orders_city');
+                expect(result.fields.orders_city).toEqual(
+                    expect.objectContaining({ format: '#,##0.0%' }),
+                );
+            });
+        });
+
         test.each([
             'reuse',
             'scope-change',
@@ -7093,6 +7327,122 @@ describe('AsyncQueryService', () => {
                         warehouseConnectionUuid: extraConnectionUuid,
                     }),
                     expect.any(Object),
+                );
+            },
+        );
+
+        test.each([
+            {
+                producer: 'direct',
+                run: (service: AsyncQueryService, source: MetricQuery) =>
+                    service.executeAsyncMetricQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: source,
+                        context: QueryExecutionContext.EXPLORE,
+                        subtotalLevel: {
+                            subtotalDimensions: ['a_dim1'],
+                            parent: [],
+                        },
+                    }),
+            },
+            {
+                producer: 'saved chart',
+                run: (service: AsyncQueryService) =>
+                    service.executeAsyncSavedChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        chartUuid: savedChart.uuid,
+                        context: QueryExecutionContext.CHART,
+                        invalidateCache: false,
+                        pivotResults: false,
+                        subtotalLevel: {
+                            subtotalDimensions: ['a_dim1'],
+                            parent: [],
+                        },
+                    }),
+            },
+            {
+                producer: 'dashboard chart',
+                run: (service: AsyncQueryService) =>
+                    service.executeAsyncDashboardChartQuery({
+                        account: viewer,
+                        projectUuid,
+                        tileUuid: 'tile-1',
+                        chartUuid: savedChart.uuid,
+                        dashboardUuid: 'dashboard-uuid',
+                        dashboardFilters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.DASHBOARD,
+                        invalidateCache: false,
+                        pivotResults: false,
+                        subtotalLevel: {
+                            subtotalDimensions: ['a_dim1'],
+                            parent: [],
+                        },
+                    }),
+            },
+        ])(
+            '$producer subtotal uses warehouse routing and formats source dimensions',
+            async ({ run }) => {
+                const { service, execute } = buildService();
+                const source: MetricQuery = {
+                    ...metricQueryMock,
+                    dimensions: ['a_dim1', 'a_dim2'],
+                    dimensionOverrides: {
+                        a_dim2: {
+                            formatOptions: {
+                                type: CustomFormatType.PERCENT,
+                                round: 1,
+                            },
+                        },
+                    },
+                };
+                (
+                    service.savedChartModel.get as import('vitest').Mock
+                ).mockResolvedValue({
+                    ...savedChart,
+                    metricQuery: source,
+                });
+                (service as AnyType).getMetricQueryFields = vi
+                    .fn()
+                    .mockResolvedValue({
+                        fields: {
+                            a_dim1: { name: 'dim1' },
+                            a_dim2: { name: 'dim2' },
+                        },
+                    });
+                (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
+                    .fn()
+                    .mockResolvedValue(
+                        createQueryComposerMock({
+                            metricQuery: { ...source, dimensions: ['a_dim1'] },
+                            fields: { a_dim1: { name: 'dim1' } } as AnyType,
+                            userAccessControls: {
+                                userAttributes: {},
+                                intrinsicUserAttributes: {},
+                            },
+                        }),
+                    );
+                const routing = vi.spyOn(
+                    service as AnyType,
+                    'getPreAggregationRoutingDecision',
+                );
+
+                const result = await run(service, source);
+
+                expect(routing).toHaveBeenCalledWith(
+                    expect.objectContaining({ forceWarehouse: true }),
+                );
+                expect(execute.mock.calls[0][0]).toEqual(
+                    expect.objectContaining({ routingTarget: 'warehouse' }),
+                );
+                expect(result.fields.a_dim2).toEqual(
+                    expect.objectContaining({ format: '#,##0.0%' }),
                 );
             },
         );

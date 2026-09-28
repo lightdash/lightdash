@@ -158,6 +158,7 @@ import {
     type SavedMergeDefinition,
     type SessionUser,
     type SpaceSummaryBase,
+    type SubtotalLevelRequest,
     type UserAttributeValueMap,
     type WarehouseExecuteAsyncQuery,
     type WarehousePhaseTimings,
@@ -230,7 +231,10 @@ import {
 } from '../../utils/QueryBuilder/mergeTotalsSql';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
-import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
+import {
+    QueryComposer,
+    type TotalConfiguration,
+} from '../../utils/QueryBuilder/QueryComposer';
 import {
     SQL_QUERY_MOCK_EXPLORER_NAME,
     SqlQueryComposer,
@@ -4388,6 +4392,33 @@ export class AsyncQueryService extends ProjectService {
         return { fields, dateZoomApplied };
     }
 
+    private static getSubtotalLevelFields(
+        sourceFields: ItemsMap,
+        levelFields: ItemsMap,
+        sourceMetricQuery: MetricQuery,
+    ): ItemsMap {
+        const metricOverrides =
+            getMetricOverridesWithPopInheritance(sourceMetricQuery);
+        const formattedSourceFields = Object.fromEntries(
+            Object.entries(sourceFields).map(([fieldId, field]) => {
+                const formatOptions = (
+                    metricOverrides[fieldId] ||
+                    sourceMetricQuery.dimensionOverrides?.[fieldId]
+                )?.formatOptions;
+                return [
+                    fieldId,
+                    formatOptions
+                        ? {
+                              ...field,
+                              ...getFieldFormatOverrideProps(formatOptions),
+                          }
+                        : field,
+                ];
+            }),
+        ) as ItemsMap;
+        return { ...formattedSourceFields, ...levelFields };
+    }
+
     private async prepareMetricQueryAsyncQueryArgs({
         account,
         metricQuery,
@@ -5296,6 +5327,43 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    private static getSubtotalLevelConfiguration(
+        metricQuery: MetricQuery,
+        subtotalLevel: SubtotalLevelRequest,
+        maxLimit: number,
+        pivotConfiguration?: PivotConfiguration,
+    ): TotalConfiguration {
+        if (pivotConfiguration || metricQuery.pivotDimensions?.length) {
+            throw new NotSupportedError(
+                'Subtotal levels over pivoted queries are not supported',
+            );
+        }
+        const { subtotalDimensions: dimensions, parent } = subtotalLevel;
+        const limit = Math.min(metricQuery.limit, maxLimit);
+        // TotalQueryBuilder validates the level, its parents and the limit.
+        const totalableQuery = new TotalQueryBuilder({
+            metricQuery,
+            pivotConfiguration: null,
+            kind: 'columnSubtotal',
+            subtotalDimensions: dimensions,
+            subtotalLevel: { parent, sorts: [], limit },
+        }).compileQuery().metricQuery;
+        const sortableFields = new Set([
+            ...totalableQuery.dimensions,
+            ...totalableQuery.metrics,
+            ...totalableQuery.tableCalculations.map((calc) => calc.name),
+        ]);
+        const sorts = metricQuery.sorts.filter(
+            (sort) =>
+                sortableFields.has(sort.fieldId) && !sort.pivotValues?.length,
+        );
+        return {
+            kind: 'columnSubtotal',
+            subtotalDimensions: dimensions,
+            subtotalLevel: { parent, sorts, limit },
+        };
+    }
+
     async executeAsyncMetricQuery(
         args: ExecuteAsyncMetricQueryArgs,
         reuseQueryUuid?: string,
@@ -5309,7 +5377,11 @@ export class AsyncQueryService extends ProjectService {
         } = args;
         assertIsAccountWithOrg(account);
 
-        if (args.totalConfiguration && args.dashboardFilters) {
+        if (
+            args.totalConfiguration &&
+            args.dashboardFilters &&
+            !args.totalConfiguration.subtotalLevel
+        ) {
             throw new UnexpectedServerError(
                 'totalConfiguration and dashboardFilters are mutually exclusive',
             );
@@ -5392,6 +5464,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             dashboardFilters,
             totalConfiguration,
+            subtotalLevel,
             documentQueryContext,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
@@ -5477,10 +5550,32 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        const resolvedTotalConfiguration = subtotalLevel
+            ? AsyncQueryService.getSubtotalLevelConfiguration(
+                  metricQuery,
+                  subtotalLevel,
+                  this.lightdashConfig.query.maxLimit,
+                  pivotConfiguration,
+              )
+            : totalConfiguration;
+
         const warehouseSqlBuilder = getSqlBuilderForExplore(
             explore,
             warehouseCredentials,
         );
+
+        const sourceFields = subtotalLevel
+            ? (
+                  await this.getMetricQueryFields({
+                      metricQuery,
+                      explore,
+                      warehouseSqlBuilder,
+                      projectUuid,
+                      dateZoom,
+                      preloadedProjectParameters: projectParameters,
+                  })
+              ).fields
+            : undefined;
 
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
@@ -5521,7 +5616,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration: documentPivot ?? pivotConfiguration,
-            totalConfiguration,
+            totalConfiguration: resolvedTotalConfiguration,
             userAttributeOverrides,
             materializationRole,
             context,
@@ -5534,7 +5629,13 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
         });
-        const fields = queryComposer.getFields();
+        const fields = sourceFields
+            ? AsyncQueryService.getSubtotalLevelFields(
+                  sourceFields,
+                  queryComposer.getFields(),
+                  metricQuery,
+              )
+            : queryComposer.getFields();
         const prepareMs = Date.now() - prepareStart;
 
         const effectiveMetricQuery = queryComposer.getMetricQuery();
@@ -5560,16 +5661,17 @@ export class AsyncQueryService extends ProjectService {
                 : {}),
             ...(references ? { references } : {}),
             context,
-            query: effectiveMetricQuery,
+            query: subtotalLevel ? metricQuery : effectiveMetricQuery,
             parameters: combinedParameters,
             dateZoom,
+            ...(subtotalLevel ? { subtotalLevel } : {}),
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
             metricQuery: effectiveMetricQuery,
             explore,
             context,
-            forceWarehouse: usePreAggregateCache === false,
+            forceWarehouse: usePreAggregateCache === false || !!subtotalLevel,
         });
 
         this.logger.info(
@@ -6221,6 +6323,7 @@ export class AsyncQueryService extends ProjectService {
         filterOverrides,
         schedulerFilters,
         dashboardFilters,
+        subtotalLevel,
         userAttributeOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
@@ -6250,6 +6353,11 @@ export class AsyncQueryService extends ProjectService {
                   ),
               }
             : storedChart;
+        if (subtotalLevel && savedChart.pivotConfig?.columns.length) {
+            throw new NotSupportedError(
+                'Subtotal levels over pivoted charts are not supported',
+            );
+        }
         const {
             uuid: savedChartUuid,
             organizationUuid: savedChartOrganizationUuid,
@@ -6373,9 +6481,15 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration: requestedPivotConfiguration,
             filters: filterOverrides,
             dashboardFilters,
+            ...(subtotalLevel ? { subtotalLevel } : {}),
         };
 
         if (savedChart.merge) {
+            if (subtotalLevel) {
+                throw new NotSupportedError(
+                    'Subtotal levels over merged charts are not supported',
+                );
+            }
             return this.executeAsyncSavedMergeQuery({
                 account,
                 projectUuid,
@@ -6490,6 +6604,15 @@ export class AsyncQueryService extends ProjectService {
                   )
                 : undefined);
 
+        const totalConfiguration = subtotalLevel
+            ? AsyncQueryService.getSubtotalLevelConfiguration(
+                  metricQueryWithLimit,
+                  subtotalLevel,
+                  maxLimit,
+                  pivotConfiguration,
+              )
+            : undefined;
+
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -6498,6 +6621,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            totalConfiguration,
             pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             dataTimezone: warehouseCredentials.dataTimezone,
@@ -6510,7 +6634,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             context,
             // TODO: allow per-chart preference to bypass pre-aggregate cache
-            forceWarehouse: false,
+            forceWarehouse: !!subtotalLevel,
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -6576,7 +6700,13 @@ export class AsyncQueryService extends ProjectService {
                 preAggregate: routingDecision.preAggregateMetadata,
             },
             metricQuery: queryComposer.getMetricQuery(),
-            fields: fieldsWithOverrides,
+            fields: subtotalLevel
+                ? AsyncQueryService.getSubtotalLevelFields(
+                      fields,
+                      fieldsWithOverrides,
+                      metricQueryWithLimit,
+                  )
+                : fieldsWithOverrides,
             warnings: queryComposer.getWarnings(),
             parameterReferences: queryComposer.getParameterReferences(),
             usedParametersValues: queryComposer.getUsedParameters(),
@@ -7026,6 +7156,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotResults,
         includeUnpublishedDraft,
+        subtotalLevel,
         sessionTimezone,
         preloadedSavedChart,
         preloadedProjectParameters,
@@ -7041,6 +7172,11 @@ export class AsyncQueryService extends ProjectService {
         const savedChart = includeUnpublishedDraft
             ? await this.applyOpenChartDraft(account, publishedChart)
             : publishedChart;
+        if (subtotalLevel && savedChart.pivotConfig?.columns.length) {
+            throw new NotSupportedError(
+                'Subtotal levels over pivoted charts are not supported',
+            );
+        }
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
 
@@ -7114,6 +7250,11 @@ export class AsyncQueryService extends ProjectService {
         });
 
         if (savedChart.merge) {
+            if (subtotalLevel) {
+                throw new NotSupportedError(
+                    'Subtotal levels over merged charts are not supported',
+                );
+            }
             return this.executeAsyncDashboardMergeQuery({
                 account,
                 projectUuid,
@@ -7263,6 +7404,7 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
             limit,
             parameters: combinedParameters,
+            ...(subtotalLevel ? { subtotalLevel } : {}),
         };
 
         const { fields, dateZoomApplied } = await this.getMetricQueryFields({
@@ -7282,6 +7424,15 @@ export class AsyncQueryService extends ProjectService {
               )
             : undefined;
 
+        const totalConfiguration = subtotalLevel
+            ? AsyncQueryService.getSubtotalLevelConfiguration(
+                  metricQueryWithLimit,
+                  subtotalLevel,
+                  maxLimit,
+                  pivotConfiguration,
+              )
+            : undefined;
+
         const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -7291,6 +7442,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            totalConfiguration,
             pivotDimensions: savedChart.pivotConfig?.columns,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             dataTimezone: warehouseCredentials.dataTimezone,
@@ -7307,7 +7459,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             context,
             // TODO: allow dashboard-level option to bypass pre-aggregate cache
-            forceWarehouse: false,
+            forceWarehouse: !!subtotalLevel,
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -7375,7 +7527,13 @@ export class AsyncQueryService extends ProjectService {
             },
             appliedDashboardFilters,
             metricQuery: queryComposer.getMetricQuery(),
-            fields: fieldsWithOverrides,
+            fields: subtotalLevel
+                ? AsyncQueryService.getSubtotalLevelFields(
+                      fields,
+                      fieldsWithOverrides,
+                      metricQueryWithLimit,
+                  )
+                : fieldsWithOverrides,
             parameterReferences,
             usedParametersValues: queryComposer.getUsedParameters(),
             // In effect when a date dimension was overridden, or a grain is selected and

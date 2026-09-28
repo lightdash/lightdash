@@ -48,3 +48,43 @@ describe('EmbedController project chart type pagination', () => {
         },
     );
 });
+
+describe('EmbedController dashboard tile subtotals', () => {
+    it('passes the subtotal level through the existing embed authorization path', async () => {
+        const executeAsyncDashboardTileQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'subtotal-query',
+        });
+        const controller = new EmbedController({
+            getEmbedService: () => ({ executeAsyncDashboardTileQuery }),
+        } as unknown as ServiceRepository);
+        const request = {
+            account: {
+                authentication: { type: 'jwt', source: 'embed-token' },
+                user: { type: 'anonymous' },
+            },
+        } as unknown as Request;
+        const subtotalLevel = {
+            subtotalDimensions: ['orders_city'],
+            parent: [{ dimensionId: 'orders_region', value: 'EMEA' }],
+        };
+
+        await controller.executeAsyncDashboardTileQuery(
+            request,
+            'project-uuid',
+            {
+                tileUuid: 'tile-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                subtotalLevel,
+            },
+        );
+
+        expect(executeAsyncDashboardTileQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ subtotalLevel }),
+        );
+    });
+});

@@ -14,6 +14,78 @@ import express from 'express';
 import { QueryController } from './QueryController';
 
 describe('QueryController', () => {
+    it('forwards subtotal levels through metric, saved chart, and dashboard chart execution', async () => {
+        const executeAsyncMetricQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'root' });
+        const executeAsyncSavedChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'root' });
+        const executeAsyncDashboardChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'root' });
+        const controller = new QueryController({
+            getAsyncQueryService: () => ({
+                executeAsyncMetricQuery,
+                executeAsyncSavedChartQuery,
+                executeAsyncDashboardChartQuery,
+            }),
+        } as unknown as ConstructorParameters<typeof QueryController>[0]);
+        const req = {
+            account: { isJwtUser: () => false },
+            headers: {},
+            header: vi.fn(),
+        } as unknown as express.Request;
+        const subtotalLevel = {
+            subtotalDimensions: ['orders_city'],
+            parent: [{ dimensionId: 'orders_region', value: 'EMEA' }],
+        };
+
+        await controller.executeAsyncMetricQuery(
+            {
+                query: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_region', 'orders_city'],
+                    metrics: ['orders_count'],
+                },
+                subtotalLevel,
+            } as never,
+            'project-uuid',
+            req,
+        );
+        await controller.executeAsyncSavedChartQuery(
+            { chartUuid: 'chart-uuid', subtotalLevel },
+            'project-uuid',
+            req,
+        );
+        await controller.executeAsyncDashboardChartQuery(
+            {
+                chartUuid: 'chart-uuid',
+                tileUuid: 'tile-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                subtotalLevel,
+            },
+            'project-uuid',
+            req,
+        );
+
+        expect(executeAsyncMetricQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ subtotalLevel }),
+        );
+        expect(executeAsyncSavedChartQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ subtotalLevel }),
+        );
+        expect(executeAsyncDashboardChartQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ subtotalLevel }),
+        );
+    });
+
     it.each([
         [
             RequestMethod.GSHEETS_ADDON,

@@ -30,6 +30,7 @@ import {
     type RunQueryTags,
     type SavedChartDAO,
     type SortField,
+    type SubtotalLevelRequest,
     type UserAccessControls,
     type UserAttributeValueMap,
     type UUID,
@@ -108,10 +109,8 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
     dashboardFilters?: DashboardFilters;
-    /**
-     * Collapse the query into a totals grain (calculate-total path only).
-     * Mutually exclusive with `dashboardFilters`.
-     */
+    subtotalLevel?: SubtotalLevelRequest;
+    /** Internal totals replay; direct subtotal requests use `subtotalLevel`. */
     totalConfiguration?: TotalConfiguration;
 };
 
@@ -130,6 +129,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     // Silent-drop semantics for fields outside the chart's explore — unlike
     // filterOverrides, which fails the run on unknown fields.
     dashboardFilters?: DashboardFilters;
+    subtotalLevel?: SubtotalLevelRequest;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
@@ -137,6 +137,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     tileUuid: string;
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
+    subtotalLevel?: SubtotalLevelRequest;
     dashboardSorts: SortField[];
     dateZoom?: DateZoom;
     limit?: number | null | undefined;

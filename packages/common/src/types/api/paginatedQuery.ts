@@ -26,6 +26,15 @@ export type DateZoom = {
     xAxisFieldId?: string;
 };
 
+/** A subtotal level requested directly from a source query. */
+export type SubtotalLevelRequest = {
+    subtotalDimensions: string[];
+    parent: Array<{
+        dimensionId: string;
+        value: string | number | boolean | null;
+    }>;
+};
+
 export type ExecuteAsyncMetricQueryRequestParams =
     CommonExecuteQueryRequestParams & {
         query: Omit<MetricQueryRequest, 'csvLimit'>;
@@ -35,6 +44,7 @@ export type ExecuteAsyncMetricQueryRequestParams =
         // dropped silently — an app may run queries against multiple explores
         // and one mismatch shouldn't break the others.
         dashboardFilters?: DashboardFilters;
+        subtotalLevel?: SubtotalLevelRequest;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =
@@ -51,6 +61,7 @@ export type ExecuteAsyncSavedChartRequestParams =
         // dropped silently — a dashboard hosting a data-app tile filters
         // across explores and one mismatch shouldn't break the linked chart.
         dashboardFilters?: DashboardFilters;
+        subtotalLevel?: SubtotalLevelRequest;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =
@@ -59,6 +70,7 @@ export type ExecuteAsyncDashboardChartRequestParams =
         tileUuid: string;
         dashboardUuid: string;
         dashboardFilters: DashboardFilters;
+        subtotalLevel?: SubtotalLevelRequest;
         dashboardSorts: SortField[];
         dateZoom?: DateZoom;
         limit?: number | null | undefined;

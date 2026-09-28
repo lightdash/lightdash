@@ -375,6 +375,7 @@ export class QueryController extends BaseController {
                 dashboardFilters: body.dashboardFilters,
                 dataAppPreviewToken,
                 customSqlProvenanceChartUuid,
+                subtotalLevel: body.subtotalLevel,
             });
 
         return {
@@ -464,6 +465,7 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 filterOverrides: body.filters,
                 dashboardFilters: body.dashboardFilters,
+                subtotalLevel: body.subtotalLevel,
             });
 
         return {
@@ -507,6 +509,7 @@ export class QueryController extends BaseController {
                 parameters: body.parameters,
                 pivotResults: body.pivotResults,
                 includeUnpublishedDraft: body.includeUnpublishedDraft,
+                subtotalLevel: body.subtotalLevel,
             });
 
         return {

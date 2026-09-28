@@ -28,10 +28,12 @@ when execution needs it; do not add parallel loose fields to
 `PreparedAsyncQueryArgs`. Construct composers directly at their preparation
 sites rather than adding a service-level factory.
 
-For metric queries, `totalConfiguration` is reserved for calculate-total
-replays and is mutually exclusive with `dashboardFilters`.
-`executeAsyncMetricQuery` rejects calls that set both before composer
-preparation.
+For metric queries, calculate-total replays set `totalConfiguration` and are
+mutually exclusive with `dashboardFilters`. Direct subtotal requests set
+`subtotalLevel`; the service resolves dashboard filters first, validates the
+level against selected source dimensions, then builds an internal
+`totalConfiguration`. Keep the original source query in the request echo so
+subsequent levels can use its filters and parameters without a detail run.
 </howToUse>
 
 <codeExample>

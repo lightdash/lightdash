@@ -350,6 +350,7 @@ export class EmbedController extends BaseController {
             | 'dateZoom'
             | 'parameters'
             | 'limit'
+            | 'subtotalLevel'
         >,
     ): Promise<{
         status: 'ok';
@@ -371,6 +372,7 @@ export class EmbedController extends BaseController {
                 parameters: body.parameters,
                 pivotResults: body.pivotResults,
                 limit: body.limit,
+                subtotalLevel: body.subtotalLevel,
                 timezone: body.timezone,
             });
 
