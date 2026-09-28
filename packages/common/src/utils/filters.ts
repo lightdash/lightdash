@@ -1824,6 +1824,15 @@ export const getExecutableFilterFieldIds = (explore: Explore): string[] => [
     ...Object.keys(getMetricsMapFromTables(explore.tables)),
 ];
 
+export const getHiddenFilterableFieldIds = (explore: Explore): string[] => [
+    ...Object.entries(getDimensionMapFromTables(explore.tables))
+        .filter(([, field]) => isFilterableDimension(field) && field.hidden)
+        .map(([fieldId]) => fieldId),
+    ...Object.entries(getMetricsMapFromTables(explore.tables))
+        .filter(([, field]) => field.hidden)
+        .map(([fieldId]) => fieldId),
+];
+
 export const applyDashboardFiltersForTile = ({
     tileUuid,
     metricQuery,

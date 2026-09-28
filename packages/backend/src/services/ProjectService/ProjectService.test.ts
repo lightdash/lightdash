@@ -26,6 +26,7 @@ import {
     getCompiledModels,
     getCustomSqlFieldKey,
     getDbtManifestVersion,
+    getItemId,
     getModelsFromManifest,
     JobStatusType,
     JobStepStatusType,
@@ -10097,6 +10098,105 @@ describe('dashboard available filters', () => {
             'tile-1': [1],
             'tile-2': [0],
         });
+    });
+});
+
+describe('dashboard available filters hidden fields', () => {
+    test('returns hidden filterable field ids only from charts the user can view', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const exploreWithHidden = (name: string, table: string) => ({
+            ...validExplore,
+            name,
+            tables: {
+                [table]: {
+                    ...validExplore.tables.a,
+                    name: table,
+                    dimensions: {
+                        shown: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table,
+                            name: 'shown',
+                        },
+                        secret_dim: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table,
+                            name: 'secret_dim',
+                            hidden: true,
+                        },
+                    },
+                    metrics: {
+                        secret_metric: {
+                            ...validExplore.tables.a.metrics.met1,
+                            table,
+                            name: 'secret_metric',
+                            hidden: true,
+                        },
+                    },
+                },
+            },
+        });
+        const charts = [
+            ['chart-viewable', 'orders'],
+            ['chart-private', 'payments'],
+        ].map(([uuid, tableName]) => ({
+            uuid,
+            name: uuid,
+            tableName,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            dashboardUuid: null,
+        }));
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            exploreWithHidden('orders', 'orders'),
+            exploreWithHidden('payments', 'payments'),
+        ]);
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccessBatch: vi.fn().mockResolvedValue(
+                    charts.map((chart) => ({
+                        target: { type: 'chart', chartUuid: chart.uuid },
+                        context:
+                            chart.uuid === 'chart-viewable'
+                                ? {
+                                      organizationUuid:
+                                          account.organization.organizationUuid,
+                                      projectUuid: projectSummary.projectUuid,
+                                      inheritsFromOrgOrProject: true,
+                                      access: [],
+                                  }
+                                : null,
+                    })),
+                ),
+            } as unknown as SpacePermissionService,
+        });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `tile-${chart.uuid}`,
+            })),
+        );
+
+        expect(result.hiddenFilterableFieldIds).toEqual([
+            'orders_secret_dim',
+            'orders_secret_metric',
+        ]);
+        expect(result.allFilterableFields.map(getItemId)).toEqual([
+            'orders_shown',
+        ]);
     });
 });
 

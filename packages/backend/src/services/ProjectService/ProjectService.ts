@@ -105,6 +105,7 @@ import {
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
+    getHiddenFilterableFieldIds,
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
@@ -11709,6 +11710,7 @@ export class ProjectService extends BaseService {
             uuid: string;
             filters: CompiledDimension[];
             metricFilters: Metric[];
+            hiddenFieldIds: string[];
         };
 
         let allFilters: ChartFilters[] = [];
@@ -11797,6 +11799,7 @@ export class ProjectService extends BaseService {
                             uuid: savedChart.uuid,
                             filters: [],
                             metricFilters: [],
+                            hiddenFieldIds: [],
                         };
                     }
 
@@ -11804,6 +11807,7 @@ export class ProjectService extends BaseService {
 
                     let filters: CompiledDimension[] = [];
                     let metricFilters: Metric[] = [];
+                    let hiddenFieldIds: string[] = [];
                     if (explore && !isExploreError(explore)) {
                         filters = getDimensions(explore).filter(
                             (field) =>
@@ -11812,12 +11816,14 @@ export class ProjectService extends BaseService {
                         metricFilters = getMetrics(explore).filter(
                             (field) => !field.hidden,
                         );
+                        hiddenFieldIds = getHiddenFilterableFieldIds(explore);
                     }
 
                     return {
                         uuid: savedChart.uuid,
                         filters,
                         metricFilters,
+                        hiddenFieldIds,
                     };
                 });
             },
@@ -11893,6 +11899,11 @@ export class ProjectService extends BaseService {
             allFilterableFields,
             allFilterableMetrics,
             savedQueryMetricFilters,
+            hiddenFilterableFieldIds: Array.from(
+                new Set(
+                    allFilters.flatMap(({ hiddenFieldIds }) => hiddenFieldIds),
+                ),
+            ),
         };
     }
 

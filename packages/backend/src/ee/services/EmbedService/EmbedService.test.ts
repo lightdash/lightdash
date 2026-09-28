@@ -142,6 +142,111 @@ describe('EmbedService', () => {
         });
     });
 
+    describe('dashboard available filters hidden fields', () => {
+        const embedAccount = (enabled: FilterInteractivityValues | false) =>
+            ({
+                ...mockAccountWithPermission,
+                embed: {
+                    dashboardUuids: ['dashboard-uuid'],
+                    allowAllDashboards: false,
+                },
+                access: {
+                    content: { dashboardUuid: 'dashboard-uuid' },
+                    filtering: { enabled },
+                },
+            }) as unknown as AnonymousAccount;
+
+        test('returns hidden ids referenced by the embedded dashboard saved filters', async () => {
+            const explore: Explore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        metrics: {
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                hidden: true,
+                            },
+                        },
+                    },
+                    b: {
+                        ...validExplore.tables.b,
+                        dimensions: {
+                            ...validExplore.tables.b.dimensions,
+                            dim1: {
+                                ...validExplore.tables.b.dimensions.dim1,
+                                hidden: true,
+                            },
+                        },
+                    },
+                },
+            };
+            const chart = {
+                uuid: 'chart-uuid',
+                tableName: explore.name,
+                projectUuid: mockProjectUuid,
+                spaceUuid: 'space-uuid',
+            };
+            const savedRule = (
+                id: string,
+                fieldId: string,
+            ): DashboardFilterRule => ({
+                id,
+                target: { fieldId, tableName: 'stale-table-name' },
+                operator: FilterOperator.EQUALS,
+                values: ['x'],
+                label: undefined,
+            });
+            const getByIdOrSlug = vi.fn().mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                filters: {
+                    dimensions: [
+                        savedRule('hidden', 'b_dim1'),
+                        savedRule('visible', 'a_dim1'),
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                dashboardModel: { getByIdOrSlug },
+                savedChartModel: {
+                    getInfoForAvailableFilters: vi
+                        .fn()
+                        .mockResolvedValue([chart]),
+                },
+                projectModel: {
+                    getExploreFromCache: vi.fn().mockResolvedValue(explore),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+            const result =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    embedAccount(FilterInteractivityValues.all),
+                    [{ savedChartUuid: chart.uuid, tileUuid: 'tile-uuid' }],
+                    false,
+                );
+
+            expect(result.hiddenFilterableFieldIds).toEqual(['b_dim1']);
+            expect(getByIdOrSlug).toHaveBeenCalledWith('dashboard-uuid', {
+                projectUuid: mockProjectUuid,
+            });
+        });
+
+        test('returns no hidden ids when filter interactivity is off', async () => {
+            const result = await service.getAvailableFiltersForSavedQueries(
+                mockProjectUuid,
+                embedAccount(false),
+                [],
+            );
+
+            expect(result.hiddenFilterableFieldIds).toEqual([]);
+        });
+    });
+
     test.each([undefined, 'default', 'roles'] as const)(
         'dashboard response permissions in %s mode',
         async (permissionsMode) => {
