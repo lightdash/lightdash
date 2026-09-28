@@ -27,18 +27,18 @@ export const isLockedDashboardFilterRule = (
     if (!filterableFieldsByTileUuid || filterRule.target.isSqlColumn) {
         return false;
     }
-    const fieldIds = [
+    const fieldIds = new Set([
         filterRule.target.fieldId,
         ...Object.values(filterRule.tileTargets ?? {}).flatMap((target) =>
             target ? [target.fieldId] : [],
         ),
-    ];
+    ]);
     const isOfferedByATile = Object.values(filterableFieldsByTileUuid).some(
-        (fields) => fields.some((field) => fieldIds.includes(getItemId(field))),
+        (fields) => fields.some((field) => fieldIds.has(getItemId(field))),
     );
     return (
         !isOfferedByATile &&
-        fieldIds.some((fieldId) => hiddenFilterableFieldIds.has(fieldId))
+        [...fieldIds].some((fieldId) => hiddenFilterableFieldIds.has(fieldId))
     );
 };
 
