@@ -8,6 +8,8 @@ import {
     VizIndexType,
     type ReadyQueryResultsPage,
     type DataAppVizContext,
+    type DataAppViz,
+    type ApiError,
     type DataAppVizField,
     type ItemsMap,
     FeatureFlags,
@@ -15,6 +17,7 @@ import {
     type ApiGetAppResponse,
     type SdkFeature,
 } from '@lightdash/common';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import {
     act,
     fireEvent,
@@ -53,9 +56,16 @@ import { clarificationStub } from '../features/chartTypes/testing/clarificationR
 import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
 import { ChartColorMappingContext } from '../hooks/useChartColorConfig/context';
 import { useExplores } from '../hooks/useExplores';
+import { executeSubtotalQueryAndGetRows } from '../hooks/useQueryResults';
+import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
+
+vi.mock('../hooks/useSavedQuery', () => ({ useSavedQuery: vi.fn() }));
+vi.mock('../hooks/useQueryResults', () => ({
+    executeSubtotalQueryAndGetRows: vi.fn(),
+}));
 
 vi.mock('../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
     useAmbientAiEnabled: vi.fn(),
@@ -126,39 +136,57 @@ vi.mock('../hooks/appearance/useOrganizationAppearance', () => ({
 vi.mock('../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
 }));
+const previewIntent = vi.hoisted(() => ({
+    current: undefined as ((intent: unknown) => Promise<unknown>) | undefined,
+}));
 vi.mock('../features/apps/components/AppPreview', () => ({
     default: ({
         version,
         onSdkManifest,
         dataAppVizContext,
+        onVizSubtotalsIntent,
     }: {
         version: number;
+        onVizSubtotalsIntent?: (intent: unknown) => Promise<unknown>;
         dataAppVizContext?: DataAppVizContext;
         onSdkManifest?: (manifest: {
             sdkVersion: string;
             features: string[];
             fixes: string[];
         }) => void;
-    }) => (
-        <div data-testid="app-preview">
-            {`preview-v${version}`}
-            <output data-testid="viz-context">
-                {JSON.stringify(dataAppVizContext)}
-            </output>
-            <button
-                type="button"
-                onClick={() =>
-                    onSdkManifest?.({
-                        sdkVersion: '1.68.0',
-                        features: ['query'],
-                        fixes: [],
-                    })
-                }
-            >
-                Report SDK manifest
-            </button>
-        </div>
-    ),
+    }) => {
+        previewIntent.current = onVizSubtotalsIntent;
+        return (
+            <div data-testid="app-preview">
+                {`preview-v${version}`}
+                <button
+                    onClick={() =>
+                        void onVizSubtotalsIntent?.({
+                            level: 1,
+                            parentValues: ['EU'],
+                        })
+                    }
+                >
+                    Expand hierarchy
+                </button>
+                <output data-testid="viz-context">
+                    {JSON.stringify(dataAppVizContext)}
+                </output>
+                <button
+                    type="button"
+                    onClick={() =>
+                        onSdkManifest?.({
+                            sdkVersion: '1.68.0',
+                            features: ['query'],
+                            fixes: [],
+                        })
+                    }
+                >
+                    Report SDK manifest
+                </button>
+            </div>
+        );
+    },
 }));
 vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
     default: ({
@@ -335,6 +363,10 @@ const staleUpgradeOffer: SdkUpgradeOffer = {
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useSavedQuery).mockReturnValue({
+            data: undefined,
+        } as ReturnType<typeof useSavedQuery>);
+        vi.mocked(executeSubtotalQueryAndGetRows).mockResolvedValue([]);
         vi.mocked(useAmbientAiEnabled).mockReturnValue(false);
         vi.mocked(useAttachedExplore).mockReturnValue({
             explore: null,
@@ -820,6 +852,223 @@ describe('ChartTypeBuilder', () => {
             `?savedChartUuid=${savedChartUuid}`,
         );
     });
+
+    it.each([
+        { series: 'orders_status', nativeColumns: ['orders_native'] },
+        { series: [], nativeColumns: ['orders_native'] },
+        { series: 'orders_status', nativeColumns: [] },
+        { series: [], nativeColumns: [] },
+    ])(
+        'uses hierarchy series $series over saved grouping $nativeColumns for root and children',
+        async ({ series, nativeColumns }) => {
+            const dimension = (name: string) => ({
+                fieldType: FieldType.DIMENSION as const,
+                type: DimensionType.STRING,
+                name,
+                label: name,
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: name,
+                hidden: false,
+            });
+            const itemsMap: ItemsMap = {
+                orders_region: dimension('region'),
+                orders_city: dimension('city'),
+                orders_status: dimension('status'),
+                orders_native: dimension('native'),
+                orders_total: {
+                    ...dimension('total'),
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                },
+            };
+            const mapping = {
+                path: ['orders_region', 'orders_city'],
+                series,
+                value: 'orders_total',
+            };
+            const metricQuery = {
+                ...explorerChart.metricQuery,
+                dimensions: [
+                    'orders_region',
+                    'orders_city',
+                    'orders_status',
+                    'orders_native',
+                ],
+            };
+            const chart = {
+                ...explorerChart,
+                originalMetricQuery: metricQuery,
+                metricQuery,
+                pivotConfig: { columns: nativeColumns },
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ as const,
+                    config: { dataAppVizUuid: 'viz-1', fieldMapping: mapping },
+                },
+            };
+            vi.mocked(useSavedQuery).mockReturnValue({
+                data: chart,
+            } as unknown as ReturnType<typeof useSavedQuery>);
+            vi.mocked(useAttachedExplore).mockReturnValue({
+                explore: {
+                    name: 'orders',
+                    label: 'Orders',
+                    joinedTableLabels: [],
+                    fields: [],
+                    itemsMap,
+                },
+                error: null,
+                retry: vi.fn(),
+            });
+            setApp(appMeta());
+            vi.mocked(useAppVersionHistory).mockReturnValue(
+                historyStub([appVersion({ version: 1 })], 1),
+            );
+            const visualization: DataAppViz = {
+                dataAppVizUuid: 'viz-1',
+                slug: 'hierarchy',
+                name: 'Hierarchy',
+                description: '',
+                projectUuid: 'p1',
+                spaceUuid: null,
+                icon: null,
+                createdAt: new Date('2026-01-01'),
+                createdByUserUuid: 'user-1',
+                registrySlug: null,
+                schema: {
+                    hierarchy: { field: 'path' },
+                    fields: [
+                        {
+                            name: 'path',
+                            label: 'Path',
+                            type: 'dimension',
+                            multiple: true,
+                            required: true,
+                        },
+                        {
+                            name: 'series',
+                            label: 'Series',
+                            type: 'series',
+                            required: false,
+                        },
+                        {
+                            name: 'value',
+                            label: 'Value',
+                            type: 'metric',
+                            required: true,
+                        },
+                    ],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+            };
+            const visualizationQuery = new QueryObserver<DataAppViz, ApiError>(
+                new QueryClient(),
+                {
+                    queryKey: ['hierarchy-test-visualization'],
+                    initialData: visualization,
+                },
+            );
+            vi.mocked(useDataAppVisualization).mockReturnValue(
+                visualizationQuery.getCurrentResult(),
+            );
+            vi.mocked(useSavedChartPreviewData).mockReturnValue({
+                data: {
+                    status: 'ready',
+                    sourceChart: chart,
+                    rows: [],
+                    itemsMap,
+                    columns: Object.values(itemsMap),
+                    pivotDetails: null,
+                    rowCount: 0,
+                    ranAt: new Date(),
+                    chartName: 'Orders',
+                    spaceName: null,
+                },
+                retry: vi.fn(),
+            });
+            const view = renderBuilder(
+                '/projects/p1/chart-studio/viz-1?savedChartUuid=chart-1',
+            );
+            const root = vi.mocked(useSavedChartPreviewData).mock.lastCall![0];
+            expect(root.subtotalLevel).toEqual({
+                subtotalDimensions: ['orders_region'],
+                parent: [],
+            });
+            expect(root.pivotConfiguration?.groupByColumns).toEqual(
+                typeof series === 'string' ? [{ reference: series }] : [],
+            );
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Expand hierarchy' }),
+            );
+            await waitFor(() =>
+                expect(executeSubtotalQueryAndGetRows).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        chartUuid: 'chart-1',
+                        pivotResults: false,
+                        pivotConfiguration: root.pivotConfiguration,
+                        subtotalLevel: {
+                            subtotalDimensions: ['orders_city'],
+                            parent: [
+                                { dimensionId: 'orders_region', value: 'EU' },
+                            ],
+                        },
+                    }),
+                ),
+            );
+            const intent = { level: 1, parentValues: ['EU'] };
+            let resolveStable!: (rows: []) => void;
+            vi.mocked(executeSubtotalQueryAndGetRows).mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveStable = resolve;
+                }),
+            );
+            const stableRequest = previewIntent.current!(intent);
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Report SDK manifest' }),
+            );
+            resolveStable([]);
+            await expect(stableRequest).resolves.toEqual({ rows: [] });
+
+            let resolveObsolete!: (rows: []) => void;
+            vi.mocked(executeSubtotalQueryAndGetRows).mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveObsolete = resolve;
+                }),
+            );
+            const obsoleteHandler = previewIntent.current!;
+            const obsoleteRequest = obsoleteHandler(intent);
+            fireEvent.click(screen.getByRole('combobox', { name: 'Series' }));
+            fireEvent.click(screen.getByRole('option', { name: /^native$/ }));
+            resolveObsolete([]);
+            await expect(obsoleteRequest).rejects.toThrow(
+                'The chart query changed during subtotal expansion.',
+            );
+
+            const handlerBeforePendingRoot = previewIntent.current!;
+            vi.mocked(useSavedChartPreviewData).mockReturnValue({
+                data: {
+                    status: 'running',
+                    chartName: 'Orders',
+                    spaceName: null,
+                },
+                retry: vi.fn(),
+            });
+            view.rerender(
+                builderRoutes(
+                    '/projects/p1/chart-studio/viz-1?savedChartUuid=chart-1',
+                ),
+            );
+            const requestCount = vi.mocked(executeSubtotalQueryAndGetRows).mock
+                .calls.length;
+            await expect(handlerBeforePendingRoot(intent)).rejects.toThrow(
+                'The chart query changed during subtotal expansion.',
+            );
+            expect(executeSubtotalQueryAndGetRows).toHaveBeenCalledTimes(
+                requestCount,
+            );
+        },
+    );
 
     it.each(['chart', 'explore', 'merge'] as const)(
         'pivots %s preview rows for the bound series',

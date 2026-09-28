@@ -60,6 +60,39 @@ describe('subtotal query startup', () => {
         });
     });
 
+    it.each([undefined, 'version-1'])(
+        'forwards explicit series overrides for saved version %s',
+        async (chartVersionUuid) => {
+            for (const groupByColumns of [
+                [{ reference: 'orders_status' }],
+                [],
+            ]) {
+                const pivotConfiguration = {
+                    indexColumn: [],
+                    sortBy: undefined,
+                    valuesColumns: [],
+                    groupByColumns,
+                };
+                await executeQueryAndWaitForResults({
+                    projectUuid: 'project-1',
+                    tableId: 'orders',
+                    chartUuid: 'chart-1',
+                    chartVersionUuid,
+                    subtotalLevel,
+                    pivotResults: false,
+                    pivotConfiguration,
+                });
+                expect(lightdashApi).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        body: expect.stringContaining(
+                            JSON.stringify(pivotConfiguration),
+                        ),
+                    }),
+                );
+            }
+        },
+    );
+
     it('starts an ad-hoc explore with its original filters and root subtotal level', async () => {
         await executeQueryAndWaitForResults({
             projectUuid: 'project-1',

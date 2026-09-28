@@ -152,6 +152,45 @@ const renderPreview = () =>
     );
 
 describe('useSavedChartBindingPreview', () => {
+    it('renders fresh hierarchy root rows directly without a cached binding rerun', () => {
+        const hierarchySchema: DataAppVizSchema = {
+            ...schema,
+            fields: schema.fields.map((field) =>
+                field.name === 'category'
+                    ? { ...field, multiple: true }
+                    : field,
+            ),
+            hierarchy: { field: 'category' },
+        };
+        const { result, rerender } = renderHook(
+            ({ run }) =>
+                useSavedChartBindingPreview({
+                    projectUuid: 'p1',
+                    savedChartUuid: 'chart-a',
+                    source: run,
+                    schema: hierarchySchema,
+                    fieldMapping: originalMapping,
+                }),
+            { wrapper: wrapper(), initialProps: { run: source } },
+        );
+        expect(result.current.data).toBe(source.data);
+        if (source.data.status !== 'ready')
+            throw new Error('Expected ready fixture');
+        const next: SavedChartPreviewRun = {
+            ...source,
+            data: {
+                ...source.data,
+                ranAt: new Date(Date.now() + 1000),
+                rows: [
+                    { orders_count: { value: { raw: 42, formatted: '42' } } },
+                ],
+            },
+        };
+        rerender({ run: next });
+        expect(result.current.data).toBe(next.data);
+        expect(executeSavedChartPreviewQuery).not.toHaveBeenCalled();
+        expect(result.current.fieldMapping).toEqual(originalMapping);
+    });
     beforeEach(() => {
         vi.mocked(executeSavedChartPreviewQuery)
             .mockReset()

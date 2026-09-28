@@ -5,6 +5,7 @@ import {
     type Item,
     type ItemsMap,
     type MetricQuery,
+    type PivotConfiguration,
     type SavedChart,
     type ReadyQueryResultsPage,
     type ResultRow,
@@ -62,6 +63,7 @@ type Args = {
     savedChartUuid: string | null;
     /** Null waits for hierarchy bindings; undefined runs the legacy preview. */
     subtotalLevel?: SubtotalLevelRequest | null;
+    pivotConfiguration?: PivotConfiguration;
     sourceMetadataError?: string | null;
     retrySourceMetadata?: () => void;
 };
@@ -69,7 +71,7 @@ type Args = {
 /**
  * Run the selected saved chart's query once and keep its rows for the session.
  *
- * Keyed by the chart alone, so the preview and the build share a single run.
+ * Keyed by the source and hierarchy bindings, so preview and build share a run.
  * A refresh re-runs it once: the selection lives in the URL, and nothing
  * persists the rows.
  */
@@ -78,6 +80,7 @@ export const useSavedChartPreviewData = ({
     savedChartUuid,
     enabled: canPreview,
     subtotalLevel,
+    pivotConfiguration,
     sourceMetadataError,
     retrySourceMetadata,
 }: Args): SavedChartPreviewRun => {
@@ -98,6 +101,7 @@ export const useSavedChartPreviewData = ({
             projectUuid,
             savedChartUuid,
             subtotalLevel,
+            pivotConfiguration,
             subtotalLevel ? savedChart.data?.metricQuery : undefined,
         ],
         queryFn: () =>
@@ -107,6 +111,9 @@ export const useSavedChartPreviewData = ({
                 ...(subtotalLevel
                     ? {
                           subtotalLevel,
+                          ...(pivotConfiguration
+                              ? { pivotConfiguration, pivotResults: false }
+                              : {}),
                           sourceMetricQuery: savedChart.data?.metricQuery,
                       }
                     : {}),

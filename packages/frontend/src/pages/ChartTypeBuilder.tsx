@@ -339,6 +339,30 @@ const ChartTypeBuilder: FC = () => {
         schema,
         savedSourceFieldMapping,
     );
+    const savedHierarchyPivotConfiguration = useMemo(() => {
+        if (!schema?.hierarchy || !savedSourceChart) return undefined;
+        return (
+            deriveDataAppVizPivotConfiguration(
+                savedSourceFieldMapping,
+                deriveDataAppVizPivotConfig(
+                    schema.fields,
+                    savedSourceFieldMapping,
+                ),
+                savedSourceChart.originalMetricQuery,
+                savedSourceItemsMap,
+            ) ?? {
+                indexColumn: [],
+                sortBy: undefined,
+                valuesColumns: [],
+                groupByColumns: [],
+            }
+        );
+    }, [
+        schema,
+        savedSourceChart,
+        savedSourceFieldMapping,
+        savedSourceItemsMap,
+    ]);
     const savedChartPreview = useSavedChartPreviewData({
         projectUuid,
         savedChartUuid,
@@ -353,6 +377,7 @@ const ChartTypeBuilder: FC = () => {
                 claimedVizUuid !== null),
         ...(schema?.hierarchy
             ? {
+                  pivotConfiguration: savedHierarchyPivotConfiguration,
                   subtotalLevel: savedHierarchyDimensions
                       ? buildVizSubtotalRequest(savedHierarchyDimensions, {
                             level: 0,
@@ -617,16 +642,33 @@ const ChartTypeBuilder: FC = () => {
         previewHierarchyDimensions,
     ]);
 
+    const hierarchyPreviewReady =
+        savedChartUuid !== null
+            ? previewData.status === 'ready'
+            : !!exploreRun && !explorePreview.isRunning;
     const hierarchyPreview = useVizSubtotalSource({
         dimensions: projectUuid && liveRun ? previewHierarchyDimensions : null,
-        rootKey: liveRun
-            ? JSON.stringify({
-                  savedChartUuid,
-                  exploreName,
-                  renderedFieldMapping,
-                  ranAt: liveRun.ranAt.getTime(),
-              })
-            : undefined,
+        rootKey:
+            liveRun && hierarchyPreviewReady
+                ? JSON.stringify({
+                      projectUuid,
+                      savedChartUuid,
+                      exploreName,
+                      sourceRevision,
+                      activeVizUuid,
+                      version: workspace.previewVersion,
+                      hierarchy: schema?.hierarchy,
+                      fields: schema?.fields,
+                      requestedMapping:
+                          savedChartUuid !== null
+                              ? savedSourceFieldMapping
+                              : exploreFieldMapping,
+                      renderedFieldMapping,
+                      pivotConfiguration: savedHierarchyPivotConfiguration,
+                      sourceQuery: sourceChart?.originalMetricQuery,
+                      ranAt: liveRun.ranAt.getTime(),
+                  })
+                : undefined,
         fetchRows: async (subtotalLevel) => {
             if (savedChartUuid && sourceChart) {
                 return executeSubtotalQueryAndGetRows({
@@ -634,7 +676,8 @@ const ChartTypeBuilder: FC = () => {
                     tableId: sourceChart.originalMetricQuery.exploreName,
                     chartUuid: savedChartUuid,
                     context: QueryExecutionContext.DATA_APP_SAMPLE,
-                    pivotResults: true,
+                    pivotResults: false,
+                    pivotConfiguration: savedHierarchyPivotConfiguration,
                     subtotalLevel,
                 });
             }

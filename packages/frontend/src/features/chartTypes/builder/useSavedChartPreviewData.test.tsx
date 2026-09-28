@@ -107,6 +107,60 @@ describe('useSavedChartPreviewData', () => {
         );
     });
 
+    it('requeries hierarchy rows when series bindings change or are cleared', async () => {
+        const subtotalLevel = {
+            subtotalDimensions: ['orders_region'],
+            parent: [],
+        };
+        const configuration = (series: string[]) => ({
+            indexColumn: [],
+            sortBy: undefined,
+            valuesColumns: [],
+            groupByColumns: series.map((reference) => ({ reference })),
+        });
+        const { result, rerender } = renderHook(
+            ({ pivotConfiguration }) =>
+                useSavedChartPreviewData({
+                    projectUuid: 'project-1',
+                    savedChartUuid: 'chart-a',
+                    enabled: true,
+                    subtotalLevel,
+                    pivotConfiguration,
+                }),
+            {
+                wrapper: createWrapper(),
+                initialProps: {
+                    pivotConfiguration: configuration(['orders_status']),
+                },
+            },
+        );
+        await waitFor(() => expect(result.current.data.status).toBe('ready'));
+        expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                subtotalLevel,
+                pivotResults: false,
+                pivotConfiguration: configuration(['orders_status']),
+            }),
+        );
+        for (const series of [['orders_channel'], []]) {
+            rerender({ pivotConfiguration: configuration(series) });
+            expect(result.current.data.status).toBe('running');
+            await waitFor(() =>
+                expect(result.current.data.status).toBe('ready'),
+            );
+            expect(
+                mockedExecuteSavedChartPreviewQuery,
+            ).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    subtotalLevel,
+                    pivotResults: false,
+                    pivotConfiguration: configuration(series),
+                }),
+            );
+        }
+        expect(mockedExecuteSavedChartPreviewQuery).toHaveBeenCalledTimes(3);
+    });
+
     it('exposes the saved layout and pivot with the ready query results', async () => {
         const chartConfig = {
             type: ChartType.CARTESIAN,

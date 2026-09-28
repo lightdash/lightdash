@@ -60,11 +60,16 @@ export const useSavedChartBindingPreview = ({
     fieldMapping: DataAppVizFieldMapping;
 }): SavedChartPreviewRun & { fieldMapping: DataAppVizFieldMapping } => {
     const request = useMemo(() => {
-        if (!projectUuid || !savedChartUuid || source.data.status !== 'ready')
+        if (
+            schema?.hierarchy ||
+            !projectUuid ||
+            !savedChartUuid ||
+            source.data.status !== 'ready'
+        )
             return null;
         const { sourceChart, itemsMap, pivotDetails } = source.data;
         const pivotConfiguration =
-            schema && sourceChart && !schema.hierarchy
+            schema && sourceChart
                 ? deriveDataAppVizPivotConfiguration(
                       fieldMapping,
                       deriveDataAppVizPivotConfig(schema.fields, fieldMapping),
@@ -80,7 +85,6 @@ export const useSavedChartBindingPreview = ({
             sourceRanAt: source.data.ranAt.getTime(),
             reuseSource:
                 !schema ||
-                Boolean(schema.hierarchy) ||
                 !sourceChart ||
                 matchesPivot(pivotConfiguration, pivotDetails),
         };
@@ -119,7 +123,8 @@ export const useSavedChartBindingPreview = ({
         retry: false,
         refetchOnWindowFocus: false,
     });
-    if (source.data.status !== 'ready') return { ...source, fieldMapping };
+    if (schema?.hierarchy || source.data.status !== 'ready')
+        return { ...source, fieldMapping };
     const retry = () => {
         if (debouncedRequest?.reuseSource) source.retry();
         else void run.refetch();
