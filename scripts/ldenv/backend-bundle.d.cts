@@ -15,6 +15,7 @@ export function createBackendBuilder(options: {
     outDir: string;
     role?: 'api' | 'scheduler';
     entry?: string;
+    onBuildStart?: () => void | Promise<void>;
     onBuild?: (event: BuildEvent) => void | Promise<void>;
 }): Promise<{
     outfile: string;

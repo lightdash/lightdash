@@ -9,6 +9,7 @@ async function createBackendBuilder({
     outDir,
     role = 'api',
     entry,
+    onBuildStart = () => {},
     onBuild = () => {},
 }) {
     root = fs.realpathSync(root);
@@ -71,8 +72,9 @@ async function createBackendBuilder({
             {
                 name: 'ldenv-backend-paths-and-publish',
                 setup(build) {
-                    build.onStart(() => {
+                    build.onStart(async () => {
                         began = performance.now();
+                        await onBuildStart();
                         const nextConfig = getTsconfig(backend);
                         if (!nextConfig)
                             throw new Error('Backend tsconfig not found');
@@ -131,7 +133,7 @@ async function createBackendBuilder({
                                 ),
                             };
                             lastBuild = failure;
-                            onBuild(failure);
+                            await onBuild(failure);
                             return;
                         }
                         let changed = false;
@@ -173,7 +175,7 @@ async function createBackendBuilder({
                                 2,
                             ),
                         );
-                        onBuild(lastBuild);
+                        await onBuild(lastBuild);
                     });
                 },
             },

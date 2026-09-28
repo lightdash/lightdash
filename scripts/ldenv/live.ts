@@ -1,3 +1,4 @@
+import { apiProcessGeneration, bundleStatus } from './bundle-state';
 import { alive, saveInstance } from './io';
 import type { Instance } from './model';
 import {
@@ -9,7 +10,12 @@ import {
 
 export async function instanceIsLive(
     instance: Instance,
-    operations = { health, ownedProcesses, alive },
+    operations: {
+        health: typeof health;
+        ownedProcesses: typeof ownedProcesses;
+        alive: typeof alive;
+        bundleStatus?: typeof bundleStatus;
+    } = { health, ownedProcesses, alive },
 ): Promise<boolean> {
     if (!instance.ports) return false;
     const processes = await operations.ownedProcesses(instance);
@@ -24,7 +30,25 @@ export async function instanceIsLive(
         )
     )
         return false;
-    return operations.health(instance.ports.api);
+    const api = processes.find((item) => item.name === `${instance.id}-api`);
+    const generationOperations = {
+        alive: operations.alive,
+        bundleStatus: operations.bundleStatus ?? bundleStatus,
+    };
+    const generation = await apiProcessGeneration(
+        instance,
+        api,
+        generationOperations,
+    );
+    if (!generation || !(await operations.health(instance.ports.api)))
+        return false;
+    const current = (await operations.ownedProcesses(instance)).find(
+        (item) => item.name === `${instance.id}-api`,
+    );
+    return (
+        generation ===
+        (await apiProcessGeneration(instance, current, generationOperations))
+    );
 }
 export async function resumeExistingInstance(
     instance: Instance,

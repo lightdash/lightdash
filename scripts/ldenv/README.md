@@ -375,26 +375,30 @@ process priority. Background paint and chart verification passed. Its automatic
 refill waited for the fresh fork to finish starting. All box acceptance instances
 were then removed; the parent, shared warehouse and launcher remain cached.
 
-## Opt-in bundled API
+## Bundled API by default
 
-The default backend remains tsx. Select the incremental bundle mode for a new
-instance with either command:
+New instances use the incremental bundle mode by default. Select the tsx
+fallback for a new instance with either command:
 
 ```sh
-ldenv up --backend bundle
-LDENV_BACKEND=bundle ldenv up
+ldenv up --backend tsx
+LDENV_BACKEND=tsx ldenv up
 ```
 
-For an existing instance, run `ldenv stop`, then `ldenv start --backend bundle`.
-Return to tsx with `ldenv stop` and `ldenv start --backend tsx`. The selection is
-stored in the instance's local environment and survives later starts. A mode
-change on an already running instance is refused. `new --backend bundle` uses
-full readiness after restarting the claimed spare; it does not claim a warm
-bundle without verification.
+An existing instance without a saved backend selection reports tsx while its
+legacy API is running. A fully stopped instance selects the new bundle default
+on `ldenv start`. To keep tsx, use `ldenv start --backend tsx`. To switch a
+running instance, run `ldenv stop`, then `ldenv start --backend bundle`. Return to tsx with
+`ldenv stop` and `ldenv start --backend tsx`. The selection is stored in the
+instance's local environment and survives later starts. A mode change on an
+already running instance is refused. Pool claims require a ready spare in the
+selected mode; a matching spare keeps the fast claim path. Pool fill replaces
+owned spares in a different mode.
 
 The existing PM2 API entry owns a supervisor with one esbuild context and one
 API child. Successful changed builds stop and wait for that child before starting
-the new bundle. Concurrent build notifications are serialized and coalesced.
+the new bundle. Concurrent build notifications are serialized; each waits for
+its build and child start or stop to finish.
 The frontend, package watchers and other instances keep running. A failed rebuild
 keeps the last good API and output, prints the compiler error, and exposes it in
 `ldenv status` as `bundle.error`, `bundle.state=failed` and a degraded phase. Live
@@ -402,9 +406,12 @@ health can still be true while `ready` is false. Fixing the edit clears the erro
 An initial failed build never launches a saved artifact from an earlier run.
 An unexpected API exit causes PM2 to restart the supervisor.
 
-Bundles preserve names, source asset paths and TypeScript source maps. They keep
-packages external and use the worktree's installed esbuild/get-tsconfig through
-its pinned tsx dependency. The existing Node compile cache is reused. Tracing
+Bundles preserve names, source asset paths and TypeScript source maps, but omit
+embedded source content from both maps. Debugging needs the local source files.
+Packages remain external. The worktree provides esbuild; the pinned ldenv tool
+provides get-tsconfig. The existing Node compile cache is reused. The esbuild
+process uses `GOMEMLIMIT=512MiB` as a soft Go garbage-collection goal, not an
+RSS limit. Tracing
 continues to follow `--tracing` / `LDENV_TRACING`; bundle mode does not override it.
 The optional standalone scheduler remains on tsx.
 

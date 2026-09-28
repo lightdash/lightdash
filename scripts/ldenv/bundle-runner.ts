@@ -7,6 +7,85 @@ import { bundleDirectory, type BundleState } from './bundle-state';
 import { runner, writeJson } from './io';
 import { instanceId } from './model';
 
+export class BundleSupervisor {
+    private closing = false;
+    private externalChanged = false;
+    private queue = Promise.resolve();
+
+    constructor(
+        readonly state: BundleState,
+        private readonly child: Pick<BundleChild, 'pid' | 'start' | 'stop'>,
+        private readonly publish: (state: BundleState) => Promise<void>,
+        private readonly redact: (value: string) => string = (value) => value,
+    ) {}
+
+    private write(): Promise<void> {
+        this.state.apiPid = this.child.pid;
+        return this.publish({ ...this.state });
+    }
+
+    private enqueue(work: () => Promise<void>): Promise<void> {
+        this.queue = this.queue.then(async () => {
+            if (!this.closing) await work();
+        });
+        return this.queue;
+    }
+
+    buildStarted(): Promise<void> {
+        return this.enqueue(async () => {
+            this.state.state = 'building';
+            await this.write();
+        });
+    }
+
+    invalidate(): void {
+        this.externalChanged = true;
+    }
+
+    buildFinished(event: BuildEvent): Promise<void> {
+        return this.enqueue(async () => {
+            if (!event.ok) {
+                this.state.state = 'failed';
+                this.state.error = this.redact(event.errors.join('\n'));
+                await this.write();
+                return;
+            }
+            if (
+                !this.child.pid ||
+                event.revision !== this.state.launchedRevision ||
+                this.externalChanged
+            ) {
+                this.externalChanged = false;
+                await this.child.stop();
+                if (this.closing) return;
+                await this.child.start();
+                this.state.apiStartedAt = new Date().toISOString();
+            }
+            if (this.closing) return;
+            this.state.generation = event.generation;
+            this.state.buildMs = Math.round(event.seconds * 1000);
+            this.state.builtAt = new Date().toISOString();
+            this.state.launchedRevision = event.revision;
+            this.state.state = 'ready';
+            this.state.error = null;
+            await this.write();
+        });
+    }
+
+    close(error: string | null = null): Promise<void> {
+        this.closing = true;
+        this.queue = this.queue
+            .catch(() => {})
+            .then(async () => {
+                await this.child.stop();
+                this.state.state = error ? 'failed' : 'stopped';
+                this.state.error = error ? this.redact(error) : null;
+                await this.write();
+            });
+        return this.queue;
+    }
+}
+
 async function main(): Promise<void> {
     const root = await realpath(process.env.LDENV_WORKTREE ?? process.cwd());
     const id = instanceId(root);
@@ -34,9 +113,7 @@ async function main(): Promise<void> {
         apiStartedAt: null,
     };
     let closing = false;
-    let externalChanged = false;
     let builder: Awaited<ReturnType<typeof createBackendBuilder>> | null = null;
-    let queue = Promise.resolve();
     const sentinels = [
         'packages/common/dist/cjs/.tsbuildinfo',
         'packages/formula/dist/.tsbuildinfo',
@@ -60,74 +137,42 @@ async function main(): Promise<void> {
             );
         },
     });
-    const publish = () => {
-        state.apiPid = child.pid;
-        return writeJson(statusFile, state);
-    };
-    const accept = async (event: BuildEvent) => {
-        if (closing) return;
-        if (!event.ok) {
-            state.state = 'failed';
-            state.error = runner.redact(event.errors.join('\n'));
-            process.stderr.write(`${state.error}\n`);
-            await publish();
-            return;
-        }
-        state.generation = event.generation;
-        state.buildMs = Math.round(event.seconds * 1000);
-        state.builtAt = new Date().toISOString();
-        if (
-            !child.pid ||
-            event.revision !== state.launchedRevision ||
-            externalChanged
-        ) {
-            externalChanged = false;
-            await child.stop();
-            if (closing) return;
-            await child.start();
-            state.apiStartedAt = new Date().toISOString();
-        }
-        state.launchedRevision = event.revision;
-        state.state = 'ready';
-        state.error = null;
-        await publish();
-    };
-    let pending: BuildEvent | null = null;
-    const enqueue = (event: BuildEvent) => {
-        pending = event;
-        queue = queue.then(async () => {
-            while (pending && !closing) {
-                const latest = pending;
-                pending = null;
-                await accept(latest);
-            }
+    const supervisor = new BundleSupervisor(
+        state,
+        child,
+        (next) => writeJson(statusFile, next),
+        (value) => runner.redact(value),
+    );
+    const guarded = (work: Promise<void>) =>
+        work.catch((error: unknown) => {
+            void close(
+                1,
+                error instanceof Error ? error.message : String(error),
+            );
+            throw error;
         });
-        void queue.catch((error: unknown) =>
-            close(1, error instanceof Error ? error.message : String(error)),
-        );
-    };
     async function close(code: number, error: string | null = null) {
         if (closing) return;
         closing = true;
         sentinels.forEach((file) => unwatchFile(file));
-        await builder?.dispose();
-        await queue.catch(() => {});
-        await child.stop();
-        state.state = error ? 'failed' : 'stopped';
-        state.error = error ? runner.redact(error) : null;
-        await publish();
+        await Promise.all([supervisor.close(error), builder?.dispose()]);
         process.exit(code);
     }
     process.once('SIGINT', () => void close(0));
     process.once('SIGTERM', () => void close(0));
-    await publish();
+    await supervisor.buildStarted();
     const previousGoMemoryLimit = process.env.GOMEMLIMIT;
     process.env.GOMEMLIMIT = '512MiB';
     try {
         builder = await createBackendBuilder({
             root,
             outDir,
-            onBuild: enqueue,
+            onBuildStart: () => guarded(supervisor.buildStarted()),
+            onBuild: async (event) => {
+                await guarded(supervisor.buildFinished(event));
+                if (!event.ok && state.error)
+                    process.stderr.write(`${state.error}\n`);
+            },
         });
     } finally {
         if (previousGoMemoryLimit === undefined) delete process.env.GOMEMLIMIT;
@@ -138,19 +183,19 @@ async function main(): Promise<void> {
         for (const file of sentinels) {
             watchFile(file, { interval: 250 }, (current, previous) => {
                 if (closing || current.mtimeMs === previous.mtimeMs) return;
-                externalChanged = true;
+                supervisor.invalidate();
                 void builder!.rebuild().catch(() => {});
             });
         }
     } catch (error) {
-        await queue;
         await close(1, error instanceof Error ? error.message : String(error));
     }
 }
 
-void main().catch((error: unknown) => {
-    process.stderr.write(
-        `ldenv bundle: ${runner.redact(error instanceof Error ? error.message : String(error))}\n`,
-    );
-    process.exitCode = 1;
-});
+if (require.main === module)
+    void main().catch((error: unknown) => {
+        process.stderr.write(
+            `ldenv bundle: ${runner.redact(error instanceof Error ? error.message : String(error))}\n`,
+        );
+        process.exitCode = 1;
+    });

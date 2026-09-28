@@ -17,12 +17,16 @@ import {
 } from './pool';
 
 const tracing = process.env.LDENV_TRACING;
+const selectedBackend = process.env.LDENV_BACKEND;
 before(() => {
     delete process.env.LDENV_TRACING;
+    delete process.env.LDENV_BACKEND;
 });
 after(() => {
     if (tracing === undefined) delete process.env.LDENV_TRACING;
     else process.env.LDENV_TRACING = tracing;
+    if (selectedBackend === undefined) delete process.env.LDENV_BACKEND;
+    else process.env.LDENV_BACKEND = selectedBackend;
 });
 
 function fixture(name = '12345678-abc') {
@@ -68,6 +72,7 @@ function fixture(name = '12345678-abc') {
         dirtyAfterFailure: false,
         switched: false,
         canonicalPath: worktree,
+        backendMode: 'bundle' as 'bundle' | 'tsx',
     };
     const events: string[] = [];
     const saved: Instance[] = [];
@@ -157,7 +162,7 @@ function fixture(name = '12345678-abc') {
         startClaimApi: async () => {
             events.push('start-api');
         },
-        dotenv: async () => ({}),
+        dotenv: async () => ({ LDENV_BACKEND: state.backendMode }),
         dependencies: async () => {
             throw new Error('unexpected dependencies');
         },
@@ -379,6 +384,7 @@ test('pool retirement catches abandoned warming-ready instances but preserves li
         },
         saveInstance: f.operations.saveInstance,
         alive: (pid) => pid === 123,
+        spareBackendMode: async () => 'bundle' as const,
     });
     assert.deepEqual(retired, [abandoned.id, 'dead']);
 });
@@ -399,6 +405,7 @@ test('slow stale teardown leaves the pool available for claims and publication',
         instances: async () => registry,
         saveInstance: f.operations.saveInstance,
         alive: (pid: number | null) => pid === 123,
+        spareBackendMode: async () => 'bundle' as const,
         down: async (instance: Instance) => {
             assert.equal(instance.id, stale.id);
             entered.resolve();
@@ -449,6 +456,7 @@ test('stale teardown rechecks generation and state after releasing the pool lock
             instances: async () => registry,
             saveInstance: f.operations.saveInstance,
             alive: () => false,
+            spareBackendMode: async () => 'bundle' as const,
             down: async () => {
                 removed = true;
             },
@@ -743,6 +751,31 @@ test('claim fails with refill instructions when every ready spare is dead', asyn
     assert(f.events.includes('background pool fill --size 1'));
 });
 
+test('default bundle claim skips a legacy tsx spare without reserving it', async () => {
+    const f = fixture();
+    f.state.backendMode = 'tsx';
+    await assert.rejects(f.claim(), /No ready spare/);
+    assert.equal(f.spare.kind, 'spare');
+    assert.equal(
+        f.events.some((event) => event.startsWith('save claimed')),
+        false,
+    );
+    assert(f.events.includes('background pool fill --size 1'));
+});
+
+test('explicit tsx claim keeps the cheap path for a tsx spare', async () => {
+    const f = fixture();
+    f.state.backendMode = 'tsx';
+    process.env.LDENV_BACKEND = 'tsx';
+    try {
+        assert.equal((await f.claim()).kind, 'claimed');
+        assert.equal(f.events.includes('stop'), false);
+        assert(f.events.includes('health'));
+    } finally {
+        delete process.env.LDENV_BACKEND;
+    }
+});
+
 test('claim falls back to an older compatible parent after the newest spare fails liveness', async () => {
     const f = fixture();
     const [newest] = await f.operations.parents();
@@ -795,6 +828,8 @@ function fillFixture() {
         saveInstance: f.operations.saveInstance,
         alive: () => false,
         instanceIsLive: async (instance: Instance) => !dead.has(instance.id),
+        spareBackendMode: async (instance: Instance) =>
+            instance.id === f.spare.id ? f.state.backendMode : 'bundle',
         down: async (instance: Instance) => {
             removed.push(instance.id);
             registry.splice(
@@ -811,10 +846,10 @@ function fillFixture() {
         writeJson: f.operations.writeJson,
         parents: f.operations.parents,
         localSecrets: async () => ({}),
-        retireStalePoolInstances: (parent) =>
-            retireStalePoolInstances(parent, stateOperations),
-        inspectReadySpares: (parent) =>
-            inspectReadySpares(parent, stateOperations),
+        retireStalePoolInstances: (parent, mode) =>
+            retireStalePoolInstances(parent, stateOperations, mode),
+        inspectReadySpares: (parent, mode) =>
+            inspectReadySpares(parent, stateOperations, mode),
         diskGuard: async () => {},
         availableMemory: async () => 4 * 1024 ** 3,
         mkdir: async () => undefined,
@@ -842,6 +877,16 @@ test('fill replaces and retires a dead ready spare instead of counting it', asyn
     assert.notEqual(result[0].id, f.spare.id);
     assert.equal(result[0].kind, 'spare');
     assert.equal(result[0].phase, 'ready');
+});
+
+test('fill retires an owned tsx spare before building the default bundle spare', async () => {
+    const f = fillFixture();
+    f.state.backendMode = 'tsx';
+    const result = await fillPool('/fixture/root', 1, f.operations);
+    assert.deepEqual(f.removed, [f.spare.id]);
+    assert.equal(f.builds(), 1);
+    assert.equal(result.length, 1);
+    assert.notEqual(result[0].id, f.spare.id);
 });
 
 test('fill recounts the live registry after publication when a claim consumes an initial spare', async () => {
@@ -896,6 +941,7 @@ test('fill inherits only the parent licence pair without replacing target flags'
     f.operations.up = async (...args) => {
         assert.deepEqual(args[4], {
             ...target,
+            LDENV_BACKEND: 'bundle',
             LIGHTDASH_LICENSE_KEY: 'parent-key',
             LIGHTDASH_LICENSE_CERTIFICATE: 'parent-certificate',
         });

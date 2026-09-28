@@ -7,9 +7,19 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
+import { apiProcessGeneration, type BundleState } from './bundle-state';
 import { runner } from './io';
-import { json, newInstance, type Ports, type Instance } from './model';
 import {
+    json,
+    newInstance,
+    type Ports,
+    type Instance,
+    type Environment,
+} from './model';
+import {
+    apiGeneration,
+    processStartEnvironment,
+    startProcesses,
     checkClaimEndpoints,
     checkForegroundReady,
     paintVerificationUpdate,
@@ -79,8 +89,40 @@ test('claim verification preserves independent errors and refuses stale state', 
         assert.equal(update(current), null);
 });
 
-test('claim verifier retries a real HTTP disconnect and API restart before publishing success', async () => {
-    let generation = 'old';
+test('claim verifier retries a real HTTP disconnect and bundle child restart under the same supervisor', async () => {
+    const instance = claimAttempt();
+    const supervisor: ProcessInfo = {
+        name: `${instance.id}-api`,
+        pid: 100,
+        monit: { memory: 0 },
+        pm2_env: {
+            pm_cwd: instance.worktree,
+            status: 'online',
+            pm_uptime: Date.parse(instance.startedAt),
+            LDENV_BACKEND: 'bundle',
+        },
+    };
+    const bundle: BundleState = {
+        worktree: instance.worktree,
+        supervisorPid: 100,
+        apiPid: 101,
+        state: 'ready',
+        error: null,
+        generation: 1,
+        launchedRevision: 1,
+        buildMs: 10,
+        builtAt: instance.startedAt,
+        apiStartedAt: instance.startedAt,
+    };
+    const generation = () =>
+        apiGeneration(instance, {
+            ownedProcesses: async () => [supervisor],
+            apiProcessGeneration: (current, api) =>
+                apiProcessGeneration(current, api, {
+                    bundleStatus: async () => bundle,
+                    alive: () => true,
+                }),
+        });
     let restart: Promise<void> = Promise.resolve();
     let first = true;
     let port = 0;
@@ -96,7 +138,10 @@ test('claim verifier retries a real HTTP disconnect and API restart before publi
                 );
                 server.listen(port, '127.0.0.1');
                 await once(server, 'listening');
-                generation = 'new';
+                bundle.apiPid = 102;
+                bundle.apiStartedAt = new Date().toISOString();
+                bundle.launchedRevision = 2;
+                bundle.generation = 2;
             })();
             return;
         }
@@ -115,7 +160,7 @@ test('claim verifier retries a real HTTP disconnect and API restart before publi
     const address = server.address();
     assert(address && typeof address !== 'string');
     port = address.port;
-    let current = claimAttempt();
+    let current = instance;
     const attempt = structuredClone(current);
     let checks = 0;
     try {
@@ -125,13 +170,13 @@ test('claim verifier retries a real HTTP disconnect and API restart before publi
             saveInstance: async (next) => {
                 current = next;
             },
-            apiGeneration: async () => generation,
+            apiGeneration: generation,
             stableReady: (instance, check) =>
                 stableReady(instance, check, {
                     waitForFrontend: async () => {},
                     settledApiGeneration: async () => {
                         await restart;
-                        return generation;
+                        return (await generation())!;
                     },
                 }),
             checkReady: async () => {
@@ -142,7 +187,8 @@ test('claim verifier retries a real HTTP disconnect and API restart before publi
                 );
             },
         });
-        assert.equal(generation, 'new');
+        assert.equal(supervisor.pid, 100);
+        assert.equal(bundle.apiPid, 102);
         assert.equal(checks, 2);
         assert.equal(current.verification?.state, 'passed');
         assert.equal(current.phase, 'ready');
@@ -577,7 +623,10 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
                     '-e',
                     `process.stdout.write(JSON.stringify(require(${JSON.stringify(wrapper)})))`,
                 ],
-                { cwd: root, env: { LDENV_WORKTREE: root } },
+                {
+                    cwd: root,
+                    env: { LDENV_WORKTREE: root, LDENV_BACKEND: 'tsx' },
+                },
             ),
         );
         assert.equal(
@@ -597,7 +646,11 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
                 ],
                 {
                     cwd: root,
-                    env: { LDENV_WORKTREE: root, LDENV_TRACING: 'true' },
+                    env: {
+                        LDENV_WORKTREE: root,
+                        LDENV_TRACING: 'true',
+                        LDENV_BACKEND: 'tsx',
+                    },
                 },
             ),
         );
@@ -620,7 +673,6 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
                     cwd: root,
                     env: {
                         LDENV_WORKTREE: root,
-                        LDENV_BACKEND: 'bundle',
                         LDENV_TRACING: 'true',
                     },
                 },
@@ -640,4 +692,116 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
     } finally {
         await rm(root, { recursive: true });
     }
+});
+
+test('parallel process stages persist one current mode and tracing environment before launching', async () => {
+    const instance = claimAttempt();
+    const originalEpoch = instance.processStartedAt!;
+    instance.startedAt = new Date(
+        Date.parse(originalEpoch) + 1000,
+    ).toISOString();
+    let env: Environment = {
+        LDENV_BACKEND: 'tsx',
+        LDENV_TRACING: 'false',
+        CUSTOM: 'preserved',
+    };
+    let reads = 0;
+    let writes = 0;
+    let releaseWrite!: () => void;
+    let writing!: () => void;
+    const writeGate = new Promise<void>((resolve) => {
+        releaseWrite = resolve;
+    });
+    const writeStarted = new Promise<void>((resolve) => {
+        writing = resolve;
+    });
+    const launches: Environment[] = [];
+    const operations = {
+        ownedProcesses: async () => [],
+        dotenv: async () => {
+            reads += 1;
+            return { ...env };
+        },
+        writeInstanceEnv: async (_instance: Instance, next: Environment) => {
+            writes += 1;
+            writing();
+            await writeGate;
+            env = { ...next };
+        },
+    };
+    const startOperations = {
+        processStartEnvironment: (current: Instance) =>
+            processStartEnvironment(
+                current,
+                { LDENV_BACKEND: 'bundle', LDENV_TRACING: 'true' },
+                operations,
+            ),
+        pm2: async (_args: string[], _root?: string, launch?: Environment) => {
+            launches.push(launch!);
+            return '';
+        },
+        processPriority: async () => {},
+    };
+    const starts = Promise.all([
+        startProcesses(instance, 'frontend', startOperations),
+        startProcesses(instance, 'watchers', startOperations),
+        startProcesses(instance, 'api', startOperations),
+    ]);
+    await writeStarted;
+    assert.equal(reads, 1);
+    assert.equal(launches.length, 0);
+    releaseWrite();
+    await starts;
+    assert.equal(writes, 1);
+    assert.equal(reads, 3);
+    assert.equal(launches.length, 3);
+    for (const launch of launches) {
+        assert.equal(launch.LDENV_BACKEND, 'bundle');
+        assert.equal(launch.LDENV_TRACING, 'true');
+        assert.equal(launch.OTEL_SDK_DISABLED, 'false');
+        assert.equal(launch.CUSTOM, 'preserved');
+        assert.equal(launch.LDENV_START_EPOCH, originalEpoch);
+    }
+    assert.equal(env.LDENV_BACKEND, 'bundle');
+    assert.equal(env.LDENV_TRACING, 'true');
+});
+
+test('process stage mode respects legacy live tsx and selects bundle only for a stopped legacy instance', async () => {
+    const instance = claimAttempt();
+    let env: Environment = {};
+    let online = true;
+    const operations = {
+        ownedProcesses: async () =>
+            online
+                ? [
+                      {
+                          name: `${instance.id}-frontend`,
+                          pm2_env: { status: 'online' },
+                      } as ProcessInfo,
+                  ]
+                : [],
+        dotenv: async () => ({ ...env }),
+        writeInstanceEnv: async (_instance: Instance, next: Environment) => {
+            env = { ...next };
+        },
+    };
+    assert.equal(
+        (await processStartEnvironment(instance, {}, operations)).LDENV_BACKEND,
+        'tsx',
+    );
+    await assert.rejects(
+        processStartEnvironment(
+            instance,
+            { LDENV_BACKEND: 'bundle' },
+            operations,
+        ),
+        /Stop this instance/,
+    );
+    assert.equal(env.LDENV_BACKEND, 'tsx');
+    online = false;
+    env = {};
+    assert.equal(
+        (await processStartEnvironment(instance, {}, operations)).LDENV_BACKEND,
+        'bundle',
+    );
 });

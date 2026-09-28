@@ -54,7 +54,7 @@ scheduler.watch = api.watch;
 scheduler.ignore_watch = api.ignore_watch;
 scheduler.watch_options = api.watch_options;
 scheduler.watch_delay = api.watch_delay;
-const mode = process.env.LDENV_BACKEND ?? api.env.LDENV_BACKEND ?? 'tsx';
+const mode = process.env.LDENV_BACKEND ?? api.env.LDENV_BACKEND ?? 'bundle';
 if (!['tsx', 'bundle'].includes(mode))
     throw new Error('Backend mode must be tsx or bundle');
 if (mode === 'bundle') {

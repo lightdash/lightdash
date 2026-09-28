@@ -12,7 +12,11 @@ test('live readiness requires owned running processes and API health', async () 
             ({
                 name: `${instance.id}-${suffix}`,
                 pid: 1,
-                pm2_env: { status: 'online' },
+                pm2_env: {
+                    status: 'online',
+                    pm_cwd: instance.worktree,
+                    pm_uptime: Date.now(),
+                },
             }) as ProcessInfo,
     );
     const operations = {
@@ -84,4 +88,56 @@ test('up restarts stale ready state and never reports ready solely from disk', a
         instance,
     );
     assert.equal(events.length, 4);
+});
+
+test('live bundle readiness rejects an old healthy child during rebuild and child changes during health', async () => {
+    const instance = newInstance('/fixture/live-bundle', 'a'.repeat(40));
+    instance.ports = { api: 8080 } as Instance['ports'];
+    const processes: ProcessInfo[] = ['api', 'frontend'].map(
+        (suffix, index) => ({
+            name: `${instance.id}-${suffix}`,
+            pid: 100 + index,
+            monit: { memory: 0 },
+            pm2_env: {
+                status: 'online',
+                pm_cwd: instance.worktree,
+                pm_uptime: Date.parse(instance.startedAt),
+                LDENV_BACKEND: 'bundle',
+            },
+        }),
+    );
+    const bundle = {
+        worktree: instance.worktree,
+        supervisorPid: 100,
+        apiPid: 200,
+        state: 'ready' as 'ready' | 'building' | 'failed',
+        error: null,
+        generation: 1,
+        launchedRevision: 1,
+        buildMs: 10,
+        builtAt: instance.startedAt,
+        apiStartedAt: instance.startedAt,
+    };
+    const operations = {
+        ownedProcesses: async () => processes,
+        health: async () => true,
+        alive: () => true,
+        bundleStatus: async () => bundle,
+    };
+    assert.equal(await instanceIsLive(instance, operations), true);
+    bundle.state = 'building';
+    assert.equal(await instanceIsLive(instance, operations), false);
+    bundle.state = 'failed';
+    assert.equal(await instanceIsLive(instance, operations), false);
+    bundle.state = 'ready';
+    assert.equal(
+        await instanceIsLive(instance, {
+            ...operations,
+            health: async () => {
+                bundle.apiPid = 201;
+                return true;
+            },
+        }),
+        false,
+    );
 });

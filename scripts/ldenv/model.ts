@@ -4,10 +4,14 @@ import { parse } from 'smol-toml';
 import type { ViteCacheReport } from './vite-cache';
 
 export type Environment = Record<string, string>;
-export function backendMode(value: string | undefined): 'tsx' | 'bundle' {
-    if (value === undefined || value === 'tsx') return 'tsx';
-    if (value === 'bundle') return 'bundle';
+export type BackendMode = 'tsx' | 'bundle';
+export function backendMode(value: string | undefined): BackendMode {
+    if (value === undefined || value === 'bundle') return 'bundle';
+    if (value === 'tsx') return 'tsx';
     throw new Error('Backend mode must be tsx or bundle');
+}
+export function savedBackendMode(value: string | undefined): BackendMode {
+    return value === undefined ? 'tsx' : backendMode(value);
 }
 export type Tier = {
     name: string;

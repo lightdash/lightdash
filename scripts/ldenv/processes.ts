@@ -5,7 +5,8 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { writeInstanceEnv, writeTracingEnv } from './env';
+import { apiProcessGeneration } from './bundle-state';
+import { writeInstanceEnv } from './env';
 import { containers, dotenv, sql } from './infra';
 import {
     home,
@@ -20,6 +21,7 @@ import {
 import {
     assertInstance,
     backendMode,
+    savedBackendMode,
     json,
     parseRecipe,
     type Instance,
@@ -44,6 +46,7 @@ export type ProcessInfo = {
         status: string;
         pm_uptime: number;
         watch_delay?: number;
+        LDENV_BACKEND?: string;
     };
 };
 export async function pm2(
@@ -87,6 +90,7 @@ export async function ownedProcesses(
             status: pm2_env.status,
             pm_uptime: pm2_env.pm_uptime,
             watch_delay: pm2_env.watch_delay,
+            LDENV_BACKEND: pm2_env.LDENV_BACKEND,
         },
     }));
 }
@@ -168,33 +172,68 @@ export async function processPriority(
         }),
     );
 }
+const pendingStartEnvironments = new Map<string, Promise<Environment>>();
+export async function processStartEnvironment(
+    instance: Instance,
+    requested: NodeJS.ProcessEnv = process.env,
+    operations = { ownedProcesses, dotenv, writeInstanceEnv },
+): Promise<Environment> {
+    const previous =
+        pendingStartEnvironments.get(instance.id) ?? Promise.resolve();
+    const pending = previous
+        .catch(() => {})
+        .then(async () => {
+            const processes = await operations.ownedProcesses(instance);
+            const env = await operations.dotenv(
+                path.join(instance.worktree, '.env.development.local'),
+            );
+            const running = processes.filter(
+                (item) => item.pm2_env.status === 'online',
+            );
+            const selected =
+                requested.LDENV_BACKEND !== undefined
+                    ? backendMode(requested.LDENV_BACKEND)
+                    : running.length
+                      ? savedBackendMode(env.LDENV_BACKEND)
+                      : backendMode(env.LDENV_BACKEND);
+            const api = running.find(
+                (item) => item.name === `${instance.id}-api`,
+            );
+            const runningMode = savedBackendMode(
+                api ? api.pm2_env.LDENV_BACKEND : env.LDENV_BACKEND,
+            );
+            if (running.length && selected !== runningMode)
+                throw new Error(
+                    'Stop this instance before changing backend mode',
+                );
+            const updated: Environment = { ...env, LDENV_BACKEND: selected };
+            if (requested.LDENV_TRACING !== undefined) {
+                updated.LDENV_TRACING = requested.LDENV_TRACING;
+                updated.OTEL_SDK_DISABLED =
+                    requested.LDENV_TRACING === 'true' ? 'false' : 'true';
+            }
+            if (
+                Object.entries(updated).some(
+                    ([key, value]) => value !== env[key],
+                )
+            )
+                await operations.writeInstanceEnv(instance, updated);
+            return updated;
+        });
+    pendingStartEnvironments.set(instance.id, pending);
+    try {
+        return await pending;
+    } finally {
+        if (pendingStartEnvironments.get(instance.id) === pending)
+            pendingStartEnvironments.delete(instance.id);
+    }
+}
 export async function startProcesses(
     instance: Instance,
     stage: 'frontend' | 'watchers' | 'api',
+    operations = { processStartEnvironment, pm2, processPriority },
 ): Promise<void> {
-    await ownedProcesses(instance);
-    const env = await dotenv(
-        path.join(instance.worktree, '.env.development.local'),
-    );
-    const requestedBackend = backendMode(
-        process.env.LDENV_BACKEND ?? env.LDENV_BACKEND,
-    );
-    if (
-        stage === 'frontend' &&
-        requestedBackend !== backendMode(env.LDENV_BACKEND)
-    ) {
-        if (
-            (await ownedProcesses(instance)).some(
-                (item) => item.pm2_env.status === 'online',
-            )
-        )
-            throw new Error('Stop this instance before changing backend mode');
-        env.LDENV_BACKEND = requestedBackend;
-        await writeInstanceEnv(instance, env);
-    }
-    if (process.env.LDENV_TRACING !== undefined) {
-        await writeTracingEnv(instance, env, process.env.LDENV_TRACING);
-    }
+    const env = await operations.processStartEnvironment(instance);
     const suffixes =
         stage === 'watchers'
             ? [
@@ -208,7 +247,7 @@ export async function startProcesses(
                   'maple',
               ]
             : [stage];
-    await pm2(
+    await operations.pm2(
         [
             'start',
             path.join(controlRoot, 'scripts/ldenv/ecosystem.config.cjs'),
@@ -228,7 +267,8 @@ export async function startProcesses(
             ),
         },
     );
-    if (instance.kind === 'warming') await processPriority(instance, true);
+    if (instance.kind === 'warming')
+        await operations.processPriority(instance, true);
 }
 export async function stopClaimApi(
     instance: Instance,
@@ -509,13 +549,12 @@ export async function waitForFrontend(
 }
 export async function apiGeneration(
     instance: Instance,
+    operations = { ownedProcesses, apiProcessGeneration },
 ): Promise<string | null> {
-    const api = (await ownedProcesses(instance)).find(
+    const api = (await operations.ownedProcesses(instance)).find(
         (item) => item.name === `${instance.id}-api`,
     );
-    return api && api.pid > 0 && api.pm2_env.status === 'online'
-        ? `${api.pid}:${api.pm2_env.pm_uptime}`
-        : null;
+    return operations.apiProcessGeneration(instance, api);
 }
 async function settledApiGeneration(instance: Instance): Promise<string> {
     await waitForCompilers(instance);
@@ -628,7 +667,13 @@ export async function cheapReady(
         await stableReady(instance, async () => {
             await check();
         });
-    else await check();
+    else {
+        const generation = await apiGeneration(instance);
+        if (!generation) throw new Error('Warm claim API is not ready');
+        await check();
+        if (generation !== (await apiGeneration(instance)))
+            throw new Error('Warm claim API changed during readiness checks');
+    }
     instance.phase = 'ready';
     instance.readyAt = new Date().toISOString();
     instance.timings.cheapGate = Date.now() - started;

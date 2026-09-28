@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { bundleStatus } from './bundle-state';
+import { backendStatus, runningBackendMode } from './backend-status';
+import { apiProcessGeneration, bundleStatus } from './bundle-state';
 import { cleanupOrphans } from './cleanup';
 import {
     compose,
@@ -23,7 +24,12 @@ import {
     start,
     up,
 } from './lifecycle';
-import { backendMode, instanceId, type Instance } from './model';
+import {
+    backendMode,
+    instanceId,
+    savedBackendMode,
+    type Instance,
+} from './model';
 import { claimSpare, fillPool, poolSettings } from './pool';
 import {
     cancelMonitor,
@@ -37,11 +43,12 @@ import {
 } from './processes';
 
 const help = `ldenv install
-ldenv [--worktree PATH] new <branch> [--base origin/main] [--backend tsx|bundle]
+ldenv [--worktree PATH] new <branch> [--base origin/main] [--backend bundle|tsx]
 ldenv pool fill [--size 1]
 ldenv parent build [--ref origin/main] [--benchmark-deps] | refresh [--ref origin/main] | list | gc [--keep 2]
-ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing] [--backend tsx|bundle]
-ldenv down [--dry-run] | stop | start [--no-wait] [--backend tsx|bundle] | status [--json] | gc [--dry-run] | doctor`;
+ldenv up [--parent SHA] [--build-parent] [--no-wait] [--tracing] [--backend bundle|tsx]
+ldenv down [--dry-run] | stop | start [--no-wait] [--backend bundle|tsx] | status [--json] | gc [--dry-run] | doctor
+Backend defaults to bundle for new instances; use --backend tsx or LDENV_BACKEND=tsx for fallback.`;
 function option(args: string[], name: string, fallback: string): string {
     const index = args.indexOf(name);
     if (index < 0) return fallback;
@@ -50,9 +57,13 @@ function option(args: string[], name: string, fallback: string): string {
         throw new Error(`${name} needs a value`);
     return value;
 }
-function printInstance(instance: Instance): void {
+async function printInstance(instance: Instance): Promise<void> {
+    const env = await dotenv(
+        path.join(instance.worktree, '.env.development.local'),
+    );
+    const backend = savedBackendMode(env.LDENV_BACKEND);
     process.stdout.write(
-        `${instance.phase.toUpperCase()}: ${instance.worktree}\nURL: http://localhost:${instance.ports?.frontend}\ninstance=${instance.id} parent=${instance.parent.slice(0, 12)} api=${instance.ports?.api} database=${instance.database}\ntimeToReady=${instance.timings.timeToReady === undefined ? 'pending' : `${instance.timings.timeToReady}ms`}\nTimings (ms, RSS bytes): ${JSON.stringify(instance.timings)}\n`,
+        `${instance.phase.toUpperCase()}: ${instance.worktree}\nURL: http://localhost:${instance.ports?.frontend}\ninstance=${instance.id} parent=${instance.parent.slice(0, 12)} api=${instance.ports?.api} database=${instance.database} backend=${backend}\ntimeToReady=${instance.timings.timeToReady === undefined ? 'pending' : `${instance.timings.timeToReady}ms`}\nTimings (ms, RSS bytes): ${JSON.stringify(instance.timings)}\n`,
     );
     if (instance.viteCache)
         process.stdout.write(
@@ -72,7 +83,7 @@ async function main(args: string[]): Promise<void> {
     const [command, subcommand] = args;
     if (args.includes('--backend'))
         process.env.LDENV_BACKEND = backendMode(
-            option(args, '--backend', 'tsx'),
+            option(args, '--backend', 'bundle'),
         );
     if (process.env.LDENV_BACKEND !== undefined)
         backendMode(process.env.LDENV_BACKEND);
@@ -133,11 +144,11 @@ async function main(args: string[]): Promise<void> {
                 ? Number(option(args, '--size', '1'))
                 : null,
         );
-        spares.forEach(printInstance);
+        for (const spare of spares) await printInstance(spare);
         return;
     }
     if (command === 'new' && subcommand) {
-        printInstance(
+        await printInstance(
             await claimSpare(
                 root,
                 subcommand,
@@ -148,7 +159,7 @@ async function main(args: string[]): Promise<void> {
     }
     if (command === 'up') {
         if (args.includes('--build-parent')) await buildParent(root, 'HEAD');
-        printInstance(
+        await printInstance(
             await up(
                 root,
                 args.includes('--parent') ? option(args, '--parent', '') : null,
@@ -224,31 +235,39 @@ async function main(args: string[]): Promise<void> {
         const env = await dotenv(
             path.join(instance.worktree, '.env.development.local'),
         );
-        const backend = backendMode(env.LDENV_BACKEND);
+        const api = processes.find(
+            (item) =>
+                item.name === `${instance.id}-api` &&
+                item.pm2_env.status === 'online',
+        );
+        const backend = runningBackendMode(env.LDENV_BACKEND, api);
         const bundle =
             backend === 'bundle'
-                ? await bundleStatus(
-                      instance,
-                      processes.find(
-                          (item) => item.name === `${instance.id}-api`,
-                      )?.pid ?? null,
-                  )
+                ? await bundleStatus(instance, api?.pid ?? null)
                 : null;
-        const buildFailed = bundle?.state === 'failed';
+        const generation =
+            backend === 'bundle' &&
+            savedBackendMode(api?.pm2_env.LDENV_BACKEND) !== 'bundle'
+                ? null
+                : await apiProcessGeneration(instance, api);
+        const derived = backendStatus(
+            instance,
+            backend,
+            bundle,
+            generation,
+            online,
+        );
         const status = {
             ...instance,
             backend,
             bundle,
-            phase:
-                buildFailed && instance.phase === 'ready'
-                    ? 'degraded'
-                    : instance.phase,
-            error: buildFailed ? bundle.error : instance.error,
+            phase: derived.phase,
+            error: derived.error,
             url: instance.ports
                 ? `http://localhost:${instance.ports.frontend}`
                 : null,
             healthy: online,
-            ready: instance.phase === 'ready' && online && !buildFailed,
+            ready: derived.ready,
             timeToReady: instance.timings.timeToReady ?? null,
             monitorAlive: alive(instance.monitorPid),
             processes,
@@ -279,7 +298,9 @@ async function main(args: string[]): Promise<void> {
             return;
         }
         if (command === 'start') {
-            printInstance(await start(instance, args.includes('--no-wait')));
+            await printInstance(
+                await start(instance, args.includes('--no-wait')),
+            );
             return;
         }
         throw new Error(help);

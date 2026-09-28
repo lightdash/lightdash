@@ -18,13 +18,16 @@ import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createBackendBuilder, type BuildEvent } from './backend-bundle.cjs';
 import { BundleChild } from './bundle-child';
-import { backendMode } from './model';
+import { BundleSupervisor } from './bundle-runner';
+import { apiProcessGeneration, type BundleState } from './bundle-state';
+import { backendMode, newInstance } from './model';
+import type { ProcessInfo } from './processes';
 
 const root = path.resolve(__dirname, '../..');
 const requireFixture = createRequire(__filename);
 
-test('backend selection defaults to tsx and rejects unsupported modes', () => {
-    assert.equal(backendMode(undefined), 'tsx');
+test('backend selection defaults to bundle and rejects unsupported modes', () => {
+    assert.equal(backendMode(undefined), 'bundle');
     assert.equal(backendMode('tsx'), 'tsx');
     assert.equal(backendMode('bundle'), 'bundle');
     assert.throws(() => backendMode('bundel'));
@@ -36,13 +39,35 @@ test('incremental builds preserve assets, names and stacks and recover from erro
     const source = (value: number) =>
         `import fs from 'node:fs'; import path from 'node:path'; export class NamedFixture {}\nexport const value=${value}; export const literal='__dirname __filename'; export const asset=fs.readFileSync(path.join(__dirname,'asset.txt'),'utf8');\nexport function fail(){throw new Error('mapped-fixture');}\n`;
     const events: BuildEvent[] = [];
+    const publications: BundleState[] = [];
+    let nextPid = 100;
+    const child = {
+        pid: null as number | null,
+        start: async () => {
+            child.pid = ++nextPid;
+        },
+        stop: async () => {
+            child.pid = null;
+        },
+    };
+    const supervisor = new BundleSupervisor(
+        bundleState(root),
+        child,
+        async (state) => {
+            await delay(5);
+            publications.push(state);
+        },
+    );
     await writeFile(path.join(directory, 'asset.txt'), 'asset contents');
     await writeFile(entry, source(1));
     const builder = await createBackendBuilder({
         root,
         outDir: path.join(directory, 'output'),
         entry,
-        onBuild: (event) => {
+        onBuildStart: () => supervisor.buildStarted(),
+        onBuild: async (event) => {
+            assert.equal(publications.at(-1)?.state, 'building');
+            await supervisor.buildFinished(event);
             events.push(event);
         },
     });
@@ -57,6 +82,11 @@ test('incremental builds preserve assets, names and stacks and recover from erro
     };
     try {
         await builder.rebuild();
+        assert.deepEqual(
+            publications.map((state) => state.state),
+            ['building', 'ready'],
+        );
+        const firstPid = child.pid;
         assert.equal(read().asset, 'asset contents');
         assert.equal(read().NamedFixture.name, 'NamedFixture');
         assert.equal(read().literal, '__dirname __filename');
@@ -75,10 +105,16 @@ test('incremental builds preserve assets, names and stacks and recover from erro
         await writeFile(entry, 'const = invalid;');
         await assert.rejects(builder.rebuild());
         assert.equal(events.at(-1)?.ok, false);
+        assert.equal(publications.at(-1)?.state, 'failed');
+        assert.equal(child.pid, firstPid);
         assert.deepEqual(await readFile(builder.outfile), good);
         await writeFile(entry, source(2));
         const corrected = await builder.rebuild();
         assert(corrected.ok);
+        assert.equal(publications.at(-1)?.state, 'ready');
+        assert.equal(publications.at(-1)?.error, null);
+        assert.notEqual(child.pid, firstPid);
+        const correctedPid = child.pid;
         assert.equal(read().value, 2);
         const before = (await stat(builder.outfile)).mtimeMs;
         await builder.rebuild();
@@ -88,6 +124,20 @@ test('incremental builds preserve assets, names and stacks and recover from erro
         assert.equal(last.changed, false);
         assert.equal(last.revision, corrected.revision);
         assert.equal(last.revision, 2);
+        assert.equal(child.pid, correctedPid);
+        assert.deepEqual(
+            publications.map((state) => state.state),
+            [
+                'building',
+                'ready',
+                'building',
+                'failed',
+                'building',
+                'ready',
+                'building',
+                'ready',
+            ],
+        );
         await builder.watch();
         await delay(200);
         await writeFile(entry, source(3));
@@ -185,4 +235,171 @@ test('bundles when the target tsx package cannot resolve a hoisted config parser
         await builder?.dispose();
         await rm(directory, { recursive: true });
     }
+});
+
+function bundleState(worktree: string): BundleState {
+    return {
+        worktree,
+        supervisorPid: 100,
+        apiPid: null,
+        state: 'building',
+        error: null,
+        generation: 0,
+        launchedRevision: 0,
+        buildMs: null,
+        builtAt: null,
+        apiStartedAt: null,
+    };
+}
+
+test('bundle generation rejects stale ownership, nonready builds and dead children while preserving legacy tsx', async () => {
+    const instance = newInstance('/fixture/bundle-generation', 'a'.repeat(40));
+    const started = instance.startedAt;
+    const api: ProcessInfo = {
+        name: `${instance.id}-api`,
+        pid: 100,
+        monit: { memory: 0 },
+        pm2_env: {
+            status: 'online',
+            pm_cwd: instance.worktree,
+            pm_uptime: Date.parse(started),
+            LDENV_BACKEND: 'bundle',
+        },
+    };
+    const ready: BundleState = {
+        ...bundleState(instance.worktree),
+        state: 'ready',
+        apiPid: 101,
+        generation: 1,
+        launchedRevision: 1,
+        apiStartedAt: started,
+    };
+    let state = ready;
+    const operations = {
+        bundleStatus: async () => state,
+        alive: (pid: number | null) => pid === 100 || pid === 101,
+    };
+    const initial = await apiProcessGeneration(instance, api, operations);
+    assert(initial);
+    instance.startedAt = new Date(Date.parse(started) + 1000).toISOString();
+    assert.equal(
+        await apiProcessGeneration(instance, api, operations),
+        initial,
+    );
+    for (const delta of [
+        { state: 'building' as const },
+        { state: 'failed' as const },
+        { state: 'stopped' as const },
+        { apiPid: null },
+        { apiPid: 999 },
+        { apiPid: 100 },
+        { supervisorPid: 999 },
+        { worktree: '/another/worktree' },
+        { launchedRevision: 0 },
+        { generation: 0 },
+        { apiStartedAt: null },
+        { apiStartedAt: 'invalid' },
+        { apiStartedAt: new Date(0).toISOString() },
+    ]) {
+        state = { ...ready, ...delta };
+        assert.equal(
+            await apiProcessGeneration(instance, api, operations),
+            null,
+            JSON.stringify(delta),
+        );
+    }
+    state = ready;
+    assert.equal(
+        await apiProcessGeneration(
+            instance,
+            { ...api, pm2_env: { ...api.pm2_env, status: 'stopped' } },
+            operations,
+        ),
+        null,
+    );
+    assert.equal(
+        await apiProcessGeneration(
+            instance,
+            {
+                ...api,
+                pm2_env: { ...api.pm2_env, pm_cwd: '/another/worktree' },
+            },
+            operations,
+        ),
+        null,
+    );
+    assert.equal(
+        await apiProcessGeneration(instance, api, {
+            ...operations,
+            alive: () => false,
+        }),
+        null,
+    );
+    const legacy = {
+        ...api,
+        pm2_env: { ...api.pm2_env, LDENV_BACKEND: undefined },
+    };
+    assert.equal(
+        await apiProcessGeneration(instance, legacy, {
+            ...operations,
+            bundleStatus: async () => {
+                throw new Error('must not read bundle');
+            },
+        }),
+        `100:${api.pm2_env.pm_uptime}`,
+    );
+    delete instance.processStartedAt;
+    assert.equal(await apiProcessGeneration(instance, api, operations), null);
+});
+
+test('bundle supervisor closes an in-flight child start without publishing stale ready', async () => {
+    let release!: () => void;
+    let starting!: () => void;
+    const gate = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    const began = new Promise<void>((resolve) => {
+        starting = resolve;
+    });
+    const child = {
+        pid: null as number | null,
+        start: async () => {
+            starting();
+            await gate;
+            child.pid = 101;
+        },
+        stop: async () => {
+            child.pid = null;
+        },
+    };
+    const states: BundleState[] = [];
+    const supervisor = new BundleSupervisor(
+        bundleState('/fixture'),
+        child,
+        async (state) => {
+            states.push(state);
+        },
+    );
+    await supervisor.buildStarted();
+    const finished = supervisor.buildFinished({
+        ok: true,
+        generation: 1,
+        revision: 1,
+        changed: true,
+        seconds: 0.1,
+        outfile: '/fixture/api.cjs',
+        inputs: 1,
+        esbuildVersion: 'fixture',
+    });
+    await began;
+    const closing = supervisor.close();
+    release();
+    await Promise.all([finished, closing]);
+    await supervisor.buildStarted();
+    assert.deepEqual(
+        states.map((state) => state.state),
+        ['building', 'stopped'],
+    );
+    assert.equal(child.pid, null);
+    assert.equal(states.at(-1)?.launchedRevision, 0);
 });

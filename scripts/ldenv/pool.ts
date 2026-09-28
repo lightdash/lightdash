@@ -33,8 +33,11 @@ import {
 import { instanceIsLive } from './live';
 import {
     assertInstance,
+    backendMode,
     matchingTiers,
+    savedBackendMode,
     selectParent,
+    type BackendMode,
     type Instance,
 } from './model';
 import {
@@ -71,7 +74,20 @@ export async function poolSettings(source: string): Promise<PoolSettings> {
         ? readJson<PoolSettings>(file)
         : { size: Number(process.env.LDENV_POOL_SIZE ?? 1), source };
 }
-const poolStateOperations = { withLock, instances, saveInstance, down, alive };
+async function spareBackendMode(instance: Instance): Promise<BackendMode> {
+    const env = await dotenv(
+        path.join(instance.worktree, '.env.development.local'),
+    );
+    return savedBackendMode(env.LDENV_BACKEND);
+}
+const poolStateOperations = {
+    withLock,
+    instances,
+    saveInstance,
+    down,
+    alive,
+    spareBackendMode,
+};
 
 async function retainLiveSpare(
     instance: Instance,
@@ -91,6 +107,7 @@ async function retainLiveSpare(
 export async function inspectReadySpares(
     parent: string,
     operations = { ...poolStateOperations, instanceIsLive },
+    desiredMode?: BackendMode,
 ): Promise<{ ready: Instance[]; failed: number }> {
     return operations.withLock('pool', async () => {
         const ready: Instance[] = [];
@@ -105,6 +122,11 @@ export async function inspectReadySpares(
                     (item) => item.id === instance.id,
                 );
                 if (!current || !eligible(current)) return;
+                if (
+                    desiredMode !== undefined &&
+                    (await operations.spareBackendMode(current)) !== desiredMode
+                )
+                    return;
                 if (await retainLiveSpare(current, operations))
                     ready.push(current);
                 else failed += 1;
@@ -115,7 +137,10 @@ export async function inspectReadySpares(
 
 export async function publishSpare(
     instance: Instance,
-    operations = poolStateOperations,
+    operations: Omit<
+        typeof poolStateOperations,
+        'spareBackendMode'
+    > = poolStateOperations,
 ): Promise<void> {
     const current = await operations.withLock(
         'pool',
@@ -149,26 +174,31 @@ export async function publishSpare(
 export async function retireStalePoolInstances(
     parent: string,
     operations = poolStateOperations,
+    desiredMode?: BackendMode,
 ): Promise<void> {
-    const stale = (instance: Instance) =>
+    const stale = async (instance: Instance) =>
         (instance.kind === 'spare' || instance.kind === 'warming') &&
         (instance.parent !== parent ||
             instance.phase === 'failed' ||
             (instance.kind === 'warming' &&
                 instance.phase === 'ready' &&
-                !operations.alive(instance.monitorPid)));
+                !operations.alive(instance.monitorPid)) ||
+            (desiredMode !== undefined &&
+                (await operations.spareBackendMode(instance)) !== desiredMode));
     const reserved = await operations.withLock('pool', async () => {
         const records: Instance[] = [];
-        for (const instance of (await operations.instances()).filter(stale))
+        for (const instance of await operations.instances()) {
+            if (!(await stale(instance))) continue;
             await operations.withLock(instance.id, async () => {
                 const current = (await operations.instances()).find(
                     (item) => item.id === instance.id,
                 );
-                if (!current || !stale(current)) return;
+                if (!current || !(await stale(current))) return;
                 current.phase = 'failed';
                 await operations.saveInstance(current);
                 records.push(structuredClone(current));
             });
+        }
         return records;
     });
     for (const instance of reserved)
@@ -202,8 +232,14 @@ const fillOperations = {
     writeJson,
     parents,
     localSecrets,
-    retireStalePoolInstances,
-    inspectReadySpares,
+    retireStalePoolInstances: (parent: string, mode: BackendMode) =>
+        retireStalePoolInstances(parent, poolStateOperations, mode),
+    inspectReadySpares: (parent: string, mode: BackendMode) =>
+        inspectReadySpares(
+            parent,
+            { ...poolStateOperations, instanceIsLive },
+            mode,
+        ),
     diskGuard,
     availableMemory,
     mkdir: (directory: string) => mkdir(directory, { recursive: true }),
@@ -253,11 +289,18 @@ export async function fillPool(
             if (!parent)
                 throw new Error('Build a parent before filling the pool');
             const secrets = await localSecrets(root);
+            const desiredMode = backendMode(
+                process.env.LDENV_BACKEND ?? secrets.LDENV_BACKEND,
+            );
+            secrets.LDENV_BACKEND = desiredMode;
             if (!secrets.LIGHTDASH_LICENSE_KEY)
                 inheritLicensePair(secrets, await localSecrets(parent.path));
             while (true) {
-                await retireStalePoolInstances(parent.sha);
-                const { ready, failed } = await inspectReadySpares(parent.sha);
+                await retireStalePoolInstances(parent.sha, desiredMode);
+                const { ready, failed } = await inspectReadySpares(
+                    parent.sha,
+                    desiredMode,
+                );
                 if (failed) continue;
                 if (ready.length >= settings.size) return ready;
                 await diskGuard();
@@ -347,6 +390,7 @@ export async function claimInstance(
         writeJson,
     } = operations;
     const started = Date.now();
+    const requestedMode = backendMode(process.env.LDENV_BACKEND);
     let failure: unknown = null;
     let instance: Instance | null = null;
     try {
@@ -421,6 +465,19 @@ export async function claimInstance(
                             `Spare changed before reservation: ${spare.worktree}`,
                         );
                     if (!(await retainLiveSpare(current, operations)))
+                        return null;
+                    if (
+                        savedBackendMode(
+                            (
+                                await dotenv(
+                                    path.join(
+                                        current.worktree,
+                                        '.env.development.local',
+                                    ),
+                                )
+                            ).LDENV_BACKEND,
+                        ) !== requestedMode
+                    )
                         return null;
                     Object.assign(spare, current);
                     if (await status(spare.worktree))
@@ -498,7 +555,6 @@ export async function claimInstance(
                         .filter(Boolean);
                     const recipe = await recipeAt(spare.worktree);
                     const deep =
-                        process.env.LDENV_BACKEND !== undefined ||
                         process.env.LDENV_TRACING === 'true' ||
                         matchingTiers(recipe.tiers, delta).some(
                             (tier) => tier.run || tier.preset,
