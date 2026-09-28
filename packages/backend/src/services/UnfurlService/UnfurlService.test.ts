@@ -25,7 +25,11 @@ import { type ShareModel } from '../../models/ShareModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { expandViewportToDashboardGrid, UnfurlService } from './UnfurlService';
+import {
+    expandViewportToDashboardGrid,
+    MAX_PRE_READY_VIEWPORT_HEIGHT,
+    UnfurlService,
+} from './UnfurlService';
 
 const playwrightMocks = vi.hoisted(() => ({
     connectOverCDP: vi.fn(),
@@ -1419,6 +1423,27 @@ describe('expandViewportToDashboardGrid', () => {
         expect(page.setViewportSize).toHaveBeenCalledWith({
             width: 1400,
             height: 1041,
+        });
+    });
+
+    it('caps the viewport height for very tall dashboards', async () => {
+        const { page } = createPage({
+            x: 0,
+            y: 40,
+            width: 1400,
+            height: 111_500,
+        });
+
+        const height = await expandViewportToDashboardGrid(
+            page as never,
+            1400,
+            5_000,
+        );
+
+        expect(height).toBe(MAX_PRE_READY_VIEWPORT_HEIGHT);
+        expect(page.setViewportSize).toHaveBeenCalledWith({
+            width: 1400,
+            height: MAX_PRE_READY_VIEWPORT_HEIGHT,
         });
     });
 

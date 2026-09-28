@@ -296,8 +296,14 @@ const getAppBrowserEndpoint = (
  * acknowledges its render and holds the ready indicator back. Grid height is
  * fixed by the layout, so it is known before any tile has loaded.
  *
+ * The height is capped: loading a very tall dashboard with every tile on
+ * screen at once can crash the shared browser. Custom chart tiles below the
+ * cap fall back to the renderer's render-acknowledgement timeout.
+ *
  * Returns the new viewport height, or undefined when the grid already fits.
  */
+export const MAX_PRE_READY_VIEWPORT_HEIGHT = 16_384;
+
 export const expandViewportToDashboardGrid = async (
     page: Pick<Page, 'locator' | 'setViewportSize' | 'viewportSize'>,
     width: number,
@@ -308,11 +314,14 @@ export const expandViewportToDashboardGrid = async (
     const box = await grid.boundingBox({ timeout: timeoutMs });
     if (!box) return undefined;
 
-    const gridBottom = Math.ceil(box.y + box.height);
-    if (gridBottom <= (page.viewportSize()?.height ?? 0)) return undefined;
+    const height = Math.min(
+        Math.ceil(box.y + box.height),
+        MAX_PRE_READY_VIEWPORT_HEIGHT,
+    );
+    if (height <= (page.viewportSize()?.height ?? 0)) return undefined;
 
-    await page.setViewportSize({ width, height: gridBottom });
-    return gridBottom;
+    await page.setViewportSize({ width, height });
+    return height;
 };
 
 const isBrowserQueueFullError = (error: unknown): boolean => {
