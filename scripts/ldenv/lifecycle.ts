@@ -669,6 +669,9 @@ async function upInstance(
             const overlapWatchers =
                 matchingTiers(recipe.tiers, diff).length === 0 &&
                 canStartApiAlongsideWatchers(diff);
+            process.stdout.write(
+                `API WATCHER OVERLAP: ${overlapWatchers ? 'yes' : 'no'}\n`,
+            );
             if (overlapWatchers) {
                 preparations = await Promise.allSettled([
                     frontend(),
