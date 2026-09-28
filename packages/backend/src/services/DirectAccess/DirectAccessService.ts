@@ -10,6 +10,7 @@ import {
     type DirectAccessAssignment,
     type DirectAccessGroupPrincipal,
     type DirectAccessPrincipalRef,
+    type DirectAccessUserPrincipal,
     type RegisteredAccount,
     type UUID,
 } from '@lightdash/common';
@@ -475,6 +476,24 @@ export class DirectAccessService extends BaseService {
             resourceUuid,
         );
         return this.directAccessModel.listGroups({
+            organizationUuid,
+            projectUuid,
+        });
+    }
+
+    async listUsers(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: UUID,
+    ): Promise<DirectAccessUserPrincipal[]> {
+        const { organizationUuid } = await this.authorizeManage(
+            account,
+            projectUuid,
+            resourceType,
+            resourceUuid,
+        );
+        return this.directAccessModel.listUsers({
             organizationUuid,
             projectUuid,
         });

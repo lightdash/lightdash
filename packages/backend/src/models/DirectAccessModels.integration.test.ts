@@ -488,8 +488,8 @@ describe('dashboard direct access model PostgreSQL integration', () => {
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
             }),
         ).rejects.toMatchObject({
-            name: 'NotFoundError',
-            message: 'Direct access target not found',
+            name: 'ParameterError',
+            message: 'This user does not have access to the project',
         });
 
         const [foreignGroup] = await transaction(GroupTableName)
@@ -513,8 +513,73 @@ describe('dashboard direct access model PostgreSQL integration', () => {
                 grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
             }),
         ).rejects.toMatchObject({
-            name: 'NotFoundError',
-            message: 'Direct access target not found',
+            name: 'ParameterError',
+            message: 'This group does not have access to the project',
+        });
+    });
+
+    it('lists exactly the users that grants accept', async () => {
+        const plainMember = await createMemberPrincipal();
+        const groupMember = await createMemberPrincipal();
+        await transaction(GroupMembershipTableName).insert({
+            organization_id: organizationId,
+            group_uuid: groupUuid,
+            user_id: groupMember.userId,
+        });
+        const projectMember = await createMemberPrincipal();
+        await transaction(ProjectMembershipsTableName).insert({
+            project_id: projectId,
+            user_id: projectMember.userId,
+            role: ProjectMemberRole.VIEWER,
+        });
+        const inactiveMember = await createMemberPrincipal();
+        await transaction(ProjectMembershipsTableName).insert({
+            project_id: projectId,
+            user_id: inactiveMember.userId,
+            role: ProjectMemberRole.VIEWER,
+        });
+        await transaction(UserTableName)
+            .where('user_id', inactiveMember.userId)
+            .update({ is_active: false });
+
+        const listed = (
+            await store.listUsers({ organizationUuid, projectUuid })
+        ).map((user) => user.userUuid);
+        expect(listed).toEqual(
+            expect.arrayContaining([
+                SEED_ORG_1_ADMIN.user_uuid,
+                groupMember.userUuid,
+                projectMember.userUuid,
+            ]),
+        );
+        expect(listed).not.toContain(plainMember.userUuid);
+        expect(listed).not.toContain(inactiveMember.userUuid);
+        await expect(
+            store.listUsers({
+                organizationUuid: randomUUID(),
+                projectUuid,
+            }),
+        ).resolves.toEqual([]);
+
+        const upsert = (userUuid: string) =>
+            store.upsertAccess({
+                resourceType: DirectAccessResourceType.DASHBOARD,
+                resourceUuid: dashboardUuid,
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: userUuid,
+                },
+                role: SpaceMemberRole.VIEWER,
+                organizationUuid,
+                grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            });
+        await expect(upsert(groupMember.userUuid)).resolves.toBeDefined();
+        await expect(upsert(projectMember.userUuid)).resolves.toBeDefined();
+        await expect(upsert(plainMember.userUuid)).rejects.toMatchObject({
+            name: 'ParameterError',
+        });
+        await expect(upsert(inactiveMember.userUuid)).rejects.toMatchObject({
+            name: 'ParameterError',
         });
     });
 
