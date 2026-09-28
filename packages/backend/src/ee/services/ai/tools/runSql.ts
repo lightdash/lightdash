@@ -70,7 +70,6 @@ const INFORMATION_SCHEMA = /\binformation_schema\b/i;
 
 const PREVIEW_ROW_LIMIT = 50;
 const SLACK_INLINE_ROW_LIMIT = 10;
-const LARGE_RESULT_THRESHOLD = 25;
 
 export const validateSelectOnly = (sql: string) => {
     const stripped = stripCommentsAndStrings(sql);
@@ -99,7 +98,6 @@ export const getRunSql = ({
     updateProgress,
     runSqlJob,
     getPrompt,
-    sendFile,
     updateSlackMessage,
     siteUrl,
     waitForSqlApproval,
@@ -109,7 +107,6 @@ export const getRunSql = ({
     createOrUpdateArtifact,
     maxQueryLimit,
     enableDataAccess,
-    slackLinksOnly,
     sqlScope = null,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
@@ -329,16 +326,6 @@ export const getRunSql = ({
                     });
                 }
 
-                const csv = stringify(
-                    rows.map((row) =>
-                        columns.reduce<Record<string, AnyType>>((acc, col) => {
-                            acc[col] = row[col];
-                            return acc;
-                        }, {}),
-                    ),
-                    { header: true, columns },
-                );
-
                 if (isSlack) {
                     const inlineRows = rows.slice(0, SLACK_INLINE_ROW_LIMIT);
                     const inlineCsv = stringify(
@@ -361,20 +348,6 @@ export const getRunSql = ({
                         inlineCsv,
                         truncated: rowCount > SLACK_INLINE_ROW_LIMIT,
                     });
-
-                    // chat.update can't attach files, so a full CSV for large
-                    // results still goes as a separate message.
-                    if (rowCount > LARGE_RESULT_THRESHOLD && !slackLinksOnly) {
-                        await sendFile({
-                            channelId: prompt.slackChannelId,
-                            threadTs: prompt.slackThreadTs,
-                            organizationUuid: prompt.organizationUuid,
-                            title: 'Full SQL query results',
-                            comment: `Full CSV — ${rowCount} rows`,
-                            filename: 'lightdash-sql-results.csv',
-                            file: Buffer.from(csv, 'utf-8'),
-                        });
-                    }
                 }
 
                 const resultSummary = `${rowCount} rows. Columns: ${columns.join(

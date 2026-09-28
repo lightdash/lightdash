@@ -503,6 +503,11 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
+import {
+    getSlackTableBlocks,
+    type SlackTableQueryResults,
+} from '../ai/utils/slackTableBlocks';
+import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
@@ -13194,6 +13199,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             prompt: SlackPrompt;
             stream: false;
+            onSlackTableResults?: (
+                results: ReadonlyMap<string, SlackTableQueryResults>,
+            ) => void;
             canManageAgent: boolean;
             threadMessages: Awaited<
                 ReturnType<AiAgentModel['getThreadMessages']>
@@ -13215,6 +13223,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
         conversation: AgentConversationContext,
         options: {
             canManageAgent: boolean;
+            onSlackTableResults?: (
+                results: ReadonlyMap<string, SlackTableQueryResults>,
+            ) => void;
             enableSqlMode?: boolean;
             enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
@@ -14577,6 +14588,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (!stream) {
             return generateAgentResponse({
                 args,
+                onSlackTableResults: options.onSlackTableResults,
                 dependencies,
                 mcpToolSetup,
                 abortSignal:
@@ -14997,11 +15009,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackPrompt,
         agent,
         response,
+        runtimeTableResults,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
         agent: AiAgent | undefined;
         response: string;
+        runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults>;
     }): Promise<(Block | KnownBlock)[]> {
         const referencedArtifactsMap =
             await this.aiAgentModel.findThreadReferencedArtifacts({
@@ -15059,6 +15073,76 @@ Use your existing tools to inspect them when relevant to the user's question (re
             return `${this.lightdashConfig.siteUrl}/share/${result.nanoid}`;
         };
 
+        const artifactVersions =
+            promptArtifactVersions.length > 0
+                ? promptArtifactVersions
+                : promptArtifacts;
+        const slackSettings =
+            agent?.enableDataAccess === true
+                ? await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                      slackPrompt.organizationUuid,
+                  )
+                : undefined;
+        const tablePreviews = await getSlackTablePreviews({
+            enableDataAccess: agent?.enableDataAccess === true,
+            slackLinksOnly: slackSettings?.aiLinksOnly === true,
+            toolCalls,
+            toolResults,
+            artifacts: artifactVersions,
+            url: this.getAgentThreadUrl(slackPrompt, agent?.uuid),
+            runtimeResults: runtimeTableResults,
+            authorize: async ({ queryUuid, exploreNames }) => {
+                const history =
+                    await this.asyncQueryService.getAsyncQueryHistory({
+                        account: fromSession(user),
+                        projectUuid: slackPrompt.projectUuid,
+                        queryUuid,
+                    });
+                if (
+                    history.status !== QueryHistoryStatus.READY ||
+                    (history.resultsExpiresAt &&
+                        history.resultsExpiresAt < new Date())
+                ) {
+                    throw new UnexpectedServerError(
+                        'Query results are no longer available',
+                    );
+                }
+                await Promise.all(
+                    exploreNames.map((exploreName) =>
+                        this.getExplore(
+                            user,
+                            slackPrompt.projectUuid,
+                            agent?.tags ?? null,
+                            exploreName,
+                        ),
+                    ),
+                );
+            },
+            getResults: ({ queryUuid, maxRows }) =>
+                this.asyncQueryService.getRawAsyncQueryResults({
+                    account: fromSession(user),
+                    projectUuid: slackPrompt.projectUuid,
+                    queryUuid,
+                    maxRows,
+                }),
+            onLoadError: (toolCallId) =>
+                Logger.warn('Could not load inline Slack table results', {
+                    promptUuid: slackPrompt.promptUuid,
+                    toolCallId,
+                }),
+        });
+        const tableBlocks = getSlackTableBlocks(tablePreviews);
+        const inlineTableVersions = new Set(
+            tablePreviews.flatMap((preview) =>
+                preview.artifactVersionUuid
+                    ? [preview.artifactVersionUuid]
+                    : [],
+            ),
+        );
+        const cardArtifacts = artifactVersions.filter(
+            (artifact) => !inlineTableVersions.has(artifact.versionUuid),
+        );
+
         const exploreBlocks = await getModernArtifactCardBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
@@ -15073,9 +15157,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ),
             AiAgentService.isCardImageUrlReachable,
             agent?.uuid,
-            promptArtifactVersions.length > 0
-                ? promptArtifactVersions
-                : promptArtifacts,
+            cardArtifacts,
             toolResults,
             async (dataAppVizUuid, dataAppVizVersion) =>
                 this.getDataAppVizSchemaFields(
@@ -15129,6 +15211,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         return [
             ...memoryCitationBlocks,
+            ...tableBlocks,
             ...exploreBlocks,
             ...sqlArtifactBlocks,
             ...editDbtProjectBlocks,
@@ -15188,7 +15271,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
         trailingBlocks: (Block | KnownBlock)[];
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
-            splitMarkdownIntoMessages(slackResponse);
+            splitMarkdownIntoMessages(
+                slackResponse,
+                undefined,
+                trailingBlocks.length + 1,
+            );
         // Always ≥1 message so the stream closes and trailing cards attach.
         const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
@@ -15307,7 +15394,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
         trailingBlocks: (Block | KnownBlock)[];
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
-            splitMarkdownIntoMessages(slackResponse);
+            splitMarkdownIntoMessages(
+                slackResponse,
+                undefined,
+                trailingBlocks.length + 1,
+            );
         // Always ≥1 message so trailing cards attach even to an empty answer.
         const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
@@ -15924,6 +16015,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
         };
 
+        let runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults> =
+            new Map();
         try {
             const response = await this.generateOrStreamAgentResponse(
                 user,
@@ -15938,6 +16031,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     canManageAgent,
                     threadMessages,
                     onSlackStepProgress: appendTaskUpdate,
+                    onSlackTableResults: (results) => {
+                        runtimeTableResults = results;
+                    },
                 },
             );
 
@@ -16022,6 +16118,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 slackPrompt,
                 agent,
                 response,
+                runtimeTableResults,
             });
             const blocksFinishedAt = Date.now();
             const slackResponse = stripMemoryCitations(response);

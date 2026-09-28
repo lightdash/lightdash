@@ -147,6 +147,7 @@ import {
     syntheticTextTransform,
 } from '../utils/GeneratedResponseBlocks';
 import { renderMemoryBlock } from '../utils/memoryBlock';
+import type { SlackTableQueryResults } from '../utils/slackTableBlocks';
 import {
     isErrorToolResult,
     isPendingToolResult,
@@ -2643,11 +2644,15 @@ export const generateAgentResponse = async ({
     dependencies,
     mcpToolSetup,
     abortSignal,
+    onSlackTableResults,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     mcpToolSetup: AgentMcpToolSetup;
     abortSignal?: AbortSignal;
+    onSlackTableResults?: (
+        results: ReadonlyMap<string, SlackTableQueryResults>,
+    ) => void;
 }): Promise<string> => {
     const resolveErrorMessage = createUserFacingErrorResolver(args);
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
@@ -3031,6 +3036,7 @@ export const generateAgentResponse = async ({
         dependencies.perf.measureGenerateResponseTime(totalTime);
         dependencies.perf.measureTTFT(totalTime, modelName, 'generate');
 
+        onSlackTableResults?.(agentContext.getSlackTableResults());
         return agentContext.responseBlocks.render(
             (await answerVerifier?.verify(responseText))?.text ?? responseText,
         );

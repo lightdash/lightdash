@@ -73,5 +73,5 @@ Query results in Slack (from `ai/tools/runQuery.ts`):
 | Type              | Output                                                        |
 | ----------------- | ------------------------------------------------------------- |
 | Chart             | PNG image (echarts)                                           |
-| Custom chart type | PNG image (headless artifact export; CSV fallback on failure) |
-| Table             | CSV file attachment                                           |
+| Custom chart type | PNG image (headless artifact export; Lightdash link on failure) |
+| Table             | Inline `data_table` in the agent answer |
