@@ -892,9 +892,22 @@ export const buildLessonTours = (
                 fieldRow,
                 EXPLORE_ROUTE,
                 docsHeading(firstCitation(lesson.resultDocs)),
-                `${cite(lesson.resultDocs)} **${fieldLabel}** is the ${lesson.result.kind} you just deployed.`,
+                `${cite(lesson.resultDocs)} **${fieldLabel}** is the ${lesson.result.kind} you just added.`,
                 [newMenu, newChart, search, table, fieldSearch],
             ),
+            // How the change reaches a team's real project: centered, since
+            // it happens outside Lightdash (a pull request and CI).
+            ...(lesson.shipDocs
+                ? [
+                      look(
+                          null,
+                          EXPLORE_ROUTE,
+                          docsHeading(firstCitation(lesson.shipDocs)),
+                          cite(lesson.shipDocs),
+                          [],
+                      ),
+                  ]
+                : []),
         ];
         return { scope: lesson.id, title, sources: [LESSON_SOURCE], steps };
     });

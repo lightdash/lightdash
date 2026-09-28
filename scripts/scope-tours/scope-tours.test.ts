@@ -127,6 +127,17 @@ The \`average\` metric can be used on any numeric dimension or, [for custom SQL]
 `,
 );
 writeFileSync(
+    path.join(docs, 'workflow/set-up-ci-cd.mdx'),
+    `---
+title: Set up CI/CD
+---
+
+## Add previews to pull requests
+
+If you've connected Lightdash to GitHub, you can setup a **github action** and get Lightdash to create new dynamic **preview** projects automatically when a new **pull request** is created.
+`,
+);
+writeFileSync(
     path.join(docs, 'workflow/cli/deploy.mdx'),
     `---
 title: Deploy changes to production
@@ -807,8 +818,31 @@ export const Card = () => (
         assert.strictEqual(tour.steps[11].title, 'The Explore page');
         assert.strictEqual(
             tour.steps[11].body,
-            '**Metrics and dimensions** available on the table you selected. **Average payment amount** is the metric you just deployed.',
+            '**Metrics and dimensions** available on the table you selected. **Average payment amount** is the metric you just added.',
         );
+        // A lesson with shipDocs closes on how the change ships in a team:
+        // a centered look after the field, titled from its docs heading.
+        const [shipTour] = buildLessonTours(
+            [
+                {
+                    ...metricsLesson,
+                    shipDocs:
+                        'workflow/set-up-ci-cd.mdx#add-previews-to-pull-requests:1',
+                },
+            ],
+            files,
+        );
+        assert.strictEqual(shipTour.steps.length, 13);
+        const ship = shipTour.steps[12];
+        assert.strictEqual(ship.target, null);
+        assert.strictEqual(ship.interactive, false);
+        assert.strictEqual(ship.title, 'Add previews to pull requests');
+        assert.strictEqual(
+            ship.body,
+            "If you've connected Lightdash to GitHub, you can setup a **github action** and get Lightdash to create new dynamic **preview** projects automatically when a new **pull request** is created.",
+        );
+        assert.deepStrictEqual(ship.via, []);
+        assert.strictEqual(tour.steps.length, 12);
         // A dimension lesson ends on the dimension row and says so.
         const [dimensionTour] = buildLessonTours(
             [
@@ -828,7 +862,7 @@ export const Card = () => (
         );
         assert.ok(
             dimensionTour.steps[11].body.endsWith(
-                'is the dimension you just deployed.',
+                'is the dimension you just added.',
             ),
         );
         assert.ok(

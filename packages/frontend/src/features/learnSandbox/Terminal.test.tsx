@@ -265,6 +265,9 @@ describe('Terminal', () => {
             screen.getByRole('button', { name: 'lightdash deploy' }),
         ).toBeDisabled();
         expect(
+            screen.getByRole('button', { name: 'lightdash start-preview' }),
+        ).toBeDisabled();
+        expect(
             screen.getByRole('button', { name: 'lightdash validate' }),
         ).toBeDisabled();
     });

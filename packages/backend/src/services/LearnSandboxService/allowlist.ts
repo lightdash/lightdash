@@ -19,6 +19,9 @@ const RULES: Record<'lightdash' | 'dbt', Record<string, Flag[]>> = {
     lightdash: {
         compile: ['select'],
         deploy: ['select'],
+        // No --name: the learner's training copy is already a preview
+        // project, and it is the only one a trainee may update.
+        'start-preview': ['select'],
         validate: [],
         lint: [],
         download: ['charts', 'dashboards', 'path'],
@@ -92,3 +95,14 @@ export const buildArgv = (
     }
     return { ok: true as const, argv };
 };
+
+/**
+ * What actually runs for a stored argv. The training copy is itself a
+ * preview project, so `start-preview` updates it with a deploy rather than
+ * creating another project: trainees cannot create projects, and a new
+ * preview per run would leave orphans. The row keeps what the learner typed.
+ */
+export const toSpawnArgv = (argv: string[]): string[] =>
+    argv[0] === 'lightdash' && argv[1] === 'start-preview'
+        ? ['lightdash', 'deploy', ...argv.slice(2)]
+        : argv;
