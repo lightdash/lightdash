@@ -25,8 +25,9 @@ const StartOfWeekSelect: FC<{
     const { data: timezoneSupportFlag } = useServerFeatureFlag(
         FeatureFlags.EnableTimezoneSupport,
     );
-    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? true;
-    const isCliDeployed = form.values.dbt?.type === DbtProjectType.NONE;
+    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled === true;
+    const isTimezoneSupportDisabled = timezoneSupportFlag?.enabled === false;
+    const isCliDeployed = form.values.dbt.type === DbtProjectType.NONE;
     const isDaySelected = field.value !== null && field.value !== undefined;
     const dayName = daysOfWeekOptions.find(
         (option) => option.value === field.value?.toString(),
@@ -39,7 +40,11 @@ const StartOfWeekSelect: FC<{
                 clearable
                 placeholder="Auto"
                 label="Start of week"
-                description="Sets the first day of the week for week time intervals."
+                description={
+                    isTimezoneSupportEnabled
+                        ? 'Sets the first day of the week for week time intervals. Changes apply straight away.'
+                        : 'Sets the first day of the week for week time intervals.'
+                }
                 data={daysOfWeekOptions}
                 value={field.value?.toString()}
                 onChange={(value) =>
@@ -51,40 +56,23 @@ const StartOfWeekSelect: FC<{
                     middlewares: { flip: false },
                 }}
             />
-            {isRedeployRequired && isCliDeployed && isDaySelected && (
-                <Alert
-                    icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
-                    title={
-                        isTimezoneSupportEnabled
-                            ? 'Date columns need a deploy'
-                            : 'Required CLI option'
-                    }
-                    color="blue"
-                >
-                    {isTimezoneSupportEnabled ? (
-                        <>
-                            Your choice applies right away to week dimensions
-                            built on a timestamp column. Dimensions built on a
-                            date column keep the day they were compiled with, so
-                            run{' '}
-                            <Text fw={500} span>
-                                <code>{`lightdash deploy --start-of-week=${field.value}`}</code>
-                            </Text>{' '}
-                            ({dayName}) to update those.
-                        </>
-                    ) : (
-                        <>
-                            Going forward, if you use the CLI to deploy the
-                            project, you will need to run the deploy command
-                            with the option{' '}
-                            <Text fw={500} span>
-                                <code>--start-of-week={field.value}</code>
-                            </Text>
-                            , for the changes to take effect.
-                        </>
-                    )}
-                </Alert>
-            )}
+            {isTimezoneSupportDisabled &&
+                isRedeployRequired &&
+                isCliDeployed &&
+                isDaySelected && (
+                    <Alert
+                        icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
+                        title="Required CLI option"
+                        color="blue"
+                    >
+                        Going forward, if you use the CLI to deploy the project,
+                        you will need to run the deploy command with the option{' '}
+                        <Text fw={500} span>
+                            <code>--start-of-week={field.value}</code>
+                        </Text>{' '}
+                        ({dayName}), for the changes to take effect.
+                    </Alert>
+                )}
         </>
     );
 };

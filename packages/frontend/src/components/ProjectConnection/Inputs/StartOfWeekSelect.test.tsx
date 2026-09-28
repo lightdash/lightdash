@@ -3,18 +3,14 @@ import {
     FeatureFlags,
     type DbtProjectConfig,
 } from '@lightdash/common';
+import { screen } from '@testing-library/react';
 import { type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ProjectFormContext from '../context';
 import { dbtDefaults } from '../DbtForms/defaultValues';
-import {
-    FormProvider,
-    useForm,
-    useFormContext,
-    type Form,
-} from '../formContext';
+import { FormProvider, useForm } from '../formContext';
 import { PostgresDefaultValues } from '../WarehouseForms/defaultValues';
 import StartOfWeekSelect from './StartOfWeekSelect';
 
@@ -29,6 +25,13 @@ const mockFlag = (enabled: boolean) => {
     } as ReturnType<typeof useServerFeatureFlag>);
 };
 
+const mockFlagLoading = () => {
+    vi.mocked(useServerFeatureFlag).mockReturnValue({
+        data: undefined,
+        isLoading: true,
+    } as ReturnType<typeof useServerFeatureFlag>);
+};
+
 const cliDeployedDbt: DbtProjectConfig = { type: DbtProjectType.NONE };
 
 const githubDbt: DbtProjectConfig = {
@@ -40,11 +43,6 @@ const githubDbt: DbtProjectConfig = {
     project_sub_path: '/',
 };
 
-const FormProbe: FC<{ formRef: { current: Form | null } }> = ({ formRef }) => {
-    formRef.current = useFormContext();
-    return null;
-};
-
 const renderStartOfWeekSelect = ({
     dbt,
     startOfWeek,
@@ -54,8 +52,6 @@ const renderStartOfWeekSelect = ({
     startOfWeek: number | null;
     isRedeployRequired?: boolean;
 }) => {
-    const formRef: { current: Form | null } = { current: null };
-
     const Wrapper: FC = () => {
         const form = useForm({
             initialValues: {
@@ -73,13 +69,18 @@ const renderStartOfWeekSelect = ({
                         disabled={false}
                         isRedeployRequired={isRedeployRequired}
                     />
-                    <FormProbe formRef={formRef} />
                 </FormProvider>
             </ProjectFormContext.Provider>
         );
     };
 
-    return { formRef, ...renderWithProviders(<Wrapper />) };
+    return renderWithProviders(<Wrapper />);
+};
+
+const expectNoAlert = async () => {
+    await screen.findByLabelText('Start of week', { selector: 'input' });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('Required CLI option')).not.toBeInTheDocument();
 };
 
 describe('StartOfWeekSelect', () => {
@@ -87,86 +88,65 @@ describe('StartOfWeekSelect', () => {
         vi.clearAllMocks();
     });
 
-    it('shows the new copy with the day name when the timezone flag is on for a CLI-deployed project', async () => {
+    it('shows no alert for a CLI-deployed project when the timezone flag is on', async () => {
         mockFlag(true);
-        const { findByText, queryByText, container } = renderStartOfWeekSelect({
-            dbt: cliDeployedDbt,
-            startOfWeek: 0,
-        });
+        renderStartOfWeekSelect({ dbt: cliDeployedDbt, startOfWeek: 0 });
 
+        await expectNoAlert();
         expect(
-            await findByText('Date columns need a deploy'),
+            screen.getByText(/Changes apply straight away/),
         ).toBeInTheDocument();
-        expect(queryByText('Required CLI option')).not.toBeInTheDocument();
-        const alertMessage = container.querySelector('.mantine-Alert-message');
-        expect(alertMessage?.textContent).toContain('(Monday)');
     });
 
-    it('keeps the existing copy when the timezone flag is off for a CLI-deployed project', async () => {
-        mockFlag(false);
-        const { findByText, queryByText } = renderStartOfWeekSelect({
-            dbt: cliDeployedDbt,
-            startOfWeek: 0,
-        });
-
-        expect(await findByText('Required CLI option')).toBeInTheDocument();
-        expect(
-            queryByText('Date columns need a deploy'),
-        ).not.toBeInTheDocument();
-    });
-
-    it('shows no alert for a dbt Cloud / GitHub connection when the flag is on', async () => {
+    it('shows no alert for a dbt Cloud / GitHub connection when the timezone flag is on', async () => {
         mockFlag(true);
-        const { queryByText, findByLabelText } = renderStartOfWeekSelect({
-            dbt: githubDbt,
-            startOfWeek: 0,
-        });
-        await findByLabelText('Start of week', { selector: 'input' });
-        expect(
-            queryByText('Date columns need a deploy'),
-        ).not.toBeInTheDocument();
-        expect(queryByText('Required CLI option')).not.toBeInTheDocument();
+        renderStartOfWeekSelect({ dbt: githubDbt, startOfWeek: 0 });
+
+        await expectNoAlert();
     });
 
-    it('shows no alert for a dbt Cloud / GitHub connection when the flag is off', async () => {
+    it('shows the CLI option alert with the day name when the timezone flag is off for a CLI-deployed project', async () => {
         mockFlag(false);
-        const { queryByText, findByLabelText } = renderStartOfWeekSelect({
-            dbt: githubDbt,
-            startOfWeek: 0,
-        });
-        await findByLabelText('Start of week', { selector: 'input' });
+        renderStartOfWeekSelect({ dbt: cliDeployedDbt, startOfWeek: 0 });
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('Required CLI option');
+        expect(alert).toHaveTextContent('--start-of-week=0');
+        expect(alert).toHaveTextContent('(Monday)');
         expect(
-            queryByText('Date columns need a deploy'),
+            screen.queryByText(/Changes apply straight away/),
         ).not.toBeInTheDocument();
-        expect(queryByText('Required CLI option')).not.toBeInTheDocument();
+    });
+
+    it('shows no alert for a dbt Cloud / GitHub connection when the timezone flag is off', async () => {
+        mockFlag(false);
+        renderStartOfWeekSelect({ dbt: githubDbt, startOfWeek: 0 });
+
+        await expectNoAlert();
+    });
+
+    it('shows no alert while the timezone flag is loading', async () => {
+        mockFlagLoading();
+        renderStartOfWeekSelect({ dbt: cliDeployedDbt, startOfWeek: 0 });
+
+        await expectNoAlert();
     });
 
     it('shows no alert when no day is selected', async () => {
-        mockFlag(true);
-        const { queryByText, findByLabelText } = renderStartOfWeekSelect({
-            dbt: cliDeployedDbt,
-            startOfWeek: null,
-        });
+        mockFlag(false);
+        renderStartOfWeekSelect({ dbt: cliDeployedDbt, startOfWeek: null });
 
-        await findByLabelText('Start of week', { selector: 'input' });
-        expect(
-            queryByText('Date columns need a deploy'),
-        ).not.toBeInTheDocument();
-        expect(queryByText('Required CLI option')).not.toBeInTheDocument();
+        await expectNoAlert();
     });
 
     it('shows no alert when isRedeployRequired is false', async () => {
-        mockFlag(true);
-        const { queryByText, findByLabelText } = renderStartOfWeekSelect({
+        mockFlag(false);
+        renderStartOfWeekSelect({
             dbt: cliDeployedDbt,
             startOfWeek: 0,
             isRedeployRequired: false,
         });
 
-        await findByLabelText('Start of week', { selector: 'input' });
-        expect(
-            queryByText('Date columns need a deploy'),
-        ).not.toBeInTheDocument();
-        expect(queryByText('Required CLI option')).not.toBeInTheDocument();
+        await expectNoAlert();
     });
 });
