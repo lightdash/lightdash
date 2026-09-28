@@ -29097,19 +29097,6 @@
                                     "metadata": {
                                         "anyOf": [
                                             {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
                                                 "allOf": [
                                                     {
                                                         "properties": {
@@ -29170,248 +29157,560 @@
                                                 ]
                                             },
                                             {
-                                                "properties": {
-                                                    "ranking": {
+                                                "allOf": [
+                                                    {
                                                         "properties": {
-                                                            "topMatchingFields": {
-                                                                "items": {
-                                                                    "properties": {
-                                                                        "verifiedChartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "tableName": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "name": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    "required": [
-                                                                        "fieldType",
-                                                                        "tableName",
-                                                                        "label",
-                                                                        "name"
-                                                                    ],
-                                                                    "type": "object"
-                                                                },
-                                                                "type": "array"
-                                                            },
-                                                            "exploreSearchResults": {
-                                                                "items": {
-                                                                    "properties": {
-                                                                        "requiredFilters": {
-                                                                            "items": {
-                                                                                "properties": {
-                                                                                    "settings": {},
-                                                                                    "values": {
-                                                                                        "items": {},
-                                                                                        "type": "array"
-                                                                                    },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
-                                                                                    },
-                                                                                    "operator": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "fieldRef": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "fieldId": {
-                                                                                        "type": "string"
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "required",
-                                                                                    "operator",
-                                                                                    "tableName",
-                                                                                    "fieldRef",
-                                                                                    "fieldId"
-                                                                                ],
-                                                                                "type": "object"
-                                                                            },
-                                                                            "type": "array"
-                                                                        },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "name": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    "required": [
-                                                                        "label",
-                                                                        "name"
-                                                                    ],
-                                                                    "type": "object"
-                                                                },
-                                                                "type": "array"
-                                                            },
-                                                            "searchQuery": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "required": [
-                                                            "searchQuery"
-                                                        ],
-                                                        "type": "object"
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "ranking": {
-                                                        "properties": {
-                                                            "searchQueries": {
-                                                                "items": {
-                                                                    "properties": {
-                                                                        "pagination": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "topMatchingFields": {
+                                                                        "items": {
                                                                             "properties": {
-                                                                                "totalPageCount": {
+                                                                                "verifiedChartUsage": {
                                                                                     "type": "number",
-                                                                                    "format": "double"
+                                                                                    "format": "double",
+                                                                                    "nullable": true
                                                                                 },
-                                                                                "totalResults": {
+                                                                                "chartUsage": {
                                                                                     "type": "number",
-                                                                                    "format": "double"
+                                                                                    "format": "double",
+                                                                                    "nullable": true
                                                                                 },
-                                                                                "pageSize": {
+                                                                                "searchRank": {
                                                                                     "type": "number",
-                                                                                    "format": "double"
+                                                                                    "format": "double",
+                                                                                    "nullable": true
                                                                                 },
-                                                                                "page": {
-                                                                                    "type": "number",
-                                                                                    "format": "double"
+                                                                                "fieldType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "tableName": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "totalPageCount",
-                                                                                "totalResults",
-                                                                                "pageSize",
-                                                                                "page"
+                                                                                "fieldType",
+                                                                                "tableName",
+                                                                                "label",
+                                                                                "name"
                                                                             ],
                                                                             "type": "object"
                                                                         },
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "status": {
-                                                                            "type": "string",
-                                                                            "enum": [
-                                                                                "error",
-                                                                                "success"
-                                                                            ]
-                                                                        },
-                                                                        "results": {
-                                                                            "items": {
-                                                                                "properties": {
-                                                                                    "verifiedChartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "searchRank": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "label": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "name": {
-                                                                                        "type": "string"
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "fieldType",
-                                                                                    "tableName",
-                                                                                    "label",
-                                                                                    "name"
-                                                                                ],
-                                                                                "type": "object"
-                                                                            },
-                                                                            "type": "array"
-                                                                        },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        }
+                                                                        "type": "array"
                                                                     },
-                                                                    "required": [
-                                                                        "results",
-                                                                        "label"
-                                                                    ],
-                                                                    "type": "object"
+                                                                    "exploreSearchResults": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "requiredFilters": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "settings": {},
+                                                                                            "values": {
+                                                                                                "items": {},
+                                                                                                "type": "array"
+                                                                                            },
+                                                                                            "required": {
+                                                                                                "type": "boolean"
+                                                                                            },
+                                                                                            "operator": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldRef": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldId": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "required",
+                                                                                            "operator",
+                                                                                            "tableName",
+                                                                                            "fieldRef",
+                                                                                            "fieldId"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "joinedTables": {
+                                                                                    "items": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "type": "array",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "searchRank": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "label",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "searchQuery": {
+                                                                        "type": "string"
+                                                                    }
                                                                 },
-                                                                "type": "array"
+                                                                "required": [
+                                                                    "searchQuery"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
                                                             }
                                                         },
-                                                        "required": [
-                                                            "searchQueries"
-                                                        ],
+                                                        "required": ["status"],
                                                         "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "topMatchingFields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "verifiedChartUsage": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "chartUsage": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "searchRank": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "tableName": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "fieldType",
+                                                                                "tableName",
+                                                                                "label",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "exploreSearchResults": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "requiredFilters": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "settings": {},
+                                                                                            "values": {
+                                                                                                "items": {},
+                                                                                                "type": "array"
+                                                                                            },
+                                                                                            "required": {
+                                                                                                "type": "boolean"
+                                                                                            },
+                                                                                            "operator": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldRef": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldId": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "required",
+                                                                                            "operator",
+                                                                                            "tableName",
+                                                                                            "fieldRef",
+                                                                                            "fieldId"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "joinedTables": {
+                                                                                    "items": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "type": "array",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "searchRank": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "label",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "searchQuery": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "searchQuery"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "searchQueries": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "pagination": {
+                                                                                    "properties": {
+                                                                                        "totalPageCount": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "totalResults": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "pageSize": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "page": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "totalPageCount",
+                                                                                        "totalResults",
+                                                                                        "pageSize",
+                                                                                        "page"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "error": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "status": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "error",
+                                                                                        "success"
+                                                                                    ]
+                                                                                },
+                                                                                "results": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "verifiedChartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "chartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "searchRank": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "fieldType": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "label": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "name": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "fieldType",
+                                                                                            "tableName",
+                                                                                            "label",
+                                                                                            "name"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "results",
+                                                                                "label"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "searchQueries"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "searchQueries": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "pagination": {
+                                                                                    "properties": {
+                                                                                        "totalPageCount": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "totalResults": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "pageSize": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "page": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "totalPageCount",
+                                                                                        "totalResults",
+                                                                                        "pageSize",
+                                                                                        "page"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "error": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "status": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "error",
+                                                                                        "success"
+                                                                                    ]
+                                                                                },
+                                                                                "results": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "verifiedChartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "chartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "searchRank": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "fieldType": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "label": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "name": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "fieldType",
+                                                                                            "tableName",
+                                                                                            "label",
+                                                                                            "name"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "results",
+                                                                                "label"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "searchQueries"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -29795,6 +30094,19 @@
                                                     "slug",
                                                     "status"
                                                 ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
                                                 "type": "object"
                                             },
                                             {
@@ -67142,7 +67454,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.355.0",
+        "version": "2.356.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
