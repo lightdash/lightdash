@@ -251,11 +251,16 @@ EXPOSE 8080
 
 WORKDIR /usr/app/packages/backend
 
+# Mirrors the production image: the base image's `node` user, app tree root-owned.
+ENV HOME=/home/node
+USER 1000:1000
+
 ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
 
 FROM prod AS pr-runner
 
-COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
-COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
+# dbt deps/seed/run write dbt_packages/, target/ and logs/ into the project
+COPY --chown=1000:1000 ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
+COPY --chown=1000:1000 ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
 COPY --chmod=755 ./examples/full-jaffle-shop-demo/renderDeployHook.sh /usr/bin/renderDeployHook.sh
