@@ -1,3 +1,10 @@
+## [2.358.1](https://github.com/lightdash/lightdash/compare/2.358.0...2.358.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **chart-types:** label drill with the dimension value for metric-less marks ([#30098](https://github.com/lightdash/lightdash/issues/30098)) ([74e63ea](https://github.com/lightdash/lightdash/commit/74e63ea128975445ef27f9372cc80c7914e79247))
+
 # [2.358.0](https://github.com/lightdash/lightdash/compare/2.357.1...2.358.0) (2026-09-28)
 
 
