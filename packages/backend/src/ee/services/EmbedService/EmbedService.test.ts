@@ -288,6 +288,10 @@ describe('EmbedService', () => {
                     source: 'token',
                     data: {},
                 },
+                embed: {
+                    dashboardUuids: [dashboard.uuid],
+                    allowAllDashboards: false,
+                },
                 access: {
                     content: { dashboardUuid: dashboard.uuid },
                     filtering: { enabled: FilterInteractivityValues.all },
@@ -354,6 +358,10 @@ describe('EmbedService', () => {
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const account = {
                 ...mockAccountWithPermission,
+                embed: {
+                    dashboardUuids: ['dashboard-uuid'],
+                    allowAllDashboards: false,
+                },
                 access: {
                     content: { dashboardUuid: 'dashboard-uuid' },
                     filtering: { enabled: false },

@@ -1,7 +1,7 @@
 import {
     AnyType,
-    MetricType,
     MergeJoinType,
+    MetricType,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
 } from '@lightdash/common';
