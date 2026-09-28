@@ -523,6 +523,11 @@
                 overflow-x: auto;
             }
 
+            /* Nothing sits above the first block, so it needs no leading gap */
+            > :first-child {
+                margin-top: 0;
+            }
+
             table {
                 width: 100%;
                 margin: 0;
