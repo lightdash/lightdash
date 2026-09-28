@@ -91,7 +91,10 @@ echo "OK: node $(node -v 2>/dev/null)"
 
 # ---------------------------------------------------------------------------
 step "Ensure dependencies installed and built"
+# A lockfile newer than pnpm's install record means a pull/checkout added deps.
 if test -d node_modules \
+    && test -f node_modules/.pnpm/lock.yaml \
+    && ! [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ] \
     && test -f packages/common/dist/cjs/index.js \
     && test -f packages/formula/dist/grammar/parser.js \
     && test -f packages/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt; then
