@@ -1,3 +1,10 @@
+## [2.352.4](https://github.com/lightdash/lightdash/compare/2.352.3...2.352.4) (2026-09-28)
+
+
+### Bug Fixes
+
+* **project-connection:** correct the start of week redeploy banner ([#29763](https://github.com/lightdash/lightdash/issues/29763)) ([0580b58](https://github.com/lightdash/lightdash/commit/0580b5849f3652b7543ac2271ead69b1de0811f6))
+
 ## [2.352.3](https://github.com/lightdash/lightdash/compare/2.352.2...2.352.3) (2026-09-28)
 
 
