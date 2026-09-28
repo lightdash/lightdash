@@ -4,6 +4,15 @@
 It works from a plain shell. All registry data, parent worktrees, caches and logs
 live under `~/.ldenv`. A worktree gets a private `.env.development.local` file.
 
+Set `LDENV_HOME` to use a separate ldenv state directory. A non-default home
+uses a namespace from its sanitised basename: `~/.ldenv-spike` uses `spike`.
+Its Postgres container is `ldenv-pg-spike`, its volume is
+`ldenv_pg_data_spike`, and its databases and PM2 process names include `spike`.
+Set `LDENV_PG_PORT` explicitly for a non-default home. ldenv refuses a missing,
+invalid, or conflicting port and refuses to adopt Docker resources labelled for
+another home. The default home, even when set explicitly, retains the existing
+resource names and port 15432. The shared dev port allocator is unchanged.
+
 ## Install the machine launcher
 
 From a checkout of this branch with dependencies installed, run:

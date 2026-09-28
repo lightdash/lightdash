@@ -29,6 +29,7 @@ import {
     type Environment,
     type Ports,
 } from './model';
+import { pm2Prefix, postgresPort, processName } from './namespace';
 import {
     compilerDirectory,
     processEpoch,
@@ -56,6 +57,8 @@ export async function pm2(
     root = controlRoot,
     env: Environment = {},
 ): Promise<string> {
+    if (['start', 'stop', 'delete', 'restart'].includes(args[0]))
+        postgresPort();
     return runner.run(
         process.execPath,
         [requireRoot.resolve('pm2/bin/pm2'), ...args],
@@ -70,7 +73,9 @@ export async function ownedProcesses(
     const start = output.search(/\[\s*(?:\{|\])/);
     if (start < 0) throw new Error('PM2 inventory is not JSON');
     const all = json<ProcessInfo[]>(output.slice(start));
-    const owned = all.filter((item) => item.name.startsWith(`${instance.id}-`));
+    const owned = all.filter((item) =>
+        item.name.startsWith(processName(instance.id, '')),
+    );
     if (
         owned.some(
             (item) =>
@@ -199,7 +204,7 @@ export async function processStartEnvironment(
                       ? savedBackendMode(env.LDENV_BACKEND)
                       : backendMode(env.LDENV_BACKEND);
             const api = running.find(
-                (item) => item.name === `${instance.id}-api`,
+                (item) => item.name === processName(instance.id, 'api'),
             );
             const runningMode = savedBackendMode(
                 api ? api.pm2_env.LDENV_BACKEND : env.LDENV_BACKEND,
@@ -235,6 +240,7 @@ export async function startProcesses(
     stage: 'frontend' | 'watchers' | 'api',
     operations = { processStartEnvironment, pm2, processPriority },
 ): Promise<void> {
+    postgresPort();
     const env = await operations.processStartEnvironment(instance);
     const suffixes =
         stage === 'watchers'
@@ -254,13 +260,16 @@ export async function startProcesses(
             'start',
             path.join(controlRoot, 'scripts/ldenv/ecosystem.config.cjs'),
             '--only',
-            suffixes.map((suffix) => `${instance.id}-${suffix}`).join(','),
+            suffixes
+                .map((suffix) => processName(instance.id, suffix))
+                .join(','),
         ],
         instance.worktree,
         {
             ...env,
             LDENV_WORKTREE: instance.worktree,
             LDENV_HOME: home,
+            LDENV_PM2_PREFIX: pm2Prefix,
             LDENV_WATCH_STATE_DIR: compilerDirectory(instance),
             LDENV_START_EPOCH: processEpoch(instance),
             LDENV_VITE_WARM_MARKER: path.join(
@@ -277,7 +286,7 @@ export async function stopClaimApi(
     operations = { ownedProcesses, pm2 },
 ): Promise<number> {
     const api = (await operations.ownedProcesses(instance)).find(
-        (item) => item.name === `${instance.id}-api`,
+        (item) => item.name === processName(instance.id, 'api'),
     );
     if (!api) throw new Error('Claim API process is missing');
     await operations.pm2(['delete', api.name]);
@@ -554,7 +563,7 @@ export async function waitForFrontend(
 ): Promise<void> {
     const started = Date.now();
     const frontend = (await operations.ownedProcesses(instance)).find(
-        (item) => item.name === `${instance.id}-frontend`,
+        (item) => item.name === processName(instance.id, 'frontend'),
     );
     if (!frontend) throw new Error('Frontend process is missing');
     await waitUntil(
@@ -593,7 +602,7 @@ export async function apiGeneration(
     operations = { ownedProcesses, apiProcessGeneration },
 ): Promise<string | null> {
     const api = (await operations.ownedProcesses(instance)).find(
-        (item) => item.name === `${instance.id}-api`,
+        (item) => item.name === processName(instance.id, 'api'),
     );
     return operations.apiProcessGeneration(instance, api);
 }

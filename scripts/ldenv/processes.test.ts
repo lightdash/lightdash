@@ -420,6 +420,7 @@ test('compiler and frontend gates retain the physical epoch across a shallow cla
             const path = require('node:path');
             const { home, writeJson } = require(${JSON.stringify(path.join(__dirname, 'io.ts'))});
             const { newInstance } = require(${JSON.stringify(path.join(__dirname, 'model.ts'))});
+            const { processName } = require(${JSON.stringify(path.join(__dirname, 'namespace.ts'))});
             const { compilerDirectory, compilerNames, waitForCompilers } = require(${JSON.stringify(path.join(__dirname, 'readiness.ts'))});
             const { waitForFrontend } = require(${JSON.stringify(path.join(__dirname, 'processes.ts'))});
             (async () => {
@@ -433,7 +434,7 @@ test('compiler and frontend gates retain the physical epoch across a shallow cla
                     pid: 123, status: 'ready', startedAt: Date.parse(instance.processStartedAt) + 100, modules: 1,
                 });
                 await waitForCompilers(instance);
-                await waitForFrontend(instance, { ownedProcesses: async () => [{name: instance.id + '-frontend', pid: 123}] });
+                await waitForFrontend(instance, { ownedProcesses: async () => [{name: processName(instance.id, 'frontend'), pid: 123}] });
             })().catch(error => { console.error(error); process.exit(1); });
         `;
         await promisify(execFile)(
@@ -694,6 +695,7 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
         const wrapper = path.join(__dirname, 'ecosystem.config.cjs');
         const result = json<{
             apps: {
+                name: string;
                 node_args?: string;
                 env?: { SCHEDULER_ENABLED: string; OTEL_SDK_DISABLED: string };
                 watch?: string[];
@@ -739,6 +741,31 @@ test('the ldenv ecosystem binds the inspector locally and watches the optional s
             ),
         );
         assert.equal(traced.apps[0].env?.OTEL_SDK_DISABLED, 'false');
+        const namespaced = json<typeof result>(
+            await runner.run(
+                process.execPath,
+                [
+                    '-e',
+                    `process.stdout.write(JSON.stringify(require(${JSON.stringify(wrapper)})))`,
+                ],
+                {
+                    cwd: root,
+                    env: {
+                        LDENV_WORKTREE: root,
+                        LDENV_BACKEND: 'tsx',
+                        LDENV_PM2_PREFIX: 'spike-',
+                    },
+                },
+            ),
+        );
+        assert.deepEqual(
+            namespaced.apps.map((app) => app.name),
+            [
+                'spike-test-api',
+                'spike-test-scheduler',
+                'spike-test-api-routes-watch',
+            ],
+        );
         const bundled = json<{
             apps: {
                 script: string;

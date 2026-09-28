@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { alive, home, readJson } from './io';
 import { assertInstance, savedBackendMode, type Instance } from './model';
+import { processName } from './namespace';
 import type { ProcessInfo } from './processes';
 import { processEpoch } from './readiness';
 
@@ -30,7 +31,7 @@ export async function apiProcessGeneration(
         !Number.isSafeInteger(api.pid) ||
         api.pid <= 0 ||
         !Number.isFinite(api.pm2_env.pm_uptime) ||
-        api.name !== `${instance.id}-api` ||
+        api.name !== processName(instance.id, 'api') ||
         (api.pm2_env.pm_cwd !== instance.worktree &&
             !api.pm2_env.pm_cwd.startsWith(
                 `${instance.worktree}${path.sep}`,

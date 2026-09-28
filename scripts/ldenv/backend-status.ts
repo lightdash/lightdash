@@ -4,6 +4,7 @@ import {
     type BundleState,
 } from './bundle-state';
 import { savedBackendMode, type BackendMode, type Instance } from './model';
+import { processName } from './namespace';
 import { health, ownedProcesses, type ProcessInfo } from './processes';
 
 export async function inspectBackendStatus(
@@ -14,7 +15,7 @@ export async function inspectBackendStatus(
     const findApi = (processes: ProcessInfo[]) =>
         processes.find(
             (item) =>
-                item.name === `${instance.id}-api` &&
+                item.name === processName(instance.id, 'api') &&
                 item.pm2_env.status === 'online',
         );
     const before = await operations.apiProcessGeneration(

@@ -3,13 +3,13 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
-import { newInstance } from './model';
 
 const testHome = path.join(os.tmpdir(), `ldenv-env-tests-${process.pid}`);
 process.env.LDENV_HOME = testHome;
 after(() => rm(testHome, { recursive: true, force: true }));
 
 test('original user env survives repeated tracing rewrites and down restore', async () => {
+    const { newInstance } = await import('./model.js');
     const { restoreInstanceEnv, writeInstanceEnv, writeTracingEnv } =
         await import('./env.js');
     const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-env-root-'));
@@ -40,6 +40,7 @@ test('original user env survives repeated tracing rewrites and down restore', as
 });
 
 test('manual env edit prevents tracing overwrite and retains the original backup on down', async () => {
+    const { newInstance } = await import('./model.js');
     const { restoreInstanceEnv, writeInstanceEnv, writeTracingEnv } =
         await import('./env.js');
     const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-env-root-'));
@@ -68,6 +69,7 @@ test('manual env edit prevents tracing overwrite and retains the original backup
 });
 
 test('concurrent tracing rewrites serialize backup and env writes', async () => {
+    const { newInstance } = await import('./model.js');
     const { restoreInstanceEnv, writeInstanceEnv, writeTracingEnv } =
         await import('./env.js');
     const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-env-root-'));

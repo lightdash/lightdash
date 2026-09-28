@@ -11,13 +11,13 @@ import {
     rm,
     writeFile,
 } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { json, type Environment, type Instance } from './model';
+import { home } from './namespace';
 
-export const home = process.env.LDENV_HOME ?? path.join(os.homedir(), '.ldenv');
+export { home } from './namespace';
 export const statePath = (id: string) =>
     path.join(home, 'instances', `${id}.json`);
 export async function readJson<T>(file: string): Promise<T> {

@@ -4,6 +4,10 @@ const { createRequire } = require('node:module');
 const root = process.env.LDENV_WORKTREE;
 if (!root) throw new Error('LDENV_WORKTREE is required');
 const config = require(path.join(root, 'ecosystem.config.js'));
+const prefix = process.env.LDENV_PM2_PREFIX ?? '';
+if (prefix && !/^[a-z0-9_]+-$/.test(prefix))
+    throw new Error('Invalid ldenv PM2 prefix');
+for (const app of config.apps) app.name = `${prefix}${app.name}`;
 const api = config.apps.find((app) => app.name.endsWith('-api'));
 const scheduler = config.apps.find((app) => app.name.endsWith('-scheduler'));
 if (!api || !scheduler)
