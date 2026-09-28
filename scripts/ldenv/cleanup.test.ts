@@ -35,6 +35,7 @@ test('cleanup prunes only unused detached warm and tool worktrees and rechecks r
             tool('b'),
             tool('c'),
             tool('d'),
+            tool('e'),
         ];
         for (const directory of paths)
             await mkdir(directory, { recursive: true });
@@ -53,9 +54,11 @@ test('cleanup prunes only unused detached warm and tool worktrees and rechecks r
                     locked: false,
                 })),
             status: async (directory) =>
-                directory === edited
+                directory === edited || directory === tool('e')
                     ? '?? useful.txt'
-                    : '!! node_modules/\n M packages/backend/src/generated/routes.ts',
+                    : directory === tool('c')
+                      ? '?? scripts/ldenv/index.bundle.cjs'
+                      : '!! node_modules/\n M packages/backend/src/generated/routes.ts',
             remove: async (directory) => {
                 removed.push(directory);
             },
@@ -68,6 +71,10 @@ test('cleanup prunes only unused detached warm and tool worktrees and rechecks r
             [warm, tool('c')],
         );
         assert.deepEqual(removed, []);
+        assert.equal(
+            plan.find((entry) => entry.directory === tool('e'))?.remove,
+            false,
+        );
         await removeCleanupEntry(
             plan.find((entry) => entry.directory === tool('c'))!,
             base,

@@ -107,13 +107,17 @@ async function directories(base: string): Promise<string[]> {
     if (!existsSync(base)) return [];
     return (await readdir(base)).map((name) => path.join(base, name));
 }
-function unexpectedEdits(status: string): boolean {
+function unexpectedEdits(status: string, kind: CleanupEntry['kind']): boolean {
     return status
         .split('\n')
         .some(
             (line) =>
                 line &&
                 !line.startsWith('!! ') &&
+                !(
+                    kind === 'tool' &&
+                    line === '?? scripts/ldenv/index.bundle.cjs'
+                ) &&
                 !/^.. packages\/(backend\/src\/generated\/|common\/src\/schemas\/json\/|formula\/src\/grammar\/parser\.js)/.test(
                     line,
                 ),
@@ -144,7 +148,7 @@ async function inspectCandidate(
         return result(false, 'Locked or branch worktree may belong to a user');
     if (references.includes(directory))
         return result(false, 'Referenced by a process or open file');
-    if (unexpectedEdits(await io.status(directory)))
+    if (unexpectedEdits(await io.status(directory), kind))
         return result(false, 'Worktree has user edits');
     return result(true, 'Unreferenced ldenv-owned detached worktree');
 }
