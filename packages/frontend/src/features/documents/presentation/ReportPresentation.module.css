@@ -621,8 +621,8 @@
                 cursor: text;
             }
 
-            /* A full-width line where text will go between or around charts.
-               In flow with no height, so it sits where the gap starts;
+            /* Where text will go between or around charts. In flow with no
+               height, so it sits where the gap starts;
                flow-root stops the next block's margin collapsing through it */
             > :global(.ProseMirror-gapcursor) {
                 position: relative;
@@ -635,10 +635,28 @@
                 display: flow-root;
             }
 
+            /* Looks like an empty line: a normal caret plus the writing hint,
+               centred in the gap so nothing around it moves */
+            > :global(.ProseMirror-gapcursor)::before,
             > :global(.ProseMirror-gapcursor)::after {
-                top: calc(var(--mantine-spacing-xl) / 2 - 1px);
-                width: 100%;
-                border-top: 2px solid var(--mantine-color-text);
+                position: absolute;
+                top: calc(var(--mantine-spacing-xl) / 2 - 0.75em);
+                left: 0;
+                height: 1.5em;
+            }
+
+            > :global(.ProseMirror-gapcursor)::before {
+                content: "Write something, or type '/' for blocks…";
+                color: var(--mantine-color-placeholder);
+                line-height: 1.5em;
+                white-space: nowrap;
+                pointer-events: none;
+            }
+
+            > :global(.ProseMirror-gapcursor)::after {
+                width: 0;
+                border-top: 0;
+                border-left: 1px solid var(--mantine-color-text);
             }
 
             /* The hint follows the cursor into any empty paragraph, so the
