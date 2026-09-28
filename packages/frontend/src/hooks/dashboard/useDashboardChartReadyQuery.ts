@@ -1,10 +1,12 @@
 import {
+    ChartType,
     getAvailableParametersFromTables,
     getChartZoomableFields,
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
     hasReservedParameterReference,
     QueryExecutionContext,
+    QueryHistoryStatus,
     resolveTileDateZoom,
     type ApiError,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -12,14 +14,24 @@ import {
     type DateZoom,
     type ExecuteAsyncDashboardChartRequestParams,
     type SavedChart,
+    type SubtotalLevelRequest,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { lightdashApi } from '../../api';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { useDataAppVizRenderMetadata } from '../../features/chartTypes/hooks/useDataAppVizRender';
+import { useVizSubtotalSource } from '../../features/chartTypes/hooks/useVizSubtotalSource';
+import {
+    buildVizSubtotalRequest,
+    getVizSubtotalDimensions,
+} from '../../features/chartTypes/utils/vizSubtotals';
+import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
+import { collectSubtotalRows } from '../useQueryResults';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
@@ -51,6 +63,7 @@ const postEmbedDashboardTileQuery = async (
         | 'invalidateCache'
         | 'dateZoom'
         | 'parameters'
+        | 'subtotalLevel'
     >,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
     lightdashApi<ApiExecuteAsyncDashboardChartQueryResults>({
@@ -74,6 +87,7 @@ export const useDashboardChartReadyQuery = (
     chartUuid: string | null,
     contextOverride?: QueryExecutionContext,
 ) => {
+    const getUiString = useUiStrings();
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardTileStatusContext(
@@ -132,6 +146,49 @@ export const useDashboardChartReadyQuery = (
         projectUuid,
         includeUnpublishedDraft,
     });
+    const chartConfig = chartQuery.data?.chartConfig;
+    const vizUuid =
+        chartConfig?.type === ChartType.DATA_APP_VIZ
+            ? (chartConfig.config?.dataAppVizUuid ?? null)
+            : null;
+    const isEmbedContext =
+        (contextOverride || context) === QueryExecutionContext.EMBED;
+    const vizMetadata = useDataAppVizRenderMetadata(
+        projectUuid,
+        vizUuid,
+        { isEmbedded: isEmbedContext, savedChartUuid: chartUuid ?? undefined },
+        chartConfig?.type === ChartType.DATA_APP_VIZ
+            ? chartConfig.config?.dataAppVizVersion
+            : undefined,
+    );
+    const vizSchema =
+        vizMetadata.data?.state === 'ready' ? vizMetadata.data.schema : null;
+    const subtotalDimensions = chartConfig
+        ? getVizSubtotalDimensions(chartConfig, vizSchema)
+        : null;
+    const waitingForVizMetadata = vizUuid !== null && vizSchema === null;
+    const invalidVizHierarchy = !!vizSchema?.hierarchy && !subtotalDimensions;
+    const vizHierarchyError = useMemo(
+        () =>
+            invalidVizHierarchy
+                ? new Error(getUiString('chartTypes.hierarchy.bindDimensions'))
+                : null,
+        [invalidVizHierarchy, getUiString],
+    );
+    const vizMetadataError = useMemo(
+        () =>
+            vizUuid === null
+                ? null
+                : (vizMetadata.error ??
+                  (vizMetadata.data?.state === 'building'
+                      ? new Error(getUiString('chartTypes.generating'))
+                      : vizMetadata.data?.state === 'unavailable'
+                        ? new Error(getUiString('chartTypes.unavailable'))
+                        : vizMetadata.data?.state === 'failed'
+                          ? new Error(getUiString('chartTypes.failed'))
+                          : null)),
+        [vizUuid, vizMetadata.error, vizMetadata.data?.state, getUiString],
+    );
 
     const { data: explore, error: exploreError } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,
@@ -266,6 +323,7 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            subtotalDimensions,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -282,8 +340,39 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            subtotalDimensions,
         ],
     );
+
+    const startTileQuery = (subtotalLevel?: SubtotalLevelRequest) => {
+        const tileQuery = {
+            tileUuid,
+            dashboardFilters: timezoneFixFilters,
+            dashboardSorts,
+            dateZoom: tileDateZoom,
+            invalidateCache,
+            parameters: parameterValues,
+            pivotResults: subtotalLevel === undefined,
+            subtotalLevel,
+        };
+        if (isEmbedContext) {
+            return postEmbedDashboardTileQuery(chartQuery.data!.projectUuid, {
+                ...tileQuery,
+                timezone: sessionTimezone ?? undefined,
+            });
+        }
+        const requestedContext =
+            contextOverride || context || QueryExecutionContext.DASHBOARD;
+        return executeAsyncDashboardChartQuery(chartQuery.data!.projectUuid, {
+            ...tileQuery,
+            context: autoRefresh
+                ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                : requestedContext,
+            chartUuid: chartUuid!,
+            dashboardUuid: dashboardUuid!,
+            ...(includeUnpublishedDraft && { includeUnpublishedDraft: true }),
+        });
+    };
 
     const queryResult = useQuery<DashboardChartReadyQuery, ApiError>({
         queryKey,
@@ -291,50 +380,20 @@ export const useDashboardChartReadyQuery = (
             if (!chartQuery.data || !explore) {
                 throw new Error('Chart or explore is undefined');
             }
+            if (subtotalDimensions && chartQuery.data.merge) {
+                throw new Error(
+                    getUiString('chartTypes.hierarchy.mergeUnsupported'),
+                );
+            }
 
-            const requestedContext =
-                contextOverride || context || QueryExecutionContext.DASHBOARD;
-            const effectiveContext = autoRefresh
-                ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                : requestedContext;
-
-            const isEmbedContext =
-                requestedContext === QueryExecutionContext.EMBED;
-
-            const dateZoom = tileDateZoom;
-
-            const executeQueryResponse = isEmbedContext
-                ? await postEmbedDashboardTileQuery(
-                      chartQuery.data.projectUuid,
-                      {
-                          tileUuid,
-                          dashboardFilters: timezoneFixFilters,
-                          dashboardSorts,
-                          dateZoom,
-                          invalidateCache,
-                          parameters: parameterValues,
-                          pivotResults: true,
-                          timezone: sessionTimezone ?? undefined,
-                      },
-                  )
-                : await executeAsyncDashboardChartQuery(
-                      chartQuery.data.projectUuid,
-                      {
-                          context: effectiveContext,
-                          tileUuid,
-                          chartUuid: chartUuid!,
-                          dashboardUuid: dashboardUuid!,
-                          dashboardFilters: timezoneFixFilters,
-                          dashboardSorts,
-                          dateZoom,
-                          invalidateCache,
-                          parameters: parameterValues,
-                          pivotResults: true,
-                          ...(includeUnpublishedDraft && {
-                              includeUnpublishedDraft: true,
-                          }),
-                      },
-                  );
+            const executeQueryResponse = await startTileQuery(
+                subtotalDimensions
+                    ? buildVizSubtotalRequest(subtotalDimensions, {
+                          level: 0,
+                          parentValues: [],
+                      })
+                    : undefined,
+            );
 
             return {
                 chart: chartQuery.data,
@@ -344,10 +403,33 @@ export const useDashboardChartReadyQuery = (
             };
         },
         enabled: Boolean(
-            chartUuid && dashboardUuid && chartQuery.data && explore,
+            chartUuid &&
+            dashboardUuid &&
+            chartQuery.data &&
+            explore &&
+            !waitingForVizMetadata &&
+            !invalidVizHierarchy,
         ),
         ...retryConfig,
         refetchOnMount: false,
+    });
+    const vizSubtotals = useVizSubtotalSource({
+        dimensions:
+            chartQuery.data && dashboardUuid ? subtotalDimensions : null,
+        rootKey: queryResult.isPreviousData
+            ? undefined
+            : queryResult.data?.executeQueryResponse.queryUuid,
+        fetchRows: async (subtotalLevel) => {
+            const projectUuidForRows = chartQuery.data!.projectUuid;
+            const started = await startTileQuery(subtotalLevel);
+            const firstPage = await pollForResults(
+                projectUuidForRows,
+                started.queryUuid,
+            );
+            if (firstPage.status !== QueryHistoryStatus.READY)
+                throw new Error('The subtotal query did not finish');
+            return collectSubtotalRows(projectUuidForRows, firstPage);
+        },
     });
 
     // Backend reports it for overridden date dimensions; charts that only
@@ -385,7 +467,7 @@ export const useDashboardChartReadyQuery = (
                 queryResult.data.executeQueryResponse.parameterReferences,
             );
             markTileLoaded(tileUuid);
-        } else if (queryResult.error) {
+        } else if (queryResult.error || vizMetadataError || vizHierarchyError) {
             // On error, there are no references, but we count the tile as loaded
             addParameterReferences(tileUuid, []);
             markTileLoaded(tileUuid);
@@ -396,11 +478,19 @@ export const useDashboardChartReadyQuery = (
         markTileLoaded,
         tileUuid,
         queryResult.error,
+        vizMetadataError,
+        vizHierarchyError,
     ]);
 
     return {
         ...queryResult,
         chartQuery,
-        error: chartQuery.error || exploreError || queryResult.error,
+        vizSubtotals,
+        error:
+            chartQuery.error ||
+            exploreError ||
+            vizMetadataError ||
+            vizHierarchyError ||
+            queryResult.error,
     };
 };

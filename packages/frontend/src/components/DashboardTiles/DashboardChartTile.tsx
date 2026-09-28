@@ -2669,10 +2669,14 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         };
     }, [readyQuery.data, readyQuery.chartQuery?.data]);
 
-    const resultsData = useInfiniteQueryResults(
+    const queryResultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
         readyQuery.data?.chart.name,
+    );
+    const resultsData = useMemo(
+        () => ({ ...queryResultsData, vizSubtotals: readyQuery.vizSubtotals }),
+        [queryResultsData, readyQuery.vizSubtotals],
     );
 
     const isLoading = useMemo(() => {

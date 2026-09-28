@@ -47,6 +47,10 @@ const EmbedDashboardChartTile: FC<Props> = ({
         readyQuery.data?.executeQueryResponse.queryUuid,
         readyQuery.data?.chart.name,
     );
+    const resultsDataWithSubtotals = useMemo(
+        () => ({ ...resultsData, vizSubtotals: readyQuery.vizSubtotals }),
+        [resultsData, readyQuery.vizSubtotals],
+    );
 
     const isLoading = useMemo(() => {
         const isCreatingQuery = readyQuery.isFetching;
@@ -122,7 +126,7 @@ const EmbedDashboardChartTile: FC<Props> = ({
             canExportImages={canExportImages}
             canExportPagePdf={canExportPagePdf}
             canDateZoom={canDateZoom}
-            resultsData={resultsData}
+            resultsData={resultsDataWithSubtotals}
             dashboardChartReadyQuery={dashboardChartReadyQuery}
             error={error}
             onExplore={onExplore}
