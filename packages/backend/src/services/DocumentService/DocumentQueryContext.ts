@@ -1,6 +1,5 @@
 import {
     buildMergeQueryFromSaved,
-    ConflictError,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -46,16 +45,14 @@ export class DocumentQueryContext {
         reference: DocumentQueryReference;
         sourceRowCap: number;
     }): Promise<DocumentQueryContext> {
-        const document = await documentService.get(
+        // Any saved version can be read: the version pins the exact cell,
+        // and the query still runs with the caller's current permissions.
+        const document = await documentService.getVersion(
             account,
             projectUuid,
             reference.documentUuid,
+            reference.versionUuid,
         );
-        if (document.version.versionUuid !== reference.versionUuid) {
-            throw new ConflictError(
-                'Document has changed. Reload it before running its charts.',
-            );
-        }
         if (
             !Number.isSafeInteger(reference.cellIndex) ||
             reference.cellIndex < 0

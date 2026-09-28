@@ -1283,6 +1283,113 @@ describe('DocumentModel PostgreSQL integration', () => {
         expect(latest.version.content).toEqual({ cells: [] });
     });
 
+    test('lists version history newest first with authors and pages', async () => {
+        await transaction('users')
+            .where('user_uuid', input.createdByUserUuid)
+            .update({ first_name: 'Original', last_name: 'Author' });
+        const editorUuid = randomUUID();
+        const leaverUuid = randomUUID();
+        await transaction.raw(
+            'INSERT INTO users (user_uuid, first_name, last_name) VALUES (?, ?, ?), (?, ?, ?)',
+            [editorUuid, 'Latest', 'Editor', leaverUuid, 'Gone', 'User'],
+        );
+        const first = await model.create(input);
+        const second = await model.updateContent(
+            input.projectUuid,
+            first.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: first.version.versionUuid,
+                content: { cells: [] },
+            },
+            editorUuid,
+        );
+        const third = await model.updateContent(
+            input.projectUuid,
+            first.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: second.version.versionUuid,
+                content: { cells: [] },
+            },
+            leaverUuid,
+        );
+        await transaction('users').where('user_uuid', leaverUuid).delete();
+
+        const page = await model.listVersions(
+            input.projectUuid,
+            first.documentUuid,
+            { limit: 2, offset: 0 },
+        );
+        expect(page.items.map((item) => item.versionNumber)).toEqual([3, 2]);
+        expect(page.items[0]).toMatchObject({
+            versionUuid: third.version.versionUuid,
+            createdBy: null,
+        });
+        expect(page.items[1].createdBy).toMatchObject({
+            userUuid: editorUuid,
+            firstName: 'Latest',
+            lastName: 'Editor',
+        });
+        expect(page.nextOffset).toBe(2);
+
+        const rest = await model.listVersions(
+            input.projectUuid,
+            first.documentUuid,
+            { limit: 2, offset: 2 },
+        );
+        expect(rest.items.map((item) => item.versionNumber)).toEqual([1]);
+        expect(rest.items[0].createdBy).toMatchObject({
+            firstName: 'Original',
+            lastName: 'Author',
+        });
+        expect(rest.nextOffset).toBeNull();
+    });
+
+    test('reads a historical version without changing the current one', async () => {
+        const first = await model.create(input);
+        await model.updateContent(
+            input.projectUuid,
+            first.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: first.version.versionUuid,
+                content: { cells: [] },
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        const historical = await model.getVersion(
+            input.projectUuid,
+            first.documentUuid,
+            first.version.versionUuid,
+        );
+        expect(historical.version).toMatchObject({
+            versionUuid: first.version.versionUuid,
+            versionNumber: 1,
+            content: input.content,
+        });
+        const current = await model.get(input.projectUuid, first.documentUuid);
+        expect(current.version.versionNumber).toBe(2);
+    });
+
+    test('never reads another document version or a foreign project', async () => {
+        const first = await model.create(input);
+        const other = await model.create({ ...input, name: 'Other' });
+        await expect(
+            model.getVersion(
+                input.projectUuid,
+                first.documentUuid,
+                other.version.versionUuid,
+            ),
+        ).rejects.toThrow('Document version not found');
+        await expect(
+            model.listVersions(randomUUID(), first.documentUuid, {
+                limit: 10,
+                offset: 0,
+            }),
+        ).rejects.toThrow('Document not found');
+    });
+
     test('rejects cross-project identity and destination lookups', async () => {
         const document = await model.create(input);
         await expect(

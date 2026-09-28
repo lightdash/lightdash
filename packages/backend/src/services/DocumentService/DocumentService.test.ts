@@ -105,6 +105,10 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
         listSpaceUuids: vi.fn().mockResolvedValue([spaceUuid]),
         listSummariesByUuid: vi.fn().mockResolvedValue([]),
         moveToSpace: vi.fn().mockResolvedValue(document),
+        getVersion: vi.fn(),
+        listVersions: vi
+            .fn()
+            .mockResolvedValue({ items: [], nextOffset: null }),
     };
     const projectModel = {
         getSummary: vi
@@ -149,7 +153,140 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     };
 };
 
+const historicalVersion: Document['version'] = {
+    versionUuid: 'historical-version',
+    versionNumber: 1,
+    schemaVersion: 1,
+    content: { cells: [{ type: 'markdown', content: { markdown: 'Old' } }] },
+    createdByUserUuid: null,
+    createdAt: new Date('2026-09-01'),
+};
+
 describe('DocumentService', () => {
+    describe('version history', () => {
+        test('lists versions for a reader through normal Document authorization', async () => {
+            const { service, documentModel, spacePermissionService } = setup();
+            await service.listVersions(
+                makeAccount(),
+                projectUuid,
+                documentUuid,
+                {
+                    limit: 20,
+                    offset: 40,
+                },
+            );
+            expect(spacePermissionService.resolveAccess).toHaveBeenCalled();
+            expect(documentModel.listVersions).toHaveBeenCalledWith(
+                projectUuid,
+                documentUuid,
+                { limit: 20, offset: 40 },
+            );
+        });
+
+        test('resolves a slug to the Document before listing versions', async () => {
+            const { service, documentModel } = setup();
+            await service.listVersions(
+                makeAccount(),
+                projectUuid,
+                document.slug,
+            );
+            expect(documentModel.getBySlug).toHaveBeenCalledWith(
+                projectUuid,
+                document.slug,
+            );
+            expect(documentModel.listVersions).toHaveBeenCalledWith(
+                projectUuid,
+                documentUuid,
+                { limit: 50, offset: 0 },
+            );
+        });
+
+        test.each([
+            { limit: 0, offset: 0 },
+            { limit: 101, offset: 0 },
+            { limit: 10, offset: -1 },
+            { limit: 1.5, offset: 0 },
+        ])('rejects invalid pagination %j', async (page) => {
+            const { service, documentModel } = setup();
+            await expect(
+                service.listVersions(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    page,
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(documentModel.listVersions).not.toHaveBeenCalled();
+        });
+
+        test('hides history of a private Document without access', async () => {
+            const { service, spacePermissionService, documentModel } = setup();
+            spacePermissionService.resolveAccess.mockResolvedValue(
+                makeContext([], false),
+            );
+            await expect(
+                service.listVersions(makeAccount(), projectUuid, documentUuid),
+            ).rejects.toThrow(NotFoundError);
+            await expect(
+                service.getVersion(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    historicalVersion.versionUuid,
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(documentModel.listVersions).not.toHaveBeenCalled();
+            expect(documentModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        test('refuses history when Documents are disabled', async () => {
+            const { service, featureFlagModel, documentModel } = setup();
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service.listVersions(makeAccount(), projectUuid, documentUuid),
+            ).rejects.toThrow(ForbiddenError);
+            expect(documentModel.listVersions).not.toHaveBeenCalled();
+        });
+
+        test('returns the current Document with only the historical content swapped in', async () => {
+            const { service, documentModel } = setup();
+            documentModel.getVersion.mockResolvedValue({
+                ...document,
+                name: 'Old name',
+                version: historicalVersion,
+            });
+            const result = await service.getVersion(
+                makeAccount(),
+                projectUuid,
+                documentUuid,
+                historicalVersion.versionUuid,
+            );
+            expect(documentModel.getVersion).toHaveBeenCalledWith(
+                projectUuid,
+                documentUuid,
+                historicalVersion.versionUuid,
+            );
+            expect(result.version).toEqual(historicalVersion);
+            expect(result.name).toBe(document.name);
+            expect(result.access).toEqual([]);
+        });
+
+        test('propagates a version that is not part of the Document', async () => {
+            const { service, documentModel } = setup();
+            documentModel.getVersion.mockRejectedValue(
+                new NotFoundError('Document version not found'),
+            );
+            await expect(
+                service.getVersion(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    'another-documents-version',
+                ),
+            ).rejects.toThrow('Document version not found');
+        });
+    });
+
     describe('getAsCode', () => {
         test('exports only portable authoring fields for a reader', async () => {
             const { service, spaceModel } = setup();

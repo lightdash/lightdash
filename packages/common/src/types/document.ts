@@ -92,6 +92,23 @@ export type DocumentList = {
 };
 export type ApiDocumentListResponse = ApiSuccess<DocumentList>;
 
+/** One entry in a Document's immutable version history, newest first. */
+export type DocumentVersionSummary = Pick<
+    DocumentVersion,
+    'versionUuid' | 'versionNumber' | 'createdAt'
+> & {
+    /** Who saved this version; null when the user was deleted or unknown. */
+    createdBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName' | 'avatarUrl' | 'avatarGradient'
+    > | null;
+};
+export type DocumentVersionList = {
+    items: DocumentVersionSummary[];
+    nextOffset: number | null;
+};
+export type ApiDocumentVersionListResponse = ApiSuccess<DocumentVersionList>;
+
 export type CreateDocumentRequest = {
     name: string;
     slug?: string;
