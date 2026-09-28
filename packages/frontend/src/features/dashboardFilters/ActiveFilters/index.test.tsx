@@ -202,7 +202,7 @@ describe('ActiveFilters saved filter on a hidden field', () => {
         renderFilters(false);
 
         const chip = screen.getByTestId('locked-dashboard-filter');
-        expect(chip).toHaveTextContent(/^orders_status\s*is completed$/);
+        expect(chip).toHaveTextContent(/^Orders status\s*is completed$/);
         expect(
             screen.queryByRole('button', { name: 'Remove filter' }),
         ).not.toBeInTheDocument();
@@ -219,7 +219,7 @@ describe('ActiveFilters saved filter on a hidden field', () => {
         renderFilters(false);
 
         expect(screen.getByTestId('locked-dashboard-filter')).toHaveTextContent(
-            /^orders_status\s*is any value$/,
+            /^Orders status\s*is any value$/,
         );
     });
 

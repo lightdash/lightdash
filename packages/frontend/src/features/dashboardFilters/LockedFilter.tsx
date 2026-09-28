@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    friendlyName,
     getFilterTypeFromItemType,
     isValuelessDashboardFilterRule,
     type DashboardFilterRule,
@@ -26,7 +27,7 @@ const LockedFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
                 getFilterTypeFromItemType(
                     filterRule.target.fallbackType ?? DimensionType.STRING,
                 ),
-                filterRule.label || filterRule.target.fieldId,
+                filterRule.label || friendlyName(filterRule.target.fieldId),
                 getUiString,
             ),
         [filterRule, getUiString],
