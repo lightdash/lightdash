@@ -409,8 +409,9 @@
         overflow-wrap: anywhere;
     }
 
-    /* The editable title renders exactly like the reading title */
-    .titleInput {
+    /* The editable title renders exactly like the reading title; doubled to
+       outrank Mantine's input, whose wrapper would otherwise set line height */
+    .titleInput.titleInput {
         min-height: 0;
         padding: 0;
         border: 0;
@@ -418,7 +419,7 @@
         color: inherit;
         font: inherit;
         letter-spacing: inherit;
-        line-height: inherit;
+        line-height: var(--mantine-h1-line-height);
         resize: none;
     }
 
