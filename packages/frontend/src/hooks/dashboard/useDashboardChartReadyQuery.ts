@@ -1,5 +1,12 @@
 import {
     getAvailableParametersFromTables,
+    getDefaultStartOfWeek,
+    getDashboardBoundaryErrors,
+    getExecutableFilterFieldIds,
+    getFilterBoundaryFieldContext,
+    findFieldByIdInExplore,
+    resolveQueryTimezone,
+    ParameterError,
     getChartZoomableFields,
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
@@ -16,10 +23,13 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { lightdashApi } from '../../api';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
+import { useProject } from '../useProject';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
@@ -75,6 +85,9 @@ export const useDashboardChartReadyQuery = (
     contextOverride?: QueryExecutionContext,
 ) => {
     const retryConfig = useQueryRetryConfig();
+    const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
+    const getUiString = useUiStrings();
+    const { user } = useApp();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardTileStatusContext(
         (c) => c.invalidateCache,
@@ -127,6 +140,7 @@ export const useDashboardChartReadyQuery = (
         (c) => c.includeUnpublishedDraft,
     );
     const sessionTimezone = useSessionTimezone();
+    const { data: project } = useProject(projectUuid);
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid ?? undefined,
         projectUuid,
@@ -300,6 +314,32 @@ export const useDashboardChartReadyQuery = (
 
             const isEmbedContext =
                 requestedContext === QueryExecutionContext.EMBED;
+
+            if (savedFilters) {
+                const errors = getDashboardBoundaryErrors(
+                    savedFilters,
+                    timezoneFixFilters,
+                    tileUuid,
+                    getExecutableFilterFieldIds(explore),
+                    (target) => ({
+                        ...getFilterBoundaryFieldContext(
+                            findFieldByIdInExplore(explore, target.fieldId),
+                            explore.caseSensitive,
+                        ),
+                        timezone: resolveQueryTimezone({
+                            sessionTimezone,
+                            metricQuery: chartQuery.data.metricQuery,
+                            projectTimezone: project?.queryTimezone ?? 'UTC',
+                            userTimezone: user.data?.timezone ?? null,
+                        }),
+                        startOfWeek:
+                            project?.warehouseConnection?.startOfWeek ??
+                            getDefaultStartOfWeek(explore.targetDatabase),
+                        getUiString,
+                    }),
+                );
+                if (errors.length) throw new ParameterError(errors.join(' '));
+            }
 
             const dateZoom = tileDateZoom;
 

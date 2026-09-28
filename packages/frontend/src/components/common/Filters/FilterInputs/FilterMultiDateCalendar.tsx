@@ -21,6 +21,7 @@ import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
 
 type Props = {
     timeFrame: MultiDateTimeFrame;
+    isDateAllowed?: (date: Date) => boolean;
     values: Date[];
     firstDayOfWeek: DayOfWeek;
     onChange: (values: Date[]) => void;
@@ -43,6 +44,7 @@ const getQuarterMonths = (month: number): number[] =>
  */
 const MultiWeekCalendar: FC<Omit<Props, 'timeFrame'>> = ({
     values,
+    isDateAllowed,
     firstDayOfWeek,
     onChange,
 }) => {
@@ -59,6 +61,7 @@ const MultiWeekCalendar: FC<Omit<Props, 'timeFrame'>> = ({
             isSelected || isInWeekRange(date, hoveredDate, firstDayOfWeek);
 
         return {
+            disabled: isDateAllowed ? !isDateAllowed(date) : false,
             onMouseEnter: () => setHoveredDate(date),
             onMouseLeave: () => setHoveredDate(null),
             inRange: isInRange,
@@ -100,6 +103,7 @@ const MultiWeekCalendar: FC<Omit<Props, 'timeFrame'>> = ({
  */
 const MultiQuarterCalendar: FC<Omit<Props, 'timeFrame'>> = ({
     values,
+    isDateAllowed,
     firstDayOfWeek,
     onChange,
 }) => {
@@ -121,6 +125,7 @@ const MultiQuarterCalendar: FC<Omit<Props, 'timeFrame'>> = ({
             getQuarterMonths(hoveredMonth.getMonth()).includes(date.getMonth());
 
         return {
+            disabled: isDateAllowed ? !isDateAllowed(date) : false,
             className: quarterClasses.monthControl,
             'data-quarter-selected': isSelected || undefined,
             'data-quarter-hovered': isHovered || undefined,
@@ -154,6 +159,7 @@ const MultiQuarterCalendar: FC<Omit<Props, 'timeFrame'>> = ({
 const FilterMultiDateCalendar: FC<Props> = ({
     timeFrame,
     values,
+    isDateAllowed,
     firstDayOfWeek,
     onChange,
 }) => {
@@ -174,6 +180,11 @@ const FilterMultiDateCalendar: FC<Props> = ({
             return (
                 <DatePicker
                     type="multiple"
+                    excludeDate={
+                        isDateAllowed
+                            ? (date) => !isDateAllowed(dayjs(date).toDate())
+                            : undefined
+                    }
                     firstDayOfWeek={firstDayOfWeek}
                     // open on the earliest selected date rather than today
                     defaultDate={mantineValues[0]}
@@ -184,6 +195,7 @@ const FilterMultiDateCalendar: FC<Props> = ({
         case TimeFrames.WEEK:
             return (
                 <MultiWeekCalendar
+                    isDateAllowed={isDateAllowed}
                     values={values}
                     firstDayOfWeek={firstDayOfWeek}
                     onChange={onChange}
@@ -192,6 +204,11 @@ const FilterMultiDateCalendar: FC<Props> = ({
         case TimeFrames.MONTH:
             return (
                 <MonthPicker
+                    getMonthControlProps={(date) => ({
+                        disabled: isDateAllowed
+                            ? !isDateAllowed(dayjs(date).toDate())
+                            : false,
+                    })}
                     type="multiple"
                     defaultDate={mantineValues[0]}
                     value={mantineValues}
@@ -201,6 +218,7 @@ const FilterMultiDateCalendar: FC<Props> = ({
         case TimeFrames.QUARTER:
             return (
                 <MultiQuarterCalendar
+                    isDateAllowed={isDateAllowed}
                     values={values}
                     firstDayOfWeek={firstDayOfWeek}
                     onChange={onChange}
@@ -209,6 +227,11 @@ const FilterMultiDateCalendar: FC<Props> = ({
         case TimeFrames.YEAR:
             return (
                 <YearPicker
+                    getYearControlProps={(date) => ({
+                        disabled: isDateAllowed
+                            ? !isDateAllowed(dayjs(date).toDate())
+                            : false,
+                    })}
                     type="multiple"
                     defaultDate={mantineValues[0]}
                     value={mantineValues}

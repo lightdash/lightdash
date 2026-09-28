@@ -2,9 +2,12 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     applyEmbedScopeAbilities,
     buildAbilityFromScopes,
+    DashboardTileTypes,
+    DimensionType,
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
+    UnitOfTime,
     type AnonymousAccount,
     type CreateEmbedJwt,
     type DashboardDAO,
@@ -16,7 +19,10 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
+import {
+    metricQueryMock,
+    validExplore,
+} from '../../../services/ProjectService/ProjectService.mock';
 import { EmbedService } from './EmbedService';
 import {
     EmbedServiceArgumentsMock,
@@ -1051,6 +1057,102 @@ describe('EmbedService', () => {
                 },
             });
         });
+    });
+
+    test('resolves project timezone for bounded embedded dashboard calculations', async () => {
+        const account = {
+            user: { id: mockUserUuid, type: 'anonymous' },
+            access: {
+                content: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
+                controls: { userAttributes: {}, intrinsicUserAttributes: {} },
+            },
+        } as unknown as AnonymousAccount;
+        const dashboard = {
+            uuid: 'dashboard-1',
+            projectUuid: mockProjectUuid,
+            tiles: [
+                {
+                    uuid: 'tile-1',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: 'chart-1' },
+                },
+            ],
+            filters: {
+                dimensions: [
+                    {
+                        id: 'date-filter',
+                        target: { fieldId: 'a_dim1', tableName: 'a' },
+                        operator: FilterOperator.IN_THE_PAST,
+                        values: [10],
+                        settings: {
+                            unitOfTime: UnitOfTime.years,
+                            completed: true,
+                        },
+                        boundaries: {
+                            type: 'date',
+                            mode: 'relative',
+                            value: 12,
+                            unitOfTime: UnitOfTime.years,
+                            completed: false,
+                        },
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        };
+        const calculationService = new EmbedService({
+            ...EmbedServiceArgumentsMock,
+            dashboardModel: {
+                getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
+            },
+            savedChartModel: {
+                get: vi.fn().mockResolvedValue({
+                    uuid: 'chart-1',
+                    tableName: validExplore.name,
+                    organizationUuid: mockOrganizationUuid,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        timezone: 'project_timezone',
+                    },
+                }),
+            },
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ warehouseConnection: {} }),
+                getExploreFromCache: vi.fn().mockResolvedValue({
+                    ...validExplore,
+                    tables: {
+                        ...validExplore.tables,
+                        a: {
+                            ...validExplore.tables.a,
+                            dimensions: {
+                                ...validExplore.tables.a.dimensions,
+                                dim1: {
+                                    ...validExplore.tables.a.dimensions.dim1,
+                                    type: DimensionType.DATE,
+                                },
+                            },
+                        },
+                    },
+                }),
+            },
+            projectService: {
+                getQueryTimezoneForProject: vi.fn().mockResolvedValue('UTC'),
+                combineParameters: vi.fn().mockResolvedValue({}),
+            },
+            asyncQueryService: {
+                calculateMetricQueryTotal: vi
+                    .fn()
+                    .mockResolvedValue({ count: 1 }),
+            },
+        } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+        await expect(
+            calculationService.calculateTotalFromSavedChart(
+                account,
+                mockProjectUuid,
+                'chart-1',
+            ),
+        ).resolves.toEqual({ count: 1 });
     });
 
     describe('raw metric queries', () => {

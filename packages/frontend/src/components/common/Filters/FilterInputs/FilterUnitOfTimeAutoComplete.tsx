@@ -79,6 +79,10 @@ const getUnitOfTimeOptions = ({
 
 interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
     isTimestamp: boolean;
+    isOptionAllowed?: (settings: {
+        unitOfTime: UnitOfTime;
+        completed: boolean;
+    }) => boolean;
     unitOfTime?: UnitOfTime;
     minUnitOfTime?: UnitOfTime;
     showOptionsInPlural?: boolean;
@@ -89,6 +93,7 @@ interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
 
 const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     isTimestamp,
+    isOptionAllowed,
     unitOfTime,
     minUnitOfTime,
     showOptionsInPlural = true,
@@ -161,7 +166,20 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
             size="xs"
             {...rest}
             value={selectValue}
-            data={options}
+            data={options.flatMap((option) => {
+                const [unit, completedSuffix] = option.value.split('-');
+                const allowed =
+                    !isOptionAllowed ||
+                    isOptionAllowed({
+                        unitOfTime: unit as UnitOfTime,
+                        completed: completedSuffix === 'completed',
+                    });
+                return allowed
+                    ? [option]
+                    : option.value === selectValue
+                      ? [{ ...option, disabled: true }]
+                      : [];
+            })}
             onChange={(value) => {
                 if (value === null) return;
 

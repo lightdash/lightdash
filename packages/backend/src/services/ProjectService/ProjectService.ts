@@ -11814,10 +11814,18 @@ export class ProjectService extends BaseService {
                     let metricFilters: Metric[] = [];
                     let hiddenFieldIds: string[] = [];
                     if (explore && !isExploreError(explore)) {
-                        filters = getDimensions(explore).filter(
-                            (field) =>
-                                isFilterableDimension(field) && !field.hidden,
-                        );
+                        filters = getDimensions(explore)
+                            .filter(
+                                (field) =>
+                                    isFilterableDimension(field) &&
+                                    !field.hidden,
+                            )
+                            .map((field) => ({
+                                ...field,
+                                caseSensitive:
+                                    field.caseSensitive ??
+                                    explore.caseSensitive,
+                            }));
                         metricFilters = getMetrics(explore).filter(
                             (field) => !field.hidden,
                         );

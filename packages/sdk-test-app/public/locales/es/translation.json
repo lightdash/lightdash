@@ -377,6 +377,13 @@
         "metrics.compareMetricTooltip": "Comparar «{metric}» con otra métrica",
         "metrics.comparisonMetric": "Métrica de comparación",
         "filters.closeFacet": "Cerrar filtro {filter}",
-        "metrics.ownerDetails": "Detalles del propietario {owner}"
+        "metrics.ownerDetails": "Detalles del propietario {owner}",
+        "filters.boundaries.number": "Introduce un número entre {min} y {max}.",
+        "filters.boundaries.string": "Elige uno de: {values}.",
+        "filters.boundaries.fixedDate": "Elige fechas entre {start} y {end}.",
+        "filters.boundaries.relativeDate": "Elige fechas dentro de los últimos {value} {unit}.",
+        "filters.boundaries.completedDate": "Elige fechas dentro de los últimos {value} {unit} completos.",
+        "filters.boundaries.invalidConfiguration": "Los límites del filtro no son válidos. Pide al autor del panel que los corrija.",
+        "filters.boundaries.selectionRequired": "Elige valores de filtro válidos dentro de los límites permitidos antes de actualizar."
     }
 }

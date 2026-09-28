@@ -3,6 +3,7 @@ import {
     DashboardTileTypes,
     FieldType,
     FilterOperator,
+    UnitOfTime,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
@@ -36,17 +37,22 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
 vi.mock('../../../components/common/Filters/useFiltersContext', () => ({
     default: vi.fn(() => ({
         projectUuid: 'test-project-uuid',
+        metricQueryTimezone: 'project_timezone',
         getAutocompleteFilterGroup: vi.fn(() => undefined),
         getField: vi.fn(() => undefined),
         parameterValues: {},
     })),
 }));
 
+const fieldValueResults = vi.hoisted(() => ({
+    current: [] as { value: string; label?: string }[],
+}));
+
 vi.mock('../../../hooks/useFieldValues', () => ({
     MAX_AUTOCOMPLETE_RESULTS: 100,
     useFieldValues: vi.fn(() => ({
         isInitialLoading: false,
-        results: [],
+        results: fieldValueResults.current,
         refreshedAt: new Date(),
         refetch: vi.fn(),
         reset: vi.fn(),
@@ -97,11 +103,207 @@ const anyValueRule: DashboardFilterRule = {
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        fieldValueResults.current = [];
         mockDashboardContext.current.dashboardFilters = {
             dimensions: [],
             metrics: [],
             tableCalculations: [],
         };
+    });
+
+    it('shows boundary settings from a switch below Required and removes them when switched off', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        renderWithProviders(
+            <FilterConfiguration
+                tiles={[]}
+                tabs={[]}
+                field={mockTimestampField}
+                availableTileFilters={{}}
+                defaultFilterRule={{
+                    ...anyValueRule,
+                    target: {
+                        fieldId: 'orders_created_at',
+                        tableName: 'orders',
+                    },
+                }}
+                isEditMode
+                onSave={onSave}
+            />,
+        );
+        const required = screen.getByRole('switch', {
+            name: 'Required',
+        });
+        const boundaries = screen.getByRole('switch', {
+            name: 'Filter boundaries',
+        });
+        expect(
+            required.compareDocumentPosition(boundaries) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            screen.queryByLabelText('Number of periods'),
+        ).not.toBeInTheDocument();
+        await user.click(boundaries);
+        expect(screen.getByLabelText('Number of periods')).toHaveValue('12');
+        await user.click(boundaries);
+        expect(
+            screen.queryByLabelText('Number of periods'),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({ boundaries: undefined }),
+        );
+    });
+
+    it('lets authors pick multiple permitted strings from field-value suggestions', async () => {
+        fieldValueResults.current = [
+            { value: ' Pending ', label: 'Pending review' },
+            { value: 'Active' },
+        ];
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        renderWithProviders(
+            <FilterConfiguration
+                tiles={[]}
+                tabs={[]}
+                field={mockField}
+                availableTileFilters={{}}
+                defaultFilterRule={anyValueRule}
+                isEditMode
+                onSave={onSave}
+            />,
+        );
+        await user.click(
+            screen.getByRole('switch', {
+                name: 'Filter boundaries',
+            }),
+        );
+        const input = screen.getByPlaceholderText('Add permitted values');
+        await user.click(input);
+        await user.click(
+            await screen.findByRole('option', {
+                name: 'Pending review',
+            }),
+        );
+        await user.click(input);
+        await user.click(await screen.findByRole('option', { name: 'Active' }));
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({
+                boundaries: { type: 'string', values: [' Pending ', 'Active'] },
+            }),
+        );
+    });
+
+    it.each([true, false])(
+        'blocks invalid boundaries without discarding values (edit mode: %s)',
+        async (isEditMode) => {
+            const onSave = vi.fn();
+            const constrainedRule: DashboardFilterRule = {
+                ...anyValueRule,
+                disabled: false,
+                values: ['Pending', 'Other'],
+                boundaries: { type: 'string', values: ['Pending', 'Active'] },
+            };
+            renderWithProviders(
+                <FilterConfiguration
+                    tiles={[]}
+                    tabs={[]}
+                    field={mockField}
+                    availableTileFilters={{}}
+                    defaultFilterRule={constrainedRule}
+                    originalFilterRule={constrainedRule}
+                    isEditMode={isEditMode}
+                    onSave={onSave}
+                />,
+            );
+            expect(
+                await screen.findByText('Choose one of: Pending, Active.'),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Apply' }),
+            ).toBeDisabled();
+            expect(screen.getByText('Other', { exact: true })).toBeVisible();
+            expect(onSave).not.toHaveBeenCalled();
+        },
+    );
+
+    it('allows a SQL DATE default through the end of today', () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
+        try {
+            const rule: DashboardFilterRule = {
+                ...anyValueRule,
+                disabled: false,
+                target: {
+                    fieldId: 'ordered_at',
+                    tableName: 'orders',
+                    isSqlColumn: true,
+                    fallbackType: DimensionType.DATE,
+                },
+                operator: FilterOperator.EQUALS,
+                values: ['2026-09-28'],
+                boundaries: {
+                    type: 'date',
+                    mode: 'relative',
+                    value: 12,
+                    unitOfTime: UnitOfTime.months,
+                    completed: false,
+                },
+            };
+            renderWithProviders(
+                <FilterConfiguration
+                    tiles={[]}
+                    tabs={[]}
+                    availableTileFilters={{}}
+                    defaultFilterRule={rule}
+                    originalFilterRule={rule}
+                    isEditMode
+                    onSave={vi.fn()}
+                />,
+            );
+            expect(
+                screen.queryByText('Choose dates within the last 12 months.'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('resolves the project timezone setting before validating dashboard dates', async () => {
+        const dateRule: DashboardFilterRule = {
+            ...anyValueRule,
+            target: { fieldId: 'orders_created_at', tableName: 'orders' },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [10],
+            disabled: false,
+            settings: { unitOfTime: UnitOfTime.years, completed: true },
+            boundaries: {
+                type: 'date',
+                mode: 'relative',
+                value: 12,
+                unitOfTime: UnitOfTime.years,
+                completed: false,
+            },
+        };
+        renderWithProviders(
+            <FilterConfiguration
+                tiles={[]}
+                tabs={[]}
+                field={mockTimestampField}
+                availableTileFilters={{}}
+                defaultFilterRule={dateRule}
+                originalFilterRule={dateRule}
+                isEditMode={false}
+                onSave={vi.fn()}
+            />,
+        );
+        expect(
+            screen.queryByText('Choose dates within the last 12 years.'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
     });
 
     it.each(['hover', 'focus', 'touch'])(

@@ -21,6 +21,7 @@ import InvalidDateInput from './InvalidDateInput';
 
 type Props = {
     timeFrame: MultiDateTimeFrame;
+    isDateAllowed?: (date: Date) => boolean;
     values: Date[];
     onChange: (values: Date[]) => void;
     firstDayOfWeek: DayOfWeek;
@@ -38,6 +39,7 @@ type Props = {
  */
 const FilterMultiDatePicker: FC<Props> = ({
     timeFrame,
+    isDateAllowed,
     values,
     onChange,
     firstDayOfWeek,
@@ -130,6 +132,7 @@ const FilterMultiDatePicker: FC<Props> = ({
             >
                 {({ close: closeInvalid }) => (
                     <FilterMultiDateCalendar
+                        isDateAllowed={isDateAllowed}
                         timeFrame={timeFrame}
                         firstDayOfWeek={firstDayOfWeek}
                         values={[]}
@@ -199,6 +202,7 @@ const FilterMultiDatePicker: FC<Props> = ({
             </Popover.Target>
             <Popover.Dropdown>
                 <FilterMultiDateCalendar
+                    isDateAllowed={isDateAllowed}
                     timeFrame={timeFrame}
                     firstDayOfWeek={firstDayOfWeek}
                     values={selectedValues}

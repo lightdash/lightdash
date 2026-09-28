@@ -1,5 +1,6 @@
 import {
     FilterOperator,
+    getBoundaryOperators,
     FilterType,
     getFilterRuleWithDefaultValue,
     isRelativeDateFilterOperator,
@@ -32,6 +33,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
 import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
+import FilterBoundaryEditor from './FilterBoundaryEditor';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -57,14 +59,22 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     onEditRequirementRules,
 }) => {
     const { user } = useApp();
+    const { boundaries } = filterRule;
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
     const getUiString = useUiStrings();
 
     const [filterLabel, setFilterLabel] = useState<string>();
 
     const filterOperatorOptions = useMemo(
-        () => getFilterOperatorOptions(filterType, field, getUiString),
-        [filterType, field, getUiString],
+        () =>
+            getFilterOperatorOptions(filterType, field, getUiString).filter(
+                (option) =>
+                    !boundaries ||
+                    getBoundaryOperators(boundaries).includes(
+                        option.value as FilterOperator,
+                    ),
+            ),
+        [filterType, field, getUiString, boundaries],
     );
 
     // Set default label when using revert (undo) button
@@ -269,6 +279,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 filterType={filterType}
                                 field={field}
                                 rule={filterRule}
+                                boundaries={boundaries}
                                 onChange={(newFilterRule) =>
                                     onChangeFilterRule(
                                         newFilterRule as DashboardFilterRule,
@@ -385,6 +396,18 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             onToggleRequired={handleToggleRequired}
                             onChangeFilterRule={onChangeFilterRule}
                             onEditRules={onEditRequirementRules}
+                        />
+                        <FilterBoundaryEditor
+                            field={field}
+                            filterRule={filterRule}
+                            filterType={filterType}
+                            value={filterRule.boundaries}
+                            onChange={(boundaries) =>
+                                onChangeFilterRule({
+                                    ...filterRule,
+                                    boundaries,
+                                })
+                            }
                         />
                     </>
                 )}

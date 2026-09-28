@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    validateFilterBoundary,
+    isValidFilterBoundary,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
     DimensionType,
@@ -37,6 +39,7 @@ import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
+import Callout from '../../../components/common/Callout';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -48,6 +51,7 @@ import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
+import { useFilterBoundaryContext } from './useFilterBoundaryContext';
 import {
     getFilterRuleRevertableObject,
     hasFilterValueSet,
@@ -109,6 +113,26 @@ const FilterConfiguration: FC<Props> = ({
         DashboardFilterRule | undefined
     >(defaultFilterRule);
 
+    const boundaryContext = useFilterBoundaryContext(selectedField);
+    const validateBoundary = (rule: DashboardFilterRule | undefined) => {
+        if (!rule?.boundaries) return null;
+        if (
+            isEditMode &&
+            isValidFilterBoundary(rule.boundaries) &&
+            rule.disabled
+        )
+            return null;
+        return validateFilterBoundary(rule.boundaries, rule, {
+            ...boundaryContext,
+            ...(rule.target.isSqlColumn && {
+                fieldType: rule.target.fallbackType,
+                timezone: 'UTC',
+            }),
+        });
+    };
+    const boundaryError = validateBoundary(draftFilterRule);
+    const validateBoundaryRef = useRef(validateBoundary);
+    validateBoundaryRef.current = validateBoundary;
     const draftFilterRuleRef = useRef(draftFilterRule);
     draftFilterRuleRef.current = draftFilterRule;
 
@@ -394,7 +418,8 @@ const FilterConfiguration: FC<Props> = ({
         }
 
         const ruleToSave = draftFilterRuleRef.current;
-        if (ruleToSave) onSave(ruleToSave);
+        if (ruleToSave && !validateBoundaryRef.current(ruleToSave))
+            onSave(ruleToSave);
     }, [onSave]);
 
     const isApplyDisabled = !isFilterEnabled(
@@ -632,6 +657,9 @@ const FilterConfiguration: FC<Props> = ({
                 )}
             </Tabs>
 
+            {boundaryError && (
+                <Callout variant="warning">{boundaryError}</Callout>
+            )}
             <Flex gap="sm">
                 <Box flex={1} />
 
@@ -667,7 +695,9 @@ const FilterConfiguration: FC<Props> = ({
                         <Button
                             size="xs"
                             disabled={
-                                isApplyDisabled || isLockedRequiredMissingValue
+                                isApplyDisabled ||
+                                isLockedRequiredMissingValue ||
+                                !!boundaryError
                             }
                             // We use onMouseDown instead of onClick: when an
                             // inline dropdown (Select/MultiSelect) is open,

@@ -182,6 +182,18 @@ export type DashboardTileTargets = {
     [tileUuid: string]: DashboardTileTarget;
 };
 
+export type DashboardFilterBoundary =
+    | { type: 'number'; min: number; max: number }
+    | { type: 'string'; values: string[] }
+    | { type: 'date'; mode: 'fixed'; start: string; end: string }
+    | {
+          type: 'date';
+          mode: 'relative';
+          value: number;
+          unitOfTime: UnitOfTime;
+          completed: boolean;
+      };
+
 export type DashboardFilterRule<
     O = FilterOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
@@ -189,6 +201,8 @@ export type DashboardFilterRule<
     S = AnyType,
 > = FilterRule<O, T, V, S> & {
     tileTargets?: DashboardTileTargets;
+    /** Optional selection limits, enforced wherever this dashboard filter is used. */
+    boundaries?: DashboardFilterBoundary;
     label: undefined | string;
     singleValue?: boolean;
     /**
@@ -213,7 +227,11 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets' | 'lockedTabUuids' | 'required' | 'requiredGroupId'
+    | 'tileTargets'
+    | 'lockedTabUuids'
+    | 'required'
+    | 'requiredGroupId'
+    | 'boundaries'
 >;
 
 export type DateFilterSettings = {

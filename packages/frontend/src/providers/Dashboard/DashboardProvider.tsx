@@ -1,4 +1,9 @@
 import {
+    restoreDashboardFilterBoundaries,
+    getDefaultStartOfWeek,
+    SupportedDbtAdapter,
+    validateFilterBoundary,
+    getFilterBoundaryFieldContext,
     applyDimensionOverrides,
     applyMetricOverrides,
     compressDashboardFiltersToParam,
@@ -36,6 +41,7 @@ import {
     type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
 } from '@lightdash/common';
+import { useQueries } from '@tanstack/react-query';
 import clone from 'lodash/clone';
 import isEqual from 'lodash/isEqual';
 import sortBy from 'lodash/sortBy';
@@ -57,6 +63,7 @@ import {
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import { useEmbedEventEmitter } from '../../ee/features/embed/hooks/useEmbedEventEmitter';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import {
     useGetComments,
     type useDashboardCommentsCheck,
@@ -73,11 +80,16 @@ import {
     useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProject } from '../../hooks/useProject';
 import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
+import { getSavedQuery } from '../../hooks/useSavedQuery';
+import { useSessionTimezone } from '../../hooks/useSessionTimezone';
+import useApp from '../App/useApp';
 import DashboardContext from './context';
+import { getDashboardChartBoundaryErrors } from './dashboardFilterBoundaryErrors';
 import {
     getDashboardParameterOverrides,
     parseDashboardParametersUrl,
@@ -135,6 +147,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     searchRef.current = search;
     const navigate = useNavigate();
     const { showToastWarning, showToastInfo } = useToaster();
+    const { data: boundaryProject } = useProject(projectUuid);
+    const getUiString = useUiStrings();
+    const sessionTimezone = useSessionTimezone();
+    const { user } = useApp();
     const hasNotifiedLockedOverrideRef = useRef(false);
 
     const {
@@ -973,6 +989,37 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         embedToken,
     ]);
 
+    const needsBoundaryChartMetadata =
+        embed.mode === 'sdk' &&
+        Object.values((dashboard ?? embedDashboard)?.filters ?? {})
+            .flat()
+            .some(
+                (rule) =>
+                    rule.boundaries?.type === 'date' &&
+                    !rule.target.isSqlColumn,
+            );
+    const boundaryChartQueries = useQueries({
+        queries: (needsBoundaryChartMetadata
+            ? (savedChartUuidsAndTileUuids ?? [])
+            : []
+        ).map(({ savedChartUuid }) => ({
+            queryKey: [
+                'saved_query',
+                savedChartUuid,
+                projectUuid,
+                includeUnpublishedDraft,
+            ],
+            queryFn: () =>
+                getSavedQuery(
+                    savedChartUuid,
+                    projectUuid!,
+                    includeUnpublishedDraft,
+                ),
+            enabled: !!projectUuid,
+            retry: false,
+        })),
+    });
+
     /**
      * Apply interactivity filtering for embedded dashboards
      */
@@ -1114,6 +1161,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     return;
                 }
 
+                // Validate SDK date selections with the same chart settings as execution.
+                if (
+                    needsBoundaryChartMetadata &&
+                    boundaryChartQueries.some((query) => !query.data)
+                )
+                    return;
+
                 const convertedSdkFilters = sdkFilters.map((sdkFilter) =>
                     convertSdkFilterToDashboardFilter(
                         sdkFilter,
@@ -1222,11 +1276,117 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 updatedDashboardFilters,
             );
 
-            setDashboardFilters(updatedDashboardFilters);
+            const nextFilters = !isEditMode
+                ? restoreDashboardFilterBoundaries(
+                      currentDashboard.filters,
+                      updatedDashboardFilters,
+                  )
+                : updatedDashboardFilters;
+            const boundaryErrors = !isEditMode
+                ? Object.values(nextFilters)
+                      .flat()
+                      .flatMap((rule) => {
+                          if (
+                              rule.boundaries?.type === 'date' &&
+                              !rule.target.isSqlColumn &&
+                              needsBoundaryChartMetadata
+                          )
+                              return [];
+                          const field =
+                              dashboardAvailableFiltersData?.allFilterableFields.find(
+                                  (item) =>
+                                      getItemId(item) === rule.target.fieldId,
+                              );
+                          const error = validateFilterBoundary(
+                              rule.boundaries,
+                              rule,
+                              {
+                                  ...getFilterBoundaryFieldContext(field),
+                                  ...(rule.target.isSqlColumn && {
+                                      fieldType: rule.target.fallbackType,
+                                  }),
+                                  timezone: rule.target.isSqlColumn
+                                      ? 'UTC'
+                                      : (embed.timezone ??
+                                        boundaryProject?.queryTimezone ??
+                                        'UTC'),
+                                  startOfWeek:
+                                      boundaryProject?.warehouseConnection
+                                          ?.startOfWeek ??
+                                      getDefaultStartOfWeek(
+                                          boundaryProject?.warehouseConnection
+                                              ?.type ??
+                                              SupportedDbtAdapter.POSTGRES,
+                                      ),
+                                  getUiString,
+                              },
+                          );
+                          return error ? [error] : [];
+                      })
+                : [];
+            if (!isEditMode && needsBoundaryChartMetadata) {
+                boundaryErrors.push(
+                    ...getDashboardChartBoundaryErrors({
+                        savedFilters: currentDashboard.filters,
+                        filters: nextFilters,
+                        charts: (savedChartUuidsAndTileUuids ?? []).flatMap(
+                            ({ tileUuid }, index) => {
+                                const chart = boundaryChartQueries[index]?.data;
+                                return chart
+                                    ? [
+                                          {
+                                              tileUuid,
+                                              metricQuery: chart.metricQuery,
+                                              fields:
+                                                  filterableFieldsByTileUuid?.[
+                                                      tileUuid
+                                                  ] ?? [],
+                                          },
+                                      ]
+                                    : [];
+                            },
+                        ),
+                        projectTimezone:
+                            boundaryProject?.queryTimezone ?? 'UTC',
+                        sessionTimezone,
+                        userTimezone: user.data?.timezone ?? null,
+                        context: {
+                            startOfWeek:
+                                boundaryProject?.warehouseConnection
+                                    ?.startOfWeek ??
+                                getDefaultStartOfWeek(
+                                    boundaryProject?.warehouseConnection
+                                        ?.type ?? SupportedDbtAdapter.POSTGRES,
+                                ),
+                            getUiString,
+                        },
+                    }),
+                );
+            }
+            if (
+                sdkFiltersChanged &&
+                dashboardFilters !== emptyFilters &&
+                boundaryErrors.length
+            ) {
+                showToastWarning({
+                    title: getUiString('filters.boundaries.selectionRequired'),
+                    subtitle: boundaryErrors.join(' '),
+                });
+            } else {
+                setDashboardFilters(nextFilters);
+            }
         }
 
         setOriginalDashboardFilters(currentDashboard.filters);
     }, [
+        boundaryProject,
+        boundaryChartQueries,
+        needsBoundaryChartMetadata,
+        sessionTimezone,
+        user.data?.timezone,
+        getUiString,
+        dashboardAvailableFiltersData,
+        isEditMode,
         dashboard,
         embedDashboard,
         dashboardFilters,
@@ -1573,7 +1733,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         const filteredFilters = embedDashboard
             ? applyInteractivityFiltering(filters)
             : filters;
-        setDashboardFilters(filteredFilters);
+        setDashboardFilters(
+            isEditMode
+                ? filteredFilters
+                : restoreDashboardFilterBoundaries(filters, filteredFilters),
+        );
         // reset temporary filters
         setDashboardTemporaryFilters(emptyFilters);
         // reset saved filter overrides which are stored in url
@@ -1585,6 +1749,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         embedDashboard,
         resetSavedFilterOverrides,
         applyInteractivityFiltering,
+        isEditMode,
     ]);
 
     const hasTilesThatSupportFilters = useMemo(() => {

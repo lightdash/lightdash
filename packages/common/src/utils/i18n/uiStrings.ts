@@ -12,6 +12,18 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'filters.boundaries.number': 'Enter a number between {min} and {max}.',
+    'filters.boundaries.string': 'Choose one of: {values}.',
+    'filters.boundaries.fixedDate': 'Choose dates between {start} and {end}.',
+    'filters.boundaries.relativeDate':
+        'Choose dates within the last {value} {unit}.',
+    'filters.boundaries.completedDate':
+        'Choose dates within the last {value} completed {unit}.',
+    'filters.boundaries.invalidConfiguration':
+        'The filter boundaries are invalid. Ask the dashboard author to correct them.',
+    'filters.boundaries.selectionRequired':
+        'Choose valid filter values within the permitted boundaries before refreshing.',
+
     'skillMenu.header': 'Skills',
     'skillMenu.noneAvailable': 'No skills available for this agent',
     'skillMenu.noMatch':

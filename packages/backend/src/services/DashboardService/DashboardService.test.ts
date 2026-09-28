@@ -3,6 +3,7 @@ import {
     ContentType,
     DashboardTileTypes,
     defineUserAbility,
+    DimensionType,
     FilterOperator,
     ForbiddenError,
     NotFoundError,
@@ -14,6 +15,7 @@ import {
     SessionUser,
     SpaceMemberRole,
     SupportedDbtAdapter,
+    UnitOfTime,
     type Account,
     type ContentVerificationInfo,
     type Dashboard,
@@ -773,6 +775,84 @@ describe('DashboardService', () => {
             undefined,
         );
     });
+    test('accepts a SQL DATE default through the end of today in a relative boundary', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
+        try {
+            await expect(
+                service.create(user, projectUuid, {
+                    ...createDashboard,
+                    filters: {
+                        dimensions: [
+                            {
+                                id: 'sql-date',
+                                label: undefined,
+                                target: {
+                                    fieldId: 'ordered_at',
+                                    tableName: 'orders',
+                                    isSqlColumn: true,
+                                    fallbackType: DimensionType.DATE,
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2026-09-28'],
+                                boundaries: {
+                                    type: 'date',
+                                    mode: 'relative',
+                                    value: 12,
+                                    unitOfTime: UnitOfTime.months,
+                                    completed: false,
+                                },
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                }),
+            ).resolves.toMatchObject({ uuid: dashboard.uuid });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    test('uses the PostgreSQL default week start when validating SQL DATE defaults', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
+        try {
+            await expect(
+                service.create(user, projectUuid, {
+                    ...createDashboard,
+                    filters: {
+                        dimensions: [
+                            {
+                                id: 'sql-date',
+                                label: undefined,
+                                target: {
+                                    fieldId: 'ordered_at',
+                                    tableName: 'orders',
+                                    isSqlColumn: true,
+                                    fallbackType: DimensionType.DATE,
+                                },
+                                operator: FilterOperator.IN_THE_CURRENT,
+                                values: [],
+                                settings: { unitOfTime: UnitOfTime.weeks },
+                                boundaries: {
+                                    type: 'date',
+                                    mode: 'fixed',
+                                    start: '2026-09-28',
+                                    end: '2026-10-04',
+                                },
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                }),
+            ).resolves.toMatchObject({ uuid: dashboard.uuid });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     test('should create dashboard', async () => {
         const result = await service.create(user, projectUuid, createDashboard);
 

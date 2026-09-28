@@ -20,6 +20,7 @@ import FilterStringAutoComplete from './FilterStringAutoComplete';
 
 const DefaultFilterInputs = <T extends BaseFilterRule>({
     field,
+    boundaries,
     filterType,
     rule,
     disabled,
@@ -58,8 +59,16 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
         case FilterOperator.NOT_EQUALS: {
             switch (filterType) {
                 case FilterType.STRING:
-                    return !field || isTableCalculation(field) ? (
+                    return boundaries?.type === 'string' ||
+                        !field ||
+                        isTableCalculation(field) ? (
                         <FilterMultiStringInput
+                            preserveWhitespace={boundaries?.type === 'string'}
+                            suggestions={
+                                boundaries?.type === 'string'
+                                    ? boundaries.values
+                                    : undefined
+                            }
                             disabled={disabled}
                             placeholder={placeholder}
                             data-autofocus

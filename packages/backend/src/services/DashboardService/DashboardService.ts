@@ -12,6 +12,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
     DashboardDAO,
+    DashboardFilters,
     DashboardTab,
     DashboardTileTypes,
     DashboardVersionedFields,
@@ -19,9 +20,12 @@ import {
     ExploreType,
     ExportContentPayload,
     ExportContentRequest,
+    findFieldByIdInExplore,
     ForbiddenError,
     generateSlug,
     getDashboardDeleteAccess,
+    getDefaultStartOfWeek,
+    getFilterBoundaryFieldContext,
     getItemId,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
@@ -29,9 +33,11 @@ import {
     isDashboardScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
+    isExploreError,
     isJwtUser,
     isUserWithOrg,
     isValidDashboardTilePositions,
+    isValidFilterBoundary,
     isValidFrequency,
     isValidTimezone,
     KnexPaginateArgs,
@@ -47,10 +53,12 @@ import {
     SchedulerRun,
     SchedulerRunStatus,
     SessionUser,
+    SupportedDbtAdapter,
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
     UserDashboardsSummary,
+    validateFilterBoundary,
     type Account,
     type ChartFieldUpdates,
     type ChartVersionDifference,
@@ -1324,6 +1332,69 @@ export class DashboardService
         return this.create(user, projectUuid, dashboardToCreate);
     }
 
+    private async validateFilterBoundaries(
+        projectUuid: string,
+        filters: DashboardFilters | undefined,
+    ): Promise<void> {
+        const constrained = filters
+            ? Object.values(filters)
+                  .flat()
+                  .filter((rule) => rule.boundaries)
+            : [];
+        if (!constrained.length) return;
+        const project = await this.projectModel.get(projectUuid);
+        await Promise.all(
+            constrained.map(async (rule) => {
+                if (!rule.boundaries)
+                    throw new ParameterError('Missing filter boundaries');
+                if (!isValidFilterBoundary(rule.boundaries))
+                    throw new ParameterError('Invalid filter boundaries');
+                if (!rule.disabled) {
+                    const explore = rule.target.isSqlColumn
+                        ? undefined
+                        : await this.projectModel.findExploreContainingTable(
+                              projectUuid,
+                              rule.target.tableName,
+                          );
+                    const field =
+                        explore && !isExploreError(explore)
+                            ? findFieldByIdInExplore(
+                                  explore,
+                                  rule.target.fieldId,
+                              )
+                            : undefined;
+                    const error = validateFilterBoundary(
+                        rule.boundaries,
+                        rule,
+                        {
+                            ...getFilterBoundaryFieldContext(
+                                field,
+                                explore && !isExploreError(explore)
+                                    ? explore.caseSensitive
+                                    : undefined,
+                            ),
+                            ...(rule.target.isSqlColumn && {
+                                fieldType: rule.target.fallbackType,
+                            }),
+                            timezone: rule.target.isSqlColumn
+                                ? 'UTC'
+                                : (project.queryTimezone ??
+                                  this.lightdashConfig.query.timezone ??
+                                  'UTC'),
+                            startOfWeek:
+                                project.warehouseConnection?.startOfWeek ??
+                                getDefaultStartOfWeek(
+                                    project.warehouseConnection?.type ??
+                                        SupportedDbtAdapter.POSTGRES,
+                                ),
+                        },
+                    );
+                    if (error) throw new ParameterError(error);
+                }
+            }),
+        );
+    }
+
     async create(
         user: SessionUser,
         projectUuid: UUID,
@@ -1373,6 +1444,8 @@ export class DashboardService
                 dashboard.ownerUserUuid,
             );
         }
+
+        await this.validateFilterBoundaries(projectUuid, dashboard.filters);
 
         const createDashboard = {
             ...dashboard,
@@ -2095,6 +2168,11 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        await this.validateFilterBoundaries(
+            existingDashboardDao.projectUuid,
+            'filters' in dashboardFields ? dashboardFields.filters : undefined,
+        );
 
         const draftResult = await this.maybeStoreDraft(
             user,

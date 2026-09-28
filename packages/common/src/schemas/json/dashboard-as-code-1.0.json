@@ -533,6 +533,94 @@
             "required": ["tableName", "fieldId"],
             "type": "object"
         },
+        "DashboardFilterBoundary": {
+            "anyOf": [
+                {
+                    "properties": {
+                        "max": {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        "min": {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        "type": {
+                            "enum": ["number"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["max", "min", "type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "type": {
+                            "enum": ["string"],
+                            "type": "string"
+                        },
+                        "values": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["values", "type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "end": {
+                            "type": "string"
+                        },
+                        "mode": {
+                            "enum": ["fixed"],
+                            "type": "string"
+                        },
+                        "start": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": ["date"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["end", "start", "mode", "type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "completed": {
+                            "type": "boolean"
+                        },
+                        "mode": {
+                            "enum": ["relative"],
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": ["date"],
+                            "type": "string"
+                        },
+                        "unitOfTime": {
+                            "$ref": "#/$defs/UnitOfTime"
+                        },
+                        "value": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    "required": [
+                        "completed",
+                        "unitOfTime",
+                        "value",
+                        "mode",
+                        "type"
+                    ],
+                    "type": "object"
+                }
+            ]
+        },
         "DashboardFilterRule": {
             "allOf": [
                 {
@@ -540,6 +628,10 @@
                 },
                 {
                     "properties": {
+                        "boundaries": {
+                            "$ref": "#/$defs/DashboardFilterBoundary",
+                            "description": "Optional selection limits, enforced wherever this dashboard filter is used."
+                        },
                         "label": {
                             "type": "string"
                         },
@@ -1286,6 +1378,10 @@
         "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
+                "boundaries": {
+                    "$ref": "#/$defs/DashboardFilterBoundary",
+                    "description": "Optional selection limits, enforced wherever this dashboard filter is used."
+                },
                 "caseSensitive": {
                     "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting.",
                     "type": "boolean"
@@ -1402,6 +1498,20 @@
                 "QUARTER_NAME",
                 "HOUR_OF_DAY_NUM",
                 "MINUTE_OF_HOUR_NUM"
+            ],
+            "type": "string"
+        },
+        "UnitOfTime": {
+            "enum": [
+                "milliseconds",
+                "seconds",
+                "minutes",
+                "hours",
+                "days",
+                "weeks",
+                "months",
+                "quarters",
+                "years"
             ],
             "type": "string"
         }

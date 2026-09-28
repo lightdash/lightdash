@@ -16,22 +16,34 @@ describe('FilterMultiStringInput', () => {
         expect(container.querySelectorAll('button')).toHaveLength(2);
     });
 
-    it('adds a custom value on Enter', async () => {
-        const user = userEvent.setup();
-        const onChange = vi.fn();
+    it.each([
+        {
+            preserveWhitespace: false,
+            input: ' new value ',
+            expected: 'new value',
+        },
+        { preserveWhitespace: true, input: ' Pending ', expected: ' Pending ' },
+        { preserveWhitespace: true, input: '  ', expected: '  ' },
+    ])(
+        'adds a custom value on Enter (preserve whitespace: $preserveWhitespace, value: "$input")',
+        async ({ preserveWhitespace, input, expected }) => {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
 
-        renderWithProviders(
-            <FilterMultiStringInput
-                values={[]}
-                onChange={onChange}
-                placeholder="Filter values"
-            />,
-        );
+            renderWithProviders(
+                <FilterMultiStringInput
+                    values={[]}
+                    onChange={onChange}
+                    placeholder="Filter values"
+                    preserveWhitespace={preserveWhitespace}
+                />,
+            );
 
-        await user.type(screen.getByRole('textbox'), 'new value{Enter}');
+            await user.type(screen.getByRole('textbox'), `${input}{Enter}`);
 
-        expect(onChange).toHaveBeenCalledWith(['new value']);
-    });
+            expect(onChange).toHaveBeenCalledWith([expected]);
+        },
+    );
 
     it('commits a custom value on blur', async () => {
         const user = userEvent.setup();
@@ -88,5 +100,23 @@ describe('FilterMultiStringInput', () => {
         expect(onChange).toHaveBeenCalledWith(['US', 'us', 'GB']);
         // The raw CSV must never be committed as a single value.
         expect(onChange).not.toHaveBeenCalledWith(['US, us, GB']);
+    });
+    it('preserves whitespace and empty pasted tokens for bounded filters', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        renderWithProviders(
+            <FilterMultiStringInput
+                values={[]}
+                onChange={onChange}
+                preserveWhitespace
+            />,
+        );
+        fireEvent.paste(screen.getByRole('textbox'), {
+            clipboardData: { getData: () => ' Pending ,Active,, ' },
+        });
+        await user.click(
+            await screen.findByRole('button', { name: /multiple values/i }),
+        );
+        expect(onChange).toHaveBeenCalledWith([' Pending ', 'Active', '', ' ']);
     });
 });

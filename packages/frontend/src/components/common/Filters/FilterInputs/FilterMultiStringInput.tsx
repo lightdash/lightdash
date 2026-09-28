@@ -10,6 +10,7 @@ import {
     type FC,
     type FocusEvent,
     type FocusEventHandler,
+    type ReactNode,
 } from 'react';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../../MantineIcon';
@@ -23,6 +24,11 @@ import { formatDisplayValue } from './utils';
 
 type Props = {
     values: string[];
+    suggestions?: string[];
+    suggestionLabels?: ReadonlyMap<string, string>;
+    onSearchChange?: (search: string) => void;
+    rightSection?: ReactNode;
+    preserveWhitespace?: boolean;
     onChange: (values: string[]) => void;
     disabled?: boolean;
     placeholder?: string;
@@ -35,6 +41,10 @@ type Props = {
 
 const FilterMultiStringInput: FC<Props> = ({
     values,
+    suggestions = [],
+    suggestionLabels,
+    onSearchChange,
+    preserveWhitespace = false,
     disabled,
     onChange,
     placeholder,
@@ -49,9 +59,17 @@ const FilterMultiStringInput: FC<Props> = ({
         string | undefined
     >();
 
+    const handleSearchChange = useCallback(
+        (value: string) => {
+            setSearch(value);
+            onSearchChange?.(value);
+        },
+        [onSearchChange],
+    );
+
     const handleResetSearch = useCallback(() => {
-        setTimeout(() => setSearch(() => ''), 0);
-    }, []);
+        setTimeout(() => handleSearchChange(''), 0);
+    }, [handleSearchChange]);
 
     const handleChange = useCallback(
         (updatedValues: string[]) => {
@@ -111,11 +129,13 @@ const FilterMultiStringInput: FC<Props> = ({
     // leaving only the "Add value" create row.
     const options = useMemo<MultiSelectComboboxOption[]>(
         () =>
-            values.map((value) => ({
+            uniq([...suggestions, ...values]).map((value) => ({
                 value,
-                label: formatDisplayValue(value),
+                label: formatDisplayValue(
+                    suggestionLabels?.get(value) ?? value,
+                ),
             })),
-        [values],
+        [values, suggestions, suggestionLabels],
     );
 
     return (
@@ -131,10 +151,10 @@ const FilterMultiStringInput: FC<Props> = ({
                     setPastePopUpOpened(false);
                     return;
                 }
-                const clipboardDataArray = tempPasteValues
-                    .split(/\,|\n/)
-                    .map((s) => s.trim())
-                    .filter((s) => s.length > 0);
+                const tokens = tempPasteValues.split(/\,|\n/);
+                const clipboardDataArray = preserveWhitespace
+                    ? tokens
+                    : tokens.map((s) => s.trim()).filter((s) => s.length > 0);
                 handleAddMultiple(clipboardDataArray);
                 handleResetSearch();
             }}
@@ -159,8 +179,9 @@ const FilterMultiStringInput: FC<Props> = ({
                 classNames={{ input: classes.multiSelectInput }}
                 hidePickedOptions
                 searchValue={search}
-                onSearchChange={setSearch}
+                onSearchChange={handleSearchChange}
                 onPaste={handlePaste}
+                preserveCreateWhitespace={preserveWhitespace}
                 onOptionSubmit={handleAdd}
                 onValueRemove={handleRemove}
                 onCreate={(value) => {
@@ -168,7 +189,9 @@ const FilterMultiStringInput: FC<Props> = ({
                     handleResetSearch();
                 }}
                 shouldCreate={(query) =>
-                    query.trim().length > 0 && !values.includes(query)
+                    (preserveWhitespace
+                        ? query.length > 0
+                        : query.trim().length > 0) && !values.includes(query)
                 }
                 createLabel={
                     <Group gap="xxs">
@@ -176,7 +199,11 @@ const FilterMultiStringInput: FC<Props> = ({
                         <Text c="blue.7" fw={600}>
                             {interpolateUiString(
                                 getUiString('filters.autocomplete.addValue'),
-                                { value: search.trim() },
+                                {
+                                    value: preserveWhitespace
+                                        ? search
+                                        : search.trim(),
+                                },
                             )}
                         </Text>
                     </Group>

@@ -33,6 +33,7 @@ import {
     ExportContentPayload,
     FieldValueSearchResult,
     FilterableDimension,
+    FilterOperator,
     ForbiddenError,
     formatRawRows,
     formatRows,
@@ -41,6 +42,7 @@ import {
     getDimensionMapFromTables,
     getDimensions,
     getExecutableFilterFieldIds,
+    getFilterBoundaryFieldContext,
     getFilterInteractivityValue,
     getHiddenFilterableFieldIds,
     getItemId,
@@ -71,6 +73,7 @@ import {
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
+    validateFilterBoundary,
     type DataAppViz,
     type DataAppVizListSort,
     type DataAppVizRenderMetadata,
@@ -100,6 +103,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { assertDashboardFilterBoundaries } from '../../../services/AsyncQueryService/dashboardFilterBoundaries';
 import { BaseService } from '../../../services/BaseService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import {
@@ -1243,6 +1247,9 @@ export class EmbedService extends BaseService {
         dashboard: DashboardDAO,
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
+        metricQuery?: MetricQuery,
+        validateBoundaries = true,
+        includeAllFields = false,
     ) {
         const availableFieldIds = getExecutableFilterFieldIds(explore);
 
@@ -1293,6 +1300,35 @@ export class EmbedService extends BaseService {
             };
         }
 
+        if (
+            validateBoundaries &&
+            Object.values(dashboard.filters)
+                .flat()
+                .some((rule) => rule.boundaries)
+        ) {
+            const project = await this.projectModel.get(dashboard.projectUuid);
+            const projectTimezone =
+                await this.projectService.getQueryTimezoneForProject(
+                    dashboard.projectUuid,
+                );
+            assertDashboardFilterBoundaries({
+                savedFilters: dashboard.filters,
+                filters: effectiveFilters,
+                tileUuid,
+                explore,
+                context: {
+                    timezone: resolveQueryTimezone({
+                        sessionTimezone: null,
+                        metricQuery: metricQuery ?? {},
+                        projectTimezone,
+                        userTimezone: null,
+                    }),
+                    startOfWeek: project.warehouseConnection?.startOfWeek,
+                },
+            });
+        }
+
+        if (includeAllFields) return effectiveFilters;
         return getDashboardFiltersForTileAndTables(
             tileUuid,
             availableFieldIds,
@@ -1383,6 +1419,12 @@ export class EmbedService extends BaseService {
             dashboard,
             tileUuid,
             dashboardFilters,
+            chart.metricQuery,
+            false,
+            !!chart.merge &&
+                Object.values(dashboard.filters)
+                    .flat()
+                    .some((rule) => rule.boundaries),
         );
 
         // Record analytics event
@@ -1659,6 +1701,7 @@ export class EmbedService extends BaseService {
             dashboard,
             tileUuid,
             dashboardFilters,
+            chart.metricQuery,
         );
 
         const metricQueryWithDashboardSorts =
@@ -2146,6 +2189,7 @@ export class EmbedService extends BaseService {
             dashboard,
             tileUuid,
             dashboardFilters,
+            chart.metricQuery,
         );
         const metricQuery = appliedDashboardFilters
             ? addDashboardFiltersToMetricQuery(
@@ -2730,12 +2774,56 @@ export class EmbedService extends BaseService {
             }
         }
 
+        const boundaryRules =
+            dashboard?.filters.dimensions.filter(
+                (rule) =>
+                    rule.boundaries &&
+                    rule.target.fieldId === resolvedFieldId &&
+                    rule.target.tableName === resolvedTableName,
+            ) ?? [];
+        const boundaryContext = getFilterBoundaryFieldContext(
+            initialField,
+            initialExplore.caseSensitive,
+        );
+        const permittedSuggestion = (value: unknown) =>
+            boundaryRules.every(
+                (rule) =>
+                    validateFilterBoundary(
+                        rule.boundaries,
+                        {
+                            ...rule,
+                            disabled: false,
+                            includeNull: false,
+                            operator: FilterOperator.EQUALS,
+                            values: [value],
+                        },
+                        boundaryContext,
+                    ) === null,
+            );
+        const stringBoundary = boundaryRules.find(
+            (rule) => rule.boundaries?.type === 'string',
+        )?.boundaries;
+        if (stringBoundary?.type === 'string') {
+            return {
+                search,
+                results: stringBoundary.values.filter(
+                    (value) =>
+                        value.toUpperCase().includes(search.toUpperCase()) &&
+                        permittedSuggestion(value),
+                ),
+                refreshedAt: new Date(),
+                cached: false,
+            };
+        }
+
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) instead of running a distinct-value scan.
         if (staticResults) {
             return {
                 search,
-                results: staticResults.map(({ value }) => value),
+                results: staticResults
+                    .map(({ value }) => value)
+                    .filter(permittedSuggestion),
                 refreshedAt: new Date(),
                 cached: false,
             };
@@ -2793,7 +2881,9 @@ export class EmbedService extends BaseService {
 
         return {
             search,
-            results: rows.map((row) => row[getItemId(field)]),
+            results: rows
+                .map((row) => row[getItemId(field)])
+                .filter(permittedSuggestion),
             refreshedAt: cacheMetadata.cacheUpdatedTime || new Date(),
             cached: cacheMetadata.cacheHit,
         };
