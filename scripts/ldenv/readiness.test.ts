@@ -29,12 +29,14 @@ const { compilerWatchArgs } = require('./compiler-watch-args.cjs') as {
     compilerWatchArgs: (args: string[], platform: string) => string[];
 };
 
-test('compiler watchers exclude dependency directories only on macOS', () => {
+test('compiler watchers exclude dependency paths only on macOS', () => {
     const args = ['--build', '--watch', 'tsconfig.build.json'];
     assert.deepEqual(compilerWatchArgs(args, 'darwin'), [
         ...args,
         '--excludeDirectories',
         '**/node_modules',
+        '--excludeFiles',
+        '**/node_modules/**',
     ]);
     assert.deepEqual(compilerWatchArgs(args, 'linux'), args);
     assert.deepEqual(args, ['--build', '--watch', 'tsconfig.build.json']);
