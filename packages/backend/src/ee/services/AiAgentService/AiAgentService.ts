@@ -503,18 +503,16 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
+import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
     type SlackTableQueryResults,
 } from '../ai/utils/slackTableBlocks';
+import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
 import {
-    getSlackTablePreviews,
-    isSlackTableArtifact,
-} from '../ai/utils/slackTablePreviews';
-import {
-    parseSlackTableSelection,
-    stripSlackTableSelection,
-} from '../ai/utils/slackTableSelection';
+    parseSlackVisualizationSelection,
+    stripSlackVisualizationSelection,
+} from '../ai/utils/slackVisualizationSelection';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
@@ -14375,7 +14373,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     isSlackPrompt(prompt) && update.response !== undefined
                         ? {
                               ...update,
-                              response: stripSlackTableSelection(
+                              response: stripSlackVisualizationSelection(
                                   update.response,
                               ),
                           }
@@ -15054,10 +15052,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             (artifact) => artifact.promptUuid === slackPrompt.promptUuid,
         );
 
-        // Each generateVisualization call in a turn adds a version to the
-        // thread's artifact, so a "make me 3 charts" turn produces one artifact
-        // with several versions. Render each version as its own card (with its
-        // own config + image) so all charts from the turn are shown.
+        // A turn can generate several versions of one artifact. The final
+        // answer selects exact versions, including when charts reuse a query.
         const promptArtifactVersions =
             await this.aiAgentModel.findArtifactVersionsByPromptUuid(
                 slackPrompt.promptUuid,
@@ -15105,10 +15101,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       slackPrompt.organizationUuid,
                   )
                 : undefined;
+        const selection = parseSlackVisualizationSelection(response);
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
-            selectedQueryUuids: parseSlackTableSelection(response),
+            selectedQueryUuids: selection.tableQueryUuids,
             toolCalls,
             toolResults,
             artifacts: artifactVersions,
@@ -15160,10 +15157,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const canShowInlineTables =
             agent?.enableDataAccess === true &&
             slackSettings?.aiLinksOnly !== true;
-        const cardArtifacts = artifactVersions.filter(
-            (artifact) =>
-                !canShowInlineTables || !isSlackTableArtifact(artifact),
-        );
+        const cardArtifacts = getSlackSelectedCardArtifacts({
+            artifacts: artifactVersions,
+            toolResults,
+            selectedVersionUuids: selection.chartVersionUuids,
+            canShowInlineTables,
+        });
 
         const exploreBlocks = await getModernArtifactCardBlocks(
             slackPrompt,
@@ -16143,7 +16142,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 runtimeTableResults,
             });
             const blocksFinishedAt = Date.now();
-            const visibleResponse = stripSlackTableSelection(response);
+            const visibleResponse = stripSlackVisualizationSelection(response);
             const slackResponse = stripMemoryCitations(visibleResponse);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
@@ -16201,16 +16200,31 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     await this.aiAgentModel.slackArtifactDeliveries.get(
                         slackPrompt.promptUuid,
                     );
-                if (delivery && !delivery.finished_at)
-                    await this.schedulerClient.slackAiArtifactImages({
-                        slackPromptUuid: slackPrompt.promptUuid,
-                        organizationUuid: slackPrompt.organizationUuid,
-                        projectUuid: slackPrompt.projectUuid,
-                        userUuid: slackPrompt.createdByUserUuid,
-                    });
+                if (delivery && !delivery.finished_at) {
+                    const hasSelectedImages = getSlackArtifactCardVersions(
+                        blocks,
+                    ).some((version) =>
+                        Object.hasOwn(delivery.render_inputs, version),
+                    );
+                    if (hasSelectedImages) {
+                        await this.schedulerClient.slackAiArtifactImages({
+                            slackPromptUuid: slackPrompt.promptUuid,
+                            organizationUuid: slackPrompt.organizationUuid,
+                            projectUuid: slackPrompt.projectUuid,
+                            userUuid: slackPrompt.createdByUserUuid,
+                        });
+                    } else {
+                        // Queries may register images that the final answer
+                        // omits. Close that work instead of retrying empty cards.
+                        await this.aiAgentModel.slackArtifactDeliveries.finish(
+                            slackPrompt.promptUuid,
+                            'cancelled',
+                        );
+                    }
+                }
             } catch {
                 Logger.warn(
-                    '[AiAgent] Slack image enqueue deferred to outbox recovery.',
+                    '[AiAgent] Slack image finalization deferred to outbox recovery.',
                 );
             }
 

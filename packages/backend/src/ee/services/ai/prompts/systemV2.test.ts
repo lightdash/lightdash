@@ -1061,6 +1061,50 @@ describe('getSystemPromptV2 data apps', () => {
     });
 });
 
+describe('getSystemPromptV2 Slack chart selection', () => {
+    test.each([
+        { enableDataAccess: true, slackLinksOnly: false },
+        { enableDataAccess: true, slackLinksOnly: true },
+        { enableDataAccess: false, slackLinksOnly: false },
+        { enableDataAccess: false, slackLinksOnly: true },
+    ])('selects useful charts for every Slack sharing mode: %j', (flags) => {
+        const content = promptText({
+            availableExplores: [],
+            slackChannelId: 'channel',
+            enableFastMetadata: true,
+            ...flags,
+        });
+        expect(content).toContain(
+            'choose zero or one generated chart by default',
+        );
+        expect(content).toContain(
+            '<slack-chart versionUuid="<versionUuid>" />',
+        );
+        expect(content).toContain('on its own line in your final response');
+        expect(content).toContain(
+            'exact saved versionUuid copied from a successful chart execution in the current turn',
+        );
+        expect(content).toContain(
+            'Omit redundant, diagnostic and superseded charts',
+        );
+        expect(content).toContain('Select at most 10 charts');
+        expect(content).toContain(
+            'When the user requests a chart, select the best successful chart that answers the request',
+        );
+        expect(content).not.toContain(
+            'Slack result cards are attached automatically',
+        );
+    });
+
+    test('keeps Slack chart selection out of web prompts', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+        });
+        expect(content).not.toContain('<slack-chart');
+    });
+});
+
 describe('getSystemPromptV2 Slack table selection', () => {
     test.each([false, true])(
         'prefers summaries and selectively renders useful current-turn tables in Slack (fast: %s)',
