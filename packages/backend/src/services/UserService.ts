@@ -2821,6 +2821,11 @@ export class UserService extends BaseService {
                   )
                 : undefined,
         );
+        this.analytics.group({
+            userId: user.userUuid,
+            groupId: orgUuid,
+            traits: {},
+        });
 
         await this.analytics.track({
             userId: user.userUuid,
