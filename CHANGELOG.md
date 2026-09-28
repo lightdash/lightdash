@@ -1,3 +1,10 @@
+## [2.351.1](https://github.com/lightdash/lightdash/compare/2.351.0...2.351.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **learn:** cap queued sandbox commands per learner and per organization (CS-321) ([#30031](https://github.com/lightdash/lightdash/issues/30031)) ([a5cf11a](https://github.com/lightdash/lightdash/commit/a5cf11a112c327511ac1e8661a069b1796768702)), closes [#30030](https://github.com/lightdash/lightdash/issues/30030)
+
 # [2.351.0](https://github.com/lightdash/lightdash/compare/2.350.1...2.351.0) (2026-09-28)
 
 
