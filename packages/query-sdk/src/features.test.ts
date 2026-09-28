@@ -48,6 +48,13 @@ describe('SDK_FEATURES registry', () => {
         }
     });
 
+    it('offers external fetch to both kinds, since both can link external connections', () => {
+        const externalFetch = SDK_FEATURES.find(
+            (f) => f.key === 'external-fetch',
+        );
+        expect(externalFetch?.appliesTo).toEqual(['data_app', 'chart_type']);
+    });
+
     it('covers every *:available message literal in the SDK source (drift guard)', () => {
         const srcDir = dirname(fileURLToPath(import.meta.url));
         const sources = readdirSync(srcDir)

@@ -99,7 +99,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'external-fetch',
-        appliesTo: ['data_app'],
+        appliesTo: ['data_app', 'chart_type'],
         label: 'External data fetch',
         description:
             'Fetch approved external HTTP data sources through the Lightdash proxy.',
