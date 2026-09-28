@@ -197,6 +197,11 @@ export async function installLauncher(): Promise<string> {
             launcher,
             installedAt: new Date().toISOString(),
         });
+        await runner.run(
+            executable,
+            [bundle, 'pool', 'reconcile', '--worktree', directory],
+            { cwd: directory },
+        );
         return launcher;
     });
 }

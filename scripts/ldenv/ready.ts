@@ -20,6 +20,7 @@ import { instances } from './lifecycle';
 import { instanceId, json, type Instance } from './model';
 import { canonicalHome, pm2Prefix } from './namespace';
 import { background, currentState, pm2, processPriority } from './processes';
+import { claimedWorkBranch } from './ready-branches';
 
 const controlRoot = path.resolve(__dirname, '../..');
 const requireRoot = createRequire(path.join(controlRoot, 'package.json'));
@@ -27,6 +28,10 @@ const monitorName = `${pm2Prefix}ldenv-pool`;
 const monitorFile = path.join(home, 'pool-monitor.json');
 
 const claimOperations = { git, saveInstance, processPriority };
+const reconcileReadyBranches = async (
+    root: string,
+    options: { poolLockHeld?: boolean } = {},
+) => (await import('./pool.js')).reconcileReadyBranches(root, options);
 
 export async function promoteReadyWorktree(
     instance: Instance,
@@ -39,24 +44,29 @@ export async function promoteReadyWorktree(
     instance.claim ??= { at: new Date().toISOString(), reason, pid };
     await operations.saveInstance(instance);
     try {
-        await operations.processPriority(instance, false);
         const ownership = instance.readyWorktree;
         if (ownership) {
+            const target = claimedWorkBranch(instance);
+            ownership.suffix ??= target.slice('work/'.length);
             const current = await operations.git(instance.worktree, [
                 'branch',
                 '--show-current',
             ]);
             if (
-                current === ownership.branch ||
-                current === ownership.retiring?.branch
+                current !== target &&
+                (current === ownership.branch ||
+                    current === ownership.retiring?.branch ||
+                    current === ownership.renaming?.from ||
+                    current === ownership.renaming?.to)
             ) {
                 try {
                     await operations.git(instance.worktree, [
                         'branch',
                         '-m',
                         current,
-                        `work/${ownership.branch.slice('ready/'.length)}`,
+                        target,
                     ]);
+                    ownership.branch = target;
                 } catch (error) {
                     if (
                         (await operations.git(instance.worktree, [
@@ -67,7 +77,10 @@ export async function promoteReadyWorktree(
                         throw error;
                 }
             }
+            if (current === target) ownership.branch = target;
+            delete ownership.renaming;
         }
+        await operations.processPriority(instance, false);
         instance.timings.readyClaim = Date.now() - started;
         if (instance.error?.startsWith('Ready claim failed:'))
             instance.error = null;
@@ -102,6 +115,10 @@ export async function readyWorktreeChanged(
     const branches = new Set([ownership?.branch ?? '']);
     if (ownership?.publication === 'pending') branches.add('');
     if (ownership?.retiring) branches.add(ownership.retiring.branch);
+    if (ownership?.renaming) {
+        branches.add(ownership.renaming.from);
+        branches.add(ownership.renaming.to);
+    }
     return (
         !branches.has(branch) ||
         head !== (instance.readyWorktree?.head ?? instance.parent) ||
@@ -158,67 +175,97 @@ export async function queuePoolRefill(root: string): Promise<void> {
     });
 }
 
+export async function observeReadyWorktree(
+    instance: Instance,
+): Promise<boolean> {
+    return protectReadyWorktree(instance, {
+        readyActivity,
+        readyWorktreeChanged,
+        promoteReadyWorktree,
+    });
+}
+
 export async function claimReadyWorktree(
     root: string,
     reason = 'explicit claim',
     pid: number | null = null,
-    operations = {
+    operations: {
+        foregroundWork: typeof foregroundWork;
+        withLock: typeof withLock;
+        currentState: typeof currentState;
+        promoteReadyWorktree: typeof promoteReadyWorktree;
+        queuePoolRefill: typeof queuePoolRefill;
+        reconcileReadyBranches?: typeof reconcileReadyBranches;
+    } = {
         foregroundWork,
         withLock,
         currentState,
         promoteReadyWorktree,
         queuePoolRefill,
+        reconcileReadyBranches,
     },
     observed?: Instance,
 ): Promise<Instance> {
     let claimed = false;
     const instance = await operations.foregroundWork(() =>
-        operations.withLock('pool', () =>
-            operations.withLock(
-                instanceId(root),
-                async () => {
-                    const current = await operations.currentState(
-                        instanceId(root),
-                    );
-                    if (!current)
-                        throw new Error(
-                            'No instance for this worktree; run ldenv up',
+        operations.withLock('pool', async () => {
+            try {
+                return await operations.withLock(
+                    instanceId(root),
+                    async () => {
+                        const current = await operations.currentState(
+                            instanceId(root),
                         );
-                    if (
-                        observed &&
-                        (current.kind !== observed.kind ||
-                            current.phase !== observed.phase ||
-                            current.updatedAt !== observed.updatedAt ||
-                            JSON.stringify(current.readyWorktree) !==
-                                JSON.stringify(observed.readyWorktree))
-                    )
-                        return current;
-                    if (current.kind === 'worktree') return current;
-                    if (current.kind === 'warming')
-                        throw new Error(
-                            'Worktree is still warming; wait for a ready branch',
+                        if (!current)
+                            throw new Error(
+                                'No instance for this worktree; run ldenv up',
+                            );
+                        if (
+                            observed &&
+                            (current.kind !== observed.kind ||
+                                current.phase !== observed.phase ||
+                                current.updatedAt !== observed.updatedAt ||
+                                JSON.stringify(current.readyWorktree) !==
+                                    JSON.stringify(observed.readyWorktree))
+                        )
+                            return current;
+                        if (current.kind === 'worktree') return current;
+                        if (current.kind === 'warming')
+                            throw new Error(
+                                'Worktree is still warming; wait for a ready branch',
+                            );
+                        if (
+                            current.kind === 'claimed' &&
+                            current.timings.readyClaim !== undefined
+                        )
+                            return current;
+                        if (current.kind !== 'claimed' && !isOwnedWarm(current))
+                            throw new Error(
+                                'Ready worktree ownership is not proven',
+                            );
+                        if (
+                            current.kind === 'spare' &&
+                            current.phase !== 'ready'
+                        )
+                            throw new Error(
+                                'Ready worktree is no longer ready',
+                            );
+                        claimed = true;
+                        return operations.promoteReadyWorktree(
+                            current,
+                            reason,
+                            pid,
                         );
-                    if (
-                        current.kind === 'claimed' &&
-                        current.timings.readyClaim !== undefined
-                    )
-                        return current;
-                    if (current.kind !== 'claimed' && !isOwnedWarm(current))
-                        throw new Error(
-                            'Ready worktree ownership is not proven',
-                        );
-                    if (current.kind === 'spare' && current.phase !== 'ready')
-                        throw new Error('Ready worktree is no longer ready');
-                    claimed = true;
-                    return operations.promoteReadyWorktree(
-                        current,
-                        reason,
-                        pid,
-                    );
-                },
-                { timeoutMs: null },
-            ),
-        ),
+                    },
+                    { timeoutMs: null },
+                );
+            } finally {
+                if (claimed)
+                    await operations.reconcileReadyBranches?.(root, {
+                        poolLockHeld: true,
+                    });
+            }
+        }),
     );
     if (claimed) await operations.queuePoolRefill(root);
     return instance;
@@ -263,7 +310,13 @@ export async function ensurePoolMonitor(root: string): Promise<void> {
                 JSON.stringify(expectedArgs)
         )
             return;
-        if (current) await pm2(['delete', monitorName]);
+        if (current) {
+            await pm2(['delete', monitorName]);
+            const deadline = Date.now() + 5000;
+            while (alive(current.pid) && Date.now() < deadline) await delay(25);
+            if (alive(current.pid))
+                throw new Error('Previous pool monitor has not stopped');
+        }
         const config = path.join(home, 'pool-monitor.config.json');
         await mkdir(home, { recursive: true });
         await writeJson(config, {
@@ -328,6 +381,35 @@ export async function poolMonitorStatus(): Promise<{
     };
 }
 
+export async function syncReadyPool(
+    root: string,
+    operations = {
+        withLock,
+        instances,
+        ensurePoolMonitor,
+        reconcileReadyBranches,
+        source: async (directory: string) =>
+            (await (await import('./pool.js')).poolSettings(directory)).source,
+    },
+): Promise<void> {
+    await operations.withLock(
+        'pool',
+        async () => {
+            const inventory = await operations.instances();
+            if (
+                !inventory.some((instance) => instance.readyWorktree) &&
+                !existsSync(monitorFile)
+            )
+                return;
+            await operations.ensurePoolMonitor(await operations.source(root));
+            await operations.reconcileReadyBranches(root, {
+                poolLockHeld: true,
+            });
+        },
+        { timeoutMs: null, yieldToForeground: false },
+    );
+}
+
 export async function monitorReadyPool(root: string): Promise<never> {
     let lastGitCheck = 0;
     let lastHeartbeat = 0;
@@ -373,6 +455,7 @@ export async function monitorReadyPool(root: string): Promise<never> {
                     );
             }
             previousActivity = activity;
+            if (checkGit) await reconcileReadyBranches(root);
             if (Date.now() - lastRefillCheck >= 10000) {
                 lastRefillCheck = Date.now();
                 const { poolSettings } = await import('./pool.js');

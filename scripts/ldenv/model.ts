@@ -68,6 +68,8 @@ export type Instance = {
         head: string;
         parentBuiltAt: string;
         publication?: 'pending' | 'published';
+        suffix?: string;
+        renaming?: { from: string; to: string; at: string };
         retiring?: { branch: string; at: string; hiddenAt?: string };
     };
     claim?: { at: string; reason: string; pid: number | null };

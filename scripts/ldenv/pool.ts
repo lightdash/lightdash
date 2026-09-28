@@ -5,7 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { changedFiles, dependencies, runTiers } from './cache';
-import { assertOwnedWarmForTeardown, isOwnedWarm } from './cleanup';
+import {
+    assertOwnedWarmForTeardown,
+    isOwnedWarm,
+    worktreeRecords,
+} from './cleanup';
 import { inheritLicensePair } from './env';
 import { diskGuard, dotenv, localSecrets } from './infra';
 import {
@@ -53,13 +57,19 @@ import {
 } from './processes';
 import { claimChangesApi, processEpoch } from './readiness';
 import {
+    claimedWorkBranch,
     hideReadyBranchForRetirement,
     publishReadyBranch,
+    readyBranchCollision,
+    recoverReadyBranchRename,
+    renameOwnedReadyBranch,
     retireClaimedReadyBranch,
 } from './ready-branches';
 
 const protectReadyWorktree = async (instance: Instance) =>
     (await import('./ready.js')).protectReadyWorktree(instance);
+const observeReadyWorktree = async (instance: Instance) =>
+    (await import('./ready.js')).observeReadyWorktree(instance);
 const ensurePoolMonitor = async (root: string) =>
     (await import('./ready.js')).ensurePoolMonitor(root);
 
@@ -103,6 +113,400 @@ const poolStateOperations = {
     protectReadyWorktree,
 };
 
+async function assertReadyRenameOwnership(
+    instance: Instance,
+    root: string,
+): Promise<void> {
+    const owned = instance.readyWorktree;
+    if (!owned || !isOwnedWarm(instance) || !existsSync(instance.worktree))
+        throw new Error('Ready worktree ownership is not proven');
+    if ((await realpath(instance.worktree)) !== instance.worktree)
+        throw new Error('Ready worktree path is not canonical');
+    const entry = worktreeRecords(
+        await git(root, ['worktree', 'list', '--porcelain', '-z']),
+    ).find((item) => item.directory === instance.worktree);
+    const validBranches = [
+        owned.branch,
+        owned.retiring?.branch,
+        owned.renaming?.from,
+        owned.renaming?.to,
+    ];
+    if (
+        !entry ||
+        entry.locked ||
+        entry.head !== owned.head ||
+        !validBranches.some(
+            (branch) => branch && entry.branch === `refs/heads/${branch}`,
+        )
+    )
+        throw new Error('Ready worktree is locked or changed');
+}
+
+const reconcileOperations = {
+    withLock,
+    instances,
+    parents,
+    instanceIsLive,
+    protectReadyWorktree: observeReadyWorktree,
+    saveInstance,
+    git,
+    assertReadyRenameOwnership,
+};
+
+export async function reconcileReadyBranches(
+    root: string,
+    options: { poolLockHeld?: boolean } = {},
+    operations = reconcileOperations,
+): Promise<void> {
+    let passes = 0;
+    const reconcile = async () => {
+        passes += 1;
+        if (passes > 5)
+            throw new Error(
+                'Ready branch inventory changed during reconciliation',
+            );
+        const latest = (await operations.parents()).sort((a, b) =>
+            b.builtAt.localeCompare(a.builtAt),
+        )[0];
+        if (!latest) return;
+        const inventory = await operations.instances();
+        const ownedBranches = new Set(
+            inventory.flatMap((item) => {
+                const owned = item.readyWorktree;
+                return owned
+                    ? [
+                          owned.branch,
+                          owned.retiring?.branch,
+                          owned.renaming?.from,
+                          owned.renaming?.to,
+                      ].filter((branch): branch is string => Boolean(branch))
+                    : [];
+            }),
+        );
+        const legacyRefs = (
+            await operations.git(root, [
+                'for-each-ref',
+                '--format=%(refname)',
+                'refs/heads/ready',
+            ])
+        )
+            .split('\n')
+            .filter((ref) => ref.startsWith('refs/heads/ready/'));
+        for (const ref of legacyRefs) {
+            const branch = ref.slice('refs/heads/'.length);
+            const owners = inventory.filter(
+                (item) => item.readyWorktree?.branch === branch,
+            );
+            const owner = owners[0];
+            if (
+                owners.length !== 1 ||
+                !owner?.readyWorktree ||
+                (owner.kind !== 'spare' && owner.kind !== 'warming') ||
+                owner.readyWorktree.publication === 'pending' ||
+                owner.claim
+            )
+                throw new Error(
+                    `Unowned ready branch blocks migration: ${branch}`,
+                );
+            await operations.withLock(owner.id, async () => {
+                const current = (await operations.instances()).find(
+                    (item) => item.id === owner.id,
+                );
+                if (current)
+                    await operations.assertReadyRenameOwnership(current, root);
+                if (
+                    !current?.readyWorktree ||
+                    current.readyWorktree.branch !== branch ||
+                    (await operations.git(current.worktree, [
+                        'branch',
+                        '--show-current',
+                    ])) !== branch ||
+                    (await operations.git(current.worktree, [
+                        'rev-parse',
+                        'HEAD',
+                    ])) !== current.readyWorktree.head ||
+                    (await operations.git(root, [
+                        'rev-parse',
+                        '--verify',
+                        ref,
+                    ])) !== current.readyWorktree.head
+                )
+                    throw new Error(
+                        `Ready branch ownership changed before migration: ${branch}`,
+                    );
+            });
+            const internal = `ldenv-spare/${claimedWorkBranch(owner).slice('work/'.length)}`;
+            if (
+                await readyBranchCollision(
+                    root,
+                    internal,
+                    operations.git,
+                    branch,
+                )
+            )
+                throw new Error(
+                    `Ready branch namespace collision: ${internal}`,
+                );
+        }
+        if (
+            legacyRefs.length &&
+            (await readyBranchCollision(
+                root,
+                'ready',
+                operations.git,
+                ownedBranches,
+            ))
+        )
+            throw new Error('Ready branch namespace collision: ready');
+        if (
+            await readyBranchCollision(
+                root,
+                'ready',
+                operations.git,
+                ownedBranches,
+                false,
+            )
+        )
+            throw new Error('Ready branch namespace collision: ready');
+        const eligible: Instance[] = [];
+        const rename = (instance: Instance, target: string) =>
+            (async () => {
+                if (instance.kind !== 'claimed')
+                    await operations.assertReadyRenameOwnership(instance, root);
+                await renameOwnedReadyBranch(instance, target, {
+                    git: operations.git,
+                    saveInstance: operations.saveInstance,
+                    now: () => new Date().toISOString(),
+                });
+            })();
+        for (const recorded of inventory) {
+            if (!recorded.readyWorktree) continue;
+            await operations.withLock(
+                recorded.id,
+                async () => {
+                    const current = (await operations.instances()).find(
+                        (item) => item.id === recorded.id,
+                    );
+                    if (!current?.readyWorktree) return;
+                    if (
+                        current.kind === 'claimed' &&
+                        !existsSync(current.worktree)
+                    )
+                        return;
+                    if (
+                        current.kind === 'claimed' &&
+                        !current.readyWorktree.renaming &&
+                        !current.readyWorktree.branch.startsWith('ready/') &&
+                        current.readyWorktree.branch !== 'ready' &&
+                        !/^ready-\d+$/.test(current.readyWorktree.branch)
+                    )
+                        return;
+                    await recoverReadyBranchRename(current, {
+                        git: operations.git,
+                        saveInstance: operations.saveInstance,
+                    });
+                    const owned = current.readyWorktree;
+                    if (owned.publication === 'pending') return;
+                    if (current.kind === 'claimed') {
+                        if (
+                            owned.branch === 'ready' ||
+                            /^ready-\d+$/.test(owned.branch) ||
+                            owned.branch.startsWith('ready/')
+                        ) {
+                            const checkedOut = await operations.git(
+                                current.worktree,
+                                ['branch', '--show-current'],
+                            );
+                            if (checkedOut === owned.branch)
+                                await rename(
+                                    current,
+                                    claimedWorkBranch(current),
+                                );
+                            else {
+                                const previousBranch = owned.branch;
+                                try {
+                                    await retireClaimedReadyBranch(
+                                        current,
+                                        owned.branch,
+                                        owned.head,
+                                        operations.git,
+                                    );
+                                } catch {
+                                    return;
+                                }
+                                if (owned.branch !== previousBranch)
+                                    await operations.saveInstance(current);
+                            }
+                        }
+                        return;
+                    }
+                    if (current.kind !== 'spare' && current.kind !== 'warming')
+                        return;
+                    if (await operations.protectReadyWorktree(current)) return;
+                    if (owned.retiring) {
+                        await operations.assertReadyRenameOwnership(
+                            current,
+                            root,
+                        );
+                        await hideReadyBranchForRetirement(current, {
+                            git: operations.git,
+                            saveInstance: operations.saveInstance,
+                            now: () => new Date().toISOString(),
+                        });
+                        return;
+                    }
+                    const fresh =
+                        current.kind === 'spare' &&
+                        current.phase === 'ready' &&
+                        !current.claim &&
+                        current.parent === latest.sha &&
+                        owned.parentBuiltAt === latest.builtAt;
+                    const healthy =
+                        fresh && (await operations.instanceIsLive(current));
+                    if (healthy) {
+                        eligible.push(current);
+                    } else {
+                        if (
+                            owned.branch === 'ready' ||
+                            /^ready-\d+$/.test(owned.branch) ||
+                            owned.branch.startsWith('ready/')
+                        )
+                            await rename(
+                                current,
+                                `ldenv-spare/${claimedWorkBranch(current).slice('work/'.length)}`,
+                            );
+                        if (fresh) {
+                            current.phase = 'failed';
+                            current.readyAt = null;
+                            current.error =
+                                'Ready spare is not live; awaiting pool cleanup';
+                            await operations.saveInstance(current);
+                        }
+                    }
+                },
+                { timeoutMs: null },
+            );
+        }
+        const currentParent = (await operations.parents()).sort((a, b) =>
+            b.builtAt.localeCompare(a.builtAt),
+        )[0];
+        if (
+            currentParent?.sha !== latest.sha ||
+            currentParent.builtAt !== latest.builtAt
+        ) {
+            await reconcile();
+            return;
+        }
+        eligible.sort(
+            (a, b) =>
+                (a.readyAt ?? a.createdAt).localeCompare(
+                    b.readyAt ?? b.createdAt,
+                ) || a.id.localeCompare(b.id),
+        );
+        const targets: string[] = [];
+        for (let index = 0; index < eligible.length; index += 1) {
+            if (index === 0) {
+                if (
+                    eligible[index].readyWorktree?.branch !== 'ready' &&
+                    (await readyBranchCollision(
+                        root,
+                        'ready',
+                        operations.git,
+                        ownedBranches,
+                    ))
+                )
+                    throw new Error('Ready branch namespace collision: ready');
+                targets.push('ready');
+                continue;
+            }
+            let number = 2;
+            while (
+                targets.includes(`ready-${number}`) ||
+                (await readyBranchCollision(
+                    root,
+                    `ready-${number}`,
+                    operations.git,
+                    ownedBranches,
+                    eligible[index].readyWorktree?.branch === `ready-${number}`
+                        ? false
+                        : true,
+                ))
+            )
+                number += 1;
+            targets.push(`ready-${number}`);
+        }
+        let selectionChanged = false;
+        for (let index = 0; index < eligible.length; index += 1) {
+            const candidate = eligible[index];
+            if (candidate.readyWorktree?.branch === targets[index]) continue;
+            await operations.withLock(candidate.id, async () => {
+                const current = (await operations.instances()).find(
+                    (item) => item.id === candidate.id,
+                );
+                if (
+                    !current?.readyWorktree ||
+                    current.kind !== 'spare' ||
+                    current.phase !== 'ready'
+                ) {
+                    selectionChanged = true;
+                    return;
+                }
+                if (await operations.protectReadyWorktree(current)) {
+                    selectionChanged = true;
+                    return;
+                }
+                await rename(
+                    current,
+                    `ldenv-spare/${claimedWorkBranch(current).slice('work/'.length)}`,
+                );
+            });
+        }
+        if (selectionChanged) {
+            await reconcile();
+            return;
+        }
+        for (let index = 0; index < eligible.length; index += 1) {
+            const candidate = eligible[index];
+            if (candidate.readyWorktree?.branch === targets[index]) continue;
+            await operations.withLock(candidate.id, async () => {
+                const current = (await operations.instances()).find(
+                    (item) => item.id === candidate.id,
+                );
+                const newest = (await operations.parents()).sort((a, b) =>
+                    b.builtAt.localeCompare(a.builtAt),
+                )[0];
+                if (
+                    !current?.readyWorktree ||
+                    current.kind !== 'spare' ||
+                    current.phase !== 'ready' ||
+                    current.parent !== newest?.sha ||
+                    current.readyWorktree.parentBuiltAt !== newest.builtAt ||
+                    current.readyWorktree.retiring
+                ) {
+                    selectionChanged = true;
+                    return;
+                }
+                if (await operations.protectReadyWorktree(current)) {
+                    selectionChanged = true;
+                    return;
+                }
+                if (!(await operations.instanceIsLive(current))) {
+                    selectionChanged = true;
+                    return;
+                }
+                await rename(current, targets[index]);
+            });
+        }
+        if (selectionChanged) await reconcile();
+    };
+    if (options.poolLockHeld) await reconcile();
+    else
+        await operations.withLock('pool', reconcile, {
+            timeoutMs: null,
+            yieldToForeground: false,
+        });
+}
+
 async function retainLiveSpare(
     instance: Instance,
     operations: {
@@ -130,7 +534,9 @@ export async function inspectReadySpares(
         const eligible = (instance: Instance) =>
             instance.kind === 'spare' &&
             instance.phase === 'ready' &&
+            !instance.claim &&
             !instance.readyWorktree?.retiring &&
+            !instance.readyWorktree?.renaming &&
             instance.parent === parent &&
             (parentBuiltAt === undefined ||
                 instance.readyWorktree?.parentBuiltAt === parentBuiltAt);
@@ -164,8 +570,8 @@ export async function publishSpare(
 ): Promise<void> {
     const current = await operations.withLock(
         'pool',
-        () =>
-            operations.withLock(
+        async () => {
+            const registered = await operations.withLock(
                 instance.id,
                 async () => {
                     const registered = (await operations.instances()).find(
@@ -197,7 +603,13 @@ export async function publishSpare(
                     return registered;
                 },
                 { timeoutMs: null },
-            ),
+            );
+            if (operations === poolStateOperations)
+                await reconcileReadyBranches(path.resolve(__dirname, '../..'), {
+                    poolLockHeld: true,
+                });
+            return registered;
+        },
         { timeoutMs: null, yieldToForeground: false },
     );
     Object.assign(instance, current);
@@ -270,6 +682,10 @@ export async function retireStalePoolInstances(
                 records.push(structuredClone(current));
             });
         }
+        if (operations === poolStateOperations)
+            await reconcileReadyBranches(path.resolve(__dirname, '../..'), {
+                poolLockHeld: true,
+            });
         return records;
     });
     for (const instance of reserved) {
@@ -438,6 +854,8 @@ export async function fillPool(
                         latest.builtAt !== parent.builtAt
                     )
                         continue;
+                    if (operations === fillOperations)
+                        await reconcileReadyBranches(root);
                     if (ready.some((instance) => instance.readyWorktree))
                         await ensurePoolMonitor(root);
                     return ready;
@@ -643,10 +1061,29 @@ export async function claimInstance(
                         'rev-parse',
                         'HEAD',
                     ]);
-                    const previousBranch = await git(spare.worktree, [
+                    let previousBranch = await git(spare.worktree, [
                         'branch',
                         '--show-current',
                     ]);
+                    if (
+                        spare.readyWorktree &&
+                        spare.readyWorktree.publication !== 'pending'
+                    ) {
+                        if (previousBranch !== spare.readyWorktree.branch)
+                            throw new Error(
+                                `Ready branch changed before reservation: ${spare.worktree}`,
+                            );
+                        await renameOwnedReadyBranch(
+                            spare,
+                            claimedWorkBranch(spare),
+                            {
+                                git,
+                                saveInstance,
+                                now: () => new Date().toISOString(),
+                            },
+                        );
+                        previousBranch = spare.readyWorktree.branch;
+                    }
                     spare.kind = 'claimed';
                     spare.phase = 'starting';
                     spare.readyAt = null;
@@ -766,12 +1203,19 @@ export async function claimInstance(
                     spare.timings.claim = Date.now() - started;
                     await saveInstance(spare);
                     try {
+                        const ownedBeforeRetirement =
+                            spare.readyWorktree?.branch;
                         await retireClaimedReadyBranch(
                             spare,
                             previousBranch,
                             previousHead,
                             git,
                         );
+                        if (
+                            spare.readyWorktree?.branch !==
+                            ownedBeforeRetirement
+                        )
+                            await saveInstance(spare);
                     } catch (retirementError) {
                         process.stderr.write(
                             `Ready branch retained after claim: ${runner.redact(String(retirementError))}\n`,
@@ -849,6 +1293,12 @@ export async function claimInstance(
     } catch (error) {
         failure = error;
     }
+    if (operations === claimOperations)
+        try {
+            await reconcileReadyBranches(root);
+        } catch (error) {
+            if (!failure) failure = error;
+        }
     try {
         const settings = await poolSettings(root);
         const refillPid = await background(

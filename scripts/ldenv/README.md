@@ -55,7 +55,7 @@ Prepare a parent and one spare ahead of time:
 ## Starting a T3 thread on a ready worktree
 
 Run `ldenv pool fill --size 1` ahead of time. In T3's new-thread composer, open
-the branch picker, type `ready`, and select a `ready/<parent-sha7>-<id>` branch
+the branch picker, type `re`, and select the `ready` branch
 tagged **worktree**. Send the task. The app is already running in that checkout;
 T3 does not run its new-worktree project action for this path.
 
@@ -63,10 +63,11 @@ The checkout lives at `~/.ldenv/warm/<id>`. A PM2-supervised pool monitor checks
 for an external process with its working directory inside it. It excludes the
 app's PM2 processes, their children, ldenv workers, and Git inspection commands.
 It also checks for branch, commit, and source changes. On use, it marks the
-instance as claimed, restores foreground priority, and starts a refill in the
-background. It renames an unchanged `ready/...` branch to `work/...` so it no
-longer appears in the ready search. The files and running app processes stay
-in place. Rename the branch to your feature name when convenient.
+instance as claimed, renames its branch to `work/<suffix>`, restores foreground
+priority, and starts a refill in the background. The next healthy spare takes
+the name `ready`; additional spares use `ready-2`, `ready-3`, and so on. These
+renames keep the files and running app processes in place. Rename your claimed
+branch to a feature name when convenient.
 
 The explicit fallback is:
 
@@ -75,9 +76,11 @@ The explicit fallback is:
 ~/.ldenv/bin/ldenv wait --worktree /path/from/the/branch/picker
 ```
 
-`wait` returns after the spare becomes user-owned and ready. `status` includes
-`claim` (time, reason, and observed PID), `readyWorktree` (original branch and
-parent generation), and `poolMonitor` (heartbeat and scan errors). To verify a
+`wait` returns after the spare becomes user-owned and ready. `status` shows the
+checked-out branch and parent SHA in its human-readable output. `status --json`
+also includes `claim` (time, reason, and observed PID), `readyWorktree` (owned
+branch, stable suffix, and parent generation), and `poolMonitor` (heartbeat and
+scan errors). To verify a
 real T3 thread, select a ready branch, send a task, then run:
 
 ```sh
@@ -90,8 +93,12 @@ a process whose working directory stays elsewhere; `ldenv claim` covers that
 case. Opening a shell in the checkout also claims it intentionally.
 
 Ready branches are local and must never be pushed. They appear only after full
-spare readiness. A parent refresh replaces unclaimed spares from the previous
-parent generation, including a refreshed parent at the same commit. Cleanup
+spare readiness. Only a healthy spare from the current parent generation can
+hold `ready`. A parent refresh removes the picker names before retiring spares
+from the previous generation, including a refreshed parent at the same commit.
+Installing or refreshing ldenv migrates existing owned `ready/<sha>-<id>` spares
+to these names. An unrelated local or remote branch that conflicts with `ready`
+blocks migration and is preserved. Cleanup
 requires the recorded branch, commit, path, and absence of user edits or live
 use. Claimed worktrees are user-owned even if their branch is renamed or deleted.
 
@@ -509,7 +516,7 @@ the new bundle. Concurrent build notifications are serialized; each waits for
 its build and child start or stop to finish.
 The frontend, package watchers and other instances keep running. A failed rebuild
 keeps the last good API and output, prints the compiler error, and exposes it in
-`ldenv status` as `bundle.error`, `bundle.state=failed` and a degraded phase. Live
+`ldenv status --json` as `bundle.error`, `bundle.state=failed` and a degraded phase. Live
 health can still be true while `ready` is false. Fixing the edit clears the error.
 An initial failed build never launches a saved artifact from an earlier run.
 An unexpected API exit causes PM2 to restart the supervisor.

@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { execFile } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { promisify } from 'node:util';
-import { home } from './io';
+import { git, home } from './io';
 import { newInstance, type Instance, type Parent } from './model';
 import {
     claimInstance,
@@ -14,7 +14,9 @@ import {
     retireStalePoolInstances,
     fillPool,
     inspectReadySpares,
+    reconcileReadyBranches,
 } from './pool';
+import { claimedWorkBranch } from './ready-branches';
 
 const tracing = process.env.LDENV_TRACING;
 const selectedBackend = process.env.LDENV_BACKEND;
@@ -1282,4 +1284,317 @@ test('a zero-sized pool retires a current named spare after ownership protection
     );
     assert.deepEqual(retired, [f.spare.id]);
     assert.equal(protectedCount, 3);
+});
+
+async function stableReadyFixture(branches: string[]) {
+    const base = await realpath(
+        await mkdtemp(path.join(os.tmpdir(), 'ldenv-stable-pool-')),
+    );
+    const root = path.join(base, 'repo');
+    await mkdir(root);
+    const command = promisify(execFile);
+    await command('git', ['init', '-q', '-b', 'main', root]);
+    await writeFile(path.join(root, 'source.txt'), 'base\n');
+    await git(root, ['add', 'source.txt']);
+    await command('git', [
+        '-C',
+        root,
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.com',
+        '-c',
+        'commit.gpgsign=false',
+        'commit',
+        '-qm',
+        'base',
+    ]);
+    const head = await git(root, ['rev-parse', 'HEAD']);
+    const parent = {
+        ...(await fixture().operations.parents())[0],
+        sha: head,
+        path: root,
+        builtAt: '2026-09-28T02:00:00.000Z',
+    };
+    const records: Instance[] = [];
+    const healthy = new Set<string>();
+    for (const [index, branch] of branches.entries()) {
+        const directory = path.join(base, `warm-${index}`);
+        await git(root, ['worktree', 'add', '--detach', directory, head]);
+        await git(directory, ['switch', '-c', branch, head]);
+        const instance = newInstance(directory, head, 'spare');
+        instance.phase = 'ready';
+        instance.readyAt = `2026-09-28T02:00:0${index}.000Z`;
+        instance.readyWorktree = {
+            branch,
+            head,
+            parentBuiltAt: parent.builtAt,
+            publication: 'published',
+            ...(branch.startsWith('ready/')
+                ? {}
+                : { suffix: `${head.slice(0, 7)}-${index}` }),
+        };
+        records.push(instance);
+        healthy.add(instance.id);
+    }
+    let poolHeld = false;
+    const locks: string[] = [];
+    const operations: NonNullable<
+        Parameters<typeof reconcileReadyBranches>[2]
+    > = {
+        withLock: async (name, work) => {
+            if (name === 'pool') {
+                assert.equal(poolHeld, false);
+                poolHeld = true;
+                try {
+                    return await work();
+                } finally {
+                    poolHeld = false;
+                }
+            }
+            assert.equal(poolHeld, true);
+            locks.push(name);
+            return work();
+        },
+        instances: async () => records,
+        parents: async () => [parent],
+        instanceIsLive: async (instance) => healthy.has(instance.id),
+        protectReadyWorktree: async () => false,
+        saveInstance: async () => {},
+        git,
+        assertReadyRenameOwnership: async () => {},
+    };
+    return { base, root, head, parent, records, healthy, locks, operations };
+}
+
+test('reconcile migrates two owned legacy refs before assigning one primary and one secondary', async () => {
+    const f = await stableReadyFixture([
+        'ready/legacy-old',
+        'ready/legacy-next',
+    ]);
+    try {
+        await reconcileReadyBranches(f.root, {}, f.operations);
+        assert.deepEqual(
+            f.records.map((instance) => instance.readyWorktree?.branch),
+            ['ready', 'ready-2'],
+        );
+        assert.equal(
+            await git(f.root, [
+                'for-each-ref',
+                '--format=%(refname)',
+                'refs/heads/ready/',
+            ]),
+            '',
+        );
+        assert.deepEqual(
+            f.locks.slice(0, 2).sort(),
+            f.records.map((item) => item.id).sort(),
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('unknown legacy ref and mismatched owned HEAD abort migration without moving a ref', async () => {
+    for (const mismatch of ['unowned', 'head']) {
+        const f = await stableReadyFixture(['ready/legacy-owned']);
+        try {
+            if (mismatch === 'unowned')
+                await git(f.root, ['branch', 'ready/unowned', f.head]);
+            else f.records[0].readyWorktree!.head = 'b'.repeat(40);
+            await assert.rejects(
+                reconcileReadyBranches(f.root, {}, f.operations),
+                /Unowned ready branch|ownership changed/,
+            );
+            assert.equal(
+                await git(f.records[0].worktree, ['branch', '--show-current']),
+                'ready/legacy-owned',
+            );
+            assert.equal(f.records[0].readyWorktree?.renaming, undefined);
+        } finally {
+            await rm(f.base, { recursive: true, force: true });
+        }
+    }
+});
+
+test('a same-SHA stale primary loses ready before the current generation is promoted', async () => {
+    const f = await stableReadyFixture(['ready', 'ready-2']);
+    try {
+        f.records[0].readyWorktree!.parentBuiltAt = '2026-09-28T01:00:00.000Z';
+        await reconcileReadyBranches(f.root, {}, f.operations);
+        assert.match(f.records[0].readyWorktree!.branch, /^ldenv-spare\//);
+        assert.equal(f.records[1].readyWorktree?.branch, 'ready');
+        assert.equal(
+            await git(f.records[0].worktree, ['branch', '--show-current']),
+            f.records[0].readyWorktree?.branch,
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('claim observed during promotion restarts selection and assigns ready to the other spare', async () => {
+    const f = await stableReadyFixture(['ready-2', 'ready-3']);
+    try {
+        let firstChecks = 0;
+        f.operations.protectReadyWorktree = async (instance) => {
+            if (instance.id !== f.records[0].id) return false;
+            firstChecks += 1;
+            if (firstChecks !== 2) return false;
+            const work = claimedWorkBranch(instance);
+            await git(instance.worktree, [
+                'branch',
+                '-m',
+                instance.readyWorktree!.branch,
+                work,
+            ]);
+            instance.kind = 'claimed';
+            instance.claim = {
+                at: '2026-09-28T02:00:01.000Z',
+                reason: 'observed user activity',
+                pid: 123,
+            };
+            return true;
+        };
+        await reconcileReadyBranches(f.root, {}, f.operations);
+        assert.equal(f.records[0].kind, 'claimed');
+        assert.equal(
+            await git(f.records[0].worktree, ['branch', '--show-current']),
+            claimedWorkBranch(f.records[0]),
+        );
+        assert.equal(f.records[1].readyWorktree?.branch, 'ready');
+        assert.equal(
+            await git(f.records[1].worktree, ['branch', '--show-current']),
+            'ready',
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('retirement hides an old primary while a live replacement is promoted', async () => {
+    const f = await stableReadyFixture(['ready', 'ready-2']);
+    try {
+        f.records[0].readyWorktree!.retiring = {
+            branch: `ldenv-retiring/${f.records[0].readyWorktree!.suffix}`,
+            at: '2026-09-28T02:00:01.000Z',
+        };
+        await reconcileReadyBranches(f.root, {}, f.operations);
+        assert.match(
+            await git(f.records[0].worktree, ['branch', '--show-current']),
+            /^ldenv-retiring\//,
+        );
+        assert.equal(f.records[1].readyWorktree?.branch, 'ready');
+        assert.equal(
+            f.records[0].readyWorktree?.retiring?.hiddenAt !== undefined,
+            true,
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('stable inventory reconciles without querying remote refs or missing claimed paths', async () => {
+    const f = await stableReadyFixture(['ready', 'ready-2']);
+    try {
+        const historical = newInstance(
+            path.join(f.base, 'already-removed'),
+            f.head,
+            'claimed',
+        );
+        historical.readyWorktree = {
+            branch: 'ready-9',
+            head: f.head,
+            parentBuiltAt: f.parent.builtAt,
+            publication: 'published',
+            suffix: 'old-claim',
+        };
+        f.records.push(historical);
+        f.operations.git = async (cwd, args) => {
+            assert.notEqual(args[0], 'ls-remote');
+            assert.notEqual(cwd, historical.worktree);
+            return git(cwd, args);
+        };
+        await reconcileReadyBranches(f.root, {}, f.operations);
+        assert.deepEqual(
+            f.records.slice(0, 2).map((item) => item.readyWorktree?.branch),
+            ['ready', 'ready-2'],
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('normal claim moves the named branch before releasing the pool reservation', async () => {
+    const f = fixture();
+    const parent = (await f.operations.parents())[0];
+    f.spare.readyWorktree = {
+        branch: 'ready',
+        head: parent.sha,
+        parentBuiltAt: parent.builtAt,
+        publication: 'published',
+        suffix: 'stable-test',
+    };
+    f.state.branch = 'ready';
+    const refs = new Map([['ready', parent.sha]]);
+    const originalGit = f.operations.git;
+    f.operations.git = async (cwd, args) => {
+        if (args[0] === 'remote') return '';
+        if (args[0] === 'for-each-ref')
+            return [...refs.keys()]
+                .filter((branch) =>
+                    args[args.length - 1]?.startsWith('refs/heads/')
+                        ? `refs/heads/${branch}` === args[args.length - 1]
+                        : true,
+                )
+                .map((branch) => `refs/heads/${branch}`)
+                .join('\n');
+        if (
+            args[0] === 'rev-parse' &&
+            args[1] === '--verify' &&
+            args[2]?.startsWith('refs/heads/') &&
+            !args[2].includes('^{commit}')
+        ) {
+            const branch = args[2]?.replace('refs/heads/', '');
+            if (branch && refs.has(branch)) return refs.get(branch)!;
+            throw new Error(`Missing ref ${branch}`);
+        }
+        if (args[0] === 'branch' && args[1] === '-m') {
+            assert.equal(f.spare.kind, 'spare');
+            assert.equal(f.state.branch, args[2]);
+            refs.set(args[3], refs.get(args[2])!);
+            refs.delete(args[2]);
+            f.state.branch = args[3];
+            return '';
+        }
+        if (args[0] === 'update-ref') {
+            assert.equal(args[1], '-d');
+            assert.equal(
+                refs.get(args[2].slice('refs/heads/'.length)),
+                args[3],
+            );
+            refs.delete(args[2].slice('refs/heads/'.length));
+            return '';
+        }
+        return originalGit(cwd, args);
+    };
+    const originalLock = f.operations.withLock;
+    let reservationReleased = false;
+    f.operations.withLock = async (name, work, options) => {
+        const result = await originalLock(name, work, options);
+        if (name === 'pool') {
+            reservationReleased = true;
+            assert.equal(f.spare.kind, 'claimed');
+            assert.equal(f.spare.readyWorktree?.branch, 'work/stable-test');
+            assert.equal(f.state.branch, 'work/stable-test');
+            assert.equal(refs.has('ready'), false);
+        }
+        return result;
+    };
+    await f.claim();
+    assert.equal(reservationReleased, true);
+    assert.equal(f.state.branch, 'feature/test');
+    assert.equal(f.spare.readyWorktree?.branch, 'feature/test');
+    assert.equal(refs.has('work/stable-test'), false);
+    assert.equal(refs.has('ready'), false);
 });

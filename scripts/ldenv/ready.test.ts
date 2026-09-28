@@ -8,6 +8,7 @@ import {
     promoteReadyWorktree,
     protectReadyWorktree,
     readyWorktreeChanged,
+    syncReadyPool,
 } from './ready';
 import { waitDecision } from './wait';
 
@@ -54,7 +55,11 @@ test('claim preserves the running generation and publishes ownership before prom
     assert.equal(instance.phase, 'ready');
     assert.equal(instance.claim?.reason, 'process cwd');
     assert.equal(instance.claim?.pid, 123);
-    assert.deepEqual(events.slice(0, 2), ['save:claimed', 'priority:false']);
+    assert.equal(events[0], 'save:claimed');
+    assert.ok(
+        events.indexOf('priority:false') >
+            events.indexOf('branch -m ready/aaaaaaa-123 work/aaaaaaa-123'),
+    );
     assert.ok(events.includes('branch -m ready/aaaaaaa-123 work/aaaaaaa-123'));
     assert.equal(waitDecision(original, false), null);
     assert.equal(waitDecision(instance, false)?.state, 'ready');
@@ -68,12 +73,96 @@ test('a promotion failure leaves the checkout user-owned', async () => {
             processPriority: async () => {
                 throw new Error('priority denied');
             },
-            git: async () => assert.fail('no git after failed promotion'),
+            git: async (_root, args) =>
+                args.includes('--show-current')
+                    ? instance.readyWorktree!.branch
+                    : '',
         }),
         /priority denied/,
     );
     assert.equal(instance.kind, 'claimed');
     assert.equal(waitDecision(instance, false)?.state, 'failed');
+});
+
+test('claim removes the stable picker name before foreground promotion can fail', async () => {
+    const instance = fixture();
+    instance.readyWorktree = {
+        ...instance.readyWorktree!,
+        branch: 'ready',
+        suffix: 'stable-spare',
+    };
+    let branch = 'ready';
+    await assert.rejects(
+        promoteReadyWorktree(instance, 'process cwd', 123, {
+            saveInstance: async () => {},
+            git: async (_root, args) => {
+                if (args.includes('--show-current')) return branch;
+                assert.deepEqual(args, [
+                    'branch',
+                    '-m',
+                    'ready',
+                    'work/stable-spare',
+                ]);
+                branch = args[3];
+                return '';
+            },
+            processPriority: async () => {
+                assert.equal(branch, 'work/stable-spare');
+                throw new Error('priority denied');
+            },
+        }),
+        /priority denied/,
+    );
+    assert.equal(instance.kind, 'claimed');
+    assert.equal(branch, 'work/stable-spare');
+    assert.equal(instance.readyWorktree.branch, 'work/stable-spare');
+    assert.equal(waitDecision(instance, false)?.state, 'failed');
+});
+
+test('an owned branch rename in progress does not look like user activity', async () => {
+    for (const branch of ['ready-2', 'ready']) {
+        const instance = fixture();
+        instance.readyWorktree = {
+            ...instance.readyWorktree!,
+            branch: 'ready-2',
+            renaming: {
+                from: 'ready-2',
+                to: 'ready',
+                at: new Date().toISOString(),
+            },
+        };
+        const changed = await readyWorktreeChanged(
+            instance,
+            async (_root, args) => {
+                if (args[0] === 'branch') return branch;
+                if (args[0] === 'rev-parse') return instance.parent;
+                return '';
+            },
+        );
+        assert.equal(changed, false);
+    }
+});
+
+test('claim recovery relinquishes ready when Git moved before the claim record was saved', async () => {
+    const instance = fixture();
+    instance.kind = 'claimed';
+    instance.claim = {
+        at: new Date().toISOString(),
+        reason: 'process cwd',
+        pid: 42,
+    };
+    instance.readyWorktree!.branch = 'ready';
+    instance.readyWorktree!.suffix = 'recover-claim';
+    await promoteReadyWorktree(instance, 'process cwd', 42, {
+        saveInstance: async () => {},
+        processPriority: async () => {},
+        git: async (_root, args) => {
+            assert.deepEqual(args, ['branch', '--show-current']);
+            return 'work/recover-claim';
+        },
+    });
+    assert.equal(instance.readyWorktree!.branch, 'work/recover-claim');
+    assert.equal(waitDecision(instance, false)?.state, 'ready');
 });
 
 test('explicit claim is idempotent and queues one refill', async () => {
@@ -115,8 +204,82 @@ test('explicit claim is idempotent and queues one refill', async () => {
     assert.deepEqual(locks, ['pool', instance.id, 'pool', instance.id]);
 });
 
-test('a stale monitor observation cannot claim a retiring or failed spare', async () => {
-    for (const changed of ['retiring', 'failed']) {
+test('claim transfers the picker name before releasing the pool lock', async () => {
+    const instance = fixture();
+    const held = new Set<string>();
+    let renamed = false;
+    let replacementReady = false;
+    await claimReadyWorktree(instance.worktree, 'process cwd', 42, {
+        foregroundWork: async (work) => work(),
+        withLock: async (name, work) => {
+            assert.ok(!held.has(name));
+            held.add(name);
+            try {
+                return await work();
+            } finally {
+                held.delete(name);
+            }
+        },
+        currentState: async () => instance,
+        promoteReadyWorktree: async (value) => {
+            assert.ok(held.has('pool') && held.has(value.id));
+            renamed = true;
+            value.kind = 'claimed';
+            return value;
+        },
+        reconcileReadyBranches: async (_root, options) => {
+            assert.ok(renamed && held.has('pool') && !held.has(instance.id));
+            assert.equal(options?.poolLockHeld, true);
+            replacementReady = true;
+        },
+        queuePoolRefill: async () => {
+            assert.ok(replacementReady);
+            assert.equal(held.size, 0);
+        },
+    });
+    assert.ok(replacementReady);
+});
+
+test('install replaces the old monitor under the pool lock before migration', async () => {
+    for (const claimed of [false, true]) {
+        const instance = fixture();
+        if (claimed) {
+            instance.kind = 'claimed';
+            instance.timings.readyClaim = 1;
+        }
+        let poolHeld = false;
+        let oldMonitorRunning = true;
+        let migrated = false;
+        await syncReadyPool('/tool', {
+            withLock: async (name, work) => {
+                assert.equal(name, 'pool');
+                poolHeld = true;
+                try {
+                    return await work();
+                } finally {
+                    poolHeld = false;
+                }
+            },
+            instances: async () => [instance],
+            source: async () => '/source',
+            ensurePoolMonitor: async (root) => {
+                assert.equal(root, '/source');
+                assert.ok(poolHeld);
+                oldMonitorRunning = false;
+            },
+            reconcileReadyBranches: async (_root, options) => {
+                assert.ok(poolHeld && !oldMonitorRunning);
+                assert.equal(options?.poolLockHeld, true);
+                migrated = true;
+            },
+        });
+        assert.ok(migrated);
+        assert.equal(poolHeld, false);
+    }
+});
+
+test('a stale monitor observation cannot claim a renaming, retiring or failed spare', async () => {
+    for (const changed of ['renaming', 'retiring', 'failed']) {
         const instance = fixture();
         const observed = structuredClone(instance);
         const operations: NonNullable<
@@ -126,6 +289,12 @@ test('a stale monitor observation cannot claim a retiring or failed spare', asyn
             withLock: async (name, work) => {
                 if (name === instance.id) {
                     if (changed === 'failed') instance.phase = 'failed';
+                    else if (changed === 'renaming')
+                        instance.readyWorktree!.renaming = {
+                            from: instance.readyWorktree!.branch,
+                            to: 'ready',
+                            at: new Date().toISOString(),
+                        };
                     else
                         instance.readyWorktree!.retiring = {
                             branch: 'ldenv-retiring/aaaaaaa-123',

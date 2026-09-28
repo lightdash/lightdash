@@ -11,7 +11,7 @@ import {
     machine,
     sharedServices,
 } from './infra';
-import { alive, home, runner, saveInstance, withLock } from './io';
+import { alive, git, home, runner, saveInstance, withLock } from './io';
 import { installLauncher, targetArguments } from './launcher';
 import {
     buildParent,
@@ -57,6 +57,7 @@ import {
     claimReadyWorktree,
     monitorReadyPool,
     poolMonitorStatus,
+    syncReadyPool,
 } from './ready';
 import { screenshot, screenshotOptions } from './screenshot';
 import { sharedBundleGc } from './shared-bundle';
@@ -133,6 +134,10 @@ async function main(args: string[]): Promise<void> {
         return;
     }
     const root = await rootDirectory(target.worktree);
+    if (command === 'pool' && subcommand === 'reconcile') {
+        await syncReadyPool(root);
+        return;
+    }
     if (command === 'pool' && subcommand === 'monitor') {
         await monitorReadyPool(root);
         return;
@@ -347,7 +352,23 @@ async function main(args: string[]): Promise<void> {
                 : null,
             processes: derived.processes,
         };
-        process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
+        if (args.includes('--json'))
+            process.stdout.write(`${JSON.stringify(status, null, 2)}\n`);
+        else {
+            const branch = await git(root, ['branch', '--show-current']);
+            process.stdout.write(
+                `${status.phase.toUpperCase()}: ${instance.worktree}\nbranch=${branch || '(detached)'} parent=${instance.parent.slice(0, 12)} kind=${instance.kind} backend=${status.backend}\nready=${status.ready} healthy=${status.healthy}\n`,
+            );
+            if (instance.ports)
+                process.stdout.write(
+                    `FRONTEND: http://localhost:${instance.ports.frontend}\nAPI: http://localhost:${instance.ports.api}\n`,
+                );
+            if (status.poolMonitor)
+                process.stdout.write(
+                    `POOL MONITOR: ${status.poolMonitor.healthy ? 'healthy' : 'unhealthy'}\n`,
+                );
+            if (status.error) process.stdout.write(`ERROR: ${status.error}\n`);
+        }
         return;
     }
     if (!instance)

@@ -13,8 +13,11 @@ import {
 import { git } from './io';
 import { newInstance } from './model';
 import {
+    claimedWorkBranch,
     hideReadyBranchForRetirement,
     publishReadyBranch,
+    recoverReadyBranchRename,
+    renameOwnedReadyBranch,
     retireClaimedReadyBranch,
 } from './ready-branches';
 
@@ -57,11 +60,7 @@ test('publication records ownership before creating a local ready branch; retire
         const saves: string[] = [];
         await publishReadyBranch(f.instance, '2026-09-28T00:00:00.000Z', {
             git: async (cwd, args) => {
-                if (args[0] === 'switch')
-                    assert.equal(
-                        saves[0],
-                        `ready/${f.head.slice(0, 7)}-deadbeefcafe`,
-                    );
+                if (args[0] === 'switch') assert.equal(saves[0], 'ready-2');
                 return git(cwd, args);
             },
             saveInstance: async (instance) => {
@@ -71,6 +70,10 @@ test('publication records ownership before creating a local ready branch; retire
         });
         f.instance.kind = 'spare';
         const branch = f.instance.readyWorktree!.branch;
+        assert.equal(
+            claimedWorkBranch(f.instance),
+            `work/${f.head.slice(0, 7)}-deadbeefcafe`,
+        );
         assert.equal(
             await git(f.directory, ['branch', '--show-current']),
             branch,
@@ -116,10 +119,10 @@ test('publication records ownership before creating a local ready branch; retire
     }
 });
 
-test('remote branch collision fails before changing the detached checkout or ownership record', async () => {
+test('remote ready-2 collision makes publication choose the next free name', async () => {
     const f = await fixture();
     try {
-        const branch = `ready/${f.head.slice(0, 7)}-deadbeefcafe`;
+        const branch = 'ready-2';
         const remote = path.join(f.base, 'remote.git');
         await command('git', ['init', '-q', '--bare', remote]);
         await git(f.repo, ['remote', 'add', 'origin', remote]);
@@ -131,21 +134,207 @@ test('remote branch collision fails before changing the detached checkout or own
             '-d',
             `refs/remotes/origin/${branch}`,
         ]);
-        let saved = false;
+        await publishReadyBranch(f.instance, '2026-09-28T00:00:00.000Z', {
+            git,
+            saveInstance: async () => {},
+            uuid: () => 'deadbeef-cafe-0000-0000-000000000000',
+        });
+        assert.equal(f.instance.readyWorktree?.branch, 'ready-3');
+        assert.equal(
+            await git(f.directory, ['branch', '--show-current']),
+            'ready-3',
+        );
+        assert.equal(await git(f.directory, ['rev-parse', 'HEAD']), f.head);
+        assert.equal(
+            await git(f.repo, [
+                'ls-remote',
+                '--heads',
+                'origin',
+                `refs/heads/${branch}`,
+            ]),
+            `${f.head}\trefs/heads/${branch}`,
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('remote primary collision refuses promotion without changing checkout or ownership', async () => {
+    const f = await fixture();
+    try {
+        await publishReadyBranch(f.instance, '2026-09-28T00:00:00.000Z', {
+            git,
+            saveInstance: async () => {},
+            uuid: () => 'deadbeef-cafe-0000-0000-000000000000',
+        });
+        const remote = path.join(f.base, 'remote.git');
+        await command('git', ['init', '-q', '--bare', remote]);
+        await git(f.repo, ['remote', 'add', 'origin', remote]);
+        await git(f.repo, ['branch', 'ready', f.head]);
+        await git(f.repo, ['push', 'origin', 'ready']);
+        await git(f.repo, ['branch', '-D', 'ready']);
         await assert.rejects(
-            publishReadyBranch(f.instance, '2026-09-28T00:00:00.000Z', {
+            renameOwnedReadyBranch(f.instance, 'ready', {
                 git,
-                saveInstance: async () => {
-                    saved = true;
-                },
-                uuid: () => 'deadbeef-cafe-0000-0000-000000000000',
+                saveInstance: async () => {},
+                now: () => '2026-09-28T01:00:00.000Z',
             }),
             /namespace collision/,
         );
-        assert.equal(saved, false);
-        assert.equal(f.instance.readyWorktree, undefined);
-        assert.equal(await git(f.directory, ['branch', '--show-current']), '');
-        assert.equal(await git(f.directory, ['rev-parse', 'HEAD']), f.head);
+        assert.equal(f.instance.readyWorktree?.branch, 'ready-2');
+        assert.equal(f.instance.readyWorktree?.renaming, undefined);
+        assert.equal(
+            await git(f.directory, ['branch', '--show-current']),
+            'ready-2',
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('legacy ready prefix moves to an internal owned name before primary promotion', async () => {
+    const f = await fixture();
+    try {
+        await publishReadyBranch(f.instance, '2026-09-28T00:00:00.000Z', {
+            git,
+            saveInstance: async () => {},
+            uuid: () => 'deadbeef-cafe-0000-0000-000000000000',
+        });
+        const legacy = `ready/${f.head.slice(0, 7)}-deadbeefcafe`;
+        await git(f.directory, ['branch', '-m', 'ready-2', legacy]);
+        f.instance.readyWorktree!.branch = legacy;
+        delete f.instance.readyWorktree!.suffix;
+        assert.equal(
+            claimedWorkBranch(f.instance),
+            `work/${legacy.slice('ready/'.length)}`,
+        );
+        await renameOwnedReadyBranch(
+            f.instance,
+            `ldenv-spare/${legacy.slice('ready/'.length)}`,
+            {
+                git,
+                saveInstance: async () => {},
+                now: () => '2026-09-28T01:00:00.000Z',
+            },
+        );
+        await renameOwnedReadyBranch(f.instance, 'ready', {
+            git,
+            saveInstance: async () => {},
+            now: () => '2026-09-28T01:00:01.000Z',
+        });
+        assert.equal(
+            await git(f.directory, ['branch', '--show-current']),
+            'ready',
+        );
+        assert.equal(f.instance.readyWorktree?.branch, 'ready');
+        assert.equal(
+            claimedWorkBranch(f.instance),
+            `work/${legacy.slice('ready/'.length)}`,
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('interrupted rename recovers when Git already moved the owned ref', async () => {
+    const f = await fixture();
+    try {
+        await publishReadyBranch(f.instance, '2026-09-28T00:00:00.000Z', {
+            git,
+            saveInstance: async () => {},
+            uuid: () => 'deadbeef-cafe-0000-0000-000000000000',
+        });
+        const saved: string[] = [];
+        await assert.rejects(
+            renameOwnedReadyBranch(f.instance, 'ready', {
+                git: async (cwd, args) => {
+                    const result = await git(cwd, args);
+                    if (args[0] === 'branch' && args[1] === '-m')
+                        throw new Error('crash after branch rename');
+                    return result;
+                },
+                saveInstance: async (instance) => {
+                    saved.push(JSON.stringify(instance.readyWorktree));
+                },
+                now: () => '2026-09-28T01:00:00.000Z',
+            }),
+            /crash after branch rename/,
+        );
+        assert.equal(f.instance.readyWorktree?.renaming?.to, 'ready');
+        assert.match(saved[0], /"renaming"/);
+        await recoverReadyBranchRename(f.instance, {
+            git,
+            saveInstance: async () => {},
+        });
+        assert.equal(f.instance.readyWorktree?.branch, 'ready');
+        assert.equal(f.instance.readyWorktree?.renaming, undefined);
+        assert.equal(
+            await git(f.directory, ['branch', '--show-current']),
+            'ready',
+        );
+    } finally {
+        await rm(f.base, { recursive: true, force: true });
+    }
+});
+
+test('cleanup refuses an unsettled rename and recovery can finish before Git moves the ref', async () => {
+    const f = await fixture();
+    try {
+        await publishReadyBranch(f.instance, '2026-09-28T00:00:00.000Z', {
+            git,
+            saveInstance: async () => {},
+            uuid: () => 'deadbeef-cafe-0000-0000-000000000000',
+        });
+        f.instance.kind = 'spare';
+        await assert.rejects(
+            renameOwnedReadyBranch(f.instance, 'ready', {
+                git: async (cwd, args) => {
+                    if (args[0] === 'branch' && args[1] === '-m')
+                        throw new Error('crash before branch rename');
+                    return git(cwd, args);
+                },
+                saveInstance: async () => {},
+                now: () => '2026-09-28T01:00:00.000Z',
+            }),
+            /crash before branch rename/,
+        );
+        let removed = false;
+        await assert.rejects(
+            removeOwnedWarm(f.instance, f.repo, f.base, {
+                references: async () => '',
+                worktrees: async () =>
+                    worktreeRecords(
+                        await git(f.repo, [
+                            'worktree',
+                            'list',
+                            '--porcelain',
+                            '-z',
+                        ]),
+                    ),
+                status: async (directory) =>
+                    git(directory, [
+                        'status',
+                        '--porcelain',
+                        '--ignored',
+                        '--untracked-files=normal',
+                    ]),
+                remove: async () => {
+                    removed = true;
+                },
+                refHead: (ref) => git(f.repo, ['rev-parse', '--verify', ref]),
+            }),
+            /rename is unsettled/,
+        );
+        assert.equal(removed, false);
+        await recoverReadyBranchRename(f.instance, {
+            git,
+            saveInstance: async () => {},
+        });
+        assert.equal(
+            await git(f.directory, ['branch', '--show-current']),
+            'ready',
+        );
+        assert.equal(f.instance.readyWorktree?.renaming, undefined);
     } finally {
         await rm(f.base, { recursive: true, force: true });
     }
@@ -345,6 +534,7 @@ test('normal claim removes only the old owned ready ref after switching branches
             await retireClaimedReadyBranch(f.instance, oldBranch, f.head),
             true,
         );
+        assert.equal(f.instance.readyWorktree?.branch, 'feature/test');
         assert.equal(
             await git(f.repo, [
                 'for-each-ref',

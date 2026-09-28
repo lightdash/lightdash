@@ -166,7 +166,9 @@ async function inspectCandidate(
     if (worktree.locked)
         return result(false, 'Locked or branch worktree may belong to a user');
     if (instance?.readyWorktree) {
-        const { branch, head, publication, retiring } = instance.readyWorktree;
+        const { branch, head, publication, retiring, renaming } =
+            instance.readyWorktree;
+        if (renaming) return result(false, 'Ready branch rename is unsettled');
         const expectedBranch = retiring?.hiddenAt ? retiring.branch : branch;
         const pendingDetached = publication === 'pending' && worktree.detached;
         if (retiring && !retiring.hiddenAt)
