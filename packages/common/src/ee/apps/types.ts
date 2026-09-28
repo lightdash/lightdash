@@ -1074,6 +1074,14 @@ const vizConfigOptions = z.array(
         z.object({
             ...optionBase,
             type: z.literal('gradient'),
+            showBounds: z
+                .boolean()
+                .nullable()
+                .transform((value) => value ?? undefined)
+                .optional()
+                .describe(
+                    'Show minimum and maximum controls in the config panel. Defaults to true; false hides the controls without changing the gradient value or bounds.',
+                ),
             default: dataAppVizGradientValueSchema.describe(
                 'Fixed hex colors and numeric or automatic bounds used until the viewer changes them.',
             ),

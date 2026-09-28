@@ -61,6 +61,8 @@ export type DataAppVizConfigOption =
           name: string;
           label: string;
           group?: string;
+          /** Whether the config panel shows bounds controls; defaults to true. */
+          showBounds?: boolean;
           default: DataAppVizGradientValue;
       };
 

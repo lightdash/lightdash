@@ -799,6 +799,34 @@ describe('gradient config options', () => {
             ).toEqual([option]);
         }
     });
+    it.each([undefined, true, false])(
+        'preserves showBounds %s without changing gradient values',
+        (showBounds) => {
+            const declaration = {
+                ...option,
+                ...(showBounds === undefined ? {} : { showBounds }),
+            };
+            for (const schema of [
+                dataAppVizSchema,
+                dataAppVizGenerationSchema,
+            ]) {
+                const parsed = schema.parse({
+                    fields: [],
+                    configOptions: [declaration],
+                    colorPalette: null,
+                });
+                expect(parsed.configOptions).toEqual([declaration]);
+                expect(
+                    getEffectiveOptionValues(parsed.configOptions, {}),
+                ).toEqual({ scale: gradient });
+                expect(
+                    pruneDataAppVizOptionValues(parsed.configOptions, {
+                        scale: gradient,
+                    }),
+                ).toEqual({ scale: gradient });
+            }
+        },
+    );
     it.each(['#abc', '#abcdef', '#abcdef80'])(
         'preserves picker color %s in defaults and saved values',
         (color) => {

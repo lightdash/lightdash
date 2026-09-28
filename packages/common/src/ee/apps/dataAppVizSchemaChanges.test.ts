@@ -257,3 +257,31 @@ it('compares gradient defaults structurally after persistence', () => {
         ).toHaveLength(1);
     }
 });
+
+it('treats omitted gradient bounds visibility as true and detects visibility changes', () => {
+    const declaration = {
+        type: 'gradient' as const,
+        name: 'scale',
+        label: 'Scale',
+        default: {
+            colors: ['#000', '#fff'],
+            min: 'auto' as const,
+            max: 'auto' as const,
+        },
+    };
+    const before = { ...base, configOptions: [declaration] };
+    const visible = {
+        ...base,
+        configOptions: [{ ...declaration, showBounds: true }],
+    };
+    const hidden = {
+        ...base,
+        configOptions: [{ ...declaration, showBounds: false }],
+    };
+    expect(
+        hasDataAppVizSchemaChanges(diffDataAppVizSchema(before, visible)),
+    ).toBe(false);
+    expect(diffDataAppVizSchema(before, hidden).configOptions.changed).toEqual([
+        { before: declaration, after: hidden.configOptions[0] },
+    ]);
+});
