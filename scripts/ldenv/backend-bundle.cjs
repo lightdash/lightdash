@@ -63,7 +63,7 @@ async function createBackendBuilder({
         tsconfig: tsconfigPath,
         keepNames: true,
         sourcemap: 'linked',
-        sourcesContent: true,
+        sourcesContent: false,
         write: false,
         metafile: true,
         logLevel: 'silent',
@@ -103,7 +103,7 @@ async function createBackendBuilder({
                                 tsconfigRaw: tsconfig.config,
                                 keepNames: true,
                                 sourcemap: 'inline',
-                                sourcesContent: true,
+                                sourcesContent: false,
                                 define: {
                                     __dirname: JSON.stringify(
                                         path.dirname(filename),

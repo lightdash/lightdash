@@ -121,7 +121,18 @@ async function main(): Promise<void> {
     process.once('SIGINT', () => void close(0));
     process.once('SIGTERM', () => void close(0));
     await publish();
-    builder = await createBackendBuilder({ root, outDir, onBuild: enqueue });
+    const previousGoMemoryLimit = process.env.GOMEMLIMIT;
+    process.env.GOMEMLIMIT = '512MiB';
+    try {
+        builder = await createBackendBuilder({
+            root,
+            outDir,
+            onBuild: enqueue,
+        });
+    } finally {
+        if (previousGoMemoryLimit === undefined) delete process.env.GOMEMLIMIT;
+        else process.env.GOMEMLIMIT = previousGoMemoryLimit;
+    }
     try {
         await builder.watch();
         for (const file of sentinels) {
