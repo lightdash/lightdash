@@ -30,6 +30,10 @@ vi.mock('react-router', () => ({
     useNavigate: () => navigate,
 }));
 
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastApiError: vi.fn() }),
+}));
+
 vi.mock('@tanstack/react-query', () => ({
     useMutation: () => ({ mutate: openInCopy, isLoading: false }),
     useQueryClient: () => ({ invalidateQueries: vi.fn() }),

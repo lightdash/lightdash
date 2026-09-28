@@ -368,8 +368,14 @@ const onboardingModel = {
         ) => callback({}),
     ),
     runInTrainingCopyLock: vi.fn(
-        async (_userUuid: string, callback: () => Promise<unknown>) =>
-            callback(),
+        async (
+            _lock: {
+                userUuid: string;
+                organizationUuid: string;
+                maxConcurrentPerOrganization: number;
+            },
+            callback: () => Promise<unknown>,
+        ) => callback(),
     ),
 };
 const savedChartModel = {
