@@ -1,6 +1,7 @@
 import { ChartType, type DocumentCell } from '@lightdash/common';
 import { Editor } from '@tiptap/core';
 import { GapCursor } from '@tiptap/pm/gapcursor';
+import { TextSelection } from '@tiptap/pm/state';
 import { getDocumentCells } from './documentCells';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
@@ -159,5 +160,84 @@ describe('writing around charts', () => {
             markdown('After'),
         ]);
         editor.destroy();
+    });
+});
+
+describe('markdown tables', () => {
+    const table =
+        '| Status | Orders | Note |\n| :--- | ---: | :---: |\n| completed | 97 | ok |';
+
+    const caretAfter = (editor: ReturnType<typeof load>, text: string) => {
+        let position = -1;
+        editor.state.doc.descendants((node, offset) => {
+            if (node.isText && node.text === text) {
+                position = offset + text.length;
+            }
+        });
+        editor.view.dispatch(
+            editor.state.tr.setSelection(
+                TextSelection.create(editor.state.doc, position),
+            ),
+        );
+    };
+
+    it('keeps column alignment across a save', () => {
+        const editor = load([markdown(table)]);
+        expect(getDocumentCells(editor)).toStrictEqual([markdown(table)]);
+        editor.destroy();
+    });
+
+    it('keeps the table and its text when Enter splits a cell', () => {
+        const editor = load([markdown(table)]);
+        caretAfter(editor, 'completed');
+        editor.commands.keyboardShortcut('Enter');
+        editor.commands.insertContent('late');
+        expect(getDocumentCells(editor)).toStrictEqual([
+            markdown(
+                '| Status | Orders | Note |\n| :--- | ---: | :---: |\n| completed late | 97 | ok |',
+            ),
+        ]);
+        editor.destroy();
+    });
+
+    it('writes a line break inside a cell as a space', () => {
+        const editor = load([markdown(table)]);
+        caretAfter(editor, 'ok');
+        editor.commands.setHardBreak();
+        editor.commands.insertContent('checked');
+        const [cell] = getDocumentCells(editor);
+        expect(cell).toStrictEqual(
+            markdown(
+                '| Status | Orders | Note |\n| :--- | ---: | :---: |\n| completed | 97 | ok checked |',
+            ),
+        );
+        editor.destroy();
+    });
+
+    it('flattens a list typed into a cell instead of dropping the table', () => {
+        const editor = load([markdown(table)]);
+        caretAfter(editor, 'ok');
+        editor.commands.keyboardShortcut('Enter');
+        editor.commands.insertContent('- first');
+        const [cell] = getDocumentCells(editor);
+        expect(cell.type).toBe('markdown');
+        const text = cell.type === 'markdown' ? cell.content.markdown : '';
+        expect(text).not.toContain('[table]');
+        expect(text).toContain('| completed | 97 | ok first |');
+        editor.destroy();
+    });
+
+    it('escapes a pipe typed into a cell and keeps empty cells', () => {
+        const editor = load([markdown('| A | B |\n| --- | --- |\n| x |  |')]);
+        caretAfter(editor, 'x');
+        editor.commands.insertContent('|y');
+        const reloaded = load(getDocumentCells(editor));
+        const cells: string[] = [];
+        reloaded.state.doc.descendants((node) => {
+            if (node.type.name === 'tableCell') cells.push(node.textContent);
+        });
+        expect(cells).toStrictEqual(['x|y', '']);
+        editor.destroy();
+        reloaded.destroy();
     });
 });

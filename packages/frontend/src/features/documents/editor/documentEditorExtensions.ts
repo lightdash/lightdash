@@ -8,6 +8,7 @@ import { SlashCommand } from '../../../ee/features/homepageBuilder/blocks/markdo
 import { DocumentChartNode, type EditChartHandler } from './documentChartNode';
 import { DocumentHeadingIds } from './DocumentHeadingIds';
 import { createDocumentSlashCommandItems } from './documentSlashCommandItems';
+import { DocumentTable } from './documentTableMarkdown';
 import { EmptyLineCleanup } from './emptyLineCleanup';
 
 export type DocumentEditorExtensionOptions = {
@@ -28,7 +29,8 @@ export const createDocumentEditorExtensions = ({
         // Reading never needs a caret landing spot after the last block
         trailingNode: editing ? undefined : false,
     }),
-    TableKit.configure({ table: { resizable: false } }),
+    TableKit.configure({ table: false }),
+    DocumentTable.configure({ resizable: false }),
     Markdown.configure({
         html: false,
         transformPastedText: true,
