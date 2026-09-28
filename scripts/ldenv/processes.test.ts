@@ -22,6 +22,7 @@ import {
     startProcesses,
     checkClaimEndpoints,
     checkForegroundReady,
+    checkBasicReady,
     paintVerificationUpdate,
     claimVerificationUpdate,
     verifyClaim,
@@ -30,6 +31,41 @@ import {
     startClaimApi,
     type ProcessInfo,
 } from './processes';
+
+test('basic readiness needs only API health and a frontend response', async () => {
+    const api = createServer((_request, response) => {
+        response.writeHead(200).end('healthy');
+    });
+    const frontend = createServer((_request, response) => {
+        response.writeHead(200).end('<html>app</html>');
+    });
+    await Promise.all([
+        new Promise<void>((resolve) => api.listen(0, resolve)),
+        new Promise<void>((resolve) => frontend.listen(0, resolve)),
+    ]);
+    try {
+        const instance = newInstance('/tmp/ldenv-basic-ready', 'a'.repeat(40));
+        instance.ports = {
+            pg: 0,
+            api: (api.address() as { port: number }).port,
+            frontend: (frontend.address() as { port: number }).port,
+            scheduler: 0,
+            debug: 0,
+            sdkTest: 0,
+            maple: 0,
+            prometheus: 0,
+        };
+        await checkBasicReady(instance);
+        assert.equal(typeof instance.timings.frontendResponse, 'number');
+        assert.equal(instance.timings.chart, undefined);
+        assert.equal(instance.timings.viteWarmWait, undefined);
+    } finally {
+        await Promise.all([
+            new Promise<void>((resolve) => api.close(() => resolve())),
+            new Promise<void>((resolve) => frontend.close(() => resolve())),
+        ]);
+    }
+});
 
 function claimAttempt(): Instance {
     const instance = newInstance(
@@ -399,7 +435,7 @@ test('foreground readiness checks health, frontend HTTP and authenticated chart 
     let chartStatus = 200;
     let chartRows: unknown[] = [{ id: 1 }];
     let token = 'test-token';
-    let rootStatus = 200;
+    let loginStatus = 200;
     const server = createServer((request, response) => {
         if (request.url === `/api/v1/saved/${chart}/results`) {
             response.statusCode =
@@ -414,7 +450,7 @@ test('foreground readiness checks health, frontend HTTP and authenticated chart 
             );
             return;
         }
-        response.statusCode = request.url === '/' ? rootStatus : 200;
+        response.statusCode = request.url === '/login' ? loginStatus : 200;
         response.end('ok');
     });
     const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-foreground-'));
@@ -447,18 +483,12 @@ test('foreground readiness checks health, frontend HTTP and authenticated chart 
             /Seeded chart query did not return rows/,
         );
         chartStatus = 200;
-        const recipe = await readFile(path.join(root, 'rainbow.toml'), 'utf8');
-        assert(recipe.includes('routes = ["/", "/login"]'));
-        await writeFile(
-            path.join(root, 'rainbow.toml'),
-            recipe.replace('routes = ["/", "/login"]', 'routes = []'),
-        );
-        rootStatus = 503;
+        loginStatus = 503;
         await assert.rejects(
             checkForegroundReady(instance, async () => chart),
-            /Warm route \/ returned 503/,
+            /Warm route \/login returned 503/,
         );
-        rootStatus = 200;
+        loginStatus = 200;
         chartRows = [];
         await assert.rejects(
             checkForegroundReady(instance, async () => chart),

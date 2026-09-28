@@ -415,13 +415,7 @@ export async function checkForegroundReady(
 ): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
     const total = Date.now();
-    const started = Date.now();
-    await waitUntil(
-        () => health(instance.ports!.api),
-        120000,
-        'backend health',
-    );
-    instance.timings.backendHealth = Date.now() - started;
+    await checkBasicReady(instance);
     const env = await dotenv(
         path.join(instance.worktree, '.env.development.local'),
     );
@@ -471,6 +465,31 @@ export async function checkForegroundReady(
     );
     instance.timings.warm = Date.now() - warmStart;
     instance.timings.ready = Date.now() - total;
+}
+export async function checkBasicReady(instance: Instance): Promise<void> {
+    if (!instance.ports) throw new Error('Instance has no ports');
+    const started = Date.now();
+    await waitUntil(
+        () => health(instance.ports!.api),
+        120000,
+        'backend health',
+    );
+    instance.timings.backendHealth = Date.now() - started;
+    const frontendStarted = Date.now();
+    await waitUntil(async () => {
+        try {
+            const response = await fetch(
+                `http://localhost:${instance.ports!.frontend}/`,
+                { signal: AbortSignal.timeout(2000) },
+            );
+            if (!response.ok) return false;
+            await response.arrayBuffer();
+            return true;
+        } catch {
+            return false;
+        }
+    }, 120000, 'frontend response');
+    instance.timings.frontendResponse = Date.now() - frontendStarted;
 }
 export async function checkPaintReady(instance: Instance): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
@@ -576,8 +595,9 @@ export async function stableReady(
     instance: Instance,
     check: () => Promise<void>,
     operations = { waitForFrontend, settledApiGeneration },
+    waitForVite = true,
 ): Promise<void> {
-    await operations.waitForFrontend(instance);
+    if (waitForVite) await operations.waitForFrontend(instance);
     await stableReadiness(check, () =>
         operations.settledApiGeneration(instance),
     );
@@ -1064,7 +1084,12 @@ export async function finishStart(
         await Promise.all([apiHealth, compilers]);
         const laterStart = Date.now();
         if (instance.kind === 'worktree') {
-            await stableReady(instance, () => checkForegroundReady(instance));
+            await stableReady(
+                instance,
+                () => checkBasicReady(instance),
+                undefined,
+                false,
+            );
             markReady(instance, false);
         } else await ready(instance);
         const published = inlineBackgroundVerification
@@ -1079,13 +1104,13 @@ export async function finishStart(
         const tailFailure = await collectStartTail(instance, env, laterStart);
         if (inlineBackgroundVerification) {
             await mergeMonitorTail(instance);
-            if (instance.kind === 'worktree') await verifyPaint(published!);
+            if (instance.kind === 'worktree') await verifyClaim(published!);
         } else await saveInstance(instance);
         if (!inlineBackgroundVerification && instance.kind === 'worktree') {
             try {
                 instance.monitorPid = await background(
-                    ['verify-paint', instance.id],
-                    `${instance.id}-paint-verifier`,
+                    ['verify', instance.id],
+                    `${instance.id}-verifier`,
                 );
                 await saveInstance(instance);
             } catch (error) {
@@ -1095,7 +1120,7 @@ export async function finishStart(
                 instance.phase = 'degraded';
                 instance.error = [
                     instance.error,
-                    `Background paint verification failed: ${failure}`,
+                    `Background readiness verification failed: ${failure}`,
                 ]
                     .filter(Boolean)
                     .join('; ');
