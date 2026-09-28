@@ -25,7 +25,7 @@ import { type ShareModel } from '../../models/ShareModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { UnfurlService } from './UnfurlService';
+import { expandViewportToDashboardGrid, UnfurlService } from './UnfurlService';
 
 const playwrightMocks = vi.hoisted(() => ({
     connectOverCDP: vi.fn(),
@@ -1370,5 +1370,81 @@ describe('UnfurlService', () => {
             expect(result.resourceUuid).toBe(SQL_CHART_UUID);
             expect(getByUuid).toHaveBeenCalledWith(SQL_CHART_UUID);
         });
+    });
+});
+
+describe('expandViewportToDashboardGrid', () => {
+    const createPage = (
+        box: { x: number; y: number; width: number; height: number } | null,
+        viewportHeight = 768,
+    ) => {
+        const grid = {
+            waitFor: vi.fn().mockResolvedValue(undefined),
+            boundingBox: vi.fn().mockResolvedValue(box),
+        };
+        const page = {
+            locator: vi.fn().mockReturnValue({
+                first: vi.fn().mockReturnValue(grid),
+            }),
+            setViewportSize: vi.fn().mockResolvedValue(undefined),
+            viewportSize: vi
+                .fn()
+                .mockReturnValue({ width: 1400, height: viewportHeight }),
+        };
+        return { page, grid };
+    };
+
+    it('grows the viewport to the bottom of the dashboard grid', async () => {
+        const { page, grid } = createPage({
+            x: 0,
+            y: 40.5,
+            width: 1400,
+            height: 1000,
+        });
+
+        const height = await expandViewportToDashboardGrid(
+            page as never,
+            1400,
+            5_000,
+        );
+
+        expect(page.locator).toHaveBeenCalledWith(
+            SCREENSHOT_SELECTORS.DASHBOARD_GRID,
+        );
+        expect(grid.waitFor).toHaveBeenCalledWith({
+            state: 'attached',
+            timeout: 5_000,
+        });
+        expect(height).toBe(1041);
+        expect(page.setViewportSize).toHaveBeenCalledWith({
+            width: 1400,
+            height: 1041,
+        });
+    });
+
+    it('leaves the viewport alone when the grid already fits', async () => {
+        const { page } = createPage({ x: 0, y: 40, width: 1400, height: 500 });
+
+        const height = await expandViewportToDashboardGrid(
+            page as never,
+            1400,
+            5_000,
+        );
+
+        expect(height).toBeUndefined();
+        expect(page.setViewportSize).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the grid has no layout box', async () => {
+        const { page } = createPage(null);
+
+        const height = await expandViewportToDashboardGrid(
+            page as never,
+            1400,
+            5_000,
+        );
+
+        expect(height).toBeUndefined();
+        expect(page.setViewportSize).not.toHaveBeenCalled();
     });
 });

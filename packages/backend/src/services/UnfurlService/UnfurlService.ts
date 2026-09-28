@@ -288,6 +288,32 @@ const getAppBrowserEndpoint = (
     return endpoint.toString();
 };
 
+/**
+ * Grow the viewport to cover the whole dashboard grid before waiting for the
+ * ready indicator. Chromium stops running animation frames in cross-origin
+ * iframes outside the viewport, so a custom chart tile below the fold never
+ * acknowledges its render and holds the ready indicator back. Grid height is
+ * fixed by the layout, so it is known before any tile has loaded.
+ *
+ * Returns the new viewport height, or undefined when the grid already fits.
+ */
+export const expandViewportToDashboardGrid = async (
+    page: Pick<Page, 'locator' | 'setViewportSize' | 'viewportSize'>,
+    width: number,
+    timeoutMs: number,
+): Promise<number | undefined> => {
+    const grid = page.locator(SCREENSHOT_SELECTORS.DASHBOARD_GRID).first();
+    await grid.waitFor({ state: 'attached', timeout: timeoutMs });
+    const box = await grid.boundingBox({ timeout: timeoutMs });
+    if (!box) return undefined;
+
+    const gridBottom = Math.ceil(box.y + box.height);
+    if (gridBottom <= (page.viewportSize()?.height ?? 0)) return undefined;
+
+    await page.setViewportSize({ width, height: gridBottom });
+    return gridBottom;
+};
+
 const isBrowserQueueFullError = (error: unknown): boolean => {
     const message = getErrorMessage(error);
     return (
@@ -2112,6 +2138,29 @@ export class UnfurlService extends BaseService {
                             APP_ANIMATION_BUFFER_MS,
                         );
                     } else {
+                        if (lightdashPage === LightdashPage.DASHBOARD) {
+                            try {
+                                const expandedHeight =
+                                    await expandViewportToDashboardGrid(
+                                        page,
+                                        gridWidth ?? viewport.width,
+                                        this.screenshotTimeoutMs,
+                                    );
+                                if (expandedHeight) {
+                                    this.logger.info(
+                                        `Expanded viewport to dashboard grid height ${expandedHeight}px before ready wait - unfurlId: ${imageId}`,
+                                    );
+                                }
+                            } catch (expandError) {
+                                // Best effort: the ready wait below still
+                                // runs and reports which tiles never settled.
+                                this.logger.warn(
+                                    `Could not expand viewport to dashboard grid before ready wait - unfurlId: ${imageId}, error: ${getErrorMessage(
+                                        expandError,
+                                    )}`,
+                                );
+                            }
+                        }
                         this.logger.info(
                             `Waiting for screenshot ready indicator - unfurlId: ${imageId}`,
                         );
