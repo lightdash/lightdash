@@ -1,3 +1,11 @@
+# [2.354.0](https://github.com/lightdash/lightdash/compare/2.353.0...2.354.0) (2026-09-28)
+
+
+### Features
+
+* **documents:** create Documents from scratch ([#30065](https://github.com/lightdash/lightdash/issues/30065)) ([dd4c3b8](https://github.com/lightdash/lightdash/commit/dd4c3b8960f5912b748ad9490e25205b7c5d2446)), closes [#30051](https://github.com/lightdash/lightdash/issues/30051) [#30051](https://github.com/lightdash/lightdash/issues/30051) [#30039](https://github.com/lightdash/lightdash/issues/30039)
+* **documents:** drag to reorder charts in the editor ([#30066](https://github.com/lightdash/lightdash/issues/30066)) ([7033ce6](https://github.com/lightdash/lightdash/commit/7033ce6edbe3f5d5c7ca022a64a47f7e8040bfd4)), closes [#30065](https://github.com/lightdash/lightdash/issues/30065)
+
 # [2.353.0](https://github.com/lightdash/lightdash/compare/2.352.7...2.353.0) (2026-09-28)
 
 
