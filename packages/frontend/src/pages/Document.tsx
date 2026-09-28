@@ -3,31 +3,88 @@ import {
     type Document,
     type UuidOrSlug,
 } from '@lightdash/common';
-import { ActionIcon, Button } from '@mantine/core';
+import { ActionIcon, Button, Tooltip } from '@mantine/core';
+import { IconPencil } from '@tabler/icons-react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
+import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DocumentActions from '../features/documents/DocumentActions';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
 import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
+import { useCanEditDocument } from '../features/documents/useCanEditDocument';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
-const DocumentWorkspace = ({ document }: { document: Document }) => (
-    <DocumentPageLayout name={document.name}>
-        <DocumentRenderer
-            document={document}
-            actions={
-                <ActionIcon.Group role="group" aria-label="Document controls">
-                    <DocumentActions document={document} />
-                </ActionIcon.Group>
-            }
-        />
-    </DocumentPageLayout>
+const DocumentEditor = lazy(
+    () => import('../features/documents/DocumentEditor'),
 );
+
+const DocumentWorkspace = ({ document }: { document: Document }) => {
+    const [editingDocument, setEditingDocument] = useState<Document | null>(
+        null,
+    );
+    const canEdit = useCanEditDocument(document);
+    // Reading and editing are separate layouts; carry the scroll offset across
+    const scrollTop = useRef(0);
+    const [openAt, setOpenAt] = useState(0);
+    const trackScroll = (top: number) => {
+        scrollTop.current = top;
+    };
+    if (editingDocument && canEdit) {
+        return (
+            <Suspense
+                fallback={<EmptyStateLoader my="xl" title="Loading editor" />}
+            >
+                <DocumentEditor
+                    document={editingDocument}
+                    initialScrollTop={openAt}
+                    onScrollTopChange={trackScroll}
+                    onClose={() => {
+                        setOpenAt(scrollTop.current);
+                        setEditingDocument(null);
+                    }}
+                />
+            </Suspense>
+        );
+    }
+    return (
+        <DocumentPageLayout name={document.name}>
+            <DocumentRenderer
+                document={document}
+                initialScrollTop={openAt}
+                onScrollTopChange={trackScroll}
+                actions={
+                    <ActionIcon.Group
+                        role="group"
+                        aria-label="Document controls"
+                    >
+                        {canEdit && (
+                            <Tooltip label="Edit document">
+                                <ActionIcon
+                                    variant="default"
+                                    size="lg"
+                                    aria-label="Edit document"
+                                    onClick={() => {
+                                        setOpenAt(scrollTop.current);
+                                        setEditingDocument(document);
+                                    }}
+                                >
+                                    <MantineIcon icon={IconPencil} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <DocumentActions document={document} />
+                    </ActionIcon.Group>
+                }
+            />
+        </DocumentPageLayout>
+    );
+};
 
 const DocumentContent = ({
     projectUuid,

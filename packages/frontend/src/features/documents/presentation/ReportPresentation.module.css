@@ -315,6 +315,16 @@
     flex: 0 0 auto !important;
 }
 
+/* Inert controls keep the group's surface and only dim the glyph */
+.quietDisabled {
+    &:disabled,
+    &[data-disabled] {
+        border-color: var(--mantine-color-default-border);
+        background-color: var(--mantine-color-default);
+        color: var(--mantine-color-dimmed);
+    }
+}
+
 .documentLayout {
     grid-template-columns: 16rem minmax(0, 1fr);
     width: 100%;
@@ -397,6 +407,20 @@
         line-height: var(--mantine-h1-line-height);
         letter-spacing: -0.02em;
         overflow-wrap: anywhere;
+    }
+
+    /* The editable title renders exactly like the reading title; doubled to
+       outrank Mantine's input, whose wrapper would otherwise set line height */
+    .titleInput.titleInput {
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        letter-spacing: inherit;
+        line-height: var(--mantine-h1-line-height);
+        resize: none;
     }
 
     .reportActions {
@@ -587,6 +611,78 @@
 
             > :global(.tableWrapper) tr:last-child td {
                 border-bottom: 0;
+            }
+
+            /* Editing affordances: a generous click target, placeholder and
+               selected table cells */
+            &[contenteditable='true'] {
+                position: relative;
+                min-height: calc(var(--mantine-spacing-9xl) * 2);
+                cursor: text;
+            }
+
+            /* Where text will go between or around charts: it opens an empty
+               line with the usual block spacing, showing a caret and the
+               writing hint. flow-root keeps margins from collapsing through */
+            > :global(.ProseMirror-gapcursor) {
+                position: relative;
+                width: 100%;
+                height: 1.5em;
+                margin: var(--mantine-spacing-xl) 0 0;
+            }
+
+            > :global(.ProseMirror-gapcursor):first-child {
+                margin-top: 0;
+            }
+
+            &:global(.ProseMirror-focused) > :global(.ProseMirror-gapcursor) {
+                display: flow-root;
+            }
+
+            > :global(.ProseMirror-gapcursor)::before,
+            > :global(.ProseMirror-gapcursor)::after {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 1.5em;
+            }
+
+            > :global(.ProseMirror-gapcursor)::before {
+                content: "Write something, or type '/' for blocks…";
+                color: var(--mantine-color-placeholder);
+                line-height: 1.5em;
+                white-space: nowrap;
+                pointer-events: none;
+            }
+
+            > :global(.ProseMirror-gapcursor)::after {
+                width: 0;
+                border-top: 0;
+                border-left: 1px solid var(--mantine-color-text);
+            }
+
+            /* The hint follows the cursor into any empty paragraph, so the
+               lines kept around charts are discoverable */
+            > :global(.is-editor-empty:first-child)::before,
+            > p:global(.is-empty)::before {
+                content: attr(data-placeholder);
+                float: left;
+                height: 0;
+                color: var(--mantine-color-placeholder);
+                pointer-events: none;
+            }
+
+            :global(.selectedCell)::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: var(--mantine-color-default-hover);
+                pointer-events: none;
+            }
+
+            td,
+            th {
+                position: relative;
             }
         }
     }

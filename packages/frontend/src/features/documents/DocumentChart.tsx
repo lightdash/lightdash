@@ -1,4 +1,5 @@
 import { ChartType, type DocumentCell } from '@lightdash/common';
+import { type ReactNode } from 'react';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import DocumentChartExploreButton from './DocumentChartExploreButton';
@@ -13,6 +14,8 @@ type Props = {
     cellIndex: number;
     cell: Extract<DocumentCell, { type: 'chart' }>;
     showTitle?: boolean;
+    /** Replaces the Explore button, e.g. with editing controls. */
+    actions?: ReactNode;
 };
 
 const DocumentChart = ({
@@ -23,6 +26,7 @@ const DocumentChart = ({
     cellIndex,
     cell,
     showTitle = false,
+    actions,
 }: Props) => {
     const { chart } = cell.content;
     const authoringEnabled = useContentAuthoringEnabled();
@@ -41,7 +45,8 @@ const DocumentChart = ({
             showTitle={showTitle}
             query={query}
             actions={
-                cell.content.source === 'semantic' &&
+                actions ??
+                (cell.content.source === 'semantic' &&
                 chart.chartConfig.type !== ChartType.DATA_APP_VIZ &&
                 authoringEnabled &&
                 canViewExplore &&
@@ -59,7 +64,7 @@ const DocumentChart = ({
                             },
                         }}
                     />
-                ) : null
+                ) : null)
             }
         />
     );

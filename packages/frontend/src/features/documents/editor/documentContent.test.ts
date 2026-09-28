@@ -35,7 +35,7 @@ const markdown = (text: string): DocumentCell => ({
 const createEditor = () =>
     new Editor({
         editable: false,
-        extensions: createDocumentEditorExtensions(),
+        extensions: createDocumentEditorExtensions({ projectUuid: 'project' }),
     });
 
 const load = (cells: DocumentCell[]) => {
