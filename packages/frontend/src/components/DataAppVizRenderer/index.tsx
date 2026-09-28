@@ -4,6 +4,7 @@ import {
     deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     hasCustomBinDimension,
+    MERGE_TABLE_NAME,
     type ApiError,
     type DataAppVizContext,
     type ItemsMap,
@@ -32,8 +33,13 @@ import {
     useDataAppVizRenderMetadata,
 } from '../../features/chartTypes/hooks/useDataAppVizRender';
 import { useDataAppVizResolvedColors } from '../../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import { useVizSubtotalSource } from '../../features/chartTypes/hooks/useVizSubtotalSource';
 import { reconcileDataAppVizFieldMapping } from '../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { captureChartTypeError } from '../../features/chartTypes/utils/captureChartTypeError';
+import {
+    getVizHierarchyDimensions,
+    hasVizSubtotalValues,
+} from '../../features/chartTypes/utils/vizSubtotals';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
@@ -290,6 +296,32 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 : undefined,
         [fields, itemsMap, fieldMapping],
     );
+    // The backend refuses column subtotals over merged results.
+    const isMergedResult =
+        resultsData?.metricQuery?.exploreName === MERGE_TABLE_NAME;
+    const hierarchyDimensions = useMemo(
+        () =>
+            reconciledFieldMapping &&
+            !isMergedResult &&
+            hasVizSubtotalValues(itemsMap ?? EMPTY_ITEMS_MAP)
+                ? getVizHierarchyDimensions(
+                      readyMetadata?.schema,
+                      reconciledFieldMapping,
+                  )
+                : null,
+        [
+            readyMetadata?.schema,
+            reconciledFieldMapping,
+            isMergedResult,
+            itemsMap,
+        ],
+    );
+    const subtotalSource = useVizSubtotalSource({
+        projectUuid,
+        sourceQueryUuid,
+        dimensions: hierarchyDimensions,
+    });
+    const subtotalDimensions = subtotalSource?.dimensions ?? null;
     const resolvedColors = useDataAppVizResolvedColors({
         itemsMap: itemsMap ?? EMPTY_ITEMS_MAP,
         rows: rows ?? EMPTY_ROWS,
@@ -521,7 +553,9 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             },
             drillDown: { enabled: drillDownEnabled },
             pointMenu: { enabled: pointMenuEnabled },
-            subtotals: { enabled: false, dimensions: [] },
+            subtotals: subtotalDimensions
+                ? { enabled: true, dimensions: subtotalDimensions }
+                : { enabled: false, dimensions: [] },
         };
     }, [
         reconciledFieldMapping,
@@ -532,6 +566,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         colorPalette,
         resolvedColors,
         pivotDetails,
+        subtotalDimensions,
         underlyingDataEnabled,
         underlyingDataOpenEnabled,
         drillDownEnabled,
@@ -831,6 +866,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     onVizUnderlyingDataIntent={onVizUnderlyingDataIntent}
                     onVizDrillDownIntent={onVizDrillDownIntent}
                     onVizPointMenuIntent={onVizPointMenuIntent}
+                    onVizSubtotalsIntent={subtotalSource?.get}
                 />
             </Box>
             {pointMenuState && (
