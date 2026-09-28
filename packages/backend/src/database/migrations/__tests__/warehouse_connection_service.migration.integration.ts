@@ -393,9 +393,16 @@ describe('WarehouseConnectionService on the real schema', () => {
                     name: 'Finance',
                 });
                 expect(await countConnections(fixture.projectUuid)).toBe(2);
-                expect(vi.mocked(analytics.track)).not.toHaveBeenCalledWith(
+                expect(vi.mocked(analytics.track)).toHaveBeenCalledWith(
                     expect.objectContaining({
                         event: 'warehouse_connection.added',
+                        properties: expect.objectContaining({
+                            organizationId: fixture.organizationUuid,
+                            projectId: fixture.projectUuid,
+                            warehouseConnectionId: expect.any(String),
+                            connectionKind: 'extra',
+                            connectionCount: null,
+                        }),
                     }),
                 );
             } finally {

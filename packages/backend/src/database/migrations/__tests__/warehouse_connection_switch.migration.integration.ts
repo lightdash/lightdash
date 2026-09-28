@@ -734,7 +734,7 @@ describe('Enable multiple connections on the real schema', () => {
                     connectionCount: 2,
                     listAllDatabases: false,
                     additionalDatabaseCount: 0,
-                    originalContentCount: 0,
+                    originalContentCount: 1,
                     personalCredentialsUserCount: 0,
                 },
             });
@@ -790,7 +790,20 @@ describe('Enable multiple connections on the real schema', () => {
                     .first(),
             ).toEqual(credentialsBefore);
             expect(logAuditEvent).not.toHaveBeenCalled();
-            expect(analytics.track).not.toHaveBeenCalled();
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'warehouse_connection.test_completed',
+                    properties: expect.objectContaining({
+                        operation: 'switch',
+                        result: 'success',
+                    }),
+                }),
+            );
+            expect(analytics.track).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'warehouse_connections.switched_to_multi',
+                }),
+            );
         });
 
         test('a failed connection test writes nothing', async () => {
