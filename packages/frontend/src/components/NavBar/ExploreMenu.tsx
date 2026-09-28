@@ -3,6 +3,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
     IconAppWindow,
+    IconFileText,
     IconFolder,
     IconFolderPlus,
     IconLayoutDashboard,
@@ -12,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import DocumentCreateModal from '../../features/documents/DocumentCreateModal';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useCreateInAnySpaceAccess from '../../hooks/user/useCreateInAnySpaceAccess';
@@ -46,13 +48,20 @@ const ExploreMenu: FC<Props> = memo((props) => {
 
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] = useState(false);
+    const [isCreateDocumentOpen, setIsCreateDocumentOpen] = useState(false);
     const userCanCreateDashboards = useCreateInAnySpaceAccess(
         projectUuid,
         'Dashboard',
+        { enabled: isOpen },
+    );
+    const userCanCreateDocuments = useCreateInAnySpaceAccess(
+        projectUuid,
+        'Document',
         { enabled: isOpen },
     );
 
@@ -155,6 +164,20 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             />
                         )}
 
+                        {contentAuthoringEnabled &&
+                            documentsFlag.data?.enabled &&
+                            userCanCreateDocuments && (
+                                <LargeMenuItem
+                                    title="Document"
+                                    description="Write up analysis with live charts."
+                                    onClick={() =>
+                                        setIsCreateDocumentOpen(true)
+                                    }
+                                    icon={IconFileText}
+                                    data-testid="ExploreMenu/NewDocumentButton"
+                                />
+                            )}
+
                         {dataAppsFlag.data?.enabled && (
                             <Can
                                 I="create"
@@ -212,6 +235,15 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 );
                         }}
                         parentSpaceUuid={null}
+                    />
+                </AppColorSchemeScope>
+            )}
+            {isCreateDocumentOpen && (
+                <AppColorSchemeScope>
+                    <DocumentCreateModal
+                        projectUuid={projectUuid}
+                        defaultSpaceUuid={null}
+                        onClose={() => setIsCreateDocumentOpen(false)}
                     />
                 </AppColorSchemeScope>
             )}

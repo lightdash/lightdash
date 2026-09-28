@@ -193,3 +193,22 @@ describe('pasted chart HTML', () => {
         expect(parsedContent(attribute)).toBeNull();
     });
 });
+
+describe('empty documents', () => {
+    it('loads an empty version into a valid, editable document', () => {
+        const editor = new Editor({
+            extensions: createDocumentEditorExtensions({
+                projectUuid: 'project',
+                editing: { onInsertChart: null, onEditChart: null },
+            }),
+        });
+        editor.commands.setContent(buildDocumentContent(editor, []), {
+            emitUpdate: false,
+        });
+        expect(editor.state.doc.childCount).toBeGreaterThan(0);
+        expect(editor.state.doc.firstChild?.type.name).toBe('paragraph');
+        editor.commands.insertContent('First words');
+        expect(editor.state.doc.textContent).toBe('First words');
+        editor.destroy();
+    });
+});

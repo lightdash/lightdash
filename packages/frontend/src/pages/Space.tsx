@@ -35,6 +35,7 @@ import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateRes
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import DocumentCreateModal from '../features/documents/DocumentCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../hooks/useContent';
 import { useContentAuthoringEnabled } from '../hooks/useContentAuthoringEnabled';
@@ -93,6 +94,8 @@ const Space: FC = () => {
     ] = useDisclosure(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
+    const [isCreateDocumentOpen, setIsCreateDocumentOpen] =
+        useState<boolean>(false);
     const [isCreateNestedSpaceOpen, setIsCreateNestedSpaceOpen] =
         useState<boolean>(false);
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
@@ -137,6 +140,10 @@ const Space: FC = () => {
         'create',
         subject('SavedChart', { ...space }),
     );
+
+    const userCanCreateDocuments =
+        documentsEnabled &&
+        user.data?.ability?.can('create', subject('Document', { ...space }));
 
     // Data apps have a project-level `create:DataApp` scope (no @space variant
     // for create), so we combine it with `manage:DataApp` against the space —
@@ -273,7 +280,8 @@ const Space: FC = () => {
                             {!isDemo &&
                                 ((contentAuthoringEnabled &&
                                     (userCanCreateDashboards ||
-                                        userCanCreateCharts)) ||
+                                        userCanCreateCharts ||
+                                        userCanCreateDocuments)) ||
                                     userCanCreateDataApps ||
                                     userCanManageSpace) && (
                                     <Menu
@@ -352,6 +360,24 @@ const Space: FC = () => {
                                                     }}
                                                 >
                                                     Create new chart
+                                                </Menu.Item>
+                                            ) : null}
+
+                                            {contentAuthoringEnabled &&
+                                            userCanCreateDocuments ? (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconPlus}
+                                                        />
+                                                    }
+                                                    onClick={() => {
+                                                        setIsCreateDocumentOpen(
+                                                            true,
+                                                        );
+                                                    }}
+                                                >
+                                                    Create new document
                                                 </Menu.Item>
                                             ) : null}
 
@@ -530,6 +556,14 @@ const Space: FC = () => {
                             setIsCreateDashboardOpen(false);
                         }}
                     />
+
+                    {isCreateDocumentOpen && (
+                        <DocumentCreateModal
+                            projectUuid={projectUuid}
+                            defaultSpaceUuid={space.uuid}
+                            onClose={() => setIsCreateDocumentOpen(false)}
+                        />
+                    )}
 
                     {isCreateNestedSpaceOpen && (
                         <SpaceActionModal
