@@ -86,6 +86,22 @@ describe('getDocumentCells', () => {
         editor.destroy();
     });
 
+    it.each([
+        'Ends with a backslash \\',
+        'Two backslashes \\\\ inside',
+        'Stars * and _underscores_ and <angle> brackets',
+        'Price is $5 and 100% and a # not heading',
+    ])('keeps %s stable across a second round-trip', (text) => {
+        const first = load([markdown(text)]);
+        const once = getDocumentCells(first);
+        first.destroy();
+        const second = load(once);
+        const twice = getDocumentCells(second);
+        second.destroy();
+        expect(twice).toStrictEqual(once);
+        expect(second.state.doc.textContent).toBe(first.state.doc.textContent);
+    });
+
     it('returns no cells for an empty document', () => {
         const editor = load([]);
         expect(getDocumentCells(editor)).toStrictEqual([]);
