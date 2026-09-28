@@ -195,6 +195,9 @@ describe('Document page', () => {
         expect(
             await screen.findByRole('button', { name: 'Edit document' }),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /^Drag chart/ }),
+        ).not.toBeInTheDocument();
     });
     beforeEach(() => {
         mocks.chartFails = false;

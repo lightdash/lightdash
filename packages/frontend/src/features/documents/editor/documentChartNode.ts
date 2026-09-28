@@ -3,6 +3,7 @@ import { Node } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import DocumentChartNodeView from './DocumentChartNodeView';
+import { moveTopLevelNode, type MoveDirection } from './moveTopLevelNode';
 
 export const DOCUMENT_CHART_NODE = 'documentChart';
 
@@ -76,12 +77,13 @@ export const isEditableChart = (content: DocumentChartContent | null) =>
     content?.source === 'semantic' &&
     content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ;
 
+// No group: charts are only allowed at the document's top level (see
+// DocumentWithCharts), so they can never nest in tables, lists or quotes.
 export const DocumentChartNode = Node.create<DocumentChartNodeOptions>({
     name: DOCUMENT_CHART_NODE,
-    group: 'block',
     atom: true,
     selectable: true,
-    draggable: false,
+    draggable: true,
 
     addOptions() {
         return { onEditChart: null };
@@ -121,7 +123,26 @@ export const DocumentChartNode = Node.create<DocumentChartNodeOptions>({
     },
 
     addKeyboardShortcuts() {
+        const moveSelectedChart = (direction: MoveDirection) => {
+            const { state, view } = this.editor;
+            const { selection } = state;
+            if (
+                !this.editor.isEditable ||
+                !(selection instanceof NodeSelection) ||
+                selection.node.type.name !== this.name
+            ) {
+                return false;
+            }
+            const moved = moveTopLevelNode(state, selection.from, direction);
+            if (moved) {
+                view.dispatch(moved.tr);
+            }
+            // Handled at an edge too, so the browser does not select text
+            return true;
+        };
         return {
+            'Mod-Shift-ArrowUp': () => moveSelectedChart(-1),
+            'Mod-Shift-ArrowDown': () => moveSelectedChart(1),
             Enter: () => {
                 const { selection } = this.editor.state;
                 if (

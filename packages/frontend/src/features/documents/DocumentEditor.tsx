@@ -27,7 +27,10 @@ import MantineModal from '../../components/common/MantineModal';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import DocumentByline from './DocumentByline';
 import DocumentPageLayout from './DocumentPageLayout';
-import { getDocumentCells } from './editor/documentCells';
+import {
+    getDocumentCells,
+    getTopLevelInsertPosition,
+} from './editor/documentCells';
 import {
     DOCUMENT_CHART_NODE,
     isEditableChart,
@@ -35,6 +38,7 @@ import {
 } from './editor/documentChartNode';
 import { DocumentEditorProvider } from './editor/DocumentEditorContext';
 import { useDocumentEditor } from './editor/useDocumentEditor';
+import { useTopDropZone } from './editor/useTopDropZone';
 import { useTopGapClick } from './editor/useTopGapClick';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
 import styles from './presentation/ReportPresentation.module.css';
@@ -107,6 +111,7 @@ const DocumentEditor = ({
             : null,
     });
     useTopGapClick(editor);
+    useTopDropZone(editor);
     // The Edit button unmounts on entry, so place focus deliberately: an
     // empty document is ready to type into, otherwise Cancel takes Edit's spot
     const cancelRef = useRef<HTMLButtonElement>(null);
@@ -203,7 +208,10 @@ const DocumentEditor = ({
                 .chain()
                 .focus()
                 .insertContentAt(
-                    chartEditor.position ?? editor.state.selection.to,
+                    getTopLevelInsertPosition(
+                        editor.state.doc,
+                        chartEditor.position ?? editor.state.selection.to,
+                    ),
                     { type: DOCUMENT_CHART_NODE, attrs },
                 )
                 .run();

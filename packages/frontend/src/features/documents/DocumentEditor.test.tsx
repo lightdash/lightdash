@@ -502,3 +502,22 @@ it('puts the caret in the body of an empty document', async () => {
         expect(document.activeElement).toHaveClass('ProseMirror'),
     );
 });
+
+describe('drag handle', () => {
+    it('offers a drag handle on each chart while editing', async () => {
+        renderEditor();
+        const handle = await screen.findByRole('button', {
+            name: 'Drag chart Orders',
+        });
+        expect(handle).toHaveAttribute('draggable', 'true');
+        expect(handle).toHaveAttribute('data-drag-handle');
+    });
+
+    it('lets editors without Explore permission move charts', async () => {
+        mocks.canAuthorCharts = false;
+        renderEditor();
+        expect(
+            await screen.findByRole('button', { name: 'Drag chart Orders' }),
+        ).toBeInTheDocument();
+    });
+});
