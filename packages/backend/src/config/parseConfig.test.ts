@@ -40,6 +40,26 @@ beforeEach(() => {
     };
 });
 
+describe('underlying data dimension limit', () => {
+    it.each([
+        [undefined, 50],
+        ['100', 100],
+        ['', 50],
+    ])('parses %s as %s dimensions', (value, expected) => {
+        if (value !== undefined) {
+            process.env.LIGHTDASH_UNDERLYING_DATA_MAX_DIMENSIONS = value;
+        }
+        expect(parseConfig().query.underlyingDataMaxDimensions).toBe(expected);
+    });
+    it.each(['0', '-1', 'invalid', '9007199254740992'])(
+        'rejects an invalid dimension limit: %s',
+        (value) => {
+            process.env.LIGHTDASH_UNDERLYING_DATA_MAX_DIMENSIONS = value;
+            expect(() => parseConfig()).toThrow(ParseError);
+        },
+    );
+});
+
 describe('AI decision credentials', () => {
     it('disables decisions when no key is configured', () => {
         expect(parseConfig().ai.decisions.apiKey).toBeNull();
