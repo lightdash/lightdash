@@ -1766,6 +1766,9 @@ importers:
 
   packages/query-sdk:
     dependencies:
+      colorjs.io:
+        specifier: 0.5.2
+        version: 0.5.2
       react:
         specifier: ^18.x || ^19.x
         version: 19.3.0
