@@ -15,6 +15,7 @@ import {
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
+import { useHotkeys } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -153,6 +154,33 @@ export const HeaderEdit: FC = () => {
             onSave();
         }
     }, [hasErrors, config, sql, dispatch, onSave]);
+
+    const isAnyModalOpen =
+        isSaveModalOpen ||
+        isUpdateModalOpen ||
+        isDeleteModalOpen ||
+        isChartErrorsAlertOpen;
+
+    // Save on cmd/ctrl + s, including while the SQL editor is focused
+    useHotkeys(
+        [
+            [
+                'mod+s',
+                () => {
+                    if (
+                        config &&
+                        sql &&
+                        hasChanges &&
+                        !isLoading &&
+                        !isAnyModalOpen
+                    ) {
+                        onSaveClick();
+                    }
+                },
+            ],
+        ],
+        [],
+    );
 
     const handleGoBackToViewPage = useCallback(async () => {
         await queryClient.resetQueries({
