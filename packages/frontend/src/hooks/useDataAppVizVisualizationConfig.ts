@@ -256,7 +256,11 @@ const useDataAppVizVisualizationConfig = (
             const selected = configRef.current;
             if (selected === null || dataAppVizUuid !== selected.dataAppVizUuid)
                 return;
+            // Reconciled fields may not be persisted yet. Reject a removed
+            // field only when its binding changed since this callback rendered.
             if (
+                config?.fieldMapping[fieldName] !==
+                    selected.fieldMapping[fieldName] &&
                 !getDataAppVizFieldIds(
                     selected.fieldMapping[fieldName],
                 ).includes(fieldId)
@@ -277,7 +281,7 @@ const useDataAppVizVisualizationConfig = (
                 },
             });
         },
-        [commit],
+        [commit, config?.fieldMapping],
     );
 
     return {
