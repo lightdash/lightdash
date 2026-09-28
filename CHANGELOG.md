@@ -1,3 +1,10 @@
+## [2.348.1](https://github.com/lightdash/lightdash/compare/2.348.0...2.348.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **direct-access:** list only eligible users in the share dialog ([#30057](https://github.com/lightdash/lightdash/issues/30057)) ([11f4756](https://github.com/lightdash/lightdash/commit/11f47562eb684d14ac3b675769d89cea2627ce1b))
+
 # [2.348.0](https://github.com/lightdash/lightdash/compare/2.347.1...2.348.0) (2026-09-28)
 
 

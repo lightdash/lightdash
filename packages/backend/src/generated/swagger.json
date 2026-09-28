@@ -65031,6 +65031,23 @@
                 ],
                 "type": "object"
             },
+            "ApiDirectAccessUsersResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DirectAccessUserPrincipal"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "DirectAccessPrincipal": {
                 "anyOf": [
                     {
@@ -66899,7 +66916,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.348.0",
+        "version": "2.348.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -107092,6 +107109,63 @@
                 },
                 "description": "List project groups eligible for sharing this resource. Requires the\nsame permission as managing its direct access assignments.",
                 "summary": "List groups eligible for direct access",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/direct-access/{resourceType}/{resourceUuid}/users": {
+            "get": {
+                "operationId": "List direct access users",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDirectAccessUsersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List users eligible for sharing this resource: active users with\ncurrent access to the project. Requires the same permission as managing\nits direct access assignments.",
+                "summary": "List users eligible for direct access",
                 "tags": ["v2", "Direct Access"],
                 "security": [],
                 "parameters": [
