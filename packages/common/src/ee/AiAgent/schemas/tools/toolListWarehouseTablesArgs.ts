@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION = ({
@@ -55,9 +58,38 @@ export type ToolListWarehouseTablesArgs = z.infer<
     typeof toolListWarehouseTablesArgsSchema
 >;
 
-export const toolListWarehouseTablesOutputSchema = z.object({
-    result: z.string(),
+export const toolListWarehouseTablesStructuredContentSchema = z.object({
+    matchCount: z
+        .number()
+        .int()
+        .describe('Number of tables matched; 0 when nothing matched.'),
+    filters: z
+        .object({
+            schema: z.string().nullable(),
+            search: z.string().nullable(),
+        })
+        .describe('Filters applied to the catalog; null when not given.'),
+    tables: z
+        .array(
+            z.object({
+                database: z.string(),
+                schema: z.string(),
+                table: z.string(),
+                qualifiedName: z
+                    .string()
+                    .describe('"database.schema.table", ready to use in SQL.'),
+            }),
+        )
+        .describe('Matched tables, in catalog order; empty when none matched.'),
+});
+
+export type ToolListWarehouseTablesStructuredContent = z.infer<
+    typeof toolListWarehouseTablesStructuredContentSchema
+>;
+
+export const toolListWarehouseTablesOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolListWarehouseTablesStructuredContentSchema,
 });
 
 export type ToolListWarehouseTablesOutput = z.infer<
