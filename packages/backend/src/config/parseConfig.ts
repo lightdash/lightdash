@@ -1670,6 +1670,7 @@ export type LightdashConfig = {
     query: {
         maxLimit: number;
         defaultLimit: number;
+        underlyingDataMaxDimensions: number;
         csvCellsLimit: number;
         csvMaxLimit: number;
         timezone: string | undefined;
@@ -3517,6 +3518,11 @@ export const parseConfig = (): LightdashConfig => {
                 ) ?? 620_000,
         },
         query: {
+            underlyingDataMaxDimensions:
+                getPositiveIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_UNDERLYING_DATA_MAX_DIMENSIONS',
+                    50,
+                ),
             maxLimit:
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_LIMIT',

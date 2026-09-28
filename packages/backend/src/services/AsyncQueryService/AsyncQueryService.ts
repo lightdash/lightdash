@@ -7568,8 +7568,10 @@ export class AsyncQueryService extends ProjectService {
                 }
 
                 validDimensionsCount += 1;
-                // If there is no explicit column list, we can show up to 50 dimensions
-                return validDimensionsCount <= 50;
+                return (
+                    validDimensionsCount <=
+                    this.lightdashConfig.query.underlyingDataMaxDimensions
+                );
             }
             return false;
         });

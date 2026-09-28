@@ -574,6 +574,121 @@ type JwtDashboardQueryContextTestService = {
     ) => Promise<{ dashboardUuid: string | undefined }>;
 };
 
+describe('underlying data dimension selection', () => {
+    it.each([
+        [50, 50, undefined],
+        [100, 100, undefined],
+        [1, 1, undefined],
+        [50, 101, 'table'],
+        [50, 101, 'metric'],
+    ] as const)(
+        'with limit %i, selects %i dimensions (explicit list: %s)',
+        async (limit, expected, explicitList) => {
+            const dimensions = Object.fromEntries(
+                Array.from({ length: 101 }, (_, index) => {
+                    const name = `column${index + 1}`;
+                    return [
+                        name,
+                        {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            name,
+                            compiledSql: `"a"."${name}"`,
+                        },
+                    ];
+                }),
+            );
+            const fieldList = [...Object.keys(dimensions), 'met1'];
+            let defaultShowUnderlyingValues: string[] | undefined;
+            if (explicitList === 'table') {
+                defaultShowUnderlyingValues = fieldList;
+            } else if (explicitList === 'metric') {
+                defaultShowUnderlyingValues = ['column1'];
+            }
+            const explore: Explore = {
+                ...validExplore,
+                joinedTables: [],
+                tables: {
+                    a: {
+                        ...validExplore.tables.a,
+                        defaultShowUnderlyingValues,
+                        metrics: {
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                showUnderlyingValues:
+                                    explicitList === 'metric'
+                                        ? fieldList
+                                        : undefined,
+                            },
+                        },
+                        dimensions: {
+                            missingParameter: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                name: 'missingParameter',
+                                parameterReferences: ['missing'],
+                            },
+                            hidden: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                name: 'hidden',
+                                hidden: true,
+                            },
+                            ...dimensions,
+                        },
+                    },
+                },
+            };
+            const service = getMockedAsyncQueryService(
+                {
+                    ...lightdashConfigMock,
+                    query: {
+                        ...lightdashConfigMock.query,
+                        underlyingDataMaxDimensions: limit,
+                    },
+                    natsWorker: {
+                        ...lightdashConfigMock.natsWorker,
+                        enabled: true,
+                    },
+                },
+                {
+                    projectModel: {
+                        ...projectModel,
+                        findExploresFromCache: vi.fn(async () => ({
+                            [explore.name]: explore,
+                        })),
+                    },
+                } as never,
+            );
+            vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
+                queryUuid: 'source-query',
+                metricQuery: metricQueryMock,
+                fields: { a_met1: explore.tables.a.metrics.met1 },
+                requestParameters: {},
+            } as unknown as QueryHistory);
+
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'all' },
+            ]);
+            const result = await service.executeAsyncUnderlyingDataQuery({
+                account,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'source-query',
+                underlyingDataItemId: 'a_met1',
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+            });
+
+            expect(result.metricQuery.dimensions).toHaveLength(expected);
+            expect(result.metricQuery.dimensions[0]).toBe('a_column1');
+            expect(result.metricQuery.dimensions.at(-1)).toBe(
+                `a_column${expected}`,
+            );
+            expect(result.metricQuery.metrics).toEqual(
+                explicitList ? ['a_met1'] : [],
+            );
+        },
+    );
+});
+
 describe('AsyncQueryService', () => {
     describe('saved query execution metadata', () => {
         it.each([
