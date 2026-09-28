@@ -1,3 +1,11 @@
+# [2.348.0](https://github.com/lightdash/lightdash/compare/2.347.1...2.348.0) (2026-09-28)
+
+
+### Features
+
+* **chart-types:** upgrade all installed chart types from the library ([#29894](https://github.com/lightdash/lightdash/issues/29894)) ([b1f0e93](https://github.com/lightdash/lightdash/commit/b1f0e93f849a906da4054264cf02d698615c74bd))
+* **warehouses:** send lightdash user agent to clickhouse ([#30028](https://github.com/lightdash/lightdash/issues/30028)) ([197fe30](https://github.com/lightdash/lightdash/commit/197fe30fa49c2a4948cb25d978bafee6be98eb0d))
+
 ## [2.347.1](https://github.com/lightdash/lightdash/compare/2.347.0...2.347.1) (2026-09-28)
 
 
