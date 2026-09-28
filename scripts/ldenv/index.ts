@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { cleanupOrphans } from './cleanup';
 import {
     compose,
     containers,
@@ -151,14 +152,17 @@ async function main(args: string[]): Promise<void> {
         if (args.includes('--dry-run'))
             process.stdout.write(
                 `${JSON.stringify(
-                    (await instances()).filter(
-                        (item) => !existsSync(item.worktree),
-                    ),
+                    {
+                        missingInstances: (await instances()).filter(
+                            (item) => !existsSync(item.worktree),
+                        ),
+                        worktrees: await cleanupOrphans(root, true),
+                    },
                     null,
                     2,
                 )}\n`,
             );
-        else await garbageCollect(root);
+        else await garbageCollect(root, true);
         return;
     }
     if (command === 'doctor') {

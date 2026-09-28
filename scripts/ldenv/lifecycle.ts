@@ -74,6 +74,7 @@ import {
     stopProcesses,
 } from './processes';
 import { waitForCompilers } from './readiness';
+import { cleanupOrphans, removeOwnedWarm } from './cleanup';
 import { populateViteCache, restoreViteCache } from './vite';
 
 export const controlRoot = path.resolve(__dirname, '../..');
@@ -803,14 +804,19 @@ export async function down(instance: Instance): Promise<void> {
         }
         await rm(backup);
     }
+    await removeOwnedWarm(instance, controlRoot);
     await rm(statePath(instance.id));
 }
-export async function garbageCollect(_root: string): Promise<void> {
+export async function garbageCollect(
+    root: string,
+    sweepOrphans = false,
+): Promise<void> {
     for (const instance of await instances()) {
         assertInstance(instance);
         if (!existsSync(instance.worktree))
             await withLock(instance.id, () => down(instance));
     }
+    if (sweepOrphans) await cleanupOrphans(root, false);
 }
 export async function parentGc(root: string, keep: number): Promise<void> {
     if (!Number.isInteger(keep) || keep < 1)

@@ -9,6 +9,7 @@ import {
     git,
     home,
     listJson,
+    readJson,
     runner,
     withLock,
     writeJson,
@@ -144,7 +145,18 @@ export async function installLauncher(): Promise<string> {
             `#!/bin/sh\nexec ${shellQuote(executable)} --import ${shellQuote(loader)} ${shellQuote(entry)} "$@"\n`,
         );
         await chmod(launcher, 0o755);
-        await writeJson(path.join(home, 'tool.json'), {
+        const recordFile = path.join(home, 'tool.json');
+        const previous = existsSync(recordFile)
+            ? await readJson<{
+                  directory: string;
+                  previousDirectory?: string | null;
+              }>(recordFile)
+            : null;
+        await writeJson(recordFile, {
+            previousDirectory:
+                previous?.directory === directory
+                    ? (previous.previousDirectory ?? null)
+                    : (previous?.directory ?? null),
             sha,
             directory,
             launcher,
