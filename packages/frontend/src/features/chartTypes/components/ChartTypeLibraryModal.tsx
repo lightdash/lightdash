@@ -33,10 +33,10 @@ const ChartTypeLibraryModal: FC<Props> = ({
         subtitle={
             <Anchor
                 component={Link}
-                to={`/projects/${projectUuid}/chart-types?tab=chart-library`}
+                to={`/projects/${projectUuid}/chart-studio?tab=chart-library`}
                 fz="xs"
             >
-                Open the full library page
+                Open Chart Studio
             </Anchor>
         }
         bodyScrollAreaMaxHeight="calc(100vh - 200px)"
