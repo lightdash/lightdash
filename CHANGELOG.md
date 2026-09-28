@@ -1,3 +1,10 @@
+## [2.352.6](https://github.com/lightdash/lightdash/compare/2.352.5...2.352.6) (2026-09-28)
+
+
+### Bug Fixes
+
+* **chart-types:** don't let a missing render acknowledgement hang deliveries ([#30069](https://github.com/lightdash/lightdash/issues/30069)) ([5d19650](https://github.com/lightdash/lightdash/commit/5d1965047f35c6c26f386cb029ef3a3a2e227cf5)), closes [#30061](https://github.com/lightdash/lightdash/issues/30061) [#29646](https://github.com/lightdash/lightdash/issues/29646) [#29646](https://github.com/lightdash/lightdash/issues/29646) [#30068](https://github.com/lightdash/lightdash/issues/30068)
+
 ## [2.352.5](https://github.com/lightdash/lightdash/compare/2.352.4...2.352.5) (2026-09-28)
 
 
