@@ -3,6 +3,7 @@ import {
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     getDataAppVizFieldOptions,
+    getDataAppVizFieldIds,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
     getItemMap,
@@ -87,15 +88,14 @@ export const useDataAppVizTestContext = ({
     onContextChange,
 }: Args): DataAppVizTestContextState => {
     const [exploreName, setExploreName] = useState<string | null>(null);
-    const [fieldMapping, setFieldMapping] = useState<DataAppVizFieldMapping>(
-        {},
-    );
+    const [{ fieldMapping, fieldOptionValues }, setFieldConfig] = useState<{
+        fieldMapping: DataAppVizFieldMapping;
+        fieldOptionValues: DataAppVizFieldOptionValues;
+    }>({ fieldMapping: {}, fieldOptionValues: {} });
     // Only what the user explicitly changed; defaults resolve at push time.
     const [optionValues, setOptionValues] = useState<DataAppVizOptionValues>(
         {},
     );
-    const [fieldOptionValues, setFieldOptionValues] =
-        useState<DataAppVizFieldOptionValues>({});
     // Preview-only; a chart using the viz owns the palette the normal way.
     const [colorPaletteUuid, setColorPaletteUuid] = useState<string | null>(
         null,
@@ -210,8 +210,7 @@ export const useDataAppVizTestContext = ({
     const handleExploreChange = useCallback(
         (value: string | null) => {
             setExploreName(value);
-            setFieldMapping({});
-            setFieldOptionValues({});
+            setFieldConfig({ fieldMapping: {}, fieldOptionValues: {} });
             clearRun();
         },
         [clearRun],
@@ -219,11 +218,25 @@ export const useDataAppVizTestContext = ({
 
     const setField = useCallback(
         (name: string, id: string | string[] | null) => {
-            setFieldMapping((prev) => {
-                const next = { ...prev };
+            setFieldConfig((prev) => {
+                const next = { ...prev.fieldMapping };
                 if (id !== null) next[name] = id;
                 else delete next[name];
-                return next;
+                const bound = new Set(getDataAppVizFieldIds(next[name]));
+                const { [name]: values = {}, ...otherFields } =
+                    prev.fieldOptionValues;
+                const kept = Object.fromEntries(
+                    Object.entries(values).filter(([fieldId]) =>
+                        bound.has(fieldId),
+                    ),
+                );
+                return {
+                    fieldMapping: next,
+                    fieldOptionValues:
+                        Object.keys(kept).length > 0
+                            ? { ...otherFields, [name]: kept }
+                            : otherFields,
+                };
             });
             clearRun();
         },
@@ -244,16 +257,27 @@ export const useDataAppVizTestContext = ({
             optionName: string,
             value: DataAppVizOptionValue,
         ) =>
-            setFieldOptionValues((prev) => ({
-                ...prev,
-                [fieldName]: {
-                    ...prev[fieldName],
-                    [fieldId]: {
-                        ...prev[fieldName]?.[fieldId],
-                        [optionName]: value,
+            setFieldConfig((prev) => {
+                if (
+                    !getDataAppVizFieldIds(
+                        prev.fieldMapping[fieldName],
+                    ).includes(fieldId)
+                )
+                    return prev;
+                return {
+                    ...prev,
+                    fieldOptionValues: {
+                        ...prev.fieldOptionValues,
+                        [fieldName]: {
+                            ...prev.fieldOptionValues[fieldName],
+                            [fieldId]: {
+                                ...prev.fieldOptionValues[fieldName]?.[fieldId],
+                                [optionName]: value,
+                            },
+                        },
                     },
-                },
-            })),
+                };
+            }),
         [],
     );
 

@@ -12,12 +12,13 @@ import {
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartColorMappingContext } from '../../../hooks/useChartColorConfig/context';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { useDataAppVizTestContext } from '../hooks/useDataAppVizTestContext';
 import DataAppVizTestPanel from './DataAppVizTestPanel';
 import { buildTestMetricQuery, isMappingComplete } from './dataAppVizTestQuery';
 
@@ -351,6 +352,53 @@ describe('DataAppVizTestPanel', () => {
             },
             vi.fn(),
         ] as unknown as ReturnType<typeof useQueryExecutor>);
+    });
+
+    it('prunes removed fields while retaining reordered fields and rejects delayed edits', () => {
+        let state!: ReturnType<typeof useDataAppVizTestContext>;
+        const onContextChange = vi.fn();
+        const ContextHarness = () => {
+            state = useDataAppVizTestContext({
+                projectUuid: 'p1',
+                schema,
+                onContextChange,
+            });
+            return null;
+        };
+        renderWithProviders(
+            <ChartColorMappingContext.Provider
+                value={{ colorMappings: new Map() }}
+            >
+                <ContextHarness />
+            </ChartColorMappingContext.Provider>,
+        );
+        act(() => {
+            state.setField('value', ['orders_total', 'orders_count']);
+            state.setFieldOption('value', 'orders_total', 'label', 'Revenue');
+            state.setFieldOption('value', 'orders_count', 'label', 'Count');
+        });
+        act(() => state.setField('value', ['orders_count', 'orders_total']));
+        expect(state.fieldOptionValues).toEqual({
+            value: {
+                orders_total: { label: 'Revenue' },
+                orders_count: { label: 'Count' },
+            },
+        });
+        const pendingEdit = state.setFieldOption;
+        act(() => state.setField('value', ['orders_count']));
+        expect(state.fieldOptionValues).toEqual({
+            value: { orders_count: { label: 'Count' } },
+        });
+        act(() =>
+            pendingEdit('value', 'orders_total', 'label', 'Late revenue'),
+        );
+        expect(state.fieldOptionValues).toEqual({
+            value: { orders_count: { label: 'Count' } },
+        });
+        act(() => state.setField('value', ['orders_count', 'orders_total']));
+        expect(state.fieldOptionValues.value?.orders_total).toBeUndefined();
+        act(() => state.setField('value', null));
+        expect(state.fieldOptionValues).toEqual({});
     });
 
     const runSuccessfulPreviewQuery = async () => {
