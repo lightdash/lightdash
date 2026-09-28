@@ -76,6 +76,7 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                 projectUuid={projectUuid}
                 workspace={workspace}
                 previewContext={previewContext}
+                onVizSubtotalsIntent={null}
                 sampleRows={sampleRows}
                 currentBuildContext={buildContext}
                 syncPreviewUrlState={false}

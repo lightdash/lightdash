@@ -8,6 +8,7 @@ import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import { useElementPicker } from '../../apps/hooks/useElementPicker';
 import { refToWireString } from '../../apps/utils/elementRefs';
 import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
+import { type VizSubtotalSource } from '../hooks/useVizSubtotalSource';
 import BuilderCanvas from './BuilderCanvas';
 import BuilderPromptBar from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
@@ -21,6 +22,8 @@ type Props = {
     workspace: ChartTypeBuilderWorkspaceState;
     /** What the preview renders with; null renders the app bare. */
     previewContext: DataAppVizContext | null;
+    /** Answers the preview's subtotal requests; null when it has none. */
+    onVizSubtotalsIntent: VizSubtotalSource['get'] | null;
     /** Bounded sample of the host's current rows, even before a schema exists. */
     sampleRows?: Record<string, string>[];
     currentBuildContext?: VizBuildRequest['context'];
@@ -46,6 +49,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     projectUuid,
     workspace,
     previewContext,
+    onVizSubtotalsIntent,
     sampleRows = [],
     currentBuildContext,
     savedChartSource = null,
@@ -143,6 +147,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 isClarifyRoundOpen={isClarifyRoundOpen}
                                 clarifierUnavailable={clarification.fellThrough}
                                 previewContext={previewContext}
+                                onVizSubtotalsIntent={onVizSubtotalsIntent}
                                 configurePanel={configurePanel}
                                 onPickExample={onPickExample}
                                 onSdkManifest={onSdkManifest}

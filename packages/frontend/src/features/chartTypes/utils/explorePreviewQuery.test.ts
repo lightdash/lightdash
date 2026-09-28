@@ -112,7 +112,11 @@ describe('executeExplorePreviewQuery', () => {
                 query,
                 pivotConfiguration,
             }),
-        ).resolves.toMatchObject({ rows, pivotDetails });
+        ).resolves.toMatchObject({
+            queryUuid: 'preview-query',
+            rows,
+            pivotDetails,
+        });
 
         expect(lightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({

@@ -66,6 +66,7 @@ import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSave
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
@@ -76,6 +77,10 @@ import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVi
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { mapSavedChartPreviewFields } from '../features/chartTypes/utils/savedChartPreviewFieldMapping';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
+import {
+    getVizHierarchyDimensions,
+    hasVizSubtotalValues,
+} from '../features/chartTypes/utils/vizSubtotals';
 import {
     MERGE_URL_PARAM,
     serializeMergeState,
@@ -460,6 +465,22 @@ const ChartTypeBuilder: FC = () => {
         workspace.history.versions.find(
             (version) => version.version === workspace.previewVersion,
         )?.resources?.vizPreview ?? null;
+    // The backend refuses column subtotals over merged results.
+    const isMergedSource = savedChartUuid !== null && !!sourceChart?.merge;
+    const liveItemsMap = liveRun?.itemsMap ?? NO_ITEMS;
+    const hierarchyDimensions = useMemo(
+        () =>
+            isMergedSource || !hasVizSubtotalValues(liveItemsMap)
+                ? null
+                : getVizHierarchyDimensions(schema, renderedFieldMapping),
+        [schema, renderedFieldMapping, isMergedSource, liveItemsMap],
+    );
+    const subtotalSource = useVizSubtotalSource({
+        projectUuid,
+        sourceQueryUuid: liveRun?.queryUuid,
+        dimensions: hierarchyDimensions,
+    });
+    const subtotalDimensions = subtotalSource?.dimensions ?? null;
     // Real rows when the saved chart's query has run; the fabricated sample
     // otherwise (tuned by the version's vizPreview resource when present).
     // Rebuilt on any option or palette edit.
@@ -474,7 +495,7 @@ const ChartTypeBuilder: FC = () => {
                 vizPreviewData,
             );
         }
-        return buildExplorerVizContext({
+        const context = buildExplorerVizContext({
             schema,
             itemsMap: liveRun.itemsMap,
             persistedFieldMapping: renderedFieldMapping,
@@ -484,6 +505,12 @@ const ChartTypeBuilder: FC = () => {
             optionValues: panel.optionValues,
             resolvedColors,
         });
+        return subtotalDimensions
+            ? {
+                  ...context,
+                  subtotals: { enabled: true, dimensions: subtotalDimensions },
+              }
+            : context;
     }, [
         schema,
         savedChartUuid,
@@ -494,6 +521,7 @@ const ChartTypeBuilder: FC = () => {
         resolvedColors,
         renderedFieldMapping,
         vizPreviewData,
+        subtotalDimensions,
     ]);
 
     // What the next build is told it is changing: the schema on screen, bound
@@ -1119,6 +1147,7 @@ const ChartTypeBuilder: FC = () => {
                     projectUuid={projectUuid}
                     workspace={workspace}
                     previewContext={previewContext}
+                    onVizSubtotalsIntent={subtotalSource?.get ?? null}
                     sampleRows={sampleRows}
                     currentBuildContext={currentBuildContext}
                     savedChartSource={savedChartSource}

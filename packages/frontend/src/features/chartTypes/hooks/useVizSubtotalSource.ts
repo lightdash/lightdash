@@ -7,7 +7,7 @@ import {
     parseVizSubtotalIntent,
 } from '../utils/vizSubtotals';
 
-type VizSubtotalSource = {
+export type VizSubtotalSource = {
     dimensions: string[];
     get: (intent: unknown) => Promise<{ rows: ResultRow[] }>;
 };
