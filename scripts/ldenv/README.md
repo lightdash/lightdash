@@ -16,6 +16,8 @@ This pins the committed tool in `~/.ldenv/tools/<sha>` with its own dependencies
 and installs `~/.ldenv/bin/ldenv`. It works even when the target branch has no
 `node_modules` or `scripts/ldenv`. Parent builds refresh the launcher; rerun
 `pnpm ldenv install` from the implementation checkout to pick up tool updates.
+Installation compiles the launcher into the pinned tool checkout. The shell
+launcher runs that bundle with Node and falls back to tsx if the bundle is absent.
 Installation checks or refreshes retained parent Vite snapshots with the new pinned
 runtime before switching the launcher. Parent manifests record the tool revision
 and cache key. The pinned tool checkout must stay in place while its processes are running.
@@ -63,6 +65,10 @@ For an existing worktree, use the fork path:
 ~/.ldenv/bin/ldenv up --parent <sha>
 ~/.ldenv/bin/ldenv up --build-parent
 ~/.ldenv/bin/ldenv up --no-wait
+~/.ldenv/bin/ldenv wait --timeout 120
+~/.ldenv/bin/ldenv wait --verified --timeout 120
+~/.ldenv/bin/ldenv screenshot /
+~/.ldenv/bin/ldenv screenshot /login --signed-out --out /tmp/login.png
 ~/.ldenv/bin/ldenv status --json
 ```
 
@@ -71,22 +77,33 @@ finishes the readiness checks. Status reports the monitor PID, current phase,
 last error, last readiness time, live health, timings and process RSS. A dead
 monitor with a starting phase means readiness has not been established. Logs
 are in `~/.ldenv/logs`; credentials are redacted from command logs.
+`wait` observes state changes and works if called before `up` starts. It prints
+the frontend URL, API URL and seeded login email. Exit codes are 0 for ready,
+1 for failed or degraded, and 2 for timeout. `--verified` waits for the chart,
+Vite module warm-up, warm routes and paint checks too.
+`screenshot` signs in as the seeded dev user through the API by default, launches
+a headless browser for one capture, and prints the PNG path. The default route
+is `/`; use `--signed-out` for the login page. `--full-page`, `--width N`,
+`--height N`, `--out PATH` and `--worktree PATH` are supported.
 `up` probes owned API/frontend processes and health before reusing a saved READY
 record. It restarts an instance whose processes are gone. Claims skip dead spares
 and request replacement through the pool refill.
 
-Fork readiness requires backend health, a successful frontend HTTP response, a
-seeded chart query that returns rows through the API with the dev PAT, and warm
-routes from `rainbow.toml`. Headless `/login` paint runs in the background after
-ready. Status shows `verification.state: pending`, then `passed` or `failed`; a
-paint failure marks the instance `degraded`. A stopped or restarted instance
-cannot be overwritten by its old paint verifier. Pool spares pass paint before
-they become eligible for a claim.
+Fork readiness requires backend health and a successful frontend HTTP response.
+The seeded chart query through the API, Vite module warm-up, warm routes from
+`rainbow.toml` and headless `/login` paint run as background verification. The
+chart check proves the cloned database works. Status shows
+`verification.state: pending`, then `passed` or `failed`; a verification failure
+marks the instance `degraded`. A stopped or restarted instance cannot be
+overwritten by its old verifier. Pool spares pass all checks before they become
+eligible for a claim.
 
-Vite warms its entry module graph while preparation runs. Package and route
-watchers finish their initial scan before the API starts. Documentation files
+Vite warms its entry module graph while preparation runs. When no package or
+route input changed, the API starts after the watchers launch, while their
+initial scan settles. Other forks wait for watcher settlement before API startup.
+All forks require settled watchers before READY. Documentation files
 are ignored; the route watcher generates only after controller edits. Readiness
-waits for frontend warmup and repeats its foreground checks if the API restarts.
+repeats its foreground checks if the API restarts.
 The API runs the full core and EE scheduler task set, so
 ldenv does not start a duplicate scheduler process by default. To opt in, export
 `LDENV_STANDALONE_SCHEDULER=true` before `up`, or set it in the instance's local
