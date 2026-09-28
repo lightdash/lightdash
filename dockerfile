@@ -17,7 +17,7 @@ RUN --mount=type=bind,source=docker/security/perl-bookworm,target=/tmp/perl-back
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
-COPY --from=pnpm-cli /pnpm /pnpm
+COPY --from=pnpm-cli --chmod=755 /pnpm /pnpm
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libatomic1 \
     && rm -rf /var/lib/apt/lists/*
@@ -408,6 +408,9 @@ RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout
         exit 1; \
     fi
 
+# Release build contexts can carry world-writable modes into the image.
+RUN find /usr/app ! -type l -perm -0002 -exec chmod o-w {} +
+
 # -----------------------------
 # Stage 5: runtime base
 # -----------------------------
@@ -497,7 +500,7 @@ FROM runtime-base AS prod
 # COPY --link also does not follow symlinks in its destination path, so every
 # destination here must stay a real directory.
 COPY --link --from=build-final /usr/app /usr/app
-COPY --link ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
+COPY --link --chmod=755 ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 
 EXPOSE 8080
 

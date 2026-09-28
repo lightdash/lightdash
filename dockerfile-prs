@@ -23,7 +23,7 @@ RUN --mount=type=bind,source=docker/security/perl-bookworm,target=/tmp/perl-back
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
-COPY --from=pnpm-cli /pnpm /pnpm
+COPY --from=pnpm-cli --chmod=755 /pnpm /pnpm
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libatomic1 \
     && rm -rf /var/lib/apt/lists/*
@@ -226,7 +226,7 @@ COPY --from=prod-builder  /usr/local/dbt1.12 /usr/local/dbt1.12
 RUN ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # Run backend
-COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
+COPY --chmod=755 ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 COPY --from=prod-dependencies /usr/app /usr/app
 COPY --from=build-common /usr/app/packages/common/dist /usr/app/packages/common/dist
 COPY --from=build-formula /usr/app/packages/formula/dist /usr/app/packages/formula/dist
@@ -252,7 +252,8 @@ EXPOSE 8080
 WORKDIR /usr/app/packages/backend
 
 # Mirrors the production image: the base image's `node` user, app tree root-owned.
-RUN mkdir -p /usr/app/packages/backend/logs /var/log/lightdash \
+RUN find /usr/app ! -type l -perm -0002 -exec chmod o-w {} + \
+    && mkdir -p /usr/app/packages/backend/logs /var/log/lightdash \
     && chown 1000:1000 /usr/app/packages/backend/logs /var/log/lightdash
 ENV HOME=/home/node
 USER 1000:1000
