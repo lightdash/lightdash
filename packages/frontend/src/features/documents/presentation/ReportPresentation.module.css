@@ -295,6 +295,12 @@
     grid-template-columns: 16rem minmax(0, 1fr);
     width: 100%;
     max-width: none;
+    /* The scroll viewport's content box has no height, so fill it explicitly
+       to keep the rail full height on short documents */
+    min-height: var(
+        --page-height,
+        calc(100dvh - var(--navbar-height) - 3.75rem)
+    );
 
     .contentsRail {
         background: var(--ld-color-page);
