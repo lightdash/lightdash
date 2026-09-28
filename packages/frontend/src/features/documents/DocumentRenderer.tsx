@@ -12,11 +12,17 @@ import styles from './presentation/ReportPresentation.module.css';
 const DocumentRenderer = ({
     document,
     actions,
+    metadata,
+    rail,
     initialScrollTop,
     onScrollTopChange,
 }: {
     document: Document;
     actions?: ReactNode;
+    /** Replaces the default creator byline. */
+    metadata?: ReactNode;
+    /** Replaces the contents rail. */
+    rail?: ReactNode;
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
 }) => {
@@ -44,7 +50,8 @@ const DocumentRenderer = ({
             headings={headings}
             variant="document"
             actions={actions}
-            metadata={<DocumentByline document={document} />}
+            metadata={metadata ?? <DocumentByline document={document} />}
+            rail={rail}
             initialScrollTop={initialScrollTop}
             onScrollTopChange={onScrollTopChange}
         >

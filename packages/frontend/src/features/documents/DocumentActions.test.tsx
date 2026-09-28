@@ -260,6 +260,22 @@ describe('Document actions', () => {
         );
     });
 
+    it('opens version history for a reader', async () => {
+        mocks.canManage = false;
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Version history' }),
+        );
+        expect(mocks.navigate).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /^\/projects\/project-slug\/documents\/.+\/history$/,
+            ),
+        );
+    });
+
     it('lets a read-only reader view code without exposing deletion', async () => {
         mocks.canManage = false;
         renderActions();

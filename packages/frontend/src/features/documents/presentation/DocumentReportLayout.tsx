@@ -27,6 +27,8 @@ type Props = {
     variant?: 'structured' | 'markdown' | 'document';
     actions?: ReactNode;
     metadata?: ReactNode;
+    /** Replaces the contents list in the left rail, e.g. with version history. */
+    rail?: ReactNode;
     /** Scroll offset to open at, e.g. when swapping between reading and editing. */
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
@@ -44,6 +46,7 @@ const DocumentReportLayout = ({
     variant = 'structured',
     actions,
     metadata,
+    rail,
     initialScrollTop = 0,
     onScrollTopChange,
 }: Props) => {
@@ -96,55 +99,66 @@ const DocumentReportLayout = ({
                     .join(' ')}
             >
                 <Box component="aside" className={styles.contentsRail}>
-                    <Box
-                        component="nav"
-                        className={styles.contentsNav}
-                        aria-label="Report contents"
-                    >
-                        {contentsLabel && (
-                            <Text className={styles.contentsLabel}>
-                                {contentsLabel}
-                            </Text>
-                        )}
-                        <Box className={styles.contentsList}>
-                            {entries.map((heading) => (
-                                <UnstyledButton
-                                    key={heading.id ?? 'summary'}
-                                    className={styles.contentsControl}
-                                    title={heading.label}
-                                    aria-label={heading.label}
-                                    data-active={
-                                        contents.activeSection === heading.id ||
-                                        undefined
-                                    }
-                                    aria-current={
-                                        contents.activeSection === heading.id
-                                            ? 'location'
-                                            : undefined
-                                    }
-                                    onClick={() =>
-                                        contents.scrollToHeading(heading.id)
-                                    }
-                                >
-                                    {heading.badge !== undefined ? (
-                                        <Group gap={5} wrap="nowrap">
-                                            <span>{heading.label}</span>
+                    {rail ? (
+                        <Box className={styles.contentsNav}>{rail}</Box>
+                    ) : (
+                        <Box
+                            component="nav"
+                            className={styles.contentsNav}
+                            aria-label="Report contents"
+                        >
+                            {contentsLabel && (
+                                <Text className={styles.contentsLabel}>
+                                    {contentsLabel}
+                                </Text>
+                            )}
+                            <Box className={styles.contentsList}>
+                                {entries.map((heading) => (
+                                    <UnstyledButton
+                                        key={heading.id ?? 'summary'}
+                                        className={styles.contentsControl}
+                                        title={heading.label}
+                                        aria-label={heading.label}
+                                        data-active={
+                                            contents.activeSection ===
+                                                heading.id || undefined
+                                        }
+                                        aria-current={
+                                            contents.activeSection ===
+                                            heading.id
+                                                ? 'location'
+                                                : undefined
+                                        }
+                                        onClick={() =>
+                                            contents.scrollToHeading(heading.id)
+                                        }
+                                    >
+                                        {heading.badge !== undefined ? (
+                                            <Group gap={5} wrap="nowrap">
+                                                <span>{heading.label}</span>
+                                                <Text
+                                                    component="span"
+                                                    className={
+                                                        styles.sourceCount
+                                                    }
+                                                >
+                                                    {heading.badge}
+                                                </Text>
+                                            </Group>
+                                        ) : (
                                             <Text
                                                 component="span"
-                                                className={styles.sourceCount}
+                                                inherit
+                                                truncate
                                             >
-                                                {heading.badge}
+                                                {heading.label}
                                             </Text>
-                                        </Group>
-                                    ) : (
-                                        <Text component="span" inherit truncate>
-                                            {heading.label}
-                                        </Text>
-                                    )}
-                                </UnstyledButton>
-                            ))}
+                                        )}
+                                    </UnstyledButton>
+                                ))}
+                            </Box>
                         </Box>
-                    </Box>
+                    )}
                 </Box>
                 <Box
                     component="article"
