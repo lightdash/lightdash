@@ -1,3 +1,10 @@
+## [2.352.1](https://github.com/lightdash/lightdash/compare/2.352.0...2.352.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **ai-agent:** send SQL auto-approval after approve always on the web ([#30087](https://github.com/lightdash/lightdash/issues/30087)) ([5e80025](https://github.com/lightdash/lightdash/commit/5e800252def937ffbfea7d93d833d953eaf17f84))
+
 # [2.352.0](https://github.com/lightdash/lightdash/compare/2.351.1...2.352.0) (2026-09-28)
 
 
