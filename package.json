@@ -40,6 +40,7 @@
     },
     "scripts": {
         "test:playground-content": "tsx scripts/playground-bundle/content.test.ts && tsx scripts/playground-bundle/learnBundle.test.ts",
+        "test:learn-lessons": "LIGHTDASH_MODE=development LIGHTDASH_SECRET=playground-bundle-build-only S3_ENDPOINT=http://localhost S3_BUCKET=playground-build S3_REGION=local tsx scripts/playground-bundle/learnLessons.test.ts",
         "build:playground-bundle": "pnpm formula:build && pnpm common-build && pnpm warehouses-build && LIGHTDASH_MODE=development LIGHTDASH_SECRET=playground-bundle-build-only S3_ENDPOINT=http://localhost S3_BUCKET=playground-build S3_REGION=local tsx scripts/playground-bundle/build.ts",
         "build:learn-bundle": "tsx scripts/playground-bundle/build-learn.ts",
         "formula:build": "pnpm -F formula build",

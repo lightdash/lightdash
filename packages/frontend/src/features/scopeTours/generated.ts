@@ -4,7 +4,8 @@
 // `pnpm scope-tours:generate`.
 
 export type ScopeTourStepDefinition = {
-    target: string;
+    /** CSS selector of the spotlit control; null renders a centered explainer. */
+    target: string | null;
     route?: string;
     title: string;
     body: string;
@@ -20,8 +21,17 @@ export type ScopeTourStepDefinition = {
     detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
+    /** With busy: the step Try again returns to when the page marks the work failed. */
+    retryStep?: number;
+    /** On an editor's typed step: the facts its Check button tests the file against. */
+    expect?: Record<string, string>;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
+    /**
+     * How many leading lines of a block suggestion are already in the file:
+     * shown faded, as where the rest goes, and never typed.
+     */
+    suggestionContextLines?: number;
 };
 
 export type ScopeTourDefinition = {
@@ -4891,7 +4901,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="manage:SqlRunner"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/sql-runner/:slug',
                 title: 'SQL runner',
-                body: 'Only users with [**developer or admin access**](https://docs.lightdash.com/workspace-admin/roles) can use the SQL runner.',
+                body: 'Only users with [developer or admin access](https://docs.lightdash.com/workspace-admin/roles) can use the SQL runner.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
@@ -5158,7 +5168,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="manage:SqlRunner"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/sql-runner/:slug',
                 title: 'SQL runner',
-                body: 'Only users with [**developer or admin access**](https://docs.lightdash.com/workspace-admin/roles) can use the SQL runner.',
+                body: 'Only users with [developer or admin access](https://docs.lightdash.com/workspace-admin/roles) can use the SQL runner.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
@@ -5317,6 +5327,329 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
                 via: [],
+            },
+        ],
+    },
+    'docs:semantic-layer/metrics': {
+        scope: 'docs:semantic-layer/metrics',
+        title: 'Metrics',
+        sources: ['packages/frontend/src/features/learn/sandboxLessons.ts'],
+        steps: [
+            {
+                target: null,
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Metrics',
+                body: 'A metric is a value that describes or summarizes features from a collection of data points. For example: count of total number of user IDs, or sum of revenue. In Lightdash, metrics are used to summarize dimensions or, sometimes, other metrics.',
+                interactive: false,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: false,
+                via: [],
+            },
+            {
+                target: '[data-tour-anchor="workspace-file"][data-tour-value="models/payments.yml"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Open models/payments.yml',
+                body: "To add a metric to Lightdash using the **meta** tag, you define it in your dbt project under the dimension name you're trying to describe/summarize.",
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [],
+            },
+            {
+                target: '[data-tour-anchor="workspace-editor"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Edit the file',
+                body: "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#custom-sql-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** metric on the **amount** column: it goes under that column's **metrics**. Add the highlighted lines under **metrics:**, or press Use it, then Check.",
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: [
+                    '[data-tour-anchor="workspace-file"][data-tour-value="models/payments.yml"]',
+                ],
+                suggestion:
+                    '            metrics:\n              average_payment_amount:\n                type: average',
+                suggestionContextLines: 1,
+                expect: {
+                    model: 'payments',
+                    column: 'amount',
+                    under: 'metrics',
+                    field: 'average_payment_amount',
+                },
+            },
+            {
+                target: '[data-tour-anchor="terminal-command"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Type the command',
+                body: '**lightdash deploy** pushes your local dbt or native Lightdash YAML models to Lightdash.',
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: [
+                    '[data-tour-anchor="workspace-file"][data-tour-value="models/payments.yml"]',
+                ],
+                suggestion: 'lightdash deploy',
+            },
+            {
+                target: '[data-tour-anchor="terminal-run"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Run the command',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [
+                    '[data-tour-anchor="workspace-file"][data-tour-value="models/payments.yml"]',
+                ],
+            },
+            {
+                target: '[data-learn-terminal-output]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'See the result',
+                body: 'Push the current state of your local dbt project files (including uncommitted changes or code from your active branch) to the authenticated Lightdash project. Trigger a re-compile and refresh of your Lightdash project.',
+                interactive: false,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: false,
+                via: [],
+                busy: '[data-tour-anchor="terminal-running"]',
+                retryStep: 2,
+            },
+            {
+                target: '[data-tour-nav="new"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Click New',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [],
+            },
+            {
+                target: '[data-tour-nav="new-chart"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Choose Chart',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: ['[data-tour-nav="new"]'],
+            },
+            {
+                target: '[data-tour-anchor="explore-search"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'Search for the table',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: ['[data-tour-nav="new"]', '[data-tour-nav="new-chart"]'],
+                suggestion: 'Payments',
+            },
+            {
+                target: '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'Open Payments',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                ],
+            },
+            {
+                target: '[data-tour-anchor="explore-field-search"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'Find Average payment amount',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                    '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
+                ],
+                suggestion: 'Average payment amount',
+            },
+            {
+                target: '[data-tour-anchor="explore-metric"][data-tour-value="Average payment amount"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'The Explore page',
+                body: '**Metrics and dimensions** available on the table you selected. **Average payment amount** is the metric you just deployed.',
+                interactive: false,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: false,
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                    '[data-tour-anchor="explore-table"][data-tour-value="Payments"]',
+                    '[data-tour-anchor="explore-field-search"]',
+                ],
+            },
+        ],
+    },
+    'docs:semantic-layer/dimensions': {
+        scope: 'docs:semantic-layer/dimensions',
+        title: 'Dimensions',
+        sources: ['packages/frontend/src/features/learn/sandboxLessons.ts'],
+        steps: [
+            {
+                target: null,
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Dimensions',
+                body: 'Dimensions usually match 1:1 with columns in your dbt models (see [additional dimensions](https://docs.lightdash.com/semantic-layer/dimensions#additional-dimensions) for counterexamples).',
+                interactive: false,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: false,
+                via: [],
+            },
+            {
+                target: '[data-tour-anchor="workspace-file"][data-tour-value="models/fm_buildings.yml"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Open models/fm_buildings.yml',
+                body: "To customize the dimension, you can do it in your dbt model's YAML file under the **meta** tag.",
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [],
+            },
+            {
+                target: '[data-tour-anchor="workspace-editor"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Edit the file',
+                body: "For a dimension to appear in Lightdash, you just need to declare it in your dbt model's YAML file. Let's add **number_of_floors** to the **fm_buildings** model's **columns**. Add the highlighted lines under **columns:**, or press Use it, then Check.",
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: [
+                    '[data-tour-anchor="workspace-file"][data-tour-value="models/fm_buildings.yml"]',
+                ],
+                suggestion:
+                    '    columns:\n      - name: number_of_floors\n        description: Storeys above ground',
+                suggestionContextLines: 1,
+                expect: {
+                    model: 'fm_buildings',
+                    under: 'columns',
+                    field: 'number_of_floors',
+                },
+            },
+            {
+                target: '[data-tour-anchor="terminal-command"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Type the command',
+                body: '**lightdash deploy** pushes your local dbt or native Lightdash YAML models to Lightdash.',
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: [
+                    '[data-tour-anchor="workspace-file"][data-tour-value="models/fm_buildings.yml"]',
+                ],
+                suggestion: 'lightdash deploy',
+            },
+            {
+                target: '[data-tour-anchor="terminal-run"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Run the command',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [
+                    '[data-tour-anchor="workspace-file"][data-tour-value="models/fm_buildings.yml"]',
+                ],
+            },
+            {
+                target: '[data-learn-terminal-output]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'See the result',
+                body: 'Push the current state of your local dbt project files (including uncommitted changes or code from your active branch) to the authenticated Lightdash project. Trigger a re-compile and refresh of your Lightdash project.',
+                interactive: false,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: false,
+                via: [],
+                busy: '[data-tour-anchor="terminal-running"]',
+                retryStep: 2,
+            },
+            {
+                target: '[data-tour-nav="new"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Click New',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [],
+            },
+            {
+                target: '[data-tour-nav="new-chart"]',
+                route: '/projects/:projectUuid/learn/workspace',
+                title: 'Choose Chart',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: ['[data-tour-nav="new"]'],
+            },
+            {
+                target: '[data-tour-anchor="explore-search"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'Search for the table',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: ['[data-tour-nav="new"]', '[data-tour-nav="new-chart"]'],
+                suggestion: 'Fm buildings',
+            },
+            {
+                target: '[data-tour-anchor="explore-table"][data-tour-value="Fm buildings"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'Open Fm buildings',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                ],
+            },
+            {
+                target: '[data-tour-anchor="explore-field-search"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'Find Number of floors',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: true,
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                    '[data-tour-anchor="explore-table"][data-tour-value="Fm buildings"]',
+                ],
+                suggestion: 'Number of floors',
+            },
+            {
+                target: '[data-tour-anchor="explore-dimension"][data-tour-value="Number of floors"]',
+                route: '/projects/:projectUuid/tables/:tableName',
+                title: 'The Explore page',
+                body: '**Metrics and dimensions** available on the table you selected. **Number of floors** is the dimension you just deployed.',
+                interactive: false,
+                advanceOnTargetClick: false,
+                advanceOnTargetInput: false,
+                via: [
+                    '[data-tour-nav="new"]',
+                    '[data-tour-nav="new-chart"]',
+                    '[data-tour-anchor="explore-search"]',
+                    '[data-tour-anchor="explore-table"][data-tour-value="Fm buildings"]',
+                    '[data-tour-anchor="explore-field-search"]',
+                ],
             },
         ],
     },

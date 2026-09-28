@@ -1,4 +1,9 @@
-import { type ApiError } from '@lightdash/common';
+import {
+    describeLearnWorkspaceYamlError,
+    validateLearnWorkspaceYaml,
+    type ApiError,
+    type LearnSandboxCommandRequest,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -8,7 +13,15 @@ import {
     ScrollArea,
     Text,
 } from '@mantine/core';
-import { useCallback, useRef, useState, type FC } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Link, Navigate } from 'react-router';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import ResizableSplitter from '../../components/common/ResizableSplitter';
@@ -27,6 +40,12 @@ import Terminal from './Terminal';
 import { useWorkspaceAccess } from './useWorkspaceAccess';
 import WorkspaceEditor from './WorkspaceEditor';
 
+/**
+ * The key both the explore list (`useExplores`) and a single explore
+ * (`useExplore`) are cached under.
+ */
+const EXPLORE_QUERY_KEY = ['tables'];
+
 type WorkspaceProps = {
     projectUuid: string;
     trainingProjectUuid: string;
@@ -44,6 +63,7 @@ const Workspace: FC<WorkspaceProps> = ({
 }) => {
     const { showToastApiError } = useToaster();
     const route = useOptionalProjectRoute();
+    const queryClient = useQueryClient();
 
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -51,6 +71,15 @@ const Workspace: FC<WorkspaceProps> = ({
     const [activeCommandUuid, setActiveCommandUuid] = useState<string | null>(
         null,
     );
+    // What the attached command is, when this page is the one that started
+    // it. Null for a command it merely attached to (the 409 path), which it
+    // cannot name.
+    const [activeCommand, setActiveCommand] =
+        useState<LearnSandboxCommandRequest | null>(null);
+    // A run is on its way: from the click, through the save it does first,
+    // until the command is attached or the attempt has failed. A save the
+    // learner never asked to run (the editor's blur autosave) is not this.
+    const [isRunPending, setIsRunPending] = useState(false);
     // Errors the page itself raises (a rejected command, a command that never
     // left the browser); the poller's own errors arrive on `output.error`.
     const [terminalError, setTerminalError] = useState<string | null>(null);
@@ -81,8 +110,21 @@ const Workspace: FC<WorkspaceProps> = ({
     // for the path currently selected, so the editor never shows one file's
     // path or content over another's.
     const loadedFile = file && file.path === selectedPath ? file : undefined;
+    // What the drafts are now, for a save that resolves renders later.
+    const draftsRef = useRef(drafts);
+    draftsRef.current = drafts;
     const draft = selectedPath === null ? undefined : drafts[selectedPath];
     const isDirty = draft !== undefined && draft !== loadedFile?.content;
+    // The rule the server applies on save, applied here first: a file that
+    // does not parse is never sent, so the learner reads one line in the
+    // editor's header instead of a toast for every blur.
+    const invalid = useMemo(() => {
+        if (!loadedFile?.editable || draft === undefined) return null;
+        const message = validateLearnWorkspaceYaml(draft);
+        return message === null
+            ? null
+            : describeLearnWorkspaceYamlError(message);
+    }, [draft, loadedFile?.editable]);
 
     // A command is attached but its first poll has not landed: the terminal
     // stays busy across that gap rather than flashing its empty state
@@ -91,8 +133,28 @@ const Workspace: FC<WorkspaceProps> = ({
         activeCommandUuid !== null &&
         output.status === null &&
         output.error === null;
-    const isRunning =
-        output.isActive || runCommand.isLoading || isAwaitingFirstPoll;
+    // Busy for the walkthrough as well as the controls: from the click that
+    // starts a run, across the save that click does first, until the command
+    // it started has reported back. The editor's own blur autosave is not
+    // part of it: nothing is running, and a step waiting on the terminal
+    // would otherwise wait on an edit.
+    const isBusy =
+        output.isActive ||
+        runCommand.isLoading ||
+        isAwaitingFirstPoll ||
+        isRunPending;
+
+    // A deploy rewrites the project's explores, and the learner opens the
+    // new field straight afterwards: a cached explore list would not have it.
+    useEffect(() => {
+        if (output.status !== 'done') return;
+        if (
+            activeCommand?.tool !== 'lightdash' ||
+            activeCommand.subcommand !== 'deploy'
+        )
+            return;
+        void queryClient.invalidateQueries(EXPLORE_QUERY_KEY);
+    }, [output.status, activeCommand, queryClient]);
 
     const handleChange = useCallback(
         (content: string) => {
@@ -118,13 +180,21 @@ const Workspace: FC<WorkspaceProps> = ({
         if (path === null || draft === undefined) return true;
         if (!loadedFile) return false;
         if (!isDirty) return true;
+        if (invalid !== null) return false;
         const pending = pendingSaveRef.current;
         if (pending && pending.path === path && pending.content === draft)
             return pending.promise;
         const promise = (async () => {
             try {
                 await saveFile.mutateAsync({ path, content: draft });
+                // The learner may have typed on while the save was in
+                // flight. Only a draft that is still what was saved is done
+                // with: dropping a newer one would hand the editor the saved
+                // text, which resets it and throws the cursor to the end.
+                // The newer draft stays dirty and goes with the next save.
+                if (draftsRef.current[path] !== draft) return true;
                 setDrafts((prev) => {
+                    if (prev[path] !== draft) return prev;
                     const { [path]: _saved, ...rest } = prev;
                     return rest;
                 });
@@ -143,43 +213,64 @@ const Workspace: FC<WorkspaceProps> = ({
         })();
         pendingSaveRef.current = { path, content: draft, promise };
         return promise;
-    }, [draft, loadedFile, isDirty, saveFile, selectedPath, showToastApiError]);
+    }, [
+        draft,
+        loadedFile,
+        isDirty,
+        invalid,
+        saveFile,
+        selectedPath,
+        showToastApiError,
+    ]);
 
     const handleRun = useCallback(async () => {
         setTerminalError(null);
-        // A command that runs against a file the save did not reach would
-        // report on the old contents, which reads as the edit having had no
-        // effect; say so instead of running.
-        if (!(await saveIfDirty())) {
-            setTerminalError('The file could not be saved, so nothing ran');
-            return;
-        }
-        const parsed = parseCommand(commandInput);
-        if ('error' in parsed) {
-            setTerminalError(parsed.error);
-            return;
-        }
-        // Drop the finished command before asking for the next one so the
-        // pane empties: a rejected run must not read as a footnote under the
-        // previous command's output and status.
-        setActiveCommandUuid(null);
+        setIsRunPending(true);
         try {
-            const { commandUuid } = await runCommand.mutateAsync(parsed);
-            setActiveCommandUuid(commandUuid);
-        } catch (e) {
-            const message =
-                (e as ApiError).error?.message ?? 'Could not run that command';
-            // The workspace runs one command at a time: when the server says
-            // another is already in flight it names it, and the pane attaches
-            // to that command's output instead of reporting a failure.
-            const running = activeCommandFromError(message);
-            if (running !== null) {
-                setActiveCommandUuid(running);
+            // A command that runs against a file the save did not reach would
+            // report on the old contents, which reads as the edit having had
+            // no effect; say so instead of running.
+            if (!(await saveIfDirty())) {
+                setTerminalError(
+                    invalid !== null
+                        ? `${invalid.replace(/ to continue$/, '')}, then run the command again`
+                        : 'The file could not be saved, so nothing ran',
+                );
                 return;
             }
-            setTerminalError(message);
+            const parsed = parseCommand(commandInput);
+            if ('error' in parsed) {
+                setTerminalError(parsed.error);
+                return;
+            }
+            // Drop the finished command before asking for the next one so the
+            // pane empties: a rejected run must not read as a footnote under
+            // the previous command's output and status.
+            setActiveCommandUuid(null);
+            setActiveCommand(null);
+            try {
+                const { commandUuid } = await runCommand.mutateAsync(parsed);
+                setActiveCommandUuid(commandUuid);
+                setActiveCommand(parsed);
+            } catch (e) {
+                const message =
+                    (e as ApiError).error?.message ??
+                    'Could not run that command';
+                // The workspace runs one command at a time: when the server
+                // says another is already in flight it names it, and the pane
+                // attaches to that command's output instead of reporting a
+                // failure.
+                const running = activeCommandFromError(message);
+                if (running !== null) {
+                    setActiveCommandUuid(running);
+                    return;
+                }
+                setTerminalError(message);
+            }
+        } finally {
+            setIsRunPending(false);
         }
-    }, [commandInput, runCommand, saveIfDirty]);
+    }, [commandInput, runCommand, saveIfDirty, invalid]);
 
     return (
         <Box className={styles.shell} data-learn-workspace>
@@ -269,6 +360,7 @@ const Workspace: FC<WorkspaceProps> = ({
                                     editable={loadedFile.editable}
                                     saving={saveFile.isLoading}
                                     dirty={isDirty}
+                                    invalid={invalid}
                                     onChange={handleChange}
                                     onBlur={() => void saveIfDirty()}
                                 />
@@ -302,7 +394,7 @@ const Workspace: FC<WorkspaceProps> = ({
                                 value={commandInput}
                                 onValueChange={setCommandInput}
                                 onRun={() => void handleRun()}
-                                running={isRunning}
+                                busy={isBusy}
                                 disabled={saveFile.isLoading}
                                 output={{
                                     ...output,

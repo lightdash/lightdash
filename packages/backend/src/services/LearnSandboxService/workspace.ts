@@ -1,6 +1,7 @@
+import { validateLearnWorkspaceYaml } from '@lightdash/common';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { stringify as stringifyYaml } from 'yaml';
 
 export type LearnBundle = {
     version: 1;
@@ -25,14 +26,8 @@ const EDITABLE = /^models\/(?:[^/\0]+\/)*[^/\0]+\.yml$/;
 export const isEditablePath = (p: string): boolean =>
     EDITABLE.test(p) && !p.split('/').includes('..');
 
-export const validateYaml = (content: string): string | null => {
-    try {
-        parseYaml(content);
-        return null;
-    } catch (e) {
-        return e instanceof Error ? e.message : 'Invalid YAML';
-    }
-};
+/** The rule the workspace page applies before asking; see common. */
+export const validateYaml = validateLearnWorkspaceYaml;
 
 // dbt-duckdb hands `config_options` to duckdb.connect() and runs `settings`
 // as SET statements once the connection is open. DuckDB refuses to change

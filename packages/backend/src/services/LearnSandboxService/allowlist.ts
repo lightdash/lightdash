@@ -1,11 +1,12 @@
 import {
+    LEARN_TERMINAL_REJECTION,
+    LEARN_TERMINAL_SUBCOMMANDS,
     validateDbtSelector,
     type LearnSandboxCommandRequest,
 } from '@lightdash/common';
 import path from 'node:path';
 
-export const LEARN_TERMINAL_REJECTION =
-    'That command is not available in the Learn terminal';
+export { LEARN_TERMINAL_REJECTION };
 
 // A generous cap: every real invocation needs at most a handful of flags.
 // Anything past this is either a mistake or an attempt to exhaust the
@@ -13,6 +14,7 @@ export const LEARN_TERMINAL_REJECTION =
 const MAX_ARGS = 16;
 
 type Flag = 'select' | 'charts' | 'dashboards' | 'path';
+// Keys are the shared LEARN_TERMINAL_SUBCOMMANDS; the test pins the two together.
 const RULES: Record<'lightdash' | 'dbt', Record<string, Flag[]>> = {
     lightdash: {
         compile: ['select'],

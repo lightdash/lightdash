@@ -1,7 +1,12 @@
-import { lightdashDbtYamlSchema } from '@lightdash/common';
+import {
+    checkLearnLessonEntry,
+    findYamlKeyTypos,
+    type LearnLessonExpectation,
+    lightdashDbtYamlSchema,
+} from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import type { editor } from 'monaco-editor';
-import { useCallback, useRef, type FC } from 'react';
+import { useCallback, useEffect, useRef, type FC } from 'react';
 import { type TourEditable } from '../../components/common/GuidedTour/GuidedTour';
 import Editor, {
     type BeforeMount,
@@ -16,6 +21,7 @@ import {
 } from '../sqlRunner/utils/monaco';
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
+import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
@@ -34,13 +40,14 @@ const configureLearnYaml = (monaco: Monaco) => {
     });
 };
 
-type EditorState = 'saved' | 'dirty' | 'saving' | 'readonly';
+type EditorState = 'saved' | 'dirty' | 'saving' | 'readonly' | 'invalid';
 
 const STATE_LABELS: Record<EditorState, string> = {
     saved: 'Saved',
     dirty: 'Unsaved changes',
     saving: 'Saving…',
     readonly: 'Read-only',
+    invalid: 'Invalid YAML',
 };
 
 type WorkspaceEditorProps = {
@@ -49,9 +56,33 @@ type WorkspaceEditorProps = {
     editable: boolean;
     saving: boolean;
     dirty: boolean;
+    /**
+     * Why the file cannot be saved as it stands, in one line for the learner;
+     * null when it parses. Shown in the header and read by walkthroughs.
+     */
+    invalid?: string | null;
     onChange: (content: string) => void;
     onBlur: () => void;
 };
+
+const isLessonExpectation = (
+    expect: Record<string, string> | undefined,
+): expect is LearnLessonExpectation & Record<string, string> =>
+    expect !== undefined &&
+    typeof expect.model === 'string' &&
+    typeof expect.under === 'string' &&
+    typeof expect.field === 'string';
+
+/** Milliseconds per character when the tour types a snippet in. */
+const TOUR_TYPE_INTERVAL_MS = 24;
+/** How long the lines the tour added stay highlighted. */
+const TOUR_INSERT_HIGHLIGHT_MS = 4000;
+/** Marker owner for misspelt keys, apart from monaco-yaml's own markers. */
+/** How many of its own reports the editor remembers, to know an echo. */
+const REPORTED_LIMIT = 200;
+const KEY_TYPO_MARKERS = 'learn-key-typos';
+/** Long enough that a key is not underlined while it is being typed. */
+const KEY_TYPO_DELAY_MS = 400;
 
 const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     path,
@@ -59,11 +90,19 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     editable,
     saving,
     dirty,
+    invalid = null,
     onChange,
     onBlur,
 }) => {
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+    const keyTypoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (keyTypoTimer.current) clearTimeout(keyTypoTimer.current);
+        },
+        [],
+    );
     const { monaco: monacoTheme } = useEditorTheme();
 
     // onMount/appendToEditor are wired up once (Monaco calls onMount a
@@ -72,38 +111,177 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     // rather than close over the props from the render that created them.
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
+    // The page holds the file and hands it back as `content`. React renders
+    // a keystroke or two behind a fast typist, so `content` can be text the
+    // editor reported a moment ago and has since moved past. Monaco's React
+    // wrapper replaces the whole file with any value that differs from the
+    // editor's, which drops those keystrokes and throws the cursor to the end
+    // of the file. Text the editor itself reported is never new to it, so it
+    // is not handed back; anything else (a file loading) is.
+    const reportedRef = useRef<{ path: string; values: Set<string> }>({
+        path,
+        values: new Set(),
+    });
+    if (reportedRef.current.path !== path) {
+        reportedRef.current = { path, values: new Set() };
+    }
+    const report = useCallback((next: string) => {
+        const { values } = reportedRef.current;
+        values.add(next);
+        if (values.size > REPORTED_LIMIT) {
+            values.delete(values.values().next().value as string);
+        }
+        onChangeRef.current(next);
+    }, []);
+    const isOwnEcho = reportedRef.current.values.has(content);
     const onBlurRef = useRef(onBlur);
     onBlurRef.current = onBlur;
 
-    const appendToEditor = useCallback((value: string) => {
-        const ed = editorRef.current;
-        if (!ed) return;
-        const model = ed.getModel();
-        if (!model) return;
-        const current = model.getValue();
-        const prefix =
-            current.length === 0 || current.endsWith('\n') ? '' : '\n';
-        const line = model.getLineCount();
-        const col = model.getLineMaxColumn(line);
-        ed.executeEdits('learn-tour', [
-            {
-                range: {
-                    startLineNumber: line,
-                    startColumn: col,
-                    endLineNumber: line,
-                    endColumn: col,
+    // The tour's "Use it" types the snippet in rather than dropping it in:
+    // one character a tick, directly under the key it extends (see
+    // snippetInsertion.ts), scrolled into view and highlighted for a moment
+    // afterwards, so the learner sees what was added and where. Each tick
+    // fires an input event on the wrapper, which holds the tour's typed-step
+    // advance until the last character has landed.
+    const typingRef = useRef<{ cancel: () => void } | null>(null);
+    useEffect(() => () => typingRef.current?.cancel(), []);
+    const appendToEditor = useCallback(
+        (value: string) => {
+            const ed = editorRef.current;
+            if (!ed) return;
+            const model = ed.getModel();
+            if (!model) return;
+            // A second press while the snippet is still being typed, or once it
+            // is already there, adds nothing: the learner (and the smoke) can
+            // press Use it again without doubling the metric.
+            if (typingRef.current) return;
+            const before = model.getValue();
+            const point = insertionPoint(before, value);
+            if (before.includes(point.text)) return;
+            // What the file must read once the snippet is in, whatever happens
+            // on the way there.
+            const intended = insertSnippet(before, value);
+            const start = point.offset + point.prefix.length;
+            let offset = point.offset;
+            const insertHere = (text: string) => {
+                const at = model.getPositionAt(offset);
+                ed.executeEdits('learn-tour', [
+                    {
+                        range: {
+                            startLineNumber: at.lineNumber,
+                            startColumn: at.column,
+                            endLineNumber: at.lineNumber,
+                            endColumn: at.column,
+                        },
+                        text,
+                        forceMoveMarkers: true,
+                    },
+                ]);
+                offset += text.length;
+            };
+            // By code point, so a character outside the basic plane is typed
+            // whole; offsets below advance by each piece's own length.
+            const chars = Array.from(point.text);
+            const wrapper = wrapperRef.current;
+            let index = 0;
+            let timer: number | undefined;
+            let cancelled = false;
+            let firstLine = 1;
+            const finish = (written = false) => {
+                const end = model.getPositionAt(offset);
+                if (point.suffix && !written) insertHere(point.suffix);
+                report(model.getValue());
+                ed.setPosition(end);
+                ed.revealLineInCenter(end.lineNumber);
+                const added = ed.createDecorationsCollection([
+                    {
+                        range: {
+                            startLineNumber: firstLine,
+                            startColumn: 1,
+                            endLineNumber: end.lineNumber,
+                            endColumn: 1,
+                        },
+                        options: {
+                            isWholeLine: true,
+                            className: styles.tourInsert,
+                        },
+                    },
+                ]);
+                window.setTimeout(
+                    () => added.clear(),
+                    TOUR_INSERT_HIGHLIGHT_MS,
+                );
+                // The caret has to end up where typing would leave it: the page
+                // autosaves on blur, and text dropped into an editor that never
+                // held focus would never blur, so it would sit unsaved until the
+                // learner ran a command.
+                ed.focus();
+                typingRef.current = null;
+            };
+            const tick = () => {
+                if (cancelled) return;
+                // Anything else touching the model while the snippet types (the
+                // learner's own keystrokes, a reset from outside) would leave
+                // the running offset pointing at the wrong place. Stop animating
+                // and write the intended content in one edit instead.
+                const typedSoFar = chars.slice(0, index).join('');
+                if (
+                    model.getValue().slice(start, start + typedSoFar.length) !==
+                        typedSoFar ||
+                    model.getValue().length !==
+                        before.length + point.prefix.length + typedSoFar.length
+                ) {
+                    ed.executeEdits('learn-tour', [
+                        {
+                            range: model.getFullModelRange(),
+                            text: intended,
+                            forceMoveMarkers: true,
+                        },
+                    ]);
+                    offset = start + point.text.length;
+                    index = chars.length;
+                    finish(true);
+                    return;
+                }
+                insertHere(chars[index]);
+                index += 1;
+                ed.revealLineInCenter(model.getPositionAt(offset).lineNumber);
+                wrapper?.dispatchEvent(new Event('input', { bubbles: true }));
+                if (index < chars.length) {
+                    timer = window.setTimeout(tick, TOUR_TYPE_INTERVAL_MS);
+                } else {
+                    finish();
+                }
+            };
+            typingRef.current = {
+                cancel: () => {
+                    cancelled = true;
+                    window.clearTimeout(timer);
                 },
-                text: prefix + value,
-                forceMoveMarkers: true,
-            },
-        ]);
-        onChangeRef.current(model.getValue());
-        // The tour's append has to leave the caret where typing would leave
-        // it: the page autosaves on blur, and text dropped into an editor
-        // that never held focus would never blur, so it would sit unsaved
-        // until the learner ran a command.
-        ed.focus();
-    }, []);
+            };
+            if (point.prefix) insertHere(point.prefix);
+            firstLine = model.getPositionAt(offset).lineNumber;
+            if (chars.length === 0) finish();
+            else tick();
+            // `typingRef` is set before the first tick returns control, and
+            // stays set until `finish`: while it is, the editor's own change
+            // events are not passed up (see `handleEditorChange`).
+        },
+        [report],
+    );
+
+    // The page holds the file as a controlled value. Reporting every typed
+    // character would have it hand Monaco back a value already a character
+    // or two stale, Monaco would reset to it, and the snippet would land
+    // scrambled (seen on slower machines). While the tour types, changes
+    // stay here; `finish` reports the final content once.
+    const handleEditorChange = useCallback(
+        (next: string | undefined) => {
+            if (typingRef.current) return;
+            report(next ?? '');
+        },
+        [report],
+    );
 
     const handleBeforeMount: BeforeMount = useCallback((monaco) => {
         monaco.editor.defineTheme('lightdash-light', {
@@ -120,12 +298,53 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     }, []);
 
     const onMount: OnMount = useCallback(
-        (ed) => {
+        (ed, monaco) => {
             editorRef.current = ed;
+            // The dbt schema lists the keys it knows without forbidding
+            // others, so monaco-yaml passes `descripton`. Underline a key
+            // that is a slip away from one the schema knows at that spot.
+            const markKeyTypos = () => {
+                const model = ed.getModel();
+                if (!model) return;
+                monaco.editor.setModelMarkers(
+                    model,
+                    KEY_TYPO_MARKERS,
+                    findYamlKeyTypos(
+                        model.getValue(),
+                        lightdashDbtYamlSchema as Record<string, unknown>,
+                    ).map((typo) => ({
+                        severity: monaco.MarkerSeverity.Warning,
+                        message: `Unknown key "${typo.key}". Did you mean "${typo.suggestion}"?`,
+                        startLineNumber: typo.line,
+                        endLineNumber: typo.line,
+                        startColumn: typo.column,
+                        endColumn: typo.endColumn,
+                    })),
+                );
+            };
+            markKeyTypos();
+            ed.onDidChangeModel(markKeyTypos);
+            ed.onDidChangeModelContent(() => {
+                if (keyTypoTimer.current) clearTimeout(keyTypoTimer.current);
+                keyTypoTimer.current = setTimeout(
+                    markKeyTypos,
+                    KEY_TYPO_DELAY_MS,
+                );
+            });
             if (wrapperRef.current) {
                 wrapperRef.current.tourEditor = {
                     getValue: () => ed.getValue(),
                     setValue: appendToEditor,
+                    isBusy: () => typingRef.current !== null,
+                    // A lesson says what it expects as facts about the dbt
+                    // project; a step that carries none falls back to
+                    // looking for the snippet's entry line.
+                    check: (suggestion, expect) =>
+                        isLessonExpectation(expect)
+                            ? checkLearnLessonEntry(ed.getValue(), expect)
+                            : holdsEntry(ed.getValue(), suggestion)
+                              ? null
+                              : 'Add the highlighted lines, then check again',
                 };
             }
             ed.onDidBlurEditorText(() => onBlurRef.current());
@@ -135,11 +354,13 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
 
     const state: EditorState = !editable
         ? 'readonly'
-        : saving
-          ? 'saving'
-          : dirty
-            ? 'dirty'
-            : 'saved';
+        : invalid !== null
+          ? 'invalid'
+          : saving
+            ? 'saving'
+            : dirty
+              ? 'dirty'
+              : 'saved';
 
     return (
         <Box className={styles.editorPane}>
@@ -152,8 +373,22 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 >
                     {path}
                 </Text>
-                <Text fz="xs" c={editable ? 'ldGray.6' : 'ldGray.5'}>
-                    {editable ? STATE_LABELS[state] : 'Read-only'}
+                <Text
+                    fz="xs"
+                    c={
+                        state === 'invalid'
+                            ? 'red.7'
+                            : editable
+                              ? 'ldGray.6'
+                              : 'ldGray.5'
+                    }
+                    data-learn-editor-invalid={invalid ?? undefined}
+                >
+                    {state === 'invalid'
+                        ? invalid
+                        : editable
+                          ? STATE_LABELS[state]
+                          : 'Read-only'}
                 </Text>
             </Box>
             <Box
@@ -162,16 +397,20 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 data-tour-anchor="workspace-editor"
                 data-tour-hint="Edit the file"
                 data-tour-input="true"
+                // A walkthrough's typed step holds while the file does not
+                // parse, and shows these words on its card.
+                data-tour-invalid={invalid ?? undefined}
                 data-tour-suggest="# Edited in the Learn workspace"
             >
                 <Editor
                     path={path}
                     language="yaml"
-                    value={content}
+                    defaultValue={content}
+                    value={isOwnEcho ? undefined : content}
                     theme={monacoTheme}
                     beforeMount={handleBeforeMount}
                     onMount={onMount}
-                    onChange={(v) => onChange(v ?? '')}
+                    onChange={handleEditorChange}
                     options={{
                         ...MONACO_DEFAULT_OPTIONS,
                         readOnly: !editable,

@@ -238,7 +238,9 @@ const orderWithin = (
 
 export const curriculum = (): LearnModule[] => {
     const cite = citationForScope();
-    const modules = buildLearnCatalogue().filter((module) => module.available);
+    const modules = buildLearnCatalogue().filter(
+        (module) => module.kind === 'scope' && module.available,
+    );
     const pages = [
         ...new Set(
             modules
