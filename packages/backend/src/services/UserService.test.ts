@@ -213,6 +213,8 @@ const organizationSettingsModel = {
 
 const organizationAllowedEmailDomainsModel = {
     findAllowedEmailDomains: vi.fn(async () => undefined),
+    getAllowedEmailDomains:
+        vi.fn<OrganizationAllowedEmailDomainsModel['getAllowedEmailDomains']>(),
 };
 
 const sessionModel = {
@@ -329,6 +331,7 @@ const createUserService = (
     });
 
 vi.spyOn(analyticsMock, 'track');
+vi.spyOn(analyticsMock, 'group');
 const auditLogSpy = vi
     .spyOn(winston, 'logAuditEvent')
     .mockImplementation(() => {});
@@ -338,6 +341,68 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('joinOrg by allowed email domain', () => {
+        const userWithoutOrganization: SessionUser = { ...sessionUser };
+        delete userWithoutOrganization.organizationUuid;
+
+        test('groups the user after joining the organization', async () => {
+            vi.mocked(emailModel.getPrimaryEmailStatus).mockResolvedValueOnce({
+                email: 'person@example.com',
+                isVerified: true,
+            });
+            vi.mocked(
+                organizationAllowedEmailDomainsModel.getAllowedEmailDomains,
+            ).mockResolvedValueOnce({
+                organizationUuid: organisation.organizationUuid,
+                emailDomains: ['example.com'],
+                role: OrganizationMemberRole.MEMBER,
+                projects: [],
+            });
+
+            await userService.joinOrg(
+                userWithoutOrganization,
+                organisation.organizationUuid,
+            );
+
+            expect(vi.mocked(userModel.joinOrg)).toHaveBeenCalledOnce();
+            expect(vi.mocked(analyticsMock.group)).toHaveBeenCalledWith({
+                userId: userWithoutOrganization.userUuid,
+                groupId: organisation.organizationUuid,
+                traits: {},
+            });
+            expect(
+                vi.mocked(userModel.joinOrg).mock.invocationCallOrder[0],
+            ).toBeLessThan(
+                vi.mocked(analyticsMock.group).mock.invocationCallOrder[0],
+            );
+        });
+
+        test('does not group the user when the email domain is not allowed', async () => {
+            vi.mocked(emailModel.getPrimaryEmailStatus).mockResolvedValueOnce({
+                email: 'person@other.com',
+                isVerified: true,
+            });
+            vi.mocked(
+                organizationAllowedEmailDomainsModel.getAllowedEmailDomains,
+            ).mockResolvedValueOnce({
+                organizationUuid: organisation.organizationUuid,
+                emailDomains: ['example.com'],
+                role: OrganizationMemberRole.MEMBER,
+                projects: [],
+            });
+
+            await expect(
+                userService.joinOrg(
+                    userWithoutOrganization,
+                    organisation.organizationUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(vi.mocked(userModel.joinOrg)).not.toHaveBeenCalled();
+            expect(vi.mocked(analyticsMock.group)).not.toHaveBeenCalled();
+        });
     });
 
     describe('organization selection during login', () => {
