@@ -44,7 +44,8 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 
 /**
  * A config option value. Its shape follows the option's declared type:
- * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
+ * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string,
+ * `gradient` → fixed colours and automatic or numeric bounds.
  * Series colours are not an option — the host resolves them separately from
  * config options and exposes them through the colour helpers.
  */
