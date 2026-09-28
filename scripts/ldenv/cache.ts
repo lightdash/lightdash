@@ -24,6 +24,7 @@ import {
     json,
 } from './model';
 import { cloneGlobalModules, globalModuleInputsMatch } from './modules';
+import { traced } from './timeline';
 
 export const builtPackages = ['formula', 'common', 'warehouses'];
 export async function changedFiles(
@@ -367,33 +368,47 @@ export async function prepareForkCode(
     timings: Record<string, number>,
 ): Promise<void> {
     const started = Date.now();
-    const plan = await dependencyPlan(parent, root);
+    const plan = await traced(timings, 'dependencyPlan', () =>
+        dependencyPlan(parent, root),
+    );
     if (plan !== 'copy-global') {
-        await executeDependencyPlan(plan, parent, root, env, label);
+        await traced(timings, 'dependencies', () =>
+            executeDependencyPlan(plan, parent, root, env, label),
+        );
         timings.dependencies = Date.now() - started;
         const artifactsStarted = Date.now();
-        await cloneBuilds(parent, root);
+        await traced(timings, 'artifactsClone', () =>
+            cloneBuilds(parent, root),
+        );
         timings.artifactsClone = Date.now() - artifactsStarted;
         return;
     }
     const results = await Promise.allSettled([
-        copyGlobalDependencies(parent, root).then(() => {
+        traced(timings, 'dependencies', () =>
+            copyGlobalDependencies(parent, root),
+        ).then(() => {
             timings.dependencies = Date.now() - started;
         }),
         (async () => {
             const artifactsStarted = Date.now();
-            await copyBuildArtifacts(parent, root);
+            await traced(timings, 'artifactsClone', () =>
+                copyBuildArtifacts(parent, root),
+            );
             timings.artifactsClone = Date.now() - artifactsStarted;
         })(),
     ]);
     if (results[1].status === 'rejected') throw results[1].reason;
     if (results[0].status === 'rejected') {
         reportDependencyFallback(results[0].reason);
-        await install(root, true, env, label, 'global');
+        await traced(timings, 'dependencyFallback', () =>
+            install(root, true, env, label, 'global'),
+        );
         timings.dependencies = Date.now() - started;
     }
     const finalizationStarted = Date.now();
-    await finalizeBuildArtifacts(parent, root);
+    await traced(timings, 'artifactsFinalize', () =>
+        finalizeBuildArtifacts(parent, root),
+    );
     timings.artifactsFinalize = Date.now() - finalizationStarted;
 }
 export function relocateBuildMetadata<T>(
@@ -537,16 +552,19 @@ export async function runTiers(
 ): Promise<void> {
     for (const tier of matchingTiers(recipe.tiers, files)) {
         if (!tier.run || tier.preset === 'pnpm') continue;
+        const tierRun = tier.run;
         const started = Date.now();
-        await runner.shell(tier.run, {
-            cwd: root,
-            env: tierEnvironment(env, tier.env),
-            log: path.join(
-                home,
-                'logs',
-                `${label}-tier-${tier.name.replace(/[^a-z0-9_-]/gi, '_')}.log`,
-            ),
-        });
+        await traced(timings, `tier:${tier.name}`, () =>
+            runner.shell(tierRun, {
+                cwd: root,
+                env: tierEnvironment(env, tier.env),
+                log: path.join(
+                    home,
+                    'logs',
+                    `${label}-tier-${tier.name.replace(/[^a-z0-9_-]/gi, '_')}.log`,
+                ),
+            }),
+        );
         timings[`tier:${tier.name}`] = Date.now() - started;
     }
 }

@@ -35,6 +35,7 @@ import {
     stableReadiness,
     waitForCompilers,
 } from './readiness';
+import { markTimeline, traced } from './timeline';
 
 const controlRoot = path.resolve(__dirname, '../..');
 const requireRoot = createRequire(path.join(controlRoot, 'package.json'));
@@ -469,13 +470,21 @@ export async function checkForegroundReady(
 export async function checkBasicReady(instance: Instance): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
     const started = Date.now();
+    markTimeline(instance.timings, 'backendHealth', 'start', started);
     await waitUntil(
         () => health(instance.ports!.api),
         120000,
         'backend health',
     );
     instance.timings.backendHealth = Date.now() - started;
+    markTimeline(instance.timings, 'backendHealth', 'end');
     const frontendStarted = Date.now();
+    markTimeline(
+        instance.timings,
+        'frontendResponse',
+        'start',
+        frontendStarted,
+    );
     await waitUntil(
         async () => {
             try {
@@ -494,6 +503,7 @@ export async function checkBasicReady(instance: Instance): Promise<void> {
         'frontend response',
     );
     instance.timings.frontendResponse = Date.now() - frontendStarted;
+    markTimeline(instance.timings, 'frontendResponse', 'end');
 }
 export async function checkPaintReady(instance: Instance): Promise<void> {
     if (!instance.ports) throw new Error('Instance has no ports');
@@ -1064,16 +1074,31 @@ export async function finishStart(
     instance: Instance,
     inlineBackgroundVerification = false,
 ): Promise<void> {
+    markTimeline(
+        instance.timings,
+        'monitorProcess',
+        'start',
+        Math.floor(performance.timeOrigin),
+    );
+    markTimeline(instance.timings, 'finishStart', 'start');
     try {
         const apiStarted = Date.now();
+        markTimeline(instance.timings, 'bootToHealth', 'start', apiStarted);
         const apiHealth = waitUntil(
             () => health(instance.ports!.api),
             120000,
             'backend health',
         ).then(() => {
             instance.timings.bootToHealth = Date.now() - apiStarted;
+            markTimeline(instance.timings, 'bootToHealth', 'end');
         });
         const watcherStarted = Date.now();
+        markTimeline(
+            instance.timings,
+            'monitorCompilers',
+            'start',
+            watcherStarted,
+        );
         const compilers =
             instance.timings.watchersLaunch && !instance.timings.watchersSettle
                 ? waitForCompilers(instance).then(() => {
@@ -1082,21 +1107,29 @@ export async function finishStart(
                       instance.timings.watchersSettle =
                           instance.timings.watchersLaunch +
                           instance.timings.watchersWait;
+                      markTimeline(instance.timings, 'monitorCompilers', 'end');
                   })
-                : Promise.resolve();
+                : Promise.resolve().then(() => {
+                      markTimeline(instance.timings, 'monitorCompilers', 'end');
+                  });
         await Promise.all([apiHealth, compilers]);
         const laterStart = Date.now();
         if (instance.kind === 'worktree') {
-            await stableReady(
-                instance,
-                () => checkBasicReady(instance),
-                undefined,
-                false,
+            await traced(instance.timings, 'readyCheck', () =>
+                stableReady(
+                    instance,
+                    () => checkBasicReady(instance),
+                    undefined,
+                    false,
+                ),
             );
             markReady(instance, false);
-        } else await ready(instance);
+        } else
+            await traced(instance.timings, 'readyCheck', () => ready(instance));
         const published = inlineBackgroundVerification
-            ? await publishMonitorStart(instance)
+            ? await traced(instance.timings, 'publishReady', () =>
+                  publishMonitorStart(instance),
+              )
             : null;
         if (inlineBackgroundVerification && !published) return;
         if (!inlineBackgroundVerification) await saveInstance(instance);

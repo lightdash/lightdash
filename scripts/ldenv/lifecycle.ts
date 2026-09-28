@@ -82,6 +82,7 @@ import {
     stopProcesses,
 } from './processes';
 import { canStartApiAlongsideWatchers, waitForCompilers } from './readiness';
+import { markTimeline, traced } from './timeline';
 import { populateViteCache, restoreViteCache } from './vite';
 
 export const controlRoot = path.resolve(__dirname, '../..');
@@ -145,11 +146,13 @@ export async function timed<T>(
     action: () => Promise<T>,
 ): Promise<T> {
     const start = Date.now();
+    markTimeline(timings, key, 'start', start);
     process.stdout.write(`PHASE: ${key}\n`);
     try {
         return await action();
     } finally {
         timings[key] = Date.now() - start;
+        markTimeline(timings, key, 'end');
         process.stdout.write(`TIME: ${key}=${timings[key]}ms\n`);
     }
 }
@@ -543,6 +546,7 @@ async function upInstance(
     kind: Instance['kind'] = 'worktree',
     inheritedSecrets: Environment | null = null,
 ): Promise<Instance> {
+    const upStartedAt = Date.now();
     return withLock(instanceId(root), async () => {
         const existing = await currentState(instanceId(root));
         if (existing) return resumeExistingInstance(existing, noWait, start);
@@ -583,6 +587,15 @@ async function upInstance(
                 return selected;
             });
             const state = instance! as Instance;
+            markTimeline(
+                state.timings,
+                'process',
+                'start',
+                Math.floor(performance.timeOrigin),
+            );
+            markTimeline(state.timings, 'up', 'start', upStartedAt);
+            markTimeline(state.timings, 'preflight', 'start', upStartedAt);
+            markTimeline(state.timings, 'preflight', 'end');
             await timed(state.timings, 'postgres', () => ensurePostgres(root));
             const config = await compose(root);
             await timed(state.timings, 'sharedCheck', () =>
@@ -599,41 +612,51 @@ async function upInstance(
                 machine: await machine(),
                 ports: parentPorts,
             });
-            const results = await Promise.allSettled([
-                timed(state.timings, 'ports', async () => {
-                    state.ports = await claimPorts(root, state.id);
-                }),
-                timed(state.timings, 'databaseClone', () =>
-                    sql(
-                        root,
-                        `CREATE DATABASE ${databaseIdentifier(state.database)} TEMPLATE ${databaseIdentifier(parent.database)};`,
+            const results = await traced(state.timings, 'parallelSetup', () =>
+                Promise.allSettled([
+                    timed(state.timings, 'ports', async () => {
+                        state.ports = await claimPorts(root, state.id);
+                    }),
+                    timed(state.timings, 'databaseClone', () =>
+                        sql(
+                            root,
+                            `CREATE DATABASE ${databaseIdentifier(state.database)} TEMPLATE ${databaseIdentifier(parent.database)};`,
+                        ),
                     ),
-                ),
-                timed(state.timings, 'codeClone', async () => {
-                    await prepareForkCode(
-                        parent,
-                        root,
-                        preliminary,
-                        state.id,
-                        state.timings,
-                    );
-                }),
-            ]);
+                    timed(state.timings, 'codeClone', async () => {
+                        await prepareForkCode(
+                            parent,
+                            root,
+                            preliminary,
+                            state.id,
+                            state.timings,
+                        );
+                    }),
+                ]),
+            );
             const failure = results.find(
                 (result) => result.status === 'rejected',
             );
             if (failure?.status === 'rejected') throw failure.reason;
-            const marker = await sql(
-                root,
-                'SELECT sha FROM public.ldenv_seed_complete;',
-                state.database,
+            const marker = await traced(state.timings, 'seedMarker', () =>
+                sql(
+                    root,
+                    'SELECT sha FROM public.ldenv_seed_complete;',
+                    state.database,
+                ),
             );
             if (marker !== parent.sha)
                 throw new Error('Cloned seed marker does not match parent');
-            const env = await environment(root, state, secrets);
-            await writeInstanceEnv(state, env);
-            const diff = await buildDiff(parent, root);
-            const recipe = await recipeAt(root);
+            const env = await traced(state.timings, 'environment', async () => {
+                const values = await environment(root, state, secrets);
+                await writeInstanceEnv(state, values);
+                return values;
+            });
+            const [diff, recipe] = await traced(
+                state.timings,
+                'diffAndRecipe',
+                () => Promise.all([buildDiff(parent, root), recipeAt(root)]),
+            );
             const frontend = async () => {
                 await timed(state.timings, 'viteCacheRestore', async () => {
                     const result = await restoreViteCache(
@@ -672,6 +695,7 @@ async function upInstance(
             process.stdout.write(
                 `API WATCHER OVERLAP: ${overlapWatchers ? 'yes' : 'no'}\n`,
             );
+            markTimeline(state.timings, 'preparations', 'start');
             if (overlapWatchers) {
                 preparations = await Promise.allSettled([
                     frontend(),
@@ -700,6 +724,7 @@ async function upInstance(
             );
             if (preparationFailure?.status === 'rejected')
                 throw preparationFailure.reason;
+            markTimeline(state.timings, 'preparations', 'end');
             if (
                 kind === 'warming' &&
                 savedBackendMode(env.LDENV_BACKEND) === 'tsx'
@@ -707,7 +732,9 @@ async function upInstance(
                 await timed(state.timings, 'compileCacheWarm', () =>
                     warmCompileCache(root, env),
                 );
-            await saveInstance(state);
+            await traced(state.timings, 'preparedStateSave', () =>
+                saveInstance(state),
+            );
             return await start(state, noWait, overlapWatchers);
         } catch (error) {
             if (instance) {
@@ -742,17 +769,22 @@ async function startInstance(
     noWait: boolean,
     overlapWatchers = false,
 ): Promise<Instance> {
+    markTimeline(instance.timings, 'startInstance', 'start');
     assertInstance(instance);
     if (instance.phase === 'stopped' || instance.phase === 'failed') {
         instance.startedAt = new Date().toISOString();
         instance.processStartedAt = instance.startedAt;
         instance.timings = {};
     }
-    await ensurePostgres(controlRoot);
-    await sharedServices(
-        instance.worktree,
-        await compose(instance.worktree),
-        true,
+    await traced(instance.timings, 'startPostgres', () =>
+        ensurePostgres(controlRoot),
+    );
+    await traced(instance.timings, 'startShared', async () =>
+        sharedServices(
+            instance.worktree,
+            await compose(instance.worktree),
+            true,
+        ),
     );
     instance.phase = 'starting';
     instance.error = null;
@@ -770,14 +802,21 @@ async function startInstance(
                 waitForCompilers(instance),
             ),
         );
-    await saveInstance(instance);
+    await traced(instance.timings, 'startingStateSave', () =>
+        saveInstance(instance),
+    );
     if (noWait) {
-        instance.monitorPid = await background(
-            ['monitor', instance.id],
-            `${instance.id}-monitor`,
+        instance.monitorPid = await traced(
+            instance.timings,
+            'monitorLaunch',
+            () =>
+                background(['monitor', instance.id], `${instance.id}-monitor`),
         );
-        await saveInstance(instance);
+        await traced(instance.timings, 'monitorStateSave', () =>
+            saveInstance(instance),
+        );
     } else await finishStart(instance);
+    markTimeline(instance.timings, 'startInstance', 'end');
     return instance;
 }
 export async function down(instance: Instance): Promise<void> {
