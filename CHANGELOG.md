@@ -1,3 +1,10 @@
+## [2.352.3](https://github.com/lightdash/lightdash/compare/2.352.2...2.352.3) (2026-09-28)
+
+
+### Bug Fixes
+
+* **learn:** cap training copies in flight per organization (CS-323) ([#30033](https://github.com/lightdash/lightdash/issues/30033)) ([d5bdfa3](https://github.com/lightdash/lightdash/commit/d5bdfa3c94d7ee6c1dc9ec97ff173e0b85826052)), closes [#30032](https://github.com/lightdash/lightdash/issues/30032)
+
 ## [2.352.2](https://github.com/lightdash/lightdash/compare/2.352.1...2.352.2) (2026-09-28)
 
 
