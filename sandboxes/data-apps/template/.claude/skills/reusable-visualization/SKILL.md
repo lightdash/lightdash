@@ -39,6 +39,7 @@ const {
   pointMenu,
   underlyingData,
   drillDown,
+  subtotals,
 } = context;
 ```
 
@@ -73,6 +74,16 @@ const {
 - `drillDown` — host-mediated drill on a clicked data point; the fallback
   per-action dialog for hosts that predate `pointMenu`. See "Data-point
   actions" below.
+- `subtotals` — aggregated rows for the levels of a declared hierarchy. Declare
+  `hierarchy: { field: "<input name>" }` in the schema, naming a dimension input with
+  `multiple: true` ordered from the top level down. `rows` stays at the most detailed
+  level. When `subtotals.enabled`, `subtotals.dimensions` lists the bound field ids and
+  `await subtotals.get({ level, parentValues })` returns `{ rows }` for one level:
+  `level: 0` with `parentValues: []` is the top level, `level: 1` with the raw value of
+  one top-level group returns that group's children. Rows come back unsorted, one per
+  group and one per series value when the result is pivoted. Subtotals belong to the
+  `rows` they were fetched for: refetch when `rows` change, handle a rejected promise,
+  and render from `rows` alone when `subtotals.enabled` is false.
 
 Read all of them. Pass the complete `context` to the colour helpers; they preserve model
 colours and shared dashboard assignments before falling back to `colorPalette`.

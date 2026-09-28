@@ -166,6 +166,7 @@ export const useDataAppVizTestContext = ({
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
                 pointMenu: { enabled: false },
+                subtotals: { enabled: false, dimensions: [] },
             });
         }
     }, [

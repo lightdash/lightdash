@@ -260,6 +260,18 @@ export const VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
  */
 export const VIZ_UNDERLYING_DATA_OPEN_PATH = '/__sdk/viz/underlying-data/open';
 
+/** Host-owned subtotal execution for reusable chart types. */
+export const VIZ_SUBTOTALS_PATH = '/__sdk/viz/subtotals';
+
+export type VizSubtotalsRequest = {
+    level: number;
+    parentValues: Array<string | number | boolean | null>;
+};
+
+export type VizSubtotalsResult = {
+    rows: Record<string, { value?: { raw?: unknown; formatted?: string } }>[];
+};
+
 /**
  * Semantic click intent a viz sends to the host: the untransformed source row
  * (as received from `useVizContext().rows`) and the declared field NAME bound
@@ -438,6 +450,10 @@ export type Transport = {
     openVizUnderlyingData?: (
         intent: Omit<VizUnderlyingDataIntent, 'limit'>,
     ) => Promise<void>;
+    /** Ask the host for the aggregated rows of a hierarchy level. */
+    getVizSubtotals?: (
+        request: VizSubtotalsRequest,
+    ) => Promise<VizSubtotalsResult>;
     /**
      * Fire the drill-down intent for a viz data point via the host bridge.
      * One-way: the host opens its drill dialog; the resolved promise is only
