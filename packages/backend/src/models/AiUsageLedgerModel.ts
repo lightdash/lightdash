@@ -20,9 +20,9 @@ export class AiUsageLedgerModel {
      * Calls with no organisation cannot be attributed to anyone's usage and
      * are dropped here, matching the usage stream.
      */
-    async recordEvent(event: AiUsageEvent): Promise<boolean> {
+    async recordEvent(event: AiUsageEvent): Promise<void> {
         const { properties } = event;
-        if (properties.organizationId === null) return false;
+        if (properties.organizationId === null) return;
         const row: DbAiUsageLedgerInsert = {
             event_id: properties.eventId,
             organization_uuid: properties.organizationId,
@@ -46,7 +46,6 @@ export class AiUsageLedgerModel {
             total_tokens: properties.totalTokens,
         };
         await this.database(AiUsageLedgerTableName).insert(row);
-        return true;
     }
 
     async deleteOlderThan(days: number): Promise<number> {

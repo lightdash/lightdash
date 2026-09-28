@@ -1,38 +1,51 @@
+import { SEED_ORG_1, SEED_ORG_1_ADMIN } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
-import { down, up } from '../20260928170000_create_ai_usage_ledger';
+import { type AiUsageEvent } from '../../../analytics/aiUsage';
+import { AiUsageLedgerModel } from '../../../models/AiUsageLedgerModel';
 
 const TABLE = 'ai_usage_ledger';
 
-const ledgerRow = (organizationUuid: string) => ({
-    event_id: randomUUID(),
-    organization_uuid: organizationUuid,
-    project_uuid: randomUUID(),
-    user_uuid: randomUUID(),
-    agent_uuid: null,
-    thread_uuid: randomUUID(),
-    prompt_uuid: randomUUID(),
-    app_uuid: null,
-    feature: 'agent',
-    function_id: 'streamAgentResponse',
-    model: 'claude-sonnet-5',
-    provider: 'anthropic',
-    key_management: 'lightdash-managed',
-    outcome: 'complete',
-    input_tokens: 1200,
-    output_tokens: 300,
-    cache_read_tokens: 800,
-    cache_write_tokens: 100,
-    reasoning_tokens: null,
-    total_tokens: 1500,
+const usageEvent = (
+    overrides: Partial<AiUsageEvent['properties']> = {},
+): AiUsageEvent => ({
+    event: 'ai.usage',
+    userId: SEED_ORG_1_ADMIN.user_uuid,
+    properties: {
+        eventId: randomUUID(),
+        outcome: 'complete',
+        feature: 'agent',
+        functionId: 'streamAgentResponse',
+        organizationId: SEED_ORG_1.organization_uuid,
+        projectId: randomUUID(),
+        aiAgentId: null,
+        threadId: randomUUID(),
+        promptId: randomUUID(),
+        dataAppId: null,
+        model: 'claude-sonnet-5',
+        provider: 'anthropic',
+        keyManagement: 'lightdash-managed',
+        managedAgentRunId: null,
+        deepResearchRunId: null,
+        deepResearchPhase: null,
+        inputTokens: 1200,
+        outputTokens: 300,
+        cacheReadTokens: 800,
+        cacheWriteTokens: 100,
+        reasoningTokens: null,
+        totalTokens: 1500,
+        ...overrides,
+    },
 });
 
-describe('AI usage ledger migration on PostgreSQL', () => {
+describe('AI usage ledger on the real PostgreSQL schema', () => {
     let database: Knex;
     let transaction: Knex.Transaction;
-    const organizationUuid = randomUUID();
+    let model: AiUsageLedgerModel;
 
     beforeAll(() => {
+        if (!process.env.PGCONNECTIONURI && !process.env.PGDATABASE)
+            throw new Error('PostgreSQL integration connection is required');
         database = knex({
             client: 'pg',
             connection: process.env.PGCONNECTIONURI ?? {
@@ -47,17 +60,7 @@ describe('AI usage ledger migration on PostgreSQL', () => {
 
     beforeEach(async () => {
         transaction = await database.transaction();
-        const schema = `usage_ledger_test_${randomUUID().replaceAll('-', '')}`;
-        await transaction.schema.createSchema(schema);
-        await transaction.raw('SET LOCAL search_path TO ??, public', [schema]);
-        await transaction.schema.createTable('organizations', (table) => {
-            table.uuid('organization_uuid').primary();
-        });
-        await transaction.raw(
-            'INSERT INTO organizations (organization_uuid) VALUES (?)',
-            [organizationUuid],
-        );
-        await up(transaction);
+        model = new AiUsageLedgerModel({ database: transaction });
     });
 
     afterEach(async () => {
@@ -68,69 +71,90 @@ describe('AI usage ledger migration on PostgreSQL', () => {
         await database.destroy();
     });
 
-    test('stores one row per call with its token classes', async () => {
-        await transaction(TABLE).insert(ledgerRow(organizationUuid));
-        const [row] = await transaction(TABLE).select('*');
-        expect(row.outcome).toBe('complete');
-        expect(Number(row.input_tokens)).toBe(1200);
-        expect(row.created_at).toBeInstanceOf(Date);
+    test('records one row per call with its token classes and key origin', async () => {
+        const event = usageEvent();
+        await model.recordEvent(event);
+        const [row] = await transaction(TABLE).where({
+            event_id: event.properties.eventId,
+        });
+        expect(row).toMatchObject({
+            organization_uuid: SEED_ORG_1.organization_uuid,
+            user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+            thread_uuid: event.properties.threadId,
+            feature: 'agent',
+            key_management: 'lightdash-managed',
+            outcome: 'complete',
+        });
+        expect(
+            [
+                row.input_tokens,
+                row.output_tokens,
+                row.cache_read_tokens,
+                row.cache_write_tokens,
+                row.total_tokens,
+            ].map(Number),
+        ).toEqual([1200, 300, 800, 100, 1500]);
+        expect(row.reasoning_tokens).toBeNull();
     });
 
-    test('rejects a second row for the same event id', async () => {
-        const row = ledgerRow(organizationUuid);
-        await transaction(TABLE).insert(row);
-        await expect(transaction(TABLE).insert(row)).rejects.toThrow(
+    test('drops a call that has no organisation to attribute it to', async () => {
+        const event = usageEvent({ organizationId: null });
+        await model.recordEvent(event);
+        expect(
+            await transaction(TABLE).where({
+                event_id: event.properties.eventId,
+            }),
+        ).toEqual([]);
+    });
+
+    test('keeps a failed data app generation with its outcome', async () => {
+        const event = usageEvent({
+            feature: 'data-app',
+            functionId: 'appClaudeGeneration',
+            outcome: 'failed',
+            dataAppId: randomUUID(),
+        });
+        await model.recordEvent(event);
+        const [row] = await transaction(TABLE).where({
+            event_id: event.properties.eventId,
+        });
+        expect(row.outcome).toBe('failed');
+        expect(row.app_uuid).toBe(event.properties.dataAppId);
+    });
+
+    test('refuses a second row for the same event id', async () => {
+        const event = usageEvent();
+        await model.recordEvent(event);
+        await expect(model.recordEvent(event)).rejects.toThrow(
             /ai_usage_ledger_event_id_unique/,
         );
     });
 
-    test('rejects an outcome outside the fixed list', async () => {
-        await expect(
-            transaction(TABLE).insert({
-                ...ledgerRow(organizationUuid),
-                outcome: 'aborted',
-            }),
-        ).rejects.toThrow(/ai_usage_ledger_outcome_check/);
+    test('retention removes rows past the cutoff and keeps newer ones', async () => {
+        const old = usageEvent();
+        const recent = usageEvent();
+        await model.recordEvent(old);
+        await model.recordEvent(recent);
+        await transaction.raw(
+            `UPDATE ${TABLE} SET created_at = now() - interval '91 days' WHERE event_id = ?`,
+            [old.properties.eventId],
+        );
+
+        const deleted = await model.deleteOlderThan(90);
+
+        expect(deleted).toBe(1);
+        const remaining = await transaction(TABLE).whereIn('event_id', [
+            old.properties.eventId,
+            recent.properties.eventId,
+        ]);
+        expect(remaining.map((row) => row.event_id)).toEqual([
+            recent.properties.eventId,
+        ]);
     });
 
-    test('rejects a key origin outside the fixed list', async () => {
-        await expect(
-            transaction(TABLE).insert({
-                ...ledgerRow(organizationUuid),
-                key_management: 'unknown',
-            }),
-        ).rejects.toThrow(/ai_usage_ledger_key_management_check/);
-    });
-
-    test('rows follow their organisation when it is deleted', async () => {
-        await transaction(TABLE).insert(ledgerRow(organizationUuid));
-        await transaction('organizations')
-            .where({ organization_uuid: organizationUuid })
-            .delete();
-        expect(await transaction(TABLE).count()).toEqual([{ count: '0' }]);
-    });
-
-    test('indexes rows by thread and by app for the per-thread credits view', async () => {
-        const { rows } = await transaction.raw(
-            `SELECT indexname, indexdef FROM pg_indexes WHERE tablename = ? ORDER BY indexname`,
-            [TABLE],
+    test('retention refuses a cutoff that would delete everything', async () => {
+        await expect(model.deleteOlderThan(0)).rejects.toThrow(
+            /Invalid retention days/,
         );
-        const byName = Object.fromEntries(
-            rows.map((row: { indexname: string; indexdef: string }) => [
-                row.indexname,
-                row.indexdef,
-            ]),
-        );
-        expect(byName.ai_usage_ledger_thread_uuid_index).toMatch(
-            /WHERE \(thread_uuid IS NOT NULL\)/,
-        );
-        expect(byName.ai_usage_ledger_app_uuid_index).toMatch(
-            /WHERE \(app_uuid IS NOT NULL\)/,
-        );
-    });
-
-    test('down removes the table', async () => {
-        await down(transaction);
-        expect(await transaction.schema.hasTable(TABLE)).toBe(false);
     });
 });

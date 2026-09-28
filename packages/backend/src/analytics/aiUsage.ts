@@ -129,21 +129,21 @@ export const embeddingModelUsageToTokens = (
 };
 
 /**
- * One event per AI model call, emitted 100% unsampled (unlike traces) so
- * token usage can be accounted per org/user/feature. Consumed by the usage
- * event stream sink (`ai_usage` stream) and Rudderstack.
- */
-/**
  * Whether the work the call belonged to finished. Failed data app generations
  * still spend tokens and are recorded, but the balance excludes them.
  */
 export type AiUsageOutcome = 'complete' | 'failed';
 
+/**
+ * One event per AI model call, emitted 100% unsampled (unlike traces) so
+ * token usage can be accounted per org/user/feature. Consumed by the usage
+ * event stream sink (`ai_usage` stream), Rudderstack and the usage ledger.
+ */
 export type AiUsageEvent = BaseTrack & {
     event: 'ai.usage';
     properties: {
-        // Generated at emit time and shared by every sink so the ledger, the
-        // usage stream and the warehouse can be reconciled row by row.
+        // Generated once per call so the ledger, the stream and the warehouse
+        // rows can be matched.
         eventId: string;
         outcome: AiUsageOutcome;
         feature: AiCallFeature;
@@ -186,7 +186,7 @@ let aiUsageLedgerFn: AiUsageLedgerFn | null = null;
  * answered and is never awaited by the caller, so a slow or failing insert
  * cannot hold a stream open or surface in the AI path.
  */
-export const registerAiUsageLedger = (fn: AiUsageLedgerFn | null): void => {
+export const registerAiUsageLedger = (fn: AiUsageLedgerFn): void => {
     aiUsageLedgerFn = fn;
 };
 

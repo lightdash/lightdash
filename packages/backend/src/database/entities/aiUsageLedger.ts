@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import type { AiKeyManagement, AiUsageOutcome } from '../../analytics/aiUsage';
 
 export const AiUsageLedgerTableName = 'ai_usage_ledger';
 
@@ -16,8 +17,8 @@ export type DbAiUsageLedger = {
     function_id: string;
     model: string | null;
     provider: string | null;
-    key_management: 'lightdash-managed' | 'self-managed' | null;
-    outcome: 'complete' | 'failed';
+    key_management: AiKeyManagement | null;
+    outcome: AiUsageOutcome;
     // bigint columns arrive as strings through the pg driver.
     input_tokens: string | null;
     output_tokens: string | null;

@@ -137,7 +137,7 @@ describe('emitAiUsage', () => {
     afterEach(() => {
         vi.clearAllMocks();
         registerAiUsageTracker(() => {});
-        registerAiUsageLedger(null);
+        registerAiUsageLedger(async () => {});
     });
 
     const emitAgentCall = (outcome?: 'complete' | 'failed') =>
@@ -154,7 +154,7 @@ describe('emitAiUsage', () => {
             outcome === undefined ? undefined : { outcome },
         );
 
-    it('gives the tracker and the ledger the same event with a fresh id', () => {
+    it('stamps each call with one id that the ledger and the analytics event share', () => {
         const track = vi.fn<(event: AiUsageEvent) => void>();
         const ledger = vi.fn<(event: AiUsageEvent) => Promise<void>>(
             async () => {},
@@ -165,12 +165,14 @@ describe('emitAiUsage', () => {
         emitAgentCall();
         emitAgentCall();
 
-        expect(ledger).toHaveBeenCalledTimes(2);
-        expect(ledger.mock.calls[0][0]).toBe(track.mock.calls[0][0]);
-        const [first, second] = ledger.mock.calls.map(
+        const ledgerIds = ledger.mock.calls.map(
             ([event]) => event.properties.eventId,
         );
-        expect(first).not.toEqual(second);
+        const trackedIds = track.mock.calls.map(
+            ([event]) => event.properties.eventId,
+        );
+        expect(ledgerIds).toEqual(trackedIds);
+        expect(new Set(ledgerIds).size).toBe(2);
     });
 
     it('records the outcome the caller reports, defaulting to complete', () => {

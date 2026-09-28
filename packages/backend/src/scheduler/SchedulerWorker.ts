@@ -752,9 +752,9 @@ export class SchedulerWorker extends SchedulerTask {
             },
             {
                 task: SCHEDULER_TASKS.CLEAN_AI_USAGE_LEDGER,
-                pattern: '15 1 * * *', // 01:15 UTC daily
+                pattern: '15 1 * * *',
                 options: {
-                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    backfillPeriod: 24 * 3600 * 1000,
                     maxAttempts: 3,
                 },
             },
