@@ -59,6 +59,8 @@ const DocumentChartNodeView = ({
     const actions = editing ? (
         <Group gap="xs" wrap="nowrap">
             <Tooltip label="Drag, or press ↑ ↓, to move">
+                {/* A div, not a button: Firefox never starts a drag from a
+                    <button>, so role, tabIndex and keys are added by hand */}
                 <ActionIcon
                     component="div"
                     role="button"
