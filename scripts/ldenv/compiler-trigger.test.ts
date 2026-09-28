@@ -46,19 +46,29 @@ test('compiler trigger ignores dependencies and rebuilds for referenced package 
         (await readFile(countFile, 'utf8').catch(() => '')).match(/^build$/gm)
             ?.length ?? 0;
     try {
-        await waitUntil(async () => (await builds()) === 1, 5000, 'initial build');
+        await waitUntil(
+            async () => (await builds()) === 1,
+            5000,
+            'initial build',
+        );
         await writeFile(path.join(dependencies, 'ignored.d.ts'), 'export {};');
         await writeFile(path.join(common, 'ignored.md'), 'No compile input');
         await new Promise((resolve) => setTimeout(resolve, 350));
         assert.equal(await builds(), 1);
-        await writeFile(path.join(common, 'index.ts'), 'export type Changed = string;');
+        await writeFile(
+            path.join(common, 'index.ts'),
+            'export type Changed = string;',
+        );
         await waitUntil(
             async () => (await builds()) >= 2,
             5000,
             'referenced package rebuild',
         );
         assert.match(output, /Found 0 errors\. Watching for file changes\./);
-        assert.match(output, /File change detected\. Starting incremental compilation/);
+        assert.match(
+            output,
+            /File change detected\. Starting incremental compilation/,
+        );
     } finally {
         child.kill('SIGTERM');
         await exited;
