@@ -264,21 +264,33 @@ metrics:
 
 ### Access Control
 
-Metrics do not accept `required_attributes` or `any_attributes`; the keys are ignored. Gate a metric through its column or table instead:
+Metrics accept `required_attributes` and `any_attributes`.
 
-- **Column-level metrics** (under a column's `meta.metrics`) inherit the parent dimension's `required_attributes` / `any_attributes`.
-- **Model-level metrics** (under the model's `meta.metrics`) inherit nothing from the columns their `sql` references. Gate them with table-level `required_attributes`, or define them under a gated column.
+- **Model-level metrics** (under the model's `meta.metrics`) use only their own keys. They inherit nothing from the columns their `sql` references, so set the keys on the metric (or the table) to restrict them.
+- **Column-level metrics** (under a column's `meta.metrics`) inherit the parent dimension's `required_attributes` / `any_attributes`. Setting either key on the metric overrides that key; the other is still inherited.
 
 ```yaml
+# dbt v1.9
+meta:
+  metrics:
+    confidential_revenue:       # model-level: restricted by its own keys
+      type: sum
+      sql: ${TABLE}.revenue
+      required_attributes:
+        role: "finance"
 columns:
-  - name: revenue
+  - name: salary
     meta:
       dimension:
         required_attributes:
-          role: "finance"
+          role: "hr"
       metrics:
-        confidential_revenue:   # hidden with the revenue dimension
+        total_salary:           # inherits role: "hr"
           type: sum
+        average_salary:         # overrides: visible to managers too
+          type: average
+          required_attributes:
+            role: ["hr", "manager"]
 ```
 
 ### AI Hints
