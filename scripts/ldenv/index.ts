@@ -20,6 +20,7 @@ import {
     instances,
     parentGc,
     parents,
+    recordedRootDirectory,
     rootDirectory,
     start,
     up,
@@ -133,7 +134,9 @@ async function main(args: string[]): Promise<void> {
         );
         return;
     }
-    const root = await rootDirectory(target.worktree);
+    const root = ['down', 'stop', 'status'].includes(command)
+        ? await recordedRootDirectory(target.worktree)
+        : await rootDirectory(target.worktree);
     if (command === 'pool' && subcommand === 'reconcile') {
         await syncReadyPool(root);
         return;

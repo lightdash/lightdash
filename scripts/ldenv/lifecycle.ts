@@ -99,6 +99,19 @@ export async function rootDirectory(
 ): Promise<string> {
     return realpath(await git(directory, ['rev-parse', '--show-toplevel']));
 }
+export async function recordedRootDirectory(
+    directory = process.cwd(),
+    operations = { rootDirectory, exists: existsSync },
+): Promise<string> {
+    try {
+        return await operations.rootDirectory(directory);
+    } catch (error) {
+        const resolved = await realpath(directory).catch(() => null);
+        if (resolved && operations.exists(statePath(instanceId(resolved))))
+            return resolved;
+        throw error;
+    }
+}
 export async function recipeAt(root: string) {
     return parseRecipe(await readFile(path.join(root, 'rainbow.toml'), 'utf8'));
 }
