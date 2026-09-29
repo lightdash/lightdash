@@ -2,6 +2,7 @@ import {
     ChartType,
     FeatureFlags,
     getAppDisplayName,
+    MERGE_TABLE_NAME,
     type DataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
@@ -14,11 +15,16 @@ import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
 import { useChartTypeBuilderWorkspace } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../../../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import { useVizSubtotalSource } from '../../../features/chartTypes/hooks/useVizSubtotalSource';
 import {
     buildExplorerVizContext,
     resolveExplorerVizFieldMapping,
 } from '../../../features/chartTypes/utils/explorerVizContext';
 import { vizBuildSampleRows } from '../../../features/chartTypes/utils/vizBuildSampleRows';
+import {
+    getVizHierarchyDimensions,
+    hasVizSubtotalValues,
+} from '../../../features/chartTypes/utils/vizSubtotals';
 import {
     explorerActions,
     selectChartConfig,
@@ -202,31 +208,51 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         pivotDetails: resultsData.pivotDetails ?? null,
         colorPalette,
     });
-    const previewContext = useMemo(
+    // The backend refuses column subtotals over merged results.
+    const isMergedResult =
+        resultsData.metricQuery?.exploreName === MERGE_TABLE_NAME;
+    const hierarchyDimensions = useMemo(
         () =>
-            schema
-                ? buildExplorerVizContext({
-                      schema,
-                      itemsMap,
-                      persistedFieldMapping,
-                      rows: resultsData.rows,
-                      pivotDetails: resultsData.pivotDetails ?? null,
-                      colorPalette,
-                      optionValues,
-                      resolvedColors,
-                  })
-                : null,
-        [
+            isMergedResult || !hasVizSubtotalValues(itemsMap)
+                ? null
+                : getVizHierarchyDimensions(schema, previewFieldMapping),
+        [schema, previewFieldMapping, isMergedResult, itemsMap],
+    );
+    const subtotalSource = useVizSubtotalSource({
+        projectUuid,
+        sourceQueryUuid: resultsData.queryUuid,
+        dimensions: hierarchyDimensions,
+    });
+    const subtotalDimensions = subtotalSource?.dimensions ?? null;
+    const previewContext = useMemo(() => {
+        if (!schema) return null;
+        const context = buildExplorerVizContext({
             schema,
             itemsMap,
             persistedFieldMapping,
-            resultsData.rows,
-            resultsData.pivotDetails,
+            rows: resultsData.rows,
+            pivotDetails: resultsData.pivotDetails ?? null,
             colorPalette,
             optionValues,
             resolvedColors,
-        ],
-    );
+        });
+        return subtotalDimensions
+            ? {
+                  ...context,
+                  subtotals: { enabled: true, dimensions: subtotalDimensions },
+              }
+            : context;
+    }, [
+        schema,
+        itemsMap,
+        persistedFieldMapping,
+        resultsData.rows,
+        resultsData.pivotDetails,
+        colorPalette,
+        optionValues,
+        resolvedColors,
+        subtotalDimensions,
+    ]);
 
     // The sidebar stays mounted, so it can take focus back from the workspace.
     const focusSidebar = () =>
@@ -347,6 +373,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                     }
                     workspace={workspace}
                     previewContext={previewContext}
+                    onVizSubtotalsIntent={subtotalSource?.get ?? null}
                     sampleRows={sampleRows}
                     buildContext={buildContext}
                     warning={
