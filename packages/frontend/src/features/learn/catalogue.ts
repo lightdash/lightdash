@@ -18,6 +18,11 @@ export const FOUNDATIONS = 'foundations' as const;
 /** Docs-page lessons practised in the workspace of a training copy. */
 export const DEVELOPER = 'developer' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS | typeof DEVELOPER;
+/**
+ * What a learner must hold to see the docs lessons on their shelf: they end
+ * by deploying the project with the CLI, which Developer and above can do.
+ */
+export const DOCS_LESSON_SCOPE = 'manage:DeployProject';
 
 /**
  * What an instance must have for a module's walkthrough to find its controls:
@@ -108,6 +113,9 @@ export const GROUP_LABELS: Record<LearnGroup, string> = {
 
 const stripBold = (text: string) => text.replace(/\*\*/g, '');
 
+const minRoleFor = (scope: string): ProjectMemberRole | null =>
+    SYSTEM_ROLE_SCOPES.find((system) => system.held.has(scope))?.role ?? null;
+
 /** One module per lesson, in declaration order; the tour under the lesson id names it. */
 const docsModules = (): LearnModule[] =>
     SANDBOX_LESSONS.map((lesson) => {
@@ -118,7 +126,7 @@ const docsModules = (): LearnModule[] =>
             title: tour?.title ?? lesson.id.replace(/^docs:/, ''),
             group: DEVELOPER,
             gate: 'sandbox',
-            minRole: null,
+            minRole: minRoleFor(DOCS_LESSON_SCOPE),
             available: tour !== undefined,
             blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
             stepCount: tour?.steps.length ?? 0,
@@ -144,9 +152,7 @@ export const buildLearnCatalogue = (): LearnModule[] => {
         )
         .map((scope) => {
             const tour = tourFor(scope.name);
-            const minRole =
-                SYSTEM_ROLE_SCOPES.find((system) => system.held.has(scope.name))
-                    ?.role ?? null;
+            const minRole = minRoleFor(scope.name);
             return {
                 kind: 'scope' as const,
                 scope: scope.name,
@@ -231,11 +237,11 @@ export const focusModules = (
 /**
  * Whether the learner holds a module's feature. Membership, not rank: their
  * access is a set of scopes gathered from every role they hold, and a custom
- * role sits nowhere on the system ladder. A docs lesson gates on the sandbox
- * rather than a scope, so every learner holds it.
+ * role sits nowhere on the system ladder. A docs lesson is held by whoever
+ * can deploy the project (DOCS_LESSON_SCOPE).
  */
 export const holds = (held: Set<string>, module: LearnModule): boolean =>
-    module.kind === 'docs' || held.has(module.scope);
+    held.has(module.kind === 'docs' ? DOCS_LESSON_SCOPE : module.scope);
 
 /**
  * What a card says about a module the learner cannot practise yet: the
