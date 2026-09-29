@@ -30,13 +30,15 @@
         "dotenv": "16.0.3",
         "dotenv-cli": "6.0.0",
         "eslint-plugin-perfectionist": "5.6.0",
+        "get-tsconfig": "4.10.1",
         "husky": "9.1.7",
         "lint-staged": "12.1.2",
         "oxfmt": "0.35.0",
         "pm2": "7.0.0",
         "tsx": "4.23.12",
         "turbo": "2.9.14",
-        "typescript": "7.0.2"
+        "typescript": "7.0.2",
+        "smol-toml": "1.6.1"
     },
     "scripts": {
         "test:playground-content": "tsx scripts/playground-bundle/content.test.ts && tsx scripts/playground-bundle/learnBundle.test.ts",
@@ -160,7 +162,12 @@
         "scope-tours:coverage:test": "tsx scripts/scope-tours/coverage.test.ts",
         "scope-tours:release-check": "tsx scripts/scope-tours/coverage.ts --release",
         "scope-tours:suggest": "tsx scripts/scope-tours/suggest.ts",
-        "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts"
+        "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts",
+        "ldenv": "tsx scripts/ldenv/index.ts",
+        "ldenv:test": "tsx --test scripts/ldenv/*.test.ts",
+        "ldenv:typecheck": "tsc --project scripts/ldenv/tsconfig.json",
+        "ldenv:lint": "pnpm -F backend exec sh -c 'cd ../.. && oxlint -c scripts/ldenv/oxlint.json scripts/ldenv'",
+        "ldenv:format": "oxfmt --check scripts/ldenv"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [

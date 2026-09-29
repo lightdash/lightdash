@@ -172,7 +172,7 @@ run = "pnpm warehouses-build"
 
 [[tier]]
 name = "migrate"
-files = ["packages/backend/src/database/migrations/**"]
+files = ["packages/backend/src/database/migrations/**", "packages/backend/src/ee/database/migrations/**"]
 run = "pnpm -F backend migrate"
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
 memory = "12gb"
