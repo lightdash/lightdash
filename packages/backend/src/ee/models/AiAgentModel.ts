@@ -6692,6 +6692,7 @@ export class AiAgentModel {
                 agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 userUuid: `${AiWebAppPromptTableName}.user_uuid`,
+                externalUserId: `${AiWebAppPromptTableName}.external_user_id`,
                 prompt: `${AiPromptTableName}.prompt`,
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
@@ -6794,6 +6795,7 @@ export class AiAgentModel {
             await trx(AiWebAppPromptTableName).insert({
                 ai_prompt_uuid: row.ai_prompt_uuid,
                 user_uuid: data.createdByUserUuid,
+                external_user_id: data.externalUserId ?? null,
             });
 
             if (data.context && data.context.length > 0) {

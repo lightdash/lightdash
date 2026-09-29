@@ -77,6 +77,53 @@ describe('LightdashAnalytics', () => {
         });
     });
 
+    it('keeps the embedded viewer id out of Rudderstack', () => {
+        const analytics = buildAnalytics('write-key');
+        const rudderstackTrack = vi
+            .spyOn(Analytics.prototype, 'track')
+            .mockImplementation(() => analytics);
+
+        analytics.track({
+            event: 'ai.usage',
+            userId: 'embed-actor',
+            properties: {
+                eventId: 'evt-1',
+                outcome: 'complete',
+                feature: 'agent',
+                functionId: 'streamAgentResponse',
+                organizationId: 'org-1',
+                projectId: 'project-1',
+                aiAgentId: 'agent-1',
+                threadId: 'thread-1',
+                promptId: 'prompt-1',
+                dataAppId: null,
+                model: 'claude-sonnet-5',
+                provider: 'anthropic',
+                keyManagement: 'lightdash-managed',
+                channel: 'embed',
+                externalUserId: 'viewer@customer.example',
+                managedAgentRunId: null,
+                deepResearchRunId: null,
+                deepResearchPhase: null,
+                inputTokens: 10,
+                outputTokens: 5,
+                cacheReadTokens: null,
+                cacheWriteTokens: null,
+                reasoningTokens: null,
+                totalTokens: 15,
+            },
+        });
+
+        expect(rudderstackTrack).toHaveBeenCalledTimes(1);
+        const [sent] = rudderstackTrack.mock.calls[0];
+        expect(sent.properties).toMatchObject({
+            channel: 'embed',
+            totalTokens: 15,
+        });
+        expect(JSON.stringify(sent)).not.toContain('viewer@customer.example');
+        rudderstackTrack.mockRestore();
+    });
+
     describe('flushEvents', () => {
         it('keeps flushing until the queue drains', async () => {
             // flush() only sends `flushAt` (20) events per call, so a single

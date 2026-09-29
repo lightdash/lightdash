@@ -29,6 +29,8 @@ export type AiCallAttribution = {
     keyManagement?: AiKeyManagement | null;
     // Surface the call's thread was created from.
     channel?: AiUsageChannel | null;
+    // The host application's id for an embedded viewer.
+    externalUserId?: string | null;
 };
 
 /**
@@ -103,7 +105,15 @@ export const ATTRIBUTION_KEYS = [
     'provider',
     'keyManagement',
     'channel',
+    'externalUserId',
 ] as const satisfies readonly (keyof AiCallAttribution)[];
+
+/**
+ * Attribution that is the customer's own data. It travels in the runtime
+ * context so `ai.usage` can record it, and is withheld from telemetry providers.
+ */
+const CUSTOMER_ONLY_ATTRIBUTION_KEYS: readonly (typeof ATTRIBUTION_KEYS)[number][] =
+    ['externalUserId'];
 
 /**
  * Attribution dimensions that may be sent to telemetry providers.
@@ -123,7 +133,9 @@ export const ATTRIBUTION_KEYS = [
  */
 const TELEMETRY_REPORTED_KEYS: AiCallRuntimeContextKey[] = [
     'feature',
-    ...ATTRIBUTION_KEYS,
+    ...ATTRIBUTION_KEYS.filter(
+        (key) => !CUSTOMER_ONLY_ATTRIBUTION_KEYS.includes(key),
+    ),
 ];
 
 /**

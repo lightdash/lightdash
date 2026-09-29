@@ -200,6 +200,7 @@ describe('AiAgentService SQL artifact visualization query', () => {
                 versionUuid: 'version-uuid',
                 runtimeOptions: {
                     embedSpaceUuid: 'space-uuid',
+                    externalUserId: null,
                     spaceAccess: ['space-uuid'],
                     userAttributeOverrides: {},
                 },

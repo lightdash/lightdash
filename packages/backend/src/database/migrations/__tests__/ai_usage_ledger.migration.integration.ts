@@ -26,6 +26,7 @@ const usageEvent = (
         provider: 'anthropic',
         keyManagement: 'lightdash-managed',
         channel: 'web',
+        externalUserId: null,
         managedAgentRunId: null,
         deepResearchRunId: null,
         deepResearchPhase: null,
@@ -117,6 +118,36 @@ describe('AI usage ledger on the real PostgreSQL schema', () => {
         expect(rows.map((row) => [row.feature, row.usage_channel])).toEqual([
             ['agent', 'slack'],
             ['embedding', null],
+        ]);
+    });
+
+    test('tells embedded viewers apart although they share one user', async () => {
+        const first = usageEvent({
+            channel: 'embed',
+            externalUserId: 'viewer-1',
+        });
+        const second = usageEvent({
+            channel: 'embed',
+            externalUserId: 'viewer-2',
+        });
+        const webTurn = usageEvent();
+        await model.recordEvent(first);
+        await model.recordEvent(second);
+        await model.recordEvent(webTurn);
+
+        const rows = await transaction(TABLE)
+            .whereIn('event_id', [
+                first.properties.eventId,
+                second.properties.eventId,
+                webTurn.properties.eventId,
+            ])
+            .orderBy('external_user_id');
+        expect(
+            rows.map((row) => [row.user_uuid, row.external_user_id]),
+        ).toEqual([
+            [SEED_ORG_1_ADMIN.user_uuid, 'viewer-1'],
+            [SEED_ORG_1_ADMIN.user_uuid, 'viewer-2'],
+            [SEED_ORG_1_ADMIN.user_uuid, null],
         ]);
     });
 

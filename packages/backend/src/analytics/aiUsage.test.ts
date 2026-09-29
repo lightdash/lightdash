@@ -238,18 +238,20 @@ describe('emitAiUsage', () => {
             provider: 'anthropic',
             keyManagement: null,
             channel: null,
+            externalUserId: null,
             managedAgentRunId: null,
             deepResearchRunId: null,
             deepResearchPhase: null,
             ...tokens,
         };
+        const { externalUserId, ...loggedProperties } = expectedProperties;
 
         expect(Logger.info).toHaveBeenCalledWith(
             expect.stringContaining('AI usage:'),
             {
                 event: 'ai.usage',
                 userId: 'user-1',
-                ...expectedProperties,
+                ...loggedProperties,
             },
         );
         // Token data must be in the message string itself so the default
@@ -297,6 +299,32 @@ describe('emitAiUsage', () => {
             tokens,
         );
         expect(track.mock.calls[0][0].properties.keyManagement).toBeNull();
+    });
+
+    it('gives the embedded viewer id to the usage sinks and keeps it out of the logs', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+        vi.mocked(Logger.info).mockClear();
+
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    channel: 'embed',
+                    externalUserId: 'viewer@customer.example',
+                },
+            },
+            tokens,
+        );
+
+        expect(track.mock.calls[0][0].properties.externalUserId).toBe(
+            'viewer@customer.example',
+        );
+        expect(JSON.stringify(vi.mocked(Logger.info).mock.calls)).not.toContain(
+            'viewer@customer.example',
+        );
     });
 
     it('reports the channel of the call and drops unknown values', () => {

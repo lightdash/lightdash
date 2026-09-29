@@ -233,6 +233,8 @@ export type AiWebAppPrompt = AiPrompt & {
     userUuid: string;
     /** Set when the thread belongs to an embedded agent chat. */
     threadEmbedSpaceUuid: string | null;
+    /** Viewer id from the embed token that sent this prompt. */
+    externalUserId: string | null;
 };
 
 export const isSlackPrompt = (prompt: AiPrompt): prompt is SlackPrompt =>
@@ -490,6 +492,8 @@ export type CreateWebAppPrompt = {
     modelConfig?: AiAgentModelConfig;
     /** Inject as a hidden turn (agent responds, UI hides the user bubble). */
     hidden?: boolean;
+    /** Viewer id from the embed token; omitted outside embedded chats. */
+    externalUserId?: string | null;
 };
 
 export type UpdateSlackResponse = {

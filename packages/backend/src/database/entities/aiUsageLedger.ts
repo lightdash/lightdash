@@ -13,6 +13,7 @@ export type DbAiUsageLedger = {
     organization_uuid: string;
     project_uuid: string | null;
     user_uuid: string | null;
+    external_user_id: string | null;
     agent_uuid: string | null;
     thread_uuid: string | null;
     prompt_uuid: string | null;

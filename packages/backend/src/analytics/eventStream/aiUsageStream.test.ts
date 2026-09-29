@@ -3,6 +3,7 @@ import {
     registerAiUsageTracker,
     type AiUsageEvent,
 } from '../aiUsage';
+import { aiUsageCompactedColumns } from './aiUsageStream';
 import { EventStreamSink } from './EventStreamSink';
 import { EVENT_STREAM_SCHEMA_VERSION } from './projection';
 import { eventStreamRegistry } from './registry';
@@ -42,6 +43,7 @@ const aiUsageEvent: AiUsageEvent = {
         provider: 'anthropic',
         keyManagement: 'self-managed',
         channel: 'embed',
+        externalUserId: 'viewer-42',
         managedAgentRunId: null,
         deepResearchRunId: 'run-1',
         deepResearchPhase: 'investigating',
@@ -125,6 +127,7 @@ describe('ai_usage stream projection', () => {
             provider: 'anthropic',
             key_management: 'self-managed',
             channel: 'embed',
+            external_user_id: 'viewer-42',
             deep_research_run_id: 'run-1',
             deep_research_phase: 'investigating',
             input_tokens: 1000,
@@ -135,6 +138,18 @@ describe('ai_usage stream projection', () => {
             total_tokens: 1200,
         });
         expect(new Date(row.event_ts).toISOString()).toBe(row.event_ts);
+    });
+
+    it('declares every attribution column it writes in the compacted schema', () => {
+        const writer = createWriterMock();
+        new EventStreamSink(eventStreamRegistry, writer).handle(aiUsageEvent);
+
+        const [, row] = writer.push.mock.calls[0]!;
+        const compacted = aiUsageCompactedColumns.map((column) => column.name);
+        expect(compacted).toEqual(
+            expect.arrayContaining(['channel', 'external_user_id']),
+        );
+        compacted.forEach((column) => expect(row).toHaveProperty(column));
     });
 
     it('projects null dimensions and token classes as null columns', () => {
@@ -152,6 +167,7 @@ describe('ai_usage stream projection', () => {
                 provider: null,
                 keyManagement: null,
                 channel: null,
+                externalUserId: null,
                 managedAgentRunId: null,
                 deepResearchRunId: null,
                 deepResearchPhase: null,
@@ -172,6 +188,7 @@ describe('ai_usage stream projection', () => {
             provider: null,
             key_management: null,
             channel: null,
+            external_user_id: null,
             deep_research_run_id: null,
             deep_research_phase: null,
             cache_read_tokens: null,
