@@ -28,6 +28,7 @@ import {
     isMappingComplete,
 } from '../components/dataAppVizTestQuery';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
+import { getVizHierarchyDimensions } from '../utils/vizSubtotals';
 import { useDataAppVizResolvedColors } from './useDataAppVizResolvedColors';
 
 type Run = {
@@ -37,10 +38,16 @@ type Run = {
 
 const EMPTY_FIELD_MAPPING = {};
 
+export type DataAppVizTestPreview = {
+    context: DataAppVizContext;
+    /** The query that produced the context's rows. */
+    sourceQueryUuid: string;
+};
+
 type Args = {
     projectUuid: string;
     schema: DataAppVizSchema;
-    onContextChange: (ctx: DataAppVizContext | null) => void;
+    onContextChange: (preview: DataAppVizTestPreview | null) => void;
 };
 
 export type DataAppVizTestContextState = {
@@ -69,7 +76,7 @@ export type DataAppVizTestContextState = {
 /**
  * Stateful core of testing a data app viz with real data outside a chart:
  * pick an explore, map the declared fields, run one sample query, and push
- * the resulting `DataAppVizContext` up via `onContextChange`.
+ * the resulting preview up via `onContextChange`.
  */
 export const useDataAppVizTestContext = ({
     projectUuid,
@@ -145,36 +152,52 @@ export const useDataAppVizTestContext = ({
     // transiently re-exposes the previous query's cached page before the new
     // queryUuid lands.
     const runQueryUuid = query.data?.queryUuid;
+    const hasRunRows =
+        run !== null &&
+        rows.length > 0 &&
+        runQueryUuid !== undefined &&
+        queryResults.queryUuid === runQueryUuid;
+    const runFieldMapping = run?.fieldMapping ?? null;
+    // The test query selects metrics only, so none means nothing to subtotal.
+    const runHasMetrics = (run?.args.query?.metrics.length ?? 0) > 0;
+    const subtotalDimensions = useMemo(
+        () =>
+            runFieldMapping && runHasMetrics
+                ? getVizHierarchyDimensions(schema, runFieldMapping)
+                : null,
+        [schema, runFieldMapping, runHasMetrics],
+    );
     useEffect(() => {
-        if (
-            run &&
-            rows.length > 0 &&
-            runQueryUuid &&
-            queryResults.queryUuid === runQueryUuid
-        ) {
+        if (run && hasRunRows) {
             onContextChange({
-                fieldMapping: run.fieldMapping,
-                fields: deriveDataAppVizFieldMetadata(
-                    run.fieldMapping,
-                    itemsMap,
-                ),
-                rows,
-                options: effectiveOptions,
-                colorPalette,
-                ...resolvedColors,
-                pivotDetails: queryResults.pivotDetails ?? null,
-                underlyingData: { enabled: false },
-                drillDown: { enabled: false },
-                pointMenu: { enabled: false },
-                subtotals: { enabled: false, dimensions: [] },
+                context: {
+                    fieldMapping: run.fieldMapping,
+                    fields: deriveDataAppVizFieldMetadata(
+                        run.fieldMapping,
+                        itemsMap,
+                    ),
+                    rows,
+                    options: effectiveOptions,
+                    colorPalette,
+                    ...resolvedColors,
+                    pivotDetails: queryResults.pivotDetails ?? null,
+                    underlyingData: { enabled: false },
+                    drillDown: { enabled: false },
+                    pointMenu: { enabled: false },
+                    subtotals: subtotalDimensions
+                        ? { enabled: true, dimensions: subtotalDimensions }
+                        : { enabled: false, dimensions: [] },
+                },
+                sourceQueryUuid: runQueryUuid,
             });
         }
     }, [
         rows,
         run,
+        hasRunRows,
         runQueryUuid,
+        subtotalDimensions,
         itemsMap,
-        queryResults.queryUuid,
         queryResults.pivotDetails,
         effectiveOptions,
         colorPalette,

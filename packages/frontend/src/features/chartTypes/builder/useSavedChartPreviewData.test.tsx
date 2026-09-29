@@ -21,6 +21,7 @@ const mockedExecuteSavedChartPreviewQuery = vi.mocked(
 );
 
 const previewResult: SavedChartPreviewQueryResult = {
+    queryUuid: 'source-query',
     rows: [],
     itemsMap: {},
     pivotDetails: null,
@@ -100,6 +101,7 @@ describe('useSavedChartPreviewData', () => {
         await waitFor(() =>
             expect(result.current.data).toMatchObject({
                 status: 'ready',
+                queryUuid: 'source-query',
                 sourceChart: { chartConfig, pivotConfig },
             }),
         );

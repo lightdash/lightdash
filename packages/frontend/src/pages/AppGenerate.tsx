@@ -164,6 +164,8 @@ import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
+import { type DataAppVizTestPreview } from '../features/chartTypes/hooks/useDataAppVizTestContext';
+import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { normalizeVizBuildContext } from '../features/chartTypes/utils/vizBuildContext';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
@@ -543,7 +545,7 @@ const AppGenerate: FC = () => {
         setSelectedTemplate(null);
         setThemeChipOverride(null);
         resetClarification();
-        setTestVizContext(null);
+        setTestVizPreview(null);
         setIsChatPanelCollapsed(false);
         versionCacheRef.current.clear();
         versionCacheAppRef.current = undefined;
@@ -1315,8 +1317,16 @@ const AppGenerate: FC = () => {
     // Set imperatively by the "test with data" panel (later task) when the
     // user runs a query; pushed into the preview iframe so the generated
     // data-app-viz renders with real result rows instead of mock data.
-    const [testVizContext, setTestVizContext] =
-        useState<DataAppVizContext | null>(null);
+    const [testVizPreview, setTestVizPreview] =
+        useState<DataAppVizTestPreview | null>(null);
+    const testVizContext = testVizPreview?.context ?? null;
+    const testVizSubtotalSource = useVizSubtotalSource({
+        projectUuid,
+        sourceQueryUuid: testVizPreview?.sourceQueryUuid,
+        dimensions: testVizContext?.subtotals.enabled
+            ? testVizContext.subtotals.dimensions
+            : null,
+    });
     const [sampleDataConsent, setSampleDataConsent] = useState<{
         context: DataAppVizContext;
         appUuid: string | null;
@@ -2408,7 +2418,7 @@ const AppGenerate: FC = () => {
                                                                         msg.vizSchema
                                                                     }
                                                                     onContextChange={
-                                                                        setTestVizContext
+                                                                        setTestVizPreview
                                                                     }
                                                                 />
                                                             ) : (
@@ -3366,6 +3376,9 @@ const AppGenerate: FC = () => {
                                         }
                                         dataAppVizContext={
                                             testVizContext ?? undefined
+                                        }
+                                        onVizSubtotalsIntent={
+                                            testVizSubtotalSource?.get
                                         }
                                         dataAppVizMode={isVizBuilder}
                                         onSdkManifest={handleSdkManifest}
