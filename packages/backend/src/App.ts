@@ -964,9 +964,22 @@ export default class App {
                     console.error(error);
                 }
                 if (!isExpectedError(errorResponse)) {
+                    const userUuid =
+                        req.user?.userUuid ?? req.account?.user?.id;
+                    const organizationUuid =
+                        req.user?.organizationUuid ??
+                        req.account?.organization?.organizationUuid;
+                    const requestId =
+                        req.user?.requestContext?.requestId ??
+                        req.account?.requestContext?.requestId;
+
                     Logger.error(
                         `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
-                        errorResponse,
+                        Object.assign(errorResponse, {
+                            userUuid,
+                            organizationUuid,
+                            requestId,
+                        }),
                     );
 
                     if (process.env.NODE_ENV === 'development') {
