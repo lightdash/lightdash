@@ -24,21 +24,46 @@ import {
     type UUID,
 } from '@lightdash/common';
 import { z } from 'zod';
+import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 
 const ROADMAP_REQUEST_TIMEOUT_MS = 10_000;
 
 type Dependencies = {
+    analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
 };
 
 export class RoadmapService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly lightdashConfig: LightdashConfig;
 
-    constructor({ lightdashConfig }: Dependencies) {
+    constructor({ analytics, lightdashConfig }: Dependencies) {
         super();
+        this.analytics = analytics;
         this.lightdashConfig = lightdashConfig;
+    }
+
+    // The roadmap page opens with one unfiltered "following" probe; board columns always filter by status.
+    private trackPageView(
+        account: Account,
+        organizationUuid: string,
+        query: RoadmapProjectQuery,
+    ) {
+        const isPageOpenProbe =
+            (query.page ?? 1) === 1 &&
+            query.onlyInterested === true &&
+            !query.search &&
+            !query.statuses &&
+            !query.priorities;
+        if (!isPageOpenProbe) return;
+        this.analytics.track({
+            event: 'roadmap.viewed',
+            userId: account.user.id,
+            properties: { organizationId: organizationUuid },
+        });
     }
 
     private async authorize(account: Account) {
@@ -135,6 +160,15 @@ export class RoadmapService extends BaseService {
                     'Could not send the roadmap request. Please try again.',
             },
         );
+        this.analytics.track({
+            event: 'roadmap.project_follow_requested',
+            userId: account.user.id,
+            properties: {
+                organizationId: organizationUuid,
+                roadmapProjectId: parsedProjectId.data,
+                noteLength: parsed.data.note.length,
+            },
+        });
         return response.results;
     }
 
@@ -154,6 +188,7 @@ export class RoadmapService extends BaseService {
             RoadmapProjectResponseSchema,
         );
         this.assertFresh(response.results.expiresAt);
+        this.trackPageView(account, organizationUuid, parsed.data);
         return response.results;
     }
 
