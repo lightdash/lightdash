@@ -29,6 +29,7 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getFilterExpression,
     getFilterRuleFromFieldWithDefaultValue,
+    getFilterRulesFromGroup,
     getUnmetFilterRequirements,
     isEmptyDashboardFilterRule,
     isFilterRuleInQuery,
@@ -200,6 +201,163 @@ describe('addDashboardFiltersToMetricQuery', () => {
                 values: [100],
             }),
         );
+    });
+
+    const nullOnlyDashboardRule = (fieldId: string): DashboardFilterRule => ({
+        id: '4',
+        label: undefined,
+        target: {
+            fieldId,
+            tableName: 'test',
+        },
+        operator: FilterOperator.EQUALS,
+        values: [],
+        includeNull: true,
+    });
+
+    test('should keep includeNull when a null-only dashboard filter overrides a chart filter on the same field', () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            {
+                dimensions: [nullOnlyDashboardRule('a_dim1')],
+                metrics: [],
+                tableCalculations: [],
+            },
+        );
+        expect(
+            (result.filters.dimensions as AndFilterGroup).and,
+        ).toContainEqual(
+            expect.objectContaining({
+                target: { fieldId: 'a_dim1' },
+                operator: FilterOperator.EQUALS,
+                includeNull: true,
+            }),
+        );
+    });
+
+    test('should keep includeNull when a null-only dashboard filter is appended to the chart filters', () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            {
+                dimensions: [nullOnlyDashboardRule('a_dim2')],
+                metrics: [],
+                tableCalculations: [],
+            },
+        );
+        expect(
+            (result.filters.dimensions as AndFilterGroup).and,
+        ).toContainEqual(
+            expect.objectContaining({
+                target: { fieldId: 'a_dim2' },
+                operator: FilterOperator.EQUALS,
+                includeNull: true,
+            }),
+        );
+    });
+
+    test('should enable a disabled chart filter when an active dashboard filter overrides it', () => {
+        const chartWithDisabledFilter: MetricQuery = {
+            ...metricQueryWithAndFilters,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: { fieldId: 'a_dim1' },
+                            operator: FilterOperator.EQUALS,
+                            values: [0],
+                            disabled: true,
+                        },
+                    ],
+                },
+            },
+        };
+        const result = addDashboardFiltersToMetricQuery(
+            chartWithDisabledFilter,
+            {
+                dimensions: [nullOnlyDashboardRule('a_dim1')],
+                metrics: [],
+                tableCalculations: [],
+            },
+        );
+        const overridden = (
+            result.filters.dimensions as AndFilterGroup
+        ).and.find(
+            (item) => 'target' in item && item.target.fieldId === 'a_dim1',
+        ) as FilterRule | undefined;
+        expect(overridden).toBeDefined();
+        expect(overridden?.includeNull).toBe(true);
+        expect(overridden?.disabled).toBeFalsy();
+    });
+
+    test('should override a matching rule inside a nested group instead of appending a contradictory rule', () => {
+        const chartWithNestedFilter: MetricQuery = {
+            ...metricQueryWithAndFilters,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'nested',
+                            and: [
+                                {
+                                    id: '1',
+                                    target: { fieldId: 'a_dim1' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [0],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        };
+        const result = addDashboardFiltersToMetricQuery(chartWithNestedFilter, {
+            dimensions: [nullOnlyDashboardRule('a_dim1')],
+            metrics: [],
+            tableCalculations: [],
+        });
+        const dim1Rules = getFilterRulesFromGroup(
+            result.filters.dimensions,
+        ).filter((rule) => rule.target.fieldId === 'a_dim1');
+        expect(dim1Rules).toHaveLength(1);
+        expect(dim1Rules[0]).toMatchObject({
+            operator: FilterOperator.EQUALS,
+            values: [],
+            includeNull: true,
+        });
+    });
+
+    test('should not inherit a chart filter includeNull when the overriding dashboard filter has none', () => {
+        const chartWithNullFilter: MetricQuery = {
+            ...metricQueryWithAndFilters,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: { fieldId: 'a_dim1' },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            includeNull: true,
+                        },
+                    ],
+                },
+            },
+        };
+        const result = addDashboardFiltersToMetricQuery(
+            chartWithNullFilter,
+            dashboardFilters,
+        );
+        const overridden = (
+            result.filters.dimensions as AndFilterGroup
+        ).and.find(
+            (item) => 'target' in item && item.target.fieldId === 'a_dim1',
+        ) as FilterRule | undefined;
+        expect(overridden).toBeDefined();
+        expect(overridden?.includeNull).toBeUndefined();
     });
 
     test('should return metric query unchanged when dashboard has no filters', () => {
