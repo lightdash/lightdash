@@ -2,10 +2,11 @@ import Ajv, { type ValidateFunction } from 'ajv';
 import { validate as isUuid } from 'uuid';
 import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
 import type { UuidOrSlug } from '../types/api/uuid';
+import type { ChartAsCodeConfig } from '../types/contentAsCode/charts';
 import type { DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';
 import { parseSavedMergeQuery } from '../types/mergeQuery';
-import { ChartType } from '../types/savedCharts';
+import { ChartType, type ChartConfig } from '../types/savedCharts';
 
 export const DOCUMENT_SCHEMA_VERSION = 1;
 
@@ -147,9 +148,12 @@ export const parseDocumentContent = (
                 'Document charts must contain durable queries, not query UUIDs or results',
             );
         }
-        if (chart.chartConfig.type === ChartType.DATA_APP_VIZ) {
+        if (
+            chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+            chart.chartConfig.config === undefined
+        ) {
             throw new ParameterError(
-                'Custom chart types are not supported in Documents',
+                `Custom chart in cell ${cellIndex} must reference a chart type`,
             );
         }
         if (cell.content.source === 'merge') {
@@ -166,4 +170,27 @@ export const parseDocumentContent = (
         }
     });
     return raw;
+};
+
+/**
+ * The runtime chart config of a stored Document chart. Stored custom charts
+ * are always pinned to this project's chart type uuid; the portable slug that
+ * reads add is dropped.
+ */
+export const getDocumentRuntimeChartConfig = (
+    chartConfig: ChartAsCodeConfig,
+): ChartConfig => {
+    if (chartConfig.type !== ChartType.DATA_APP_VIZ) {
+        return chartConfig;
+    }
+    if (chartConfig.config?.dataAppVizUuid === undefined) {
+        throw new ParameterError(
+            'Custom chart is not linked to a chart type in this project',
+        );
+    }
+    const { dataAppVizSlug, dataAppVizUuid, ...config } = chartConfig.config;
+    return {
+        type: ChartType.DATA_APP_VIZ,
+        config: { ...config, dataAppVizUuid },
+    };
 };

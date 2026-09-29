@@ -36,6 +36,10 @@
         "saved-chart-merge-schema-v3": {
             "reason": "Saved chart API responses now return the named schema v3 definition under merge (queries, join, keys, sort and limit), replacing schema v2 sources and joinKey. Clients reading merge must adopt the new response shape. Existing schema v2 uploads remain accepted and stored rows are upgraded on read with their field ids preserved.",
             "requiredStop": false
+        },
+        "documents-custom-chart-cells": {
+            "reason": "Document chart cells in the documents-flag API now accept custom chart types: the data_app_viz config's fieldMapping also accepts ordered string arrays, and an optional dataAppVizVersion pins the chart type version. The change only widens requests: every previously accepted request is still accepted, and custom chart cells were rejected at runtime before, so no client sends the old shape. API diff tools report it as removed anyOf subschemas because the nested chart config changed. No action is needed from operators or API clients.",
+            "requiredStop": false
         }
     }
 }

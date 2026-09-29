@@ -2,6 +2,7 @@ import { MergeJoinType } from '../types/mergeQuery';
 import { ChartType } from '../types/savedCharts';
 import {
     DOCUMENT_SCHEMA_VERSION,
+    getDocumentRuntimeChartConfig,
     getDocumentUrl,
     parseDocumentContent,
 } from './document';
@@ -98,29 +99,74 @@ const merge = {
 };
 
 describe('Document schema version 1', () => {
+    const withChartConfig = (
+        cell: typeof semantic | typeof merge,
+        chartConfig: unknown,
+    ) => ({
+        cells: [
+            {
+                ...cell,
+                content: {
+                    ...cell.content,
+                    chart: { ...cell.content.chart, chartConfig },
+                },
+            },
+        ],
+    });
+
     test.each([semantic, merge])(
-        'rejects custom visualization bindings inside a supported source',
+        'accepts a custom chart type binding inside a supported source',
         (cell) => {
-            expect(() =>
-                parseDocumentContent(1, {
-                    cells: [
-                        {
-                            ...cell,
-                            content: {
-                                ...cell.content,
-                                chart: {
-                                    ...cell.content.chart,
-                                    chartConfig: {
-                                        type: ChartType.DATA_APP_VIZ,
-                                    },
-                                },
-                            },
-                        },
-                    ],
+            const binding = {
+                dataAppVizSlug: 'grouped-bars',
+                dataAppVizVersion: 2,
+                fieldMapping: { category: 'orders_status' },
+                optionValues: { stacked: true },
+            };
+            expect(
+                parseDocumentContent(
+                    1,
+                    withChartConfig(cell, {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: binding,
+                    }),
+                ),
+            ).toEqual(
+                withChartConfig(cell, {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: binding,
                 }),
-            ).toThrow('Custom chart types are not supported');
+            );
         },
     );
+
+    test.each([semantic, merge])(
+        'rejects a custom chart that references no chart type',
+        (cell) => {
+            expect(() =>
+                parseDocumentContent(
+                    1,
+                    withChartConfig(cell, { type: ChartType.DATA_APP_VIZ }),
+                ),
+            ).toThrow('must reference a chart type');
+        },
+    );
+
+    test('rejects a non-integer custom chart type version', () => {
+        expect(() =>
+            parseDocumentContent(
+                1,
+                withChartConfig(semantic, {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizSlug: 'grouped-bars',
+                        dataAppVizVersion: 0,
+                        fieldMapping: {},
+                    },
+                }),
+            ),
+        ).toThrow('Invalid Document content');
+    });
 
     test('rejects otherwise valid three-source merges in version 1', () => {
         const definition = merge.content.chart.merge;
@@ -361,4 +407,41 @@ describe('Document cell identity', () => {
             }
         },
     );
+});
+
+describe('getDocumentRuntimeChartConfig', () => {
+    test('drops the portable slug from a stored custom chart', () => {
+        expect(
+            getDocumentRuntimeChartConfig({
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz-uuid',
+                    dataAppVizSlug: 'grouped-bars',
+                    dataAppVizVersion: 3,
+                    fieldMapping: { category: 'orders_status' },
+                },
+            }),
+        ).toEqual({
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'viz-uuid',
+                dataAppVizVersion: 3,
+                fieldMapping: { category: 'orders_status' },
+            },
+        });
+    });
+
+    test('refuses a custom chart that was never linked to a chart type', () => {
+        expect(() =>
+            getDocumentRuntimeChartConfig({
+                type: ChartType.DATA_APP_VIZ,
+                config: { dataAppVizSlug: 'grouped-bars', fieldMapping: {} },
+            }),
+        ).toThrow('not linked to a chart type');
+    });
+
+    test('passes built-in chart configs through', () => {
+        const table = { type: ChartType.TABLE } as const;
+        expect(getDocumentRuntimeChartConfig(table)).toBe(table);
+    });
 });

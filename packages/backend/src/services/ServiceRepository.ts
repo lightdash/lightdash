@@ -418,6 +418,7 @@ export class ServiceRepository
             () =>
                 new DocumentService({
                     lightdashConfig: this.context.lightdashConfig,
+                    appModel: this.models.getAppModel(),
                     directAccessService: this.getDirectAccessService(),
                     documentModel: this.models.getDocumentModel(),
                     spaceModel: this.models.getSpaceModel(),
