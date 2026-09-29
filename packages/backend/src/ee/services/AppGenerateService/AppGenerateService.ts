@@ -163,6 +163,7 @@ import {
     emitAiUsage,
     languageModelUsageToTokens,
     type AiKeyManagement,
+    type AiUsageOutcome,
 } from '../../../analytics/aiUsage';
 import {
     LightdashAnalytics,
@@ -2562,6 +2563,7 @@ export class AppGenerateService extends BaseService {
         keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
         functionId: 'appClaudeGeneration' | 'appClaudeCompaction',
+        outcome: AiUsageOutcome,
     ): void {
         const emit = (
             resolvedModel: string,
@@ -2606,6 +2608,7 @@ export class AppGenerateService extends BaseService {
                         tokens.cacheCreationInputTokens +
                         tokens.outputTokens,
                 },
+                { outcome },
             );
 
         // The run is launched with a tier alias (`opus`, `sonnet`) that the
@@ -2708,6 +2711,7 @@ export class AppGenerateService extends BaseService {
                     ),
                 generationUsage,
                 'appClaudeGeneration',
+                'failed',
             );
             await this.recordGenerationUsage(payload, generationUsage);
         }
@@ -6465,6 +6469,7 @@ export class AppGenerateService extends BaseService {
             claudeKeyManagement,
             generationUsage,
             'appClaudeGeneration',
+            'complete',
         );
         // Kept apart from the generation so `contextTokensPerTurn` on the
         // next version only sees the turns that ran on the summary.
@@ -6476,6 +6481,7 @@ export class AppGenerateService extends BaseService {
                 claudeKeyManagement,
                 compaction.usage,
                 'appClaudeCompaction',
+                'complete',
             );
         }
         await this.recordGenerationUsage(payload, generationUsage);

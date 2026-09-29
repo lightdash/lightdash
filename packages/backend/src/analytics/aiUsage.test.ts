@@ -4,6 +4,7 @@ import {
     embeddingModelUsageToTokens,
     emitAiUsage,
     languageModelUsageToTokens,
+    registerAiUsageLedger,
     registerAiUsageTracker,
 } from './aiUsage';
 
@@ -136,6 +137,67 @@ describe('emitAiUsage', () => {
     afterEach(() => {
         vi.clearAllMocks();
         registerAiUsageTracker(() => {});
+        registerAiUsageLedger(async () => {});
+    });
+
+    const emitAgentCall = (outcome?: 'complete' | 'failed') =>
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    userUuid: 'user-1',
+                },
+            },
+            tokens,
+            outcome === undefined ? undefined : { outcome },
+        );
+
+    it('stamps each call with one id that the ledger and the analytics event share', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        const ledger = vi.fn<(event: AiUsageEvent) => Promise<void>>(
+            async () => {},
+        );
+        registerAiUsageTracker(track);
+        registerAiUsageLedger(ledger);
+
+        emitAgentCall();
+        emitAgentCall();
+
+        const ledgerIds = ledger.mock.calls.map(
+            ([event]) => event.properties.eventId,
+        );
+        const trackedIds = track.mock.calls.map(
+            ([event]) => event.properties.eventId,
+        );
+        expect(ledgerIds).toEqual(trackedIds);
+        expect(new Set(ledgerIds).size).toBe(2);
+    });
+
+    it('records the outcome the caller reports, defaulting to complete', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAgentCall();
+        emitAgentCall('failed');
+
+        expect(track.mock.calls[0][0].properties.outcome).toBe('complete');
+        expect(track.mock.calls[1][0].properties.outcome).toBe('failed');
+    });
+
+    it('keeps a failing ledger write out of the AI path', async () => {
+        registerAiUsageLedger(async () => {
+            throw new Error('connection reset');
+        });
+
+        expect(() => emitAgentCall()).not.toThrow();
+        await new Promise<void>((resolve) => {
+            setImmediate(resolve);
+        });
+        expect(Logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining('connection reset'),
+        );
     });
 
     it('emits a structured log line and a tracked event', () => {
@@ -161,6 +223,8 @@ describe('emitAiUsage', () => {
         );
 
         const expectedProperties = {
+            eventId: expect.any(String),
+            outcome: 'complete',
             feature: 'agent',
             functionId: 'generateAgentResponse',
             organizationId: 'org-1',

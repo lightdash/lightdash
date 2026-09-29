@@ -329,6 +329,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
         'ai_agent_memory.owner_user_uuid': payload.ownerUserUuid,
     }),
+    [SCHEDULER_TASKS.CLEAN_AI_USAGE_LEDGER]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: () => ({}),

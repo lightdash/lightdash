@@ -178,6 +178,7 @@ import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
@@ -264,6 +265,7 @@ export type SchedulerTaskArguments = {
     organizationSettingsModel: OrganizationSettingsModel;
     emailWhitelabelService: EmailWhitelabelService;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    aiUsageLedgerModel: AiUsageLedgerModel;
     learnSandboxService: LearnSandboxService;
 };
 
@@ -560,6 +562,8 @@ export default class SchedulerTask {
 
     protected readonly warehouseConnectCodeModel: WarehouseConnectCodeModel;
 
+    protected readonly aiUsageLedgerModel: AiUsageLedgerModel;
+
     protected readonly learnSandboxService: LearnSandboxService;
 
     constructor(args: SchedulerTaskArguments) {
@@ -593,6 +597,7 @@ export default class SchedulerTask {
         this.organizationSettingsModel = args.organizationSettingsModel;
         this.emailWhitelabelService = args.emailWhitelabelService;
         this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
+        this.aiUsageLedgerModel = args.aiUsageLedgerModel;
         this.learnSandboxService = args.learnSandboxService;
     }
 

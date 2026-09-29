@@ -1,6 +1,7 @@
 import type { AiDeepResearchPhase } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
+import { v4 as uuidv4 } from 'uuid';
 import Logger from '../logging/logger';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -128,13 +129,23 @@ export const embeddingModelUsageToTokens = (
 };
 
 /**
+ * Whether the work the call belonged to finished. Failed data app generations
+ * still spend tokens and are recorded, but the balance excludes them.
+ */
+export type AiUsageOutcome = 'complete' | 'failed';
+
+/**
  * One event per AI model call, emitted 100% unsampled (unlike traces) so
  * token usage can be accounted per org/user/feature. Consumed by the usage
- * event stream sink (`ai_usage` stream) and Rudderstack.
+ * event stream sink (`ai_usage` stream), Rudderstack and the usage ledger.
  */
 export type AiUsageEvent = BaseTrack & {
     event: 'ai.usage';
     properties: {
+        // Generated once per call so the ledger, the stream and the warehouse
+        // rows can be matched.
+        eventId: string;
+        outcome: AiUsageOutcome;
         feature: AiCallFeature;
         functionId: string;
         organizationId: string | null;
@@ -164,6 +175,19 @@ let aiUsageTrackFn: AiUsageTrackFn | null = null;
  */
 export const registerAiUsageTracker = (fn: AiUsageTrackFn): void => {
     aiUsageTrackFn = fn;
+};
+
+type AiUsageLedgerFn = (event: AiUsageEvent) => Promise<unknown>;
+
+let aiUsageLedgerFn: AiUsageLedgerFn | null = null;
+
+/**
+ * Second sink, registered once the database exists. Runs after the model has
+ * answered and is never awaited by the caller, so a slow or failing insert
+ * cannot hold a stream open or surface in the AI path.
+ */
+export const registerAiUsageLedger = (fn: AiUsageLedgerFn): void => {
+    aiUsageLedgerFn = fn;
 };
 
 /**
@@ -217,6 +241,7 @@ const getMetadataString = (
 export const emitAiUsage = (
     telemetry: AiCallTelemetryConfig,
     tokens: AiUsageTokens,
+    { outcome = 'complete' }: { outcome?: AiUsageOutcome } = {},
 ): void => {
     try {
         const metadata = telemetry.runtimeContext;
@@ -230,6 +255,8 @@ export const emitAiUsage = (
             );
         }
         const properties: AiUsageEvent['properties'] = {
+            eventId: uuidv4(),
+            outcome,
             feature: metadata.feature,
             functionId: telemetry.telemetry.functionId,
             organizationId: getMetadataString(metadata, 'organizationUuid'),
@@ -275,12 +302,18 @@ export const emitAiUsage = (
             },
         );
 
-        aiUsageTrackFn?.({
+        const event: AiUsageEvent = {
             event: 'ai.usage',
             ...(userUuid !== null
                 ? { userId: userUuid }
                 : { anonymousId: 'anonymous' }),
             properties,
+        };
+        aiUsageTrackFn?.(event);
+        aiUsageLedgerFn?.(event).catch((error) => {
+            Logger.warn(
+                `Failed to record AI usage ${properties.eventId} in the ledger: ${error}`,
+            );
         });
     } catch (error) {
         Logger.warn(`Failed to emit AI usage: ${error}`);

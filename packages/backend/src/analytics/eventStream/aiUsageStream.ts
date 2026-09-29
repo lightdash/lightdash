@@ -13,6 +13,8 @@ export const aiUsageCompactedColumns: CompactedStreamColumn[] = [
     { name: 'user_id', type: 'VARCHAR' },
     { name: 'event_ts', type: 'TIMESTAMP' },
     { name: 'schema_version', type: 'INTEGER' },
+    { name: 'event_id', type: 'VARCHAR' },
+    { name: 'outcome', type: 'VARCHAR' },
     { name: 'project_id', type: 'VARCHAR' },
     { name: 'feature', type: 'VARCHAR' },
     { name: 'function_id', type: 'VARCHAR' },
@@ -45,6 +47,8 @@ const projectAiUsageEvent = (payload: AiUsageEvent): ProjectionResult => {
         stream: 'ai_usage',
         row: {
             ...buildEnvelope(payload, properties.organizationId),
+            event_id: properties.eventId,
+            outcome: properties.outcome,
             project_id: properties.projectId,
             feature: properties.feature,
             function_id: properties.functionId,
