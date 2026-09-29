@@ -1,3 +1,10 @@
+## [2.369.1](https://github.com/lightdash/lightdash/compare/2.369.0...2.369.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **ai:** report the key origin on embedding and eval judge usage ([#30160](https://github.com/lightdash/lightdash/issues/30160)) ([ec19d2b](https://github.com/lightdash/lightdash/commit/ec19d2b6ed446049b5efcd39239c68033bd8afe1))
+
 # [2.369.0](https://github.com/lightdash/lightdash/compare/2.368.1...2.369.0) (2026-09-29)
 
 
