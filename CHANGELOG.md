@@ -1,3 +1,10 @@
+## [2.372.1](https://github.com/lightdash/lightdash/compare/2.372.0...2.372.1) (2026-09-29)
+
+
+### Performance Improvements
+
+* **learn:** seed sandbox dbt partial parsing from the pristine bundle (CS-334) ([#30176](https://github.com/lightdash/lightdash/issues/30176)) ([1c993f6](https://github.com/lightdash/lightdash/commit/1c993f6b4dc09b2f9fe911f06850f3452ba61cb5)), closes [#30175](https://github.com/lightdash/lightdash/issues/30175)
+
 # [2.372.0](https://github.com/lightdash/lightdash/compare/2.371.1...2.372.0) (2026-09-29)
 
 
