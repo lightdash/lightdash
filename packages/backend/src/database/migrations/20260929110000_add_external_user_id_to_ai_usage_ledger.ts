@@ -14,7 +14,7 @@ export async function up(knex: Knex): Promise<void> {
             .text('external_user_id')
             .nullable()
             .comment(
-                'Viewer id the host application put in the embed token. Null outside embedded agent chats, where user_uuid identifies the caller.',
+                'Viewer id the host application put in the embed token, stored as sent without the external:: prefix. Null outside embedded agent chats, where user_uuid identifies the caller.',
             );
     });
 }

@@ -3,6 +3,7 @@ import {
     registerAiUsageTracker,
     type AiUsageEvent,
 } from '../aiUsage';
+import { aiUsageCompactedColumns } from './aiUsageStream';
 import { EventStreamSink } from './EventStreamSink';
 import { EVENT_STREAM_SCHEMA_VERSION } from './projection';
 import { eventStreamRegistry } from './registry';
@@ -137,6 +138,18 @@ describe('ai_usage stream projection', () => {
             total_tokens: 1200,
         });
         expect(new Date(row.event_ts).toISOString()).toBe(row.event_ts);
+    });
+
+    it('declares every attribution column it writes in the compacted schema', () => {
+        const writer = createWriterMock();
+        new EventStreamSink(eventStreamRegistry, writer).handle(aiUsageEvent);
+
+        const [, row] = writer.push.mock.calls[0]!;
+        const compacted = aiUsageCompactedColumns.map((column) => column.name);
+        expect(compacted).toEqual(
+            expect.arrayContaining(['channel', 'external_user_id']),
+        );
+        compacted.forEach((column) => expect(row).toHaveProperty(column));
     });
 
     it('projects null dimensions and token classes as null columns', () => {

@@ -218,10 +218,7 @@ import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
-import {
-    getAiUsageChannel,
-    type AiUsageChannel,
-} from '../../../analytics/aiUsage';
+import { getAiUsageChannel } from '../../../analytics/aiUsage';
 import {
     AiAgentArtifactsRetrievedEvent,
     AiAgentArtifactVersionVerifiedEvent,
@@ -547,6 +544,10 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import {
+    getPromptUsageAttribution,
+    type AiUsageViewerAttribution,
+} from './usageAttribution';
 import { getWritebackConnectionSupport } from './writebackConnection';
 
 type ThreadMessageContext = Array<
@@ -2398,7 +2399,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions: {
                 embedSpaceUuid: spaceUuid,
                 externalUserId:
-                    account.authentication.data.user?.externalId ?? null,
+                    account.authentication.data.user?.externalId || null,
                 spaceAccess: [spaceUuid],
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
@@ -6812,26 +6813,6 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    private static getPromptUsageAttribution(
-        prompt: SlackPrompt | AiWebAppPrompt,
-    ): { channel: AiUsageChannel; externalUserId: string | null } {
-        return isSlackPrompt(prompt)
-            ? {
-                  channel: getAiUsageChannel({
-                      createdFrom: prompt.threadCreatedFrom,
-                      embedSpaceUuid: null,
-                  }),
-                  externalUserId: null,
-              }
-            : {
-                  channel: getAiUsageChannel({
-                      createdFrom: prompt.threadCreatedFrom,
-                      embedSpaceUuid: prompt.threadEmbedSpaceUuid,
-                  }),
-                  externalUserId: prompt.externalUserId,
-              };
-    }
-
     // Usage attribution must never fail the call it describes.
     private async getThreadUsageAttribution({
         threadUuid,
@@ -6839,16 +6820,13 @@ export class AiAgentService extends BaseService {
     }: {
         threadUuid: string;
         promptUuid: string | null;
-    }): Promise<{
-        channel: AiUsageChannel | null;
-        externalUserId: string | null;
-    }> {
+    }): Promise<AiUsageViewerAttribution> {
         try {
             const prompt = promptUuid
                 ? await this.aiAgentModel.findWebAppPrompt(promptUuid)
                 : undefined;
             if (prompt) {
-                return AiAgentService.getPromptUsageAttribution(prompt);
+                return getPromptUsageAttribution(prompt);
             }
             const origin = await this.aiAgentModel.findThreadOrigin(threadUuid);
             return {
@@ -6992,7 +6970,7 @@ export class AiAgentService extends BaseService {
                 organizationUuid: user.organizationUuid ?? null,
                 threadUuid,
                 promptUuid: previousPrompt.ai_prompt_uuid,
-                ...AiAgentService.getPromptUsageAttribution(prompt),
+                ...getPromptUsageAttribution(prompt),
             },
         };
 
@@ -12714,7 +12692,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         agentUuid: prompt.agentUuid,
                         threadUuid: prompt.threadUuid,
                         userUuid: user.userUuid,
-                        ...AiAgentService.getPromptUsageAttribution(prompt),
+                        ...getPromptUsageAttribution(prompt),
                     },
                 },
                 { ...generatorContext, styleReferenceTitle: current.title },
@@ -14136,7 +14114,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             messageHistory,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
-            ...AiAgentService.getPromptUsageAttribution(prompt),
+            ...getPromptUsageAttribution(prompt),
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,
