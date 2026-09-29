@@ -20274,9 +20274,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         // TODO: Implement judge configuration in the future!
         // reusing existing configuration for now
-        const { model: judge, callOptions } = getModel(
-            this.lightdashConfig.ai.copilot,
-        );
+        const {
+            model: judge,
+            callOptions,
+            keyManagement,
+        } = getModel(this.lightdashConfig.ai.copilot);
 
         // Build context from artifacts and tool results
         const contextParts: string[] = [];
@@ -20317,6 +20319,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   context: contextParts.length > 0 ? contextParts : undefined,
                   judge,
                   callOptions,
+                  keyManagement,
                   scorerType: 'factuality',
                   telemetry,
               })
@@ -20330,6 +20333,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       context: contextParts,
                       judge,
                       callOptions,
+                      keyManagement,
                       scorerType: 'contextRelevancy',
                       telemetry,
                   })

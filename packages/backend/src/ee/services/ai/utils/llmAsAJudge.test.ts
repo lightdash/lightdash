@@ -1,4 +1,5 @@
 import { generateText } from 'ai';
+import { registerAiUsageTracker } from '../../../../analytics/aiUsage';
 import { llmAsAJudge } from './llmAsAJudge';
 
 vi.mock('ai', async (importOriginal) => ({
@@ -30,6 +31,7 @@ describe('llmAsAJudge context relevancy', () => {
                 modelId: 'test-model',
             } as never,
             callOptions: {},
+            keyManagement: 'lightdash-managed',
             scorerType: 'contextRelevancy',
         });
 
@@ -40,5 +42,36 @@ describe('llmAsAJudge context relevancy', () => {
                 ),
             }),
         );
+    });
+});
+
+describe('llmAsAJudge key origin', () => {
+    it('reports the key origin of the judge model on its usage', async () => {
+        const track = vi.fn();
+        registerAiUsageTracker(track);
+        mockedGenerateObject.mockResolvedValue({
+            output: { answer: 'C', rationale: 'Same facts.' },
+            usage: { inputTokens: 40, outputTokens: 5, totalTokens: 45 },
+        } as never);
+
+        await llmAsAJudge({
+            query: 'How many orders last week?',
+            response: '120 orders.',
+            expectedAnswer: '120',
+            judge: {
+                provider: 'test-provider',
+                modelId: 'test-model',
+            } as never,
+            callOptions: {},
+            keyManagement: 'lightdash-managed',
+            scorerType: 'factuality',
+            telemetry: { organizationUuid: 'org-1' },
+        });
+
+        expect(track.mock.calls[0][0].properties).toMatchObject({
+            feature: 'llm-judge',
+            keyManagement: 'lightdash-managed',
+            totalTokens: 45,
+        });
     });
 });

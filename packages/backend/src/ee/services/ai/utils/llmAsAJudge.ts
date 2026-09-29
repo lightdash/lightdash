@@ -5,6 +5,7 @@ import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    type AiKeyManagement,
 } from '../../../../analytics/aiUsage';
 import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
@@ -87,6 +88,7 @@ type BaseLlmAsJudgeParams = {
     context?: string[];
     judge: Exclude<LanguageModel, string>;
     callOptions: ReturnType<typeof getOpenaiGptmodel>['callOptions'];
+    keyManagement: AiKeyManagement;
     contextRelevancyThreshold?: number; // Threshold for context relevancy (default 0.7)
     factualityThreshold?: 'A' | 'B' | 'C' | 'D' | 'E'; // Minimum acceptable factuality score (default 'A' = subset or better)
     jsonDiffThreshold?: number; // Threshold for JSON diff score (default 0.9)
@@ -132,6 +134,7 @@ export async function llmAsAJudge({
     context,
     judge,
     callOptions,
+    keyManagement,
     scorerType,
     contextRelevancyThreshold = 0.7,
     factualityThreshold = 'A',
@@ -194,7 +197,7 @@ export async function llmAsAJudge({
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
                 ...telemetry,
-                keyManagement: telemetry?.keyManagement ?? null,
+                keyManagement,
             });
             const result = await generateText({
                 model: judge,
@@ -287,7 +290,7 @@ ${
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
                 ...telemetry,
-                keyManagement: telemetry?.keyManagement ?? null,
+                keyManagement,
             });
             const result = await generateText({
                 model: judge,
