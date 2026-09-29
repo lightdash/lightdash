@@ -2,7 +2,7 @@
 
 Official, installable custom chart types. Two halves make the feature: a
 public **chart registry** that publishes prebuilt chart types as static
-artifacts, and the in-product **chart type library** that lists them and
+artifacts, and the in-product **Lightdash library** that lists them and
 installs them into a project. Installed official chart types are read-only;
 making one editable is an explicit fork.
 
@@ -21,11 +21,25 @@ official registry is the `lightdash/lightdash-library` repo served from
 GitHub Pages; a deployment points at exactly one registry URL.
 _Avoid_: marketplace, store, hub, gallery (that is the in-product page)
 
-**Chart type library**:
+**Lightdash library**:
 The in-product section of the chart type gallery that lists the registry's
 chart types with their per-project install state (not installed, installed,
 update available, incompatible).
-_Avoid_: registry (for the UI), marketplace, app store
+_Avoid_: chart type library, registry (for the UI), marketplace, app store
+
+**Project library**:
+The chart types a project has, whether built in it or installed into it.
+_Avoid_: installed chart types
+
+**Organization library**:
+The chart types owned by the organization, built and edited there, and
+available in every project with nothing to install. An admin turns it on per
+organization.
+_Avoid_: shared library, global library
+
+**Organization chart type**:
+A chart type in the organization library.
+_Avoid_: shared chart type, global chart type
 
 **Official chart type**:
 A chart type installed from the registry. Read-only in the project — no

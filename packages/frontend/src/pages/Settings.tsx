@@ -91,8 +91,10 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
+import { OrganizationChartTypesSettingsPage } from '../features/chartTypes/components/OrganizationChartTypesSettingsPage';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
+import { getDataAppsSettingsAccess } from '../hooks/settings/dataAppsSettingsAccess';
 import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
@@ -170,6 +172,7 @@ const Settings: FC = () => {
         isScimTokenManagementEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        organizationChartTypesFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
@@ -198,6 +201,24 @@ const Settings: FC = () => {
         isProjectLoading,
         projectError,
     } = context;
+
+    const dataAppsAccess = useMemo(
+        () =>
+            getDataAppsSettingsAccess({
+                user,
+                organization,
+                dataAppsFlag,
+                dataAppAnalysisFlag,
+                organizationChartTypesFlag,
+            }),
+        [
+            user,
+            organization,
+            dataAppsFlag,
+            dataAppAnalysisFlag,
+            organizationChartTypesFlag,
+        ],
+    );
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
@@ -529,18 +550,25 @@ const Settings: FC = () => {
             });
         }
 
-        if (dataAppsFlag?.enabled) {
-            const canManageThemes =
-                user?.ability.can('manage', 'OrganizationDesign') ?? false;
-            const canViewActivity =
-                user?.ability.can('manage', 'Organization') ?? false;
-            const canManageAiAnalysis =
-                canViewActivity && dataAppAnalysisFlag?.enabled === true;
+        if (dataAppsAccess) {
+            const {
+                canManageThemes,
+                canManageOrganizationChartTypes,
+                canViewActivity,
+                canManageAiAnalysis,
+                landingPath: dataAppsLandingPath,
+            } = dataAppsAccess;
 
             if (canManageThemes) {
                 allowedRoutes.push({
                     path: '/dataApps/themes',
                     element: <DesignListPage />,
+                });
+            }
+            if (canManageOrganizationChartTypes) {
+                allowedRoutes.push({
+                    path: '/dataApps/chartTypes',
+                    element: <OrganizationChartTypesSettingsPage />,
                 });
             }
             if (canViewActivity) {
@@ -555,20 +583,10 @@ const Settings: FC = () => {
                     element: <DataAppAiAnalysisSettingsPage />,
                 });
             }
-            // Land on whichever sub-page the user can actually reach.
-            if (canManageThemes || canViewActivity) {
+            if (dataAppsLandingPath) {
                 allowedRoutes.push({
                     path: '/dataApps',
-                    element: (
-                        <Navigate
-                            to={
-                                canManageThemes
-                                    ? '/generalSettings/dataApps/themes'
-                                    : '/generalSettings/dataApps/activity'
-                            }
-                            replace
-                        />
-                    ),
+                    element: <Navigate to={dataAppsLandingPath} replace />,
                 });
             }
         }
@@ -844,7 +862,7 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
-        dataAppAnalysisFlag?.enabled,
+        dataAppsAccess,
         externalSourcesFlag?.enabled,
         isProLimitsEnabled,
         canAccessAnalyticsSettings,

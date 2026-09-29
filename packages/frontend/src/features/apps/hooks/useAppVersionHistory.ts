@@ -1,5 +1,6 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
 import { useMemo } from 'react';
+import { type ChartTypeOwner } from '../../chartTypes/utils/chartTypeOwner';
 import { useGetApp } from './useGetApp';
 
 export type AppVersionHistory = {
@@ -45,6 +46,7 @@ export type AppVersionHistory = {
 export const useAppVersionHistory = (
     projectUuid: string,
     appUuid: string | null,
+    owner: ChartTypeOwner = 'project',
 ): AppVersionHistory => {
     const {
         data,
@@ -53,7 +55,7 @@ export const useAppVersionHistory = (
         hasNextPage,
         fetchNextPage,
         isFetchingNextPage,
-    } = useGetApp(projectUuid, appUuid ?? undefined);
+    } = useGetApp(projectUuid, appUuid ?? undefined, owner);
 
     const versions = useMemo(
         () => data?.pages.flatMap((page) => page.versions) ?? [],

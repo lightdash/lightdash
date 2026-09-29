@@ -3,10 +3,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { captureChartTypeError } from '../../chartTypes/utils/captureChartTypeError';
+import {
+    ORGANIZATION_CHART_TYPES_API_BASE,
+    type ChartTypeOwner,
+} from '../../chartTypes/utils/chartTypeOwner';
 
 type DeleteAppParams = {
     projectUuid: string;
     appUuid: string;
+    // Organization chart types delete through the organization routes.
+    owner?: ChartTypeOwner;
     // For surfaces that say "chart type" instead of "data app".
     successTitle?: string;
 };
@@ -14,10 +20,14 @@ type DeleteAppParams = {
 const deleteApp = async ({
     projectUuid,
     appUuid,
+    owner,
 }: DeleteAppParams): Promise<void> => {
     await lightdashApi<undefined>({
         method: 'DELETE',
-        url: `/ee/projects/${projectUuid}/apps/${appUuid}`,
+        url:
+            owner === 'organization'
+                ? `${ORGANIZATION_CHART_TYPES_API_BASE}/${appUuid}`
+                : `/ee/projects/${projectUuid}/apps/${appUuid}`,
     });
 };
 
@@ -30,6 +40,14 @@ export const useDeleteApp = () => {
             void queryClient.invalidateQueries({ queryKey: ['myApps'] });
             void queryClient.invalidateQueries({ queryKey: ['content'] });
             void queryClient.invalidateQueries({ queryKey: ['data-app-vizs'] });
+            if (variables.owner === 'organization') {
+                void queryClient.invalidateQueries({
+                    queryKey: ['organization-data-app-vizs'],
+                });
+                void queryClient.invalidateQueries({
+                    queryKey: ['organization-chart-type', variables.appUuid],
+                });
+            }
             void queryClient.invalidateQueries({
                 queryKey: ['registry-chart-types', variables.projectUuid],
             });

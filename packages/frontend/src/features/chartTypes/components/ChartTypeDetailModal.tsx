@@ -3,6 +3,7 @@ import {
     getAppDisplayName,
     isOfficialChartType,
     type DataAppViz,
+    type OrganizationDataAppViz,
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
@@ -20,6 +21,7 @@ import { EventName } from '../../../types/Events';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useCanManageOrganizationChartTypes } from '../hooks/useOrganizationLibraryAccess';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import classes from './ChartTypeDetailModal.module.css';
@@ -32,13 +34,15 @@ import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
 type Props = {
     opened: boolean;
+    /** The project the gallery is viewed from */
     projectUuid: string;
-    dataAppViz: DataAppViz;
+    dataAppViz: DataAppViz | OrganizationDataAppViz;
     isActive: boolean;
     /** This chart type's registry entry, when it is a registry install */
     registryEntry: RegistryChartTypeListItem | null;
     onClose: () => void;
-    onPreview: () => void;
+    /** Opens the chart type in the explorer; null hides the action */
+    onPreview: (() => void) | null;
     onDelete: () => void;
 };
 
@@ -53,8 +57,20 @@ const ChartTypeDetailModal: FC<Props> = ({
     onDelete,
 }) => {
     const navigate = useNavigate();
-    const canEdit = useCanEditDataApp(projectUuid, dataAppViz);
-    const canFork = useCanCreateDataApp(projectUuid);
+    // Organization chart types are read-only here: no edit, fork or explorer
+    // preview, and only organization chart type managers can delete them.
+    const isOrganizationChartType = dataAppViz.projectUuid === null;
+    const owner = isOrganizationChartType ? 'organization' : 'project';
+    const owningProjectUuid = dataAppViz.projectUuid ?? undefined;
+    const canEditInProject = useCanEditDataApp(owningProjectUuid, dataAppViz);
+    const canCreateInProject = useCanCreateDataApp(owningProjectUuid);
+    const canEdit = !isOrganizationChartType && canEditInProject;
+    const canFork = !isOrganizationChartType && canCreateInProject;
+    const canManageOrganizationChartTypes =
+        useCanManageOrganizationChartTypes();
+    const canDelete = isOrganizationChartType
+        ? canManageOrganizationChartTypes
+        : canEdit;
     // Forking and editing are authoring: they need data apps, unlike
     // install/upgrade/uninstall which follow the chart type library.
     const dataAppsEnabled =
@@ -94,7 +110,7 @@ const ChartTypeDetailModal: FC<Props> = ({
         });
     }, [projectUuid, isOfficial, dataAppViz.registrySlug, hasUpdate, track]);
     const { latestReadyVersion, oldest, latest, hasOrigin } =
-        useAppVersionHistory(projectUuid, dataAppViz.dataAppVizUuid);
+        useAppVersionHistory(projectUuid, dataAppViz.dataAppVizUuid, owner);
 
     // Only attribute once v1 is loaded — the oldest loaded version is not the
     // origin author while older pages are unfetched.
@@ -134,7 +150,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                 bodyScrollAreaMaxHeight="calc(100vh - 200px)"
                 cancelLabel={false}
                 leftActions={
-                    canEdit && (
+                    canDelete && (
                         // The theme's subtle variant hardcodes gray text; c overrides it.
                         <Button
                             variant="subtle"
@@ -189,13 +205,14 @@ const ChartTypeDetailModal: FC<Props> = ({
                               </Button>
                           )
                 }
-                onConfirm={onPreview}
+                onConfirm={onPreview ?? undefined}
                 confirmLabel="Preview in explorer"
             >
                 <Stack gap="md">
                     <Box className={classes.preview}>
                         <ChartTypeSamplePreview
                             projectUuid={projectUuid}
+                            owner={owner}
                             dataAppVizUuid={dataAppViz.dataAppVizUuid}
                             icon={dataAppViz.icon}
                         />
@@ -303,7 +320,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                     }
                 />
             )}
-            {isUpgradeOpen && registryUpdate && (
+            {isUpgradeOpen && registryUpdate && !isOrganizationChartType && (
                 <ChartTypeUpgradeModal
                     projectUuid={projectUuid}
                     dataAppViz={dataAppViz}

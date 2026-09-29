@@ -1,4 +1,8 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type DataAppViz,
+    type OrganizationDataAppViz,
+} from '@lightdash/common';
 import {
     act,
     fireEvent,
@@ -15,10 +19,17 @@ import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
-import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
+import {
+    useDataAppVisualizations,
+    useOrganizationDataAppVisualizations,
+} from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useDataAppVizDeleteImpact } from '../features/chartTypes/hooks/useDataAppVizDeleteImpact';
 import { useDataAppVizUpgradeImpact } from '../features/chartTypes/hooks/useDataAppVizUpgradeImpact';
 import { useInstallRegistryChartType } from '../features/chartTypes/hooks/useInstallRegistryChartType';
+import {
+    useCanManageOrganizationChartTypes,
+    useOrganizationLibraryAccess,
+} from '../features/chartTypes/hooks/useOrganizationLibraryAccess';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -48,6 +59,12 @@ vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
 
 vi.mock('../features/chartTypes/hooks/useDataAppVisualizations', () => ({
     useDataAppVisualizations: vi.fn(),
+    useOrganizationDataAppVisualizations: vi.fn(),
+}));
+
+vi.mock('../features/chartTypes/hooks/useOrganizationLibraryAccess', () => ({
+    useOrganizationLibraryAccess: vi.fn(),
+    useCanManageOrganizationChartTypes: vi.fn(),
 }));
 
 vi.mock('../features/chartTypes/hooks/useDataAppVizDeleteImpact', () => ({
@@ -156,6 +173,60 @@ const setData = (data: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
+const makeOrganizationDataAppViz = (
+    overrides: Partial<OrganizationDataAppViz>,
+): OrganizationDataAppViz => ({
+    ...makeDataAppViz({}),
+    dataAppVizUuid: 'organization-viz-1',
+    slug: 'org-funnel',
+    name: 'Org funnel',
+    organizationUuid: 'org-1',
+    projectUuid: null,
+    spaceUuid: null,
+    registrySlug: null,
+    ...overrides,
+});
+
+const setOrganizationData = (data: OrganizationDataAppViz[]) => {
+    vi.mocked(useOrganizationDataAppVisualizations).mockReturnValue({
+        data: {
+            pages: [
+                {
+                    data,
+                    pagination: {
+                        page: 1,
+                        pageSize: 25,
+                        totalPageCount: 1,
+                        totalResults: data.length,
+                    },
+                },
+            ],
+            pageParams: [1],
+        },
+        isInitialLoading: false,
+        isFetching: false,
+        error: null,
+        refetch: vi.fn(),
+        hasNextPage: false,
+        fetchNextPage: vi.fn(),
+        isFetchingNextPage: false,
+    } as unknown as ReturnType<typeof useOrganizationDataAppVisualizations>);
+};
+
+const setOrganizationLibrary = ({
+    isVisible,
+    canManage,
+}: {
+    isVisible: boolean;
+    canManage: boolean;
+}) => {
+    vi.mocked(useOrganizationLibraryAccess).mockReturnValue({
+        isVisible,
+        canManage,
+    });
+    vi.mocked(useCanManageOrganizationChartTypes).mockReturnValue(canManage);
+};
+
 const setFlags = ({
     dataApps = true,
     chartTypeRegistry = true,
@@ -255,6 +326,8 @@ describe('ChartTypeGallery', () => {
             data: undefined,
         } as ReturnType<typeof useDataAppVisualization>);
         setFlags();
+        setOrganizationLibrary({ isVisible: false, canManage: false });
+        setOrganizationData([]);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useDuplicateApp).mockReturnValue({
@@ -446,15 +519,15 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('metric')).toBeInTheDocument();
     });
 
-    it('separates installed chart types and the chart library into top-level tabs', () => {
+    it('separates the project library and the Lightdash library into top-level tabs', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
         const chartTypesTab = screen.getByRole('tab', {
-            name: 'Installed chart types (1)',
+            name: 'Project library (1)',
         });
         const libraryTab = screen.getByRole('tab', {
-            name: 'Chart type library Beta',
+            name: 'Lightdash library Beta',
         });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
@@ -481,7 +554,7 @@ describe('ChartTypeGallery', () => {
         renderPage('/projects/project-1/chart-studio?tab=chart-library');
 
         expect(
-            screen.getByRole('tab', { name: 'Chart type library Beta' }),
+            screen.getByRole('tab', { name: 'Lightdash library Beta' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
@@ -518,7 +591,7 @@ describe('ChartTypeGallery', () => {
                 true,
             );
             expect(
-                screen.queryByRole('tab', { name: /Chart type library/ }),
+                screen.queryByRole('tab', { name: /Lightdash library/ }),
             ).not.toBeInTheDocument();
             expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
             expect(screen.queryByRole('tab')).not.toBeInTheDocument();
@@ -526,6 +599,148 @@ describe('ChartTypeGallery', () => {
             expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         },
     );
+
+    describe('organization library', () => {
+        it('is hidden when the organization library is not visible', () => {
+            setData([makeDataAppViz({})]);
+            setOrganizationData([makeOrganizationDataAppViz({})]);
+            renderPage(
+                '/projects/project-1/chart-studio?tab=organization-library',
+            );
+
+            expect(
+                screen.queryByRole('tab', { name: /Organization library/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('tab', { name: 'Project library (1)' }),
+            ).toHaveAttribute('aria-selected', 'true');
+            expect(screen.queryByText('Org funnel')).not.toBeInTheDocument();
+        });
+
+        it('sits between the project and Lightdash libraries with its count', () => {
+            setOrganizationLibrary({ isVisible: true, canManage: false });
+            setData([makeDataAppViz({})]);
+            setOrganizationData([makeOrganizationDataAppViz({})]);
+            renderPage();
+
+            expect(
+                screen.getAllByRole('tab').map((tab) => tab.textContent),
+            ).toEqual([
+                'Project library(1)',
+                'Organization library(1)',
+                'Lightdash libraryBeta',
+            ]);
+
+            fireEvent.click(
+                screen.getByRole('tab', { name: 'Organization library (1)' }),
+            );
+
+            expect(screen.getByTestId('location-search')).toHaveTextContent(
+                '?tab=organization-library',
+            );
+            expect(screen.getByText('Org funnel')).toBeInTheDocument();
+            expect(screen.queryByText('Radial gauge')).not.toBeInTheDocument();
+        });
+
+        it('shows tabs for the organization library without the Lightdash library', () => {
+            setFlags({ chartTypeRegistry: false });
+            setOrganizationLibrary({ isVisible: true, canManage: false });
+            setData([makeDataAppViz({})]);
+            renderPage();
+
+            expect(
+                screen.getAllByRole('tab').map((tab) => tab.textContent),
+            ).toEqual(['Project library(1)', 'Organization library(0)']);
+        });
+
+        it('explains the organization library when it is empty', () => {
+            setOrganizationLibrary({ isVisible: true, canManage: true });
+            setData([makeDataAppViz({})]);
+            renderPage(
+                '/projects/project-1/chart-studio?tab=organization-library',
+            );
+
+            expect(
+                screen.getByText('No organization chart types yet'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Chart types built in the organization library can be used in every project of your organization.',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('opens a read-only detail dialog for non-managers', () => {
+            setOrganizationLibrary({ isVisible: true, canManage: false });
+            setData([]);
+            setOrganizationData([makeOrganizationDataAppViz({})]);
+            renderPage(
+                '/projects/project-1/chart-studio?tab=organization-library',
+            );
+
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Actions for Org funnel',
+                }),
+            ).not.toBeInTheDocument();
+
+            fireEvent.click(screen.getByText('Org funnel'));
+
+            const dialog = screen.getByRole('dialog');
+            expect(
+                within(dialog).queryByRole('button', {
+                    name: 'Preview in explorer',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                within(dialog).queryByRole('button', { name: 'Delete' }),
+            ).not.toBeInTheDocument();
+            expect(
+                within(dialog).queryByRole('link', { name: 'Edit' }),
+            ).not.toBeInTheDocument();
+            expect(useAppVersionHistory).toHaveBeenCalledWith(
+                'project-1',
+                'organization-viz-1',
+                'organization',
+            );
+        });
+
+        it('deletes through the organization route for managers', async () => {
+            setOrganizationLibrary({ isVisible: true, canManage: true });
+            setData([]);
+            setOrganizationData([makeOrganizationDataAppViz({})]);
+            renderPage(
+                '/projects/project-1/chart-studio?tab=organization-library',
+            );
+
+            fireEvent.click(screen.getByText('Org funnel'));
+            fireEvent.click(
+                within(screen.getByRole('dialog')).getByRole('button', {
+                    name: 'Delete',
+                }),
+            );
+
+            expect(useDataAppVizDeleteImpact).toHaveBeenCalledWith(
+                'project-1',
+                'organization-viz-1',
+                'organization',
+            );
+            const confirmButton = within(
+                screen.getByRole('dialog', { name: 'Delete chart type' }),
+            ).getByRole('button', { name: 'Delete' });
+            await waitFor(() => expect(confirmButton).toBeEnabled());
+            fireEvent.click(confirmButton);
+
+            await waitFor(() =>
+                expect(mockedDeleteApp).toHaveBeenCalledWith({
+                    projectUuid: 'project-1',
+                    appUuid: 'organization-viz-1',
+                    owner: 'organization',
+                    successTitle: 'Chart type deleted',
+                }),
+            );
+        });
+    });
 
     it('shows origin author and last update in the detail modal', () => {
         const originVersion = {
@@ -595,6 +810,7 @@ describe('ChartTypeGallery', () => {
         expect(useDataAppVizDeleteImpact).toHaveBeenCalledWith(
             'project-1',
             'data-app-viz-1',
+            'project',
         );
         const confirmButton = screen.getByRole('button', { name: 'Delete' });
         await waitFor(() => expect(confirmButton).toBeEnabled());
@@ -604,6 +820,7 @@ describe('ChartTypeGallery', () => {
             expect(mockedDeleteApp).toHaveBeenCalledWith({
                 projectUuid: 'project-1',
                 appUuid: 'data-app-viz-1',
+                owner: 'project',
                 successTitle: 'Chart type deleted',
             }),
         );
@@ -648,6 +865,7 @@ describe('ChartTypeGallery', () => {
             expect(mockedDeleteApp).toHaveBeenCalledWith({
                 projectUuid: 'project-1',
                 appUuid: 'data-app-viz-1',
+                owner: 'project',
                 successTitle: 'Chart type uninstalled',
             }),
         );
@@ -946,7 +1164,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.queryByText('home')).not.toBeInTheDocument();
-        expect(screen.getByText('Installed chart types')).toBeInTheDocument();
+        expect(screen.getByText('Project library')).toBeInTheDocument();
     });
 
     it('hides the new-chart-type button with data apps off', () => {

@@ -86,6 +86,42 @@ describe('useDataAppVizRender', () => {
         ).toBe(false);
     });
 
+    it('renders organization chart types through the organization routes', async () => {
+        const target = {
+            isEmbedded: false,
+            savedChartUuid: undefined,
+            owner: 'organization' as const,
+        };
+        const { result } = renderHook(() => ({
+            metadata: useDataAppVizRenderMetadata('project-1', 'viz-1', target),
+            token: useDataAppVizPreviewToken('project-1', 'viz-1', 4, target),
+        }));
+        const metadataQuery = result.current
+            .metadata as unknown as CapturedQuery;
+        const tokenQuery = result.current.token as unknown as CapturedQuery;
+
+        expect(metadataQuery.queryKey).toEqual([
+            'data-app-viz-render-metadata',
+            'project-1',
+            'viz-1',
+            'organization',
+            undefined,
+            undefined,
+            undefined,
+        ]);
+        mocks.lightdashApi.mockResolvedValue({ token: 'token-1' });
+        await metadataQuery.queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/org/chart-types/viz-1/render-metadata',
+        });
+        await tokenQuery.queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/org/chart-types/viz-1/versions/4/preview-token',
+        });
+    });
+
     it('passes the previewed chart version through to the registered route', async () => {
         const target = {
             isEmbedded: false,

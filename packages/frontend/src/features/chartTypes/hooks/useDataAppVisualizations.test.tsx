@@ -4,7 +4,10 @@ import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
-import { useDataAppVisualizations } from './useDataAppVisualizations';
+import {
+    useDataAppVisualizations,
+    useOrganizationDataAppVisualizations,
+} from './useDataAppVisualizations';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
@@ -76,6 +79,35 @@ describe('useDataAppVisualizations', () => {
 
     it('does not fetch without a project', () => {
         renderHook(() => useDataAppVisualizations(undefined), {
+            wrapper: createWrapper(),
+        });
+        expect(lightdashApi).not.toHaveBeenCalled();
+    });
+
+    it('lists organization chart types from the organization route', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            data: [],
+            pagination: {
+                page: 1,
+                pageSize: 25,
+                totalPageCount: 1,
+                totalResults: 0,
+            },
+        });
+        const { result } = renderHook(
+            () => useOrganizationDataAppVisualizations('funnel', true),
+            { wrapper: createWrapper() },
+        );
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        expect(lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/org/chart-types?page=1&pageSize=25&sortBy=createdAt&sortDirection=desc&search=funnel',
+            body: undefined,
+        });
+    });
+
+    it('does not list organization chart types while disabled', () => {
+        renderHook(() => useOrganizationDataAppVisualizations('', false), {
             wrapper: createWrapper(),
         });
         expect(lightdashApi).not.toHaveBeenCalled();

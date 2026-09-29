@@ -1,4 +1,7 @@
-import { type DataAppViz } from '@lightdash/common';
+import {
+    type DataAppViz,
+    type OrganizationDataAppViz,
+} from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -85,6 +88,7 @@ describe('ChartTypeDeleteModal', () => {
             expect(useDataAppVizDeleteImpact).toHaveBeenCalledWith(
                 'project-1',
                 'viz-1',
+                'project',
             );
             const confirmLabel = registrySlug ? 'Uninstall' : 'Delete';
             const button = screen.getByRole('button', {
@@ -96,6 +100,7 @@ describe('ChartTypeDeleteModal', () => {
             expect(deleteApp).toHaveBeenCalledWith({
                 projectUuid: 'project-1',
                 appUuid: 'viz-1',
+                owner: 'project',
                 successTitle: registrySlug
                     ? 'Chart type uninstalled'
                     : 'Chart type deleted',
@@ -136,6 +141,54 @@ describe('ChartTypeDeleteModal', () => {
             screen.queryByText(/until the chart type is restored/),
         ).not.toBeInTheDocument();
     });
+
+    it.each([true, false])(
+        'never offers restoring an organization chart type (soft delete %s)',
+        async (softDeleteEnabled) => {
+            const organizationViz: OrganizationDataAppViz = {
+                ...viz,
+                organizationUuid: 'org-1',
+                projectUuid: null,
+                spaceUuid: null,
+                registrySlug: null,
+            };
+            renderWithProviders(
+                <ChartTypeDeleteModal
+                    projectUuid="project-1"
+                    dataAppViz={organizationViz}
+                    onClose={vi.fn()}
+                    onDeleted={onDeleted}
+                />,
+                {
+                    health: {
+                        softDelete: {
+                            enabled: softDeleteEnabled,
+                            retentionDays: 30,
+                        },
+                    },
+                },
+            );
+
+            expect(
+                await screen.findByText(
+                    "Radial gauge will be removed from the organization library for every project. This can't be undone.",
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    /Update the affected charts to use a different chart type/,
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByText(/Recently deleted|restored/),
+            ).not.toBeInTheDocument();
+            expect(useDataAppVizDeleteImpact).toHaveBeenCalledWith(
+                'project-1',
+                'viz-1',
+                'organization',
+            );
+        },
+    );
 
     it('waits for fresh impact data even when a previous zero count is cached', () => {
         mockImpact({ data: { chartCount: 0 }, isFetching: true });

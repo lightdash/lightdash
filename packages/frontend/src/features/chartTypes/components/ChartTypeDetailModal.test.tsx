@@ -1,4 +1,7 @@
-import { type DataAppViz } from '@lightdash/common';
+import {
+    type DataAppViz,
+    type OrganizationDataAppViz,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import type * as ReactRouter from 'react-router';
 import { MemoryRouter } from 'react-router';
@@ -8,6 +11,7 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useCanManageOrganizationChartTypes } from '../hooks/useOrganizationLibraryAccess';
 import ChartTypeDetailModal from './ChartTypeDetailModal';
 
 vi.mock('react-router', async (importOriginal) => ({
@@ -22,6 +26,9 @@ vi.mock('../../apps/hooks/useCanCreateDataApp', () => ({
 }));
 vi.mock('../../apps/hooks/useAppVersionHistory', () => ({
     useAppVersionHistory: vi.fn(),
+}));
+vi.mock('../hooks/useOrganizationLibraryAccess', () => ({
+    useCanManageOrganizationChartTypes: vi.fn(),
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
@@ -44,17 +51,25 @@ const viz: DataAppViz = {
     registrySlug: null,
 };
 
-const renderModal = () =>
+const organizationViz: OrganizationDataAppViz = {
+    ...viz,
+    organizationUuid: 'org-1',
+    projectUuid: null,
+    spaceUuid: null,
+    registrySlug: null,
+};
+
+const renderModal = (dataAppViz: DataAppViz | OrganizationDataAppViz = viz) =>
     renderWithProviders(
         <MemoryRouter>
             <ChartTypeDetailModal
                 opened
                 projectUuid="project-1"
-                dataAppViz={viz}
+                dataAppViz={dataAppViz}
                 isActive
                 registryEntry={null}
                 onClose={vi.fn()}
-                onPreview={vi.fn()}
+                onPreview={dataAppViz.projectUuid === null ? null : vi.fn()}
                 onDelete={vi.fn()}
             />
         </MemoryRouter>,
@@ -64,6 +79,7 @@ describe('ChartTypeDetailModal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
+        vi.mocked(useCanManageOrganizationChartTypes).mockReturnValue(false);
         vi.mocked(useAppVersionHistory).mockReturnValue({
             latestReadyVersion: null,
             oldest: null,
@@ -94,5 +110,48 @@ describe('ChartTypeDetailModal', () => {
         expect(
             screen.queryByRole('link', { name: 'Edit' }),
         ).not.toBeInTheDocument();
+    });
+
+    describe('organization chart types', () => {
+        beforeEach(() => {
+            vi.mocked(useCanEditDataApp).mockReturnValue(true);
+        });
+
+        it('is read-only for users who cannot manage them', () => {
+            renderModal(organizationViz);
+
+            expect(screen.getByText('Radial gauge')).toBeInTheDocument();
+            for (const name of ['Delete', 'Preview in explorer']) {
+                expect(
+                    screen.queryByRole('button', { name }),
+                ).not.toBeInTheDocument();
+            }
+            expect(
+                screen.queryByRole('link', { name: 'Edit' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Fork to customize' }),
+            ).not.toBeInTheDocument();
+            expect(useAppVersionHistory).toHaveBeenCalledWith(
+                'project-1',
+                'viz-1',
+                'organization',
+            );
+        });
+
+        it('offers only Delete to managers', () => {
+            vi.mocked(useCanManageOrganizationChartTypes).mockReturnValue(true);
+            renderModal(organizationViz);
+
+            expect(
+                screen.getByRole('button', { name: 'Delete' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Preview in explorer' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('link', { name: 'Edit' }),
+            ).not.toBeInTheDocument();
+        });
     });
 });

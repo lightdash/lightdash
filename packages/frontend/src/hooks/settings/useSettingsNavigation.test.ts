@@ -31,6 +31,7 @@ const settingsContext = (
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
     dataAppAnalysisFlag: undefined,
+    organizationChartTypesFlag: undefined,
     isDataAppsFlagLoading: false,
     externalSourcesFlag: undefined,
     isResultsCacheEnabled: false,
@@ -128,5 +129,63 @@ describe('MCP settings navigation', () => {
                 )
                 .map(({ label, to }) => ({ label, to })),
         ).toEqual([{ label: 'Connect', to: '/generalSettings/mcp/connect' }]);
+    });
+});
+
+describe('Data apps settings navigation', () => {
+    const organizationChartTypesUser = (canManage: boolean) =>
+        ({
+            ability: {
+                can: (action: string, subject: unknown) =>
+                    typeof subject === 'object' &&
+                    subject !== null &&
+                    (subject as { __caslSubjectType__?: string })
+                        .__caslSubjectType__ === 'OrganizationChartType' &&
+                    action === 'manage' &&
+                    canManage,
+            },
+        }) as unknown as SettingsContext['user'];
+
+    const dataAppsChildren = (overrides: Partial<SettingsContext>) =>
+        organizationNavigation({
+            dataAppsFlag: { id: 'enable-data-apps', enabled: true },
+            organization: {
+                organizationUuid: 'org-1',
+            } as SettingsContext['organization'],
+            ...overrides,
+        })
+            ?.find((item) => item.label === 'Data apps')
+            ?.children.map(({ label, to }) => ({ label, to })) ?? [];
+
+    it('shows Chart types to organization chart type managers when the flag is on', () => {
+        expect(
+            dataAppsChildren({
+                user: organizationChartTypesUser(true),
+                organizationChartTypesFlag: {
+                    id: 'organization-chart-types',
+                    enabled: true,
+                },
+            }),
+        ).toEqual([
+            {
+                label: 'Chart types',
+                to: '/generalSettings/dataApps/chartTypes',
+            },
+        ]);
+    });
+
+    it.each([
+        { canManage: true, flag: false },
+        { canManage: false, flag: true },
+    ])('hides Chart types (%j)', ({ canManage, flag }) => {
+        expect(
+            dataAppsChildren({
+                user: organizationChartTypesUser(canManage),
+                organizationChartTypesFlag: {
+                    id: 'organization-chart-types',
+                    enabled: flag,
+                },
+            }),
+        ).toEqual([]);
     });
 });

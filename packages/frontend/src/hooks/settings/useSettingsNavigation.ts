@@ -29,6 +29,7 @@ import {
     IconPalette,
     IconPlug,
     IconPlugConnected,
+    IconPuzzle,
     IconRefresh,
     IconReportAnalytics,
     IconRoad,
@@ -93,6 +94,7 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        organizationChartTypesFlag,
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
@@ -103,6 +105,8 @@ export const useSettingsNavigation = (
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
+    const isOrganizationChartTypesEnabled =
+        organizationChartTypesFlag?.enabled ?? false;
     const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
@@ -306,6 +310,30 @@ export const useSettingsNavigation = (
                     to: '/generalSettings/dataApps/themes',
                     icon: IconBrush,
                     keywords: ['design', 'colors', 'charts'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
+                isOrganizationChartTypesEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('OrganizationChartType', {
+                        organizationUuid: organization?.organizationUuid,
+                    }),
+                )
+            ) {
+                dataAppChildren.push({
+                    label: 'Chart types',
+                    to: '/generalSettings/dataApps/chartTypes',
+                    icon: IconPuzzle,
+                    keywords: [
+                        'chart studio',
+                        'organization library',
+                        'custom charts',
+                        'visualizations',
+                    ],
                     children: [],
                     exact: true,
                 });
@@ -1187,6 +1215,7 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isDataAppAnalysisEnabled,
+        isOrganizationChartTypesEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,

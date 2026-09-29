@@ -3,6 +3,7 @@ import {
     getAppDisplayName,
     isOfficialChartType,
     type DataAppViz,
+    type OrganizationDataAppViz,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -30,6 +31,7 @@ import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useCanManageOrganizationChartTypes } from '../hooks/useOrganizationLibraryAccess';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeForkModal from './ChartTypeForkModal';
@@ -38,27 +40,42 @@ import ChartTypeSamplePreview from './ChartTypeSamplePreview';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
 type Props = {
-    dataAppViz: DataAppViz;
+    dataAppViz: DataAppViz | OrganizationDataAppViz;
+    /** The project the gallery is viewed from */
+    projectUuid: string;
     /** A newer registry version of this official chart type exists */
     hasRegistryUpdate: boolean;
     onClick: () => void;
-    onPreview: () => void;
+    /** Opens the chart type in the explorer; null hides the action */
+    onPreview: (() => void) | null;
     onDelete: () => void;
 };
 
 const ChartTypeGalleryCard: FC<Props> = ({
     dataAppViz,
+    projectUuid,
     hasRegistryUpdate,
     onClick,
     onPreview,
     onDelete,
 }) => {
     const navigate = useNavigate();
-    const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
+    // Organization chart types have no project; they are read-only here
+    // except for deletion by organization chart type managers.
+    const isOrganizationChartType = dataAppViz.projectUuid === null;
+    const owningProjectUuid = dataAppViz.projectUuid ?? undefined;
+    const canEditInProject = useCanEditDataApp(owningProjectUuid, dataAppViz);
+    const canManageOrganizationChartTypes =
+        useCanManageOrganizationChartTypes();
+    const canEdit = !isOrganizationChartType && canEditInProject;
+    const canDelete = isOrganizationChartType
+        ? canManageOrganizationChartTypes
+        : canEditInProject;
+    const canPreviewInExplorer = onPreview !== null;
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
-        projectRoute?.projectUrlIdentifier ?? dataAppViz.projectUuid;
-    const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
+    const canFork = useCanCreateDataApp(owningProjectUuid);
     // Forking and editing are authoring, so they need data apps on.
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
@@ -82,7 +99,10 @@ const ChartTypeGalleryCard: FC<Props> = ({
             >
                 <Box className={classes.preview}>
                     <ChartTypeSamplePreview
-                        projectUuid={dataAppViz.projectUuid}
+                        projectUuid={projectUuid}
+                        owner={
+                            isOrganizationChartType ? 'organization' : 'project'
+                        }
                         dataAppVizUuid={dataAppViz.dataAppVizUuid}
                         icon={dataAppViz.icon}
                     />
@@ -143,59 +163,67 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                   </ActionIcon>
                               </Tooltip>
                           )}
-                    <Menu
-                        withArrow
-                        position="bottom-end"
-                        offset={4}
-                        arrowOffset={10}
-                    >
-                        <Menu.Target>
-                            <ActionIcon
-                                size="sm"
-                                aria-label={`Actions for ${displayName}`}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconTelescope} />
-                                }
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onPreview();
-                                }}
-                            >
-                                Preview in explorer
-                            </Menu.Item>
-                            {canEdit && (
-                                <>
-                                    <Menu.Divider />
+                    {(canPreviewInExplorer || canDelete) && (
+                        <Menu
+                            withArrow
+                            position="bottom-end"
+                            offset={4}
+                            arrowOffset={10}
+                        >
+                            <Menu.Target>
+                                <ActionIcon
+                                    size="sm"
+                                    aria-label={`Actions for ${displayName}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {onPreview && (
                                     <Menu.Item
-                                        color="red"
                                         leftSection={
-                                            <MantineIcon icon={IconTrash} />
+                                            <MantineIcon icon={IconTelescope} />
                                         }
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            onDelete();
+                                            onPreview();
                                         }}
                                     >
-                                        {isOfficial ? 'Uninstall' : 'Delete'}
+                                        Preview in explorer
                                     </Menu.Item>
-                                </>
-                            )}
-                        </Menu.Dropdown>
-                    </Menu>
+                                )}
+                                {canDelete && (
+                                    <>
+                                        {canPreviewInExplorer && (
+                                            <Menu.Divider />
+                                        )}
+                                        <Menu.Item
+                                            color="red"
+                                            leftSection={
+                                                <MantineIcon icon={IconTrash} />
+                                            }
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDelete();
+                                            }}
+                                        >
+                                            {isOfficial
+                                                ? 'Uninstall'
+                                                : 'Delete'}
+                                        </Menu.Item>
+                                    </>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
                 </FloatingActionsPill>
             </PolymorphicPaperButton>
-            {isForkOpen && (
+            {isForkOpen && owningProjectUuid && (
                 <ChartTypeForkModal
                     opened
                     onClose={() => setIsForkOpen(false)}
-                    projectUuid={dataAppViz.projectUuid}
+                    projectUuid={owningProjectUuid}
                     appUuid={dataAppViz.dataAppVizUuid}
                     defaultName={`${dataAppViz.name} (custom)`}
                     onForked={(result) =>

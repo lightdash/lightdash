@@ -268,9 +268,7 @@ describe('ChartTypeLibrarySection', () => {
         setRegistryData([makeItem({})]);
         renderSection();
 
-        expect(
-            screen.queryByText('Chart type library'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Lightdash library')).not.toBeInTheDocument();
     });
 
     it('renders nothing while the feature flag is still resolving', () => {
@@ -278,9 +276,7 @@ describe('ChartTypeLibrarySection', () => {
         setRegistryData([makeItem({})]);
         renderSection();
 
-        expect(
-            screen.queryByText('Chart type library'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Lightdash library')).not.toBeInTheDocument();
     });
 
     it('renders nothing when the registry is not enabled for the org', () => {
@@ -290,9 +286,7 @@ describe('ChartTypeLibrarySection', () => {
         });
         renderSection();
 
-        expect(
-            screen.queryByText('Chart type library'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Lightdash library')).not.toBeInTheDocument();
     });
 
     it('shows the offline state with a retry when the fetch fails with no cached data', () => {
@@ -306,9 +300,9 @@ describe('ChartTypeLibrarySection', () => {
         } as unknown as ReturnType<typeof useRegistryChartTypes>);
         renderSection();
 
-        expect(screen.getByText('Chart type library')).toBeInTheDocument();
+        expect(screen.getByText('Lightdash library')).toBeInTheDocument();
         expect(
-            screen.getByText(/The chart type library can't be reached/),
+            screen.getByText(/The Lightdash library can't be reached/),
         ).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(refetch).toHaveBeenCalled();
@@ -323,7 +317,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(screen.getByText('Radial gauge')).toBeInTheDocument();
         expect(
-            screen.queryByText(/The chart type library can't be reached/),
+            screen.queryByText(/The Lightdash library can't be reached/),
         ).not.toBeInTheDocument();
     });
 
@@ -343,9 +337,7 @@ describe('ChartTypeLibrarySection', () => {
                 'These chart types are available to add to your instance. Once installed, they can be used by anyone building charts in your organization.',
             ),
         ).toBeInTheDocument();
-        expect(
-            screen.queryByText('Chart type library'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Lightdash library')).not.toBeInTheDocument();
     });
 
     it('renders cards with state badges for the happy path', () => {
@@ -375,7 +367,7 @@ describe('ChartTypeLibrarySection', () => {
         ]);
         renderSection();
 
-        expect(screen.getByText('Chart type library')).toBeInTheDocument();
+        expect(screen.getByText('Lightdash library')).toBeInTheDocument();
         // Installed chart types — upgradable ones included — are hidden from
         // the library; they live in the installed tab.
         expect(screen.getByText('(2)')).toBeInTheDocument();
@@ -531,7 +523,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'Every chart type from the library is installed — find them in your installed chart types.',
+                'Every chart type from the Lightdash library is installed. Find them in your project library.',
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('(0)')).toBeInTheDocument();

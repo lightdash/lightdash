@@ -1,23 +1,25 @@
 import {
     type ApiError,
     type ApiListDataAppVizsResponse,
+    type ApiListOrganizationDataAppVizsResponse,
     type DataAppVizListSort,
     DEFAULT_DATA_APP_VIZ_LIST_SORT,
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import { ORGANIZATION_CHART_TYPES_API_BASE } from '../utils/chartTypeOwner';
 
 type DataAppVizsPage = ApiListDataAppVizsResponse['results'];
+type OrganizationDataAppVizsPage =
+    ApiListOrganizationDataAppVizsResponse['results'];
 
-const getDataAppVisualizations = async (
-    projectUuid: string,
+const getListParams = (
     page: number,
     pageSize: number,
     search: string,
     sort: DataAppVizListSort,
-    isEmbedded: boolean,
-): Promise<DataAppVizsPage> => {
+): URLSearchParams => {
     const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
@@ -27,6 +29,26 @@ const getDataAppVisualizations = async (
     if (search) {
         params.set('search', search);
     }
+    return params;
+};
+
+const getNextPageParam = (
+    lastPage: { pagination?: { totalPageCount: number } },
+    pages: unknown[],
+) => {
+    const totalPages = lastPage.pagination?.totalPageCount ?? 0;
+    return pages.length < totalPages ? pages.length + 1 : undefined;
+};
+
+const getDataAppVisualizations = async (
+    projectUuid: string,
+    page: number,
+    pageSize: number,
+    search: string,
+    sort: DataAppVizListSort,
+    isEmbedded: boolean,
+): Promise<DataAppVizsPage> => {
+    const params = getListParams(page, pageSize, search, sort);
     const baseUrl = isEmbedded
         ? `/embed/${projectUuid}/visualizations`
         : `/ee/projects/${projectUuid}/apps/visualizations`;
@@ -68,12 +90,41 @@ export const useDataAppVisualizations = (
                 sort,
                 isEmbedded,
             ),
-        getNextPageParam: (lastPage, pages) => {
-            const totalPages = lastPage.pagination?.totalPageCount ?? 0;
-            return pages.length < totalPages ? pages.length + 1 : undefined;
-        },
+        getNextPageParam,
         enabled: !!projectUuid,
         keepPreviousData: true,
         refetchOnWindowFocus: false,
     });
 };
+
+// Lists the organization library's chart types, the same from every project.
+export const useOrganizationDataAppVisualizations = (
+    search: string,
+    enabled: boolean,
+    sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
+    pageSize: number = FETCH_SIZE,
+) =>
+    useInfiniteQuery<OrganizationDataAppVizsPage, ApiError>({
+        queryKey: [
+            'organization-data-app-vizs',
+            pageSize,
+            search,
+            sort.sortBy,
+            sort.sortDirection,
+        ],
+        queryFn: ({ pageParam = 1 }) =>
+            lightdashApi<OrganizationDataAppVizsPage>({
+                method: 'GET',
+                url: `${ORGANIZATION_CHART_TYPES_API_BASE}?${getListParams(
+                    pageParam as number,
+                    pageSize,
+                    search,
+                    sort,
+                ).toString()}`,
+                body: undefined,
+            }),
+        getNextPageParam,
+        enabled,
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+    });

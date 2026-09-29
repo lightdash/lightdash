@@ -16,7 +16,7 @@ pipeline, and authoring runbook are documented in
 - The official registry (`lightdash/lightdash-library`, served from GitHub
   Pages) publishes prebuilt custom chart types. A Lightdash deployment
   points at one registry URL; the in-product chart type gallery gains a
-  **chart type library** section to browse them and install them per
+  **Lightdash library** section to browse them and install them per
   project.
 - Installs use prebuilt artifacts — **no build ever runs on the customer
   instance**, so installing needs no sandbox and takes seconds.

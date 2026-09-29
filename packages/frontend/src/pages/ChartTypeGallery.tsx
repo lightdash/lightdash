@@ -31,9 +31,14 @@ import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGal
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import OrganizationChartTypesSection from '../features/chartTypes/components/OrganizationChartTypesSection';
 import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
-import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
+import {
+    useDataAppVisualizations,
+    useOrganizationDataAppVisualizations,
+} from '../features/chartTypes/hooks/useDataAppVisualizations';
+import { useOrganizationLibraryAccess } from '../features/chartTypes/hooks/useOrganizationLibraryAccess';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
@@ -42,10 +47,14 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 
+// Values are URL `tab` params, kept stable across label renames.
 const GalleryTab = {
-    INSTALLED_CHARTS: 'installed-charts',
-    CHART_LIBRARY: 'chart-library',
+    PROJECT_LIBRARY: 'installed-charts',
+    ORGANIZATION_LIBRARY: 'organization-library',
+    LIGHTDASH_LIBRARY: 'chart-library',
 } as const;
+
+type GalleryTabValue = (typeof GalleryTab)[keyof typeof GalleryTab];
 
 const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
@@ -62,6 +71,15 @@ const ChartTypeGallery = () => {
         FeatureFlags.ChartTypeRegistry,
     );
     const isLibraryFlagEnabled = chartTypeRegistryFlag.data?.enabled === true;
+    const organizationLibrary = useOrganizationLibraryAccess();
+    // Unfiltered, so the tab count holds steady while a search narrows it.
+    const organizationChartTypesQuery = useOrganizationDataAppVisualizations(
+        '',
+        organizationLibrary.isVisible,
+    );
+    const organizationCount =
+        organizationChartTypesQuery.data?.pages[0]?.pagination?.totalResults ??
+        null;
 
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -134,14 +152,19 @@ const ChartTypeGallery = () => {
     // types at all yet: the empty state below carries its own CTA.
     const isEmptyGallery =
         !isInitialLoading && !error && !debouncedSearch && totalCount === 0;
-    const activeTab =
-        isLibraryEnabled && searchParams.get('tab') === GalleryTab.CHART_LIBRARY
-            ? GalleryTab.CHART_LIBRARY
-            : GalleryTab.INSTALLED_CHARTS;
+    const hasTabs = isLibraryEnabled || organizationLibrary.isVisible;
+    const requestedTab = searchParams.get('tab');
+    const activeTab: GalleryTabValue =
+        isLibraryEnabled && requestedTab === GalleryTab.LIGHTDASH_LIBRARY
+            ? GalleryTab.LIGHTDASH_LIBRARY
+            : organizationLibrary.isVisible &&
+                requestedTab === GalleryTab.ORGANIZATION_LIBRARY
+              ? GalleryTab.ORGANIZATION_LIBRARY
+              : GalleryTab.PROJECT_LIBRARY;
 
     useEffect(() => {
         if (
-            activeTab === GalleryTab.INSTALLED_CHARTS &&
+            activeTab === GalleryTab.PROJECT_LIBRARY &&
             paginationEntry?.isIntersecting &&
             hasNextPage &&
             !isFetching &&
@@ -160,8 +183,11 @@ const ChartTypeGallery = () => {
 
     const handleTabChange = (value: string | null) => {
         const newParams = new URLSearchParams(searchParams);
-        if (value === GalleryTab.CHART_LIBRARY) {
-            newParams.set('tab', GalleryTab.CHART_LIBRARY);
+        if (
+            value === GalleryTab.LIGHTDASH_LIBRARY ||
+            value === GalleryTab.ORGANIZATION_LIBRARY
+        ) {
+            newParams.set('tab', value);
         } else {
             newParams.delete('tab');
         }
@@ -246,6 +272,7 @@ const ChartTypeGallery = () => {
                             <ChartTypeGalleryCard
                                 key={viz.dataAppVizUuid}
                                 dataAppViz={viz}
+                                projectUuid={projectUuid}
                                 hasRegistryUpdate={
                                     registryEntryFor(viz)?.state ===
                                     'update_available'
@@ -295,16 +322,16 @@ const ChartTypeGallery = () => {
                     ]}
                 />
 
-                {isLibraryEnabled ? (
+                {hasTabs ? (
                     <Tabs
                         value={activeTab}
                         onChange={handleTabChange}
                         keepMounted={false}
                     >
                         <Tabs.List>
-                            <Tabs.Tab value={GalleryTab.INSTALLED_CHARTS}>
+                            <Tabs.Tab value={GalleryTab.PROJECT_LIBRARY}>
                                 <Group gap={6} wrap="nowrap">
-                                    Installed chart types
+                                    Project library
                                     {!isEmptyGallery && totalCount !== null && (
                                         <Text span fz="xs" c="dimmed">
                                             ({totalCount})
@@ -312,25 +339,57 @@ const ChartTypeGallery = () => {
                                     )}
                                 </Group>
                             </Tabs.Tab>
-                            <Tabs.Tab
-                                value={GalleryTab.CHART_LIBRARY}
-                                rightSection={<BetaBadge />}
-                            >
-                                Chart type library
-                            </Tabs.Tab>
+                            {organizationLibrary.isVisible && (
+                                <Tabs.Tab
+                                    value={GalleryTab.ORGANIZATION_LIBRARY}
+                                >
+                                    <Group gap={6} wrap="nowrap">
+                                        Organization library
+                                        {organizationCount !== null && (
+                                            <Text span fz="xs" c="dimmed">
+                                                ({organizationCount})
+                                            </Text>
+                                        )}
+                                    </Group>
+                                </Tabs.Tab>
+                            )}
+                            {isLibraryEnabled && (
+                                <Tabs.Tab
+                                    value={GalleryTab.LIGHTDASH_LIBRARY}
+                                    rightSection={<BetaBadge />}
+                                >
+                                    Lightdash library
+                                </Tabs.Tab>
+                            )}
                         </Tabs.List>
 
-                        <Tabs.Panel value={GalleryTab.INSTALLED_CHARTS} pt="xl">
+                        <Tabs.Panel value={GalleryTab.PROJECT_LIBRARY} pt="xl">
                             {chartTypesContent}
                         </Tabs.Panel>
 
-                        <Tabs.Panel value={GalleryTab.CHART_LIBRARY} pt="xl">
-                            <ChartTypeLibrarySection
-                                projectUuid={projectUuid}
-                                withHeader={false}
-                                onShowInstalled={setSelectedUuid}
-                            />
-                        </Tabs.Panel>
+                        {organizationLibrary.isVisible && (
+                            <Tabs.Panel
+                                value={GalleryTab.ORGANIZATION_LIBRARY}
+                                pt="xl"
+                            >
+                                <OrganizationChartTypesSection
+                                    projectUuid={projectUuid}
+                                />
+                            </Tabs.Panel>
+                        )}
+
+                        {isLibraryEnabled && (
+                            <Tabs.Panel
+                                value={GalleryTab.LIGHTDASH_LIBRARY}
+                                pt="xl"
+                            >
+                                <ChartTypeLibrarySection
+                                    projectUuid={projectUuid}
+                                    withHeader={false}
+                                    onShowInstalled={setSelectedUuid}
+                                />
+                            </Tabs.Panel>
+                        )}
                     </Tabs>
                 ) : (
                     chartTypesContent

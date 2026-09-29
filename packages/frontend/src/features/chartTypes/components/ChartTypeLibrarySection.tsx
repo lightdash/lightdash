@@ -117,7 +117,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 <Group justify="space-between" align="center">
                     <Group gap={6} align="baseline">
                         <Text size="md" fw={600} c="ldGray.8">
-                            Chart type library
+                            Lightdash library
                         </Text>
                         {registryQuery.data && (
                             <Text fz="xs" c="dimmed">
@@ -224,17 +224,17 @@ const ChartTypeLibrarySection: FC<Props> = ({
             </Callout>
 
             {registryQuery.isInitialLoading ? (
-                <EmptyStateLoader title="Loading chart type library…" />
+                <EmptyStateLoader title="Loading Lightdash library…" />
             ) : isOffline ? (
                 <InlineErrorState
-                    message="The chart type library can't be reached right now. It may be a temporary outage or a network restriction on this instance."
+                    message="The Lightdash library can't be reached right now. It may be a temporary outage or a network restriction on this instance."
                     onRetry={() => void registryQuery.refetch()}
                 />
             ) : visibleCharts.length === 0 ? (
                 <Paper variant="dotted" p="xl">
                     <Text ta="center" fz="xs" c="dimmed">
                         {allInstalled
-                            ? 'Every chart type from the library is installed — find them in your installed chart types.'
+                            ? 'Every chart type from the Lightdash library is installed. Find them in your project library.'
                             : 'No chart types available in the registry yet.'}
                     </Text>
                 </Paper>

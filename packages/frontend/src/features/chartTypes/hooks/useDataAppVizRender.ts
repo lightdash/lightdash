@@ -10,6 +10,10 @@ import {
     getPreviewTokenRefetchInterval,
     previewTokenQueryOptions,
 } from '../../apps/hooks/previewTokenQueryOptions';
+import {
+    ORGANIZATION_CHART_TYPES_API_BASE,
+    type ChartTypeOwner,
+} from '../utils/chartTypeOwner';
 
 const DATA_APP_VIZ_RENDER_POLL_INTERVAL_MS = 3000;
 const DATA_APP_VIZ_RENDER_MAX_RETRIES = 3;
@@ -20,6 +24,9 @@ type DataAppVizRenderTarget = {
     // Set only while previewing an older chart version; the backend authorizes
     // against that version's config instead of the latest.
     chartVersionUuid?: string | undefined;
+    // Organization chart types render through the organization routes; they
+    // are never embedded or bound to a saved chart here.
+    owner?: ChartTypeOwner;
 };
 
 // Rendering a saved chart authorizes against that chart; the chart-less route is
@@ -27,8 +34,11 @@ type DataAppVizRenderTarget = {
 const getRenderBaseUrl = (
     projectUuid: string,
     dataAppVizUuid: string,
-    { isEmbedded, savedChartUuid }: DataAppVizRenderTarget,
+    { isEmbedded, savedChartUuid, owner }: DataAppVizRenderTarget,
 ): string => {
+    if (owner === 'organization') {
+        return `${ORGANIZATION_CHART_TYPES_API_BASE}/${dataAppVizUuid}`;
+    }
     if (isEmbedded) {
         return savedChartUuid
             ? `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`
@@ -61,6 +71,14 @@ const getRenderMetadataQuery = (
         : '';
 };
 
+const getRenderRouteKey = ({
+    isEmbedded,
+    owner,
+}: DataAppVizRenderTarget): 'organization' | 'embed' | 'registered' => {
+    if (owner === 'organization') return 'organization';
+    return isEmbedded ? 'embed' : 'registered';
+};
+
 const isTargetReady = (
     projectUuid: string | undefined,
     dataAppVizUuid: string | null,
@@ -86,7 +104,7 @@ const getRenderMetadataQueryKey = (
     'data-app-viz-render-metadata',
     projectUuid,
     dataAppVizUuid,
-    target.isEmbedded ? 'embed' : 'registered',
+    getRenderRouteKey(target),
     target.savedChartUuid,
     target.chartVersionUuid,
     pinnedVersion,
@@ -139,7 +157,7 @@ export const useDataAppVizPreviewToken = (
             projectUuid,
             dataAppVizUuid,
             version,
-            target.isEmbedded ? 'embed' : 'registered',
+            getRenderRouteKey(target),
             target.savedChartUuid,
             target.chartVersionUuid,
         ],

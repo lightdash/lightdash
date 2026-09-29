@@ -80,6 +80,7 @@ export type SettingsContext = {
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     dataAppAnalysisFlag: FeatureFlag | undefined;
+    organizationChartTypesFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
     isResultsCacheEnabled: boolean;

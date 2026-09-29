@@ -87,6 +87,7 @@ import type {
     ApiHomepageViewAsResponse,
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
+    ApiListOrganizationDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
@@ -1672,6 +1673,7 @@ type ApiResults =
     | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
     | ApiListDataAppVizsResponse['results']
+    | ApiListOrganizationDataAppVizsResponse['results']
     | ApiListRegistryChartTypesResponse['results']
     | ApiInstallRegistryChartTypeResponse['results']
     | ApiGetDataAppVizResponse['results']

@@ -11,10 +11,20 @@ import {
     useDataAppVizRenderMetadata,
 } from '../hooks/useDataAppVizRender';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
+import { type ChartTypeOwner } from '../utils/chartTypeOwner';
 import { buildSampleVizContext } from '../utils/sampleVizContext';
 import classes from './ChartTypeSamplePreview.module.css';
 
-const RENDER_TARGET = { isEmbedded: false, savedChartUuid: undefined };
+const PROJECT_RENDER_TARGET = {
+    isEmbedded: false,
+    savedChartUuid: undefined,
+    owner: 'project',
+} as const;
+const ORGANIZATION_RENDER_TARGET = {
+    isEmbedded: false,
+    savedChartUuid: undefined,
+    owner: 'organization',
+} as const;
 
 // Width the app is laid out at before being scaled down to fit the host box,
 // so the miniature keeps realistic proportions.
@@ -33,7 +43,9 @@ const PreviewPlaceholder: FC<{
 );
 
 type Props = {
+    /** The project the preview is shown in; it supplies the color palette. */
     projectUuid: string;
+    owner: ChartTypeOwner;
     dataAppVizUuid: string;
     icon: ChartTypeIcon | null;
 };
@@ -44,18 +56,23 @@ type Props = {
  */
 const ChartTypeSamplePreview: FC<Props> = ({
     projectUuid,
+    owner,
     dataAppVizUuid,
     icon,
 }) => {
     const previewOrigin = usePreviewOrigin();
+    const renderTarget =
+        owner === 'organization'
+            ? ORGANIZATION_RENDER_TARGET
+            : PROJECT_RENDER_TARGET;
     const { data: metadata, error: metadataError } =
-        useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
+        useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, renderTarget);
     const readyMetadata = metadata?.state === 'ready' ? metadata : undefined;
     const { data: token } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid,
         readyMetadata?.version,
-        RENDER_TARGET,
+        renderTarget,
     );
 
     const previewBaseUrl =
