@@ -338,7 +338,10 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
-import { generateDeepResearchReport as generateDeepResearchReportFromEvidence } from '../ai/agents/reportFinalizer';
+import {
+    generateDeepResearchReport as generateDeepResearchReportFromEvidence,
+    type AiDeepResearchFinalizerUsageFn,
+} from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
@@ -8065,15 +8068,23 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
+            projectUuid,
+            runUuid,
             evidencePack,
             reason,
             model,
+            onUsage,
         }: {
             agentUuid: string;
             threadUuid: string;
+            promptUuid: string;
+            projectUuid: string;
+            runUuid: string;
             evidencePack: AiDeepResearchEvidencePack;
             reason: string;
             model: AiDeepResearchExecutionContextSnapshot['model'];
+            onUsage: AiDeepResearchFinalizerUsageFn;
         },
     ): Promise<AiDeepResearchSubmittedReport> {
         const copilotConfig =
@@ -8137,8 +8148,10 @@ export class AiAgentService extends BaseService {
             }),
             telemetry: {
                 organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
                 agentUuid,
                 threadUuid,
+                promptUuid,
                 userUuid: user.userUuid,
             },
         };
@@ -8146,6 +8159,8 @@ export class AiAgentService extends BaseService {
         return generateDeepResearchReportFromEvidence(modelOptions, {
             evidencePack,
             reason,
+            runUuid,
+            onUsage,
         });
     }
 

@@ -1,9 +1,18 @@
+import type { AiDeepResearchPhase } from '@lightdash/common';
 import type { AiAgentArgs } from '../types/aiAgent';
 import {
     AiCallFeature,
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
+
+export const getDeepResearchTelemetryExtra = (
+    runUuid: string,
+    phase: AiDeepResearchPhase,
+) => ({
+    deepResearchRunUuid: runUuid,
+    deepResearchPhase: phase,
+});
 
 export const getAiAgentModelName = (model: AiAgentArgs['model']) =>
     typeof model === 'string' ? model : model.modelId;
@@ -60,10 +69,10 @@ export const getAgentTelemetryConfig = (
         keyManagement,
         ...(execution?.mode === 'deep_research'
             ? {
-                  extra: {
-                      deepResearchRunUuid: execution.runUuid,
-                      deepResearchPhase: execution.phase,
-                  },
+                  extra: getDeepResearchTelemetryExtra(
+                      execution.runUuid,
+                      execution.phase,
+                  ),
               }
             : {}),
         recordIO: telemetryEnabled,
