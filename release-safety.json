@@ -1,14 +1,39 @@
 {
   "schemaVersion": "2",
-  "version": "2.367.0",
-  "previousVersion": "2.366.0",
-  "releaseDate": "2026-09-29T11:51:07.253Z",
+  "version": "2.368.0",
+  "previousVersion": "2.367.0",
+  "releaseDate": "2026-09-29T11:55:43.052Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 2,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 2,
+    "files": [
+      {
+        "name": "20260928160000_create_ai_credit_rate_card.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_credit_rate_card"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      },
+      {
+        "name": "20260928160100_seed_ai_credit_rate_card.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_credit_rate_card"
+        ],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

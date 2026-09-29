@@ -1,3 +1,10 @@
+# [2.368.0](https://github.com/lightdash/lightdash/compare/2.367.0...2.368.0) (2026-09-29)
+
+
+### Features
+
+* **ai:** seed an AI credit rate card in the app database ([#30126](https://github.com/lightdash/lightdash/issues/30126)) ([8ecf9a0](https://github.com/lightdash/lightdash/commit/8ecf9a094a28282bdb914c656852ecf9ba820f30))
+
 # [2.367.0](https://github.com/lightdash/lightdash/compare/2.366.0...2.367.0) (2026-09-29)
 
 
