@@ -1,3 +1,10 @@
+# [2.364.0](https://github.com/lightdash/lightdash/compare/2.363.0...2.364.0) (2026-09-29)
+
+
+### Features
+
+* **ai:** record every AI call in a usage ledger ([#30125](https://github.com/lightdash/lightdash/issues/30125)) ([4c38596](https://github.com/lightdash/lightdash/commit/4c385969f27c1cdb8b8aa9dea318ebcd67168f19))
+
 # [2.363.0](https://github.com/lightdash/lightdash/compare/2.362.2...2.363.0) (2026-09-29)
 
 

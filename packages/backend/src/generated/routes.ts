@@ -51120,6 +51120,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['renameResources'] },
                 { dataType: 'enum', enums: ['materializePreAggregate'] },
                 { dataType: 'enum', enums: ['cleanQueryHistory'] },
+                { dataType: 'enum', enums: ['cleanAiUsageLedger'] },
                 { dataType: 'enum', enums: ['downloadAsyncQueryResults'] },
                 { dataType: 'enum', enums: ['syncSlackChannels'] },
                 { dataType: 'enum', enums: ['generateSlackChannelSyncJobs'] },
