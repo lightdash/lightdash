@@ -13,7 +13,7 @@ import {
 export interface SandboxRegistryRecord {
     sandboxUuid: string;
     organizationUuid: string;
-    projectUuid: string;
+    projectUuid: string | null;
     providerSandboxId: string | null;
     snapshotRef: SnapshotRef | null;
     workspace: PersistentWorkspace;
@@ -26,7 +26,7 @@ export interface SandboxRegistryRecord {
 export interface SandboxRegistryStore {
     create(input: {
         organizationUuid: string;
-        projectUuid: string;
+        projectUuid: string | null;
         provider: string;
         providerSandboxId: string;
         workspace: PersistentWorkspace;
@@ -90,7 +90,7 @@ export class SandboxManager {
     async acquire(input: {
         spec: SandboxSpec;
         organizationUuid: string;
-        projectUuid: string;
+        projectUuid: string | null;
         workspace: PersistentWorkspace;
     }): Promise<{ sandboxUuid: string; handle: SandboxHandle }> {
         const handle = await this.provider.create(input.spec);

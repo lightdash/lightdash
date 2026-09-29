@@ -152,6 +152,7 @@ function buildService(
     };
 
     const svc = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {
             softDelete: { enabled: true },
             appRuntime: {},

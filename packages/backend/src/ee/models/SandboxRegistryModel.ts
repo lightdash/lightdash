@@ -42,7 +42,7 @@ export class SandboxRegistryModel implements SandboxRegistryStore {
 
     async create(input: {
         organizationUuid: string;
-        projectUuid: string;
+        projectUuid: string | null;
         provider: string;
         providerSandboxId: string;
         workspace: PersistentWorkspace;

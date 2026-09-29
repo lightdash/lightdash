@@ -41,6 +41,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
     };
 
     const service = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {
             appRuntime: {
                 dependencyRegistryHosts: ['registry.npmjs.org'],

@@ -10,6 +10,7 @@ import {
     type ApiCancelAppVersionResponse,
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
+    type ApiClarifyOrganizationChartTypeRequest,
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
     type ApiCreateAppSchedulerResponse,
@@ -30,6 +31,7 @@ import {
     type ApiImportAppCodeResponse,
     type ApiInstallRegistryChartTypeResponse,
     type ApiListDataAppVizsResponse,
+    type ApiListOrganizationDataAppVizsResponse,
     type ApiListRegistryChartTypesResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
@@ -45,6 +47,7 @@ import {
     type DataAppVizListSortBy,
     type DataAppVizListSortDirection,
     type GenerateAppRequestBody,
+    type GenerateOrganizationChartTypeRequestBody,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type MyAppsSortBy,
@@ -78,6 +81,23 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import { validateDateFilter, validateUuidFilter } from './filterValidation';
+
+const parseUploadHeaders = (
+    req: express.Request,
+): { mimeType: string; contentLength: number } => {
+    const mimeType = req.headers['content-type'];
+    if (!mimeType) {
+        throw new ParameterError('Content-Type header is required');
+    }
+    if (!req.headers['content-length']) {
+        throw new ParameterError('Content-Length header is required');
+    }
+    const contentLength = parseInt(req.headers['content-length'], 10);
+    if (Number.isNaN(contentLength) || contentLength <= 0) {
+        throw new ParameterError('Content-Length must be a positive integer');
+    }
+    return { mimeType, contentLength };
+};
 
 @Route('/api/v1/ee/projects/{projectUuid}/apps')
 @Hidden()
@@ -578,19 +598,7 @@ export class AppGenerateController extends BaseController {
         kind?: 'screenshot',
     ): Promise<ApiAppFileUploadResponse> {
         assertRegisteredAccount(req.account);
-        const mimeType = req.headers['content-type'];
-        if (!mimeType) {
-            throw new ParameterError('Content-Type header is required');
-        }
-        if (!req.headers['content-length']) {
-            throw new ParameterError('Content-Length header is required');
-        }
-        const contentLength = parseInt(req.headers['content-length'], 10);
-        if (Number.isNaN(contentLength) || contentLength <= 0) {
-            throw new ParameterError(
-                'Content-Length must be a positive integer',
-            );
-        }
+        const { mimeType, contentLength } = parseUploadHeaders(req);
         const result = await this.getAppGenerateService().uploadFile(
             toSessionUser(req.account),
             projectUuid,
@@ -1362,5 +1370,384 @@ export class OrgAppsController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+}
+
+/**
+ * Organization chart types: chart types owned by the organization library
+ * rather than a project. Reads need chart-building ability in the
+ * organization; writes need organization admin.
+ */
+@Route('/api/v1/ee/org/chart-types')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class OrganizationChartTypesController extends BaseController {
+    /**
+     * @summary List organization chart types
+     * @param sortBy Order by creation time (the default) or by name
+     * @param sortDirection Defaults to desc
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('listOrganizationChartTypes')
+    async listOrganizationChartTypes(
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        @Query() search?: string,
+        @Query() sortBy?: DataAppVizListSortBy,
+        @Query() sortDirection?: DataAppVizListSortDirection,
+    ): Promise<ApiListOrganizationDataAppVizsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().listOrganizationChartTypes(
+                    toSessionUser(req.account),
+                    page && pageSize ? { page, pageSize } : undefined,
+                    search,
+                    {
+                        sortBy: sortBy ?? DEFAULT_DATA_APP_VIZ_LIST_SORT.sortBy,
+                        sortDirection:
+                            sortDirection ??
+                            DEFAULT_DATA_APP_VIZ_LIST_SORT.sortDirection,
+                    },
+                ),
+        };
+    }
+
+    /**
+     * @summary Generate an organization chart type
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/')
+    @OperationId('generateOrganizationChartType')
+    async generateOrganizationChartType(
+        @Request() req: express.Request,
+        @Body() body: GenerateOrganizationChartTypeRequestBody,
+    ): Promise<ApiGenerateAppResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().generateOrganizationChartType(
+                    toSessionUser(req.account),
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * @summary Get clarifying questions for a new organization chart type
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/clarify')
+    @OperationId('clarifyOrganizationChartType')
+    async clarifyOrganizationChartType(
+        @Request() req: express.Request,
+        @Body() body: ApiClarifyOrganizationChartTypeRequest,
+    ): Promise<ApiClarifyAppResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().clarifyOrganizationChartType(
+                    toSessionUser(req.account),
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * @summary Get an organization chart type with its versions
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuidOrSlug}')
+    @OperationId('getOrganizationChartType')
+    async getOrganizationChartType(
+        @Request() req: express.Request,
+        @Path() appUuidOrSlug: UuidOrSlug,
+        @Query() beforeVersion?: number,
+        @Query() limit?: number,
+    ): Promise<ApiGetAppResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getOrganizationChartType(
+                    toSessionUser(req.account),
+                    appUuidOrSlug,
+                    { beforeVersion, limit },
+                ),
+        };
+    }
+
+    /**
+     * @summary Iterate on an organization chart type
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions')
+    @OperationId('iterateOrganizationChartType')
+    async iterateOrganizationChartType(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Body() body: GenerateOrganizationChartTypeRequestBody,
+    ): Promise<ApiGenerateAppResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().iterateOrganizationChartType(
+                    toSessionUser(req.account),
+                    appUuid,
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * @summary Cancel an organization chart type version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions/{version}/cancel')
+    @OperationId('cancelOrganizationChartTypeVersion')
+    async cancelOrganizationChartTypeVersion(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Path() version: number,
+    ): Promise<ApiCancelAppVersionResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAppGenerateService().cancelOrganizationChartTypeVersion(
+            toSessionUser(req.account),
+            appUuid,
+            version,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * @summary Restore an organization chart type version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions/{version}/restore')
+    @OperationId('restoreOrganizationChartTypeVersion')
+    async restoreOrganizationChartTypeVersion(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Path() version: number,
+    ): Promise<ApiRestoreAppVersionResponse> {
+        assertRegisteredAccount(req.account);
+        const results =
+            await this.getAppGenerateService().restoreOrganizationChartTypeVersion(
+                toSessionUser(req.account),
+                appUuid,
+                version,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * @summary Clear an organization chart type's agent context
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/threads')
+    @OperationId('clearOrganizationChartTypeAgentContext')
+    async clearOrganizationChartTypeAgentContext(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+    ): Promise<ApiGetAppResponse> {
+        assertRegisteredAccount(req.account);
+        const results =
+            await this.getAppGenerateService().clearOrganizationChartTypeAgentContext(
+                toSessionUser(req.account),
+                appUuid,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * @summary Update an organization chart type
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{appUuid}')
+    @OperationId('updateOrganizationChartType')
+    async updateOrganizationChartType(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Body() body: ApiUpdateAppRequest,
+    ): Promise<ApiUpdateAppResponse> {
+        assertRegisteredAccount(req.account);
+        const results =
+            await this.getAppGenerateService().updateOrganizationChartType(
+                toSessionUser(req.account),
+                appUuid,
+                body,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * @summary Delete an organization chart type
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{appUuid}')
+    @OperationId('deleteOrganizationChartType')
+    async deleteOrganizationChartType(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+    ): Promise<ApiDeleteAppResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAppGenerateService().deleteOrganizationChartType(
+            toSessionUser(req.account),
+            appUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Send raw bytes with the appropriate Content-Type header; pass the
+     * original filename via the `filename` query parameter.
+     * @summary Upload an organization chart type file
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/upload-file')
+    @OperationId('uploadOrganizationChartTypeFile')
+    async uploadOrganizationChartTypeFile(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Query() filename?: string,
+        @Query() kind?: 'screenshot',
+    ): Promise<ApiAppFileUploadResponse> {
+        assertRegisteredAccount(req.account);
+        const { mimeType, contentLength } = parseUploadHeaders(req);
+        const results =
+            await this.getAppGenerateService().uploadOrganizationChartTypeFile(
+                toSessionUser(req.account),
+                mimeType,
+                req,
+                contentLength,
+                appUuid,
+                filename,
+                kind,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * @summary Get an organization chart type image URL
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/images/{imageId}')
+    @OperationId('getOrganizationChartTypeImageUrl')
+    async getOrganizationChartTypeImageUrl(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Path() imageId: string,
+    ): Promise<ApiAppImageUrlResponse> {
+        assertRegisteredAccount(req.account);
+        const results =
+            await this.getAppGenerateService().getOrganizationChartTypeImageUrl(
+                toSessionUser(req.account),
+                appUuid,
+                imageId,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * @summary Get organization chart type render metadata
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/render-metadata')
+    @OperationId('getOrganizationChartTypeRenderMetadata')
+    async getOrganizationChartTypeRenderMetadata(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Query() version?: number,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        const results =
+            await this.getAppGenerateService().getOrganizationChartTypeRenderMetadata(
+                toSessionUser(req.account),
+                appUuid,
+                version,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Mints a short-lived JWT for previewing an organization chart type
+     * version in an iframe.
+     * @summary Get an organization chart type preview token
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/versions/{version}/preview-token')
+    @OperationId('getOrganizationChartTypePreviewToken')
+    async getOrganizationChartTypePreviewToken(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+        @Path() version: number,
+    ): Promise<ApiPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getOrganizationChartTypePreviewToken(
+                toSessionUser(req.account),
+                appUuid,
+                version,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results: { token } };
+    }
+
+    /**
+     * @summary Get organization chart type delete impact
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/delete-impact')
+    @OperationId('getOrganizationChartTypeDeleteImpact')
+    async getOrganizationChartTypeDeleteImpact(
+        @Request() req: express.Request,
+        @Path() appUuid: UUID,
+    ): Promise<ApiDataAppVizDeleteImpactResponse> {
+        assertRegisteredAccount(req.account);
+        const results =
+            await this.getAppGenerateService().getOrganizationChartTypeDeleteImpact(
+                toSessionUser(req.account),
+                appUuid,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    protected getAppGenerateService() {
+        return this.services.getAppGenerateService<AppGenerateService>();
     }
 }

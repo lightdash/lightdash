@@ -13,7 +13,7 @@ export type PreviewTokenPayload = {
     version: number;
     userUuid: string;
     organizationUuid: string;
-    projectUuid: string;
+    projectUuid: string | null;
     /** Exact public HTTPS origins admitted to this app's img-src policy. */
     browserImageOrigins: string[];
 };
@@ -62,7 +62,7 @@ export const mintPreviewToken = (
     version: number,
     userUuid: string,
     organizationUuid: string,
-    projectUuid: string,
+    projectUuid: string | null,
     browserImageOrigins: string[] = [],
 ): string => {
     const normalizedOrigins = normalizeBrowserImageOrigins(browserImageOrigins);

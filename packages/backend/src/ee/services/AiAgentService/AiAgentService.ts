@@ -10955,7 +10955,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         payload: AppGeneratePipelineJobPayload,
     ): Promise<void> {
         const { aiAgentToolCall, appUuid, version, projectUuid } = payload;
-        if (!aiAgentToolCall) {
+        // Organization chart type builds never start from an AI agent.
+        if (!aiAgentToolCall || projectUuid === null) {
             return;
         }
         try {

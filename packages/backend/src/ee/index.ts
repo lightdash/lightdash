@@ -578,6 +578,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({

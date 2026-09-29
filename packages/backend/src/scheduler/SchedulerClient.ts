@@ -1564,7 +1564,7 @@ export class SchedulerClient {
             details: {
                 userUuid: payload.userUuid,
                 organizationUuid: payload.organizationUuid,
-                projectUuid: payload.projectUuid,
+                projectUuid: payload.projectUuid ?? undefined,
                 createdByUserUuid: payload.userUuid,
             },
         });

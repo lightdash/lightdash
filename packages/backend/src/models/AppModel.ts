@@ -28,6 +28,7 @@ import {
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     APP_VERSION_TERMINAL_STATUSES,
@@ -59,6 +60,7 @@ import {
 } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { isUniqueConstraintViolation } from '../database/errors';
 import KnexPaginate from '../database/pagination';
 import {
     acquireProjectSlugLock,
@@ -117,11 +119,43 @@ export type PreviewChartVizBindingMapping = {
 
 const AppSlugSequence = 'apps_slug_sequence';
 const ORGANIZATION_CHART_TYPE_LOCK_NAMESPACE = 6;
+const AppsPrimaryKey = 'apps_pkey';
+
+export type AppOwner =
+    | { type: 'project'; projectUuid: string }
+    | { type: 'organization'; organizationUuid: string };
+
+export type DbOrganizationVizWithSchema = DbOrganizationViz & {
+    viz_schema: DataAppVizSchema | null;
+};
 
 type AppWithOrgAndPin = DbApp & {
     organization_uuid: string;
     pinned_list_uuid: string | null;
     pinned_list_order: number | null;
+};
+
+type AppWithVersions = {
+    name: string;
+    description: string;
+    icon: string | null;
+    autoAnalysis: DataAppAutoAnalysis;
+    createdByUserUuid: string;
+    organizationUuid: string;
+    spaceUuid: string | null;
+    spaceName: string | null;
+    template: DbApp['template'];
+    pinnedListUuid: string | null;
+    pinnedListOrder: number | null;
+    slug: string;
+    viewsCount: number;
+    currentThread: DbAppThread;
+    versions: (DbAppVersionWithThread & {
+        created_by_user_first_name: string | null;
+        created_by_user_last_name: string | null;
+    })[];
+    hasMore: boolean;
+    registrySlug: string | null;
 };
 
 export class AppModel {
@@ -134,14 +168,115 @@ export class AppModel {
         this.dataAppCodingAgent = dataAppCodingAgent ?? 'claude';
     }
 
+    private static async lockOrganizationChartTypeKey(
+        trx: Knex,
+        organizationUuid: string,
+        kind: 'name' | 'slug',
+        value: string,
+    ): Promise<void> {
+        await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+            ORGANIZATION_CHART_TYPE_LOCK_NAMESPACE,
+            `${organizationUuid}:${kind}:${value}`,
+        ]);
+    }
+
+    /**
+     * First free slug for an organization chart type, suffixing `-1`, `-2`…
+     * Soft-deleted rows keep their slug, so they count as holders. With
+     * `exact`, a taken slug is a conflict instead.
+     */
+    private static async resolveOrganizationSlug(
+        trx: Knex,
+        organizationUuid: string,
+        baseSlug: string,
+        { exact }: { exact: boolean },
+    ): Promise<string> {
+        if (!baseSlug) {
+            throw new Error('Custom chart type slug cannot be empty');
+        }
+        for (let increment = 0; ; increment += 1) {
+            const suffix = increment === 0 ? '' : `-${increment}`;
+            const slug = `${baseSlug.slice(0, 255 - suffix.length)}${suffix}`;
+            // eslint-disable-next-line no-await-in-loop
+            await AppModel.lockOrganizationChartTypeKey(
+                trx,
+                organizationUuid,
+                'slug',
+                slug,
+            );
+            // eslint-disable-next-line no-await-in-loop
+            const slugHolder = await trx(AppsTableName)
+                .where({ owner_organization_uuid: organizationUuid, slug })
+                .first('app_id');
+            if (!slugHolder) return slug;
+            if (exact) {
+                throw new AlreadyExistsError(
+                    `A custom chart type with slug "${slug}" already exists in this organization (it may be soft-deleted).`,
+                );
+            }
+        }
+    }
+
+    private static async isOrganizationNameTaken(
+        trx: Knex,
+        organizationUuid: string,
+        name: string,
+        exceptAppUuid: string | null,
+    ): Promise<boolean> {
+        const normalizedName = name.toLowerCase();
+        await AppModel.lockOrganizationChartTypeKey(
+            trx,
+            organizationUuid,
+            'name',
+            normalizedName,
+        );
+        const query = trx(AppsTableName)
+            .where('owner_organization_uuid', organizationUuid)
+            .whereRaw('lower(name) = ?', [normalizedName])
+            .whereNull('deleted_at');
+        if (exceptAppUuid !== null) {
+            void query.whereNot('app_id', exceptAppUuid);
+        }
+        return (await query.first('app_id')) !== undefined;
+    }
+
+    /** First free name in the organization: `name`, then `name 2`, `name 3`… */
+    private static async resolveOrganizationName(
+        trx: Knex,
+        organizationUuid: string,
+        baseName: string,
+        exceptAppUuid: string | null,
+    ): Promise<string> {
+        for (let increment = 1; ; increment += 1) {
+            const suffix = increment === 1 ? '' : ` ${increment}`;
+            const name = `${baseName.slice(0, 255 - suffix.length)}${suffix}`;
+            // eslint-disable-next-line no-await-in-loop
+            const taken = await AppModel.isOrganizationNameTaken(
+                trx,
+                organizationUuid,
+                name,
+                exceptAppUuid,
+            );
+            if (!taken) return name;
+        }
+    }
+
+    /**
+     * Create an organization chart type with its first version. A null name
+     * creates it unnamed with a temporary slug, for the auto-namer to fill
+     * through `setOrganizationVisualizationMetadataIfUnset`.
+     */
     async createOrganizationVisualizationWithVersion(
         input: {
+            appUuid?: string;
             organizationUuid: string;
-            name: string;
+            name: string | null;
             description?: string;
             slug?: string;
             icon?: string | null;
+            designUuid?: string | null;
             createdByUserUuid: string;
+            resources?: AppVersionResources;
         },
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
@@ -152,65 +287,67 @@ export class AppModel {
         thread: DbAppThread;
     }> {
         return this.database.transaction(async (trx) => {
-            const name = input.name.trim();
-            if (!name) {
+            const name = input.name?.trim() ?? '';
+            if (input.name !== null && !name) {
                 throw new Error('Custom chart type name cannot be empty');
             }
-            const normalizedName = name.toLowerCase();
-            await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
-                ORGANIZATION_CHART_TYPE_LOCK_NAMESPACE,
-                `${input.organizationUuid}:name:${normalizedName}`,
-            ]);
-            const existingName = await trx(AppsTableName)
-                .where('owner_organization_uuid', input.organizationUuid)
-                .whereRaw('lower(name) = ?', [normalizedName])
-                .first('app_id');
-            if (existingName) {
+            if (
+                name &&
+                (await AppModel.isOrganizationNameTaken(
+                    trx,
+                    input.organizationUuid,
+                    name,
+                    null,
+                ))
+            ) {
                 throw new AlreadyExistsError(
-                    `A custom chart type named "${name}" already exists in this organization (it may be soft-deleted).`,
+                    `A custom chart type named "${name}" already exists in this organization.`,
                 );
             }
 
-            const baseSlug = generateSlug(input.slug ?? name).slice(0, 255);
-            if (!baseSlug) {
-                throw new Error('Custom chart type slug cannot be empty');
-            }
-            let slug = baseSlug;
-            for (let increment = 0; ; increment += 1) {
-                const suffix = increment === 0 ? '' : `-${increment}`;
-                slug = `${baseSlug.slice(0, 255 - suffix.length)}${suffix}`;
-                // eslint-disable-next-line no-await-in-loop
-                await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
-                    ORGANIZATION_CHART_TYPE_LOCK_NAMESPACE,
-                    `${input.organizationUuid}:slug:${slug}`,
-                ]);
-                // eslint-disable-next-line no-await-in-loop
-                const slugHolder = await trx(AppsTableName)
-                    .where({
-                        owner_organization_uuid: input.organizationUuid,
-                        slug,
-                    })
-                    .first('app_id');
-                if (!slugHolder) break;
-                if (input.slug !== undefined) {
-                    throw new AlreadyExistsError(
-                        `A custom chart type with slug "${slug}" already exists in this organization (it may be soft-deleted).`,
-                    );
-                }
-            }
+            const slugSource =
+                input.slug ??
+                (/[a-z0-9]/i.test(name)
+                    ? name
+                    : (
+                          await trx.raw<{
+                              rows: Array<{ slug: string }>;
+                          }>(`SELECT 'app-' || nextval(?)::text AS slug`, [
+                              AppSlugSequence,
+                          ])
+                      ).rows[0].slug);
+            const slug = await AppModel.resolveOrganizationSlug(
+                trx,
+                input.organizationUuid,
+                generateSlug(slugSource).slice(0, 255),
+                { exact: input.slug !== undefined },
+            );
 
             const [app] = await trx(AppsTableName)
                 .insert({
+                    ...(input.appUuid ? { app_id: input.appUuid } : {}),
                     project_uuid: null,
                     owner_organization_uuid: input.organizationUuid,
                     name,
                     description: input.description ?? '',
                     slug,
                     icon: input.icon ?? null,
+                    design_uuid: input.designUuid ?? null,
                     template: DATA_APP_VIZ_TEMPLATE,
                     created_by_user_uuid: input.createdByUserUuid,
                 })
-                .returning<DbOrganizationViz[]>('*');
+                .returning<DbOrganizationViz[]>('*')
+                .catch((error: unknown) => {
+                    if (
+                        isUniqueConstraintViolation(error) &&
+                        (error as DatabaseError).constraint === AppsPrimaryKey
+                    ) {
+                        throw new AlreadyExistsError(
+                            `An app with uuid "${input.appUuid}" already exists.`,
+                        );
+                    }
+                    throw error;
+                });
             const thread = await this.insertThread(trx, {
                 appUuid: app.app_id,
                 origin: 'builder',
@@ -225,6 +362,13 @@ export class AppModel {
                     app_thread_uuid: thread.app_thread_uuid,
                     status,
                     created_by_user_uuid: input.createdByUserUuid,
+                    ...(input.resources
+                        ? {
+                              resources: JSON.stringify(
+                                  input.resources,
+                              ) as unknown as AppVersionResources,
+                          }
+                        : {}),
                     ...(vizSchema
                         ? {
                               viz_schema: JSON.stringify(
@@ -238,51 +382,235 @@ export class AppModel {
         });
     }
 
+    private organizationVisualizationsQuery(organizationUuid: string) {
+        return this.joinLatestReadyVersion(this.database(AppsTableName))
+            .where({
+                [`${AppsTableName}.owner_organization_uuid`]: organizationUuid,
+                [`${AppsTableName}.template`]: DATA_APP_VIZ_TEMPLATE,
+            })
+            .whereNull(`${AppsTableName}.project_uuid`)
+            .whereNull(`${AppsTableName}.deleted_at`);
+    }
+
+    /** An organization chart type with its latest ready schema. */
     async findOrganizationVisualizationByUuid(
         organizationUuid: string,
         appUuid: string,
-    ): Promise<DbOrganizationViz | undefined> {
-        return this.database(AppsTableName)
-            .where({
-                owner_organization_uuid: organizationUuid,
-                app_id: appUuid,
-                template: DATA_APP_VIZ_TEMPLATE,
-            })
-            .whereNull('project_uuid')
-            .whereNull('deleted_at')
-            .select<DbOrganizationViz[]>('*')
+    ): Promise<DbOrganizationVizWithSchema | undefined> {
+        return this.organizationVisualizationsQuery(organizationUuid)
+            .andWhere(`${AppsTableName}.app_id`, appUuid)
+            .select<DbOrganizationVizWithSchema[]>(
+                `${AppsTableName}.*`,
+                `${AppVersionsTableName}.viz_schema`,
+            )
             .first();
     }
 
     async findOrganizationVisualizationBySlug(
         organizationUuid: string,
         slug: string,
-    ): Promise<DbOrganizationViz | undefined> {
-        return this.database(AppsTableName)
-            .where({
-                owner_organization_uuid: organizationUuid,
-                slug,
-                template: DATA_APP_VIZ_TEMPLATE,
-            })
-            .whereNull('project_uuid')
-            .whereNull('deleted_at')
-            .select<DbOrganizationViz[]>('*')
+    ): Promise<DbOrganizationVizWithSchema | undefined> {
+        return this.organizationVisualizationsQuery(organizationUuid)
+            .andWhere(`${AppsTableName}.slug`, slug)
+            .select<DbOrganizationVizWithSchema[]>(
+                `${AppsTableName}.*`,
+                `${AppVersionsTableName}.viz_schema`,
+            )
             .first();
     }
 
+    /** Uuid-shaped input may still be a slug, as in `findAppByUuidOrSlug`. */
+    async findOrganizationVisualizationByUuidOrSlug(
+        organizationUuid: string,
+        appUuidOrSlug: string,
+    ): Promise<DbOrganizationVizWithSchema | undefined> {
+        if (isValidUuid(appUuidOrSlug)) {
+            const byUuid = await this.findOrganizationVisualizationByUuid(
+                organizationUuid,
+                appUuidOrSlug,
+            );
+            if (byUuid) return byUuid;
+        }
+        return this.findOrganizationVisualizationBySlug(
+            organizationUuid,
+            appUuidOrSlug,
+        );
+    }
+
+    /**
+     * A page of the organization's bindable chart types — only those whose
+     * latest ready version has generated a schema, like
+     * `listDataAppVisualizations`.
+     */
     async listOrganizationVisualizations(
         organizationUuid: string,
-    ): Promise<DbOrganizationViz[]> {
-        return this.database(AppsTableName)
-            .where({
-                owner_organization_uuid: organizationUuid,
-                template: DATA_APP_VIZ_TEMPLATE,
-            })
+        paginateArgs?: KnexPaginateArgs,
+        search?: string,
+        sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
+    ): Promise<
+        KnexPaginatedData<
+            (DbOrganizationViz & { viz_schema: DataAppVizSchema })[]
+        >
+    > {
+        const query = this.organizationVisualizationsQuery(organizationUuid)
+            .whereNotNull(`${AppVersionsTableName}.viz_schema`)
+            .select<(DbOrganizationViz & { viz_schema: DataAppVizSchema })[]>(
+                `${AppsTableName}.*`,
+                `${AppVersionsTableName}.viz_schema`,
+            );
+        AppModel.applyDataAppVizListOrder(query, sort);
+        if (search) {
+            void query.whereRaw(
+                getFullTextSearchFilterSql({
+                    database: this.database,
+                    searchVectorColumn: `${AppsTableName}.search_vector`,
+                    searchQuery: search,
+                }),
+            );
+        }
+        return KnexPaginate.paginate(query, paginateArgs);
+    }
+
+    async updateOrganizationVisualization(
+        appId: string,
+        organizationUuid: string,
+        update: Partial<
+            Pick<
+                DbApp,
+                | 'name'
+                | 'description'
+                | 'icon'
+                | 'auto_analysis'
+                | 'design_uuid'
+            >
+        >,
+    ): Promise<DbOrganizationViz> {
+        return this.database.transaction(async (trx) => {
+            const app = await trx(AppsTableName)
+                .where({
+                    app_id: appId,
+                    owner_organization_uuid: organizationUuid,
+                })
+                .whereNull('project_uuid')
+                .whereNull('deleted_at')
+                .forUpdate()
+                .first('app_id');
+            if (!app) {
+                throw new NotFoundError(`App not found: ${appId}`);
+            }
+            if (
+                update.name !== undefined &&
+                (await AppModel.isOrganizationNameTaken(
+                    trx,
+                    organizationUuid,
+                    update.name,
+                    appId,
+                ))
+            ) {
+                throw new AlreadyExistsError(
+                    `A custom chart type named "${update.name}" already exists in this organization.`,
+                );
+            }
+            const [row] = await trx(AppsTableName)
+                .where({ app_id: appId })
+                .update(update)
+                .returning<DbOrganizationViz[]>('*');
+            return row;
+        });
+    }
+
+    /**
+     * Organization counterpart of `setMetadataIfUnset`. A generated name that
+     * another chart type in the organization already holds gets a numeric
+     * suffix, and the slug is replaced from the name that wins.
+     */
+    async setOrganizationVisualizationMetadataIfUnset(
+        appId: string,
+        organizationUuid: string,
+        metadata: { name: string; description: string; icon?: string | null },
+    ): Promise<DbOrganizationViz> {
+        return this.database.transaction(async (trx) => {
+            const app = await trx(AppsTableName)
+                .where({
+                    app_id: appId,
+                    owner_organization_uuid: organizationUuid,
+                })
+                .whereNull('project_uuid')
+                .whereNull('deleted_at')
+                .forUpdate()
+                .first<DbOrganizationViz>();
+            if (!app) {
+                throw new NotFoundError(`App not found: ${appId}`);
+            }
+
+            const update: Partial<
+                Pick<DbApp, 'name' | 'description' | 'slug' | 'icon'>
+            > = {
+                description: trx.raw(
+                    `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
+                    [metadata.description],
+                ) as unknown as string,
+            };
+            if (metadata.icon !== undefined && app.icon === null) {
+                update.icon = metadata.icon;
+            }
+            if (app.name === '') {
+                const name = await AppModel.resolveOrganizationName(
+                    trx,
+                    organizationUuid,
+                    metadata.name,
+                    appId,
+                );
+                const baseSlug = generateSlug(name).slice(0, 255);
+                update.name = name;
+                update.slug =
+                    baseSlug === app.slug
+                        ? app.slug
+                        : await AppModel.resolveOrganizationSlug(
+                              trx,
+                              organizationUuid,
+                              baseSlug,
+                              { exact: false },
+                          );
+            }
+
+            const [row] = await trx(AppsTableName)
+                .where({ app_id: appId })
+                .update(update)
+                .returning<DbOrganizationViz[]>('*');
+            return row;
+        });
+    }
+
+    async softDeleteOrganizationVisualization(
+        appId: string,
+        organizationUuid: string,
+        deletedByUserUuid: string,
+    ): Promise<void> {
+        const updated = await this.database(AppsTableName)
+            .where({ app_id: appId, owner_organization_uuid: organizationUuid })
             .whereNull('project_uuid')
             .whereNull('deleted_at')
-            .orderBy('created_at', 'desc')
-            .orderBy('app_id', 'asc')
-            .select<DbOrganizationViz[]>('*');
+            .update({
+                deleted_at: this.database.fn.now() as unknown as Date,
+                deleted_by_user_uuid: deletedByUserUuid,
+            });
+        if (updated === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+    }
+
+    async permanentDeleteOrganizationVisualization(
+        appId: string,
+        organizationUuid: string,
+    ): Promise<void> {
+        const deleted = await this.database(AppsTableName)
+            .where({ app_id: appId, owner_organization_uuid: organizationUuid })
+            .whereNull('project_uuid')
+            .delete();
+        if (deleted === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
     }
 
     async createWithVersion(
@@ -892,6 +1220,15 @@ export class AppModel {
             .first();
     }
 
+    /** Whether any app, of any owner and including deleted ones, holds this uuid. */
+    async hasAppUuid(appUuid: string): Promise<boolean> {
+        const app = await this.database(AppsTableName)
+            .select('app_id')
+            .where({ app_id: appUuid })
+            .first();
+        return app !== undefined;
+    }
+
     async hasAppSlug(projectUuid: string, slug: string): Promise<boolean> {
         const app = await this.database(AppsTableName)
             .select('app_id')
@@ -1219,41 +1556,61 @@ export class AppModel {
         appId: string,
         projectUuid: string,
         opts: { beforeVersion?: number; limit?: number } = {},
-    ): Promise<{
-        name: string;
-        description: string;
-        icon: string | null;
-        autoAnalysis: DataAppAutoAnalysis;
-        createdByUserUuid: string;
-        organizationUuid: string;
-        spaceUuid: string | null;
-        spaceName: string | null;
-        template: DbApp['template'];
-        pinnedListUuid: string | null;
-        pinnedListOrder: number | null;
-        slug: string;
-        viewsCount: number;
-        currentThread: DbAppThread;
-        versions: (DbAppVersionWithThread & {
-            created_by_user_first_name: string | null;
-            created_by_user_last_name: string | null;
-        })[];
-        hasMore: boolean;
-        registrySlug: string | null;
-    }> {
+    ): Promise<AppWithVersions> {
+        return this.getOwnedAppWithVersions(
+            appId,
+            { type: 'project', projectUuid },
+            opts,
+        );
+    }
+
+    async getOrganizationAppWithVersions(
+        appId: string,
+        organizationUuid: string,
+        opts: { beforeVersion?: number; limit?: number } = {},
+    ): Promise<AppWithVersions> {
+        return this.getOwnedAppWithVersions(
+            appId,
+            { type: 'organization', organizationUuid },
+            opts,
+        );
+    }
+
+    private async getOwnedAppWithVersions(
+        appId: string,
+        owner: AppOwner,
+        opts: { beforeVersion?: number; limit?: number },
+    ): Promise<AppWithVersions> {
         const limit = opts.limit ?? 20;
         const currentThread = await this.getCurrentThread(appId);
-        const query = this.database(AppsTableName)
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_uuid`,
-                `${AppsTableName}.project_uuid`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
+        const ownedApps = this.database(AppsTableName);
+        if (owner.type === 'project') {
+            void ownedApps
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_uuid`,
+                    `${AppsTableName}.project_uuid`,
+                )
+                .innerJoin(
+                    OrganizationTableName,
+                    `${OrganizationTableName}.organization_id`,
+                    `${ProjectTableName}.organization_id`,
+                )
+                .andWhere(`${AppsTableName}.project_uuid`, owner.projectUuid);
+        } else {
+            void ownedApps
+                .innerJoin(
+                    OrganizationTableName,
+                    `${OrganizationTableName}.organization_uuid`,
+                    `${AppsTableName}.owner_organization_uuid`,
+                )
+                .andWhere(
+                    `${AppsTableName}.owner_organization_uuid`,
+                    owner.organizationUuid,
+                )
+                .whereNull(`${AppsTableName}.project_uuid`);
+        }
+        const query = ownedApps
             .leftJoin(
                 AppVersionsTableName,
                 `${AppsTableName}.app_id`,
@@ -1285,7 +1642,6 @@ export class AppModel {
                 ).andOnNull(`${SpaceTableName}.deleted_at`);
             })
             .where(`${AppsTableName}.app_id`, appId)
-            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
             .select(
                 `${AppsTableName}.name`,
@@ -1485,6 +1841,25 @@ export class AppModel {
         }
     }
 
+    static applyDataAppVizListOrder(
+        query: Knex.QueryBuilder,
+        sort: DataAppVizListSort,
+    ): void {
+        const sortColumn: Record<DataAppVizListSort['sortBy'], string> = {
+            createdAt: 'created_at',
+            name: 'name',
+        };
+        // Trailing app_id keeps the order stable when the sort column has
+        // ties, so paginated results don't skip or repeat rows.
+        void query.orderBy([
+            {
+                column: `${AppsTableName}.${sortColumn[sort.sortBy]}`,
+                order: sort.sortDirection,
+            },
+            { column: `${AppsTableName}.app_id`, order: 'asc' },
+        ]);
+    }
+
     /**
      * List every non-deleted app in a project. Used by preview duplication to
      * mirror the upstream project's apps into a freshly created preview
@@ -1577,19 +1952,7 @@ export class AppModel {
                 `${AppsTableName}.*`,
                 `${AppVersionsTableName}.viz_schema`,
             );
-        const sortColumn: Record<DataAppVizListSort['sortBy'], string> = {
-            createdAt: 'created_at',
-            name: 'name',
-        };
-        // Trailing app_id keeps the order stable when the sort column has
-        // ties, so paginated results don't skip or repeat rows.
-        void query.orderBy([
-            {
-                column: `${AppsTableName}.${sortColumn[sort.sortBy]}`,
-                order: sort.sortDirection,
-            },
-            { column: `${AppsTableName}.app_id`, order: 'asc' },
-        ]);
+        AppModel.applyDataAppVizListOrder(query, sort);
         if (search) {
             void query.whereRaw(
                 getFullTextSearchFilterSql({

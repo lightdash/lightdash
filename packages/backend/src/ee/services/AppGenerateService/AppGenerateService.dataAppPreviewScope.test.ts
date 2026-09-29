@@ -79,6 +79,7 @@ type AssertFn = (
 
 const buildService = () =>
     new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {} as never,
         analytics: {} as never,
         analyticsModel: {} as never,

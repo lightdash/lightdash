@@ -73,6 +73,7 @@ import {
     validateDataAppDependencies,
     type Account,
     type AnonymousAccount,
+    type ApiClarifyOrganizationChartTypeRequest,
     type ApiDuplicateAppResponse,
     type ApiGetAppResponse,
     type ApiOrganizationDesign,
@@ -130,6 +131,8 @@ import {
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
+    type GenerateAppRequestBody,
+    type GenerateOrganizationChartTypeRequestBody,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -138,6 +141,7 @@ import {
     type MetricQuery,
     type ModelRequiredFilterRule,
     type MyAppsSortBy,
+    type OrganizationDataAppViz,
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
@@ -181,8 +185,10 @@ import {
     type AppVersionStatus,
     type DbApp,
     type DbAppActivityRow,
+    type DbAppRow,
     type DbAppThread,
     type DbAppVersion,
+    type DbOrganizationViz,
 } from '../../../database/entities/apps';
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
@@ -190,12 +196,14 @@ import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
     AppModel,
     type CreateAppThreadArgs,
+    type DbOrganizationVizWithSchema,
     type PreviewChartVizBindingMapping,
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
+import { type OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
@@ -466,6 +474,7 @@ type AppGenerateServiceDeps = {
     appRuntimeS3: AppRuntimeS3 | null;
     chartRegistryClient: ChartRegistryClient;
     contentVerificationModel: ContentVerificationModel;
+    organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -581,6 +590,10 @@ const appendVizBuildContext = (
     if (Object.keys(context).length === 0) return prompt;
 
     return `${prompt}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(context, null, 2)}`;
+};
+
+type OrganizationChartTypeApp = DbOrganizationVizWithSchema & {
+    organization_uuid: string;
 };
 
 type GenerateAppResult = {
@@ -791,6 +804,11 @@ export class AppGenerateService extends BaseService {
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
+    private readonly organizationSettingsModel: Pick<
+        OrganizationSettingsModel,
+        'get'
+    >;
+
     private sandboxManager: SandboxManagerPort | undefined;
 
     private readonly dataReferenceRefreshes = new Map<
@@ -826,6 +844,7 @@ export class AppGenerateService extends BaseService {
         appRuntimeS3,
         chartRegistryClient,
         contentVerificationModel,
+        organizationSettingsModel,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -855,6 +874,7 @@ export class AppGenerateService extends BaseService {
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
         this.contentVerificationModel = contentVerificationModel;
+        this.organizationSettingsModel = organizationSettingsModel;
     }
 
     private async getDataAppProjectContext(
@@ -1309,6 +1329,15 @@ export class AppGenerateService extends BaseService {
             }
         }
         await this.assertDataAppsEnabled(user);
+
+        if (payload.projectUuid === null) {
+            await this.getManageableOrganizationChartType(
+                user,
+                payload.appUuid,
+                payload.organizationUuid,
+            );
+            return user;
+        }
 
         const app = await this.appModel.getApp(
             payload.appUuid,
@@ -2122,10 +2151,7 @@ export class AppGenerateService extends BaseService {
         payload: AppGeneratePipelineJobPayload,
     ): Promise<DataAppTemplate | null> {
         try {
-            const app = await this.appModel.getApp(
-                payload.appUuid,
-                payload.projectUuid,
-            );
+            const app = await this.getPipelineApp(payload);
             return app.template;
         } catch (error) {
             this.logger.warn(
@@ -2262,8 +2288,39 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
                 'Insufficient permissions to upload app files',
             );
+            if (await this.appModel.hasAppUuid(appUuid)) {
+                throw new ForbiddenError(
+                    'Insufficient permissions to upload app files',
+                );
+            }
         }
+        return this.stageUploadedFile(
+            user,
+            projectUuid,
+            declaredMimeType,
+            body,
+            contentLength,
+            appUuid,
+            filename,
+            kind,
+        );
+    }
 
+    private async stageUploadedFile(
+        user: SessionUser,
+        projectUuid: string | null,
+        declaredMimeType: string,
+        body: Readable,
+        contentLength: number,
+        appUuid: string,
+        filename: string | undefined,
+        kind: 'screenshot' | undefined,
+    ): Promise<{
+        fileId: string;
+        imageId: string;
+        filename: string;
+        mimeType: string;
+    }> {
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
             throw new ParameterError(
@@ -2376,6 +2433,30 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to view app images',
         );
 
+        return this.signAppImageUrl(appUuid, imageId);
+    }
+
+    async getOrganizationChartTypeImageUrl(
+        user: SessionUser,
+        appUuid: string,
+        imageId: string,
+    ): Promise<{ imageUrl: string }> {
+        const app = await this.getAuthorizedOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+            'view',
+        );
+        if (!isValidUuid(imageId)) {
+            throw new ParameterError('Invalid imageId: must be a valid UUID');
+        }
+        return this.signAppImageUrl(app.app_id, imageId);
+    }
+
+    private async signAppImageUrl(
+        appUuid: string,
+        imageId: string,
+    ): Promise<{ imageUrl: string }> {
         const belongsToApp = await this.appModel.appImageExists(
             appUuid,
             imageId,
@@ -2834,7 +2915,7 @@ export class AppGenerateService extends BaseService {
     private async createSandbox(
         appUuid: string,
         organizationUuid: string,
-        projectUuid: string,
+        projectUuid: string | null,
         copilot: CopilotConfig,
         extraEgressHosts: string[] = [],
     ): Promise<{
@@ -3037,10 +3118,10 @@ export class AppGenerateService extends BaseService {
      * create fallback, where there is no snapshot to restore from.
      */
     private async acquireSandbox(
-        app: DbApp,
+        app: Pick<DbAppRow, 'sandbox_id'>,
         appUuid: string,
         organizationUuid: string,
-        projectUuid: string,
+        projectUuid: string | null,
         s3Client: S3Client,
         bucket: string,
         copilot: CopilotConfig,
@@ -3418,7 +3499,7 @@ export class AppGenerateService extends BaseService {
     private async writeCatalogAndPrompt(
         sandbox: SandboxHandle,
         appUuid: string,
-        projectUuid: string,
+        projectUuid: string | null,
         prompt: string,
         fileIds: string[] | undefined,
         s3Client: S3Client,
@@ -3450,6 +3531,11 @@ export class AppGenerateService extends BaseService {
         let metricCount = 0;
         let totalBytes = 0;
         if (!isDataAppViz) {
+            if (projectUuid === null) {
+                throw new Error(
+                    `App ${appUuid}: only chart types can build without a project`,
+                );
+            }
             // Source the synthetic schema from the compiled explore cache (not
             // the flattened catalog summary) so it carries joins, real field
             // types, and parameters. A chart type receives host rows instead.
@@ -4614,7 +4700,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         prompt: string,
         organizationUuid: string,
-        projectUuid: string,
+        projectUuid: string | null,
         userUuid: string,
         isChartType: boolean,
     ): Promise<{
@@ -5124,7 +5210,7 @@ export class AppGenerateService extends BaseService {
             tracking: {
                 userUuid: string;
                 organizationUuid: string;
-                projectUuid: string;
+                projectUuid: string | null;
                 appUuid: string;
             };
         },
@@ -5516,6 +5602,11 @@ export class AppGenerateService extends BaseService {
                 // on the current template image.
                 let upgradeSessionTar: Buffer | null = null;
                 if (payload.isUpgrade) {
+                    if (projectUuid === null) {
+                        throw new Error(
+                            'Organization chart types are not upgraded in place',
+                        );
+                    }
                     upgradeSessionTar = await this.prepareUpgradeColdStart(
                         appUuid,
                         projectUuid,
@@ -5524,10 +5615,7 @@ export class AppGenerateService extends BaseService {
                     );
                 }
                 if (isIteration) {
-                    const app = await this.appModel.getApp(
-                        appUuid,
-                        projectUuid,
-                    );
+                    const app = await this.getPipelineApp(payload);
                     const acquired = await this.acquireSandbox(
                         app,
                         appUuid,
@@ -5584,7 +5672,7 @@ export class AppGenerateService extends BaseService {
             }
         } else {
             // Resuming past sandbox stage — reconnect
-            const app = await this.appModel.getApp(appUuid, projectUuid);
+            const app = await this.getPipelineApp(payload);
             if (!app.sandbox_id) {
                 const missingSandboxError = new Error(
                     'No sandbox_uuid found for resume',
@@ -5668,7 +5756,9 @@ export class AppGenerateService extends BaseService {
                     attributes: {
                         'app.uuid': appUuid,
                         'app.version': version,
-                        'project.uuid': projectUuid,
+                        ...(projectUuid !== null
+                            ? { 'project.uuid': projectUuid }
+                            : {}),
                         'organization.uuid': payload.organizationUuid,
                         'user.uuid': payload.userUuid,
                         'app.is_iteration': isIteration,
@@ -5742,7 +5832,7 @@ export class AppGenerateService extends BaseService {
         // Derived from the app's own template (the source of truth) rather than
         // a payload flag, so it is correct on every path — initial generate,
         // iteration, and retry — not just the ones that remembered to set it.
-        const pipelineApp = await this.appModel.getApp(appUuid, projectUuid);
+        const pipelineApp = await this.getPipelineApp(payload);
         const isDataAppViz = pipelineApp.template === DATA_APP_VIZ_TEMPLATE;
         // Resolve the model once per pipeline run. Jobs enqueued before the
         // picker shipped (or any future caller that omits the field) fall back
@@ -5783,16 +5873,23 @@ export class AppGenerateService extends BaseService {
                         // Only fills fields the user hasn't already set. When
                         // the name is applied, the temporary slug is replaced
                         // from the same generated name.
+                        const generatedMetadata = {
+                            name: metadata.name,
+                            description: metadata.description,
+                            icon: metadata.icon,
+                        };
                         const updatedApp =
-                            await this.appModel.setMetadataIfUnset(
-                                appUuid,
-                                projectUuid,
-                                {
-                                    name: metadata.name,
-                                    description: metadata.description,
-                                    icon: metadata.icon,
-                                },
-                            );
+                            projectUuid === null
+                                ? await this.appModel.setOrganizationVisualizationMetadataIfUnset(
+                                      appUuid,
+                                      payload.organizationUuid,
+                                      generatedMetadata,
+                                  )
+                                : await this.appModel.setMetadataIfUnset(
+                                      appUuid,
+                                      projectUuid,
+                                      generatedMetadata,
+                                  );
                         this.logger.info(
                             `App ${appUuid}: auto-named "${updatedApp.name}" (slug=${updatedApp.slug})`,
                         );
@@ -6855,6 +6952,57 @@ export class AppGenerateService extends BaseService {
             throw new ParameterError('Prompt is required');
         }
 
+        return this.runClarifier({
+            user,
+            organizationUuid,
+            projectUuid,
+            prompt: trimmed,
+            template,
+            fileCount: fileIds?.length ?? 0,
+            loadContext: async (isVizTemplate) => {
+                const [catalogSummary, attachedResources] = await Promise.all([
+                    isVizTemplate
+                        ? Promise.resolve(null)
+                        : this.buildCatalogSummaryForClarifier(projectUuid),
+                    this.buildAttachedResourcesForClarifier(
+                        charts,
+                        dashboard,
+                        user,
+                        projectUuid,
+                    ),
+                ]);
+                return { catalogSummary, attachedResources };
+            },
+        });
+    }
+
+    /**
+     * The clarifier's LLM call. `loadContext` runs only once a provider is
+     * resolved, so an unconfigured instance never reads the catalog.
+     */
+    private async runClarifier({
+        user,
+        organizationUuid,
+        projectUuid,
+        prompt: trimmed,
+        template,
+        fileCount,
+        loadContext,
+    }: {
+        user: SessionUser;
+        organizationUuid: string;
+        projectUuid: string | null;
+        prompt: string;
+        template: DataAppTemplate | undefined;
+        fileCount: number;
+        loadContext: (isVizTemplate: boolean) => Promise<{
+            catalogSummary: string | null;
+            attachedResources: {
+                charts: { name: string; exploreName: string }[];
+                dashboard: { name: string; structureSummary: string } | null;
+            };
+        }>;
+    }): Promise<{ questions: string[] }> {
         const copilot =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
@@ -6885,18 +7033,8 @@ export class AppGenerateService extends BaseService {
         // build time. Skip the summary entirely (and its catalog read).
         const isVizTemplate = template === DATA_APP_VIZ_TEMPLATE;
 
-        const [catalogSummary, attachedResources] = await Promise.all([
-            isVizTemplate
-                ? Promise.resolve(null)
-                : this.buildCatalogSummaryForClarifier(projectUuid),
-            this.buildAttachedResourcesForClarifier(
-                charts,
-                dashboard,
-                user,
-                projectUuid,
-            ),
-        ]);
-        const fileCount = fileIds?.length ?? 0;
+        const { catalogSummary, attachedResources } =
+            await loadContext(isVizTemplate);
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -6979,7 +7117,7 @@ export class AppGenerateService extends BaseService {
             output = result.output;
         } catch (err) {
             this.logger.warn(
-                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
+                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid ?? 'none'}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
             );
             return { questions: [] };
         }
@@ -6992,7 +7130,7 @@ export class AppGenerateService extends BaseService {
             .slice(0, 4);
 
         this.logger.info(
-            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider})`,
+            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid ?? 'none'}, template=${template ?? 'custom'}, llm=${llmProvider})`,
         );
 
         return { questions };
@@ -7189,18 +7327,12 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             'Insufficient permissions to create data apps',
         );
-        const claudeModel =
-            this.dataAppCodingAgent === 'claude'
-                ? await this.resolveClaudeModel(
-                      organizationUuid,
-                      claudeModelInput,
-                  )
-                : DEFAULT_DATA_APP_CLAUDE_MODEL;
-        const codexModel =
-            this.dataAppCodingAgent === 'codex'
-                ? AppGenerateService.resolveCodexModel(codexModelInput)
-                : undefined;
-        const codingAgentModel = codexModel ?? claudeModel;
+        const { claudeModel, codexModel, codingAgentModel } =
+            await this.resolveBuildModels(
+                organizationUuid,
+                claudeModelInput,
+                codexModelInput,
+            );
 
         // When the caller wants the app to live in a space directly, also
         // require manage rights on that space — same gate space EDITOR/ADMIN
@@ -7226,18 +7358,10 @@ export class AppGenerateService extends BaseService {
         const version = 1;
         const claudeEffort = resolveClaudeEffort(version, template ?? null);
 
-        // Resolve attachment types/filenames from the staged S3 objects so the
-        // version resources can split image chips from file chips in the chat.
-        let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
-            const { client: s3Client, bucket } = this.getS3Client();
-            stagedFiles = await AppGenerateService.resolveStagedFiles(
-                s3Client,
-                bucket,
-                appUuid,
-                fileIds,
-            );
-        }
+        const stagedFiles = await this.resolveStagedFilesForApp(
+            appUuid,
+            fileIds,
+        );
 
         // The pipeline gets the augmented prompt so Claude in the sandbox
         // sees the resolved intent. The version row keeps the original
@@ -7284,37 +7408,8 @@ export class AppGenerateService extends BaseService {
         // the design uuid for a non-default selection, null for the
         // "Lightdash default" / no theme choice, or omits the field
         // entirely on older clients).
-        let resolvedDesignUuid: string | null = null;
-        let designSnapshot: AppVersionResources['design'] = null;
-        if (designUuidInput === undefined) {
-            const orgDefault =
-                await this.organizationDesignModel.getDefault(organizationUuid);
-            if (orgDefault) {
-                AppGenerateService.assertThemeWithinLimits(orgDefault);
-                resolvedDesignUuid = orgDefault.designUuid;
-                designSnapshot = {
-                    designUuid: orgDefault.designUuid,
-                    name: orgDefault.name,
-                    fileCount: orgDefault.files.length,
-                };
-            }
-        } else if (designUuidInput !== null) {
-            const picked =
-                await this.organizationDesignModel.findInOrganization(
-                    organizationUuid,
-                    designUuidInput,
-                );
-            if (!picked) {
-                throw new ParameterError(`Theme not found: ${designUuidInput}`);
-            }
-            AppGenerateService.assertThemeWithinLimits(picked);
-            resolvedDesignUuid = picked.designUuid;
-            designSnapshot = {
-                designUuid: picked.designUuid,
-                name: picked.name,
-                fileCount: picked.files.length,
-            };
-        }
+        const { designUuid: resolvedDesignUuid, designSnapshot } =
+            await this.resolveInitialDesign(organizationUuid, designUuidInput);
 
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
@@ -7452,34 +7547,20 @@ export class AppGenerateService extends BaseService {
         });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
 
-        // Resolve attachment types/filenames from the staged S3 objects so the
-        // version resources can split image chips from file chips in the chat.
-        let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
-            const { client: s3Client, bucket } = this.getS3Client();
-            stagedFiles = await AppGenerateService.resolveStagedFiles(
-                s3Client,
-                bucket,
-                appUuid,
-                fileIds,
-            );
-        }
+        const stagedFiles = await this.resolveStagedFilesForApp(
+            appUuid,
+            fileIds,
+        );
 
         // Resolved after the permission check so an unauthorized caller gets a
         // 403 rather than a model-visibility error. Scoped to the project's
         // organization (not the caller's) to match generateApp.
-        const claudeModel =
-            this.dataAppCodingAgent === 'claude'
-                ? await this.resolveClaudeModel(
-                      organizationUuid,
-                      claudeModelInput,
-                  )
-                : DEFAULT_DATA_APP_CLAUDE_MODEL;
-        const codexModel =
-            this.dataAppCodingAgent === 'codex'
-                ? AppGenerateService.resolveCodexModel(codexModelInput)
-                : undefined;
-        const codingAgentModel = codexModel ?? claudeModel;
+        const { claudeModel, codexModel, codingAgentModel } =
+            await this.resolveBuildModels(
+                organizationUuid,
+                claudeModelInput,
+                codexModelInput,
+            );
 
         const externalConnectionResources = await this.linkExternalConnections(
             user,
@@ -7521,59 +7602,20 @@ export class AppGenerateService extends BaseService {
             sampleStats,
         } = await this.resolveChartReferences(refs, user, projectUuid);
 
-        // Omitted designUuid inherits the app's current theme. Explicit
-        // string/null changes it; themeChangePrompt decides the prompt shape.
-        const isThemeChange = designUuidInput !== undefined;
-        let effectiveDesignUuid: string | null = isThemeChange
-            ? designUuidInput
-            : app.design_uuid;
-        let designSnapshot: AppVersionResources['design'] = null;
-        if (effectiveDesignUuid) {
-            const design =
-                await this.organizationDesignModel.findInOrganization(
-                    app.organization_uuid,
-                    effectiveDesignUuid,
-                );
-            if (design) {
-                // Inherited themes are copied into the sandbox on every
-                // iteration too, so enforce the guardrails regardless of
-                // whether this iteration is an explicit theme change.
-                AppGenerateService.assertThemeWithinLimits(design);
-                designSnapshot = {
-                    designUuid: design.designUuid,
-                    name: design.name,
-                    fileCount: design.files.length,
-                };
-            } else if (isThemeChange) {
-                throw new ParameterError(
-                    `Theme not found: ${effectiveDesignUuid}`,
-                );
-            } else {
-                // Defensive: app.design_uuid points at a missing row. Should
-                // never happen given the FK is ON DELETE SET NULL, but if it
-                // does, treat inherited theme as absent rather than fail.
-                effectiveDesignUuid = null;
-            }
-        }
-
-        let pipelinePrompt = prompt;
-        if (isThemeChange) {
-            const themeName = designSnapshot?.name ?? null;
-            pipelinePrompt =
-                themeChangePrompt === 'append' && themeName !== null
-                    ? AppGenerateService.buildPromptWithThemeChange(
-                          prompt,
-                          themeName,
-                      )
-                    : AppGenerateService.buildThemeChangePrompt(themeName);
-        }
-        if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            pipelinePrompt = appendVizBuildContext(
-                pipelinePrompt,
-                vizContext,
-                this.lightdashConfig.appRuntime.sampleDataEnabled,
+        const { isThemeChange, effectiveDesignUuid, designSnapshot } =
+            await this.resolveIterationDesign(
+                app.organization_uuid,
+                app.design_uuid,
+                designUuidInput,
             );
-        }
+        const pipelinePrompt = this.buildIterationPipelinePrompt({
+            prompt,
+            isThemeChange,
+            themeChangePrompt,
+            themeName: designSnapshot?.name ?? null,
+            isDataAppViz: app.template === DATA_APP_VIZ_TEMPLATE,
+            vizContext,
+        });
 
         const resources: AppVersionResources = {
             ...AppGenerateService.toAttachmentResources(stagedFiles),
@@ -7669,6 +7711,195 @@ export class AppGenerateService extends BaseService {
         });
 
         return { appUuid, slug: app.slug, version: newVersion };
+    }
+
+    private async resolveBuildModels(
+        organizationUuid: string,
+        claudeModelInput: DataAppClaudeModel | undefined,
+        codexModelInput: DataAppCodexModel | undefined,
+    ): Promise<{
+        claudeModel: DataAppClaudeModel;
+        codexModel: DataAppCodexModel | undefined;
+        codingAgentModel: DataAppCodingAgentModel;
+    }> {
+        const claudeModel =
+            this.dataAppCodingAgent === 'claude'
+                ? await this.resolveClaudeModel(
+                      organizationUuid,
+                      claudeModelInput,
+                  )
+                : DEFAULT_DATA_APP_CLAUDE_MODEL;
+        const codexModel =
+            this.dataAppCodingAgent === 'codex'
+                ? AppGenerateService.resolveCodexModel(codexModelInput)
+                : undefined;
+        return {
+            claudeModel,
+            codexModel,
+            codingAgentModel: codexModel ?? claudeModel,
+        };
+    }
+
+    /**
+     * Resolve attachment types/filenames from the staged S3 objects so the
+     * version resources can split image chips from file chips in the chat.
+     */
+    private async resolveStagedFilesForApp(
+        appUuid: string,
+        fileIds: string[],
+    ): Promise<StagedAppFile[]> {
+        if (fileIds.length === 0) return [];
+        const { client: s3Client, bucket } = this.getS3Client();
+        return AppGenerateService.resolveStagedFiles(
+            s3Client,
+            bucket,
+            appUuid,
+            fileIds,
+        );
+    }
+
+    /**
+     * Resolve theme: explicit pick wins, else fall back to org default.
+     * `null` from the caller means "explicitly no theme" — don't fall
+     * back. `undefined` means "honor the org default" (the picker sends
+     * the design uuid for a non-default selection, null for the
+     * "Lightdash default" / no theme choice, or omits the field
+     * entirely on older clients).
+     */
+    private async resolveInitialDesign(
+        organizationUuid: string,
+        designUuidInput: string | null | undefined,
+    ): Promise<{
+        designUuid: string | null;
+        designSnapshot: AppVersionResources['design'];
+    }> {
+        if (designUuidInput === undefined) {
+            const orgDefault =
+                await this.organizationDesignModel.getDefault(organizationUuid);
+            if (!orgDefault) {
+                return { designUuid: null, designSnapshot: null };
+            }
+            AppGenerateService.assertThemeWithinLimits(orgDefault);
+            return {
+                designUuid: orgDefault.designUuid,
+                designSnapshot: {
+                    designUuid: orgDefault.designUuid,
+                    name: orgDefault.name,
+                    fileCount: orgDefault.files.length,
+                },
+            };
+        }
+        if (designUuidInput === null) {
+            return { designUuid: null, designSnapshot: null };
+        }
+        const picked = await this.organizationDesignModel.findInOrganization(
+            organizationUuid,
+            designUuidInput,
+        );
+        if (!picked) {
+            throw new ParameterError(`Theme not found: ${designUuidInput}`);
+        }
+        AppGenerateService.assertThemeWithinLimits(picked);
+        return {
+            designUuid: picked.designUuid,
+            designSnapshot: {
+                designUuid: picked.designUuid,
+                name: picked.name,
+                fileCount: picked.files.length,
+            },
+        };
+    }
+
+    /**
+     * Omitted designUuid inherits the app's current theme. Explicit
+     * string/null changes it.
+     */
+    private async resolveIterationDesign(
+        organizationUuid: string,
+        currentDesignUuid: string | null,
+        designUuidInput: string | null | undefined,
+    ): Promise<{
+        isThemeChange: boolean;
+        effectiveDesignUuid: string | null;
+        designSnapshot: AppVersionResources['design'];
+    }> {
+        const isThemeChange = designUuidInput !== undefined;
+        const requestedDesignUuid = isThemeChange
+            ? designUuidInput
+            : currentDesignUuid;
+        if (!requestedDesignUuid) {
+            return {
+                isThemeChange,
+                effectiveDesignUuid: requestedDesignUuid,
+                designSnapshot: null,
+            };
+        }
+        const design = await this.organizationDesignModel.findInOrganization(
+            organizationUuid,
+            requestedDesignUuid,
+        );
+        if (design) {
+            // Inherited themes are copied into the sandbox on every
+            // iteration too, so enforce the guardrails regardless of
+            // whether this iteration is an explicit theme change.
+            AppGenerateService.assertThemeWithinLimits(design);
+            return {
+                isThemeChange,
+                effectiveDesignUuid: requestedDesignUuid,
+                designSnapshot: {
+                    designUuid: design.designUuid,
+                    name: design.name,
+                    fileCount: design.files.length,
+                },
+            };
+        }
+        if (isThemeChange) {
+            throw new ParameterError(`Theme not found: ${requestedDesignUuid}`);
+        }
+        // Defensive: app.design_uuid points at a missing row. Should
+        // never happen given the FK is ON DELETE SET NULL, but if it
+        // does, treat inherited theme as absent rather than fail.
+        return {
+            isThemeChange,
+            effectiveDesignUuid: null,
+            designSnapshot: null,
+        };
+    }
+
+    /** themeChangePrompt decides the prompt shape of a theme change. */
+    private buildIterationPipelinePrompt({
+        prompt,
+        isThemeChange,
+        themeChangePrompt,
+        themeName,
+        isDataAppViz,
+        vizContext,
+    }: {
+        prompt: string;
+        isThemeChange: boolean;
+        themeChangePrompt: 'replace' | 'append';
+        themeName: string | null;
+        isDataAppViz: boolean;
+        vizContext: AppVizBuildContext | undefined;
+    }): string {
+        let pipelinePrompt = prompt;
+        if (isThemeChange) {
+            pipelinePrompt =
+                themeChangePrompt === 'append' && themeName !== null
+                    ? AppGenerateService.buildPromptWithThemeChange(
+                          prompt,
+                          themeName,
+                      )
+                    : AppGenerateService.buildThemeChangePrompt(themeName);
+        }
+        if (isDataAppViz) {
+            pipelinePrompt = appendVizBuildContext(
+                pipelinePrompt,
+                vizContext,
+                this.lightdashConfig.appRuntime.sampleDataEnabled,
+            );
+        }
+        return pipelinePrompt;
     }
 
     /**
@@ -8003,7 +8234,35 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             organizationUuid,
         });
+        return this.restoreReadyVersion(
+            user,
+            app,
+            projectUuid,
+            sourceVersion,
+            () =>
+                this.unverifyAppIfNotPreserved({
+                    user,
+                    appUuid,
+                    projectUuid,
+                    organizationUuid,
+                }),
+        );
+    }
 
+    /**
+     * Duplicate a ready version into a new ready version at the head of the
+     * timeline. `afterVersionCreated` runs once the new version row exists.
+     */
+    private async restoreReadyVersion(
+        user: SessionUser,
+        app: Pick<DbAppRow, 'app_id' | 'sandbox_id'> & {
+            organization_uuid: string;
+        },
+        projectUuid: string | null,
+        sourceVersion: number,
+        afterVersionCreated: () => Promise<void>,
+    ): Promise<{ appUuid: string; version: number }> {
+        const appUuid = app.app_id;
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
             latestVersion?.status &&
@@ -8147,12 +8406,7 @@ export class AppGenerateService extends BaseService {
                 vizPreview: source.viz_preview,
             },
         );
-        await this.unverifyAppIfNotPreserved({
-            user,
-            appUuid,
-            projectUuid,
-            organizationUuid,
-        });
+        await afterVersionCreated();
 
         await this.persistVersionDataReferences(
             appUuid,
@@ -8202,7 +8456,16 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to modify data apps',
         );
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
+        await this.startNewAgentThread(user, app, projectUuid);
+        return this.getAppVersions(user, projectUuid, appUuid, {});
+    }
 
+    private async startNewAgentThread(
+        user: SessionUser,
+        app: Pick<DbAppRow, 'app_id'> & { organization_uuid: string },
+        projectUuid: string | null,
+    ): Promise<void> {
+        const appUuid = app.app_id;
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
             latestVersion?.status &&
@@ -8233,8 +8496,6 @@ export class AppGenerateService extends BaseService {
         this.logger.info(
             `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, user=${user.userUuid})`,
         );
-
-        return this.getAppVersions(user, projectUuid, appUuid, {});
     }
 
     /**
@@ -9431,7 +9692,16 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to cancel app generation',
         );
+        await this.cancelBuildingVersion(user, app, projectUuid, version);
+    }
 
+    private async cancelBuildingVersion(
+        user: SessionUser,
+        app: Pick<DbAppRow, 'app_id' | 'sandbox_id'>,
+        projectUuid: string | null,
+        version: number,
+    ): Promise<void> {
+        const appUuid = app.app_id;
         // Read the version before updating it so we can capture the stage
         // it was at when the cancel hit.
         const versionRow = await this.appModel.getVersion(appUuid, version);
@@ -9546,6 +9816,66 @@ export class AppGenerateService extends BaseService {
         });
     }
 
+    private static toApiAppVersion(
+        v: Awaited<
+            ReturnType<AppModel['getAppWithVersions']>
+        >['versions'][number],
+    ): ApiGetAppResponse['results']['versions'][number] {
+        return {
+            version: v.version,
+            threadUuid: v.app_thread_uuid,
+            threadNumber: v.thread_number,
+            prompt: v.prompt,
+            status: v.status,
+            statusMessage: v.status_message,
+            statusHistory: AppGenerateService.filterStatusHistoryForApi(
+                v.status_history,
+                v.status,
+                v.status_message,
+            ),
+            error: v.error,
+            // Attach `vizSchema` even when `resources` JSONB is null (a
+            // viz with no other attachments) — never drop existing
+            // resources fields, and backfill `clarifications` for rows
+            // persisted before the field existed on `resources`.
+            resources:
+                v.resources || v.viz_schema
+                    ? {
+                          images: v.resources?.images ?? [],
+                          creationExperience: v.resources?.creationExperience,
+                          files: v.resources?.files ?? [],
+                          charts: v.resources?.charts ?? [],
+                          externalConnections: v.resources?.externalConnections,
+                          dashboardName: v.resources?.dashboardName ?? null,
+                          clarifications: v.resources?.clarifications ?? [],
+                          claudeModel: v.resources?.claudeModel,
+                          codexModel: v.resources?.codexModel,
+                          design: v.resources?.design,
+                          vizSchema: v.viz_schema ?? null,
+                          vizPreview: v.viz_preview ?? null,
+                      }
+                    : null,
+            createdAt: v.created_at,
+            statusUpdatedAt: v.status_updated_at,
+            // Custom-deps summary only; the lockfile hash is internal.
+            ...(v.dependencies
+                ? { dependencies: { custom: v.dependencies.custom } }
+                : {}),
+            // LEFT JOIN may miss for hard-deleted users — collapse the
+            // whole object to null in that case rather than expose
+            // individually-nullable fields to API consumers.
+            createdByUser:
+                v.created_by_user_first_name !== null &&
+                v.created_by_user_last_name !== null
+                    ? {
+                          userUuid: v.created_by_user_uuid,
+                          firstName: v.created_by_user_first_name,
+                          lastName: v.created_by_user_last_name,
+                      }
+                    : null,
+        };
+    }
+
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
@@ -9655,61 +9985,7 @@ export class AppGenerateService extends BaseService {
                 number: currentThread.thread_number,
                 createdAt: currentThread.created_at,
             },
-            versions: versions.map((v) => ({
-                version: v.version,
-                threadUuid: v.app_thread_uuid,
-                threadNumber: v.thread_number,
-                prompt: v.prompt,
-                status: v.status,
-                statusMessage: v.status_message,
-                statusHistory: AppGenerateService.filterStatusHistoryForApi(
-                    v.status_history,
-                    v.status,
-                    v.status_message,
-                ),
-                error: v.error,
-                // Attach `vizSchema` even when `resources` JSONB is null (a
-                // viz with no other attachments) — never drop existing
-                // resources fields, and backfill `clarifications` for rows
-                // persisted before the field existed on `resources`.
-                resources:
-                    v.resources || v.viz_schema
-                        ? {
-                              images: v.resources?.images ?? [],
-                              creationExperience:
-                                  v.resources?.creationExperience,
-                              files: v.resources?.files ?? [],
-                              charts: v.resources?.charts ?? [],
-                              externalConnections:
-                                  v.resources?.externalConnections,
-                              dashboardName: v.resources?.dashboardName ?? null,
-                              clarifications: v.resources?.clarifications ?? [],
-                              claudeModel: v.resources?.claudeModel,
-                              codexModel: v.resources?.codexModel,
-                              design: v.resources?.design,
-                              vizSchema: v.viz_schema ?? null,
-                              vizPreview: v.viz_preview ?? null,
-                          }
-                        : null,
-                createdAt: v.created_at,
-                statusUpdatedAt: v.status_updated_at,
-                // Custom-deps summary only; the lockfile hash is internal.
-                ...(v.dependencies
-                    ? { dependencies: { custom: v.dependencies.custom } }
-                    : {}),
-                // LEFT JOIN may miss for hard-deleted users — collapse the
-                // whole object to null in that case rather than expose
-                // individually-nullable fields to API consumers.
-                createdByUser:
-                    v.created_by_user_first_name !== null &&
-                    v.created_by_user_last_name !== null
-                        ? {
-                              userUuid: v.created_by_user_uuid,
-                              firstName: v.created_by_user_first_name,
-                              lastName: v.created_by_user_last_name,
-                          }
-                        : null,
-            })),
+            versions: versions.map(AppGenerateService.toApiAppVersion),
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
             registrySlug,
@@ -9804,6 +10080,908 @@ export class AppGenerateService extends BaseService {
                 sort,
             );
         return { data: data.map(mapDataAppViz), pagination };
+    }
+
+    // --- Organization chart types -----------------------------------------
+    // Chart types owned by the organization library instead of a project.
+    // They reuse the project pipeline with a null `projectUuid`.
+
+    private static getUserOrganizationUuid(user: SessionUser): string {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        return user.organizationUuid;
+    }
+
+    private static toOrganizationChartTypeApp(
+        app: DbOrganizationVizWithSchema,
+    ): OrganizationChartTypeApp {
+        return { ...app, organization_uuid: app.owner_organization_uuid };
+    }
+
+    private static mapOrganizationDataAppViz(
+        app: DbOrganizationViz & { viz_schema: DataAppVizSchema | null },
+    ): OrganizationDataAppViz {
+        return {
+            dataAppVizUuid: app.app_id,
+            slug: app.slug,
+            name: app.name,
+            description: app.description,
+            organizationUuid: app.owner_organization_uuid,
+            projectUuid: null,
+            spaceUuid: null,
+            schema: app.viz_schema,
+            createdAt: app.created_at,
+            createdByUserUuid: app.created_by_user_uuid,
+            registrySlug: null,
+            icon: isChartTypeIcon(app.icon) ? app.icon : null,
+        };
+    }
+
+    /**
+     * Every organization chart type route passes this gate: the rollout flag,
+     * the chart types (read) or data apps (write) gate, the ability on the
+     * asset's organization, and the organization library setting.
+     */
+    private async assertOrganizationChartTypeAccess(
+        user: SessionUser,
+        organizationUuid: string,
+        action: 'view' | 'manage',
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.OrganizationChartTypes,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(
+                'Organization chart types are not enabled for this organization.',
+            );
+        }
+        if (action === 'view') {
+            await assertChartTypesEnabled(this.featureFlagModel, user);
+        } else {
+            await this.assertDataAppsEnabled(user);
+        }
+        this.assertOrganizationChartTypeAbility(user, organizationUuid, action);
+        const settings =
+            await this.organizationSettingsModel.get(organizationUuid);
+        if (!settings.organizationChartTypesEnabled) {
+            throw new ForbiddenError(
+                'The organization library is turned off. An organization admin can turn it on in the organization settings.',
+            );
+        }
+    }
+
+    private assertOrganizationChartTypeAbility(
+        user: SessionUser,
+        organizationUuid: string,
+        action: 'view' | 'manage',
+    ): void {
+        if (
+            this.createAuditedAbility(user).cannot(
+                action,
+                subject('OrganizationChartType', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                action === 'view'
+                    ? 'Insufficient permissions to view organization chart types'
+                    : 'Only organization admins can manage organization chart types',
+            );
+        }
+    }
+
+    private async getAuthorizedOrganizationChartType(
+        user: SessionUser,
+        appUuid: string,
+        organizationUuid: string,
+        action: 'view' | 'manage',
+    ): Promise<OrganizationChartTypeApp> {
+        await this.assertOrganizationChartTypeAccess(
+            user,
+            organizationUuid,
+            action,
+        );
+        const app = await this.appModel.findOrganizationVisualizationByUuid(
+            organizationUuid,
+            appUuid,
+        );
+        if (!app) {
+            throw new NotFoundError(`Chart type not found: ${appUuid}`);
+        }
+        this.assertOrganizationChartTypeAbility(
+            user,
+            app.owner_organization_uuid,
+            action,
+        );
+        return AppGenerateService.toOrganizationChartTypeApp(app);
+    }
+
+    private async getManageableOrganizationChartType(
+        user: SessionUser,
+        appUuid: string,
+        organizationUuid: string,
+    ): Promise<OrganizationChartTypeApp> {
+        return this.getAuthorizedOrganizationChartType(
+            user,
+            appUuid,
+            organizationUuid,
+            'manage',
+        );
+    }
+
+    private async getPipelineApp(
+        payload: Pick<
+            AppGeneratePipelineJobPayload,
+            'appUuid' | 'projectUuid' | 'organizationUuid'
+        >,
+    ): Promise<DbAppRow & { organization_uuid: string }> {
+        if (payload.projectUuid !== null) {
+            return this.appModel.getApp(payload.appUuid, payload.projectUuid);
+        }
+        const app = await this.appModel.findOrganizationVisualizationByUuid(
+            payload.organizationUuid,
+            payload.appUuid,
+        );
+        if (!app) {
+            throw new NotFoundError(`App not found: ${payload.appUuid}`);
+        }
+        return AppGenerateService.toOrganizationChartTypeApp(app);
+    }
+
+    /**
+     * The project an organization chart type build may read charts and
+     * dashboards from. It must belong to the chart type's organization and
+     * the builder must be able to explore it; null builds with sample data.
+     */
+    private async resolveOrganizationDataProject(
+        user: SessionUser,
+        organizationUuid: string,
+        dataProjectUuid: string | null,
+        references: {
+            charts: AppChartReference[] | undefined;
+            dashboard: AppDashboardReference | undefined;
+        },
+    ): Promise<string | null> {
+        if (dataProjectUuid === null) {
+            if (
+                (references.charts?.length ?? 0) > 0 ||
+                references.dashboard !== undefined
+            ) {
+                throw new ParameterError(
+                    'Choose a data project to reference its charts or dashboards',
+                );
+            }
+            return null;
+        }
+        if (!isValidUuid(dataProjectUuid)) {
+            throw new ParameterError('Invalid data project UUID format');
+        }
+        const notFound = new NotFoundError(
+            `Data project not found: ${dataProjectUuid}`,
+        );
+        const summary = await this.projectModel
+            .getSummary(dataProjectUuid)
+            .catch((error: unknown) => {
+                throw error instanceof NotFoundError ? notFound : error;
+            });
+        if (summary.organizationUuid !== organizationUuid) {
+            throw notFound;
+        }
+        this.assertCanUseChartTypes(user, {
+            organizationUuid,
+            projectUuid: dataProjectUuid,
+        });
+        return dataProjectUuid;
+    }
+
+    /** The body type omits `externalConnections`; reject it if a client sends it anyway. */
+    private static assertNoOrganizationExternalConnections(
+        body: GenerateOrganizationChartTypeRequestBody,
+    ): void {
+        const { externalConnections } = body as Pick<
+            GenerateAppRequestBody,
+            'externalConnections'
+        >;
+        if (externalConnections && externalConnections.length > 0) {
+            throw new ParameterError(
+                'Organization chart types cannot use external connections',
+            );
+        }
+    }
+
+    private async resolveBuildChartReferences(
+        user: SessionUser,
+        dataProjectUuid: string | null,
+        charts: AppChartReference[] | undefined,
+        dashboard: AppDashboardReference | undefined,
+    ): Promise<{
+        chartReferences: ChartReference[];
+        chartResources: AppVersionChartResource[];
+        sampleStats: { requested: number; available: number };
+        dashboardName: string | null;
+        dashboardBlueprint: DashboardBlueprint | null;
+    }> {
+        if (dataProjectUuid === null) {
+            return {
+                chartReferences: [],
+                chartResources: [],
+                sampleStats: { requested: 0, available: 0 },
+                dashboardName: null,
+                dashboardBlueprint: null,
+            };
+        }
+        const { refs, dashboardName, dashboardBlueprint } =
+            await this.collectChartReferences(
+                charts,
+                dashboard,
+                user,
+                dataProjectUuid,
+            );
+        const { references, chartResources, sampleStats } =
+            await this.resolveChartReferences(refs, user, dataProjectUuid);
+        return {
+            chartReferences: references,
+            chartResources,
+            sampleStats,
+            dashboardName,
+            dashboardBlueprint,
+        };
+    }
+
+    async listOrganizationChartTypes(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        search?: string,
+        sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
+    ): Promise<KnexPaginatedData<OrganizationDataAppViz[]>> {
+        const organizationUuid =
+            AppGenerateService.getUserOrganizationUuid(user);
+        await this.assertOrganizationChartTypeAccess(
+            user,
+            organizationUuid,
+            'view',
+        );
+        const { data, pagination } =
+            await this.appModel.listOrganizationVisualizations(
+                organizationUuid,
+                paginateArgs,
+                search,
+                sort,
+            );
+        return {
+            data: data.map(AppGenerateService.mapOrganizationDataAppViz),
+            pagination,
+        };
+    }
+
+    /** An organization chart type with its version history. */
+    async getOrganizationChartType(
+        user: SessionUser,
+        appUuidOrSlug: string,
+        opts: { beforeVersion?: number; limit?: number },
+    ): Promise<ApiGetAppResponse['results']> {
+        const organizationUuid =
+            AppGenerateService.getUserOrganizationUuid(user);
+        await this.assertOrganizationChartTypeAccess(
+            user,
+            organizationUuid,
+            'view',
+        );
+        const resolved =
+            await this.appModel.findOrganizationVisualizationByUuidOrSlug(
+                organizationUuid,
+                appUuidOrSlug,
+            );
+        if (!resolved) {
+            throw new NotFoundError(`Chart type not found: ${appUuidOrSlug}`);
+        }
+        this.assertOrganizationChartTypeAbility(
+            user,
+            resolved.owner_organization_uuid,
+            'view',
+        );
+        const appUuid = resolved.app_id;
+        const app = await this.appModel.getOrganizationAppWithVersions(
+            appUuid,
+            resolved.owner_organization_uuid,
+            opts,
+        );
+        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        return {
+            appUuid,
+            name: app.name,
+            description: app.description,
+            createdByUserUuid: app.createdByUserUuid,
+            spaceUuid: null,
+            spaceName: null,
+            template: app.template,
+            slug: app.slug,
+            views: app.viewsCount,
+            pinnedListUuid: null,
+            pinnedListOrder: null,
+            currentThread: {
+                uuid: app.currentThread.app_thread_uuid,
+                number: app.currentThread.thread_number,
+                createdAt: app.currentThread.created_at,
+            },
+            versions: app.versions.map(AppGenerateService.toApiAppVersion),
+            hasMore: app.hasMore,
+            latestReadyVersion: latestReady?.version ?? null,
+            registrySlug: null,
+            icon: isChartTypeIcon(app.icon) ? app.icon : null,
+            verification: null,
+            autoAnalysis: normalizeDataAppAutoAnalysis(app.autoAnalysis),
+        };
+    }
+
+    async clarifyOrganizationChartType(
+        user: SessionUser,
+        body: ApiClarifyOrganizationChartTypeRequest,
+    ): Promise<{ questions: string[] }> {
+        const organizationUuid =
+            AppGenerateService.getUserOrganizationUuid(user);
+        await this.assertOrganizationChartTypeAccess(
+            user,
+            organizationUuid,
+            'manage',
+        );
+        const dataProjectUuid = await this.resolveOrganizationDataProject(
+            user,
+            organizationUuid,
+            body.dataProjectUuid,
+            { charts: body.charts, dashboard: body.dashboard },
+        );
+        const trimmed = body.prompt.trim();
+        if (!trimmed) {
+            throw new ParameterError('Prompt is required');
+        }
+        const fileIds = body.fileIds ?? body.imageIds;
+        return this.runClarifier({
+            user,
+            organizationUuid,
+            projectUuid: dataProjectUuid,
+            prompt: trimmed,
+            template: DATA_APP_VIZ_TEMPLATE,
+            fileCount: fileIds?.length ?? 0,
+            loadContext: async () => ({
+                catalogSummary: null,
+                attachedResources:
+                    dataProjectUuid === null
+                        ? { charts: [], dashboard: null }
+                        : await this.buildAttachedResourcesForClarifier(
+                              body.charts,
+                              body.dashboard,
+                              user,
+                              dataProjectUuid,
+                          ),
+            }),
+        });
+    }
+
+    async generateOrganizationChartType(
+        user: SessionUser,
+        body: GenerateOrganizationChartTypeRequestBody,
+    ): Promise<GenerateAppResult> {
+        const organizationUuid =
+            AppGenerateService.getUserOrganizationUuid(user);
+        await this.assertOrganizationChartTypeAccess(
+            user,
+            organizationUuid,
+            'manage',
+        );
+        AppGenerateService.assertNoOrganizationExternalConnections(body);
+        const dataProjectUuid = await this.resolveOrganizationDataProject(
+            user,
+            organizationUuid,
+            body.dataProjectUuid,
+            { charts: body.charts, dashboard: body.dashboard },
+        );
+        const fileIds = body.fileIds ?? body.imageIds ?? [];
+        AppGenerateService.validateFileIds(fileIds);
+        if (body.appUuid !== undefined && !isValidUuid(body.appUuid)) {
+            throw new ParameterError('Invalid UUID format');
+        }
+
+        const { claudeModel, codexModel, codingAgentModel } =
+            await this.resolveBuildModels(
+                organizationUuid,
+                body.claudeModel,
+                body.codexModel,
+            );
+        const appUuid = body.appUuid ?? uuidv4();
+        const version = 1;
+        const claudeEffort = resolveClaudeEffort(
+            version,
+            DATA_APP_VIZ_TEMPLATE,
+        );
+        const stagedFiles = await this.resolveStagedFilesForApp(
+            appUuid,
+            fileIds,
+        );
+        const pipelinePrompt = appendVizBuildContext(
+            formatPromptWithClarifications(body.prompt, body.clarifications),
+            body.vizContext,
+            this.lightdashConfig.appRuntime.sampleDataEnabled,
+        );
+        const {
+            chartReferences,
+            chartResources,
+            sampleStats,
+            dashboardName,
+            dashboardBlueprint,
+        } = await this.resolveBuildChartReferences(
+            user,
+            dataProjectUuid,
+            body.charts,
+            body.dashboard,
+        );
+        const { designUuid, designSnapshot } = await this.resolveInitialDesign(
+            organizationUuid,
+            body.designUuid,
+        );
+        const resources: AppVersionResources = {
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(body.creationExperience
+                ? { creationExperience: body.creationExperience }
+                : {}),
+            charts: chartResources,
+            externalConnections: [],
+            dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
+            clarifications: body.clarifications ?? [],
+            ...(codexModel ? { codexModel } : { claudeModel }),
+            design: designSnapshot,
+        };
+
+        this.logger.info(
+            `App ${appUuid}: organization chart type generation started (model=${codingAgentModel}, promptLength=${body.prompt.length})`,
+        );
+        const { app } =
+            await this.appModel.createOrganizationVisualizationWithVersion(
+                {
+                    appUuid,
+                    organizationUuid,
+                    // The builder creates unnamed; the auto-namer fills it.
+                    name: null,
+                    designUuid,
+                    createdByUserUuid: user.userUuid,
+                    resources,
+                },
+                { version, prompt: body.prompt },
+                'pending',
+            );
+
+        this.analytics.track({
+            event: 'data_app.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: null,
+                appUuid,
+                version,
+                promptLength: body.prompt.length,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
+                template: DATA_APP_VIZ_TEMPLATE,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
+                codingAgent: this.dataAppCodingAgent,
+                codingAgentModel,
+                claudeEffort,
+                samplesRequested: sampleStats.requested,
+                samplesAvailable: sampleStats.available,
+                clarificationCount: body.clarifications?.length ?? 0,
+                creationExperience: body.creationExperience ?? null,
+            },
+        });
+
+        await this.schedulerClient.appGeneratePipeline({
+            appUuid,
+            version,
+            projectUuid: null,
+            organizationUuid,
+            userUuid: user.userUuid,
+            prompt: pipelinePrompt,
+            ...(body.creationExperience
+                ? { creationExperience: body.creationExperience }
+                : {}),
+            template: DATA_APP_VIZ_TEMPLATE,
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            isIteration: false,
+            claudeEffort,
+            chartReferences:
+                chartReferences.length > 0 ? chartReferences : undefined,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
+            ...(codexModel ? { codexModel } : { claudeModel }),
+            designUuid,
+        });
+
+        return { appUuid, slug: app.slug, version };
+    }
+
+    async iterateOrganizationChartType(
+        user: SessionUser,
+        appUuid: string,
+        body: GenerateOrganizationChartTypeRequestBody,
+    ): Promise<GenerateAppResult> {
+        const organizationUuid =
+            AppGenerateService.getUserOrganizationUuid(user);
+        const app = await this.getManageableOrganizationChartType(
+            user,
+            appUuid,
+            organizationUuid,
+        );
+        AppGenerateService.assertNoOrganizationExternalConnections(body);
+        const dataProjectUuid = await this.resolveOrganizationDataProject(
+            user,
+            app.organization_uuid,
+            body.dataProjectUuid,
+            { charts: body.charts, dashboard: body.dashboard },
+        );
+        const fileIds = body.fileIds ?? body.imageIds ?? [];
+        AppGenerateService.validateFileIds(fileIds);
+        const stagedFiles = await this.resolveStagedFilesForApp(
+            appUuid,
+            fileIds,
+        );
+        const { claudeModel, codexModel, codingAgentModel } =
+            await this.resolveBuildModels(
+                app.organization_uuid,
+                body.claudeModel,
+                body.codexModel,
+            );
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (
+            latestVersion?.status &&
+            isAppVersionInProgress(latestVersion.status)
+        ) {
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+        const newVersion = (latestVersion?.version ?? 0) + 1;
+        const claudeEffort = resolveClaudeEffort(newVersion, app.template);
+
+        const {
+            chartReferences,
+            chartResources,
+            sampleStats,
+            dashboardName,
+            dashboardBlueprint,
+        } = await this.resolveBuildChartReferences(
+            user,
+            dataProjectUuid,
+            body.charts,
+            body.dashboard,
+        );
+        const { isThemeChange, effectiveDesignUuid, designSnapshot } =
+            await this.resolveIterationDesign(
+                app.organization_uuid,
+                app.design_uuid,
+                body.designUuid,
+            );
+        const pipelinePrompt = this.buildIterationPipelinePrompt({
+            prompt: body.prompt,
+            isThemeChange,
+            themeChangePrompt: 'replace',
+            themeName: designSnapshot?.name ?? null,
+            isDataAppViz: true,
+            vizContext: body.vizContext,
+        });
+        const resources: AppVersionResources = {
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(body.creationExperience
+                ? { creationExperience: body.creationExperience }
+                : {}),
+            charts: chartResources,
+            externalConnections: [],
+            dashboardName,
+            dashboardUuid: dashboardBlueprint?.dashboardUuid ?? null,
+            clarifications: [],
+            ...(codexModel ? { codexModel } : { claudeModel }),
+            design: designSnapshot,
+        };
+        const carriedDependencies = await this.carryDependenciesForward(
+            appUuid,
+            newVersion,
+            latestVersion?.dependencies,
+        );
+        await this.appModel.createVersion(
+            appUuid,
+            { version: newVersion, prompt: body.prompt },
+            'pending',
+            user.userUuid,
+            resources,
+            carriedDependencies,
+            undefined,
+            { vizPreview: latestVersion?.viz_preview },
+        );
+        if (isThemeChange) {
+            await this.appModel.updateOrganizationVisualization(
+                appUuid,
+                app.organization_uuid,
+                { design_uuid: effectiveDesignUuid },
+            );
+        }
+
+        this.analytics.track({
+            event: 'data_app.iterated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: null,
+                appUuid,
+                version: newVersion,
+                iterationNumber: newVersion - 1,
+                promptLength: body.prompt.length,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
+                ...(this.dataAppCodingAgent === 'claude'
+                    ? { claudeModel }
+                    : {}),
+                codingAgent: this.dataAppCodingAgent,
+                codingAgentModel,
+                claudeEffort,
+                themeChanged: isThemeChange,
+                designUuid: effectiveDesignUuid,
+                previousVersionStatus: latestVersion?.status ?? null,
+                msSinceLastVersion: latestVersion?.created_at
+                    ? Date.now() - latestVersion.created_at.getTime()
+                    : null,
+                samplesRequested: sampleStats.requested,
+                samplesAvailable: sampleStats.available,
+                creationExperience: body.creationExperience ?? null,
+            },
+        });
+
+        await this.schedulerClient.appGeneratePipeline({
+            appUuid,
+            version: newVersion,
+            projectUuid: null,
+            organizationUuid: app.organization_uuid,
+            userUuid: user.userUuid,
+            prompt: pipelinePrompt,
+            ...(body.creationExperience
+                ? { creationExperience: body.creationExperience }
+                : {}),
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            isIteration: true,
+            claudeEffort,
+            chartReferences:
+                chartReferences.length > 0 ? chartReferences : undefined,
+            dashboardBlueprint: dashboardBlueprint ?? undefined,
+            ...(codexModel ? { codexModel } : { claudeModel }),
+            designUuid: effectiveDesignUuid,
+        });
+
+        return { appUuid, slug: app.slug, version: newVersion };
+    }
+
+    async cancelOrganizationChartTypeVersion(
+        user: SessionUser,
+        appUuid: string,
+        version: number,
+    ): Promise<void> {
+        const app = await this.getManageableOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+        );
+        await this.cancelBuildingVersion(user, app, null, version);
+    }
+
+    async restoreOrganizationChartTypeVersion(
+        user: SessionUser,
+        appUuid: string,
+        sourceVersion: number,
+    ): Promise<{ appUuid: string; version: number }> {
+        const app = await this.getManageableOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+        );
+        return this.restoreReadyVersion(
+            user,
+            app,
+            null,
+            sourceVersion,
+            async () => {},
+        );
+    }
+
+    async clearOrganizationChartTypeAgentContext(
+        user: SessionUser,
+        appUuid: string,
+    ): Promise<ApiGetAppResponse['results']> {
+        const app = await this.getManageableOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+        );
+        await this.startNewAgentThread(user, app, null);
+        return this.getOrganizationChartType(user, appUuid, {});
+    }
+
+    async updateOrganizationChartType(
+        user: SessionUser,
+        appUuid: string,
+        update: {
+            name?: string;
+            description?: string;
+            icon?: ChartTypeIcon | null;
+            autoAnalysis?: DataAppAutoAnalysis;
+        },
+    ): Promise<{
+        appUuid: string;
+        name: string;
+        description: string;
+        icon: ChartTypeIcon | null;
+        autoAnalysis: DataAppAutoAnalysis;
+    }> {
+        const app = await this.getManageableOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+        );
+        const updatedApp = await this.appModel.updateOrganizationVisualization(
+            appUuid,
+            app.organization_uuid,
+            AppGenerateService.toAppFieldUpdates(update, app.template),
+        );
+        return {
+            appUuid: updatedApp.app_id,
+            name: updatedApp.name,
+            description: updatedApp.description,
+            icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
+            autoAnalysis: normalizeDataAppAutoAnalysis(
+                updatedApp.auto_analysis,
+            ),
+        };
+    }
+
+    /** Organization chart types are not used by any chart yet. */
+    async getOrganizationChartTypeDeleteImpact(
+        user: SessionUser,
+        appUuid: string,
+    ): Promise<DataAppVizDeleteImpact> {
+        await this.getManageableOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+        );
+        return { chartCount: 0 };
+    }
+
+    async deleteOrganizationChartType(
+        user: SessionUser,
+        appUuid: string,
+    ): Promise<void> {
+        const app = await this.getManageableOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+        );
+        const softDeleteEnabled = this.lightdashConfig.softDelete.enabled;
+        if (softDeleteEnabled) {
+            await this.suspendSandboxIfExists(app.sandbox_id, appUuid);
+            await this.appModel.softDeleteOrganizationVisualization(
+                appUuid,
+                app.organization_uuid,
+                user.userUuid,
+            );
+        } else {
+            await this.killSandboxIfExists(app.sandbox_id, appUuid);
+            await this.deleteAppS3Prefix(appUuid);
+            await this.appModel.permanentDeleteOrganizationVisualization(
+                appUuid,
+                app.organization_uuid,
+            );
+        }
+        this.analytics.track({
+            event: 'data_app.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: null,
+                appUuid,
+                softDelete: softDeleteEnabled,
+                registrySlug: null,
+            },
+        });
+    }
+
+    /**
+     * Stage a file for an organization chart type build. The first build's
+     * uuid is generated client-side, so a missing chart type is authorized
+     * as a create; a uuid held by another app is rejected.
+     */
+    async uploadOrganizationChartTypeFile(
+        user: SessionUser,
+        declaredMimeType: string,
+        body: Readable,
+        contentLength: number,
+        appUuid: string,
+        filename?: string,
+        kind?: 'screenshot',
+    ): Promise<{
+        fileId: string;
+        imageId: string;
+        filename: string;
+        mimeType: string;
+    }> {
+        if (!isValidUuid(appUuid)) {
+            throw new ParameterError('Invalid UUID format');
+        }
+        const organizationUuid =
+            AppGenerateService.getUserOrganizationUuid(user);
+        await this.assertOrganizationChartTypeAccess(
+            user,
+            organizationUuid,
+            'manage',
+        );
+        const app = await this.appModel.findOrganizationVisualizationByUuid(
+            organizationUuid,
+            appUuid,
+        );
+        if (!app && (await this.appModel.hasAppUuid(appUuid))) {
+            throw new ForbiddenError(
+                'Insufficient permissions to upload app files',
+            );
+        }
+        return this.stageUploadedFile(
+            user,
+            null,
+            declaredMimeType,
+            body,
+            contentLength,
+            appUuid,
+            filename,
+            kind,
+        );
+    }
+
+    async getOrganizationChartTypeRenderMetadata(
+        user: SessionUser,
+        appUuid: string,
+        version?: number,
+    ): Promise<DataAppVizRenderMetadata> {
+        const app = await this.getAuthorizedOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+            'view',
+        );
+        return this.resolveVizRenderMetadata(app.app_id, version);
+    }
+
+    async getOrganizationChartTypePreviewToken(
+        user: SessionUser,
+        appUuid: string,
+        version: number,
+    ): Promise<string> {
+        if (!Number.isInteger(version) || version < 1) {
+            throw new ParameterError('Version must be a positive integer');
+        }
+        const app = await this.getAuthorizedOrganizationChartType(
+            user,
+            appUuid,
+            AppGenerateService.getUserOrganizationUuid(user),
+            'view',
+        );
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            app.app_id,
+            version,
+            user.userUuid,
+            app.organization_uuid,
+            null,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                app.app_id,
+            ),
+        );
     }
 
     /** Whether the given entry's `minLightdashVersion` is newer than this instance. Non-semver instance versions are treated as compatible. */
@@ -10677,6 +11855,70 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /** Validated column updates for an app rename, description, icon or auto analysis. */
+    private static toAppFieldUpdates(
+        update: {
+            name?: string;
+            description?: string;
+            icon?: ChartTypeIcon | null;
+            autoAnalysis?: DataAppAutoAnalysis;
+        },
+        template: DbApp['template'],
+    ): Partial<Pick<DbApp, 'name' | 'description' | 'icon' | 'auto_analysis'>> {
+        const fieldsToUpdate: Partial<
+            Pick<DbApp, 'name' | 'description' | 'icon' | 'auto_analysis'>
+        > = {};
+        if (update.name !== undefined) {
+            const trimmedName = update.name.trim();
+            if (trimmedName.length === 0) {
+                throw new ParameterError('App name cannot be empty');
+            }
+            if (trimmedName.length > 255) {
+                throw new ParameterError(
+                    'App name must be 255 characters or fewer',
+                );
+            }
+            fieldsToUpdate.name = trimmedName;
+        }
+        if (update.description !== undefined) {
+            const trimmedDescription = update.description.trim();
+            if (trimmedDescription.length > 1024) {
+                throw new ParameterError(
+                    'App description must be 1024 characters or fewer',
+                );
+            }
+            fieldsToUpdate.description = trimmedDescription;
+        }
+        if (update.icon !== undefined) {
+            if (template !== DATA_APP_VIZ_TEMPLATE) {
+                throw new ParameterError(
+                    'Only custom chart types can have an icon',
+                );
+            }
+            if (update.icon !== null && !isChartTypeIcon(update.icon)) {
+                throw new ParameterError(
+                    `Invalid chart type icon: ${String(update.icon)}`,
+                );
+            }
+            fieldsToUpdate.icon = update.icon;
+        }
+        if (update.autoAnalysis !== undefined) {
+            if (!isDataAppAutoAnalysis(update.autoAnalysis)) {
+                throw new ParameterError(
+                    `Invalid auto analysis value: ${String(update.autoAnalysis)}`,
+                );
+            }
+            fieldsToUpdate.auto_analysis = update.autoAnalysis;
+        }
+
+        if (Object.keys(fieldsToUpdate).length === 0) {
+            throw new ParameterError(
+                'At least one of name, description, icon or autoAnalysis must be provided',
+            );
+        }
+        return fieldsToUpdate;
+    }
+
     async updateApp(
         user: SessionUser,
         projectUuid: string,
@@ -10709,60 +11951,10 @@ export class AppGenerateService extends BaseService {
         });
         AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
-        const fieldsToUpdate: Partial<{
-            name: string;
-            description: string;
-            icon: string | null;
-            auto_analysis: DataAppAutoAnalysis;
-        }> = {};
-        if (update.name !== undefined) {
-            const trimmedName = update.name.trim();
-            if (trimmedName.length === 0) {
-                throw new ParameterError('App name cannot be empty');
-            }
-            if (trimmedName.length > 255) {
-                throw new ParameterError(
-                    'App name must be 255 characters or fewer',
-                );
-            }
-            fieldsToUpdate.name = trimmedName;
-        }
-        if (update.description !== undefined) {
-            const trimmedDescription = update.description.trim();
-            if (trimmedDescription.length > 1024) {
-                throw new ParameterError(
-                    'App description must be 1024 characters or fewer',
-                );
-            }
-            fieldsToUpdate.description = trimmedDescription;
-        }
-        if (update.icon !== undefined) {
-            if (app.template !== DATA_APP_VIZ_TEMPLATE) {
-                throw new ParameterError(
-                    'Only custom chart types can have an icon',
-                );
-            }
-            if (update.icon !== null && !isChartTypeIcon(update.icon)) {
-                throw new ParameterError(
-                    `Invalid chart type icon: ${String(update.icon)}`,
-                );
-            }
-            fieldsToUpdate.icon = update.icon;
-        }
-        if (update.autoAnalysis !== undefined) {
-            if (!isDataAppAutoAnalysis(update.autoAnalysis)) {
-                throw new ParameterError(
-                    `Invalid auto analysis value: ${String(update.autoAnalysis)}`,
-                );
-            }
-            fieldsToUpdate.auto_analysis = update.autoAnalysis;
-        }
-
-        if (Object.keys(fieldsToUpdate).length === 0) {
-            throw new ParameterError(
-                'At least one of name, description, icon or autoAnalysis must be provided',
-            );
-        }
+        const fieldsToUpdate = AppGenerateService.toAppFieldUpdates(
+            update,
+            app.template,
+        );
 
         const updatedApp = await this.appModel.updateApp(
             appUuid,

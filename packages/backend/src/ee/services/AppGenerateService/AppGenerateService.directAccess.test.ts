@@ -138,6 +138,7 @@ const buildService = (role: SpaceMemberRole) => {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(buildUser()),
     };
     const service = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {
             lightdashSecrets: {
                 active: 'test-secret',

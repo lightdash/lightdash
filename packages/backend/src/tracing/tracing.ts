@@ -325,6 +325,7 @@ const AI_HTTP_PATHS = [
     /^\/api\/v1\/aiAgents\/documents(\/|$)/,
     /^\/api\/v1\/ee\/projects\/[^/]+\/(ai-writeback|apps)(\/|$)/,
     /^\/api\/v1\/ee\/user\/apps(\/|$)/,
+    /^\/api\/v1\/ee\/org\/chart-types(\/|$)/,
     /^\/api\/v1\/mcp(\/|$)/,
 ];
 

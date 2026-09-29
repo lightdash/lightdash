@@ -1750,7 +1750,7 @@ export type DataAppCreatedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         version: number;
         promptLength: number;
@@ -1773,7 +1773,7 @@ export type DataAppIteratedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         version: number;
         iterationNumber: number;
@@ -1817,7 +1817,7 @@ export type DataAppVersionCancelledEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         version: number;
         stageAtCancellation: string;
@@ -1831,7 +1831,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         version: number;
         isIteration: boolean;
@@ -1901,7 +1901,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         version: number;
         isIteration: boolean;
@@ -1957,7 +1957,7 @@ export type DataAppFileUploadedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid?: string;
         fileId: string;
         category: 'image' | 'pdf' | 'text';
@@ -2007,7 +2007,7 @@ export type DataAppViewedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
     };
 };
@@ -2017,7 +2017,7 @@ export type DataAppVersionRestoredEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         version: number;
         restoredFromVersion: number;
@@ -2029,7 +2029,7 @@ export type DataAppThreadClearedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         threadNumber: number;
     };
@@ -2040,7 +2040,7 @@ export type DataAppThreadSessionLostEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         threadNumber: number;
         previousSessionId: string;
@@ -2066,7 +2066,7 @@ export type DataAppDeletedEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        projectId: string;
+        projectId: string | null;
         appUuid: string;
         softDelete: boolean;
         // Non-null = uninstall of a registry-installed official chart type.

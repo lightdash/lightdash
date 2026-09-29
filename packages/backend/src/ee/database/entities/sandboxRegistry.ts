@@ -11,7 +11,7 @@ export type SandboxRegistryStatus = 'running' | 'suspended';
 export type DbSandboxRegistry = {
     sandbox_uuid: string;
     organization_uuid: string;
-    project_uuid: string;
+    project_uuid: string | null;
     provider: string;
     provider_sandbox_id: string | null;
     status: SandboxRegistryStatus;

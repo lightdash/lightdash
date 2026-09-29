@@ -53,6 +53,7 @@ function buildService(
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {
             appRuntime: {
                 sampleDataEnabled: overrides.sampleDataEnabled ?? true,

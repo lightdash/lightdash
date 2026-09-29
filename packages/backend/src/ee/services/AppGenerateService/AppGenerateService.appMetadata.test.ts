@@ -44,6 +44,7 @@ type MetadataResult = {
 function buildService() {
     const resolveFastModel = vi.fn().mockResolvedValue(FAST_MODEL_OPTIONS);
     const service = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: { appRuntime: {} } as never,
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,

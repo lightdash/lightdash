@@ -1358,6 +1358,43 @@ export type DataAppViz = {
     registrySlug: string | null;
 };
 
+/**
+ * An organization chart type: a data app viz owned by the organization
+ * library rather than a project. It has no project or space.
+ */
+export type OrganizationDataAppViz = Omit<
+    DataAppViz,
+    'projectUuid' | 'spaceUuid' | 'registrySlug'
+> & {
+    organizationUuid: string;
+    projectUuid: null;
+    spaceUuid: null;
+    registrySlug: null;
+};
+
+export type ApiListOrganizationDataAppVizsResponse = ApiSuccess<
+    KnexPaginatedData<OrganizationDataAppViz[]>
+>;
+
+/**
+ * Generate or iterate on an organization chart type. Builds use sample data
+ * unless `dataProjectUuid` names a project of the same organization whose
+ * charts and dashboards may be referenced.
+ */
+export type GenerateOrganizationChartTypeRequestBody = Omit<
+    GenerateAppRequestBody,
+    'template' | 'spaceUuid' | 'externalConnections'
+> & {
+    dataProjectUuid: string | null;
+};
+
+export type ApiClarifyOrganizationChartTypeRequest = Omit<
+    ApiClarifyAppRequest,
+    'template'
+> & {
+    dataProjectUuid: string | null;
+};
+
 /** Whether a chart type is a registry install: read-only, only editable by forking. */
 export const isOfficialChartType = (
     viz: Pick<DataAppViz, 'registrySlug'>,

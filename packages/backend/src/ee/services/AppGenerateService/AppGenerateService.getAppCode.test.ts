@@ -209,6 +209,7 @@ function buildService(overrides: {
     };
 
     const svc = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {} as never,
         analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,

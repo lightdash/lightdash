@@ -124,6 +124,7 @@ const buildService = (
         updateApp: vi.fn(async () => storedApp),
     };
     const service = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: { appRuntime: {} } as never, // pragma: allowlist secret
         analytics: analytics as never,
         analyticsModel: {} as never,

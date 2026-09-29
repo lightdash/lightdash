@@ -74,6 +74,7 @@ const fakeUser = {
 
 function buildService(appModel: Record<string, unknown>): AppGenerateService {
     const svc = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {} as never,
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,

@@ -61,7 +61,12 @@ import {
     type SqlRunnerPivotQueryPayload,
 } from './sqlRunner';
 
-export type AppGeneratePipelineJobPayload = TraceTaskBase & {
+export type AppGeneratePipelineJobPayload = Omit<
+    TraceTaskBase,
+    'projectUuid'
+> & {
+    // Null for organization chart types, which have no owning project.
+    projectUuid: string | null;
     appUuid: string;
     version: number;
     prompt: string;

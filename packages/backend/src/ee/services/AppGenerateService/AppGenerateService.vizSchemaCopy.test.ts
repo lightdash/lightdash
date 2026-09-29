@@ -151,6 +151,7 @@ function buildService() {
     };
 
     const service = new AppGenerateService({
+        organizationSettingsModel: {} as never,
         lightdashConfig: {
             appRuntime: {},
         } as never,
