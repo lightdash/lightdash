@@ -15,6 +15,7 @@ import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
+import { McpInstallationCard } from './McpInstallationCard';
 
 export const McpGeneralSettingsPage = () => {
     const {
@@ -50,6 +51,7 @@ export const McpGeneralSettingsPage = () => {
                 </Group>
             ) : (
                 <>
+                    <McpInstallationCard />
                     <SettingsCard>
                         <Group
                             justify="space-between"

@@ -625,6 +625,18 @@ export const useSettingsNavigation = (
                                 'edit',
                             ],
                         },
+                        {
+                            title: 'Client setup',
+                            keywords: [
+                                'setup',
+                                'connect',
+                                'http',
+                                'claude',
+                                'codex',
+                                'cursor',
+                                'vscode',
+                            ],
+                        },
                     ],
                     children: [],
                     exact: true,
