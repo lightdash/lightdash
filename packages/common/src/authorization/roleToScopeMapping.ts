@@ -31,6 +31,7 @@ const BASE_ROLE_SCOPES = {
         // org's own metadata + the list of fellow members. Granted by
         // `applyOrganizationMemberStaticAbilities.member` / `viewer`.
         'view:Organization',
+        'view:Learn',
         'view:OrganizationMemberProfile',
 
         // Enterprise scopes (when available)

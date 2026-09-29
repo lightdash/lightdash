@@ -1,4 +1,4 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject as caslSubject } from '@casl/ability';
 import {
     ActivateUser,
     AlreadyExistsError,
@@ -1238,6 +1238,7 @@ export class UserModel {
 
         await this.applyTrainingProjectAbilities(
             user.organization_id,
+            user.organization_uuid,
             user.user_uuid,
             isEnterprise,
             abilityBuilder,
@@ -1315,6 +1316,7 @@ export class UserModel {
      */
     private async applyTrainingProjectAbilities(
         organizationId: number,
+        organizationUuid: string | undefined,
         userUuid: string,
         isEnterprise: boolean,
         builder: AbilityBuilder<MemberAbility>,
@@ -1324,6 +1326,13 @@ export class UserModel {
         // Learn off for the org: no trainee scopes, even if a training
         // project is left over, so switching off also closes the sandbox.
         if (!learnEnabled) return;
+        if (
+            !organizationUuid ||
+            builder
+                .build()
+                .cannot('view', caslSubject('Learn', { organizationUuid }))
+        )
+            return;
         const trainingProjects = await this.getTrainingProjects(
             organizationId,
             userUuid,

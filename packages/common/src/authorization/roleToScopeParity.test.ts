@@ -152,6 +152,7 @@ const PROJECT_PARITY_IGNORE = new Set([
     '*:OrganizationColorPalette',
     '*:OrganizationDesign',
     '*:Roadmap',
+    '*:Learn',
     '*:Group',
     '*:InviteLink',
     '*:GitIntegration',

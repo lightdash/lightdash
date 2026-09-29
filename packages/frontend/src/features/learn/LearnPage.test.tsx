@@ -18,8 +18,10 @@ const {
     accessState,
     progressState,
     learnActions,
+    learnPermission,
 } = vi.hoisted(() => ({
     track: vi.fn(),
+    learnPermission: { granted: true },
     projectState: { current: [] as unknown[] },
     learnFlagState: { current: { enabled: true }, isLoading: false },
     availabilityState: {
@@ -53,11 +55,31 @@ vi.mock('../../providers/App/useApp', () => ({
                 role: 'admin',
                 ability: new Ability([
                     { action: 'manage', subject: 'Organization' },
+                    ...(learnPermission.granted
+                        ? [
+                              {
+                                  action: 'view',
+                                  subject: 'Learn',
+                                  conditions: { organizationUuid: 'org-1' },
+                              },
+                          ]
+                        : []),
                 ]),
             },
         },
     }),
 }));
+
+vi.mock('../../hooks/organization/useOrganization', () => ({
+    useOrganization: () => ({
+        data: { needsProject: false },
+        isInitialLoading: false,
+    }),
+}));
+
+beforeEach(() => {
+    learnPermission.granted = true;
+});
 
 // The learner's access comes from the instance; how the library reads a
 // scope set is the real thing.
@@ -312,6 +334,16 @@ describe('LearnPage access', () => {
             screen.getByRole('menuitem', { name: 'Show extra modules' }),
         );
     };
+
+    it('shows the forbidden state without Learn access and records no library view', () => {
+        learnPermission.granted = false;
+        renderPage();
+        expect(screen.getByText("You don't have access")).toBeInTheDocument();
+        expect(
+            screen.queryByRole('textbox', { name: 'Search the library' }),
+        ).not.toBeInTheDocument();
+        expect(viewEvents()).toEqual([]);
+    });
 
     it('shows what the learner can do, and nothing else', () => {
         const { container } = renderPage();

@@ -173,6 +173,13 @@ describe('roleToScopeMapping', () => {
     });
 
     describe('getScopesForRole', () => {
+        it.each(Object.values(ProjectMemberRole))(
+            'includes Learn in the %s preset',
+            (role) => {
+                expect(getAllScopesForRole(role)).toContain('view:Learn');
+            },
+        );
+
         it('should return scopes for viewer role', () => {
             const scopes = getAllScopesForRole(ProjectMemberRole.VIEWER);
             expect(scopes).toContain('view:Dashboard');

@@ -917,6 +917,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:Learn',
+        description: 'View and use Learn walkthroughs',
+        isEnterprise: false,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'view:Roadmap',
         description: 'View the organization roadmap',
         isEnterprise: true,

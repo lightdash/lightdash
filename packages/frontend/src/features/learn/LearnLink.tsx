@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { FeatureFlags, ProjectType } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { IconSchool } from '@tabler/icons-react';
@@ -6,25 +7,29 @@ import { useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useProjects } from '../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 
-/**
- * Navbar entry to the library, an icon beside notifications and help;
- * present for everyone in an org with the Learn flag on, whether or
- * not the training project exists yet (the page says how), and never on a
- * preview (a learner's training copy included): a library opened inside a
- * copy would start walkthroughs from the wrong place.
- */
+// The library is available to permitted learners, never inside a training copy.
 export const LearnLink: FC<{ projectUuid: string; withLabel?: boolean }> = ({
     projectUuid,
     withLabel = false,
 }) => {
     const navigate = useNavigate();
+    const { user } = useApp();
+    const canViewLearn = user.data?.ability.can(
+        'view',
+        subject('Learn', { organizationUuid: user.data.organizationUuid }),
+    );
     const { data: learnFlag } = useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
     const current = projects?.find(
         (project) => project.projectUuid === projectUuid,
     );
-    if (!learnFlag?.enabled || current?.type === ProjectType.PREVIEW)
+    if (
+        !learnFlag?.enabled ||
+        !canViewLearn ||
+        current?.type === ProjectType.PREVIEW
+    )
         return null;
     return (
         <Tooltip label="Learn" position="bottom" withinPortal>

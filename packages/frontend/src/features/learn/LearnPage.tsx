@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
@@ -156,6 +157,10 @@ const LearnPage: FC = () => {
     // Before the org has enabled Learn (CS-257): admins get the button,
     // everyone else a pointer to an admin.
     const organizationUuid = user.data?.organizationUuid;
+    const canViewLearn = user.data?.ability.can(
+        'view',
+        subject('Learn', { organizationUuid }),
+    );
     const canEnableLearn =
         !!organizationUuid &&
         (user.data?.ability.can(
@@ -285,7 +290,7 @@ const LearnPage: FC = () => {
     useEffect(() => {
         if (trackedViewRef.current) return;
         if (!projects || !learnFlag || !isSettled || !isProgressSettled) return;
-        if (previewRedirect || !learnFlag.enabled) return;
+        if (previewRedirect || !learnFlag.enabled || !canViewLearn) return;
         trackedViewRef.current = true;
         track({
             name: EventName.LEARN_LIBRARY_VIEWED,
@@ -311,6 +316,7 @@ const LearnPage: FC = () => {
         isSettled,
         isProgressSettled,
         previewRedirect,
+        canViewLearn,
         organizationUuid,
         trainingProject,
         available,
@@ -334,6 +340,7 @@ const LearnPage: FC = () => {
             />
         );
     }
+    if (!canViewLearn) return <ForbiddenPanel />;
     if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     if (projects && !trainingProject) {
         return (
