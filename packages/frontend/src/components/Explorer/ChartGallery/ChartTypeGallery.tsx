@@ -49,6 +49,7 @@ import InlineErrorState from '../../common/InlineErrorState';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useIsVegaEditorAvailable } from '../../VisualizationConfigs/ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import classes from './ChartTypeGallery.module.css';
 import { PICKER_SORT } from './pickerSort';
@@ -538,6 +539,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const { visualizationConfig, itemsMap } = useVisualizationContext();
     const selectProjectChartType = useSelectProjectChartType();
     const { disabled, options, vegaOption } = useChartTypeOptions();
+    const isVegaEditorAvailable = useIsVegaEditorAvailable();
     const [forkTarget, setForkTarget] = useState<DataAppViz | null>(null);
 
     const projectTypes = useMemo(
@@ -559,7 +561,10 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const matchesBuiltInSearch = (option: ChartTypeOption) =>
         option.label.toLowerCase().includes(debouncedSearch.toLowerCase());
 
-    const builtInItems: ChartTypeGalleryItem[] = [...options, vegaOption]
+    const builtInItems: ChartTypeGalleryItem[] = [
+        ...options,
+        ...(isVegaEditorAvailable || vegaOption.selected ? [vegaOption] : []),
+    ]
         .filter(matchesBuiltInSearch)
         .map(({ id, ...option }) => ({
             ...option,

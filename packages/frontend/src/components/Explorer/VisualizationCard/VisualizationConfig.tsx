@@ -1,9 +1,12 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { Loader, ScrollArea } from '@mantine/core';
+import { Loader, ScrollArea, Text } from '@mantine/core';
 import { lazy, Suspense, useMemo, type FC } from 'react';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
+import Callout from '../../common/Callout';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
+import { useIsVegaEditorAvailable } from '../../VisualizationConfigs/ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
+import { Config } from '../../VisualizationConfigs/common/Config';
 import { ConfigTabs as DataAppVizConfigTabs } from '../../VisualizationConfigs/DataAppVizConfig/DataAppVizConfigTabs';
 import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/FunnelChartConfig/FunnelChartConfigTabs';
 import { ConfigTabs as GaugeConfigTabs } from '../../VisualizationConfigs/GaugeConfig/GaugeConfigTabs';
@@ -21,11 +24,24 @@ const CustomVisConfigTabsLazy = lazy(() =>
     ),
 );
 
+const VegaEditorUnavailable: FC = () => (
+    <Config>
+        <Config.Section>
+            <Callout variant="info" hideIcon p="xs">
+                <Text fz="xs">
+                    Vega charts can't be edited in embedded views.
+                </Text>
+            </Callout>
+        </Config.Section>
+    </Config>
+);
+
 type Props = {
     chartType: ChartType;
 };
 
 const VisualizationConfig: FC<Props> = ({ chartType }) => {
+    const isVegaEditorAvailable = useIsVegaEditorAvailable();
     const ConfigTab = useMemo(() => {
         switch (chartType) {
             case ChartType.BIG_NUMBER:
@@ -45,6 +61,7 @@ const VisualizationConfig: FC<Props> = ({ chartType }) => {
             case ChartType.MAP:
                 return MapConfigTabs;
             case ChartType.CUSTOM:
+                if (!isVegaEditorAvailable) return VegaEditorUnavailable;
                 // Return a wrapper component that handles lazy loading
                 return () => (
                     <Suspense fallback={<Loader size="sm" />}>
@@ -61,7 +78,7 @@ const VisualizationConfig: FC<Props> = ({ chartType }) => {
                     `Chart type ${chartType} not supported`,
                 );
         }
-    }, [chartType]);
+    }, [chartType, isVegaEditorAvailable]);
 
     return (
         <ScrollArea
