@@ -35,7 +35,8 @@ const fakeFetcher = () =>
 const renderCard = (
     toolArgs: unknown,
     fetcher: ReturnType<typeof fakeFetcher>,
-    onSubmit = vi.fn().mockResolvedValue(undefined),
+    onSubmit = vi.fn().mockResolvedValue({ kind: 'sent' }),
+    waiting = false,
 ) => {
     renderWithProviders(
         <GenerativeUiCard
@@ -43,6 +44,7 @@ const renderCard = (
             projectUuid={PROJECT}
             toolArgs={toolArgs}
             operations={generativeUiOperationsMock}
+            waiting={waiting}
             fetcher={fetcher}
             onSubmit={onSubmit}
         />,
@@ -136,7 +138,6 @@ describe('GenerativeUiCard', () => {
         await user.click(screen.getByRole('button', { name: 'Move charts' }));
 
         expect(await screen.findByText('Required')).toBeInTheDocument();
-        expect(screen.getByText('Select at least one')).toBeInTheDocument();
         expect(writes(fetcher)).toEqual([]);
         expect(onSubmit).not.toHaveBeenCalled();
     });
@@ -189,12 +190,28 @@ describe('GenerativeUiCard', () => {
         ]);
     });
 
+    it('locks the form while a run for the message is in flight', async () => {
+        const onSubmit = vi.fn().mockResolvedValue({ kind: 'sent' });
+        renderCard(moveChartsSpecMock, fakeFetcher(), onSubmit, true);
+
+        expect(
+            await screen.findByText('Waiting for the agent…'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Skip' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Move charts' }),
+        ).not.toBeInTheDocument();
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
     it('offers to send again when the outcome cannot be delivered', async () => {
         const user = userEvent.setup();
         const onSubmit = vi
             .fn()
             .mockRejectedValueOnce(new Error('Offline'))
-            .mockResolvedValueOnce(undefined);
+            .mockResolvedValueOnce({ kind: 'sent' });
         renderCard(moveChartsSpecMock, fakeFetcher(), onSubmit);
 
         await user.click(screen.getByRole('button', { name: 'Skip' }));

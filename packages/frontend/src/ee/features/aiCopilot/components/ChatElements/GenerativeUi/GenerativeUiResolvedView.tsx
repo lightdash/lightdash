@@ -70,11 +70,8 @@ export const GenerativeUiResolvedView: FC<{
 }> = ({ toolArgs, metadata }) => {
     switch (metadata.status) {
         case 'error':
-            return (
-                <Text fz="xs" c="dimmed">
-                    The form could not be shown.
-                </Text>
-            );
+            // The model already has the problems and tries again.
+            return null;
         case 'success':
         case 'failed':
         case 'dismissed':

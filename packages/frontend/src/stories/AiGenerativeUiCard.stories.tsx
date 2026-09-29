@@ -124,10 +124,15 @@ const storyFetcher = (failOnWrite: number | null): GenerativeUiFetcher => {
 type CardHarnessProps = {
     toolArgs: unknown;
     failOnWrite: number | null;
+    waiting: boolean;
 };
 
 /** The card with a fake API; the submitted outcome prints below it. */
-const CardHarness: FC<CardHarnessProps> = ({ toolArgs, failOnWrite }) => {
+const CardHarness: FC<CardHarnessProps> = ({
+    toolArgs,
+    failOnWrite,
+    waiting,
+}) => {
     const [queryClient] = useState(() => createQueryClient());
     const [fetcher] = useState(() => storyFetcher(failOnWrite));
     const [submission, setSubmission] =
@@ -142,10 +147,12 @@ const CardHarness: FC<CardHarnessProps> = ({ toolArgs, failOnWrite }) => {
                         projectUuid={GENERATIVE_UI_PROJECT_UUID_MOCK}
                         toolArgs={toolArgs}
                         operations={generativeUiOperationsMock}
+                        waiting={waiting}
                         fetcher={fetcher}
                         onSubmit={async (next) => {
                             await delay(300);
                             setSubmission(next);
+                            return { kind: 'sent' };
                         }}
                     />
                     {submission === null ? null : (
@@ -161,7 +168,7 @@ const meta: Meta<typeof CardHarness> = {
     title: 'AI Agent/Generative UI card',
     component: CardHarness,
     parameters: { layout: 'fullscreen' },
-    args: { failOnWrite: null },
+    args: { failOnWrite: null, waiting: false },
 };
 
 export default meta;
@@ -192,6 +199,11 @@ export const FailedStep: Story = {
 };
 
 export const InvalidSpec: Story = { args: { toolArgs: invalidSpecMock } };
+
+/** A run for the message is still in flight, so the form is locked. */
+export const Waiting: Story = {
+    args: { toolArgs: moveChartsSpecMock, waiting: true },
+};
 
 const ResolvedHarness: FC<{ metadata: ToolGenerateUiMetadata }> = ({
     metadata,

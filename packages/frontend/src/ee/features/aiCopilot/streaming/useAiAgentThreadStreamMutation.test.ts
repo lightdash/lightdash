@@ -1,4 +1,5 @@
-import type { ReasoningUIPart } from 'ai';
+import { moveChartsSpecMock } from '@lightdash/common/src/ee/AiAgent/generativeUi/generativeUiSpec.mock';
+import type { ReasoningUIPart, UIMessage } from 'ai';
 import { describe, expect, it } from 'vitest';
 import {
     getReasoningFromPart,
@@ -125,6 +126,40 @@ describe('getStreamToolCallPart', () => {
             isArgsPartial: false,
         });
     });
+});
+
+describe('getStreamToolCallPart approvals', () => {
+    const approvalParts: UIMessage['parts'][number][] = [
+        {
+            type: 'tool-generateUi',
+            toolCallId: 'tc-ui',
+            state: 'approval-requested',
+            input: moveChartsSpecMock,
+            approval: { id: 'sql-approval:tc-ui' },
+        },
+        {
+            type: 'tool-generateUi',
+            toolCallId: 'tc-ui',
+            state: 'approval-responded',
+            input: moveChartsSpecMock,
+            approval: { id: 'sql-approval:tc-ui', approved: true },
+        },
+    ];
+
+    it.each(approvalParts)(
+        'keeps a call waiting on the user ($state) with its input',
+        (part) => {
+            expect(getStreamToolCallPart(part)).toEqual({
+                type: 'toolCall',
+                toolCallId: 'tc-ui',
+                toolName: 'generateUi',
+                toolArgs: moveChartsSpecMock,
+                toolResult: null,
+                isPreliminary: undefined,
+                isArgsPartial: false,
+            });
+        },
+    );
 });
 
 describe('readStreamResult', () => {

@@ -26,12 +26,7 @@ import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { BlockList } from './blocks/BlockRenderer';
 import { type GenerativeUiRenderContext } from './blocks/renderContext';
-import {
-    fieldsOf,
-    forEachStateKeysOf,
-    initialStateOf,
-    validateFields,
-} from './fields';
+import { fieldsOf, initialStateOf, validateFields } from './fields';
 import { lightdashApiFetcher, type GenerativeUiFetcher } from './requests';
 import {
     runGenerativeUiAction,
@@ -45,19 +40,29 @@ type Phase =
     | { kind: 'running'; progress: GenerativeUiRunProgress | null }
     | { kind: 'sending'; submission: GenerativeUiActionSubmission }
     | { kind: 'sent'; submission: GenerativeUiActionSubmission }
+    | { kind: 'resolvedElsewhere'; submission: GenerativeUiActionSubmission }
     | {
           kind: 'sendFailed';
           submission: GenerativeUiActionSubmission;
           message: string;
       };
 
+/** What the host did with a submission: sent it on, or found the card already resolved. */
+export type GenerativeUiSubmitResult =
+    | { kind: 'sent' }
+    | { kind: 'resolvedElsewhere' };
+
 type GenerativeUiCardProps = {
     toolCallId: string;
     projectUuid: string;
     toolArgs: unknown;
     operations: GenerativeUiOperation[];
+    /** A run for this message is in flight, so the form cannot act yet. */
+    waiting: boolean;
     fetcher?: GenerativeUiFetcher;
-    onSubmit: (submission: GenerativeUiActionSubmission) => Promise<void>;
+    onSubmit: (
+        submission: GenerativeUiActionSubmission,
+    ) => Promise<GenerativeUiSubmitResult>;
 };
 
 const errorMessageOf = (error: unknown): string => {
@@ -112,6 +117,7 @@ const OutcomeNotice: FC<{
 
 const Footer: FC<{
     phase: Phase;
+    waiting: boolean;
     action: GenerativeUiAction;
     destructive: boolean;
     compiled: GenerativeUiCompiledSpec;
@@ -122,6 +128,7 @@ const Footer: FC<{
     onResend: (submission: GenerativeUiActionSubmission) => void;
 }> = ({
     phase,
+    waiting,
     action,
     destructive,
     compiled,
@@ -132,6 +139,16 @@ const Footer: FC<{
     onResend,
 }) => {
     const actionColor = destructive ? 'red' : undefined;
+    if (waiting && (phase.kind === 'editing' || phase.kind === 'confirming')) {
+        return (
+            <Group gap="xs">
+                <Loader size="xs" />
+                <Text fz="xs" c="dimmed">
+                    Waiting for the agent…
+                </Text>
+            </Group>
+        );
+    }
     switch (phase.kind) {
         case 'editing':
             return (
@@ -221,6 +238,12 @@ const Footer: FC<{
                     </Group>
                 </Stack>
             );
+        case 'resolvedElsewhere':
+            return (
+                <Text fz="xs" c="dimmed">
+                    This form was already completed elsewhere.
+                </Text>
+            );
         default:
             return assertUnreachable(phase, 'Unknown generative UI phase');
     }
@@ -229,12 +252,14 @@ const Footer: FC<{
 const GenerativeUiForm: FC<{
     toolCallId: string;
     compiled: GenerativeUiCompiledSpec;
+    waiting: boolean;
     fetcher: GenerativeUiFetcher;
-    onSubmit: (submission: GenerativeUiActionSubmission) => Promise<void>;
-}> = ({ toolCallId, compiled, fetcher, onSubmit }) => {
+    onSubmit: (
+        submission: GenerativeUiActionSubmission,
+    ) => Promise<GenerativeUiSubmitResult>;
+}> = ({ toolCallId, compiled, waiting, fetcher, onSubmit }) => {
     const { spec } = compiled;
     const fields = useMemo(() => fieldsOf(spec.blocks), [spec]);
-    const forEachStateKeys = useMemo(() => forEachStateKeysOf(spec), [spec]);
     const labels = useMemo(
         () => new Map(fields.map((field) => [field.key, field.label])),
         [fields],
@@ -253,8 +278,20 @@ const GenerativeUiForm: FC<{
     const send = async (submission: GenerativeUiActionSubmission) => {
         setPhase({ kind: 'sending', submission });
         try {
-            await onSubmit(submission);
-            setPhase({ kind: 'sent', submission });
+            const result = await onSubmit(submission);
+            switch (result.kind) {
+                case 'sent':
+                    setPhase({ kind: 'sent', submission });
+                    return;
+                case 'resolvedElsewhere':
+                    setPhase({ kind: 'resolvedElsewhere', submission });
+                    return;
+                default:
+                    assertUnreachable(
+                        result,
+                        'Unknown generative UI submit result',
+                    );
+            }
         } catch (error) {
             setPhase({
                 kind: 'sendFailed',
@@ -277,7 +314,7 @@ const GenerativeUiForm: FC<{
     };
 
     const onAction = () => {
-        const errors = validateFields(fields, form.values, forEachStateKeys);
+        const errors = validateFields(fields, form.values);
         form.setErrors(errors);
         if (Object.keys(errors).length > 0) return;
         if (spec.action.confirm === undefined) {
@@ -290,7 +327,7 @@ const GenerativeUiForm: FC<{
     const context: GenerativeUiRenderContext = {
         state: form.values,
         errors: form.errors,
-        locked: phase.kind !== 'editing',
+        locked: phase.kind !== 'editing' || waiting,
         queryStates,
         loadedQueries: loaded,
         labels,
@@ -316,6 +353,7 @@ const GenerativeUiForm: FC<{
                 </Stack>
                 <Footer
                     phase={phase}
+                    waiting={waiting}
                     action={spec.action}
                     destructive={compiled.steps.some(
                         ({ operation }) => operation.method === 'DELETE',
@@ -343,6 +381,7 @@ export const GenerativeUiCard: FC<GenerativeUiCardProps> = ({
     projectUuid,
     toolArgs,
     operations,
+    waiting,
     fetcher = lightdashApiFetcher,
     onSubmit,
 }) => {
@@ -387,6 +426,7 @@ export const GenerativeUiCard: FC<GenerativeUiCardProps> = ({
             key={toolCallId}
             toolCallId={toolCallId}
             compiled={result.compiled}
+            waiting={waiting}
             fetcher={fetcher}
             onSubmit={onSubmit}
         />

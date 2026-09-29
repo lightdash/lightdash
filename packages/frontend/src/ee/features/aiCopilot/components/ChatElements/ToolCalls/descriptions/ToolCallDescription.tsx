@@ -51,6 +51,7 @@ import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldImpactToolCallDescription } from './FieldImpactToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
+import { GenerativeUiToolCallDescription } from './GenerativeUiToolCallDescription';
 import { GetMetadataToolCallDescription } from './GetMetadataToolCallDescription';
 import { GrepFieldsToolCallDescription } from './GrepFieldsToolCallDescription';
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
@@ -402,10 +403,16 @@ export const ToolCallDescription: FC<{
         case 'findCustomChartTypes':
         case 'searchTools':
         case 'runCode':
+            return <> </>;
         case 'searchApi':
         case 'describeApi':
         case 'generateUi':
-            return <> </>;
+            return (
+                <GenerativeUiToolCallDescription
+                    toolName={toolName}
+                    toolArgs={toolCall.toolArgs}
+                />
+            );
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
     }
