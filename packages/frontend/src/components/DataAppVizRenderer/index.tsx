@@ -215,7 +215,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             renderSavedChartUuid
                 ? {
                       savedChartUuid: renderSavedChartUuid,
-                      ...(chartVersionUuid ? { chartVersionUuid } : {}),
+                      chartVersionUuid,
                   }
                 : undefined,
         [renderSavedChartUuid, chartVersionUuid],

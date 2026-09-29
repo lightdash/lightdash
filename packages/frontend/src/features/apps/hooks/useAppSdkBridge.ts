@@ -775,8 +775,9 @@ export function useAppSdkBridge({
 
                 emitExternal({ status: 'pending' });
 
-                // The host alone supplies chart context; the backend resolves
-                // the alias, attaches secrets, and authorizes this endpoint.
+                // Host-supplied chart context only; the backend resolves the
+                // alias, attaches secrets, and authorizes this endpoint, so
+                // ALLOWED_ROUTES is deliberately not consulted here.
                 const externalFetchPath = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/external-fetch`;
                 const externalFetchBody: ExternalFetchRequest = {
                     connectionAlias: alias,
@@ -784,7 +785,7 @@ export function useAppSdkBridge({
                     path: externalPath,
                     query: externalQuery,
                     body: externalBody,
-                    ...(chartContext ? { chartContext } : {}),
+                    chartContext,
                 };
 
                 try {

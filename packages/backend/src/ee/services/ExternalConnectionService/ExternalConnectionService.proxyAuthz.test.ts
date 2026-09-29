@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     ChartType,
     DashboardTileTypes,
@@ -423,11 +424,44 @@ describe('custom chart type external connection authorization', () => {
         },
     );
 
+    it('keeps data app access for a chart type creator without explorer permission', async () => {
+        const { service } = buildService();
+        const user = {
+            ...defaultSessionUser,
+            role: OrganizationMemberRole.VIEWER,
+            organizationUuid: 'org-1',
+            userUuid: 'creator-1',
+        };
+        const account = fromSession(
+            {
+                ...user,
+                ability: new Ability([
+                    { action: 'view', subject: 'DataApp' },
+                ]) as never,
+            },
+            'session',
+        );
+        await expect(
+            service.proxyFetch(account, 'proj-1', 'app-1', request),
+        ).resolves.toMatchObject({ status: 200 });
+    });
+
     it('rejects a viewer without explorer permission when no saved chart is supplied', async () => {
         const { service } = buildService();
         await expect(
             service.proxyFetch(sessionAccount(), 'proj-1', 'app-1', request),
         ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('rejects a user without data app view or explorer permission before loading credentials', async () => {
+        const { service, externalConnectionModel } = buildService();
+        await expect(
+            service.proxyFetch(sessionAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(
+            externalConnectionModel.getDecryptedSecret,
+        ).not.toHaveBeenCalled();
         expect(mockSecureFetch).not.toHaveBeenCalled();
     });
 

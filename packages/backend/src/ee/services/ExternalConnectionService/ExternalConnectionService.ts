@@ -685,58 +685,46 @@ export class ExternalConnectionService extends BaseService {
         });
     }
 
-    async proxyFetch(
+    private async authorizeProxyApp(
         account: Account,
         projectUuid: string,
         appUuid: string,
-        req: ExternalFetchRequest,
-    ): Promise<ExternalFetchResponse> {
-        const start = performance.now();
-
-        if (!isJwtUser(account)) {
-            assertRegisteredAccount(account);
-        }
-        const app = isJwtUser(account)
-            ? await this.appModel.findApp(appUuid, projectUuid)
-            : await this.appModel.getApp(appUuid, projectUuid);
-        if (!app) {
-            throw new ForbiddenError(
-                'Data app is not authorized by this embed',
-            );
-        }
-
-        // Chart types inherit authorization from the chart or explorer rendering them.
-        if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            if (isJwtUser(account)) {
+        chartContext: ExternalFetchRequest['chartContext'],
+    ) {
+        if (isJwtUser(account)) {
+            const app = await this.appModel.findApp(appUuid, projectUuid);
+            if (!app) {
+                throw new ForbiddenError(
+                    'Data app is not authorized by this embed',
+                );
+            }
+            // Chart types inherit authorization from the chart or explorer rendering them.
+            if (app.template === DATA_APP_VIZ_TEMPLATE) {
                 await this.embedService.assertCanAccessDataAppVisualization(
                     account,
                     projectUuid,
                     appUuid,
-                    req.chartContext,
+                    chartContext,
                 );
             } else {
-                assertRegisteredAccount(account);
-                await this.appGenerateService.assertCanAccessDataAppVisualization(
-                    toSessionUser(account),
-                    projectUuid,
-                    appUuid,
-                    req.chartContext,
+                await assertCanViewEmbeddedApp(
+                    {
+                        createAuditedAbility: (embeddedAccount) =>
+                            this.createAuditedAbility(embeddedAccount),
+                        appModel: this.appModel,
+                    },
+                    account,
+                    app,
                 );
             }
-        } else if (isJwtUser(account)) {
-            await assertCanViewEmbeddedApp(
-                {
-                    createAuditedAbility: (embeddedAccount) =>
-                        this.createAuditedAbility(embeddedAccount),
-                    appModel: this.appModel,
-                },
-                account,
-                app,
-            );
-        } else {
-            assertRegisteredAccount(account);
-            const user = toSessionUser(account);
-            await assertCanViewApp(
+            return app;
+        }
+
+        assertRegisteredAccount(account);
+        const user = toSessionUser(account);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const assertCanViewDataApp = () =>
+            assertCanViewApp(
                 {
                     auditedAbility: this.createAuditedAbility(user),
                     resolveAccess: (userUuid, targetApp) =>
@@ -753,7 +741,45 @@ export class ExternalConnectionService extends BaseService {
                 user,
                 app,
             );
+        if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+            await assertCanViewDataApp();
+            return app;
         }
+
+        // Chart type authors keep data app permissions; chart access is additive.
+        try {
+            await assertCanViewDataApp();
+        } catch (error) {
+            if (
+                !(error instanceof ForbiddenError) &&
+                !(error instanceof NotFoundError)
+            ) {
+                throw error;
+            }
+            await this.appGenerateService.assertCanAccessDataAppVisualization(
+                user,
+                projectUuid,
+                appUuid,
+                chartContext,
+            );
+        }
+        return app;
+    }
+
+    async proxyFetch(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        req: ExternalFetchRequest,
+    ): Promise<ExternalFetchResponse> {
+        const start = performance.now();
+
+        const app = await this.authorizeProxyApp(
+            account,
+            projectUuid,
+            appUuid,
+            req.chartContext,
+        );
 
         // 2. Resolve the alias → connection (must be linked to this app).
         const connection = await this.externalConnectionModel.resolveAppAlias(

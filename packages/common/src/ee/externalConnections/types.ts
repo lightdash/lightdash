@@ -1,3 +1,5 @@
+import { type UUID } from '../../types/api/uuid';
+
 export type ExternalConnectionAuthType =
     | 'none'
     | 'api_key'
@@ -196,8 +198,8 @@ export type ExternalFetchRequest = {
     body?: unknown;
     /** Host-supplied saved chart identity for custom chart type rendering. */
     chartContext?: {
-        savedChartUuid: string;
-        chartVersionUuid?: string;
+        savedChartUuid: UUID;
+        chartVersionUuid?: UUID;
     };
 };
 
