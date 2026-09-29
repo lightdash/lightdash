@@ -5,6 +5,7 @@ import {
     accessNote,
     buildLearnCatalogue,
     DEVELOPER,
+    DOCS_LESSON_SCOPE,
     gateFor,
     GROUP_DESCRIPTIONS,
     GROUP_LABELS,
@@ -206,7 +207,7 @@ describe('docs modules', () => {
         ).toBe(true);
     });
 
-    it('puts docs modules in the Developer group behind the sandbox gate with no role floor', () => {
+    it('puts docs modules in the Developer group behind the sandbox gate with a Developer floor', () => {
         const metrics = modules.find(
             (m) => m.scope === 'docs:semantic-layer/metrics',
         )!;
@@ -214,16 +215,27 @@ describe('docs modules', () => {
             kind: 'docs',
             group: DEVELOPER,
             gate: 'sandbox',
-            minRole: null,
+            minRole: ProjectMemberRole.DEVELOPER,
         });
     });
 
-    it('is held by every learner and carries no access note', () => {
+    it('is held only by a learner who can change source code', () => {
         const metrics = modules.find(
             (m) => m.scope === 'docs:semantic-layer/metrics',
         )!;
-        expect(holds(new Set(), metrics)).toBe(true);
-        expect(accessNote(new Set(), metrics)).toBeNull();
+        expect(holds(asRole(ProjectMemberRole.VIEWER), metrics)).toBe(false);
+        expect(holds(asRole(ProjectMemberRole.EDITOR), metrics)).toBe(false);
+        expect(holds(asRole(ProjectMemberRole.DEVELOPER), metrics)).toBe(true);
+        expect(holds(asRole(ProjectMemberRole.ADMIN), metrics)).toBe(true);
+        expect(holds(new Set([DOCS_LESSON_SCOPE]), metrics)).toBe(true);
+    });
+
+    it('tells a learner who cannot change source code that it takes a Developer', () => {
+        const metrics = modules.find(
+            (m) => m.scope === 'docs:semantic-layer/metrics',
+        )!;
+        expect(accessNote(new Set(), metrics)).toBe('Developer and above');
+        expect(accessNote(new Set([DOCS_LESSON_SCOPE]), metrics)).toBeNull();
     });
 
     it('declares exactly the lesson ids the instance keeps progress for', () => {

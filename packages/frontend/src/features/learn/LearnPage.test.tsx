@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
-import { SANDBOX_LESSONS } from './sandboxLessons';
 
 const {
     track,
@@ -304,8 +303,6 @@ describe('LearnPage analytics', () => {
 
 describe('LearnPage access', () => {
     const catalogueScopes = catalogue.map((module) => module.scope);
-    /** Docs lessons need no scope, so every learner is shown them. */
-    const lessons = SANDBOX_LESSONS.map((lesson) => lesson.id);
     const sorted = (scopes: (string | null)[]) =>
         [...scopes].sort((a, b) => (a ?? '').localeCompare(b ?? ''));
 
@@ -349,7 +346,7 @@ describe('LearnPage access', () => {
         const { container } = renderPage();
 
         expect(sorted(shown(container))).toEqual(
-            sorted(['manage:Validation', 'view:Dashboard', ...lessons]),
+            sorted(['manage:Validation', 'view:Dashboard']),
         );
     });
 
@@ -387,8 +384,31 @@ describe('LearnPage access', () => {
         expect(screen.getByText('Every module')).toBeTruthy();
     });
 
-    it('lists the Metrics lesson under Developer for a learner who holds no scope', () => {
+    it('keeps the Metrics lesson behind Extra modules for a learner who cannot change source code', async () => {
         accessState.current = [];
+
+        const { container } = renderPage();
+
+        expect(
+            container.querySelector(
+                '[data-learn-module="docs:semantic-layer/metrics"]',
+            ),
+        ).toBeNull();
+        expect(
+            container.querySelector('[data-learn-group="developer"]'),
+        ).toBeNull();
+
+        await toggleExtra();
+
+        const extra = container.querySelector(
+            '[data-learn-module="docs:semantic-layer/metrics"]',
+        );
+        expect(extra).not.toBeNull();
+        expect(extra!.textContent).toContain('Developer and above');
+    });
+
+    it('lists the Metrics lesson under Developer for a learner who can change source code', () => {
+        accessState.current = ['manage:SourceCode'];
 
         const { container } = renderPage();
 
@@ -427,7 +447,7 @@ describe('LearnPage access', () => {
         expect(shown(container)).toEqual(['view:Dashboard']);
         await userEvent.clear(input);
         expect(sorted(shown(container))).toEqual(
-            sorted(['manage:Validation', 'view:Dashboard', ...lessons]),
+            sorted(['manage:Validation', 'view:Dashboard']),
         );
     });
 });
