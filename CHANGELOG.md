@@ -1,3 +1,11 @@
+## [2.361.1](https://github.com/lightdash/lightdash/compare/2.361.0...2.361.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* expose content names in export analytics ([#29629](https://github.com/lightdash/lightdash/issues/29629)) ([5057184](https://github.com/lightdash/lightdash/commit/5057184a122c15116b0acc6915e977beaebd2ac1))
+* preserve null-only dashboard filter selections ([#30058](https://github.com/lightdash/lightdash/issues/30058)) ([7080f85](https://github.com/lightdash/lightdash/commit/7080f85885933504b1e921ce77fb018733a8697a))
+
 # [2.361.0](https://github.com/lightdash/lightdash/compare/2.360.3...2.361.0) (2026-09-28)
 
 
