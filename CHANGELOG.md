@@ -1,3 +1,10 @@
+# [2.367.0](https://github.com/lightdash/lightdash/compare/2.366.0...2.367.0) (2026-09-29)
+
+
+### Features
+
+* expose user activity models in usage analytics ([#30148](https://github.com/lightdash/lightdash/issues/30148)) ([71bf005](https://github.com/lightdash/lightdash/commit/71bf005a7ebfebe67da90c9308c71dad958c5cb7)), closes [#23450](https://github.com/lightdash/lightdash/issues/23450)
+
 # [2.366.0](https://github.com/lightdash/lightdash/compare/2.365.0...2.366.0) (2026-09-29)
 
 
