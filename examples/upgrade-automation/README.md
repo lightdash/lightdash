@@ -40,7 +40,9 @@ The plan action creates the pin commit through the GitHub API, so GitHub verifie
 | `registry_check` | `LIGHTDASH_REGISTRY_CHECK` | Optional OCI image repository, without a tag. The action runs `docker manifest inspect repository:version+suffix`; authenticate to a private registry earlier in the job. An unavailable tag exits without opening or updating a pull request and is retried by the next trigger. |
 | `verify_window` | `LIGHTDASH_VERIFY_WINDOW` | Post-deploy verification budget. Accepts seconds or an `s`, `m`, or `h` suffix and defaults to `20m`. |
 | `auto_merge` | `LIGHTDASH_AUTO_MERGE` | Set to `'true'` for zero-touch squash auto-merge after a green gate. The repository must allow auto-merge. |
-| `escalation` | `LIGHTDASH_UPGRADE_SLACK_WEBHOOK` secret | Optional Slack incoming-webhook URL. The webhook configuration selects the destination channel. Empty disables Slack while retaining issues and pull-request comments. |
+| `escalation` | `LIGHTDASH_UPGRADE_SLACK_WEBHOOK` secret | Optional Slack incoming-webhook URL. The webhook configuration selects the default channel. Empty disables Slack while retaining issues and pull-request comments. |
+| `escalation_channel` | `with:` value | Optional Slack channel, such as `#engineering`, that overrides the webhook's default channel. Empty posts to the default channel. |
+| `instance` | `with:` value (freeze announcer only) | Optional instance name, such as `staging.lightdash.cloud`. Freeze announcements name it so readers know what is paused. Empty keeps the generic text. |
 | `freeze_label` | `LIGHTDASH_FREEZE_LABEL` | Label on any open issue that disarms planning. Verification failures create this label and an issue automatically. |
 | `hold_label` | `LIGHTDASH_HOLD_LABEL` | Label applied to a held upgrade pull request and removed once that pull request goes green. Defaults to `upgrade-hold`. Empty disables label management. |
 | `hold_reminder_interval` | `LIGHTDASH_HOLD_REMINDER_INTERVAL` | Minimum time between repeated `[upgrade-hold]` Slack messages for one held pull request. Accepts seconds or an `s`, `m`, or `h` suffix and defaults to `24h`. `0` disables reminders. |
