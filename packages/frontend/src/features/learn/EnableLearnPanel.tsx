@@ -47,14 +47,11 @@ export const EnableLearnPanel: FC<Props> = ({
                         Learn
                     </Text>
                     <Title order={1} className={styles.enableTitle}>
-                        Learn Lightdash by doing, on data nobody can break
+                        Get confident with Lightdash, step by step
                     </Title>
                     <Text component="p" className={styles.enableLede}>
-                        Learn gives everyone in your organisation a sample
-                        project to practise on, with a guided walkthrough for
-                        each thing Lightdash can do. Every walkthrough runs in a
-                        fresh copy of that project and the copy is removed when
-                        it ends, so nothing here touches your real projects.
+                        Work through guided walkthroughs on a sample project,
+                        one feature at a time.
                     </Text>
                 </Box>
 
