@@ -685,8 +685,36 @@ test('retirement grace leaves the pool available, then teardown holds pool befor
     }
 });
 
+test('a routine record write during grace does not block retirement', async () => {
+    const f = fixture();
+    f.spare.kind = 'warming';
+    let registry: Instance[] = [f.spare];
+    const locks = mutex();
+    let acquired = 0;
+    let removed = false;
+    await retireStalePoolInstances(f.spare.parent, {
+        ...retirementTestHooks,
+        withLock: async (name, work, options) => {
+            if (name === f.spare.id && ++acquired === 2) {
+                const written = structuredClone(f.spare);
+                written.updatedAt = 'monitor-heartbeat';
+                registry = [written];
+            }
+            return locks.withLock(name, work, options);
+        },
+        instances: async () => registry,
+        saveInstance: f.operations.saveInstance,
+        alive: () => false,
+        spareBackendMode: async () => 'bundle' as const,
+        down: async () => {
+            removed = true;
+        },
+    });
+    assert.equal(removed, true);
+});
+
 test('stale teardown rechecks generation and state after grace under the pool lock', async () => {
-    for (const change of ['missing', 'phase', 'epoch', 'updated', 'kind']) {
+    for (const change of ['missing', 'phase', 'epoch', 'kind', 'claim']) {
         const f = fixture();
         f.spare.kind = 'warming';
         let registry: Instance[] = [f.spare];
@@ -702,9 +730,13 @@ test('stale teardown rechecks generation and state after grace under the pool lo
                     const changed = structuredClone(f.spare);
                     if (change === 'phase') changed.phase = 'starting';
                     if (change === 'epoch') changed.startedAt = 'another-start';
-                    if (change === 'updated')
-                        changed.updatedAt = 'another-write';
                     if (change === 'kind') changed.kind = 'claimed';
+                    if (change === 'claim')
+                        changed.claim = {
+                            at: 'during-grace',
+                            reason: 'process cwd',
+                            pid: 1,
+                        };
                     registry = change === 'missing' ? [] : [changed];
                 }
                 return locks.withLock(name, work, options);

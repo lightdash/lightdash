@@ -702,14 +702,18 @@ export async function retireStalePoolInstances(
                         !current ||
                         current.phase !== instance.phase ||
                         current.kind !== instance.kind ||
+                        Boolean(current.claim) !== Boolean(instance.claim) ||
                         current.startedAt !== instance.startedAt ||
-                        current.updatedAt !== instance.updatedAt ||
                         current.worktree !== instance.worktree ||
                         current.parent !== instance.parent ||
                         current.readyWorktree?.retiring?.hiddenAt !==
                             instance.readyWorktree?.retiring?.hiddenAt
-                    )
+                    ) {
+                        process.stderr.write(
+                            `ldenv: kept ${instance.id}; it changed during the retirement grace period\n`,
+                        );
                         return;
+                    }
                     if (
                         await (operations.protectReadyWorktree?.(current) ??
                             false)
