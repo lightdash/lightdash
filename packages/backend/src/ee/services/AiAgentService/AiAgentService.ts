@@ -16572,6 +16572,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         app.action('actions.explore_button_click', async ({ ack, respond }) => {
             await ack();
         });
+        // URL buttons also send an interaction payload. Acknowledge both the
+        // existing card link and the table CSV export link so Slack does not
+        // show a timeout after opening Lightdash.
+        app.action(
+            /^actions\.(explore_card_button_click|download_csv_button_click)\./,
+            async ({ ack }) => {
+                await ack();
+            },
+        );
     }
 
     public handleAiReviewOpenButton(app: App) {

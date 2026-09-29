@@ -119,6 +119,26 @@ describe('getSlackTableBlocks', () => {
         });
     });
 
+    it('adds a CSV export action only to a ready table with an artifact link', () => {
+        const blocks = getSlackTableBlocks([
+            preview([{ month: 'September' }], {
+                downloadUrl:
+                    'https://lightdash.test/thread?downloadArtifactUuid=a&downloadVersionUuid=v',
+            }),
+        ]);
+
+        expect(blocks[1]).toMatchObject({
+            type: 'actions',
+            elements: [
+                { text: { text: 'Open agent thread' } },
+                {
+                    text: { text: 'Export CSV in Lightdash' },
+                    url: 'https://lightdash.test/thread?downloadArtifactUuid=a&downloadVersionUuid=v',
+                },
+            ],
+        });
+    });
+
     it('preserves formatted numbers without treating numeric strings or nulls as numbers', () => {
         const table = tablesFrom([
             preview([

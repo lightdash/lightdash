@@ -185,9 +185,18 @@ describe('getSlackTablePreviews', () => {
                 status: 'ready',
                 title: 'Saved presentation',
                 artifactVersionUuid: 'saved-table',
+                downloadUrl:
+                    'https://lightdash.test/threads/thread?downloadArtifactUuid=artifact&downloadVersionUuid=saved-table',
             },
         ]);
         expect(input.getResults).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits the export link when a selected table has no saved artifact', async () => {
+        const previews = await getSlackTablePreviews(setup());
+        expect(previews.every((preview) => !('downloadUrl' in preview))).toBe(
+            true,
+        );
     });
 
     it('keeps a proposed table corrected to a chart out of the inline tables', async () => {

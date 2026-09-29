@@ -52,6 +52,7 @@ import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
+import { useAiChartDownloadDeepLink } from '../../hooks/useAiChartDownloadDeepLink';
 import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 import {
     requestDashboardRefresh,
@@ -83,6 +84,7 @@ type Props = {
     projectUuid: string;
     agentUuid: string;
     showDownloadResults: boolean;
+    allowDownloadDeepLink?: boolean;
     saveChartOptions?: {
         name: string | null;
         description: string | null;
@@ -102,6 +104,7 @@ export const AiChartQuickOptions = ({
     projectUuid,
     agentUuid,
     showDownloadResults,
+    allowDownloadDeepLink = false,
     saveChartOptions = { name: '', description: '', linkToMessage: true },
     message,
     compiledSql,
@@ -197,6 +200,14 @@ export const AiChartQuickOptions = ({
     const isVerified = artifactData?.verifiedByUserUuid !== null;
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
+
+    useAiChartDownloadDeepLink({
+        allowDownloadDeepLink,
+        canDownloadResults: !!canDownloadResults,
+        isDisabled,
+        artifact: artifactData,
+        openDownloadModal,
+    });
     const canExportImage =
         artifactData?.artifactType === 'chart' &&
         !isEmbed &&

@@ -50,6 +50,13 @@ export const isSlackTableArtifact = (artifact: AiArtifact): boolean => {
     );
 };
 
+const getDownloadUrl = (threadUrl: string, artifact: AiArtifact): string => {
+    const url = new URL(threadUrl);
+    url.searchParams.set('downloadArtifactUuid', artifact.artifactUuid);
+    url.searchParams.set('downloadVersionUuid', artifact.versionUuid);
+    return url.toString();
+};
+
 export const getSlackTablePreviews = async ({
     enableDataAccess,
     slackLinksOnly,
@@ -191,6 +198,9 @@ export const getSlackTablePreviews = async ({
                         status: 'ready' as const,
                         queryResults,
                         truncated: queryResults.truncated,
+                        ...(artifact?.artifactType === 'chart'
+                            ? { downloadUrl: getDownloadUrl(url, artifact) }
+                            : {}),
                     };
                 } catch {
                     // Missing/expired or newly inaccessible cached results must not

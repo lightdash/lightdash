@@ -133,6 +133,139 @@ describe('useAiAgentThreadArtifact', () => {
         });
     });
 
+    it('opens the exact requested table version instead of the latest artifact', () => {
+        const multiArtifactThread = {
+            ...regularArtifactThread,
+            messages: [
+                ...regularArtifactThread.messages,
+                {
+                    role: 'assistant',
+                    uuid: 'latest-prompt',
+                    artifacts: [
+                        {
+                            artifactUuid: 'latest-artifact',
+                            versionUuid: 'latest-version',
+                        },
+                    ],
+                },
+            ],
+        } as AiAgentThread;
+        const requestedArtifact = {
+            artifactUuid: 'regular-artifact',
+            versionUuid: 'regular-version',
+        };
+        const initialProps: {
+            requested: typeof requestedArtifact | undefined;
+        } = { requested: requestedArtifact };
+        const { rerender } = renderHook(
+            ({ requested }) =>
+                useAiAgentThreadArtifact({
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    thread: multiArtifactThread,
+                    requestedArtifact: requested,
+                }),
+            { initialProps },
+        );
+
+        const selected = dispatchMock.mock.calls.filter(
+            ([action]) => action.type === 'setPreview',
+        );
+        expect(selected).toEqual([
+            [
+                {
+                    type: 'setPreview',
+                    payload: {
+                        type: 'artifact',
+                        ...requestedArtifact,
+                        messageUuid: 'regular-prompt',
+                        threadUuid: 'thread-1',
+                        projectUuid: 'project-1',
+                        agentUuid: 'agent-1',
+                    },
+                },
+            ],
+        ]);
+
+        artifactSelectorMock.mockReturnValue({
+            ...selected[0][0].payload,
+            artifactUuid: 'manually-selected-artifact',
+        });
+        dispatchMock.mockClear();
+        rerender({ requested: requestedArtifact });
+        expect(dispatchMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'setPreview' }),
+        );
+
+        artifactSelectorMock.mockReturnValue(selected[0][0].payload);
+        dispatchMock.mockClear();
+        rerender({ requested: undefined });
+        expect(dispatchMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'setPreview' }),
+        );
+    });
+
+    it('keeps an older linked table open when the registration lookup finishes', () => {
+        const latestThread = {
+            ...regularArtifactThread,
+            messages: [
+                ...regularArtifactThread.messages,
+                {
+                    role: 'assistant',
+                    uuid: 'latest-prompt',
+                    artifacts: [
+                        {
+                            artifactUuid: 'latest-artifact',
+                            versionUuid: 'latest-version',
+                        },
+                    ],
+                },
+            ],
+        } as AiAgentThread;
+        const requestedArtifact = {
+            artifactUuid: 'regular-artifact',
+            versionUuid: 'regular-version',
+        };
+        deepResearchRegistrationStateMock.mockReturnValue({
+            registrations: [],
+            isReady: false,
+        });
+        const { rerender } = renderHook(
+            ({ requested }) =>
+                useAiAgentThreadArtifact({
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    thread: latestThread,
+                    requestedArtifact: requested,
+                }),
+            {
+                initialProps: {
+                    requested: requestedArtifact as
+                        | typeof requestedArtifact
+                        | undefined,
+                },
+            },
+        );
+        const selected = dispatchMock.mock.calls.find(
+            ([action]) => action.type === 'setPreview',
+        )?.[0];
+        expect(selected?.payload.artifactUuid).toBe('regular-artifact');
+
+        artifactSelectorMock.mockReturnValue(selected?.payload);
+        deepResearchRegistrationStateMock.mockReturnValue({
+            registrations: [],
+            isReady: true,
+        });
+        dispatchMock.mockClear();
+        rerender({ requested: requestedArtifact });
+        rerender({ requested: undefined });
+        expect(dispatchMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'setPreview' }),
+        );
+    });
+
     it('does not auto-open while Deep Research registration lookup is unresolved', () => {
         deepResearchRegistrationStateMock.mockReturnValue({
             registrations: [],

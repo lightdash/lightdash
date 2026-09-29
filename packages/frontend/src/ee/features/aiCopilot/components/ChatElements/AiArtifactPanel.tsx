@@ -431,6 +431,7 @@ const AiArtifactPanelContent: FC<
                             projectUuid={artifact.projectUuid}
                             agentUuid={artifact.agentUuid}
                             showDownloadResults
+                            allowDownloadDeepLink
                             artifactData={artifactData}
                             saveChartOptions={{
                                 name: title,

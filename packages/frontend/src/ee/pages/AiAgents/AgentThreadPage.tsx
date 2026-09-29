@@ -61,6 +61,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, promptUuid } = useParams();
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
+    const downloadArtifactUuid = searchParams.get('downloadArtifactUuid');
+    const downloadVersionUuid = searchParams.get('downloadVersionUuid');
     const isEmbed = isEmbedAiAgentRoute();
     const { user } = useApp();
 
@@ -95,6 +97,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         agentUuid,
         threadUuid,
         thread,
+        requestedArtifact:
+            downloadArtifactUuid && downloadVersionUuid
+                ? {
+                      artifactUuid: downloadArtifactUuid,
+                      versionUuid: downloadVersionUuid,
+                  }
+                : undefined,
     });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;

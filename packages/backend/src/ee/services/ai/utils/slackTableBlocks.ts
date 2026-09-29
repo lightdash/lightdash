@@ -24,6 +24,7 @@ export type SlackTablePreview = {
           status: 'ready';
           queryResults: Pick<SlackTableQueryResults, 'rows' | 'fields'>;
           truncated: boolean;
+          downloadUrl?: string;
       }
     | { status: 'unavailable' }
 );
@@ -48,6 +49,13 @@ const getThreadButton = (preview: SlackTablePreview) => ({
     text: { type: 'plain_text' as const, text: 'Open agent thread' },
     url: preview.url,
     action_id: `actions.explore_card_button_click.${preview.blockId}`,
+});
+
+const getDownloadButton = (downloadUrl: string, blockId: string) => ({
+    type: 'button' as const,
+    text: { type: 'plain_text' as const, text: 'Export CSV in Lightdash' },
+    url: downloadUrl,
+    action_id: `actions.download_csv_button_click.${blockId}`,
 });
 
 const getThreadLinkBlock = (
@@ -226,7 +234,12 @@ export const getSlackTableBlocks = (
         blocks.push({
             type: 'actions',
             block_id: `${preview.blockId}_actions`,
-            elements: [getThreadButton(preview)],
+            elements: [
+                getThreadButton(preview),
+                ...(preview.status === 'ready' && preview.downloadUrl
+                    ? [getDownloadButton(preview.downloadUrl, preview.blockId)]
+                    : []),
+            ],
         });
         return blocks;
     });
