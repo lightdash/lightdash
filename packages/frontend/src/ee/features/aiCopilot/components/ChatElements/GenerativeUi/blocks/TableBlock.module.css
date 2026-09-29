@@ -1,0 +1,8 @@
+.scroll {
+    max-height: 20rem;
+    overflow: auto;
+}
+
+.selectCell {
+    width: 2rem;
+}
