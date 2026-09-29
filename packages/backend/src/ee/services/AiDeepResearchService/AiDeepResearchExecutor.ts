@@ -692,9 +692,8 @@ export class AiDeepResearchExecutor {
                                 evidencePack,
                                 reason,
                                 model: finalizerModel,
-                                // Off the token budget on purpose: the budget
-                                // aborts the run, and the report is what the
-                                // run still owes.
+                                // Off the token budget: the budget aborts the
+                                // run, and the report is what it still owes.
                                 onUsage: (finalizerTokens) =>
                                     this.dependencies.aiDeepResearchRunModel.accumulateTokenUsage(
                                         run.ai_deep_research_run_uuid,

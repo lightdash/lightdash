@@ -216,7 +216,6 @@ import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
-import type { AiUsageTokens } from '../../../analytics/aiUsage';
 import {
     AiAgentArtifactsRetrievedEvent,
     AiAgentArtifactVersionVerifiedEvent,
@@ -339,7 +338,10 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
-import { generateDeepResearchReport as generateDeepResearchReportFromEvidence } from '../ai/agents/reportFinalizer';
+import {
+    generateDeepResearchReport as generateDeepResearchReportFromEvidence,
+    type AiDeepResearchFinalizerUsageFn,
+} from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
@@ -8082,7 +8084,7 @@ export class AiAgentService extends BaseService {
             evidencePack: AiDeepResearchEvidencePack;
             reason: string;
             model: AiDeepResearchExecutionContextSnapshot['model'];
-            onUsage: (tokens: AiUsageTokens) => Promise<unknown>;
+            onUsage: AiDeepResearchFinalizerUsageFn;
         },
     ): Promise<AiDeepResearchSubmittedReport> {
         const copilotConfig =

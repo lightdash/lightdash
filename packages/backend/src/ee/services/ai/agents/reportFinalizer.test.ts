@@ -1,7 +1,8 @@
 import { type AiDeepResearchEvidencePack } from '@lightdash/common';
-import { generateText } from 'ai';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateText, NoObjectGeneratedError } from 'ai';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerAiUsageTracker } from '../../../../analytics/aiUsage';
+import { AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS } from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { generateDeepResearchReport } from './reportFinalizer';
 
 vi.mock('ai', async (importOriginal) => ({
@@ -48,7 +49,12 @@ Investigate further.`;
 const modelOptions = {
     model: { provider: 'anthropic.messages', modelId: 'test-model' },
     keyManagement: 'lightdash-managed',
-    telemetry: { organizationUuid: 'org-1', threadUuid: 'thread-1' },
+    telemetry: {
+        organizationUuid: 'org-1',
+        projectUuid: 'project-1',
+        threadUuid: 'thread-1',
+        promptUuid: 'prompt-1',
+    },
 } as never;
 const generateTextMock = vi.mocked(generateText);
 const onUsage = vi.fn().mockResolvedValue(true);
@@ -70,6 +76,11 @@ describe('generateDeepResearchReport', () => {
         onUsage.mockClear();
         track.mockClear();
         registerAiUsageTracker(track);
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        registerAiUsageTracker(() => {});
     });
 
     it('returns a valid first attempt in the canonical format', async () => {
@@ -167,7 +178,9 @@ describe('generateDeepResearchReport', () => {
         expect(track.mock.calls[0][0].properties).toMatchObject({
             feature: 'deep-research',
             organizationId: 'org-1',
+            projectId: 'project-1',
             threadId: 'thread-1',
+            promptId: 'prompt-1',
             deepResearchRunId: 'run-1',
             keyManagement: 'lightdash-managed',
             totalTokens: 1000,
@@ -189,6 +202,60 @@ describe('generateDeepResearchReport', () => {
 
         expect(track).toHaveBeenCalledTimes(2);
         expect(onUsage).toHaveBeenCalledTimes(2);
+    });
+
+    it('counts an answer that could not be parsed', async () => {
+        generateTextMock.mockRejectedValueOnce(
+            new NoObjectGeneratedError({
+                message: 'No object generated',
+                text: 'not a report',
+                response: {
+                    id: 'response-1',
+                    timestamp: new Date(0),
+                    modelId: 'test-model',
+                },
+                usage: usage as never,
+                finishReason: 'stop',
+            }),
+        );
+        mockReports([validMarkdown]);
+
+        await generateDeepResearchReport(modelOptions, {
+            evidencePack,
+            reason: 'complete',
+            runUuid: 'run-1',
+            onUsage,
+        });
+
+        expect(track).toHaveBeenCalledTimes(2);
+        expect(onUsage).toHaveBeenCalledTimes(2);
+    });
+
+    it('counts an answer that arrives after the deadline', async () => {
+        vi.useFakeTimers();
+        const lateAnswer = Promise.withResolvers<never>();
+        generateTextMock.mockReturnValueOnce(lateAnswer.promise as never);
+        mockReports([validMarkdown]);
+
+        const pendingReport = generateDeepResearchReport(modelOptions, {
+            evidencePack,
+            reason: 'complete',
+            runUuid: 'run-1',
+            onUsage,
+        });
+        await vi.advanceTimersByTimeAsync(
+            AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS,
+        );
+        await pendingReport;
+        vi.useRealTimers();
+        expect(track).toHaveBeenCalledTimes(1);
+
+        lateAnswer.resolve({
+            output: { markdown: validMarkdown },
+            usage,
+        } as never);
+
+        await vi.waitFor(() => expect(track).toHaveBeenCalledTimes(2));
     });
 
     it('still returns the report when the run totals cannot be updated', async () => {
