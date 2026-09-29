@@ -30,6 +30,14 @@ describe('isRootRelativePath', () => {
         expect(isRootRelativePath('\\\\evil.example.com')).toBe(false);
     });
 
+    it('rejects paths that a browser resolves to another origin', () => {
+        expect(isRootRelativePath('/\t/evil.example.com')).toBe(false);
+        expect(isRootRelativePath('/\n/evil.example.com')).toBe(false);
+        expect(isRootRelativePath('/\r/evil.example.com')).toBe(false);
+        expect(isRootRelativePath('/\t\\evil.example.com')).toBe(false);
+        expect(sanitizeRedirectUrl('/\t/evil.example.com')).toBe('/');
+    });
+
     it('rejects dangerous schemes', () => {
         expect(isRootRelativePath('javascript:alert(1)')).toBe(false);
         expect(

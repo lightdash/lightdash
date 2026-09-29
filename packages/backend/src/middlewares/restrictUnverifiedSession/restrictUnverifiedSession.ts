@@ -1,8 +1,4 @@
-import {
-    ForbiddenError,
-    type Account,
-    type SessionAccount,
-} from '@lightdash/common';
+import { ForbiddenError } from '@lightdash/common';
 import type { RequestHandler } from 'express';
 
 type RestrictUnverifiedSessionOptions = {
@@ -33,25 +29,21 @@ const isAllowedRequest = (method: string, path: string) =>
             allowedRequest.method === method && allowedRequest.path === path,
     );
 
-const isSessionAccount = (
-    account: Account | undefined,
-): account is SessionAccount => account?.authentication.type === 'session';
-
 export const createRestrictUnverifiedSessionMiddleware =
     ({ hasEmailClient }: RestrictUnverifiedSessionOptions): RequestHandler =>
     (req, res, next) => {
-        const { account } = req;
+        const { user } = req;
         const path = normalizePath(req.path);
         if (
             !hasEmailClient ||
-            !isSessionAccount(account) ||
+            user === undefined ||
             !path.startsWith('/api/') ||
             isAllowedRequest(req.method, path)
         ) {
             next();
             return;
         }
-        if (account.user.isEmailVerified === true) {
+        if (user.isEmailVerified === true) {
             next();
             return;
         }
