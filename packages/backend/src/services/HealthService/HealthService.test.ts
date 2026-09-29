@@ -160,6 +160,7 @@ describe('health', () => {
 
     it('returns the scheduler job timeout as the export timeout', async () => {
         const service = new HealthService({
+            featureFlagModel,
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
