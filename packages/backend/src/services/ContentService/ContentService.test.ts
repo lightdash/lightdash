@@ -1328,36 +1328,45 @@ describe('Content page usage capture', () => {
         createdAt: new Date('2026-09-01'),
         verification: null,
     } as SummaryContent;
-    it('does no metadata work when usage capture is disabled', async () => {
-        const { service } = createService();
-        const find = vi.spyOn(service, 'find');
-        await service.recordView(createUser(), view);
-        expect(find).not.toHaveBeenCalled();
-    });
-    it('uses the permission-aware lookup and captures server-owned metadata and verification at each view', async () => {
-        const { service } = createService();
-        vi.spyOn(analyticsMock, 'usageEventsEnabled', 'get').mockReturnValue(
-            true,
-        );
+    const setup = () => {
+        const find = vi.fn().mockResolvedValue({ data: [content] });
+        const resolveAccess = vi.fn().mockResolvedValue({
+            organizationUuid,
+            projectUuid,
+            spaceUuid: 'space',
+            access: [],
+            inheritsFromOrgOrProject: true,
+        });
+        const result = createService({
+            contentModel: {
+                findSummaryContents: find,
+            } as unknown as ContentModel,
+            spacePermissionService: {
+                resolveAccess,
+            } as unknown as SpacePermissionService,
+        });
+        const enabled = vi
+            .spyOn(analyticsMock, 'usageEventsEnabled', 'get')
+            .mockReturnValue(true);
         const track = vi
             .spyOn(analyticsMock, 'trackContentView')
             .mockImplementation(() => {});
-        const find = vi
-            .spyOn(service, 'find')
-            .mockResolvedValue({ data: [content] } as KnexPaginatedData<
-                SummaryContent[]
-            >);
+        return { ...result, find, resolveAccess, enabled, track };
+    };
+    it('does no metadata work when capture is disabled', async () => {
+        const { service, find, enabled } = setup();
+        enabled.mockReturnValue(false);
         await service.recordView(createUser(), view);
-        expect(find).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid }),
-            {
-                projectUuids: [projectUuid],
-                uuids: ['dashboard-1'],
-                contentTypes: [ContentType.DASHBOARD],
-            },
-            {},
-            { page: 1, pageSize: 1 },
-        );
+        expect(find).not.toHaveBeenCalled();
+    });
+    it('checks resource access and snapshots verification at each view', async () => {
+        const { service, find, resolveAccess, track } = setup();
+        await service.recordView(createUser(), view);
+        expect(resolveAccess).toHaveBeenCalledWith(userUuid, {
+            type: 'dashboard',
+            dashboardUuid: 'dashboard-1',
+            spaceUuid: 'space',
+        });
         expect(track).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 userId: userUuid,
@@ -1382,7 +1391,7 @@ describe('Content page usage capture', () => {
                     },
                 },
             ],
-        } as KnexPaginatedData<SummaryContent[]>);
+        });
         await service.recordView(createUser(), { ...view, viewId: 'event-2' });
         expect(track).toHaveBeenLastCalledWith(
             expect.objectContaining({
@@ -1392,25 +1401,75 @@ describe('Content page usage capture', () => {
             }),
         );
     });
-    it('rejects inaccessible content, mismatched source and tenant without recording', async () => {
-        const { service } = createService();
-        vi.spyOn(analyticsMock, 'usageEventsEnabled', 'get').mockReturnValue(
-            true,
+    it('rejects missing content, mismatched source and tenant before access lookup', async () => {
+        const { service, find, resolveAccess, track } = setup();
+        for (const data of [
+            [],
+            [{ ...content, organization: { uuid: 'other' } }],
+            [
+                {
+                    ...content,
+                    contentType: ContentType.CHART,
+                    source: ChartSourceType.SQL,
+                },
+            ],
+        ]) {
+            find.mockResolvedValue({ data });
+            // eslint-disable-next-line no-await-in-loop
+            await expect(
+                service.recordView(createUser(), view),
+            ).rejects.toThrow('Content not found');
+        }
+        expect(resolveAccess).not.toHaveBeenCalled();
+        expect(track).not.toHaveBeenCalled();
+    });
+    it('rejects a reader without resource access', async () => {
+        const { service, resolveAccess, track } = setup();
+        resolveAccess.mockResolvedValue({
+            organizationUuid,
+            projectUuid,
+            spaceUuid: 'space',
+            access: [],
+            inheritsFromOrgOrProject: false,
+        });
+        const user = createUser();
+        user.ability = defineUserAbility(
+            { userUuid, organizationUuid, role: OrganizationMemberRole.MEMBER },
+            [],
         );
-        const track = vi.spyOn(analyticsMock, 'trackContentView');
-        const find = vi
-            .spyOn(service, 'find')
-            .mockResolvedValue({ data: [] } as unknown as KnexPaginatedData<
-                SummaryContent[]
-            >);
-        await expect(service.recordView(createUser(), view)).rejects.toThrow(
-            'Content not found',
+        await expect(service.recordView(user, view)).rejects.toThrow(
+            'Cannot view this content',
         );
+        expect(track).not.toHaveBeenCalled();
+    });
+    it('resolves dashboard-owned chart access through its parent and preserves SQL verification as unknown', async () => {
+        const { service, find, resolveAccess, track } = setup();
         find.mockResolvedValue({
-            data: [{ ...content, organization: { uuid: 'other' } }],
-        } as KnexPaginatedData<SummaryContent[]>);
-        await expect(service.recordView(createUser(), view)).rejects.toThrow(
-            'Content not found',
+            data: [
+                {
+                    ...content,
+                    contentType: ContentType.CHART,
+                    source: ChartSourceType.DBT_EXPLORE,
+                    dashboard: { uuid: 'parent-dashboard' },
+                },
+            ],
+        });
+        await service.recordView(createUser(), {
+            ...view,
+            contentType: 'chart',
+        });
+        expect(resolveAccess).toHaveBeenLastCalledWith(userUuid, {
+            type: 'chart',
+            chartUuid: 'dashboard-1',
+            dashboardUuid: 'parent-dashboard',
+            spaceUuid: 'space',
+        });
+        expect(find).toHaveBeenCalledWith(
+            expect.objectContaining({
+                chart: { includeDashboardCharts: true },
+            }),
+            {},
+            { page: 1, pageSize: 1 },
         );
         find.mockResolvedValue({
             data: [
@@ -1420,23 +1479,27 @@ describe('Content page usage capture', () => {
                     source: ChartSourceType.SQL,
                 },
             ],
-        } as KnexPaginatedData<SummaryContent[]>);
-        await expect(
-            service.recordView(createUser(), { ...view, contentType: 'chart' }),
-        ).rejects.toThrow('Content not found');
-        expect(track).not.toHaveBeenCalled();
+        });
+        await service.recordView(createUser(), {
+            ...view,
+            contentType: 'sql_chart',
+        });
+        expect(resolveAccess).toHaveBeenLastCalledWith(userUuid, {
+            type: 'sqlChart',
+            savedSqlUuid: 'dashboard-1',
+            spaceUuid: 'space',
+        });
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                event: 'sql_chart.view',
+                properties: expect.objectContaining({
+                    contentView: expect.objectContaining({ isVerified: null }),
+                }),
+            }),
+        );
     });
     it('forces preview classification for preview projects', async () => {
-        const { service, projectModel } = createService();
-        vi.spyOn(analyticsMock, 'usageEventsEnabled', 'get').mockReturnValue(
-            true,
-        );
-        const track = vi
-            .spyOn(analyticsMock, 'trackContentView')
-            .mockImplementation(() => {});
-        vi.spyOn(service, 'find').mockResolvedValue({
-            data: [content],
-        } as KnexPaginatedData<SummaryContent[]>);
+        const { service, projectModel, track } = setup();
         projectModel.getSummary.mockResolvedValue({
             ...(await projectModel.getSummary()),
             type: 'PREVIEW',

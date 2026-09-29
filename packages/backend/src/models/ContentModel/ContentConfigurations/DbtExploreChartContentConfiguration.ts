@@ -64,7 +64,11 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                 .innerJoin(
                     SpaceTableName,
                     `${SpaceTableName}.space_id`,
-                    `${SavedChartsTableName}.space_id`,
+                    filters.chart?.includeDashboardCharts
+                        ? knex.raw(
+                              `COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                          )
+                        : knex.ref(`${SavedChartsTableName}.space_id`),
                 )
                 .innerJoin(
                     ProjectTableName,

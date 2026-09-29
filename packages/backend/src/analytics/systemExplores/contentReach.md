@@ -73,7 +73,7 @@ creation with First week returning viewers.
 - `contentReach.test.ts` executes 56 compiled dimension/metric combinations
   against native DuckDB, plus deduplication, date-filter, verification and empty
   source assertions.
-- `ContentService.test.ts` covers disabled capture, permission-aware lookup,
+- `ContentService.test.ts` covers disabled capture, resource access (including dashboard-owned charts),
   wrong tenant/source, preview projects and verification changes.
 - `useTrackContentView.test.tsx` covers cached page loads, tile-like rerenders,
   navigation identities, previews and nonblocking failures.

@@ -47,7 +47,10 @@ import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentService } from '../DocumentService/DocumentService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import type {
+    AccessTarget,
+    SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
@@ -145,12 +148,12 @@ export class ContentService extends BaseService {
             view.contentType === 'dashboard'
                 ? ContentType.DASHBOARD
                 : ContentType.CHART;
-        const result = await this.find(
-            user,
+        const result = await this.contentModel.findSummaryContents(
             {
                 projectUuids: [view.projectUuid],
                 uuids: [view.contentUuid],
                 contentTypes: [contentType],
+                chart: { includeDashboardCharts: true },
             },
             {},
             { page: 1, pageSize: 1 },
@@ -172,6 +175,55 @@ export class ContentService extends BaseService {
         ) {
             throw new NotFoundError('Content not found');
         }
+        // Authorize the actual resource, including chart access inherited from
+        // its owning dashboard. A browse/space listing is not an access check.
+        let target: AccessTarget;
+        if (content.contentType === ContentType.DASHBOARD) {
+            target = {
+                type: 'dashboard',
+                dashboardUuid: content.uuid,
+                spaceUuid: content.space.uuid,
+            };
+        } else if (
+            content.contentType === ContentType.CHART &&
+            content.source === ChartSourceType.DBT_EXPLORE
+        ) {
+            target = {
+                type: 'chart',
+                chartUuid: content.uuid,
+                dashboardUuid: content.dashboard?.uuid ?? null,
+                spaceUuid: content.space.uuid,
+            };
+        } else if (content.contentType === ContentType.CHART) {
+            target = {
+                type: 'sqlChart',
+                savedSqlUuid: content.uuid,
+                spaceUuid: content.space.uuid,
+            };
+        } else {
+            throw new NotFoundError('Content not found');
+        }
+        const context = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            target,
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject(
+                    content.contentType === ContentType.DASHBOARD
+                        ? 'Dashboard'
+                        : 'SavedChart',
+                    {
+                        ...context,
+                        uuid: content.uuid,
+                        organizationUuid: content.organization.uuid,
+                        projectUuid: content.project.uuid,
+                    },
+                ),
+            )
+        )
+            throw new ForbiddenError('Cannot view this content');
         const project = await this.projectModel.getSummary(view.projectUuid);
         this.analytics.trackContentView({
             event: (
