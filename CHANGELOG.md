@@ -1,3 +1,10 @@
+# [2.377.0](https://github.com/lightdash/lightdash/compare/2.376.0...2.377.0) (2026-09-29)
+
+
+### Features
+
+* **documents:** let AI agents add custom chart types to Documents ([#30204](https://github.com/lightdash/lightdash/issues/30204)) ([b00a9fa](https://github.com/lightdash/lightdash/commit/b00a9fa05802379704d77d78a5c784514763d084)), closes [#30201](https://github.com/lightdash/lightdash/issues/30201) [#30203](https://github.com/lightdash/lightdash/issues/30203) [#30201](https://github.com/lightdash/lightdash/issues/30201)
+
 # [2.376.0](https://github.com/lightdash/lightdash/compare/2.375.0...2.376.0) (2026-09-29)
 
 
