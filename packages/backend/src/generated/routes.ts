@@ -30092,105 +30092,260 @@ const models: TsoaRoute.Models = {
                                             ],
                                         },
                                         {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                skill: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType:
-                                                                'nestedObjectLiteral',
-                                                            nestedProperties: {
-                                                                contentHash: {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        skill: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
                                                                     dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
+                                                                        'nestedObjectLiteral',
+                                                                    nestedProperties:
+                                                                        {
+                                                                            contentHash:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            versionNumber:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'double',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            uuid: {
+                                                                                dataType:
+                                                                                    'union',
+                                                                                subSchemas:
+                                                                                    [
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'string',
+                                                                                        },
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'enum',
+                                                                                            enums: [
+                                                                                                null,
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                                required: true,
+                                                                            },
+                                                                            builtIn:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'boolean',
+                                                                                    required: true,
+                                                                                },
+                                                                            name: {
                                                                                 dataType:
                                                                                     'string',
+                                                                                required: true,
                                                                             },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
+                                                                        },
                                                                 },
-                                                                versionNumber: {
+                                                                {
                                                                     dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
-                                                                                dataType:
-                                                                                    'double',
-                                                                            },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
+                                                                        'undefined',
                                                                 },
-                                                                uuid: {
-                                                                    dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
-                                                                                dataType:
-                                                                                    'string',
-                                                                            },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
-                                                                },
-                                                                builtIn: {
-                                                                    dataType:
-                                                                        'boolean',
-                                                                    required: true,
-                                                                },
-                                                                name: {
-                                                                    dataType:
-                                                                        'string',
-                                                                    required: true,
-                                                                },
-                                                            },
+                                                            ],
                                                         },
-                                                        {
-                                                            dataType:
-                                                                'undefined',
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
                                                         },
-                                                    ],
+                                                    },
                                                 },
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
-                                                        },
-                                                        {
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
                                                             dataType: 'enum',
                                                             enums: ['success'],
+                                                            required: true,
                                                         },
-                                                    ],
-                                                    required: true,
+                                                    },
                                                 },
-                                            },
+                                            ],
+                                        },
+                                        {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        skill: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'nestedObjectLiteral',
+                                                                    nestedProperties:
+                                                                        {
+                                                                            contentHash:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            versionNumber:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'double',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            uuid: {
+                                                                                dataType:
+                                                                                    'union',
+                                                                                subSchemas:
+                                                                                    [
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'string',
+                                                                                        },
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'enum',
+                                                                                            enums: [
+                                                                                                null,
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                                required: true,
+                                                                            },
+                                                                            builtIn:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'boolean',
+                                                                                    required: true,
+                                                                                },
+                                                                            name: {
+                                                                                dataType:
+                                                                                    'string',
+                                                                                required: true,
+                                                                            },
+                                                                        },
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'undefined',
+                                                                },
+                                                            ],
+                                                        },
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'enum',
+                                                            enums: ['error'],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                            ],
                                         },
                                         {
                                             dataType: 'intersection',
@@ -30973,31 +31128,138 @@ const models: TsoaRoute.Models = {
                                             },
                                         },
                                         {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['error'],
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'rejected',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'timeout',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
                                                         },
-                                                        {
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
                                                             dataType: 'enum',
                                                             enums: ['success'],
+                                                            required: true,
                                                         },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['rejected'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['timeout'],
-                                                        },
-                                                    ],
-                                                    required: true,
+                                                    },
                                                 },
-                                            },
+                                            ],
+                                        },
+                                        {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'rejected',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'timeout',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'rejected',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'timeout',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                            ],
                                         },
                                         {
                                             dataType: 'nestedObjectLiteral',

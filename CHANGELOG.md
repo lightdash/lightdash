@@ -1,3 +1,19 @@
+# [2.363.0](https://github.com/lightdash/lightdash/compare/2.362.2...2.363.0) (2026-09-29)
+
+
+### Features
+
+* **ai:** structured output for the loadMcpTools tool ([#30120](https://github.com/lightdash/lightdash/issues/30120)) ([500a27c](https://github.com/lightdash/lightdash/commit/500a27c50ec357647b9ba7eb7fed31db495b21fd))
+* **ai:** structured output for the loadProjectContext tool ([#30127](https://github.com/lightdash/lightdash/issues/30127)) ([082412a](https://github.com/lightdash/lightdash/commit/082412ab237083243140f15a2f4ae5c335b8e1ec))
+* **ai:** structured output for the loadSkill tool ([#30128](https://github.com/lightdash/lightdash/issues/30128)) ([054f688](https://github.com/lightdash/lightdash/commit/054f68884dcbca860e170496844c336f0d994778))
+* **ai:** structured output for the readContent tool ([#30129](https://github.com/lightdash/lightdash/issues/30129)) ([9c78e3f](https://github.com/lightdash/lightdash/commit/9c78e3fd0c6c44665c00cdfe6af186744ac56e97))
+* **ai:** structured output for the readPinnedThread tool ([#30130](https://github.com/lightdash/lightdash/issues/30130)) ([3996daa](https://github.com/lightdash/lightdash/commit/3996daa6a0790510a7c8c6ec735265d3a95caaea))
+* **ai:** structured output for the resolveUrl tool ([#30131](https://github.com/lightdash/lightdash/issues/30131)) ([f240fd3](https://github.com/lightdash/lightdash/commit/f240fd3575879f623d0783390b932af9b778f3b9))
+* **ai:** structured output for the runComposerQueries tool ([#30132](https://github.com/lightdash/lightdash/issues/30132)) ([c0aade9](https://github.com/lightdash/lightdash/commit/c0aade97c7884cff65f2e1226639bc98ad9f5036))
+* **ai:** structured output for the runContentQuery tool ([#30133](https://github.com/lightdash/lightdash/issues/30133)) ([3b3884f](https://github.com/lightdash/lightdash/commit/3b3884fab4950fc60cd7b275f9c21a131b5077cb))
+* **ai:** structured output for the runMetricQuery tool ([#30134](https://github.com/lightdash/lightdash/issues/30134)) ([7a8f7ad](https://github.com/lightdash/lightdash/commit/7a8f7ad301d3a3abb2249c3b7211d10a67573d27))
+* optional image in freeze announcements ([#30159](https://github.com/lightdash/lightdash/issues/30159)) ([4ebb2bd](https://github.com/lightdash/lightdash/commit/4ebb2bd55a433004dddc39ed5f17fbc5a89379f4))
+
 ## [2.362.2](https://github.com/lightdash/lightdash/compare/2.362.1...2.362.2) (2026-09-29)
 
 

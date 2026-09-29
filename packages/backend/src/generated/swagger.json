@@ -30163,48 +30163,126 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "skill": {
+                                                "allOf": [
+                                                    {
                                                         "properties": {
-                                                            "contentHash": {
+                                                            "skill": {
+                                                                "properties": {
+                                                                    "contentHash": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "versionNumber": {
+                                                                        "type": "number",
+                                                                        "format": "double",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "uuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "builtIn": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "contentHash",
+                                                                    "versionNumber",
+                                                                    "uuid",
+                                                                    "builtIn",
+                                                                    "name"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
                                                                 "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "versionNumber": {
-                                                                "type": "number",
-                                                                "format": "double",
-                                                                "nullable": true
-                                                            },
-                                                            "uuid": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
-                                                            "builtIn": {
-                                                                "type": "boolean"
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
                                                             }
                                                         },
-                                                        "required": [
-                                                            "contentHash",
-                                                            "versionNumber",
-                                                            "uuid",
-                                                            "builtIn",
-                                                            "name"
-                                                        ],
+                                                        "required": ["status"],
                                                         "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "skill": {
+                                                                "properties": {
+                                                                    "contentHash": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "versionNumber": {
+                                                                        "type": "number",
+                                                                        "format": "double",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "uuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "builtIn": {
+                                                                        "type": "boolean"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "contentHash",
+                                                                    "versionNumber",
+                                                                    "uuid",
+                                                                    "builtIn",
+                                                                    "name"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "allOf": [
@@ -30599,6 +30677,71 @@
                                                 },
                                                 "required": ["status"],
                                                 "type": "object"
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "rejected",
+                                                                    "timeout"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -67520,7 +67663,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.362.2",
+        "version": "2.363.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

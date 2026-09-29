@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.362.2",
-  "previousVersion": "2.362.1",
-  "releaseDate": "2026-09-29T09:38:26.133Z",
+  "version": "2.363.0",
+  "previousVersion": "2.362.2",
+  "releaseDate": "2026-09-29T10:09:44.355Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260928120000_add_coding_agent_session_usage_to_app_threads.ts",
-        "edition": "core",
-        "tables": [
-          "app_threads"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
