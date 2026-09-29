@@ -180,6 +180,11 @@ export const exploreHasFilteredAttribute = (explore: Explore) =>
                 (dimension) =>
                     dimension?.requiredAttributes !== undefined ||
                     dimension?.anyAttributes !== undefined,
+            ) ||
+            Object.values(table.metrics).some(
+                (metric) =>
+                    metric?.requiredAttributes !== undefined ||
+                    metric?.anyAttributes !== undefined,
             )
         );
     });

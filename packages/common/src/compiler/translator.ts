@@ -949,8 +949,8 @@ export const convertTable = (
                             name,
                             metric,
                             tableLabel,
-                            requiredAttributes: dimension?.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
-                            anyAttributes: dimension?.anyAttributes, // TODO Join dimension any_attributes with metric any_attributes
+                            requiredAttributes: dimension?.requiredAttributes,
+                            anyAttributes: dimension?.anyAttributes,
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:

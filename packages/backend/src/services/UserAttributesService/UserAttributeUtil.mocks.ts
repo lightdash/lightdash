@@ -414,3 +414,24 @@ export const EXPLORE_FILTERED_WITH_SALES_ANALYST_HR: Explore = {
         ...EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES.tables,
     },
 };
+
+export const EXPLORE_WITH_METRIC_REQUIRED_ATTRIBUTES: Explore = {
+    ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
+    tables: {
+        orders: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.orders!,
+            metrics: {
+                average_order_size: {
+                    ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.orders!
+                        .metrics.average_order_size!,
+                    requiredAttributes: {
+                        is_finance: 'true',
+                    },
+                },
+            },
+        },
+        payments: {
+            ...EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES.tables.payments!,
+        },
+    },
+};
