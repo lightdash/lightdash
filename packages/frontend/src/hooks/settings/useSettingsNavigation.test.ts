@@ -62,12 +62,13 @@ const organizationNavigation = (overrides: Partial<SettingsContext> = {}) => {
 };
 
 describe('MCP settings navigation', () => {
-    it('shows a dedicated MCP group with General before Analytics for organization AI admins', () => {
+    it('shows Connect before General and Analytics for organization AI admins', () => {
         const items = organizationNavigation();
         const mcp = items?.find((item) => item.label === 'MCP');
 
         expect(mcp?.to).toBe('/generalSettings/mcp');
         expect(mcp?.children.map(({ label, to }) => ({ label, to }))).toEqual([
+            { label: 'Connect', to: '/generalSettings/mcp/connect' },
             { label: 'General', to: '/generalSettings/mcp/general' },
             { label: 'Analytics', to: '/generalSettings/mcp/analytics' },
         ]);
@@ -78,24 +79,54 @@ describe('MCP settings navigation', () => {
         ).toBe(false);
     });
 
-    it('shows only MCP Analytics for project-scoped AI admins', () => {
+    it('shows Connect and Analytics for project-scoped AI admins', () => {
         const mcp = organizationNavigation({
             canManageOrgAiAgent: false,
         })?.find((item) => item.label === 'MCP');
 
         expect(mcp?.children.map(({ label, to }) => ({ label, to }))).toEqual([
+            { label: 'Connect', to: '/generalSettings/mcp/connect' },
             { label: 'Analytics', to: '/generalSettings/mcp/analytics' },
         ]);
     });
 
     it.each([
         { isAiCopilotEnabledOrTrial: false },
+        { hasAnyAiAgentAccess: false },
         { canManageOrgAiAgent: false, hasAnyAiAgentAccess: false },
-    ])('hides MCP when its access gate is closed (%j)', (overrides) => {
-        expect(
-            organizationNavigation(overrides)?.some(
+        {
+            isAiCopilotEnabledOrTrial: false,
+            canManageOrgAiAgent: false,
+            hasAnyAiAgentAccess: false,
+        },
+    ])(
+        'keeps Connect available when AI settings access is closed (%j)',
+        (overrides) => {
+            const mcp = organizationNavigation(overrides)?.find(
                 (item) => item.label === 'MCP',
-            ) ?? false,
-        ).toBe(false);
+            );
+
+            expect(
+                mcp?.children.map(({ label, to }) => ({ label, to })),
+            ).toEqual([
+                { label: 'Connect', to: '/generalSettings/mcp/connect' },
+            ]);
+        },
+    );
+
+    it('indexes Client setup under Connect instead of General or Analytics', () => {
+        const mcp = organizationNavigation()?.find(
+            (item) => item.label === 'MCP',
+        );
+
+        expect(
+            mcp?.children
+                .filter((item) =>
+                    item.pageSections?.some(
+                        (section) => section.title === 'Client setup',
+                    ),
+                )
+                .map(({ label, to }) => ({ label, to })),
+        ).toEqual([{ label: 'Connect', to: '/generalSettings/mcp/connect' }]);
     });
 });
