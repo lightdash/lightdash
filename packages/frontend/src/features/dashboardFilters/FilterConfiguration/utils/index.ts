@@ -29,6 +29,49 @@ export const getValidSqlColumnReferences = (
         typeof reference === 'string' ? [reference] : [],
     );
 
+type ToggleAllTile = {
+    tileUuid: string;
+    checked: boolean;
+    disabled: boolean;
+    hasExactMatch: boolean;
+};
+
+export type ToggleAllAction = {
+    checked: boolean;
+    tileUuids: string[];
+} | null;
+
+/**
+ * Resolves a "select all" click: select any unchecked exact-match tiles first,
+ * otherwise deselect everything. Already-checked tiles keep their mapping.
+ */
+export const getToggleAllAction = (
+    tiles: ToggleAllTile[],
+): ToggleAllAction => {
+    const uncheckedExactMatches = tiles.filter(
+        (tile) => tile.hasExactMatch && !tile.disabled && !tile.checked,
+    );
+    if (uncheckedExactMatches.length > 0) {
+        return {
+            checked: true,
+            tileUuids: uncheckedExactMatches.map((tile) => tile.tileUuid),
+        };
+    }
+    if (tiles.some((tile) => tile.checked)) {
+        return {
+            checked: false,
+            tileUuids: tiles.map((tile) => tile.tileUuid),
+        };
+    }
+    return null;
+};
+
+/** Enabled, unchecked tiles that lack the filter field and need a manual mapping. */
+export const countTilesNeedingMapping = (tiles: ToggleAllTile[]): number =>
+    tiles.filter(
+        (tile) => !tile.hasExactMatch && !tile.disabled && !tile.checked,
+    ).length;
+
 /**
  * Gets the relationship between a filter and a tile based on tileTargets configuration.
  *

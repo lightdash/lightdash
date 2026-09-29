@@ -41,7 +41,12 @@ import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
-import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
+import {
+    countTilesNeedingMapping,
+    getFilterTileRelation,
+    getToggleAllAction,
+    getValidSqlColumnReferences,
+} from './utils';
 
 type TileWithTargetFields = {
     targetType: 'field';
@@ -384,7 +389,6 @@ const TileFilterConfiguration: FC<Props> = ({
         const isAllChecked = tileList.every(({ checked }) => checked);
         const isIndeterminate =
             !isAllChecked && tileList.some(({ checked }) => checked);
-        const tileUuids = tileList.map((tile) => tile.tileUuid);
         const shouldBeChecked = isAllChecked || isIndeterminate;
         const hasAnyExactMatch = tileList.some((tile) => tile.hasExactMatch);
         // Disable if no tiles OR if unchecked and no exact matches available
@@ -447,16 +451,12 @@ const TileFilterConfiguration: FC<Props> = ({
                                 label: classes.checkboxLabel,
                             }}
                             onChange={() => {
-                                if (isIndeterminate) {
-                                    onToggleAll(false, tileUuids);
-                                } else if (isAllChecked) {
-                                    onToggleAll(false, tileUuids);
-                                } else {
-                                    // When toggling ON, only include tiles with exact field match
-                                    const exactMatchTileUuids = tileList
-                                        .filter((tile) => tile.hasExactMatch)
-                                        .map((tile) => tile.tileUuid);
-                                    onToggleAll(true, exactMatchTileUuids);
+                                const action = getToggleAllAction(tileList);
+                                if (action) {
+                                    onToggleAll(
+                                        action.checked,
+                                        action.tileUuids,
+                                    );
                                 }
                             }}
                         />
@@ -706,41 +706,69 @@ const TileFilterConfiguration: FC<Props> = ({
             <StackSubComponent tileList={tileTargetList} isNested={false} />
         );
 
+    const selectedCount = tileTargetList.filter((v) => v.checked).length;
+    const tilesNeedingMapping = countTilesNeedingMapping(tileTargetList);
+    const toggleAllAction = getToggleAllAction(tileTargetList);
+
     return (
         <Stack gap="xl" className={classes.tileScrollArea}>
-            <Checkbox
-                size="xs"
-                checked={isAllChecked}
-                indeterminate={isIndeterminate}
-                label={
-                    <Text fz="sm" fw={500}>
-                        Select all{' '}
-                        {isIndeterminate
-                            ? ` (${
-                                  tileTargetList.filter((v) => v.checked).length
-                              } tiles selected)`
-                            : ''}
-                    </Text>
-                }
-                classNames={{
-                    body: classes.checkboxBody,
-                    label: classes.checkboxLabel,
-                }}
-                onChange={() => {
-                    const tileUuids = tileTargetList.map((v) => v.tileUuid);
-                    if (isIndeterminate) {
-                        onToggleAll(false, tileUuids);
-                    } else if (isAllChecked) {
-                        onToggleAll(false, tileUuids);
-                    } else {
-                        // When toggling ON, only include tiles with exact field match
-                        const exactMatchTileUuids = tileTargetList
-                            .filter((v) => v.hasExactMatch)
-                            .map((v) => v.tileUuid);
-                        onToggleAll(true, exactMatchTileUuids);
+            <Stack gap="xxs">
+                <Checkbox
+                    size="xs"
+                    checked={isAllChecked}
+                    indeterminate={isIndeterminate}
+                    disabled={!toggleAllAction}
+                    label={
+                        <Text fz="sm" fw={500}>
+                            {field
+                                ? interpolateUiString(
+                                      getUiString(
+                                          'filters.config.selectAllTilesWithField',
+                                      ),
+                                      { field: field.label },
+                                  )
+                                : getUiString('filters.config.selectAllTiles')}
+                            {isIndeterminate
+                                ? ` (${interpolateUiString(
+                                      getUiString(
+                                          'filters.config.tilesSelectedCount',
+                                      ),
+                                      {
+                                          selected: selectedCount,
+                                          total: tileTargetList.length,
+                                      },
+                                  )})`
+                                : ''}
+                        </Text>
                     }
-                }}
-            />
+                    classNames={{
+                        body: classes.checkboxBody,
+                        label: classes.checkboxLabel,
+                    }}
+                    onChange={() => {
+                        if (toggleAllAction) {
+                            onToggleAll(
+                                toggleAllAction.checked,
+                                toggleAllAction.tileUuids,
+                            );
+                        }
+                    }}
+                />
+                {tilesNeedingMapping > 0 && (
+                    <Text fz="xs" c="dimmed">
+                        {tilesNeedingMapping === 1
+                            ? getUiString(
+                                  'filters.config.tilesNeedMapping.singular',
+                              )
+                            : interpolateUiString(
+                                  getUiString(
+                                      'filters.config.tilesNeedMapping.plural',
+                                  ),
+                                  { n: tilesNeedingMapping },
+                              )}
+                    </Text>
+                )}
+            </Stack>
             {tileList}
         </Stack>
     );
