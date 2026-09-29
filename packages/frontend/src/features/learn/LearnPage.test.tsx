@@ -384,7 +384,7 @@ describe('LearnPage access', () => {
         expect(screen.getByText('Every module')).toBeTruthy();
     });
 
-    it('keeps the Metrics lesson behind Extra modules for a learner who cannot deploy', async () => {
+    it('keeps the Metrics lesson behind Extra modules for a learner who cannot change source code', async () => {
         accessState.current = [];
 
         const { container } = renderPage();
@@ -407,8 +407,8 @@ describe('LearnPage access', () => {
         expect(extra!.textContent).toContain('Developer and above');
     });
 
-    it('lists the Metrics lesson under Developer for a learner who can deploy', () => {
-        accessState.current = ['manage:DeployProject'];
+    it('lists the Metrics lesson under Developer for a learner who can change source code', () => {
+        accessState.current = ['manage:SourceCode'];
 
         const { container } = renderPage();
 

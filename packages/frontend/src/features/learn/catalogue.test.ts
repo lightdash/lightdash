@@ -219,7 +219,7 @@ describe('docs modules', () => {
         });
     });
 
-    it('is held only by a learner who can deploy the project', () => {
+    it('is held only by a learner who can change source code', () => {
         const metrics = modules.find(
             (m) => m.scope === 'docs:semantic-layer/metrics',
         )!;
@@ -230,7 +230,7 @@ describe('docs modules', () => {
         expect(holds(new Set([DOCS_LESSON_SCOPE]), metrics)).toBe(true);
     });
 
-    it('tells a learner who cannot deploy that it takes a Developer', () => {
+    it('tells a learner who cannot change source code that it takes a Developer', () => {
         const metrics = modules.find(
             (m) => m.scope === 'docs:semantic-layer/metrics',
         )!;

@@ -19,10 +19,10 @@ export const FOUNDATIONS = 'foundations' as const;
 export const DEVELOPER = 'developer' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS | typeof DEVELOPER;
 /**
- * What a learner must hold to see the docs lessons on their shelf: they end
- * by deploying the project with the CLI, which Developer and above can do.
+ * What a learner must hold to see the docs lessons on their shelf: they
+ * amend the dbt project's YAML, which Developer and above can do.
  */
-export const DOCS_LESSON_SCOPE = 'manage:DeployProject';
+export const DOCS_LESSON_SCOPE = 'manage:SourceCode';
 
 /**
  * What an instance must have for a module's walkthrough to find its controls:
@@ -238,7 +238,7 @@ export const focusModules = (
  * Whether the learner holds a module's feature. Membership, not rank: their
  * access is a set of scopes gathered from every role they hold, and a custom
  * role sits nowhere on the system ladder. A docs lesson is held by whoever
- * can deploy the project (DOCS_LESSON_SCOPE).
+ * can change the project's source code (DOCS_LESSON_SCOPE).
  */
 export const holds = (held: Set<string>, module: LearnModule): boolean =>
     held.has(module.kind === 'docs' ? DOCS_LESSON_SCOPE : module.scope);
