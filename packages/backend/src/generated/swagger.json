@@ -62243,7 +62243,7 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___": {
+            "ChartAsCodeConfig_DataAppVizChartConfigAsCode_": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/BigNumberConfig"
@@ -62276,48 +62276,12 @@
                         "$ref": "#/components/schemas/SankeyChartConfig"
                     },
                     {
-                        "properties": {
-                            "config": {
-                                "allOf": [
-                                    {
-                                        "properties": {
-                                            "optionValues": {
-                                                "$ref": "#/components/schemas/DataAppVizOptionValues"
-                                            },
-                                            "fieldMapping": {
-                                                "$ref": "#/components/schemas/Record_string.string_"
-                                            }
-                                        },
-                                        "required": ["fieldMapping"],
-                                        "type": "object"
-                                    },
-                                    {
-                                        "properties": {
-                                            "dataAppVizUuid": {
-                                                "type": "string"
-                                            },
-                                            "dataAppVizSlug": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "type": "object"
-                                    }
-                                ]
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/DataAppVizChartConfigAsCode"
                     }
                 ],
                 "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
             },
-            "DocumentChartConfig": {
-                "$ref": "#/components/schemas/ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___"
-            },
-            "Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
+            "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -62348,7 +62312,7 @@
                         ]
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/DocumentChartConfig"
+                        "$ref": "#/components/schemas/ChartAsCodeConfig_DataAppVizChartConfigAsCode_"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -62392,7 +62356,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "SemanticChartAsCode": {
-                "$ref": "#/components/schemas/Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
+                "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
             "MergeChartAsCode": {
                 "allOf": [
@@ -67932,7 +67896,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.373.1",
+        "version": "2.374.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

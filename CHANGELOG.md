@@ -1,3 +1,15 @@
+# [2.374.0](https://github.com/lightdash/lightdash/compare/2.373.1...2.374.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **learn:** start walkthroughs on instances without an Enterprise license (CS-337) ([#30206](https://github.com/lightdash/lightdash/issues/30206)) ([da6887d](https://github.com/lightdash/lightdash/commit/da6887d2630b7c0bb3ac66daa4e11566e04b254b))
+
+
+### Features
+
+* **documents:** accept custom chart types in Document content ([#30201](https://github.com/lightdash/lightdash/issues/30201)) ([05b961e](https://github.com/lightdash/lightdash/commit/05b961e9ce86c8e4d37c7203a5cdca262f756c32)), closes [#29456](https://github.com/lightdash/lightdash/issues/29456)
+
 ## [2.373.1](https://github.com/lightdash/lightdash/compare/2.373.0...2.373.1) (2026-09-29)
 
 
