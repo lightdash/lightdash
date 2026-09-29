@@ -9,6 +9,7 @@ export const analyticsStreams = [
     'export_events',
     'agent_steps',
     'mcp_tool_calls',
+    'content_views',
 ] as const satisfies readonly StreamName[];
 
 export const userActivityColumns: CompactedStreamColumn[] = [

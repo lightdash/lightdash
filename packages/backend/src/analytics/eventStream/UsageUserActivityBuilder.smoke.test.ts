@@ -12,6 +12,10 @@ import { createAnalyticsExplores } from '../../services/ProjectService/analytics
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
+import {
+    contentViewsProjections,
+    type ContentPageView,
+} from './contentViewsStream';
 import { mcpToolCallsProjections } from './mcpToolCallsStream';
 import { compactedStreamSchemas } from './registry';
 import { UsageEventsCompactor } from './UsageEventsCompactor';
@@ -158,6 +162,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
             try {
                 for (const stream of analyticsStreams) {
                     const event = {
+                        content_views: "'dashboard.view'",
                         mcp_tool_calls: "'mcp_tool_call'",
                         query_events: "'query.completed'",
                         ai_usage: "'ai.usage'",
@@ -169,6 +174,16 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                             "CASE n % 2 WHEN 0 THEN 'ai_agent.step_completed' ELSE 'ai_agent.tool_call_completed' END",
                     }[stream];
                     const values: Record<string, string> = {
+                        event_id: "'view-' || n",
+                        content_id: "'dashboard-' || (n % 100)",
+                        content_type: "'dashboard'",
+                        content_name: "'Synthetic dashboard'",
+                        actor_type: "'user'",
+                        view_context: "'direct'",
+                        is_qualifying: 'true',
+                        is_verified: 'n % 2 = 0',
+                        ingested_at: `TIMESTAMP '${date} 12:00:00'`,
+                        content_created_at: "TIMESTAMP '2025-12-25'",
                         org_id: `'${org}'`,
                         user_id: 'md5((n % 10000)::VARCHAR)::UUID::VARCHAR',
                         project_id: "'project-' || (n % 3)",
@@ -186,6 +201,39 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         `COPY (SELECT ${compactedStreamSchemas[stream].map(({ name, type }) => `(${values[name] ?? 'NULL'})::${type} AS "${name}"`).join(', ')} FROM range(${rows}) t(n)) TO '${base}/${prefix(stream)}/load.parquet' (FORMAT PARQUET, COMPRESSION zstd)`,
                     );
                 }
+                const page: ContentPageView = {
+                    event: 'dashboard.view',
+                    userId: userUuid(0),
+                    properties: {
+                        organizationId: org,
+                        projectId: 'page-project',
+                        contentView: {
+                            eventId: 'page-first',
+                            occurredAt: '2025-12-25T12:00:00Z',
+                            contentId: 'page-dashboard',
+                            contentType: 'dashboard',
+                            contentName: 'Page dashboard',
+                            projectName: 'Synthetic project',
+                            spaceId: 'space',
+                            spaceName: 'Shared',
+                            createdAt: '2025-12-25T00:00:00Z',
+                            isVerified: false,
+                            context: 'direct',
+                            actorType: 'user',
+                        },
+                    },
+                };
+                const firstPage =
+                    contentViewsProjections['dashboard.view'](page)!.row;
+                page.properties.contentView = {
+                    ...page.properties.contentView,
+                    eventId: 'page-return',
+                    occurredAt: `${date}T12:00:00Z`,
+                    isVerified: true,
+                };
+                const returnPage =
+                    contentViewsProjections['dashboard.view'](page)!.row;
+                await raw('content_views', [firstPage, firstPage, returnPage]);
                 const exportRows = [
                     userUuid(0),
                     userUuid(1),
@@ -232,7 +280,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 }, 25);
                 try {
                     expect((await compact()).users).toMatchObject({
-                        published: 7,
+                        published: 8,
                         failed: 0,
                     });
                 } finally {
@@ -240,7 +288,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 }
                 console.log(
                     JSON.stringify({
-                        syntheticEvents: rows * 6 + 8,
+                        syntheticEvents: rows * 7 + 11,
                         elapsedMs: Math.round(performance.now() - start),
                         sampledPeakRssMiB: Math.round(peakRss / 1024 / 1024),
                         duckdbMemoryLimit: '256MB',
@@ -293,6 +341,51 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         ),
                         logicalCalls: rows + 2,
                         capturedMcpEvents: rows + 3,
+                    }),
+                );
+                const reachStart = performance.now();
+                const reachTotals = (
+                    await query('content_reach', [
+                        'qualifying_views',
+                        'distinct_viewers',
+                        'returning_viewers',
+                        'first_week_returning_viewers',
+                        'verified_audience_share',
+                    ])
+                )[0];
+                expect(Number(reachTotals.content_reach_qualifying_views)).toBe(
+                    rows + 2,
+                );
+                expect(Number(reachTotals.content_reach_distinct_viewers)).toBe(
+                    10000,
+                );
+                expect(
+                    Number(reachTotals.content_reach_returning_viewers),
+                ).toBe(1);
+                expect(
+                    Number(
+                        reachTotals.content_reach_first_week_returning_viewers,
+                    ),
+                ).toBe(1);
+                const reachByUser = await query(
+                    'content_reach',
+                    ['qualifying_views'],
+                    true,
+                );
+                expect(
+                    reachByUser.reduce(
+                        (total, row) =>
+                            total + Number(row.content_reach_qualifying_views),
+                        0,
+                    ),
+                ).toBe(rows + 2);
+                console.log(
+                    JSON.stringify({
+                        contentReachQueriesMs: Math.round(
+                            performance.now() - reachStart,
+                        ),
+                        qualifyingViews: rows + 2,
+                        users: 10000,
                     }),
                 );
                 const userMetrics = [
@@ -376,7 +469,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 });
                 expect((await compact()).users).toMatchObject({
                     published: 0,
-                    unchanged: 7,
+                    unchanged: 8,
                     failed: 0,
                 });
                 expect(
@@ -392,7 +485,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 );
                 expect((await compact()).users).toMatchObject({
                     published: 1,
-                    unchanged: 6,
+                    unchanged: 7,
                     failed: 0,
                 });
                 expect(
@@ -429,7 +522,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 await s3.deleteObject({ Bucket: storage.bucket, Key: key });
                 expect((await compact()).users).toMatchObject({
                     published: 1,
-                    unchanged: 6,
+                    unchanged: 7,
                     failed: 0,
                 });
                 const cli = await promisify(execFile)(
@@ -466,7 +559,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         timeout: 120000,
                     },
                 );
-                expect(cli.stdout).toContain('unchanged: 6');
+                expect(cli.stdout).toContain('unchanged: 7');
                 // Other org has no query/AI/app/step files: its empty views still query.
                 const otherReader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',
@@ -485,7 +578,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 expect(
                     (
                         await otherReader.runQuery(
-                            'SELECT count(*)::INTEGER AS total FROM query_events',
+                            'SELECT count(*)::INTEGER AS total FROM content_views',
                         )
                     ).rows,
                 ).toEqual([{ total: 0 }]);

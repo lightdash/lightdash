@@ -87,6 +87,7 @@ import {
     type AiKeyManagement,
     type AiUsageEvent,
 } from './aiUsage';
+import type { ContentPageView } from './eventStream/contentViewsStream';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 import type {
     UpgradeEventName,
@@ -1468,7 +1469,7 @@ type AppReadyWaitEvent = BaseTrack & {
     };
 };
 
-type SavedChartView = BaseTrack & {
+export type SavedChartView = BaseTrack & {
     event: 'saved_chart.view';
     userId?: string;
     properties: {
@@ -1480,7 +1481,7 @@ type SavedChartView = BaseTrack & {
     };
 };
 
-type DashboardView = BaseTrack & {
+export type DashboardView = BaseTrack & {
     event: 'dashboard.view';
     userId: string;
     properties: {
@@ -1491,7 +1492,7 @@ type DashboardView = BaseTrack & {
     };
 };
 
-type ViewSqlChart = BaseTrack & {
+export type ViewSqlChart = BaseTrack & {
     event: 'sql_chart.view';
     userId: string;
     properties: {
@@ -4445,6 +4446,18 @@ export class LightdashAnalytics extends Analytics {
             `Analytics event ${payload.event} has no userId or anonymousId; using the instance anonymous id`,
         );
         return { ...payload, anonymousId: LightdashAnalytics.anonymousId };
+    }
+
+    get usageEventsEnabled(): boolean {
+        return (
+            this.lightdashConfig.usageEvents.enabled && !!this.eventStreamSink
+        );
+    }
+
+    // Explicit page interactions feed usage only. Legacy RudderStack events and
+    // view counters keep their existing semantics.
+    trackContentView(payload: ContentPageView) {
+        this.eventStreamSink?.handle(payload);
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {

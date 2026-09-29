@@ -240,3 +240,13 @@ export interface BulkActionable<Tx extends unknown> {
         },
     ) => Promise<void>;
 }
+
+/** A rendered, signed-in content page interaction; retries reuse viewId. */
+export type RecordContentView = {
+    projectUuid: string;
+    contentUuid: string;
+    contentType: 'dashboard' | 'chart' | 'sql_chart';
+    /** @format uuid */
+    viewId: string;
+    context: 'direct' | 'preview';
+};

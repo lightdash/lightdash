@@ -1308,3 +1308,148 @@ describe('ContentService.find sharedWithMe', () => {
         ).not.toHaveBeenCalled();
     });
 });
+
+describe('Content page usage capture', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const view = {
+        projectUuid,
+        contentUuid: 'dashboard-1',
+        contentType: 'dashboard' as const,
+        context: 'direct' as const,
+        viewId: 'event-1',
+    };
+    const content = {
+        uuid: 'dashboard-1',
+        contentType: ContentType.DASHBOARD,
+        name: 'Revenue',
+        organization: { uuid: organizationUuid },
+        project: { uuid: projectUuid, name: 'Demo' },
+        space: { uuid: 'space', name: 'Shared' },
+        createdAt: new Date('2026-09-01'),
+        verification: null,
+    } as SummaryContent;
+    it('does no metadata work when usage capture is disabled', async () => {
+        const { service } = createService();
+        const find = vi.spyOn(service, 'find');
+        await service.recordView(createUser(), view);
+        expect(find).not.toHaveBeenCalled();
+    });
+    it('uses the permission-aware lookup and captures server-owned metadata and verification at each view', async () => {
+        const { service } = createService();
+        vi.spyOn(analyticsMock, 'usageEventsEnabled', 'get').mockReturnValue(
+            true,
+        );
+        const track = vi
+            .spyOn(analyticsMock, 'trackContentView')
+            .mockImplementation(() => {});
+        const find = vi
+            .spyOn(service, 'find')
+            .mockResolvedValue({ data: [content] } as KnexPaginatedData<
+                SummaryContent[]
+            >);
+        await service.recordView(createUser(), view);
+        expect(find).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid }),
+            {
+                projectUuids: [projectUuid],
+                uuids: ['dashboard-1'],
+                contentTypes: [ContentType.DASHBOARD],
+            },
+            {},
+            { page: 1, pageSize: 1 },
+        );
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                userId: userUuid,
+                properties: expect.objectContaining({
+                    organizationId: organizationUuid,
+                    contentView: expect.objectContaining({
+                        eventId: 'event-1',
+                        isVerified: false,
+                        contentName: 'Revenue',
+                        context: 'direct',
+                    }),
+                }),
+            }),
+        );
+        find.mockResolvedValue({
+            data: [
+                {
+                    ...content,
+                    verification: {
+                        verifiedAt: new Date(),
+                        verifiedBy: { userUuid, firstName: 'A', lastName: 'B' },
+                    },
+                },
+            ],
+        } as KnexPaginatedData<SummaryContent[]>);
+        await service.recordView(createUser(), { ...view, viewId: 'event-2' });
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    contentView: expect.objectContaining({ isVerified: true }),
+                }),
+            }),
+        );
+    });
+    it('rejects inaccessible content, mismatched source and tenant without recording', async () => {
+        const { service } = createService();
+        vi.spyOn(analyticsMock, 'usageEventsEnabled', 'get').mockReturnValue(
+            true,
+        );
+        const track = vi.spyOn(analyticsMock, 'trackContentView');
+        const find = vi
+            .spyOn(service, 'find')
+            .mockResolvedValue({ data: [] } as unknown as KnexPaginatedData<
+                SummaryContent[]
+            >);
+        await expect(service.recordView(createUser(), view)).rejects.toThrow(
+            'Content not found',
+        );
+        find.mockResolvedValue({
+            data: [{ ...content, organization: { uuid: 'other' } }],
+        } as KnexPaginatedData<SummaryContent[]>);
+        await expect(service.recordView(createUser(), view)).rejects.toThrow(
+            'Content not found',
+        );
+        find.mockResolvedValue({
+            data: [
+                {
+                    ...content,
+                    contentType: ContentType.CHART,
+                    source: ChartSourceType.SQL,
+                },
+            ],
+        } as KnexPaginatedData<SummaryContent[]>);
+        await expect(
+            service.recordView(createUser(), { ...view, contentType: 'chart' }),
+        ).rejects.toThrow('Content not found');
+        expect(track).not.toHaveBeenCalled();
+    });
+    it('forces preview classification for preview projects', async () => {
+        const { service, projectModel } = createService();
+        vi.spyOn(analyticsMock, 'usageEventsEnabled', 'get').mockReturnValue(
+            true,
+        );
+        const track = vi
+            .spyOn(analyticsMock, 'trackContentView')
+            .mockImplementation(() => {});
+        vi.spyOn(service, 'find').mockResolvedValue({
+            data: [content],
+        } as KnexPaginatedData<SummaryContent[]>);
+        projectModel.getSummary.mockResolvedValue({
+            ...(await projectModel.getSummary()),
+            type: 'PREVIEW',
+        } as never);
+        await service.recordView(createUser(), view);
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    contentView: expect.objectContaining({
+                        context: 'preview',
+                    }),
+                }),
+            }),
+        );
+    });
+});

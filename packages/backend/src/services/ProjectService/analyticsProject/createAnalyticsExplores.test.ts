@@ -74,6 +74,7 @@ describe('createAnalyticsExplores', () => {
             'agent_steps',
             'user_activity',
             'tool_activity',
+            'content_reach',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

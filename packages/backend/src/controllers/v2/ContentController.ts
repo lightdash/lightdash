@@ -9,10 +9,12 @@ import {
     ApiRestoreContentBody,
     ApiSuccessEmpty,
     assertRegisteredAccount,
+    assertSessionAuth,
     ContentActionDelete,
     ContentActionMove,
     ContentType,
     ParameterError,
+    RecordContentView,
 } from '@lightdash/common';
 import {
     Body,
@@ -40,6 +42,19 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Content')
 export class ContentController extends BaseController {
+    @Post('/views')
+    @Middlewares([isAuthenticated])
+    async recordContentView(
+        @Request() req: express.Request,
+        @Body() body: RecordContentView,
+    ): Promise<ApiSuccessEmpty> {
+        assertSessionAuth(req.account);
+        await this.services
+            .getContentService()
+            .recordView(toSessionUser(req.account), body);
+        return { status: 'ok', results: undefined };
+    }
+
     /**
      * Get content (charts, dashboards, spaces)
      * @summary List content
