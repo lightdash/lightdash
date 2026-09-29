@@ -1,3 +1,10 @@
+## [2.361.2](https://github.com/lightdash/lightdash/compare/2.361.1...2.361.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **upgrade-automation:** let callers pick the Slack channel for escalations ([#30149](https://github.com/lightdash/lightdash/issues/30149)) ([0016647](https://github.com/lightdash/lightdash/commit/00166474fb195ec34dcc8950a112a61147631506))
+
 ## [2.361.1](https://github.com/lightdash/lightdash/compare/2.361.0...2.361.1) (2026-09-29)
 
 
