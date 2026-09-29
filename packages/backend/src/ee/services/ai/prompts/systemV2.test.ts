@@ -319,6 +319,30 @@ describe('getSystemPromptV2 custom chart types', () => {
             '11 more types exist — use findCustomChartTypes',
         );
     });
+
+    test('lets Documents use custom chart types when the agent can find and export them', () => {
+        const documentArgs = {
+            availableExplores: [],
+            enableDataAccess: true,
+            enableContentTools: true,
+            enableDocuments: true,
+        };
+        const enabled = promptText({
+            ...documentArgs,
+            enableDocumentCustomCharts: true,
+        });
+        expect(enabled).toContain(
+            'chartConfig is { type: "data_app_viz", config: { dataAppVizSlug, dataAppVizVersion, fieldMapping, optionValues } }',
+        );
+        expect(enabled).toContain(
+            'take chartConfig from exportChartAsCode instead of writing it yourself',
+        );
+        expect(enabled).not.toContain('custom-chart cells are unsupported');
+
+        const disabled = promptText(documentArgs);
+        expect(disabled).toContain('custom-chart cells are unsupported');
+        expect(disabled).not.toContain('data_app_viz');
+    });
 });
 
 describe('getSystemPromptV2 merge queries', () => {

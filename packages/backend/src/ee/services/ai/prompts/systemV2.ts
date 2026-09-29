@@ -26,8 +26,8 @@ import {
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import {
-    DOCUMENT_TOOLS_SECTION,
     getContentToolsSection,
+    getDocumentToolsSection,
 } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
@@ -68,6 +68,7 @@ export type CapabilitySectionArgs = {
     enableFastMetadata?: boolean;
     enableContentTools?: boolean;
     enableDocuments?: boolean;
+    enableDocumentCustomCharts?: boolean;
     enableGenerateDataApp?: boolean;
     slackChannelId?: string | null;
     canRunSql?: boolean;
@@ -94,7 +95,11 @@ const getCapabilitySections = (
     contentTools: args.enableContentTools
         ? [
               getContentToolsSection(args.enableFastMetadata ?? false),
-              args.enableDocuments ? DOCUMENT_TOOLS_SECTION : '',
+              args.enableDocuments
+                  ? getDocumentToolsSection(
+                        args.enableDocumentCustomCharts ?? false,
+                    )
+                  : '',
           ]
               .filter(Boolean)
               .join('\n\n')
@@ -149,6 +154,7 @@ export const getSystemPromptV2 = (args: {
     repoFsSupportsCodeSearch?: boolean;
     enableContentTools?: boolean;
     enableDocuments?: boolean;
+    enableDocumentCustomCharts?: boolean;
     enableGenerateDataApp?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
