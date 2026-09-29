@@ -51,6 +51,7 @@ import {
     getDateZoomFromRequestParameters,
     getDimensions,
     getDimensionsWithValidParameters,
+    getDocumentRuntimeChartConfig,
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
@@ -5263,11 +5264,6 @@ export class AsyncQueryService extends ProjectService {
             sourceRowCap: this.lightdashConfig.query.maxLimit,
         });
         const { chart } = documentQueryContext.content;
-        if (chart.chartConfig.type === ChartType.DATA_APP_VIZ) {
-            throw new ParameterError(
-                'Custom chart types are not supported in Documents',
-            );
-        }
         if (documentQueryContext.mergeQuery) {
             const outcome = await this.executeAsyncMergeQuery({
                 account,
@@ -5279,7 +5275,9 @@ export class AsyncQueryService extends ProjectService {
                 documentQueryContext,
                 mode: { type: 'interactive' },
                 chart: {
-                    chartConfig: chart.chartConfig,
+                    chartConfig: getDocumentRuntimeChartConfig(
+                        chart.chartConfig,
+                    ),
                     pivotConfig: chart.pivotConfig,
                 },
             });
@@ -5496,11 +5494,13 @@ export class AsyncQueryService extends ProjectService {
         const documentChartConfig = documentChart?.chartConfig;
         const documentPivot =
             documentQueryContext?.content.source === 'semantic' &&
-            documentChartConfig &&
-            documentChartConfig.type !== ChartType.DATA_APP_VIZ
+            documentChartConfig
                 ? derivePivotConfigurationFromChart(
                       {
-                          chartConfig: documentChartConfig,
+                          chartConfig:
+                              getDocumentRuntimeChartConfig(
+                                  documentChartConfig,
+                              ),
                           pivotConfig: documentChart.pivotConfig,
                       },
                       metricQuery,

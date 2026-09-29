@@ -2,11 +2,8 @@ import Ajv from 'ajv';
 import { expectTypeOf } from 'vitest';
 import chartAsCodeSchema from '../../schemas/json/chart-as-code-1.0.json';
 import type { SemanticChartAsCode } from '../document';
-import type {
-    ChartType,
-    DataAppVizFieldMapping,
-    DataAppVizOptionValues,
-} from '../savedCharts';
+import type { ChartType, DataAppVizFieldMapping } from '../savedCharts';
+import type { DataAppVizChartAsCode } from './charts';
 
 describe('DataAppVizChartAsCode JSON schema', () => {
     const validate = new Ajv({
@@ -33,7 +30,7 @@ describe('DataAppVizChartAsCode JSON schema', () => {
         ]);
     });
 
-    it('supports the union while preserving the Document scalar chart type', () => {
+    it('gives Documents the same custom chart binding as chart files', () => {
         expectTypeOf<DataAppVizFieldMapping>().toEqualTypeOf<
             Record<string, string | string[]>
         >();
@@ -42,15 +39,7 @@ describe('DataAppVizChartAsCode JSON schema', () => {
                 SemanticChartAsCode['chartConfig'],
                 { type: ChartType.DATA_APP_VIZ }
             >['config']
-        >().toMatchTypeOf<
-            | {
-                  fieldMapping: Record<string, string>;
-                  optionValues?: DataAppVizOptionValues;
-                  dataAppVizSlug?: string;
-                  dataAppVizUuid?: string;
-              }
-            | undefined
-        >();
+        >().toEqualTypeOf<DataAppVizChartAsCode | undefined>();
     });
 
     it('keeps the legacy scalar mapping contract', () => {

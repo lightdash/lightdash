@@ -166,6 +166,7 @@ import {
     isAnyChartTile,
     withTileWarnings,
 } from './dashboardReferences';
+import { resolveDataAppVizBinding } from './dataAppVizBinding';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import {
     getContentConnectionName,
@@ -2594,108 +2595,21 @@ export class CoderService extends BaseService {
     }
 
     /**
-     * Convert a chart YAML's viz binding to the runtime shape: resolve the
-     * portable dataAppVizSlug against the target project's chart types and
-     * rewrite the config with the resolved uuid. A slug missing in the target
-     * fails loudly (upload the chart type first). A legacy dataAppVizUuid —
-     * whether it stands alone or backs up a missing slug — is accepted only
-     * when it resolves to a chart type in the target project; uuids are
-     * project-specific, so keeping a foreign one would create a dangling
-     * cross-project reference.
+     * Convert a chart YAML's viz binding to the runtime shape; see
+     * resolveDataAppVizBinding.
      */
     private async resolveDataAppVizBinding(
         projectUuid: string,
         chartConfig: ChartAsCodeConfig,
     ): Promise<ChartConfig> {
-        if (chartConfig.type !== ChartType.DATA_APP_VIZ) {
-            return chartConfig;
-        }
-        if (chartConfig.config === undefined) {
-            return { type: ChartType.DATA_APP_VIZ, config: undefined };
-        }
-        const {
-            dataAppVizSlug,
-            dataAppVizUuid,
-            dataAppVizVersion,
-            ...configRest
-        } = chartConfig.config;
-        const withTargetVersion = async (
-            targetDataAppVizUuid: string,
-        ): Promise<ChartConfig> => {
-            const targetVersion =
-                dataAppVizVersion === undefined
-                    ? await this.appModel.getLatestRenderableDataAppVizVersion(
-                          targetDataAppVizUuid,
-                      )
-                    : await this.appModel.getVersion(
-                          targetDataAppVizUuid,
-                          dataAppVizVersion,
-                      );
-            if (
-                targetVersion === null ||
-                targetVersion.status !== 'ready' ||
-                targetVersion.viz_schema === null
-            ) {
-                throw new NotFoundError(
-                    dataAppVizVersion === undefined
-                        ? `Custom chart type ${targetDataAppVizUuid} has no renderable version`
-                        : `Custom chart type "${dataAppVizSlug ?? targetDataAppVizUuid}" version ${dataAppVizVersion} is not renderable in this project. Upload a renderable version of this chart type, then re-upload this chart.`,
-                );
-            }
-            return {
-                type: ChartType.DATA_APP_VIZ,
-                config: {
-                    ...configRest,
-                    dataAppVizUuid: targetDataAppVizUuid,
-                    dataAppVizVersion: targetVersion.version,
-                },
-            };
-        };
-        // The 'only' filter also rejects uuids pointing at regular data apps.
-        const uuidResolvesInTargetProject = async (): Promise<boolean> =>
-            dataAppVizUuid !== undefined &&
-            (
-                await this.appModel.findAppsByUuids(
-                    projectUuid,
-                    [dataAppVizUuid],
-                    { dataAppVizsFilter: 'only' },
-                )
-            ).length > 0;
-        if (dataAppVizSlug !== undefined) {
-            const [vizRow] = await this.appModel.findAppsBySlugs(
-                projectUuid,
-                [dataAppVizSlug],
-                { dataAppVizsFilter: 'only' },
-            );
-            if (vizRow !== undefined) {
-                return withTargetVersion(vizRow.app_id);
-            }
-            // Interim files carry both identities — fall back to the uuid,
-            // but only when it names a chart type in this project.
-            if (
-                dataAppVizUuid !== undefined &&
-                (await uuidResolvesInTargetProject())
-            ) {
-                this.logger.warn(
-                    `Chart type "${dataAppVizSlug}" was not found in project ${projectUuid}; keeping the chart's existing dataAppVizUuid reference.`,
-                );
-                return withTargetVersion(dataAppVizUuid);
-            }
-            throw new NotFoundError(
-                `Custom chart type "${dataAppVizSlug}" was not found in this project. Upload it first (lightdash upload --chart-types ${dataAppVizSlug}), then re-upload this chart.`,
-            );
-        }
-        if (dataAppVizUuid !== undefined) {
-            if (await uuidResolvesInTargetProject()) {
-                return withTargetVersion(dataAppVizUuid);
-            }
-            throw new ParameterError(
-                `Custom chart type ${dataAppVizUuid} was not found in this project. Chart type uuids are project-specific: re-download the chart with a current CLI to get a portable dataAppVizSlug, upload the chart type into this project, then re-upload this chart.`,
-            );
-        }
-        throw new ParameterError(
-            'Chart uses a custom chart type but carries neither dataAppVizSlug nor dataAppVizUuid.',
-        );
+        const resolved = await resolveDataAppVizBinding({
+            appModel: this.appModel,
+            logger: this.logger,
+            projectUuid,
+            chartConfig,
+            source: 'contentAsCode',
+        });
+        return resolved.chartConfig;
     }
 
     async getChartsForExport(
