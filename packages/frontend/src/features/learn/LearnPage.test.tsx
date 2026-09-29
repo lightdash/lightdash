@@ -507,6 +507,14 @@ describe('LearnPage filters', () => {
         expect(location()).toBe('?extra=1&group=developer');
     });
 
+    it('takes the group out of the address on All', async () => {
+        renderPage('?extra=1&group=developer');
+
+        await userEvent.click(screen.getByRole('button', { name: 'All' }));
+
+        expect(location()).toBe('?extra=1');
+    });
+
     it('shows All for a group the library does not have', () => {
         renderPage('?group=nonsense');
 
