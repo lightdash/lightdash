@@ -141,6 +141,9 @@ export const serializeCustomChartTypeSchema = (
             }`,
         );
     }
+    if (type.schema.hierarchy) {
+        lines.push(`hierarchy: ${type.schema.hierarchy.field}`);
+    }
     if (type.schema.configOptions.length === 0) {
         lines.push('configOptions: none');
     } else {

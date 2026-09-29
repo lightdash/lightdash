@@ -68,6 +68,7 @@ const changes: DataAppVizSchemaChanges = {
         ],
     },
     colorPalette: 'added',
+    hierarchy: 'added',
 };
 
 describe('VizSchemaChangesList', () => {
@@ -84,7 +85,32 @@ describe('VizSchemaChangesList', () => {
         expect(screen.getByText('drops grouped')).toBeInTheDocument();
         expect(screen.getByText('Series')).toBeInTheDocument();
         expect(screen.getByText('Color palette')).toBeInTheDocument();
+        expect(screen.getByText('Hierarchy')).toBeInTheDocument();
     });
+
+    it.each([
+        ['added', 'Added', null],
+        ['changed', 'Updated', 'field changed'],
+        ['removed', 'Removed', null],
+    ] as const)(
+        'lists a hierarchy that was %s',
+        (hierarchy, heading, detail) => {
+            renderWithProviders(
+                <VizSchemaChangesList
+                    changes={{
+                        fields: { added: [], removed: [], changed: [] },
+                        configOptions: { added: [], removed: [], changed: [] },
+                        colorPalette: 'unchanged',
+                        hierarchy,
+                    }}
+                />,
+            );
+
+            expect(screen.getByText(heading)).toBeInTheDocument();
+            expect(screen.getByText('Hierarchy')).toBeInTheDocument();
+            if (detail) expect(screen.getByText(detail)).toBeInTheDocument();
+        },
+    );
 
     it('omits groups without changes', () => {
         renderWithProviders(
@@ -93,6 +119,7 @@ describe('VizSchemaChangesList', () => {
                     fields: { added: [], removed: [], changed: [] },
                     configOptions: changes.configOptions,
                     colorPalette: 'unchanged',
+                    hierarchy: 'unchanged',
                 }}
             />,
         );
@@ -131,6 +158,7 @@ it.each([
                         changed: [{ before, after }],
                     },
                     colorPalette: 'unchanged',
+                    hierarchy: 'unchanged',
                 }}
             />,
         );
@@ -161,6 +189,7 @@ it('still describes changed gradient defaults', () => {
                     changed: [{ before, after }],
                 },
                 colorPalette: 'unchanged',
+                hierarchy: 'unchanged',
             }}
         />,
     );
