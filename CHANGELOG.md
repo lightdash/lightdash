@@ -1,3 +1,10 @@
+# [2.376.0](https://github.com/lightdash/lightdash/compare/2.375.0...2.376.0) (2026-09-29)
+
+
+### Features
+
+* **documents:** render and edit custom chart types in Documents ([#30203](https://github.com/lightdash/lightdash/issues/30203)) ([248e3bb](https://github.com/lightdash/lightdash/commit/248e3bb7926a8016372255f6832b245dd243fcd2)), closes [#30202](https://github.com/lightdash/lightdash/issues/30202) [#30202](https://github.com/lightdash/lightdash/issues/30202)
+
 # [2.375.0](https://github.com/lightdash/lightdash/compare/2.374.0...2.375.0) (2026-09-29)
 
 
