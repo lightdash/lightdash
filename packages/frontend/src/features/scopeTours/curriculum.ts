@@ -43,6 +43,7 @@ export const CURRICULUM: string[] = [
     'create:DataApp',
     'view:DataApp',
     'manage:DataApp',
+    'manage:Validation',
     'manage:SpotlightTableConfig',
     'manage:MetricsTree',
 ];
