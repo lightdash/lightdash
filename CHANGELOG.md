@@ -1,3 +1,10 @@
+## [2.368.1](https://github.com/lightdash/lightdash/compare/2.368.0...2.368.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **upgrade-automation:** verify an instance by its own deploy job ([#30181](https://github.com/lightdash/lightdash/issues/30181)) ([585b1ec](https://github.com/lightdash/lightdash/commit/585b1ec5338b622daa0d23076e6831a3f2f95c1f))
+
 # [2.368.0](https://github.com/lightdash/lightdash/compare/2.367.0...2.368.0) (2026-09-29)
 
 
