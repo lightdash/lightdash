@@ -10,6 +10,10 @@
 #
 # Registry location: ~/.lightdash/dev-instances/<instance-id>.json
 #
+# New claims start at slot 0. Set LD_SLOT_START, or write a number to
+# ~/.lightdash/slot-start, to give a machine its own port range: a remote dev
+# machine can then forward its ports to a laptop without colliding.
+#
 # Usage:
 #   dev-ports.sh claim [--instance-id NAME]   Claim a port slot (idempotent)
 #   dev-ports.sh release [--instance-id NAME] Release a port slot
@@ -26,6 +30,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 REGISTRY_DIR="$HOME/.lightdash/dev-instances"
+SLOT_START_FILE="$HOME/.lightdash/slot-start"
 
 # Shared service ports (fixed, single instance for all worktrees)
 SHARED_MINIO_PORT=9000
@@ -108,10 +113,25 @@ print(' '.join(slots))
 PYTHON
 }
 
+first_slot() {
+    local start="${LD_SLOT_START:-}"
+    if [ -z "$start" ] && [ -f "$SLOT_START_FILE" ]; then
+        start=$(tr -d '[:space:]' < "$SLOT_START_FILE")
+    fi
+    case "${start:-0}" in
+        *[!0-9]*)
+            echo "ERROR: slot start must be a whole number, got '$start'" >&2
+            return 1
+            ;;
+    esac
+    echo "${start:-0}"
+}
+
 find_next_slot() {
     local taken
     taken=$(get_taken_slots)
-    local slot=0
+    local slot
+    slot=$(first_slot) || return 1
     while true; do
         if ! echo "$taken" | grep -qw "$slot"; then
             echo "$slot"

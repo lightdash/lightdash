@@ -153,3 +153,72 @@ test('port probes suppress lsof warnings and use ss when lsof is absent', async 
         await rm(root, { recursive: true, force: true });
     }
 });
+
+async function claimSlot(
+    setup: (home: string) => Promise<void>,
+    env: Record<string, string> = {},
+): Promise<number> {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'ldenv-slot-start-'));
+    try {
+        const home = path.join(root, 'home');
+        const registry = path.join(home, '.lightdash', 'dev-instances');
+        await mkdir(registry, { recursive: true });
+        await setup(home);
+        await writeFile(
+            path.join(root, 'ports.sh'),
+            await readFile(path.join(__dirname, '../dev-ports.sh'), 'utf8'),
+        );
+        await writeFile(path.join(root, 'lsof'), '#!/bin/bash\nexit 1\n', {
+            mode: 0o700,
+        });
+        await runner.run(
+            'bash',
+            ['ports.sh', 'claim', '--instance-id', 'test'],
+            {
+                cwd: root,
+                env: {
+                    HOME: home,
+                    PATH: `${root}:${process.env.PATH}`,
+                    LD_SLOT_START: '',
+                    ...env,
+                },
+            },
+        );
+        return (
+            await readJson<{ slot: number }>(path.join(registry, 'test.json'))
+        ).slot;
+    } finally {
+        await rm(root, { recursive: true });
+    }
+}
+
+test('claims start at slot 0 without a start setting', async () => {
+    assert.equal(await claimSlot(async () => undefined), 0);
+});
+
+test('a slot-start file gives the machine its own port range', async () => {
+    assert.equal(
+        await claimSlot((home) =>
+            writeFile(path.join(home, '.lightdash', 'slot-start'), '50\n'),
+        ),
+        50,
+    );
+});
+
+test('LD_SLOT_START wins over the slot-start file', async () => {
+    assert.equal(
+        await claimSlot(
+            (home) =>
+                writeFile(path.join(home, '.lightdash', 'slot-start'), '50\n'),
+            { LD_SLOT_START: '30' },
+        ),
+        30,
+    );
+});
+
+test('a non-numeric slot start fails the claim', async () => {
+    await assert.rejects(
+        claimSlot(async () => undefined, { LD_SLOT_START: 'fifty' }),
+        /slot start must be a whole number/,
+    );
+});
