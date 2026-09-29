@@ -15,8 +15,16 @@ const connectionSettings = () => ({
     password: process.env.PGPASSWORD,
 });
 
+/**
+ * `community` applies only the core migrations, the schema of a self-hosted
+ * instance without an Enterprise license. The default follows the
+ * environment, so a `LIGHTDASH_LICENSE_KEY` in the shell adds the EE tables.
+ */
+export type MigratedTestDatabaseEdition = 'community' | 'environment';
+
 export const createMigratedTestDatabase = async (
     prefix: string,
+    { edition = 'environment' }: { edition?: MigratedTestDatabaseEdition } = {},
 ): Promise<MigratedTestDatabase> => {
     const settings = connectionSettings();
     const databaseName = `${prefix}_${randomUUID().replaceAll('-', '')}`;
@@ -37,6 +45,7 @@ export const createMigratedTestDatabase = async (
             )}:${encodeURIComponent(settings.password ?? '')}@${settings.host}:${
                 settings.port
             }/${databaseName}`,
+            ...(edition === 'community' ? { LIGHTDASH_LICENSE_KEY: '' } : {}),
         },
         stdio: 'pipe',
     });
