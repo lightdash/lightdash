@@ -83,23 +83,23 @@ const aiUsageChannelSchema = z.enum([
 ]);
 
 /**
- * Surface an AI call was made from, so usage can be broken down by where
- * people use the agent. Taken from where the thread was created, never from the
- * request that happens to continue it. `mcp` is reserved: no call reports it
- * yet, because MCP does not run agent threads.
+ * Where the call's thread was created, never the request that continues it.
+ * `mcp` is reserved: MCP does not run agent threads, so no call reports it yet.
  */
 export type AiUsageChannel = z.infer<typeof aiUsageChannelSchema>;
 
 const parseChannel = (value: string | null): AiUsageChannel | null =>
     aiUsageChannelSchema.safeParse(value).data ?? null;
 
+export type AiThreadOrigin = {
+    createdFrom: AiThreadCreatedFrom;
+    embedSpaceUuid: string | null;
+};
+
 export const getAiUsageChannel = ({
     createdFrom,
     embedSpaceUuid,
-}: {
-    createdFrom: AiThreadCreatedFrom;
-    embedSpaceUuid: string | null;
-}): AiUsageChannel => {
+}: AiThreadOrigin): AiUsageChannel => {
     switch (createdFrom) {
         case 'web_app':
             // An embedded chat is a web thread scoped to the embed's space.

@@ -113,6 +113,7 @@ import {
 import { Knex } from 'knex';
 import moment from 'moment';
 import { z } from 'zod';
+import type { AiThreadOrigin } from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import {
@@ -6739,13 +6740,9 @@ export class AiAgentModel {
         });
     }
 
-    async findThreadOrigin(threadUuid: string): Promise<
-        | {
-              createdFrom: AiThreadCreatedFrom;
-              embedSpaceUuid: string | null;
-          }
-        | undefined
-    > {
+    async findThreadOrigin(
+        threadUuid: string,
+    ): Promise<AiThreadOrigin | undefined> {
         return this.database(AiThreadTableName)
             .leftJoin(
                 AiWebAppThreadTableName,
@@ -10450,7 +10447,9 @@ export class AiAgentModel {
             }
 
             if (!isAiAppThreadCreatedFrom(sourceThread.created_from)) {
-                throw new ParameterError('Only web app threads can be shared');
+                throw new ParameterError(
+                    'Only threads started in the app or through the API can be shared',
+                );
             }
 
             const latestPrompt = await trx(AiPromptTableName)

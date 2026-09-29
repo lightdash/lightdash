@@ -6825,8 +6825,12 @@ export class AiAgentService extends BaseService {
             const origin = await this.aiAgentModel.findThreadOrigin(threadUuid);
             return origin ? getAiUsageChannel(origin) : null;
         } catch (error) {
-            Logger.warn(
-                `Could not resolve the usage channel of thread ${threadUuid}: ${getErrorMessage(error)}`,
+            this.logger.warn(
+                'Could not resolve the usage channel of a thread',
+                {
+                    threadUuid,
+                    error: getErrorMessage(error),
+                },
             );
             return null;
         }

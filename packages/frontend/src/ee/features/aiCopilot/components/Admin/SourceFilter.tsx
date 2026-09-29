@@ -1,3 +1,4 @@
+import { type AiUserThreadCreatedFrom } from '@lightdash/common';
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine/core';
 import {
     IconApi,
@@ -73,7 +74,7 @@ export const SourceFilter = ({
             size="xs"
             value={selectedSource}
             onChange={(value) =>
-                setSelectedSource(value as 'all' | 'web_app' | 'slack' | 'api')
+                setSelectedSource(value as 'all' | AiUserThreadCreatedFrom)
             }
             data={data}
         />

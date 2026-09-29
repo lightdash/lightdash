@@ -14,7 +14,7 @@ export async function up(knex: Knex): Promise<void> {
             .text('usage_channel')
             .nullable()
             .comment(
-                'Surface the call was made from, taken from where its thread was created. Null for calls with no thread.',
+                'Surface the call was made from, taken from where its thread was created. Null when the call carries no thread origin.',
             );
     });
 }
