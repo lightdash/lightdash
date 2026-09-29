@@ -100,6 +100,13 @@ describe('native GitHub connection form', () => {
             expect(
                 screen.getByText(/containing lightdash.config.yml/),
             ).toBeInTheDocument();
+            if (bitbucket) {
+                await user.clear(screen.getByLabelText(/Host domain/));
+                await user.type(
+                    screen.getByLabelText(/Host domain/),
+                    'git.example.com/bitbucket',
+                );
+            }
             await user.click(screen.getByRole('button', { name: 'Submit' }));
             expect(submit).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -111,7 +118,10 @@ describe('native GitHub connection form', () => {
                         project_sub_path: '/analytics',
                         ...(!bitbucket
                             ? { installation_id: '123' }
-                            : { username: 'demo' }),
+                            : {
+                                  username: 'demo',
+                                  host_domain: 'git.example.com/bitbucket',
+                              }),
                         target: undefined,
                         selector: undefined,
                     }),

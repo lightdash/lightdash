@@ -186,15 +186,73 @@ describe('native GitHub server compilation', () => {
         expect(refreshed[0]?.tables?.orders.dimensions.id.sql).toBe('order_id');
     });
 
-    it('rejects native Bitbucket Server before cloning', async () => {
-        await expect(
-            createAdapter({
+    it.each([
+        ['bitbucket.example.com', 'https://bitbucket.example.com'],
+        [
+            'bitbucket.example.com:8443/bitbucket/',
+            'https://bitbucket.example.com:8443/bitbucket',
+        ],
+        [
+            'https://bitbucket.example.com/bitbucket',
+            'https://bitbucket.example.com/bitbucket',
+        ],
+    ])(
+        'clones native Bitbucket Data Center from %s with host-scoped credentials',
+        async (hostDomain, remoteBase) => {
+            const adapter = await createAdapter({
                 ...bitbucketConnection,
-                host_domain: 'bitbucket.example.com',
-            }),
-        ).rejects.toThrow('Bitbucket Cloud');
-        expect(clone).not.toHaveBeenCalled();
+                repository: 'scm/proj/native',
+                host_domain: hostDomain,
+            });
+            adapters.push(adapter);
+            await adapter.compileAllExplores(undefined);
+            expect(clone).toHaveBeenCalledWith(
+                `${remoteBase}/scm/proj/native.git`,
+                expect.any(String),
+                expect.objectContaining({ '--branch': 'main' }),
+            );
+            const gitConfig = await fs.readFile(
+                vi.mocked(env).mock.calls[0][1] as string,
+                'utf8',
+            );
+            expect(gitConfig).toContain(
+                `[credential "${new URL(remoteBase).origin}"]`,
+            );
+            expect(gitConfig).toContain('username = "demo-user"');
+        },
+    );
+
+    it('uses the Data Center token username when a native Bitbucket Server username is empty', async () => {
+        const adapter = await createAdapter({
+            ...bitbucketConnection,
+            username: '',
+            host_domain: 'bitbucket.example.com',
+        });
+        adapters.push(adapter);
+        const gitConfig = await fs.readFile(
+            vi.mocked(env).mock.calls[0][1] as string,
+            'utf8',
+        );
+        expect(gitConfig).toContain('username = "x-token-auth"');
     });
+
+    it.each([
+        'user:secret@bitbucket.example.com',
+        'bitbucket.example.com?x=1',
+        'http://bitbucket.example.com',
+        'bad host',
+    ])(
+        'rejects the native Bitbucket host %s before cloning',
+        async (hostDomain) => {
+            await expect(
+                createAdapter({
+                    ...bitbucketConnection,
+                    host_domain: hostDomain,
+                }),
+            ).rejects.toThrow('Bitbucket host');
+            expect(clone).not.toHaveBeenCalled();
+        },
+    );
 
     it('keeps existing Bitbucket connections on dbt', async () => {
         const adapter = await createAdapter({

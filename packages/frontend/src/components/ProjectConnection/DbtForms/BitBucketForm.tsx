@@ -18,7 +18,6 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         <>
             <Select
                 label="Semantic layer format"
-                description="Native Lightdash YAML uses Bitbucket Cloud (bitbucket.org)."
                 name="dbt.semanticLayer"
                 value={isNative ? 'lightdash' : 'dbt'}
                 allowDeselect={false}
@@ -42,7 +41,6 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                   target: undefined,
                                   selector: undefined,
                                   environment: undefined,
-                                  host_domain: 'bitbucket.org',
                               }
                             : {}),
                     });
@@ -77,21 +75,18 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             requires Repositories: Write and Pull requests: Read
                             and Write permissions.
                         </Text>
-                        {!isNative && (
-                            <Text component="span" display="block" size="xs">
-                                For Bitbucket Server, use an{' '}
-                                <Anchor
-                                    inherit
-                                    href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    HTTP access token
-                                </Anchor>{' '}
-                                with Project read and Repository read
-                                permissions.
-                            </Text>
-                        )}
+                        <Text component="span" display="block" size="xs">
+                            For Bitbucket Server, use an{' '}
+                            <Anchor
+                                inherit
+                                href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                HTTP access token
+                            </Anchor>{' '}
+                            with Project read and Repository read permissions.
+                        </Text>
                     </>
                 }
                 required={requireSecrets}
@@ -107,7 +102,9 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 description={
                     <p>
                         This should be in the format <b>my-org/my-repo</b>. e.g.{' '}
-                        <b>lightdash/lightdash-analytics</b>
+                        <b>lightdash/lightdash-analytics</b>. For Bitbucket
+                        Server, use the path from your clone URL, e.g.{' '}
+                        <b>scm/PROJECT/my-repo</b>
                     </p>
                 }
                 required
@@ -178,32 +175,30 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 disabled={disabled}
                 defaultValue={bitbucketDefaultValues.project_sub_path}
             />
-            {!isNative && (
-                <TextInput
-                    name="dbt.host_domain"
-                    {...form.getInputProps('dbt.host_domain')}
-                    label="Host domain (for self-hosted instances)"
-                    description={
-                        <p>
-                            If you've
-                            <Anchor
-                                inherit
-                                href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                {' '}
-                                customized the domain for your Bitbucket
-                                server{' '}
-                            </Anchor>
-                            you can add the custom domain for your project in
-                            here.
-                        </p>
-                    }
-                    disabled={disabled}
-                    defaultValue={bitbucketDefaultValues.host_domain}
-                />
-            )}
+            <TextInput
+                name="dbt.host_domain"
+                {...form.getInputProps('dbt.host_domain')}
+                label="Host domain (for self-hosted instances)"
+                description={
+                    <p>
+                        If you've
+                        <Anchor
+                            inherit
+                            href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            {' '}
+                            customized the domain for your Bitbucket server{' '}
+                        </Anchor>
+                        you can add the custom domain for your project in here.
+                        Include the port or context path if your server uses
+                        one, e.g. <b>git.example.com/bitbucket</b>.
+                    </p>
+                }
+                disabled={disabled}
+                defaultValue={bitbucketDefaultValues.host_domain}
+            />
         </>
     );
 };

@@ -32,6 +32,49 @@ import {
 } from '../utils/credentialDestination';
 import { GitRepository } from './gitRepository';
 
+type GitRemote = {
+    host: string;
+    basePath: string;
+    username: string;
+};
+
+// Bitbucket Data Center may serve Git under a context path, such as
+// git.example.com/bitbucket; credentials stay scoped to the host.
+const getBitbucketRemote = (
+    hostDomain: string,
+    username: string | undefined,
+): GitRemote => {
+    const invalidHostError = new ParameterError(
+        'Bitbucket host must be a domain with an optional port and path',
+    );
+    const hostWithPath = hostDomain.trim().replace(/^https:\/\//i, '');
+    if (hostWithPath.includes('://')) {
+        throw invalidHostError;
+    }
+    const url = (() => {
+        try {
+            return new URL(`https://${hostWithPath}`);
+        } catch {
+            throw invalidHostError;
+        }
+    })();
+    if (url.username || url.password || url.search || url.hash) {
+        throw invalidHostError;
+    }
+    const basePath = url.pathname.replace(/\/+$/, '');
+    const isBitbucketCloud =
+        normalizeCredentialHost(url.host) === DEFAULT_BITBUCKET_HOST_DOMAIN &&
+        basePath === '';
+    const defaultUsername = isBitbucketCloud
+        ? 'x-bitbucket-api-token-auth'
+        : 'x-token-auth';
+    return {
+        host: url.host,
+        basePath,
+        username: username || defaultUsername,
+    };
+};
+
 export class NativeGitProjectAdapter implements ProjectAdapter {
     readonly dbtProjectDir: string;
 
@@ -67,14 +110,6 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
             if (!valid) {
                 throw new ParameterError(error);
             }
-        } else if (
-            normalizeCredentialHost(
-                hostDomain || DEFAULT_BITBUCKET_HOST_DOMAIN,
-            ) !== DEFAULT_BITBUCKET_HOST_DOMAIN
-        ) {
-            throw new ParameterError(
-                'Native Bitbucket projects require Bitbucket Cloud',
-            );
         }
         const subPath = projectSubPath.replace(/^\/+/, '');
         if (subPath.split('/').includes('..') || subPath.includes('\\')) {
@@ -82,17 +117,21 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
                 'Project subdirectory must stay within the Git repository',
             );
         }
-        const host =
+        const remote =
             provider === DbtProjectType.BITBUCKET
-                ? DEFAULT_BITBUCKET_HOST_DOMAIN
-                : hostDomain || DEFAULT_GITHUB_HOST_DOMAIN;
+                ? getBitbucketRemote(
+                      hostDomain || DEFAULT_BITBUCKET_HOST_DOMAIN,
+                      username,
+                  )
+                : {
+                      host: hostDomain || DEFAULT_GITHUB_HOST_DOMAIN,
+                      basePath: '',
+                      username: 'lightdash',
+                  };
         this.credentials = createGitCredentialFiles({
-            host,
+            host: remote.host,
             token,
-            username:
-                provider === DbtProjectType.BITBUCKET
-                    ? username || 'x-bitbucket-api-token-auth'
-                    : 'lightdash',
+            username: remote.username,
         });
         this.localRepositoryDir = fs.mkdtempSync(
             path.join(os.tmpdir(), 'native_git_'),
@@ -105,7 +144,7 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
                 this.credentials.configPath,
             ),
             this.localRepositoryDir,
-            `https://${host}/${repository}.git`,
+            `https://${remote.host}${remote.basePath}/${repository}.git`,
             repository,
             branch,
         );
