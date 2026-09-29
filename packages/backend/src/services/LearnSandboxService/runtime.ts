@@ -291,6 +291,11 @@ export type BuildSandboxEnvironmentArgs = {
     workspaceDir: string;
     projectDir: string;
     databasePath: string;
+    /**
+     * True only when the workspace's target directory holds a
+     * partial_parse.msgpack seeded from the pristine bundle (CS-334).
+     */
+    partialParse?: boolean;
 };
 
 export const buildSandboxEnvironment = (
@@ -322,7 +327,7 @@ export const buildSandboxEnvironment = (
         DBT_PROJECT_DIR: args.projectDir,
         DBT_TARGET_PATH: path.join(args.workspaceDir, 'target'),
         HOME: args.workspaceDir,
-        DBT_PARTIAL_PARSE: 'false',
+        DBT_PARTIAL_PARSE: args.partialParse ? 'true' : 'false',
         DBT_SEND_ANONYMOUS_USAGE_STATS: 'false',
         CI: 'true',
         LIGHTDASH_API_TIMEOUT_MS: String(LEARN_SANDBOX_API_TIMEOUT_MS),
