@@ -535,7 +535,9 @@ describe('getFilteredExplore with anyAttributes', () => {
 describe('metric-level attributes', () => {
     test('should detect when only a metric has attributes', () => {
         expect(
-            exploreHasFilteredAttribute(EXPLORE_WITH_METRIC_REQUIRED_ATTRIBUTES),
+            exploreHasFilteredAttribute(
+                EXPLORE_WITH_METRIC_REQUIRED_ATTRIBUTES,
+            ),
         ).toStrictEqual(true);
     });
     test('should hide the metric from users without the attribute', () => {
