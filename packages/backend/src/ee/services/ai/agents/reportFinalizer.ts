@@ -9,13 +9,22 @@ import {
     generateText,
     NoObjectGeneratedError,
     Output,
+    type LanguageModelUsage,
     type ModelMessage,
 } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+    type AiUsageTokens,
+} from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import { AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS } from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { GeneratorModelOptions } from '../models/types';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
-import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../utils/aiCallTelemetry';
 
 /**
  * Bounds each attempt, not the pair: the correction attempt is a retry and has
@@ -76,13 +85,39 @@ export const generateDeepResearchReport = async (
     {
         evidencePack,
         reason,
-    }: { evidencePack: AiDeepResearchEvidencePack; reason: string },
+        runUuid,
+        onUsage,
+    }: {
+        evidencePack: AiDeepResearchEvidencePack;
+        reason: string;
+        runUuid: string;
+        onUsage: (tokens: AiUsageTokens) => Promise<unknown>;
+    },
 ): Promise<AiDeepResearchSubmittedReport> => {
-    const telemetry = getGeneratorTelemetry(
-        modelOptions,
-        'generateDeepResearchReport',
-        'deep-research',
-    );
+    const telemetry = getAiCallTelemetry({
+        functionId: 'generateDeepResearchReport',
+        feature: 'deep-research',
+        ...getLanguageModelAttribution(modelOptions.model),
+        ...(modelOptions.telemetry ?? {}),
+        keyManagement: modelOptions.keyManagement,
+        extra: {
+            deepResearchRunUuid: runUuid,
+            deepResearchPhase: 'synthesizing',
+        },
+    });
+
+    // Usage accounting must never cost the run its report.
+    const recordUsage = async (usage: LanguageModelUsage) => {
+        const tokens = languageModelUsageToTokens(usage);
+        emitAiUsage(telemetry, tokens);
+        try {
+            await onUsage(tokens);
+        } catch (error) {
+            Logger.warn(
+                `[AiDeepResearch] Could not add finalizer usage to run ${runUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    };
 
     const generateRaw = async (correction: string | null) => {
         const messages: ModelMessage[] = [
@@ -104,20 +139,29 @@ export const generateDeepResearchReport = async (
                 : []),
         ];
 
-        const result = await withDeadline(
-            generateText({
-                model: modelOptions.model,
-                ...modelOptions.callOptions,
-                providerOptions: modelOptions.providerOptions,
-                ...telemetry,
-                output: Output.object({
-                    schema: aiDeepResearchReportInputSchema,
+        try {
+            const result = await withDeadline(
+                generateText({
+                    model: modelOptions.model,
+                    ...modelOptions.callOptions,
+                    providerOptions: modelOptions.providerOptions,
+                    ...telemetry,
+                    output: Output.object({
+                        schema: aiDeepResearchReportInputSchema,
+                    }),
+                    allowSystemInMessages: true,
+                    messages,
                 }),
-                allowSystemInMessages: true,
-                messages,
-            }),
-        );
-        return result.output;
+            );
+            await recordUsage(result.usage);
+            return result.output;
+        } catch (error) {
+            // A response that failed to parse was still paid for.
+            if (NoObjectGeneratedError.isInstance(error) && error.usage) {
+                await recordUsage(error.usage);
+            }
+            throw error;
+        }
     };
 
     // This string is fed back to the model as the retry correction, so it has

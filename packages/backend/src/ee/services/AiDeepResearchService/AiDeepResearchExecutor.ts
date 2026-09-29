@@ -686,9 +686,20 @@ export class AiDeepResearchExecutor {
                             {
                                 agentUuid: run.agent_uuid,
                                 threadUuid: run.ai_thread_uuid,
+                                promptUuid: run.prompt_uuid,
+                                projectUuid: run.project_uuid,
+                                runUuid: run.ai_deep_research_run_uuid,
                                 evidencePack,
                                 reason,
                                 model: finalizerModel,
+                                // Off the token budget on purpose: the budget
+                                // aborts the run, and the report is what the
+                                // run still owes.
+                                onUsage: (finalizerTokens) =>
+                                    this.dependencies.aiDeepResearchRunModel.accumulateTokenUsage(
+                                        run.ai_deep_research_run_uuid,
+                                        finalizerTokens,
+                                    ),
                             },
                         );
                     return { outcome: 'reported', report } as const;

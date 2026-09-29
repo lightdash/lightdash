@@ -216,6 +216,7 @@ import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
+import type { AiUsageTokens } from '../../../analytics/aiUsage';
 import {
     AiAgentArtifactsRetrievedEvent,
     AiAgentArtifactVersionVerifiedEvent,
@@ -8065,15 +8066,23 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
+            projectUuid,
+            runUuid,
             evidencePack,
             reason,
             model,
+            onUsage,
         }: {
             agentUuid: string;
             threadUuid: string;
+            promptUuid: string;
+            projectUuid: string;
+            runUuid: string;
             evidencePack: AiDeepResearchEvidencePack;
             reason: string;
             model: AiDeepResearchExecutionContextSnapshot['model'];
+            onUsage: (tokens: AiUsageTokens) => Promise<unknown>;
         },
     ): Promise<AiDeepResearchSubmittedReport> {
         const copilotConfig =
@@ -8137,8 +8146,10 @@ export class AiAgentService extends BaseService {
             }),
             telemetry: {
                 organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
                 agentUuid,
                 threadUuid,
+                promptUuid,
                 userUuid: user.userUuid,
             },
         };
@@ -8146,6 +8157,8 @@ export class AiAgentService extends BaseService {
         return generateDeepResearchReportFromEvidence(modelOptions, {
             evidencePack,
             reason,
+            runUuid,
+            onUsage,
         });
     }
 
