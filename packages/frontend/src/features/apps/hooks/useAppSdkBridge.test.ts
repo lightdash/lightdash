@@ -2258,6 +2258,128 @@ describe('viz point-menu virtual route', () => {
     });
 });
 
+describe('viz subtotal virtual route', () => {
+    const VIRTUAL_PATH = '/__sdk/viz/subtotals';
+    const INTENT = { level: 1, parentValues: ['Portugal'] };
+    const UNAVAILABLE = 'Subtotals are not available for this visualization.';
+
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    function requestSubtotals({
+        onVizSubtotalsIntent,
+        dataAppVizMode = true,
+        method = 'POST',
+    }: {
+        onVizSubtotalsIntent?: (intentBody: unknown) => Promise<{
+            rows: DataAppVizContext['rows'];
+        }>;
+        dataAppVizMode?: boolean;
+        method?: string;
+    }) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                dataAppVizMode,
+                onVizSubtotalsIntent,
+            }),
+        );
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method,
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+        return postMessageSpy;
+    }
+
+    const expectResponse = (
+        postMessageSpy: ReturnType<typeof requestSubtotals>,
+        response: Record<string, unknown>,
+    ) =>
+        vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ id: POST_ID, ...response }),
+                '*',
+            ),
+        );
+
+    it('answers from the host without granting iframe query access', async () => {
+        const rows = [
+            {
+                orders_country: {
+                    value: { raw: 'Portugal', formatted: 'Portugal' },
+                },
+            },
+        ];
+        const onVizSubtotalsIntent = vi.fn().mockResolvedValue({ rows });
+        const postMessageSpy = requestSubtotals({ onVizSubtotalsIntent });
+
+        await expectResponse(postMessageSpy, { result: { rows } });
+        expect(onVizSubtotalsIntent).toHaveBeenCalledWith(INTENT);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports subtotals as unavailable when the host has no handler', async () => {
+        const postMessageSpy = requestSubtotals({});
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports subtotals as unavailable outside viz mode', async () => {
+        const onVizSubtotalsIntent = vi.fn();
+        const postMessageSpy = requestSubtotals({
+            onVizSubtotalsIntent,
+            dataAppVizMode: false,
+        });
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
+        expect(onVizSubtotalsIntent).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports subtotals as unavailable for a method other than POST', async () => {
+        const onVizSubtotalsIntent = vi.fn();
+        const postMessageSpy = requestSubtotals({
+            onVizSubtotalsIntent,
+            method: 'GET',
+        });
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
+        expect(onVizSubtotalsIntent).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("keeps the handler's failure reason away from the iframe", async () => {
+        const postMessageSpy = requestSubtotals({
+            onVizSubtotalsIntent: vi
+                .fn()
+                .mockRejectedValue(
+                    new Error('relation "orders" does not exist'),
+                ),
+        });
+
+        await expectResponse(postMessageSpy, { error: UNAVAILABLE });
+    });
+});
+
 describe('viz underlying-data host dialog virtual route', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());
