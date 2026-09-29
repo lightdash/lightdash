@@ -203,7 +203,7 @@ export class UsageEventsCompactor extends S3BaseClient {
             }
             const users = await new UsageUserActivityBuilder(
                 this.s3Config,
-            ).runAll(this.usageDimensionsModel, now);
+            ).runAll(now);
             if (users.failed > 0)
                 throw new Error(
                     `User activity: ${users.failed} partitions failed; previous output retained`,

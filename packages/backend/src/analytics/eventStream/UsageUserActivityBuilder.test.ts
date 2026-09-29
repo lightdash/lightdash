@@ -54,6 +54,88 @@ describe('user activity safeguards', () => {
         ).toEqual(['2025-12-31', '2026-01-01', '2026-01-02']);
     });
 
+    it('uses one inventory request for an empty deployment, without per-organization probes', async () => {
+        const list = vi
+            .spyOn(S3.prototype, 'listObjectsV2')
+            .mockResolvedValue({ Contents: [] } as never);
+        const runSqlWithMetrics = vi.fn();
+        expect(
+            await new UsageUserActivityBuilder(storage, {
+                runSqlWithMetrics,
+            }).runAll(now),
+        ).toMatchObject({ published: 0, failed: 0 });
+        expect(list).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                Prefix: 'events/compacted/',
+                MaxKeys: 1000,
+            }),
+        );
+        expect(runSqlWithMetrics).not.toHaveBeenCalled();
+    });
+
+    it('streams inventory pages and processes each closed event partition once across page boundaries', async () => {
+        const prefix = `events/compacted/org_id=${org}/`;
+        const partition = `${prefix}stream=query_events/dt=2026-01-01/`;
+        const list = vi
+            .spyOn(S3.prototype, 'listObjectsV2')
+            .mockImplementation(
+                async (input: {
+                    Prefix?: string;
+                    ContinuationToken?: string;
+                }) => {
+                    if (input.Prefix !== 'events/compacted/')
+                        return { Contents: [] } as never;
+                    if (!input.ContinuationToken)
+                        return {
+                            Contents: [
+                                { Key: `${prefix}dim=users/users.parquet` },
+                                {
+                                    Key: `${prefix}model=user_activity/stream=query_events/dt=2026-01-01/activity.parquet`,
+                                },
+                                { Key: `${partition}a.parquet` },
+                            ],
+                            IsTruncated: true,
+                            NextContinuationToken: 'page2',
+                        } as never;
+                    return {
+                        Contents: [
+                            { Key: `${partition}b.parquet` },
+                            {
+                                Key: `${prefix}stream=query_events/dt=2026-01-02/a.parquet`,
+                            },
+                            {
+                                Key: `${prefix}stream=query_events/dt=2026-02-01/a.parquet`,
+                            },
+                            {
+                                Key: `${prefix}stream=unknown/dt=2026-01-01/a.parquet`,
+                            },
+                        ],
+                    } as never;
+                },
+            );
+        const summary = await new UsageUserActivityBuilder(storage, {
+            runSqlWithMetrics: vi.fn(),
+        }).runAll(now);
+        expect(summary).toMatchObject({ skipped: 2, failed: 0 });
+        // Two inventory pages plus raw/source checks for only two eligible partitions.
+        expect(list).toHaveBeenCalledTimes(6);
+    });
+
+    it.each([
+        { IsTruncated: true },
+        { Contents: [{ Key: 'events/raw/outside-scope.parquet' }] },
+    ])('rejects incomplete or out-of-scope inventory pages', async (page) => {
+        vi.spyOn(S3.prototype, 'listObjectsV2').mockResolvedValue(
+            page as never,
+        );
+        await expect(
+            new UsageUserActivityBuilder(storage, {
+                runSqlWithMetrics: vi.fn(),
+            }).runAll(now),
+        ).rejects.toThrow();
+        expect(upload).not.toHaveBeenCalled();
+    });
+
     it('reads all listing pages and stops without publishing on transform failure', async () => {
         const list = vi
             .spyOn(S3.prototype, 'listObjectsV2')

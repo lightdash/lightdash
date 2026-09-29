@@ -33,6 +33,14 @@ and rebuilds partitions whose source file keys, ETags or sizes have changed.
 Unchanged partitions are skipped. Late arrivals are incorporated after their
 next successful compaction. The current UTC day is excluded.
 
+Discovery scans the compacted object inventory in pages of 1,000, retaining only
+the current page and last partition identifier. It does not probe each registered
+organization/stream pair. Dimension snapshots, derived summaries, unknown streams
+and open days are excluded. A truncated inventory without a continuation token,
+or more than 10,000 listing pages, fails explicitly. Checking existing partitions
+still requires storage metadata requests, so runtime depends on partition/file
+count and storage latency as well as event rows.
+
 At most 500 changed or failed stream/day partitions are processed per run; a
 warning identifies remaining work, which subsequent runs retry. Initial backfill
 can therefore span several runs. A missing day represents unknown coverage,
@@ -111,8 +119,15 @@ late arrivals, recovery of missing summaries, pending raw files and preservation
 of previous output on corrupt input.
 
 On 2026-09-29, 10,000,005 synthetic events across 10,000 regular user UUIDs plus
-edge cases passed. The first compactor/refresh run took 1.49 seconds, with sampled
-test-process peak RSS of 448 MiB; the full integration scenario took 10.59
+edge cases passed. The first compactor/refresh run took 1.25 seconds, with sampled
+test-process peak RSS of 390 MiB; the full integration scenario took 11.48
 seconds. Fixture generation precedes the measurement and can contribute retained
 memory. These local measurements are not production throughput or memory
-guarantees. Production cloud credentials were not exercised.
+guarantees. Production transformations and publication were not exercised.
+
+A separate capacity run exercised the user stage with 500 partitions across 100
+synthetic organizations, 600 users per organization, and 10,000,000 events. Initial
+publication took 18.722 seconds with 445 MiB sampled peak process RSS; the unchanged
+rerun took 0.802 seconds. All 500 partitions published and then skipped unchanged,
+with zero failures. This measures local MinIO behavior, excluding fixture creation
+and the existing dimension-refresh stage. It is not a production runtime promise.

@@ -38,6 +38,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                 endpoint,
                 bucket: `usage-users-${randomUUID()}`,
                 region: 'us-east-1',
+                // Public development defaults; the loopback-only guard above is mandatory.
                 accessKey: 'minioadmin',
                 secretKey: 'minioadmin',
                 forcePathStyle: true,
