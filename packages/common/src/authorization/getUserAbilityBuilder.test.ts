@@ -3,7 +3,10 @@ import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectMemberRole } from '../types/projectMemberRole';
 import { ProjectType } from '../types/projects';
 import { collapseAbilityRules } from './collapseAbilityRules';
-import { getUserAbilityBuilder } from './index';
+import {
+    getUserAbilityBuilder,
+    grantOrganizationChartTypeViewForChartBuilders,
+} from './index';
 import applyOrganizationMemberAbilities from './organizationMemberAbility';
 import { type MemberAbility } from './types';
 
@@ -26,6 +29,11 @@ const buildExpected = (role: OrganizationMemberRole) => {
     // getUserAbilityBuilder collapses rules before returning, so the reference
     // set must be collapsed the same way for an apples-to-apples comparison.
     builder.rules = collapseAbilityRules(builder.rules);
+    grantOrganizationChartTypeViewForChartBuilders(builder, {
+        organizationUuid: ORG_UUID,
+        userUuid: USER_UUID,
+        projects: [],
+    });
     return builder.build().rules;
 };
 

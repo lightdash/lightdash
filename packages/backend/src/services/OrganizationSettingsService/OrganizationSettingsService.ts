@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     MAX_INVITE_LINK_EXPIRATION_DAYS,
+    OrganizationChartTypesSetting,
     OrganizationSettings,
     ParameterError,
     POSTGRES_INTEGER_MAX,
@@ -26,7 +27,8 @@ type OrganizationSettingsServiceArguments = {
 
 /**
  * Generic per-organization settings (account-linking toggles today, more to
- * come). Stored in `organization_settings`, gated by `manage Organization`.
+ * come). Stored in `organization_settings`. Generic settings access is gated
+ * by `manage Organization`; chart builders can read only the chart types flag.
  * Reads/writes raw overrides but always returns the EFFECTIVE value (override
  * resolved against the instance default via the shared resolver), so callers —
  * including the frontend — never re-implement the fallback.
@@ -94,6 +96,34 @@ export class OrganizationSettingsService extends BaseService {
         return organizationUuid;
     }
 
+    private async assertCanAccessChartTypes(
+        account: RegisteredAccount,
+        action: 'view' | 'manage',
+    ): Promise<string> {
+        const organizationUuid = account.organization?.organizationUuid;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            this.createAuditedAbility(account).cannot(
+                action,
+                subject('OrganizationChartType', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const flag = await this.featureFlagModel.get({
+            user: { userUuid: account.user.userUuid, organizationUuid },
+            featureFlagId: FeatureFlags.OrganizationChartTypes,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                'Organization chart types are not enabled for this organization.',
+            );
+        }
+        return organizationUuid;
+    }
+
     /**
      * Validates the numeric overrides before they're persisted: each must be a
      * positive integer within the Postgres column ceiling, and the two export
@@ -101,6 +131,11 @@ export class OrganizationSettingsService extends BaseService {
      * clears an override (back to inheriting the env default).
      */
     private assertValidPatch(data: UpdateOrganizationSettings): void {
+        if (Object.hasOwn(data, 'organizationChartTypesEnabled')) {
+            throw new ParameterError(
+                'Organization chart types are updated through /api/v1/org/settings/chart-types.',
+            );
+        }
         if (
             data.inviteLinkExpirationDays !== undefined &&
             data.inviteLinkExpirationDays !== null &&
@@ -203,5 +238,36 @@ export class OrganizationSettingsService extends BaseService {
             raw,
             getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
         );
+    }
+
+    async getOrganizationChartTypesSetting(
+        account: RegisteredAccount,
+    ): Promise<OrganizationChartTypesSetting> {
+        const organizationUuid = await this.assertCanAccessChartTypes(
+            account,
+            'view',
+        );
+        const raw = await this.organizationSettingsModel.get(organizationUuid);
+        return { enabled: raw.organizationChartTypesEnabled ?? false };
+    }
+
+    async updateOrganizationChartTypesSetting(
+        account: RegisteredAccount,
+        data: OrganizationChartTypesSetting,
+    ): Promise<OrganizationChartTypesSetting> {
+        const organizationUuid = await this.assertCanAccessChartTypes(
+            account,
+            'manage',
+        );
+        if (typeof data.enabled !== 'boolean') {
+            throw new ParameterError(
+                'Organization chart types enablement must be a boolean.',
+            );
+        }
+        const raw = await this.organizationSettingsModel.update(
+            organizationUuid,
+            { organizationChartTypesEnabled: data.enabled },
+        );
+        return { enabled: raw.organizationChartTypesEnabled ?? false };
     }
 }

@@ -45,6 +45,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                organizationChartTypesEnabled: null,
                 inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
@@ -71,6 +72,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                organizationChartTypesEnabled: null,
                 inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
@@ -94,6 +96,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: true,
                 semanticLayerPgwireEnabled: null,
+                organizationChartTypesEnabled: null,
                 inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
@@ -119,6 +122,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                organizationChartTypesEnabled: null,
                 inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: 604800,
                 scheduledDeliveryExpirationSecondsEmail: null,
@@ -143,6 +147,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                organizationChartTypesEnabled: null,
                 inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
@@ -223,6 +228,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcToEmailLinkingEnabled: false,
                 supportImpersonationEnabled: null,
                 semanticLayerPgwireEnabled: null,
+                organizationChartTypesEnabled: null,
                 inviteLinkExpirationDays: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
@@ -275,6 +281,26 @@ describe('OrganizationSettingsModel', () => {
             });
             expect(captured.merge).toHaveProperty(
                 'support_impersonation_enabled',
+                true,
+            );
+            expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
+        });
+
+        test('reads and writes the organization chart types override', async () => {
+            const { model, captured } = createModel({
+                organization_chart_types_enabled: true,
+            });
+
+            expect((await model.get(ORG)).organizationChartTypesEnabled).toBe(
+                true,
+            );
+            await model.update(ORG, { organizationChartTypesEnabled: true });
+            expect(captured.insert).toEqual({
+                organization_uuid: ORG,
+                organization_chart_types_enabled: true,
+            });
+            expect(captured.merge).toHaveProperty(
+                'organization_chart_types_enabled',
                 true,
             );
             expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');

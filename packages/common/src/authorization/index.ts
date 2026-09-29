@@ -1,8 +1,9 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { NotFoundError } from '../types/errors';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { type ProjectType } from '../types/projects';
 import { type Role, type RoleWithScopes } from '../types/roles';
+import { SpaceMemberRole } from '../types/space';
 import { type LightdashUser } from '../types/user';
 import { collapseAbilityRules } from './collapseAbilityRules';
 import applyOrganizationMemberAbilities, {
@@ -21,6 +22,8 @@ export type ProjectAbilityProfile = Pick<
     ProjectMemberProfile,
     'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
 > & {
+    /** Actual organization owning this project; required for org library eligibility. */
+    organizationUuid?: string;
     projectType?: ProjectType;
     projectCreatedByUserUuid?: string | null;
     /** Additional custom roles unioned on top of `role`/`roleUuid`. */
@@ -53,6 +56,66 @@ export const EMBED_DASHBOARD_HEADER_NAME = 'lightdash-embed-dashboard';
 export type UserAbilityBuilderResult = {
     builder: AbilityBuilder<MemberAbility>;
     invalidScopes: string[];
+};
+
+// Org-wide rules condition only on organizationUuid, so a project id that no
+// real project can have probes them without matching any per-project rule.
+const ORGANIZATION_WIDE_PROBE_PROJECT_UUID = 'organization-wide-probe';
+
+const canBuildChartInProject = (
+    ability: MemberAbility,
+    userUuid: string,
+    project: { organizationUuid: string; projectUuid: string },
+): boolean =>
+    ability.can('view', subject('Project', { ...project })) &&
+    ability.can('manage', subject('Explore', { ...project })) &&
+    ability.can(
+        'create',
+        subject('SavedChart', {
+            ...project,
+            inheritsFromOrgOrProject: true,
+            access: [
+                { userUuid, role: SpaceMemberRole.EDITOR },
+                { userUuid, role: SpaceMemberRole.ADMIN },
+            ],
+        }),
+    );
+
+/**
+ * Grants `view OrganizationChartType` when the ability can build charts in any
+ * project of the organization, through org-wide rules or a project profile.
+ * Call it on already-collapsed rules so the probe ability is cheap to build.
+ */
+export const grantOrganizationChartTypeViewForChartBuilders = (
+    builder: AbilityBuilder<MemberAbility>,
+    {
+        organizationUuid,
+        userUuid,
+        projects,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        projects: Array<{ projectUuid: string; organizationUuid: string }>;
+    },
+): void => {
+    const ability = builder.build();
+    const canBuildChart =
+        canBuildChartInProject(ability, userUuid, {
+            organizationUuid,
+            projectUuid: ORGANIZATION_WIDE_PROBE_PROJECT_UUID,
+        }) ||
+        projects.some(
+            (candidate) =>
+                candidate.organizationUuid === organizationUuid &&
+                canBuildChartInProject(ability, userUuid, {
+                    organizationUuid: candidate.organizationUuid,
+                    projectUuid: candidate.projectUuid,
+                }),
+        );
+
+    if (canBuildChart) {
+        builder.can('view', 'OrganizationChartType', { organizationUuid });
+    }
 };
 
 export const getUserAbilityBuilder = ({
@@ -220,6 +283,22 @@ export const getUserAbilityBuilder = ({
     // Collapse per-project rules into `{ $in: [...] }` so the rule set (and the
     // serialized `abilityRules` payload) scales with role tiers, not project count.
     builder.rules = collapseAbilityRules(builder.rules);
+    if (user.role && user.organizationUuid) {
+        grantOrganizationChartTypeViewForChartBuilders(builder, {
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+            projects: projectProfiles.flatMap((profile) =>
+                profile.organizationUuid
+                    ? [
+                          {
+                              organizationUuid: profile.organizationUuid,
+                              projectUuid: profile.projectUuid,
+                          },
+                      ]
+                    : [],
+            ),
+        });
+    }
     return { builder, invalidScopes };
 };
 

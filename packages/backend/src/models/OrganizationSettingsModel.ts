@@ -1,7 +1,4 @@
-import {
-    OrganizationSettings,
-    UpdateOrganizationSettings,
-} from '@lightdash/common';
+import { OrganizationSettings } from '@lightdash/common';
 import { Knex } from 'knex';
 import isUndefined from 'lodash/isUndefined';
 import omitBy from 'lodash/omitBy';
@@ -48,6 +45,8 @@ export class OrganizationSettingsModel {
                 row?.support_impersonation_enabled ?? null,
             semanticLayerPgwireEnabled:
                 row?.semantic_layer_pgwire_enabled ?? null,
+            organizationChartTypesEnabled:
+                row?.organization_chart_types_enabled ?? null,
             inviteLinkExpirationDays: row?.invite_link_expiration_days ?? null,
             scheduledDeliveryExpirationSeconds:
                 row?.scheduled_delivery_expiration_seconds ?? null,
@@ -80,13 +79,15 @@ export class OrganizationSettingsModel {
      */
     async update(
         organizationUuid: string,
-        patch: UpdateOrganizationSettings,
+        patch: Partial<OrganizationSettings>,
     ): Promise<OrganizationSettings> {
         const columns: SettingsColumnPatch = {
             oidc_linking_enabled: patch.oidcLinkingEnabled,
             oidc_to_email_linking_enabled: patch.oidcToEmailLinkingEnabled,
             support_impersonation_enabled: patch.supportImpersonationEnabled,
             semantic_layer_pgwire_enabled: patch.semanticLayerPgwireEnabled,
+            organization_chart_types_enabled:
+                patch.organizationChartTypesEnabled,
             invite_link_expiration_days: patch.inviteLinkExpirationDays,
             scheduled_delivery_expiration_seconds:
                 patch.scheduledDeliveryExpirationSeconds,

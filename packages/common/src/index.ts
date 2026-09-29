@@ -53,6 +53,7 @@ export {
     defineUserAbility,
     EMBED_DASHBOARD_HEADER_NAME,
     getUserAbilityBuilder,
+    grantOrganizationChartTypeViewForChartBuilders,
     JWT_HEADER_NAME,
     type ProjectAbilityProfile,
 } from './authorization/index';

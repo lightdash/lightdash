@@ -528,6 +528,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'OrganizationChartType', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'OrganizationColorPalette', {
             organizationUuid: member.organizationUuid,
         });

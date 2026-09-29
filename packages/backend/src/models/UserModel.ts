@@ -15,6 +15,7 @@ import {
     getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
     getUserAvatarUrl,
+    grantOrganizationChartTypeViewForChartBuilders,
     InvalidUser,
     isOpenIdUser,
     isUserAvatarColorValue,
@@ -706,6 +707,7 @@ export class UserModel {
         type Row = {
             project_id: number;
             project_uuid: string;
+            organization_uuid: string;
             role: ProjectMemberRole | null;
             role_uuid: string | null;
             project_type: ProjectType;
@@ -717,10 +719,16 @@ export class UserModel {
                 'project_memberships.project_id',
                 `${ProjectTableName}.project_id`,
             )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
             .select<Row[]>([
                 `${ProjectTableName}.project_id`,
                 `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
                 'project_memberships.role',
                 'project_memberships.role_uuid',
                 `${ProjectTableName}.project_type`,
@@ -736,6 +744,7 @@ export class UserModel {
 
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
+            organizationUuid: membership.organization_uuid,
             role: membership.role || ProjectMemberRole.VIEWER,
             userUuid,
             roleUuid: membership.role_uuid || undefined,
@@ -816,10 +825,16 @@ export class UserModel {
                 'projects.project_uuid',
                 'project_group_access.project_uuid',
             )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .where('group_memberships.organization_id', organizationId)
             .andWhere('group_memberships.user_id', userId)
             .select(
                 'projects.project_uuid',
+                `${OrganizationTableName}.organization_uuid`,
                 'project_group_access.group_uuid',
                 'project_group_access.role',
                 'project_group_access.role_uuid',
@@ -860,6 +875,7 @@ export class UserModel {
         );
         return projectMemberships.map((membership) => ({
             projectUuid: membership.project_uuid,
+            organizationUuid: membership.organization_uuid,
             role: membership.role,
             userUuid,
             roleUuid: membership.role_uuid || undefined,
@@ -1100,13 +1116,19 @@ export class UserModel {
                         );
                     }
                     await applyOrgExtraRoles(builder);
-                    await this.applyServiceAccountProjectMemberships(
-                        user.user_id,
-                        user.user_uuid,
-                        builder,
-                        trx,
-                    );
+                    const projects =
+                        await this.applyServiceAccountProjectMemberships(
+                            user.user_id,
+                            user.user_uuid,
+                            builder,
+                            trx,
+                        );
                     builder.rules = collapseAbilityRules(builder.rules);
+                    grantOrganizationChartTypeViewForChartBuilders(builder, {
+                        organizationUuid: user.organization_uuid as string,
+                        userUuid: user.user_uuid,
+                        projects,
+                    });
                     return {
                         abilityBuilder: builder,
                         lightdashUser,
@@ -1130,13 +1152,19 @@ export class UserModel {
                     builder,
                 });
                 await applyOrgExtraRoles(builder);
-                await this.applyServiceAccountProjectMemberships(
-                    user.user_id,
-                    user.user_uuid,
-                    builder,
-                    trx,
-                );
+                const projects =
+                    await this.applyServiceAccountProjectMemberships(
+                        user.user_id,
+                        user.user_uuid,
+                        builder,
+                        trx,
+                    );
                 builder.rules = collapseAbilityRules(builder.rules);
+                grantOrganizationChartTypeViewForChartBuilders(builder, {
+                    organizationUuid: user.organization_uuid as string,
+                    userUuid: user.user_uuid,
+                    projects,
+                });
                 return {
                     abilityBuilder: builder,
                     lightdashUser,
@@ -1370,10 +1398,11 @@ export class UserModel {
         userUuid: string,
         builder: AbilityBuilder<MemberAbility>,
         trx: Knex = this.database,
-    ): Promise<void> {
+    ): Promise<{ projectUuid: string; organizationUuid: string }[]> {
         type Row = {
             project_id: number;
             project_uuid: string;
+            organization_uuid: string;
             role: ProjectMemberRole;
             role_uuid: string | null;
             project_type: ProjectType;
@@ -1385,9 +1414,15 @@ export class UserModel {
                 `${ProjectMembershipsTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
             )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .select<Row[]>(
                 `${ProjectTableName}.project_id`,
                 `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
                 `${ProjectMembershipsTableName}.role`,
                 `${ProjectMembershipsTableName}.role_uuid`,
                 `${ProjectTableName}.project_type`,
@@ -1468,6 +1503,10 @@ export class UserModel {
                 ].join(', ')}`,
             );
         }
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+        }));
     }
 
     async findServiceAccountByUserUuid(

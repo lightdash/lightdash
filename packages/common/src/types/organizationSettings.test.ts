@@ -21,6 +21,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
             oidcToEmailLinkingEnabled: true,
             supportImpersonationEnabled: false,
             semanticLayerPgwireEnabled: false,
+            organizationChartTypesEnabled: false,
             inviteLinkExpirationDays: 3,
             scheduledDeliveryExpirationSeconds: 259200,
             scheduledDeliveryExpirationSecondsEmail: null,
@@ -81,6 +82,25 @@ describe('resolveEffectiveOrganizationSettings', () => {
             resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
                 .supportImpersonationEnabled,
         ).toBe(false);
+    });
+
+    test('organization chart types are opt-in with no instance override', () => {
+        expect(
+            resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
+                .organizationChartTypesEnabled,
+        ).toBe(false);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { organizationChartTypesEnabled: null },
+                INSTANCE_DEFAULTS,
+            ).organizationChartTypesEnabled,
+        ).toBe(false);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { organizationChartTypesEnabled: true },
+                INSTANCE_DEFAULTS,
+            ).organizationChartTypesEnabled,
+        ).toBe(true);
     });
 
     test('invite link expiration defaults to three days and accepts an org override', () => {

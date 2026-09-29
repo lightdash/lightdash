@@ -1,4 +1,5 @@
 import {
+    DATA_APP_VIZ_TEMPLATE,
     type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
@@ -31,6 +32,7 @@ export type DbApp = {
     name: string;
     description: string;
     project_uuid: string;
+    owner_organization_uuid: null;
     slug: string;
     space_uuid: string | null;
     // Stable, registry-owned sandbox id (`sandbox_registry.sandbox_uuid`). Null
@@ -67,28 +69,53 @@ export type DbApp = {
     search_vector: string;
 };
 
-export type AppsTable = Knex.CompositeTableType<
+export type DbOrganizationViz = Omit<
     DbApp,
-    Pick<DbApp, 'project_uuid' | 'created_by_user_uuid' | 'slug'> &
-        Partial<
-            Pick<
-                DbApp,
-                | 'app_id'
-                | 'name'
-                | 'description'
-                | 'space_uuid'
-                | 'sandbox_id'
-                | 'template'
-                | 'icon'
-                | 'auto_analysis'
-                | 'design_uuid'
-                | 'upstream_app_uuid'
-                | 'registry_slug'
-                | 'registry_url'
-                | 'origin_app_uuid'
-                | 'origin_app_version'
-            >
-        >,
+    'project_uuid' | 'owner_organization_uuid' | 'template' | 'space_uuid'
+> & {
+    project_uuid: null;
+    owner_organization_uuid: string;
+    template: typeof DATA_APP_VIZ_TEMPLATE;
+    space_uuid: null;
+};
+
+export type DbAppRow = DbApp | DbOrganizationViz;
+
+export type AppsTable = Knex.CompositeTableType<
+    DbAppRow,
+    | (Pick<DbApp, 'project_uuid' | 'created_by_user_uuid' | 'slug'> &
+          Partial<
+              Pick<
+                  DbApp,
+                  | 'app_id'
+                  | 'name'
+                  | 'description'
+                  | 'space_uuid'
+                  | 'sandbox_id'
+                  | 'template'
+                  | 'icon'
+                  | 'auto_analysis'
+                  | 'design_uuid'
+                  | 'upstream_app_uuid'
+                  | 'registry_slug'
+                  | 'registry_url'
+                  | 'origin_app_uuid'
+                  | 'origin_app_version'
+              >
+          >)
+    | (Pick<
+          DbOrganizationViz,
+          | 'owner_organization_uuid'
+          | 'created_by_user_uuid'
+          | 'slug'
+          | 'name'
+          | 'template'
+      > & { project_uuid?: null } & Partial<
+              Pick<
+                  DbOrganizationViz,
+                  'app_id' | 'description' | 'icon' | 'design_uuid'
+              >
+          >),
     Partial<
         Pick<
             DbApp,
@@ -108,6 +135,7 @@ export type AppsTable = Knex.CompositeTableType<
             | 'deleted_at'
             | 'deleted_by_user_uuid'
             | 'views_count'
+            | 'owner_organization_uuid'
         >
     >
 >;

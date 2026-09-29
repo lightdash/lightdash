@@ -38,9 +38,11 @@ import {
     type AppVersionStatus,
     type DbApp,
     type DbAppActivityRow,
+    type DbAppRow,
     type DbAppThread,
     type DbAppVersion,
     type DbAppVersionWithThread,
+    type DbOrganizationViz,
 } from '../database/entities/apps';
 import {
     DashboardsTableName,
@@ -114,6 +116,7 @@ export type PreviewChartVizBindingMapping = {
 };
 
 const AppSlugSequence = 'apps_slug_sequence';
+const ORGANIZATION_CHART_TYPE_LOCK_NAMESPACE = 6;
 
 type AppWithOrgAndPin = DbApp & {
     organization_uuid: string;
@@ -129,6 +132,157 @@ export class AppModel {
     constructor({ database, dataAppCodingAgent }: AppModelArguments) {
         this.database = database;
         this.dataAppCodingAgent = dataAppCodingAgent ?? 'claude';
+    }
+
+    async createOrganizationVisualizationWithVersion(
+        input: {
+            organizationUuid: string;
+            name: string;
+            description?: string;
+            slug?: string;
+            icon?: string | null;
+            createdByUserUuid: string;
+        },
+        version: Pick<DbAppVersion, 'version' | 'prompt'>,
+        status: AppVersionStatus,
+        vizSchema?: DataAppVizSchema,
+    ): Promise<{
+        app: DbOrganizationViz;
+        version: DbAppVersion;
+        thread: DbAppThread;
+    }> {
+        return this.database.transaction(async (trx) => {
+            const name = input.name.trim();
+            if (!name) {
+                throw new Error('Custom chart type name cannot be empty');
+            }
+            const normalizedName = name.toLowerCase();
+            await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+                ORGANIZATION_CHART_TYPE_LOCK_NAMESPACE,
+                `${input.organizationUuid}:name:${normalizedName}`,
+            ]);
+            const existingName = await trx(AppsTableName)
+                .where('owner_organization_uuid', input.organizationUuid)
+                .whereRaw('lower(name) = ?', [normalizedName])
+                .first('app_id');
+            if (existingName) {
+                throw new AlreadyExistsError(
+                    `A custom chart type named "${name}" already exists in this organization (it may be soft-deleted).`,
+                );
+            }
+
+            const baseSlug = generateSlug(input.slug ?? name).slice(0, 255);
+            if (!baseSlug) {
+                throw new Error('Custom chart type slug cannot be empty');
+            }
+            let slug = baseSlug;
+            for (let increment = 0; ; increment += 1) {
+                const suffix = increment === 0 ? '' : `-${increment}`;
+                slug = `${baseSlug.slice(0, 255 - suffix.length)}${suffix}`;
+                // eslint-disable-next-line no-await-in-loop
+                await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+                    ORGANIZATION_CHART_TYPE_LOCK_NAMESPACE,
+                    `${input.organizationUuid}:slug:${slug}`,
+                ]);
+                // eslint-disable-next-line no-await-in-loop
+                const slugHolder = await trx(AppsTableName)
+                    .where({
+                        owner_organization_uuid: input.organizationUuid,
+                        slug,
+                    })
+                    .first('app_id');
+                if (!slugHolder) break;
+                if (input.slug !== undefined) {
+                    throw new AlreadyExistsError(
+                        `A custom chart type with slug "${slug}" already exists in this organization (it may be soft-deleted).`,
+                    );
+                }
+            }
+
+            const [app] = await trx(AppsTableName)
+                .insert({
+                    project_uuid: null,
+                    owner_organization_uuid: input.organizationUuid,
+                    name,
+                    description: input.description ?? '',
+                    slug,
+                    icon: input.icon ?? null,
+                    template: DATA_APP_VIZ_TEMPLATE,
+                    created_by_user_uuid: input.createdByUserUuid,
+                })
+                .returning<DbOrganizationViz[]>('*');
+            const thread = await this.insertThread(trx, {
+                appUuid: app.app_id,
+                origin: 'builder',
+                aiThreadUuid: null,
+                createdByUserUuid: input.createdByUserUuid,
+                threadNumber: 1,
+            });
+            const [createdVersion] = await trx(AppVersionsTableName)
+                .insert({
+                    ...version,
+                    app_id: app.app_id,
+                    app_thread_uuid: thread.app_thread_uuid,
+                    status,
+                    created_by_user_uuid: input.createdByUserUuid,
+                    ...(vizSchema
+                        ? {
+                              viz_schema: JSON.stringify(
+                                  vizSchema,
+                              ) as unknown as DataAppVizSchema,
+                          }
+                        : {}),
+                })
+                .returning<DbAppVersion[]>('*');
+            return { app, version: createdVersion, thread };
+        });
+    }
+
+    async findOrganizationVisualizationByUuid(
+        organizationUuid: string,
+        appUuid: string,
+    ): Promise<DbOrganizationViz | undefined> {
+        return this.database(AppsTableName)
+            .where({
+                owner_organization_uuid: organizationUuid,
+                app_id: appUuid,
+                template: DATA_APP_VIZ_TEMPLATE,
+            })
+            .whereNull('project_uuid')
+            .whereNull('deleted_at')
+            .select<DbOrganizationViz[]>('*')
+            .first();
+    }
+
+    async findOrganizationVisualizationBySlug(
+        organizationUuid: string,
+        slug: string,
+    ): Promise<DbOrganizationViz | undefined> {
+        return this.database(AppsTableName)
+            .where({
+                owner_organization_uuid: organizationUuid,
+                slug,
+                template: DATA_APP_VIZ_TEMPLATE,
+            })
+            .whereNull('project_uuid')
+            .whereNull('deleted_at')
+            .select<DbOrganizationViz[]>('*')
+            .first();
+    }
+
+    async listOrganizationVisualizations(
+        organizationUuid: string,
+    ): Promise<DbOrganizationViz[]> {
+        return this.database(AppsTableName)
+            .where({
+                owner_organization_uuid: organizationUuid,
+                template: DATA_APP_VIZ_TEMPLATE,
+            })
+            .whereNull('project_uuid')
+            .whereNull('deleted_at')
+            .orderBy('created_at', 'desc')
+            .orderBy('app_id', 'asc')
+            .select<DbOrganizationViz[]>('*');
     }
 
     async createWithVersion(
@@ -214,7 +368,7 @@ export class AppModel {
                     app_id: appId,
                     slug,
                 })
-                .returning('*');
+                .returning<DbApp[]>('*');
             const thread = await this.insertThread(trx, {
                 appUuid: appRow.app_id,
                 origin: opts?.thread?.origin ?? 'builder',
@@ -262,7 +416,7 @@ export class AppModel {
         });
     }
 
-    private async lockApp(trx: Knex, appUuid: string): Promise<DbApp> {
+    private async lockApp(trx: Knex, appUuid: string): Promise<DbAppRow> {
         const app = await trx(AppsTableName)
             .where({ app_id: appUuid })
             .forUpdate()
@@ -1267,7 +1421,7 @@ export class AppModel {
             .where({ app_id: appId, project_uuid: projectUuid })
             .whereNull('deleted_at')
             .update(update)
-            .returning('*');
+            .returning<DbApp[]>('*');
         if (!row) {
             throw new NotFoundError(`App not found: ${appId}`);
         }
@@ -1283,7 +1437,7 @@ export class AppModel {
             .where({ app_id: appId, project_uuid: projectUuid })
             .whereNull('deleted_at')
             .update({ design_uuid: designUuid })
-            .returning('*');
+            .returning<DbApp[]>('*');
         if (!row) {
             throw new NotFoundError(`App not found: ${appId}`);
         }
@@ -1343,7 +1497,7 @@ export class AppModel {
         const query = this.database(AppsTableName)
             .where({ project_uuid: projectUuid })
             .whereNull('deleted_at')
-            .select('*');
+            .select<DbApp[]>('*');
         AppModel.applyDataAppVizsFilter(query, options.dataAppVizsFilter);
         return query;
     }
@@ -1777,9 +1931,10 @@ export class AppModel {
     ): Promise<DbApp> {
         const [row] = await this.database(AppsTableName)
             .where({ app_id: appId })
+            .whereNotNull('project_uuid')
             .whereNull('deleted_at')
             .update(update)
-            .returning('*');
+            .returning<DbApp[]>('*');
         if (!row) {
             throw new NotFoundError(`App not found: ${appId}`);
         }
@@ -1801,7 +1956,7 @@ export class AppModel {
                 .where({ app_id: appId, project_uuid: projectUuid })
                 .whereNull('deleted_at')
                 .forUpdate()
-                .first();
+                .first<DbApp>();
             if (!app) {
                 throw new NotFoundError(`App not found: ${appId}`);
             }
@@ -1840,7 +1995,7 @@ export class AppModel {
                 .where({ app_id: appId, project_uuid: projectUuid })
                 .whereNull('deleted_at')
                 .update(update)
-                .returning('*');
+                .returning<DbApp[]>('*');
             if (!row) {
                 throw new NotFoundError(`App not found: ${appId}`);
             }

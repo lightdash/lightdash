@@ -352,6 +352,11 @@ export enum FeatureFlags {
      * agent bindings, the slash menu, as-code and MCP exposure.
      */
     AiAgentCustomSkills = 'ai-agent-custom-skills',
+    /**
+     * Organization-scoped rollout of the organization chart type library and
+     * its admin enablement setting. Off by default.
+     */
+    OrganizationChartTypes = 'organization-chart-types',
 }
 
 export type FeatureFlag = {

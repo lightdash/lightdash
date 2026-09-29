@@ -20,6 +20,7 @@ const appRow: DbApp = {
     name: '',
     description: '',
     project_uuid: projectUuid,
+    owner_organization_uuid: null,
     slug: 'app-1',
     space_uuid: null,
     sandbox_id: null,

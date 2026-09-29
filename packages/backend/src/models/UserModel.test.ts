@@ -88,7 +88,7 @@ type TestableUserModel = {
         userUuid: string,
         builder: AbilityBuilder<MemberAbility>,
         trx?: Knex,
-    ) => Promise<void>;
+    ) => Promise<{ projectUuid: string; organizationUuid: string }[]>;
     generateUserAbilityBuilder: (
         user: DbUserDetails,
         trx?: Knex,
@@ -135,7 +135,10 @@ const userDetails: DbUserDetails = {
     updated_at: new Date('2024-01-01'),
 };
 
-const createUserModel = (projectCount = 125): TestableUserModel => {
+const createUserModel = (
+    projectCount = 125,
+    projectOrganizationUuid = 'org-1',
+): TestableUserModel => {
     const model = new UserModel({
         database: vi.fn() as unknown as Knex,
         lightdashConfig,
@@ -172,6 +175,10 @@ const createUserModel = (projectCount = 125): TestableUserModel => {
                     builder,
                 );
             });
+            return Array.from({ length: projectCount }, (_, i) => ({
+                projectUuid: `project-${i}`,
+                organizationUuid: projectOrganizationUuid,
+            }));
         },
     );
 
@@ -439,6 +446,133 @@ describe('UserModel', () => {
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
     });
 
+    it.each([undefined, 'custom-role'])(
+        'grants organization chart type reads after project permissions for role %s',
+        async (roleUuid) => {
+            const { abilityBuilder } = await createUserModel(
+                1,
+            ).generateUserAbilityBuilder({
+                ...userDetails,
+                role_uuid: roleUuid,
+            });
+            const ability = abilityBuilder.build();
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationChartType', {
+                        organizationUuid: 'org-1',
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('OrganizationChartType', {
+                        organizationUuid: 'org-1',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationChartType', {
+                        organizationUuid: 'other-org',
+                    }),
+                ),
+            ).toBe(false);
+            const withoutProjects = await createUserModel(
+                0,
+            ).generateUserAbilityBuilder({
+                ...userDetails,
+                role_uuid: roleUuid,
+            });
+            expect(
+                withoutProjects.abilityBuilder.build().can(
+                    'view',
+                    subject('OrganizationChartType', {
+                        organizationUuid: 'org-1',
+                    }),
+                ),
+            ).toBe(false);
+        },
+    );
+
+    it.each([
+        {
+            label: 'legacy org edit scopes',
+            roleUuid: undefined,
+            scopes: [ServiceAccountScope.ORG_EDIT],
+        },
+        {
+            label: 'an org custom role with chart scopes',
+            roleUuid: 'chart-builder-role',
+            scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+        },
+    ])(
+        'grants organization chart type reads to a service account with $label and no project',
+        async ({ roleUuid, scopes }) => {
+            const model = createUserModel(0);
+            model.findServiceAccountByUserUuid = vi.fn(async () => ({
+                uuid: 'service-account',
+                description: 'Service account',
+                scopes,
+                organizationUuid: 'org-1',
+                expiresAt: null,
+            }));
+            model.customRoleScopes = vi.fn(async () => ({
+                'chart-builder-role': [
+                    'view:Project',
+                    'manage:Explore',
+                    'manage:SavedChart@space',
+                ],
+            }));
+            const { abilityBuilder } = await model.generateUserAbilityBuilder({
+                ...userDetails,
+                role_uuid: roleUuid,
+            });
+            const ability = abilityBuilder.build();
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationChartType', {
+                        organizationUuid: 'org-1',
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('OrganizationChartType', {
+                        organizationUuid: 'org-1',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('OrganizationChartType', {
+                        organizationUuid: 'other-org',
+                    }),
+                ),
+            ).toBe(false);
+        },
+    );
+
+    it('does not derive current-organization library access from another organization project', async () => {
+        const { abilityBuilder } = await createUserModel(
+            1,
+            'other-org',
+        ).generateUserAbilityBuilder(userDetails);
+        expect(
+            abilityBuilder.build().can(
+                'view',
+                subject('OrganizationChartType', {
+                    organizationUuid: 'org-1',
+                }),
+            ),
+        ).toBe(false);
+    });
+
     describe('extra custom roles (role sets)', () => {
         const humanDetails: DbUserDetails = {
             ...userDetails,
@@ -490,7 +624,7 @@ describe('UserModel', () => {
                 'project-extra': ['manage:SqlRunner'],
             }));
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
-            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => []);
             return model;
         };
 
@@ -903,7 +1037,7 @@ describe('UserModel', () => {
                 [orgCustomRoleUuid]: roleScopes,
             }));
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
-            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => []);
             return model;
         };
 
@@ -986,7 +1120,7 @@ describe('UserModel', () => {
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
-            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => []);
 
             const { abilityBuilder } =
                 await model.generateUserAbilityBuilder(patHumanDetails);
@@ -1015,7 +1149,7 @@ describe('UserModel', () => {
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
-            model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
+            model.applyServiceAccountProjectMemberships = vi.fn(async () => []);
 
             const { abilityBuilder } =
                 await model.generateUserAbilityBuilder(patHumanDetails);
@@ -1068,17 +1202,20 @@ describe('UserModel', () => {
                 if (tableName === ProjectMembershipsTableName) {
                     return {
                         leftJoin: () => ({
-                            select: () => ({
-                                where: async () => [
-                                    {
-                                        project_id: 1,
-                                        project_uuid: projectUuid,
-                                        role: ProjectMemberRole.ADMIN,
-                                        role_uuid: 'empty-project-role',
-                                        project_type: ProjectType.DEFAULT,
-                                        created_by_user_uuid: null,
-                                    },
-                                ],
+                            innerJoin: () => ({
+                                select: () => ({
+                                    where: async () => [
+                                        {
+                                            project_id: 1,
+                                            project_uuid: projectUuid,
+                                            organization_uuid: 'org-1',
+                                            role: ProjectMemberRole.ADMIN,
+                                            role_uuid: 'empty-project-role',
+                                            project_type: ProjectType.DEFAULT,
+                                            created_by_user_uuid: null,
+                                        },
+                                    ],
+                                }),
                             }),
                         }),
                     };

@@ -257,6 +257,14 @@ const testOrgRoleScopeParity = (
     const filteredRoleRules = filterEnterpriseRules(
         roleBuilder.build().rules as CASLRule[],
         isEnterprise,
+    ).filter(
+        // Chart-type management is deliberately limited to system org admins;
+        // it has no assignable custom-role scope.
+        (rule) =>
+            !(
+                rule.action === 'manage' &&
+                rule.subject === 'OrganizationChartType'
+            ),
     );
 
     const scopeBuilder = new AbilityBuilder<MemberAbility>(Ability);

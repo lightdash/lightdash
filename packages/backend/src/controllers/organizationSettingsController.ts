@@ -1,7 +1,9 @@
 import {
     ApiErrorPayload,
+    ApiOrganizationChartTypesSettingResponse,
     ApiOrganizationSettingsResponse,
     assertRegisteredAccount,
+    OrganizationChartTypesSetting,
     UpdateOrganizationSettings,
 } from '@lightdash/common';
 import {
@@ -27,6 +29,41 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Organizations')
 export class OrganizationSettingsController extends BaseController {
+    /** @summary Get organization chart types setting */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/chart-types')
+    @OperationId('GetOrganizationChartTypesSetting')
+    async getOrganizationChartTypesSetting(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationChartTypesSettingResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSettingsService()
+            .getOrganizationChartTypesSetting(req.account);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /** @summary Update organization chart types setting */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('/chart-types')
+    @OperationId('UpdateOrganizationChartTypesSetting')
+    async updateOrganizationChartTypesSetting(
+        @Request() req: express.Request,
+        @Body() body: OrganizationChartTypesSetting,
+    ): Promise<ApiOrganizationChartTypesSettingResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getOrganizationSettingsService()
+            .updateOrganizationChartTypesSetting(req.account, body);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
     /**
      * Returns the current organization's settings. Defaults are returned when
      * no settings have been saved.

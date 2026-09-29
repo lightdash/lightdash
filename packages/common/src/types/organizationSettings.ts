@@ -35,6 +35,8 @@ export type OrganizationSettings = {
      * resolves to `false`.
      */
     semanticLayerPgwireEnabled: boolean | null;
+    /** Whether this organization can offer organization chart types. */
+    organizationChartTypesEnabled: boolean | null;
     /**
      * Number of whole days newly created organization invite links remain
      * valid. `null` in storage resolves to the existing three-day default.
@@ -113,11 +115,21 @@ export const S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS = 604800;
  */
 export const POSTGRES_INTEGER_MAX = 2147483647;
 
-export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
+/** Organization chart types are written only through their dedicated route. */
+export type UpdateOrganizationSettings = Partial<
+    Omit<OrganizationSettings, 'organizationChartTypesEnabled'>
+>;
 
 export type ApiOrganizationSettingsResponse = {
     status: 'ok';
     results: OrganizationSettings;
+};
+
+export type OrganizationChartTypesSetting = { enabled: boolean };
+
+export type ApiOrganizationChartTypesSettingResponse = {
+    status: 'ok';
+    results: OrganizationChartTypesSetting;
 };
 
 export const isCorsRegexPattern = (value: string): boolean =>
@@ -290,6 +302,7 @@ export const resolveEffectiveOrganizationSettings = (
     supportImpersonationEnabled: raw.supportImpersonationEnabled ?? false,
     // Opt-in only — no instance default, so an unset value resolves to false.
     semanticLayerPgwireEnabled: raw.semanticLayerPgwireEnabled ?? false,
+    organizationChartTypesEnabled: raw.organizationChartTypesEnabled ?? false,
     inviteLinkExpirationDays:
         raw.inviteLinkExpirationDays ?? DEFAULT_INVITE_LINK_EXPIRATION_DAYS,
     // Base is resolved to an effective number (falls back to the env default).

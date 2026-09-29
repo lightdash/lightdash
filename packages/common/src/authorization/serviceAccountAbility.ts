@@ -388,6 +388,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'Organization', {
             organizationUuid,
         });
+        can('manage', 'OrganizationChartType', {
+            organizationUuid,
+        });
         can('manage', 'OrganizationColorPalette', {
             organizationUuid,
         });
