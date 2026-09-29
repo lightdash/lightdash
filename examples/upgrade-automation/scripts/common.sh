@@ -74,7 +74,7 @@ post_slack() {
     curl --connect-timeout 10 --max-time 30 --fail --silent --show-error \
         --request POST \
         --header 'Content-Type: application/json' \
-        --data "$(jq -n --arg text "$message" '{text: $text}')" \
+        --data "$(jq -n --arg text "$message" --arg channel "${ESCALATION_CHANNEL:-}" '{text: $text} + (if $channel == "" then {} else {channel: $channel} end)')" \
         "$ESCALATION" >/dev/null
 }
 
