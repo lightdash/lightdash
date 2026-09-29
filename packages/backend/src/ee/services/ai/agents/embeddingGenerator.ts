@@ -66,7 +66,9 @@ function getEmbeddingModelConfig(config: LightdashConfig):
 export async function generateEmbedding(
     text: string,
     config: LightdashConfig,
-    telemetry: AiCallAttribution & { extra?: Record<string, string> } = {},
+    telemetry: Omit<AiCallAttribution, 'keyManagement'> & {
+        extra?: Record<string, string>;
+    } = {},
 ): Promise<{
     embedding: number[];
     provider: string;

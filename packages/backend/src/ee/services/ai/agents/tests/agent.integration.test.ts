@@ -1,5 +1,6 @@
 import { AiAgent, SEED_PROJECT } from '@lightdash/common';
 import { beforeAll, describe, expect, it } from 'vitest';
+import type { AiKeyManagement } from '../../../../../analytics/aiUsage';
 import { aiCopilotConfigSchema } from '../../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../../config/parseConfig';
 import {
@@ -53,7 +54,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
         getModelPreset('openai', 'gpt-5.4')!,
     );
     // The judge runs on the developer's own OPENAI_API_KEY.
-    const judgeKeyManagement = 'self-managed' as const;
+    const judgeKeyManagement: AiKeyManagement = 'self-managed';
 
     beforeAll(async () => {
         if (!process.env.OPENAI_API_KEY) {

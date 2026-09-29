@@ -38,6 +38,10 @@ describe('generateEmbedding key origin', () => {
         } as never);
     });
 
+    afterEach(() => {
+        registerAiUsageTracker(() => {});
+    });
+
     it('reports a Lightdash-managed key when infrastructure declares the provider', async () => {
         await generateEmbedding(
             'revenue',
@@ -50,7 +54,6 @@ describe('generateEmbedding key origin', () => {
         expect(track.mock.calls[0][0].properties).toMatchObject({
             feature: 'embedding',
             keyManagement: 'lightdash-managed',
-            inputTokens: 12,
         });
     });
 

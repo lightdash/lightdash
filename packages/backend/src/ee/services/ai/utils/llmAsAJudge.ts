@@ -92,7 +92,7 @@ type BaseLlmAsJudgeParams = {
     contextRelevancyThreshold?: number; // Threshold for context relevancy (default 0.7)
     factualityThreshold?: 'A' | 'B' | 'C' | 'D' | 'E'; // Minimum acceptable factuality score (default 'A' = subset or better)
     jsonDiffThreshold?: number; // Threshold for JSON diff score (default 0.9)
-    telemetry?: AiCallAttribution; // org/project/user attribution for the ai.usage stream
+    telemetry?: Omit<AiCallAttribution, 'keyManagement'>; // org/project/user attribution for the ai.usage stream
 };
 
 // Function overloads for type safety

@@ -20266,7 +20266,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     async assessResult(
         resultUuid: string,
         canAccessData: boolean,
-        telemetry?: AiCallAttribution,
+        telemetry?: Omit<AiCallAttribution, 'keyManagement'>,
     ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
         const { query, response, expectedAnswer, artifact, toolResults } =
