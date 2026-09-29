@@ -916,7 +916,10 @@ describe('DirectAccessModel generic store PostgreSQL integration', () => {
                         },
                     ],
                 }),
-            ).rejects.toMatchObject({ name: 'NotFoundError' });
+            ).rejects.toMatchObject({
+                name: 'ParameterError',
+                message: 'This user does not have access to the project',
+            });
 
             await expect(
                 transaction(DashboardUserAccessTableName).where({
