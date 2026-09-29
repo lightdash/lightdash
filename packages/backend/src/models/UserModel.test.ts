@@ -62,6 +62,13 @@ type TestableUserModel = {
             createdByUserUuid: string | null;
         }[]
     >;
+    getOrganizationTrainingProject: (
+        organizationId: number,
+        trx?: Knex,
+    ) => Promise<
+        | { project_uuid: string; created_by_user_uuid: string | null }
+        | undefined
+    >;
     getUserProjectRoles: (
         userUuid: string,
         options?: { trx?: Knex },
@@ -145,6 +152,7 @@ const createUserModel = (projectCount = 125): TestableUserModel => {
     model.hasAuthentication = vi.fn(async () => true);
     model.getUserProjectRoles = vi.fn(async () => []);
     model.getTrainingProjects = vi.fn(async () => []);
+    model.getOrganizationTrainingProject = vi.fn(async () => undefined);
     model.getUserGroupProjectRoles = vi.fn(async () => []);
     model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
     model.findServiceAccountByUserUuid = vi.fn(async (userUuid) => ({
@@ -472,6 +480,7 @@ describe('UserModel', () => {
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getTrainingProjects = vi.fn(async () => []);
+            model.getOrganizationTrainingProject = vi.fn(async () => undefined);
             model.getUserProjectRoles = vi.fn(async () => [
                 {
                     projectUuid: 'project-1',
@@ -614,6 +623,132 @@ describe('UserModel', () => {
                         }),
                     ),
                 }).toEqual({ action, subjectName, can: false });
+            });
+        });
+
+        describe('org admin on the shared training project', () => {
+            const adminDetails: DbUserDetails = {
+                ...humanDetails,
+                role: OrganizationMemberRole.ADMIN,
+            };
+            const lockedWrites = [
+                ['create', 'SavedChart'],
+                ['update', 'SavedChart'],
+                ['delete', 'SavedChart'],
+                ['manage', 'SavedChart'],
+                ['update', 'Dashboard'],
+                ['delete', 'Dashboard'],
+                ['manage', 'Dashboard'],
+                ['update', 'Space'],
+                ['delete', 'Space'],
+                ['manage', 'Space'],
+            ] as const;
+            const trainingSubject = (
+                subjectName: (typeof lockedWrites)[number][1],
+            ) =>
+                subject(subjectName, {
+                    organizationUuid: adminDetails.organization_uuid,
+                    projectUuid: 'training-project',
+                });
+
+            it('can view but not write, and can still delete the project', async () => {
+                const model = createHumanModel();
+                model.getTrainingProjects = vi.fn(async () => [
+                    {
+                        projectUuid: 'training-project',
+                        projectType: ProjectType.TRAINING,
+                        createdByUserUuid: adminDetails.user_uuid,
+                    },
+                    {
+                        projectUuid: 'training-copy',
+                        projectType: ProjectType.PREVIEW,
+                        createdByUserUuid: adminDetails.user_uuid,
+                    },
+                ]);
+
+                const { abilityBuilder } =
+                    await model.generateUserAbilityBuilder(adminDetails);
+                const ability = abilityBuilder.build();
+
+                lockedWrites.forEach(([action, subjectName]) => {
+                    expect({
+                        action,
+                        subjectName,
+                        can: ability.can(action, trainingSubject(subjectName)),
+                    }).toEqual({ action, subjectName, can: false });
+                });
+                (['SavedChart', 'Dashboard', 'Space'] as const).forEach(
+                    (subjectName) => {
+                        expect({
+                            subjectName,
+                            can: ability.can(
+                                'view',
+                                subject(subjectName, {
+                                    organizationUuid:
+                                        adminDetails.organization_uuid,
+                                    projectUuid: 'training-project',
+                                    isPrivate: false,
+                                    inheritsFromOrgOrProject: true,
+                                    access: [],
+                                }),
+                            ),
+                        }).toEqual({ subjectName, can: true });
+                    },
+                );
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('Project', {
+                            organizationUuid: adminDetails.organization_uuid,
+                            projectUuid: 'training-project',
+                            type: ProjectType.TRAINING,
+                        }),
+                    ),
+                ).toBe(true);
+                // their own copy and real projects are unaffected
+                ['training-copy', 'another-project'].forEach((projectUuid) => {
+                    expect({
+                        projectUuid,
+                        can: ability.can(
+                            'manage',
+                            subject('SavedChart', {
+                                organizationUuid:
+                                    adminDetails.organization_uuid,
+                                projectUuid,
+                            }),
+                        ),
+                    }).toEqual({ projectUuid, can: true });
+                });
+            });
+
+            it('stays locked when the org Learn flag is off', async () => {
+                const model = createHumanModel(false);
+                model.getOrganizationTrainingProject = vi.fn(async () => ({
+                    project_uuid: 'training-project',
+                    created_by_user_uuid: adminDetails.user_uuid,
+                }));
+
+                const { abilityBuilder } =
+                    await model.generateUserAbilityBuilder(adminDetails);
+                const ability = abilityBuilder.build();
+
+                expect(model.getTrainingProjects).not.toHaveBeenCalled();
+                lockedWrites.forEach(([action, subjectName]) => {
+                    expect({
+                        action,
+                        subjectName,
+                        can: ability.can(action, trainingSubject(subjectName)),
+                    }).toEqual({ action, subjectName, can: false });
+                });
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('SavedChart', {
+                            organizationUuid: adminDetails.organization_uuid,
+                            projectUuid: 'another-project',
+                        }),
+                    ),
+                ).toBe(true);
             });
         });
 
@@ -897,6 +1032,7 @@ describe('UserModel', () => {
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
             model.getTrainingProjects = vi.fn(async () => []);
+            model.getOrganizationTrainingProject = vi.fn(async () => undefined);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.customRoleScopes = vi.fn(async () => ({
@@ -983,6 +1119,7 @@ describe('UserModel', () => {
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
             model.getTrainingProjects = vi.fn(async () => []);
+            model.getOrganizationTrainingProject = vi.fn(async () => undefined);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
@@ -1012,6 +1149,7 @@ describe('UserModel', () => {
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
             model.getTrainingProjects = vi.fn(async () => []);
+            model.getOrganizationTrainingProject = vi.fn(async () => undefined);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);

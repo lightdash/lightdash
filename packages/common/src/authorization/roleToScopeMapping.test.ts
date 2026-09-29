@@ -8,6 +8,7 @@ import { PROJECT_EDITOR } from './projectMemberAbility.mock';
 import {
     getAllScopesForRole,
     getNonEnterpriseScopesForRole,
+    getTrainingProjectLockedSubjects,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     isSystemRole,
@@ -129,6 +130,19 @@ describe('roleToScopeMapping', () => {
                     expect(LEARN_SANDBOX_SCOPES).not.toContain(scope),
                 );
             });
+        });
+    });
+
+    describe('getTrainingProjectLockedSubjects', () => {
+        it('locks content subjects but leaves the project deletable', () => {
+            const locked = getTrainingProjectLockedSubjects();
+            ['SavedChart', 'Dashboard', 'Space', 'PinnedItems'].forEach(
+                (subjectName) => expect(locked).toContain(subjectName),
+            );
+            ['Project', 'CompileProject', 'DeployProject', 'Job'].forEach(
+                (subjectName) => expect(locked).not.toContain(subjectName),
+            );
+            expect(new Set(locked).size).toBe(locked.length);
         });
     });
 
