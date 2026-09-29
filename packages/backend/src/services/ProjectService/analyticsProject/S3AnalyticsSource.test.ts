@@ -183,8 +183,49 @@ describe('signed analytics file manifests', () => {
         ]);
         expect(source.emptyTables?.map(({ name }) => name)).toEqual([
             'lightdash_dashboards',
+            'ai_usage',
+            'data_app_events',
+            'export_events',
+            'agent_steps',
+            'user_activity',
         ]);
         expect(getSignedUrl).toHaveBeenCalledTimes(4);
+    });
+
+    it('signs only supported user activity partitions inside the tenant scope', async () => {
+        const activityKey = `${prefix}model=user_activity/stream=export_events/dt=2026-09-07/activity.parquet`;
+        send.mockResolvedValue({
+            Contents: [
+                { Key: activityKey },
+                {
+                    Key: activityKey.replace(
+                        'activity.parquet',
+                        'backup.parquet',
+                    ),
+                },
+                { Key: activityKey.replace('export_events', 'unknown_stream') },
+                {
+                    Key: activityKey.replace(
+                        'model=user_activity',
+                        'model=other',
+                    ),
+                },
+                { Key: key('agent_steps') },
+            ],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        expect(source.tables.map(({ name }) => name)).toEqual([
+            'user_activity',
+            'agent_steps',
+        ]);
+        expect(
+            vi
+                .mocked(getSignedUrl)
+                .mock.calls.map(
+                    ([, command]) => (command as GetObjectCommand).input.Key,
+                ),
+        ).toEqual([activityKey, key('agent_steps')]);
+        expect(source.scope).toContain(`org_id%3D${org}/`);
     });
 
     it('does not treat dimension-only storage as captured event data', async () => {
