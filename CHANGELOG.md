@@ -1,3 +1,11 @@
+## [2.362.2](https://github.com/lightdash/lightdash/compare/2.362.1...2.362.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **data-apps:** charge each resumed coding-agent run only its own share of the session totals ([#30086](https://github.com/lightdash/lightdash/issues/30086)) ([6c92125](https://github.com/lightdash/lightdash/commit/6c92125f2d15b66fcc1124f192cd3eb7ad05617d))
+* **learn:** simplify enable panel copy ([#30150](https://github.com/lightdash/lightdash/issues/30150)) ([f2adaa6](https://github.com/lightdash/lightdash/commit/f2adaa64212cc39873920751b8075f518f2d5234))
+
 ## [2.362.1](https://github.com/lightdash/lightdash/compare/2.362.0...2.362.1) (2026-09-29)
 
 
