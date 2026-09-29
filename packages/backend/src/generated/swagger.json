@@ -15179,20 +15179,52 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ExternalFetchSavedChartContext": {
+                "properties": {
+                    "chartVersionUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "savedChartUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["savedChartUuid"],
+                "type": "object",
+                "description": "A saved chart (optionally at a specific version) rendering a chart type."
+            },
+            "ExternalFetchDocumentContext": {
+                "properties": {
+                    "cellIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "documentVersionUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "documentUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": [
+                    "cellIndex",
+                    "documentVersionUuid",
+                    "documentUuid"
+                ],
+                "type": "object",
+                "description": "A chart cell of a specific Document version rendering a chart type."
+            },
             "ExternalFetchRequest": {
                 "properties": {
                     "chartContext": {
-                        "properties": {
-                            "chartVersionUuid": {
-                                "$ref": "#/components/schemas/UUID"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ExternalFetchSavedChartContext"
                             },
-                            "savedChartUuid": {
-                                "$ref": "#/components/schemas/UUID"
+                            {
+                                "$ref": "#/components/schemas/ExternalFetchDocumentContext"
                             }
-                        },
-                        "required": ["savedChartUuid"],
-                        "type": "object",
-                        "description": "Host-supplied saved chart identity for custom chart type rendering."
+                        ],
+                        "description": "Host-supplied identity of what is rendering a custom chart type."
                     },
                     "body": {},
                     "query": {
@@ -67896,7 +67928,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.374.0",
+        "version": "2.375.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

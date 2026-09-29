@@ -1,3 +1,10 @@
+# [2.375.0](https://github.com/lightdash/lightdash/compare/2.374.0...2.375.0) (2026-09-29)
+
+
+### Features
+
+* **documents:** authorize custom chart rendering through Document access ([#30202](https://github.com/lightdash/lightdash/issues/30202)) ([04564ca](https://github.com/lightdash/lightdash/commit/04564ca50316a7be05d905d889512547c5a5099b)), closes [#30201](https://github.com/lightdash/lightdash/issues/30201) [#30179](https://github.com/lightdash/lightdash/issues/30179)
+
 # [2.374.0](https://github.com/lightdash/lightdash/compare/2.373.1...2.374.0) (2026-09-29)
 
 

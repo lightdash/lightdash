@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.374.0",
-  "previousVersion": "2.373.1",
-  "releaseDate": "2026-09-29T16:45:04.690Z",
+  "version": "2.375.0",
+  "previousVersion": "2.374.0",
+  "releaseDate": "2026-09-29T16:49:05.101Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,18 +11,15 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "POST /api/v1/projects/{projectUuid}/documents — removed `subschema #1, subschema #2` from the `content/cells/items/anyOf[subschema #2]/content` request property `anyOf` list",
-        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — removed `subschema #1, subschema #2` from the `content/cells/items/anyOf[subschema #2]/content` request property `anyOf` list"
-      ],
-      "breakingCount": 2,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -44,11 +41,5 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "documents-custom-chart-cells",
-      "reason": "Document chart cells in the documents-flag API now accept custom chart types: the data_app_viz config's fieldMapping also accepts ordered string arrays, and an optional dataAppVizVersion pins the chart type version. The change only widens requests: every previously accepted request is still accepted, and custom chart cells were rejected at runtime before, so no client sends the old shape. API diff tools report it as removed anyOf subschemas because the nested chart config changed. No action is needed from operators or API clients.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }

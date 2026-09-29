@@ -14727,17 +14727,42 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalFetchSavedChartContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chartVersionUuid: { ref: 'UUID' },
+                savedChartUuid: { ref: 'UUID', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalFetchDocumentContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                cellIndex: { dataType: 'double', required: true },
+                documentVersionUuid: { ref: 'UUID', required: true },
+                documentUuid: { ref: 'UUID', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalFetchRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 chartContext: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        chartVersionUuid: { ref: 'UUID' },
-                        savedChartUuid: { ref: 'UUID', required: true },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ExternalFetchSavedChartContext' },
+                        { ref: 'ExternalFetchDocumentContext' },
+                    ],
                 },
                 body: { dataType: 'any' },
                 query: { ref: 'Record_string.string_' },
@@ -81898,6 +81923,182 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getChartDataAppVizPreviewToken',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getDocumentDataAppVizRenderMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        cellIndex: {
+            in: 'path',
+            name: 'cellIndex',
+            required: true,
+            dataType: 'double',
+        },
+        documentVersionUuid: {
+            in: 'query',
+            name: 'documentVersionUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/cells/:cellIndex/render-metadata',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getDocumentDataAppVizRenderMetadata,
+        ),
+
+        async function AppGenerateController_getDocumentDataAppVizRenderMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getDocumentDataAppVizRenderMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDocumentDataAppVizRenderMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getDocumentDataAppVizPreviewToken: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            dataType: 'string',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        cellIndex: {
+            in: 'path',
+            name: 'cellIndex',
+            required: true,
+            dataType: 'double',
+        },
+        version: {
+            in: 'path',
+            name: 'version',
+            required: true,
+            dataType: 'double',
+        },
+        documentVersionUuid: {
+            in: 'query',
+            name: 'documentVersionUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/documents/:documentUuid/cells/:cellIndex/versions/:version/preview-token',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getDocumentDataAppVizPreviewToken,
+        ),
+
+        async function AppGenerateController_getDocumentDataAppVizPreviewToken(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getDocumentDataAppVizPreviewToken,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDocumentDataAppVizPreviewToken',
                     controller,
                     response,
                     next,
