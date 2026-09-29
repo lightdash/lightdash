@@ -2056,6 +2056,13 @@ export class AiAgentService extends BaseService {
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ) {
+        if (
+            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                user.organizationUuid,
+            )
+        ) {
+            return undefined;
+        }
         return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
             this.featureFlagService.get({
                 user,
@@ -9185,6 +9192,14 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
+            if (
+                await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                    payload.organizationUuid,
+                )
+            ) {
+                return;
+            }
+
             const embeddingResult = await generateEmbedding(
                 text,
                 this.lightdashConfig,
@@ -9654,6 +9669,13 @@ export class AiAgentService extends BaseService {
         limit?: number;
         userUuid?: string;
     }): Promise<RelevantVerifiedAnswerContext> {
+        if (
+            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                organizationUuid,
+            )
+        ) {
+            return { relevantVerifiedAnswers: [] };
+        }
         const [embeddingResult, decisions] = await Promise.all([
             generateEmbedding(searchQuery, this.lightdashConfig, {
                 organizationUuid,

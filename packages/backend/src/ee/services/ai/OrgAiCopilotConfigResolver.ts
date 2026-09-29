@@ -5,7 +5,10 @@ import {
     type ByoAiProvider,
     type DataAppModelVisibility,
 } from '@lightdash/common';
-import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
+import {
+    AiCopilotConfigSchemaType,
+    DEFAULT_BEDROCK_EMBEDDING_MODEL,
+} from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
@@ -27,6 +30,8 @@ export type ResolvedCopilotConfig = CopilotConfig & {
     byoProviders: ByoAiProvider[];
 };
 
+const JAPAN_BEDROCK_REGIONS: string[] = ['ap-northeast-1', 'ap-northeast-3'];
+
 // Review turns run on a fast Anthropic model; a BYO Anthropic key must be able
 // to serve it for reviews to run on the org's own key instead of being paused.
 const REVIEW_JUDGE_ANTHROPIC_MODEL = 'claude-haiku-4-5';
@@ -34,6 +39,9 @@ const REVIEW_JUDGE_ANTHROPIC_MODEL = 'claude-haiku-4-5';
 export type ReviewJudgeAvailability = {
     hasActiveByoKey: boolean;
     canJudgeOnByoKey: boolean;
+    // Provider the org's own credential judges on; null when reviews fall back
+    // to the instance provider.
+    byoJudgeProvider: 'anthropic' | 'bedrock' | null;
 };
 
 const hasAnthropicByoGatewayConflict = (
@@ -51,9 +59,10 @@ const hasGoogleByoGatewayConflict = (
  * apiKey is org-supplied — every other provider option comes from the instance
  * config. Keys for providers the instance does not configure are ignored here
  * (the write path rejects them), so BYO can only swap the key of a provider
- * this instance already runs. Custom provider endpoints are the exception:
- * their instance credential may authenticate an arbitrary gateway, so an org
- * key is rejected rather than sent to that endpoint.
+ * this instance already runs. Two exceptions: custom provider endpoints, whose
+ * instance credential may authenticate an arbitrary gateway, so an org key is
+ * rejected rather than sent to that endpoint; and Bedrock, which carries its
+ * own region and is therefore constructed rather than overlaid.
  */
 /**
  * Effective model visibility = stored settings on top of an implicit default:
@@ -82,6 +91,26 @@ export const overlayOrgProviderApiKeys = (
     orgKeys: AiOrgProviderApiKeys,
 ): ResolvedCopilotConfig => {
     const providers = { ...config.providers };
+
+    // Bedrock is the one provider an org can bring without the instance running
+    // it: the org supplies the region, so there is nothing to overlay onto.
+    if (orgKeys.bedrock) {
+        providers.bedrock = {
+            apiKey: orgKeys.bedrock.apiKey,
+            region: orgKeys.bedrock.region,
+            // Japan pins `jp`: the default `apac` profile may serve from Sydney
+            // or Mumbai, which defeats the point of choosing Tokyo or Osaka.
+            // Every other region falls through to the region-derived default.
+            ...(JAPAN_BEDROCK_REGIONS.includes(orgKeys.bedrock.region)
+                ? { inferenceProfilePrefix: 'jp' }
+                : {}),
+            modelName: orgKeys.bedrock.allowedModels[0],
+            availableModels: orgKeys.bedrock.allowedModels,
+            embeddingModelName: DEFAULT_BEDROCK_EMBEDDING_MODEL,
+            customHeaders: {},
+            supportsStreaming: true,
+        };
+    }
 
     if (orgKeys.anthropic && providers.anthropic) {
         if (hasAnthropicByoGatewayConflict(config, orgKeys)) {
@@ -381,6 +410,22 @@ export class OrgAiCopilotConfigResolver {
     }
 
     /**
+     * True when the org routes AI through its own Bedrock config. Auxiliary AI
+     * that can only run on the instance provider is skipped for these orgs: the
+     * point of choosing a Bedrock region is that content does not leave it.
+     */
+    async isOrgBedrockRouted(
+        organizationUuid: string | null | undefined,
+    ): Promise<boolean> {
+        if (!organizationUuid) return false;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        return Boolean(orgKeys?.bedrock);
+    }
+
+    /**
      * Whether review turns may run for an org while honoring BYO isolation.
      * Reviews run on a fast Anthropic model, so an org with its own key can only
      * run them if that key can serve it — never by falling back to the instance
@@ -392,6 +437,7 @@ export class OrgAiCopilotConfigResolver {
         const none: ReviewJudgeAvailability = {
             hasActiveByoKey: false,
             canJudgeOnByoKey: false,
+            byoJudgeProvider: null,
         };
         if (!organizationUuid) return none;
         const orgKeys =
@@ -402,8 +448,21 @@ export class OrgAiCopilotConfigResolver {
         const hasActiveByoKey = BYO_AI_PROVIDERS.some(
             (provider) => orgKeys[provider],
         );
+        // A Bedrock org judges on its own Bedrock config: falling back to the
+        // instance provider would send review content out of its region.
+        if (orgKeys.bedrock) {
+            return {
+                hasActiveByoKey,
+                canJudgeOnByoKey: true,
+                byoJudgeProvider: 'bedrock',
+            };
+        }
         if (!orgKeys.anthropic) {
-            return { hasActiveByoKey, canJudgeOnByoKey: false };
+            return {
+                hasActiveByoKey,
+                canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
+            };
         }
         if (
             hasAnthropicByoGatewayConflict(
@@ -411,7 +470,11 @@ export class OrgAiCopilotConfigResolver {
                 orgKeys,
             )
         ) {
-            return { hasActiveByoKey, canJudgeOnByoKey: false };
+            return {
+                hasActiveByoKey,
+                canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
+            };
         }
         const modelIds = await this.aiModelCatalog.getAccessibleModelIds(
             'anthropic',
@@ -420,6 +483,10 @@ export class OrgAiCopilotConfigResolver {
         const canJudgeOnByoKey = modelIds
             ? keyGrantsModel(modelIds, REVIEW_JUDGE_ANTHROPIC_MODEL)
             : false;
-        return { hasActiveByoKey, canJudgeOnByoKey };
+        return {
+            hasActiveByoKey,
+            canJudgeOnByoKey,
+            byoJudgeProvider: canJudgeOnByoKey ? 'anthropic' : null,
+        };
     }
 }

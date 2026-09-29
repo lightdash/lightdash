@@ -377,6 +377,8 @@ export type McpActivityStatsFilters = Omit<McpActivityFilters, 'status'>;
 export type ApiMcpActivityStatsResponse = ApiSuccess<McpActivityStats>;
 
 export type ComputedAiOrganizationSettings = {
+    // Bedrock presets an admin can choose as allowed models.
+    bedrockModelOptions: AiModelOption[];
     isCopilotEnabled: boolean;
     isTrial: boolean;
     defaultAiAgentModelOptions: AiModelOption[];
@@ -388,8 +390,22 @@ export type ComputedAiOrganizationSettings = {
 };
 
 // AI Organization Settings Types
-export const BYO_AI_PROVIDERS = ['anthropic', 'google', 'openai'] as const;
+export const BYO_AI_PROVIDERS = [
+    'anthropic',
+    'google',
+    'openai',
+    'bedrock',
+] as const;
 export type ByoAiProvider = (typeof BYO_AI_PROVIDERS)[number];
+
+// Providers whose org credential is a bare API key string. Bedrock is excluded:
+// it also needs a region, so it carries a config object instead.
+export const BYO_AI_API_KEY_PROVIDERS = [
+    'anthropic',
+    'google',
+    'openai',
+] as const;
+export type ByoAiApiKeyProvider = (typeof BYO_AI_API_KEY_PROVIDERS)[number];
 
 export const isByoAiProvider = (provider: string): provider is ByoAiProvider =>
     (BYO_AI_PROVIDERS as readonly string[]).includes(provider);
@@ -398,9 +414,36 @@ export type AiProviderApiKeysSet = Record<ByoAiProvider, boolean>;
 
 export type AiProviderApiKeyHints = Record<ByoAiProvider, string | null>;
 
-export type UpdateAiProviderApiKeys = Partial<
-    Record<ByoAiProvider, string | null>
->;
+// Regions where Bedrock accepts API-key authentication and we can route Claude
+// to an in-region or same-geography inference profile.
+export const BEDROCK_REGIONS = [
+    'ap-northeast-1',
+    'ap-northeast-3',
+    'us-east-1',
+    'us-west-2',
+] as const;
+export type BedrockRegion = (typeof BEDROCK_REGIONS)[number];
+
+export type OrgBedrockConfig = {
+    region: string;
+    allowedModels: string[];
+};
+
+export type UpdateOrgBedrockConfig = {
+    region: string;
+    allowedModels: string[];
+    // Omit to keep the stored key when changing region or models.
+    apiKey?: string;
+};
+
+// Explicit shape rather than a mapped type: TSOA cannot model
+// `Record<Exclude<...>> & {...}` and silently drops the properties.
+export type UpdateAiProviderApiKeys = {
+    anthropic?: string | null;
+    google?: string | null;
+    openai?: string | null;
+    bedrock?: UpdateOrgBedrockConfig | null;
+};
 
 export type AiOrgProviderModelVisibility = {
     enabled: boolean;
@@ -439,12 +482,17 @@ export type AiOrganizationSettings = {
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeysSet: AiProviderApiKeysSet;
     providerApiKeyHints: AiProviderApiKeyHints;
+    // Region and allowed models for a stored Bedrock config; never the API key.
+    bedrockConfig: OrgBedrockConfig | null;
     threadRetentionHours?: number | null;
 };
 
 export type CreateAiOrganizationSettings = Omit<
     AiOrganizationSettings,
-    'providerApiKeysSet' | 'providerApiKeyHints' | 'aiAgentMemoryEnabled'
+    | 'providerApiKeysSet'
+    | 'providerApiKeyHints'
+    | 'aiAgentMemoryEnabled'
+    | 'bedrockConfig'
 > & {
     providerApiKeys?: UpdateAiProviderApiKeys;
 };

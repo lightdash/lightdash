@@ -3,11 +3,17 @@ import type {
     AiOrgModelVisibility,
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
+    ByoAiApiKeyProvider,
     ByoAiProvider,
     DataAppModelVisibility,
+    OrgBedrockConfig,
     UpdateAiProviderApiKeys,
 } from '@lightdash/common';
-import { BYO_AI_PROVIDERS, isByoAiProvider } from '@lightdash/common';
+import {
+    BYO_AI_API_KEY_PROVIDERS,
+    BYO_AI_PROVIDERS,
+    isByoAiProvider,
+} from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -31,9 +37,10 @@ import AnthropicIcon from '../../../../../../svgs/anthropic.svg?react';
 import GeminiIcon from '../../../../../../svgs/gemini.svg?react';
 import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
 import { AiDataAppModelToggles } from './AiDataAppModelToggles';
+import { BedrockProviderForm } from './BedrockProviderForm';
 
 const PROVIDER_META: Record<
-    ByoAiProvider,
+    ByoAiApiKeyProvider,
     {
         label: string;
         icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -56,7 +63,7 @@ const PROVIDER_META: Record<
 type ProviderVisibility = { enabled: boolean; allowedModels?: string[] };
 
 type ProviderRowProps = {
-    provider: ByoAiProvider;
+    provider: ByoAiApiKeyProvider;
     isSet: boolean;
     hint: string | null;
     hasAnyByoKey: boolean;
@@ -228,6 +235,8 @@ type AiProvidersCardProps = {
     // under Anthropic — the Claude CLI takes no other BYO provider.
     dataAppModelVisibility: DataAppModelVisibility | null;
     showDataAppModels: boolean;
+    bedrockConfig: OrgBedrockConfig | null;
+    bedrockModelOptions: AiModelOption[];
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
     onUpdateVisibility: (modelVisibility: AiOrgModelVisibility) => void;
@@ -241,6 +250,8 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     configurableModelOptions,
     dataAppModelVisibility,
     showDataAppModels,
+    bedrockConfig,
+    bedrockModelOptions,
     disabled,
     onUpdateKeys,
     onUpdateVisibility,
@@ -316,7 +327,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                     uses. Scheduled runs can make multiple model calls and incur
                     usage on that key.
                 </Text>
-                {BYO_AI_PROVIDERS.map((provider, index) => (
+                {BYO_AI_API_KEY_PROVIDERS.map((provider, index) => (
                     <Stack gap="md" key={provider}>
                         {index > 0 && <Divider />}
                         <ProviderRow
@@ -358,6 +369,15 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                         />
                     </Stack>
                 ))}
+                <Divider />
+                <BedrockProviderForm
+                    config={bedrockConfig}
+                    hint={providerApiKeyHints.bedrock}
+                    models={bedrockModelOptions}
+                    disabled={disabled}
+                    onSave={(bedrock) => onUpdateKeys({ bedrock })}
+                    onRemove={() => onUpdateKeys({ bedrock: null })}
+                />
             </Stack>
         </SettingsCard>
     );

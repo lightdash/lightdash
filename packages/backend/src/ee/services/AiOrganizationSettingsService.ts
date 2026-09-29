@@ -38,6 +38,7 @@ import {
 } from './ai/models';
 import {
     matchesPreset,
+    MODEL_PRESETS,
     type ModelPreset,
     type SelectableModelProvider,
 } from './ai/models/presets';
@@ -281,6 +282,7 @@ export class AiOrganizationSettingsService extends BaseService {
         effectiveOptions: AiModelOption[];
         configurableOptions: AiModelOption[];
         effectiveModelVisibility: AiOrgModelVisibility | null;
+        bedrockModelOptions: AiModelOption[];
     }> {
         const [copilotConfig, overrides] = await Promise.all([
             this.orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid),
@@ -302,6 +304,11 @@ export class AiOrganizationSettingsService extends BaseService {
                 keyAccessibleModelIds: overrides.keyAccessibleModelIds,
             }).map(toOption),
             effectiveModelVisibility: overrides.modelVisibility,
+            // The org brings its own Bedrock key, so every Bedrock preset is
+            // selectable regardless of what this instance configures.
+            bedrockModelOptions: MODEL_PRESETS.bedrock.map((preset) =>
+                presetToModelOption(preset, defaultModel),
+            ),
         };
     }
 
@@ -388,7 +395,12 @@ export class AiOrganizationSettingsService extends BaseService {
         ]);
 
         const [
-            { effectiveOptions, configurableOptions, effectiveModelVisibility },
+            {
+                effectiveOptions,
+                configurableOptions,
+                effectiveModelVisibility,
+                bedrockModelOptions,
+            },
             reviewJudge,
             effectiveDataAppModelVisibility,
         ] = await Promise.all([
@@ -430,15 +442,19 @@ export class AiOrganizationSettingsService extends BaseService {
                     anthropic: false,
                     google: false,
                     openai: false,
+                    bedrock: false,
                 },
                 providerApiKeyHints: {
                     anthropic: null,
                     google: null,
                     openai: null,
+                    bedrock: null,
                 },
+                bedrockConfig: null,
                 threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,
+                bedrockModelOptions,
                 aiAgentReviewsPausedByByok,
                 isTrial,
             };
@@ -457,6 +473,7 @@ export class AiOrganizationSettingsService extends BaseService {
             isCopilotEnabled,
             defaultAiAgentModelOptions: effectiveOptions,
             configurableModelOptions: configurableOptions,
+            bedrockModelOptions,
             aiAgentReviewsPausedByByok,
         };
     }

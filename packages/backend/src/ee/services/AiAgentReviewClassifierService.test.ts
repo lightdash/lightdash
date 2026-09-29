@@ -310,6 +310,7 @@ describe('AiAgentReviewClassifierService', () => {
             {
                 hasActiveByoKey: false,
                 canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
             },
         );
         aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue({
@@ -327,12 +328,15 @@ describe('AiAgentReviewClassifierService', () => {
                 anthropic: false,
                 google: false,
                 openai: false,
+                bedrock: false,
             },
             providerApiKeyHints: {
                 anthropic: null,
                 google: null,
                 openai: null,
+                bedrock: null,
             },
+            bedrockConfig: null,
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -496,12 +500,15 @@ describe('AiAgentReviewClassifierService', () => {
                     anthropic: false,
                     google: false,
                     openai: false,
+                    bedrock: false,
                 },
                 providerApiKeyHints: {
                     anthropic: null,
                     google: null,
                     openai: null,
+                    bedrock: null,
                 },
+                bedrockConfig: null,
             },
         );
 

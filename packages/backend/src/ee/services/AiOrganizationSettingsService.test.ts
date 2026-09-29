@@ -27,12 +27,19 @@ const settingsWithKeys: AiOrganizationSettings = {
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
     modelVisibility: null,
-    providerApiKeysSet: { anthropic: true, google: false, openai: false },
+    providerApiKeysSet: {
+        anthropic: true,
+        google: false,
+        openai: false,
+        bedrock: false,
+    },
     providerApiKeyHints: {
         anthropic: 'sk-ant-api03-R2D...igAA',
         google: null,
         openai: null,
+        bedrock: null,
     },
+    bedrockConfig: null,
 };
 
 describe('validateDeepResearchLimits', () => {
@@ -167,7 +174,11 @@ describe('findUnconfiguredProviderKeyWrites', () => {
 
 describe('areReviewsEnabledForSettings', () => {
     const on = { aiAgentReviewsEnabled: true };
-    const noByo = { hasActiveByoKey: false, canJudgeOnByoKey: false };
+    const noByo = {
+        hasActiveByoKey: false,
+        canJudgeOnByoKey: false,
+        byoJudgeProvider: null,
+    };
 
     it('returns false when there are no settings', () => {
         expect(areReviewsEnabledForSettings(null, noByo)).toBe(false);
@@ -191,6 +202,7 @@ describe('areReviewsEnabledForSettings', () => {
             areReviewsEnabledForSettings(on, {
                 hasActiveByoKey: true,
                 canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
             }),
         ).toBe(false);
     });
@@ -200,6 +212,7 @@ describe('areReviewsEnabledForSettings', () => {
             areReviewsEnabledForSettings(on, {
                 hasActiveByoKey: true,
                 canJudgeOnByoKey: true,
+                byoJudgeProvider: 'anthropic',
             }),
         ).toBe(true);
     });
