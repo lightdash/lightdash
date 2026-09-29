@@ -1,3 +1,10 @@
+## [2.379.1](https://github.com/lightdash/lightdash/compare/2.379.0...2.379.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **learn:** keep Developer lessons behind Extra modules for non-developers (CS-344) ([#30217](https://github.com/lightdash/lightdash/issues/30217)) ([3ce199c](https://github.com/lightdash/lightdash/commit/3ce199cd6003f457566eb226004415e70413a99b))
+
 # [2.379.0](https://github.com/lightdash/lightdash/compare/2.378.0...2.379.0) (2026-09-29)
 
 
