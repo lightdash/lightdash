@@ -158,7 +158,11 @@ describe('dashboard boundaries on derived queries', () => {
                         and: [{ ...selection, values: ['2026-02-10'] }],
                     },
                 },
-                context: { now, timezone: 'America/New_York' },
+                context: {
+                    now,
+                    timezone: 'America/New_York',
+                    useTimezoneAwareDateTrunc: true,
+                },
             });
         expect(() =>
             validateDate(new Date('2026-04-01T03:59:59Z')),

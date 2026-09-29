@@ -7,7 +7,9 @@ import {
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
+    SupportedDbtAdapter,
     UnitOfTime,
+    WeekDay,
     type AnonymousAccount,
     type CreateEmbedJwt,
     type DashboardDAO,
@@ -242,6 +244,57 @@ describe('EmbedService', () => {
             });
         });
 
+        test('returns selected SQL connection context only after embed authorization', async () => {
+            const sqlContext = {
+                isSqlChart: true,
+                timezone: 'UTC',
+                projectTimezone: 'UTC',
+                startOfWeek: WeekDay.SUNDAY,
+                useTimezoneAwareDateTrunc: false,
+                fields: {},
+            };
+            const checkPermissions = vi.fn().mockResolvedValue(undefined);
+            const getSqlContext = vi.fn().mockResolvedValue(sqlContext);
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                permissionsService: {
+                    checkEmbedSqlChartPermissions: checkPermissions,
+                },
+                projectService: {
+                    getDashboardFilterBoundaryContexts: vi
+                        .fn()
+                        .mockResolvedValue({}),
+                    getSqlChartFilterBoundaryContext: getSqlContext,
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = embedAccount(FilterInteractivityValues.all);
+            const tiles = [{ tileUuid: 'sql-tile', savedSqlUuid: 'sql-chart' }];
+            const result =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    account,
+                    tiles,
+                );
+            expect(result.filterBoundaryContexts).toEqual({
+                'sql-tile': [sqlContext],
+            });
+            expect(checkPermissions).toHaveBeenCalledWith(account, 'sql-chart');
+            expect(getSqlContext).toHaveBeenCalledWith(
+                mockProjectUuid,
+                'sql-chart',
+            );
+            getSqlContext.mockClear();
+            checkPermissions.mockRejectedValueOnce(new ForbiddenError());
+            await expect(
+                scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    account,
+                    tiles,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(getSqlContext).not.toHaveBeenCalled();
+        });
+
         test('returns no hidden ids when filter interactivity is off', async () => {
             const result = await service.getAvailableFiltersForSavedQueries(
                 mockProjectUuid,
@@ -250,6 +303,7 @@ describe('EmbedService', () => {
             );
 
             expect(result.hiddenFilterableFieldIds).toEqual([]);
+            expect(result.filterBoundaryContexts).toEqual({});
         });
     });
 
@@ -1062,6 +1116,7 @@ describe('EmbedService', () => {
     test('resolves project timezone for bounded embedded dashboard calculations', async () => {
         const account = {
             user: { id: mockUserUuid, type: 'anonymous' },
+            organization: { organizationUuid: mockOrganizationUuid },
             access: {
                 content: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
                 controls: { userAttributes: {}, intrinsicUserAttributes: {} },
@@ -1138,6 +1193,11 @@ describe('EmbedService', () => {
             },
             projectService: {
                 getQueryTimezoneForProject: vi.fn().mockResolvedValue('UTC'),
+                getWarehouseSqlBuilderSettings: vi.fn().mockResolvedValue({
+                    type: SupportedDbtAdapter.POSTGRES,
+                    startOfWeek: undefined,
+                }),
+                isTimezoneSupportEnabled: vi.fn().mockResolvedValue(true),
                 combineParameters: vi.fn().mockResolvedValue({}),
             },
             asyncQueryService: {

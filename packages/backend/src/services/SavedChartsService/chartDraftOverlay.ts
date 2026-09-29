@@ -58,7 +58,9 @@ export const assertChartDraftOverlay: (
     }
 };
 
-export const mergeDraftIntoChart = <T extends SavedChartDAO>(
+export const mergeDraftIntoChart = <
+    T extends Pick<SavedChartDAO, 'metricQuery'>,
+>(
     chart: T,
     draft: unknown,
 ): T => {

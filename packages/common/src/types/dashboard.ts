@@ -1,7 +1,17 @@
+import { type WeekDay } from '../utils/timeFrames';
 import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
-import { type FilterableDimension, type Metric } from './field';
-import { type DashboardFieldTarget, type DashboardFilters } from './filter';
+import {
+    type DimensionType,
+    type FilterableDimension,
+    type Metric,
+} from './field';
+import {
+    type DashboardFieldTarget,
+    type DashboardFilters,
+    type DateFilterSettings,
+    type UnitOfTime,
+} from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type AdditionalMetric } from './metricQuery';
 import { type DashboardParameters } from './parameters';
@@ -370,7 +380,30 @@ export type UpdateMultipleDashboards = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid'
 >;
 
+// Each merge source can execute the same dashboard filter in a different context.
+export type DashboardFilterBoundarySourceContext = {
+    isSqlChart?: boolean;
+    isMergeSource?: boolean;
+    timezone: string;
+    projectTimezone: string;
+    startOfWeek: WeekDay;
+    useTimezoneAwareDateTrunc: boolean;
+    fields: Record<
+        string,
+        {
+            fieldType?: DimensionType;
+            fieldGranularity?: UnitOfTime;
+            selectedPeriod?: DateFilterSettings['selectedPeriod'];
+            caseSensitive?: boolean;
+        }
+    >;
+};
+
 export type DashboardAvailableFilters = {
+    filterBoundaryContexts?: Record<
+        string,
+        DashboardFilterBoundarySourceContext[]
+    >;
     savedQueryFilters: Record<string, number[]>;
     allFilterableFields: FilterableDimension[];
     allFilterableMetrics: Metric[];
@@ -383,10 +416,14 @@ export type DashboardAvailableFilters = {
     defaultTimeDimensions?: Record<string, DashboardFieldTarget>;
 };
 
-export type SavedChartsInfoForDashboardAvailableFilters = {
-    tileUuid: string;
-    savedChartUuid: string;
-}[];
+export type SavedChartsInfoForDashboardAvailableFilters = (
+    | {
+          tileUuid: string;
+          savedChartUuid: string;
+          includeUnpublishedDraft?: boolean;
+      }
+    | { tileUuid: string; savedSqlUuid: string }
+)[];
 
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,

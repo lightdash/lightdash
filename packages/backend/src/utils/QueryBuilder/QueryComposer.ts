@@ -94,6 +94,8 @@ export class QueryComposer {
 
     private queryBuilder: MetricQueryBuilder | undefined;
 
+    private filterExplore: Explore | undefined;
+
     constructor(
         definition: QueryComposerDefinition,
         context: QueryComposerContext,
@@ -172,6 +174,10 @@ export class QueryComposer {
             availableParameters,
         });
 
+        this.filterExplore =
+            applyDateZoomToFilters && dateZoomApplied
+                ? exploreWithOverride
+                : explore;
         this.queryBuilder = new MetricQueryBuilder({
             explore: exploreWithOverride,
             compiledMetricQuery,
@@ -202,6 +208,12 @@ export class QueryComposer {
     /** The explore the query runs against. */
     getExplore(): Explore {
         return this.context.explore;
+    }
+
+    /** Field definitions used by WHERE filters, including opted-in date zoom. */
+    getFilterExplore(): Explore {
+        this.getQueryBuilder();
+        return this.filterExplore ?? this.context.explore;
     }
 
     /** The effective (totals-collapsed) metric query the composer compiles. */

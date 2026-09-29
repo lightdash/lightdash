@@ -379,7 +379,17 @@ const onboardingModel = {
         ) => callback(),
     ),
 };
+const contentDraftModel = {
+    findOpenDraft: vi.fn(
+        async (): Promise<
+            import('../../models/ContentDraftModel').ContentDraft | undefined
+        > => undefined,
+    ),
+};
 const savedChartModel = {
+    getQueryContexts: vi.fn<SavedChartModel['getQueryContexts']>(
+        async () => [],
+    ),
     getInfoForAvailableFilters: vi.fn(),
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
@@ -521,6 +531,10 @@ const getMockedProjectService = (
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
+        contentDraftModel: contentDraftModel as never,
+        savedSqlModel: {
+            getByUuid: vi.fn(async () => ({ space: { uuid: 'space' } })),
+        } as never,
         jobModel: jobModel as unknown as JobModel,
         emailClient: new EmailClient({
             lightdashConfig: lightdashConfigWithNoSMTP,
@@ -10042,6 +10056,218 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                 },
             }),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+});
+
+describe('dashboard filter boundary query metadata', () => {
+    const { projectUuid } = projectSummary;
+    const query = {
+        exploreName: 'a',
+        dimensions: ['a_dim1'],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        timezone: 'user_timezone',
+    };
+    const chart = {
+        uuid: 'chart',
+        name: 'Chart',
+        spaceUuid: 'space',
+        metricQuery: query,
+        merge: null,
+    };
+    const settings = {
+        type: WarehouseTypes.POSTGRES,
+        startOfWeek: WeekDay.MONDAY,
+        columnTimezone: 'UTC',
+        dataTimezone: null,
+    };
+
+    test('returns each merge source timezone, field semantics and selected connection week start', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        savedChartModel.getQueryContexts.mockResolvedValueOnce([
+            {
+                ...chart,
+                merge: {
+                    queries: {
+                        other: {
+                            explore: 'b',
+                            dimensions: ['b_dim1'],
+                            metrics: [],
+                            timezone: 'America/New_York',
+                        },
+                    },
+                    join: MergeJoinType.LEFT,
+                    keys: { a_dim1: ['other.b_dim1'] },
+                    limit: 100,
+                },
+            },
+            { ...chart, uuid: 'same-explore' },
+        ]);
+        const exploreA = { ...validExplore, name: 'a', caseSensitive: false };
+        const exploreB = { ...validExplore, name: 'b', caseSensitive: true };
+        const findExplores = vi
+            .spyOn(service, 'findExplores')
+            .mockResolvedValueOnce({ b: exploreB });
+        const builderSettings = vi
+            .spyOn(service, 'getWarehouseSqlBuilderSettings')
+            .mockImplementation(async (_projectUuid, binding) => {
+                if (binding.kind === 'explore' && binding.exploreName === 'b')
+                    return { ...settings, startOfWeek: WeekDay.SUNDAY };
+                return settings;
+            });
+        vi.spyOn(service, 'getQueryTimezoneForProject').mockResolvedValueOnce(
+            'Europe/London',
+        );
+        vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+            true,
+        );
+        const result = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart', 'same-explore'],
+            { a: exploreA },
+        );
+        expect(findExplores).toHaveBeenCalledWith(
+            expect.objectContaining({ exploreNames: ['b'] }),
+        );
+        expect(builderSettings).toHaveBeenCalledTimes(2);
+        expect(result.chart).toEqual([
+            expect.objectContaining({
+                timezone: 'user_timezone',
+                projectTimezone: 'Europe/London',
+                startOfWeek: WeekDay.MONDAY,
+                useTimezoneAwareDateTrunc: true,
+            }),
+            expect.objectContaining({
+                timezone: 'America/New_York',
+                startOfWeek: WeekDay.SUNDAY,
+            }),
+        ]);
+        expect(result.chart[0].fields.a_dim1.caseSensitive).toBe(false);
+        expect(result.chart[1].fields.a_dim1.caseSensitive).toBe(true);
+        expect(result['same-explore'][0]).toEqual({
+            ...result.chart[0],
+            isMergeSource: false,
+        });
+        expect(result.chart.every((source) => source.isMergeSource)).toBe(true);
+    });
+
+    test('uses the requesting author draft only when requested and falls back for corrupt drafts', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        vi.spyOn(service, 'getWarehouseSqlBuilderSettings').mockResolvedValue(
+            settings,
+        );
+        savedChartModel.getQueryContexts.mockResolvedValue([chart]);
+        contentDraftModel.findOpenDraft.mockResolvedValueOnce({
+            uuid: 'draft',
+            draft: { metricQuery: { ...query, timezone: 'Asia/Tokyo' } },
+        } as never);
+        const result = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: validExplore },
+            ['chart'],
+        );
+        expect(result.chart[0].timezone).toBe('Asia/Tokyo');
+        expect(contentDraftModel.findOpenDraft).toHaveBeenCalledWith(
+            projectUuid,
+            'chart',
+            'chart',
+            account.user.id,
+        );
+        contentDraftModel.findOpenDraft.mockResolvedValueOnce({
+            uuid: 'bad-draft',
+            draft: { metricQuery: 123 },
+        } as never);
+        const fallback = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: validExplore },
+            ['chart'],
+        );
+        expect(fallback.chart[0].timezone).toBe('user_timezone');
+        contentDraftModel.findOpenDraft.mockClear();
+        await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: validExplore },
+        );
+        expect(contentDraftModel.findOpenDraft).not.toHaveBeenCalled();
+        savedChartModel.getQueryContexts.mockResolvedValue([]);
+    });
+
+    test('keeps unavailable explores out of metadata without failing other tiles', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        savedChartModel.getQueryContexts.mockResolvedValueOnce([chart]);
+        const builderSettings = vi.spyOn(
+            service,
+            'getWarehouseSqlBuilderSettings',
+        );
+        const result = await service.getDashboardFilterBoundaryContexts(
+            account,
+            projectUuid,
+            ['chart'],
+            { a: undefined },
+        );
+        expect(result).toEqual({ chart: [] });
+        expect(builderSettings).not.toHaveBeenCalled();
+    });
+
+    test('uses the SQL chart binding and keeps SQL filtering in UTC', async () => {
+        const service = getMockedProjectService(lightdashConfigMock);
+        const builderSettings = vi
+            .spyOn(service, 'getWarehouseSqlBuilderSettings')
+            .mockResolvedValueOnce({
+                ...settings,
+                startOfWeek: WeekDay.SUNDAY,
+            });
+        await expect(
+            service.getSqlChartFilterBoundaryContext(projectUuid, 'sql-chart'),
+        ).resolves.toEqual({
+            isSqlChart: true,
+            timezone: 'UTC',
+            projectTimezone: 'UTC',
+            startOfWeek: WeekDay.SUNDAY,
+            useTimezoneAwareDateTrunc: false,
+            fields: {},
+        });
+        expect(builderSettings).toHaveBeenCalledWith(projectUuid, {
+            kind: 'sqlChart',
+            savedSqlUuid: 'sql-chart',
+        });
+    });
+
+    test('checks SQL chart access before reading its connection metadata', async () => {
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue({
+                    projectUuid,
+                    organizationUuid: account.organization.organizationUuid,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                }),
+            } as unknown as SpacePermissionService,
+        });
+        const metadata = vi.spyOn(service, 'getSqlChartFilterBoundaryContext');
+        const deniedAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([]),
+            },
+        } as typeof account;
+        const result = await service.getAvailableFiltersForSavedQueries(
+            deniedAccount,
+            [{ tileUuid: 'sql-tile', savedSqlUuid: 'private-chart' }],
+        );
+        expect(result.filterBoundaryContexts).toEqual({ 'sql-tile': [] });
+        expect(metadata).not.toHaveBeenCalled();
     });
 });
 

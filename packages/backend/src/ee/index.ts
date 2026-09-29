@@ -1066,6 +1066,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     preAggregateModel: models.getPreAggregateModel(),
                     onboardingModel: models.getOnboardingModel(),
                     savedChartModel: models.getSavedChartModel(),
+                    contentDraftModel: models.getContentDraftModel(),
+                    savedSqlModel: models.getSavedSqlModel(),
                     jobModel: models.getJobModel(),
                     emailClient: clients.getEmailClient(),
                     spaceModel: models.getSpaceModel(),

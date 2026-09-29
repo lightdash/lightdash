@@ -1,4 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import {
+    createBoundaryDateFormatter,
+    renderDateFilterSql,
+} from '../compiler/filtersCompiler';
+import { SupportedDbtAdapter } from '../types/dbt';
 import { DimensionType } from '../types/field';
 import {
     FilterOperator,
@@ -79,6 +84,7 @@ describe('dashboard filter boundaries', () => {
         };
         const context = {
             timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
             now: new Date('2026-03-08T16:00:00Z'),
             fieldType: DimensionType.DATE,
         };
@@ -105,6 +111,95 @@ describe('dashboard filter boundaries', () => {
             ),
         ).not.toBeNull();
     });
+
+    it.each([
+        {
+            timezone: 'America/New_York',
+            now: '2026-03-01T04:30:00Z',
+            unitOfTime: UnitOfTime.months,
+            enabledRange: ['2026-01-01', '2026-01-31', '2026-02-01'],
+            legacyRange: ['2026-02-01', '2026-02-28', '2026-03-01'],
+        },
+        {
+            timezone: 'Asia/Tokyo',
+            now: '2026-02-28T23:30:00Z',
+            unitOfTime: UnitOfTime.months,
+            enabledRange: ['2026-02-01', '2026-02-28', '2026-03-01'],
+            legacyRange: ['2026-01-01', '2026-01-31', '2026-02-01'],
+        },
+        {
+            timezone: 'America/New_York',
+            now: '2026-03-09T02:30:00Z',
+            unitOfTime: UnitOfTime.days,
+            enabledRange: ['2026-03-07', '2026-03-07', '2026-03-08'],
+            legacyRange: ['2026-03-08', '2026-03-08', '2026-03-09'],
+        },
+    ])(
+        'matches DATE SQL with timezone support on and off in $timezone at $now',
+        ({ timezone, now, unitOfTime, enabledRange, legacyRange }) => {
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date(now));
+            try {
+                for (const enabled of [true, false]) {
+                    const [start, lastDay, end] = enabled
+                        ? enabledRange
+                        : legacyRange;
+                    const selection = {
+                        ...rule([1], FilterOperator.IN_THE_PAST),
+                        settings: { unitOfTime, completed: true },
+                    };
+                    const context = {
+                        timezone,
+                        fieldType: DimensionType.DATE,
+                        useTimezoneAwareDateTrunc: enabled,
+                    };
+                    const sql = renderDateFilterSql({
+                        dimensionSql: 'order_date',
+                        filter: selection,
+                        adapterType: SupportedDbtAdapter.POSTGRES,
+                        timezone,
+                        boundaryDateFormatter: enabled
+                            ? createBoundaryDateFormatter(timezone)
+                            : undefined,
+                    });
+                    expect(sql).toBe(
+                        `((order_date) >= ('${start}') AND (order_date) < ('${end}'))`,
+                    );
+                    expect(
+                        validateFilterBoundary(
+                            {
+                                type: 'date',
+                                mode: 'fixed',
+                                start,
+                                end: lastDay,
+                            },
+                            selection,
+                            context,
+                        ),
+                    ).toBeNull();
+                    const boundary = {
+                        type: 'date' as const,
+                        mode: 'relative' as const,
+                        value: 1,
+                        unitOfTime,
+                        completed: true,
+                    };
+                    expect(
+                        validateFilterBoundary(
+                            boundary,
+                            rule([start, lastDay], FilterOperator.IN_BETWEEN),
+                            context,
+                        ),
+                    ).toBeNull();
+                    expect(
+                        validateFilterBoundary(boundary, rule([end]), context),
+                    ).not.toBeNull();
+                }
+            } finally {
+                vi.useRealTimers();
+            }
+        },
+    );
 
     it('rejects timestamp-shaped DATE literals outside their SQL calendar date and partial coarse relative buckets', () => {
         const boundary = {

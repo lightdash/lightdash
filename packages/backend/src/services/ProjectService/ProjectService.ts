@@ -27,6 +27,7 @@ import {
     buildDataTimezonePreviewResponse,
     buildDataTimezonePreviewSql,
     buildMergeItems,
+    buildMergeQueryFromMergeDefinition,
     CacheMetadata,
     calculateExploreWarningReport,
     ChartSourceType,
@@ -58,6 +59,7 @@ import {
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
+    DashboardFilterBoundarySourceContext,
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
@@ -101,10 +103,12 @@ import {
     getDashboardFilterableFieldKey,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
+    getDefaultStartOfWeek,
     getDimensions,
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
+    getFilterBoundaryFieldContext,
     getHiddenFilterableFieldIds,
     getIntrinsicUserAttributes,
     getItemId,
@@ -193,6 +197,7 @@ import {
     preAggregateUtils,
     PreviewExpiresAt,
     Project,
+    PROJECT_TIMEZONE_SETTING,
     ProjectCatalog,
     ProjectContextEntry,
     ProjectDbtSource,
@@ -333,6 +338,7 @@ import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import type { ContentDraftModel } from '../../models/ContentDraftModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -351,6 +357,7 @@ import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
@@ -408,6 +415,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
+import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -504,6 +512,8 @@ export type ProjectServiceArguments = {
     preAggregateModel: PreAggregateModel;
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
+    contentDraftModel: ContentDraftModel;
+    savedSqlModel: SavedSqlModel;
     jobModel: JobModel;
     emailClient: EmailClient;
     spaceModel: SpaceModel;
@@ -654,6 +664,8 @@ export class ProjectService extends BaseService {
     warehouseClients: Record<string, WarehouseClient>;
 
     savedChartModel: SavedChartModel;
+    contentDraftModel: ContentDraftModel;
+    savedSqlModel: SavedSqlModel;
 
     jobModel: JobModel;
 
@@ -761,6 +773,8 @@ export class ProjectService extends BaseService {
         preAggregateModel,
         onboardingModel,
         savedChartModel,
+        contentDraftModel,
+        savedSqlModel,
         jobModel,
         emailClient,
         spaceModel,
@@ -816,6 +830,8 @@ export class ProjectService extends BaseService {
         this.onboardingModel = onboardingModel;
         this.warehouseClients = {};
         this.savedChartModel = savedChartModel;
+        this.contentDraftModel = contentDraftModel;
+        this.savedSqlModel = savedSqlModel;
         this.jobModel = jobModel;
         this.emailClient = emailClient;
         this.spaceModel = spaceModel;
@@ -11707,10 +11723,182 @@ export class ProjectService extends BaseService {
         );
     }
 
+    async getSqlChartFilterBoundaryContext(
+        projectUuid: string,
+        savedSqlUuid: string,
+    ): Promise<DashboardFilterBoundarySourceContext> {
+        const settings = await this.getWarehouseSqlBuilderSettings(
+            projectUuid,
+            { kind: 'sqlChart', savedSqlUuid },
+        );
+        return {
+            isSqlChart: true,
+            timezone: 'UTC',
+            projectTimezone: 'UTC',
+            startOfWeek:
+                settings.startOfWeek ?? getDefaultStartOfWeek(settings.type),
+            useTimezoneAwareDateTrunc: false,
+            fields: {},
+        };
+    }
+
+    /** Query metadata only: never resolves or refreshes a viewer's warehouse credentials. */
+    async getDashboardFilterBoundaryContexts(
+        account: Account,
+        projectUuid: string,
+        savedChartUuids: string[],
+        preloadedExplores: Record<
+            string,
+            Explore | ExploreError | undefined
+        > = {},
+        unpublishedChartUuids: string[] = [],
+    ): Promise<Record<string, DashboardFilterBoundarySourceContext[]>> {
+        if (!savedChartUuids.length) return {};
+        const [charts, projectTimezone, useTimezoneAwareDateTrunc] =
+            await Promise.all([
+                this.savedChartModel.getQueryContexts({
+                    projectUuid,
+                    uuids: savedChartUuids,
+                }),
+                this.getQueryTimezoneForProject(projectUuid),
+                this.isTimezoneSupportEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                }),
+            ]);
+        if (!charts.length) return {};
+        const effectiveCharts =
+            !isJwtUser(account) && unpublishedChartUuids.length
+                ? await Promise.all(
+                      charts.map(async (chart) => {
+                          if (!unpublishedChartUuids.includes(chart.uuid))
+                              return chart;
+                          const draft =
+                              await this.contentDraftModel.findOpenDraft(
+                                  projectUuid,
+                                  'chart',
+                                  chart.uuid,
+                                  account.user.userUuid,
+                              );
+                          if (!draft) return chart;
+                          try {
+                              return mergeDraftIntoChart(chart, draft.draft);
+                          } catch (error) {
+                              this.logger.warn(
+                                  `Ignoring invalid chart draft ${draft.uuid} while resolving dashboard filter context`,
+                                  error,
+                              );
+                              return chart;
+                          }
+                      }),
+                  )
+                : charts;
+        const queriesByChart = effectiveCharts.map((chart) => ({
+            uuid: chart.uuid,
+            isMergeSource: !!chart.merge,
+            queries: chart.merge
+                ? buildMergeQueryFromMergeDefinition(
+                      chart.metricQuery,
+                      chart.merge,
+                  )
+                      .sources.filter(isMergeMetricSource)
+                      .map((source) => source.metricQuery)
+                : [chart.metricQuery],
+        }));
+        const exploreNames = uniq(
+            queriesByChart.flatMap(({ queries }) =>
+                queries.map((query) => query.exploreName),
+            ),
+        );
+        const missingExploreNames = exploreNames.filter(
+            (name) => !(name in preloadedExplores),
+        );
+        const explores = {
+            ...preloadedExplores,
+            ...(missingExploreNames.length
+                ? await this.findExplores({
+                      account,
+                      projectUuid,
+                      exploreNames: missingExploreNames,
+                      organizationUuid: account.organization.organizationUuid,
+                  })
+                : {}),
+        };
+        const settingsByExplore = new Map(
+            await Promise.all(
+                exploreNames.map(async (exploreName) => {
+                    const explore = explores[exploreName];
+                    if (!explore || isExploreError(explore))
+                        return [exploreName, undefined] as const;
+                    try {
+                        const settings =
+                            await this.getWarehouseSqlBuilderSettings(
+                                projectUuid,
+                                { kind: 'explore', exploreName },
+                            );
+                        return [exploreName, settings] as const;
+                    } catch (error) {
+                        if (error instanceof NotFoundError)
+                            return [exploreName, undefined] as const;
+                        throw error;
+                    }
+                }),
+            ),
+        );
+        return Object.fromEntries(
+            queriesByChart.map(({ uuid, queries, isMergeSource }) => [
+                uuid,
+                queries.flatMap((query) => {
+                    const explore = explores[query.exploreName];
+                    const settings = settingsByExplore.get(query.exploreName);
+                    if (!explore || isExploreError(explore) || !settings)
+                        return [];
+                    return [
+                        {
+                            isMergeSource,
+                            timezone:
+                                query.timezone ?? PROJECT_TIMEZONE_SETTING,
+                            projectTimezone,
+                            useTimezoneAwareDateTrunc,
+                            startOfWeek:
+                                settings.startOfWeek ??
+                                getDefaultStartOfWeek(settings.type),
+                            fields: Object.fromEntries(
+                                [
+                                    ...getDimensions(explore),
+                                    ...getMetrics(explore),
+                                ].map((field) => [
+                                    getItemId(field),
+                                    getFilterBoundaryFieldContext(
+                                        field,
+                                        explore.caseSensitive,
+                                    ),
+                                ]),
+                            ),
+                        },
+                    ];
+                }),
+            ]),
+        );
+    }
+
     async getAvailableFiltersForSavedQueries(
         account: Account,
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     ): Promise<DashboardAvailableFilters> {
+        const chartTiles = savedChartUuidsAndTileUuids.filter(
+            (
+                tile,
+            ): tile is {
+                tileUuid: string;
+                savedChartUuid: string;
+                includeUnpublishedDraft?: boolean;
+            } => 'savedChartUuid' in tile,
+        );
+        const sqlTiles = savedChartUuidsAndTileUuids.filter(
+            (tile): tile is { tileUuid: string; savedSqlUuid: string } =>
+                'savedSqlUuid' in tile,
+        );
         type ChartFilters = {
             uuid: string;
             filters: CompiledDimension[];
@@ -11719,6 +11907,10 @@ export class ProjectService extends BaseService {
         };
 
         let allFilters: ChartFilters[] = [];
+        let boundaryContextsByChart: Record<
+            string,
+            DashboardFilterBoundarySourceContext[]
+        > = {};
 
         allFilters = await traceSpan(
             {
@@ -11726,10 +11918,11 @@ export class ProjectService extends BaseService {
                 name: 'ProjectService.getAvailableFiltersForSavedQueries',
             },
             async () => {
-                const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+                const savedQueryUuids = chartTiles.map(
                     ({ savedChartUuid }) => savedChartUuid,
                 );
 
+                if (!savedQueryUuids.length) return [];
                 const savedCharts =
                     await this.savedChartModel.getInfoForAvailableFilters(
                         savedQueryUuids,
@@ -11796,6 +11989,37 @@ export class ProjectService extends BaseService {
                         savedChart.uuid,
                         accessResults[index],
                     ]),
+                );
+
+                const authorizedCharts = savedCharts.filter((chart) =>
+                    chartAccess.get(chart.uuid),
+                );
+                boundaryContextsByChart = Object.assign(
+                    {},
+                    ...(await Promise.all(
+                        uniq(
+                            authorizedCharts.map((chart) => chart.projectUuid),
+                        ).map((projectUuid) =>
+                            this.getDashboardFilterBoundaryContexts(
+                                account,
+                                projectUuid,
+                                authorizedCharts
+                                    .filter(
+                                        (chart) =>
+                                            chart.projectUuid === projectUuid,
+                                    )
+                                    .map((chart) => chart.uuid),
+                                projectUuid === savedCharts[0].projectUuid
+                                    ? exploresMap
+                                    : {},
+                                chartTiles
+                                    .filter(
+                                        (tile) => tile.includeUnpublishedDraft,
+                                    )
+                                    .map((tile) => tile.savedChartUuid),
+                            ),
+                        ),
+                    )),
                 );
 
                 return savedCharts.map((savedChart) => {
@@ -11869,7 +12093,7 @@ export class ProjectService extends BaseService {
             });
         });
 
-        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryFilters = chartTiles.reduce<
             DashboardAvailableFilters['savedQueryFilters']
         >((acc, savedChartUuidAndTileUuid) => {
             const filterResult = allFilters.find(
@@ -11888,7 +12112,7 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
-        const savedQueryMetricFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryMetricFilters = chartTiles.reduce<
             DashboardAvailableFilters['savedQueryMetricFilters']
         >((acc, savedChartUuidAndTileUuid) => {
             const filterResult = allFilters.find(
@@ -11907,7 +12131,65 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
+        const sqlContextsByChart = Object.fromEntries(
+            await Promise.all(
+                uniq(sqlTiles.map((tile) => tile.savedSqlUuid)).map(
+                    async (savedSqlUuid) => {
+                        try {
+                            const chart =
+                                await this.savedSqlModel.getByUuid(
+                                    savedSqlUuid,
+                                );
+                            const context =
+                                await this.spacePermissionService.resolveAccess(
+                                    account.user.id,
+                                    {
+                                        type: 'sqlChart',
+                                        savedSqlUuid,
+                                        spaceUuid: chart.space.uuid,
+                                    },
+                                );
+                            const auditedAbility =
+                                this.createAuditedAbility(account);
+                            if (
+                                auditedAbility.cannot(
+                                    'view',
+                                    subject('SavedChart', {
+                                        ...context,
+                                        metadata: { savedSqlUuid },
+                                    }),
+                                )
+                            )
+                                return [savedSqlUuid, []] as const;
+                            return [
+                                savedSqlUuid,
+                                [
+                                    await this.getSqlChartFilterBoundaryContext(
+                                        context.projectUuid,
+                                        savedSqlUuid,
+                                    ),
+                                ],
+                            ] as const;
+                        } catch (error) {
+                            if (error instanceof NotFoundError)
+                                return [savedSqlUuid, []] as const;
+                            throw error;
+                        }
+                    },
+                ),
+            ),
+        );
         return {
+            filterBoundaryContexts: Object.fromEntries([
+                ...chartTiles.map(({ tileUuid, savedChartUuid }) => [
+                    tileUuid,
+                    boundaryContextsByChart[savedChartUuid] ?? [],
+                ]),
+                ...sqlTiles.map(({ tileUuid, savedSqlUuid }) => [
+                    tileUuid,
+                    sqlContextsByChart[savedSqlUuid] ?? [],
+                ]),
+            ]),
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics,

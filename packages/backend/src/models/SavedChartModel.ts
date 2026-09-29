@@ -2574,9 +2574,15 @@ export class SavedChartModel {
         );
     }
 
-    // One round trip per version table for a whole shortlist instead of a
-    // full get() per chart.
-    async getSimilarityContexts({
+    async getSimilarityContexts(args: {
+        projectUuid: string;
+        uuids: string[];
+    }): Promise<SavedChartSimilarityContext[]> {
+        return this.getQueryContexts(args);
+    }
+
+    // Load latest query definitions in batches, using the same merge parser as get().
+    async getQueryContexts({
         projectUuid,
         uuids,
     }: {

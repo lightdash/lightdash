@@ -28,6 +28,7 @@ import { type WeekDay } from './timeFrames';
 
 export type FilterBoundaryContext = {
     timezone?: string;
+    useTimezoneAwareDateTrunc?: boolean;
     now?: Date;
     startOfWeek?: WeekDay | null;
     caseSensitive?: boolean;
@@ -45,6 +46,12 @@ type BoundaryRule = FilterRule<
 >;
 
 type DateInterval = { start: number; end: number; endInclusive: boolean };
+
+const getBoundaryTimezone = (context: FilterBoundaryContext): string =>
+    context.fieldType === DimensionType.DATE &&
+    !context.useTimezoneAwareDateTrunc
+        ? 'UTC'
+        : (context.timezone ?? 'UTC');
 
 export const getBoundaryOperators = (
     boundary: DashboardFilterBoundary,
@@ -125,9 +132,12 @@ export const resolveRelativeDateFilterInterval = (
     rule: Pick<BoundaryRule, 'operator' | 'values' | 'settings'>,
     context: FilterBoundaryContext = {},
 ): DateInterval | null => {
-    const interval = resolveRelativeInstantInterval(rule, context);
+    const timezone = getBoundaryTimezone(context);
+    const interval = resolveRelativeInstantInterval(rule, {
+        ...context,
+        timezone,
+    });
     if (!interval || context.fieldType !== DimensionType.DATE) return interval;
-    const timezone = context.timezone ?? 'UTC';
     return {
         start: moment.tz(interval.start, timezone).startOf('day').valueOf(),
         end: interval.endInclusive
@@ -161,8 +171,9 @@ export const resolveFilterBoundaryInterval = (
             context,
         );
     }
-    const start = parseCalendarDate(boundary.start, context.timezone ?? 'UTC');
-    const end = parseCalendarDate(boundary.end, context.timezone ?? 'UTC');
+    const timezone = getBoundaryTimezone(context);
+    const start = parseCalendarDate(boundary.start, timezone);
+    const end = parseCalendarDate(boundary.end, timezone);
     return start.isValid() && end.isValid() && !end.isBefore(start)
         ? {
               start: start.valueOf(),
@@ -241,7 +252,7 @@ const resolveDateSelection = (
     rule: BoundaryRule,
     context: FilterBoundaryContext,
 ): DateInterval[] | null => {
-    const timezone = context.timezone ?? 'UTC';
+    const timezone = getBoundaryTimezone(context);
     const periods = [
         UnitOfTime.weeks,
         UnitOfTime.months,

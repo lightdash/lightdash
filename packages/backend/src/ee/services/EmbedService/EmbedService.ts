@@ -39,6 +39,7 @@ import {
     formatRows,
     getColumnTimezone,
     getDashboardFiltersForTileAndTables,
+    getDefaultStartOfWeek,
     getDimensionMapFromTables,
     getDimensions,
     getExecutableFilterFieldIds,
@@ -115,6 +116,7 @@ import { SpacePermissionService } from '../../../services/SpaceService/SpacePerm
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { getSqlBuilderForExplore } from '../../../utils/QueryBuilder/getSqlBuilderForExplore';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
@@ -763,6 +765,14 @@ export class EmbedService extends BaseService {
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
+        const chartTiles = savedChartUuidsAndTileUuids.filter(
+            (tile): tile is { tileUuid: string; savedChartUuid: string } =>
+                'savedChartUuid' in tile,
+        );
+        const sqlTiles = savedChartUuidsAndTileUuids.filter(
+            (tile): tile is { tileUuid: string; savedSqlUuid: string } =>
+                'savedSqlUuid' in tile,
+        );
         const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
@@ -776,6 +786,7 @@ export class EmbedService extends BaseService {
         if (!isFilterInteractivityEnabled(account.access.filtering)) {
             // If dashboard filters interactivity is not enabled, we return an empty list
             return {
+                filterBoundaryContexts: {},
                 savedQueryFilters: {},
                 allFilterableFields: [],
                 allFilterableMetrics: [],
@@ -790,14 +801,15 @@ export class EmbedService extends BaseService {
             filters: CompiledDimension[];
         }[] = [];
 
-        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+        const savedQueryUuids = chartTiles.map(
             ({ savedChartUuid }) => savedChartUuid,
         );
 
-        const savedCharts =
-            await this.savedChartModel.getInfoForAvailableFilters(
-                savedQueryUuids,
-            );
+        const savedCharts = savedQueryUuids.length
+            ? await this.savedChartModel.getInfoForAvailableFilters(
+                  savedQueryUuids,
+              )
+            : [];
 
         if (checkPermissions) {
             const writeSpaceUuid =
@@ -854,6 +866,25 @@ export class EmbedService extends BaseService {
                 }),
             );
         }
+
+        const sqlContextsByTile = await Promise.all(
+            sqlTiles.map(async ({ tileUuid, savedSqlUuid }) => {
+                await this.permissionsService.checkEmbedSqlChartPermissions(
+                    account,
+                    savedSqlUuid,
+                );
+                // The embed permission resolver scopes the chart to the token's dashboard.
+                return [
+                    tileUuid,
+                    [
+                        await this.projectService.getSqlChartFilterBoundaryContext(
+                            projectUuid,
+                            savedSqlUuid,
+                        ),
+                    ],
+                ] as const;
+            }),
+        );
 
         const exploreCacheKeys: Record<string, boolean> = {};
         const exploreCache: Record<string, Explore | ExploreError | undefined> =
@@ -917,7 +948,7 @@ export class EmbedService extends BaseService {
             });
         });
 
-        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryFilters = chartTiles.reduce<
             DashboardAvailableFilters['savedQueryFilters']
         >((acc, savedChartUuidAndTileUuid) => {
             const filterResult = allFilters.find(
@@ -967,7 +998,33 @@ export class EmbedService extends BaseService {
             );
         }
 
+        const contextsByChart =
+            await this.projectService.getDashboardFilterBoundaryContexts(
+                account,
+                projectUuid,
+                savedCharts.map((chart) => chart.uuid),
+                exploreCache,
+            );
+        const contextFieldIds = new Set([
+            ...allFilterableFields.map(getItemId),
+            ...hiddenFilterableFieldIds,
+        ]);
+
         return {
+            filterBoundaryContexts: Object.fromEntries([
+                ...sqlContextsByTile,
+                ...chartTiles.map(({ tileUuid, savedChartUuid }) => [
+                    tileUuid,
+                    (contextsByChart[savedChartUuid] ?? []).map((source) => ({
+                        ...source,
+                        fields: Object.fromEntries(
+                            Object.entries(source.fields).filter(([fieldId]) =>
+                                contextFieldIds.has(fieldId),
+                            ),
+                        ),
+                    })),
+                ]),
+            ]),
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics: [],
@@ -1306,11 +1363,27 @@ export class EmbedService extends BaseService {
                 .flat()
                 .some((rule) => rule.boundaries)
         ) {
-            const project = await this.projectModel.get(dashboard.projectUuid);
-            const projectTimezone =
-                await this.projectService.getQueryTimezoneForProject(
+            const [
+                projectTimezone,
+                sqlBuilderSettings,
+                useTimezoneAwareDateTrunc,
+            ] = await Promise.all([
+                this.projectService.getQueryTimezoneForProject(
                     dashboard.projectUuid,
-                );
+                ),
+                this.projectService.getWarehouseSqlBuilderSettings(
+                    dashboard.projectUuid,
+                    { kind: 'explore', exploreName: explore.name },
+                ),
+                this.projectService.isTimezoneSupportEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                }),
+            ]);
+            const sqlBuilder = getSqlBuilderForExplore(
+                explore,
+                sqlBuilderSettings,
+            );
             assertDashboardFilterBoundaries({
                 savedFilters: dashboard.filters,
                 filters: effectiveFilters,
@@ -1323,7 +1396,10 @@ export class EmbedService extends BaseService {
                         projectTimezone,
                         userTimezone: null,
                     }),
-                    startOfWeek: project.warehouseConnection?.startOfWeek,
+                    startOfWeek:
+                        sqlBuilder.getStartOfWeek() ??
+                        getDefaultStartOfWeek(sqlBuilder.getAdapterType()),
+                    useTimezoneAwareDateTrunc,
                 },
             });
         }

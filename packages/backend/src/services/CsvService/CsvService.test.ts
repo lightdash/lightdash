@@ -74,6 +74,8 @@ describe('Csv service', () => {
             preAggregateModel: {} as PreAggregateModel,
             s3CacheClient: {} as S3CacheClient,
             savedChartModel: {} as SavedChartModel,
+            contentDraftModel: {} as never,
+            savedSqlModel: {} as SavedSqlModel,
             spaceModel: {} as SpaceModel,
             sshKeyPairModel: {} as SshKeyPairModel,
             userAttributesModel: {} as UserAttributesModel,

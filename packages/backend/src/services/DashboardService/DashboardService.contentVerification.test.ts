@@ -104,6 +104,7 @@ describe('DashboardService - Content Verification', () => {
         savedChartModel: {
             getInfoForAvailableFilters: vi.fn(async () => []),
         } as unknown as SavedChartModel,
+        projectService: {} as never,
         savedSqlModel: {} as unknown as SavedSqlModel,
         savedChartService: {} as unknown as SavedChartService,
         projectModel: {

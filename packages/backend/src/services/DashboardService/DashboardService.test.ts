@@ -16,10 +16,13 @@ import {
     SpaceMemberRole,
     SupportedDbtAdapter,
     UnitOfTime,
+    WarehouseTypes,
+    WeekDay,
     type Account,
     type ContentVerificationInfo,
     type Dashboard,
     type DashboardChartTile,
+    type DashboardFilterBoundarySourceContext,
     type DashboardFilterRule,
     type Explore,
     type UpdateDashboard,
@@ -42,6 +45,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
@@ -136,6 +140,20 @@ const projectModel = {
     getExploreFromCache: vi.fn<ProjectModel['getExploreFromCache']>(),
     getCachedExploreNames: vi.fn(async () => []),
     get: vi.fn(async () => ({ schedulerTimezone: 'UTC' })),
+};
+
+const projectService = {
+    getDashboardFilterBoundaryContexts: vi.fn<
+        ProjectService['getDashboardFilterBoundaryContexts']
+    >(async () => ({})),
+    getWarehouseSqlBuilderSettings: vi.fn<
+        ProjectService['getWarehouseSqlBuilderSettings']
+    >(async () => ({
+        type: WarehouseTypes.POSTGRES,
+        startOfWeek: null,
+        columnTimezone: 'UTC',
+        dataTimezone: null,
+    })),
 };
 
 const schedulerModel = {
@@ -256,6 +274,7 @@ describe('DashboardService', () => {
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         savedChartService: {} as SavedChartService, // Mock for test
         projectModel: projectModel as unknown as ProjectModel,
+        projectService: projectService as unknown as ProjectService,
         slackClient: slackClient as unknown as SlackClient,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         contentAsCodeProjectSettingsModel:
@@ -782,6 +801,21 @@ describe('DashboardService', () => {
             await expect(
                 service.create(user, projectUuid, {
                     ...createDashboard,
+                    tiles: [
+                        {
+                            uuid: 'sql-tile',
+                            type: DashboardTileTypes.SQL_CHART,
+                            x: 0,
+                            y: 0,
+                            w: 1,
+                            h: 1,
+                            tabUuid: undefined,
+                            properties: {
+                                savedSqlUuid: 'saved-sql',
+                                chartName: 'Orders',
+                            },
+                        },
+                    ],
                     filters: {
                         dimensions: [
                             {
@@ -792,6 +826,14 @@ describe('DashboardService', () => {
                                     tableName: 'orders',
                                     isSqlColumn: true,
                                     fallbackType: DimensionType.DATE,
+                                },
+                                tileTargets: {
+                                    'sql-tile': {
+                                        fieldId: 'ordered_at',
+                                        tableName: 'orders',
+                                        isSqlColumn: true,
+                                        fallbackType: DimensionType.DATE,
+                                    },
                                 },
                                 operator: FilterOperator.EQUALS,
                                 values: ['2026-09-28'],
@@ -821,6 +863,21 @@ describe('DashboardService', () => {
             await expect(
                 service.create(user, projectUuid, {
                     ...createDashboard,
+                    tiles: [
+                        {
+                            uuid: 'sql-tile',
+                            type: DashboardTileTypes.SQL_CHART,
+                            x: 0,
+                            y: 0,
+                            w: 1,
+                            h: 1,
+                            tabUuid: undefined,
+                            properties: {
+                                savedSqlUuid: 'saved-sql',
+                                chartName: 'Orders',
+                            },
+                        },
+                    ],
                     filters: {
                         dimensions: [
                             {
@@ -831,6 +888,14 @@ describe('DashboardService', () => {
                                     tableName: 'orders',
                                     isSqlColumn: true,
                                     fallbackType: DimensionType.DATE,
+                                },
+                                tileTargets: {
+                                    'sql-tile': {
+                                        fieldId: 'ordered_at',
+                                        tableName: 'orders',
+                                        isSqlColumn: true,
+                                        fallbackType: DimensionType.DATE,
+                                    },
                                 },
                                 operator: FilterOperator.IN_THE_CURRENT,
                                 values: [],
@@ -851,6 +916,193 @@ describe('DashboardService', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    describe('saved dashboard filter boundary contexts', () => {
+        const source = (
+            overrides: Partial<DashboardFilterBoundarySourceContext> = {},
+        ): DashboardFilterBoundarySourceContext => ({
+            timezone: 'UTC',
+            projectTimezone: 'UTC',
+            startOfWeek: WeekDay.MONDAY,
+            useTimezoneAwareDateTrunc: true,
+            fields: {
+                orders_date: {
+                    fieldType: DimensionType.DATE,
+                    selectedPeriod: UnitOfTime.months,
+                    fieldGranularity: UnitOfTime.months,
+                },
+            },
+            ...overrides,
+        });
+        const dateRule: DashboardFilterRule = {
+            id: 'date',
+            label: undefined,
+            target: { tableName: 'orders', fieldId: 'orders_date' },
+            operator: FilterOperator.EQUALS,
+            values: ['2026-02-01'],
+            boundaries: {
+                type: 'date',
+                mode: 'relative',
+                value: 1,
+                unitOfTime: UnitOfTime.months,
+                completed: true,
+            },
+        };
+        const withRule = (rule: DashboardFilterRule) => ({
+            ...createDashboard,
+            tiles: createDashboard.tiles.map((tile) => ({
+                ...tile,
+                uuid: 'tile',
+            })),
+            filters: { dimensions: [rule], metrics: [], tableCalculations: [] },
+        });
+        beforeEach(() => {
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2026-03-01T00:30:00Z'));
+        });
+        afterEach(() => vi.useRealTimers());
+
+        test('rejects defaults invalid in any affected merge source timezone', async () => {
+            projectService.getDashboardFilterBoundaryContexts.mockResolvedValueOnce(
+                {
+                    '123': [source(), source({ timezone: 'America/New_York' })],
+                },
+            );
+            await expect(
+                service.create(user, projectUuid, withRule(dateRule)),
+            ).rejects.toThrow('Choose dates');
+            expect(dashboardModel.create).not.toHaveBeenCalled();
+        });
+
+        test('resolves a user timezone default using the author profile', async () => {
+            projectService.getDashboardFilterBoundaryContexts.mockResolvedValueOnce(
+                {
+                    '123': [source({ timezone: 'user_timezone' })],
+                },
+            );
+            await expect(
+                service.create(
+                    { ...user, timezone: 'America/New_York' },
+                    projectUuid,
+                    withRule(dateRule),
+                ),
+            ).rejects.toThrow('Choose dates');
+        });
+
+        test('validates mapped fields and ignores excluded tiles', async () => {
+            projectService.getDashboardFilterBoundaryContexts.mockResolvedValueOnce(
+                {
+                    '123': [
+                        source({
+                            timezone: 'America/New_York',
+                            fields: {
+                                mapped_date: {
+                                    fieldType: DimensionType.DATE,
+                                    selectedPeriod: UnitOfTime.months,
+                                    fieldGranularity: UnitOfTime.months,
+                                },
+                            },
+                        }),
+                    ],
+                },
+            );
+            await expect(
+                service.create(
+                    user,
+                    projectUuid,
+                    withRule({
+                        ...dateRule,
+                        tileTargets: {
+                            tile: {
+                                fieldId: 'mapped_date',
+                                tableName: 'joined',
+                            },
+                        },
+                    }),
+                ),
+            ).rejects.toThrow('Choose dates');
+            projectService.getDashboardFilterBoundaryContexts.mockResolvedValueOnce(
+                {},
+            );
+            await expect(
+                service.create(
+                    user,
+                    projectUuid,
+                    withRule({ ...dateRule, tileTargets: { tile: false } }),
+                ),
+            ).resolves.toMatchObject({ uuid: dashboard.uuid });
+            expect(
+                projectService.getDashboardFilterBoundaryContexts,
+            ).toHaveBeenLastCalledWith(expect.anything(), projectUuid, []);
+        });
+
+        test('uses the selected connection week start for current-period defaults', async () => {
+            vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
+            projectService.getDashboardFilterBoundaryContexts.mockResolvedValueOnce(
+                {
+                    '123': [
+                        source({
+                            startOfWeek: WeekDay.SUNDAY,
+                            fields: {
+                                orders_date: { fieldType: DimensionType.DATE },
+                            },
+                        }),
+                    ],
+                },
+            );
+            await expect(
+                service.create(
+                    user,
+                    projectUuid,
+                    withRule({
+                        ...dateRule,
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        values: [],
+                        settings: { unitOfTime: UnitOfTime.weeks },
+                        boundaries: {
+                            type: 'date',
+                            mode: 'fixed',
+                            start: '2026-09-28',
+                            end: '2026-10-04',
+                        },
+                    }),
+                ),
+            ).rejects.toThrow('Choose dates');
+        });
+
+        test.each([
+            { values: [], disabled: false },
+            { values: ['2026-02-01'], disabled: true },
+        ])(
+            'allows authoring without an active default (%j)',
+            async (selection) => {
+                await expect(
+                    service.create(
+                        user,
+                        projectUuid,
+                        withRule({ ...dateRule, ...selection }),
+                    ),
+                ).resolves.toMatchObject({ uuid: dashboard.uuid });
+                expect(
+                    projectService.getDashboardFilterBoundaryContexts,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test('still rejects malformed boundary configuration without a default', async () => {
+            await expect(
+                service.create(
+                    user,
+                    projectUuid,
+                    withRule({
+                        ...dateRule,
+                        values: [],
+                        boundaries: { type: 'number', min: 100, max: 0 },
+                    }),
+                ),
+            ).rejects.toThrow('Invalid filter boundaries');
+        });
     });
 
     test('should create dashboard', async () => {

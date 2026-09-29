@@ -12,10 +12,11 @@ const filter = {
     },
     lockedTabUuids: ['tab-uuid'],
     requiredGroupId: 'group-uuid',
+    boundaries: { type: 'string' as const, values: ['US', 'CA'] },
 };
 
 describe('serializeDashboardFiltersForAiContext', () => {
-    it('removes opaque identifiers from every filter group', () => {
+    it('removes opaque identifiers and author-owned boundaries from every filter group', () => {
         const filters: DashboardFilters = {
             dimensions: [filter],
             metrics: [filter],
