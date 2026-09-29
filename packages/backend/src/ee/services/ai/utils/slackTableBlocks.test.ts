@@ -43,6 +43,7 @@ const preview = (
     blockId: 'table-1',
     title: 'Monthly revenue',
     url: 'https://lightdash.test/explore/orders',
+    status: 'ready',
     queryResults: { rows, fields },
     truncated: false,
     ...overrides,
@@ -77,7 +78,7 @@ const cellCharacters = (table: z.infer<typeof tableSchema>) =>
     table.rows.flat().reduce((total, cell) => total + cell.text.length, 0);
 
 describe('getSlackTableBlocks', () => {
-    it('renders multiple native tables as sibling blocks with an explore link each', () => {
+    it('renders multiple native tables as sibling blocks with an agent-thread link each', () => {
         const blocks = getSlackTableBlocks([
             preview([{ month: 'September', revenue: 1200 }]),
             preview([{ month: 'August', revenue: 1000 }], {
@@ -96,7 +97,7 @@ describe('getSlackTableBlocks', () => {
             elements: [
                 {
                     type: 'button',
-                    text: { text: 'Explore in Lightdash' },
+                    text: { text: 'Open agent thread' },
                     url: 'https://lightdash.test/explore/orders',
                 },
             ],
@@ -104,7 +105,7 @@ describe('getSlackTableBlocks', () => {
         expect(
             tablesFrom([preview([{ month: 'September', revenue: 1200 }])])[0],
         ).toMatchObject({
-            caption: 'Monthly revenue',
+            caption: 'Preview: Monthly revenue',
             rows: [
                 [
                     { type: 'raw_text', text: 'Month' },
@@ -146,16 +147,30 @@ describe('getSlackTableBlocks', () => {
         ]);
     });
 
-    it('uses a concise link when there are no rows or no columns', () => {
-        for (const rows of [[], [{}]]) {
-            const blocks = getSlackTableBlocks([preview(rows)]);
+    it('explains empty results, missing columns and unavailable previews separately', () => {
+        for (const [rows, message] of [
+            [[], 'This query returned no rows.'],
+            [[{}], 'No columns are available for this Slack preview.'],
+        ] as const) {
+            const blocks = getSlackTableBlocks([preview([...rows])]);
             expect(blocks).toHaveLength(1);
             expect(blocks[0]).toMatchObject({
                 type: 'section',
+                text: { text: expect.stringContaining(message) },
                 accessory: { url: 'https://lightdash.test/explore/orders' },
             });
-            expect(tablesFrom([preview(rows)])).toEqual([]);
+            expect(tablesFrom([preview([...rows])])).toEqual([]);
         }
+        const unavailable: SlackTablePreview = {
+            blockId: 'unavailable',
+            title: 'Monthly revenue',
+            url: 'https://lightdash.test/threads/thread',
+            status: 'unavailable',
+        };
+        expect(getSlackTableBlocks([unavailable])[0]).toMatchObject({
+            text: { text: expect.stringContaining('Could not load') },
+            accessory: { text: { text: 'Open agent thread' } },
+        });
     });
 
     it('caps row and column counts and discloses the preview limits', () => {
@@ -173,13 +188,13 @@ describe('getSlackTableBlocks', () => {
             type: 'context',
             elements: [
                 {
-                    text: 'Showing 200 of 250 available rows. Showing 20 of 25 columns.',
+                    text: 'Showing 200 of 250 preview rows. Showing 20 of 25 columns.',
                 },
             ],
         });
     });
 
-    it('shares the cell character budget across tables and discloses shortened cells and query truncation', () => {
+    it('shares the cell character budget across tables without shortening cell values', () => {
         const rows = Array.from({ length: 200 }, () => ({
             text: 'x'.repeat(1000),
         }));
@@ -195,16 +210,47 @@ describe('getSlackTableBlocks', () => {
             tables.reduce((sum, table) => sum + cellCharacters(table), 0),
         ).toBeLessThanOrEqual(20_000);
         expect(tables.every((table) => table.rows.length > 2)).toBe(true);
-        expect(tables[0].rows[1][0].text).toBe(`${'x'.repeat(499)}…`);
+        expect(tables[0].rows[1][0].text).toBe('x'.repeat(1000));
         expect(blocks[1]).toMatchObject({
             type: 'context',
             elements: [
                 {
                     text: expect.stringContaining(
-                        'Some cell values were shortened. Additional rows are available in Lightdash.',
+                        'Showing 9 of 200 preview rows. More returned rows were omitted from Slack.',
                     ),
                 },
             ],
+        });
+    });
+
+    it('keeps full cells over 500 characters when they fit Slack', () => {
+        const table = tablesFrom([preview([{ month: 'x'.repeat(600) }])])[0];
+        expect(table.rows[1][0].text).toBe('x'.repeat(600));
+    });
+
+    it('gives a larger table unused capacity from a small selected table', () => {
+        const largeRows = Array.from({ length: 150 }, (_, index) => ({
+            month: String(index).padEnd(100, 'x'),
+        }));
+        const tables = tablesFrom([
+            preview(largeRows),
+            preview([{ month: 'small' }], { blockId: 'table-2' }),
+        ]);
+        expect(tables[0].rows).toHaveLength(151);
+        expect(tables[1].rows).toHaveLength(2);
+        expect(
+            tables.reduce((sum, table) => sum + cellCharacters(table), 0),
+        ).toBeLessThanOrEqual(20_000);
+    });
+
+    it('explains when no complete row fits Slack instead of calling the result empty', () => {
+        const blocks = getSlackTableBlocks([
+            preview([{ month: 'x'.repeat(20_000) }]),
+        ]);
+        expect(blocks).toHaveLength(1);
+        expect(blocks[0]).toMatchObject({
+            text: { text: expect.stringContaining('No complete row fits') },
+            accessory: { text: { text: 'Open agent thread' } },
         });
     });
 });

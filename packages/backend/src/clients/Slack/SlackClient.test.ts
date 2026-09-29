@@ -1,4 +1,5 @@
-import { type WebClient } from '@slack/web-api';
+import { type Block, type WebClient } from '@slack/web-api';
+import Logger from '../../logging/logger';
 import { SlackClient } from './SlackClient';
 
 const invalidBlocksError = (messages: string[]) => ({
@@ -82,6 +83,47 @@ describe('SlackClient.postMessage invalid_blocks retry', () => {
             }),
         ).rejects.toBe(error);
         expect(postMessageMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs rejected block types and indices without table cell values', async () => {
+        const sensitiveCell = 'private-customer-value';
+        const error = invalidBlocksError([
+            '[ERROR] failed to match all allowed schemas [json-pointer:/blocks/0/rows/1/0/text]',
+        ]);
+        const logError = vi
+            .spyOn(Logger, 'error')
+            .mockImplementation(() => Logger);
+        postMessageMock.mockRejectedValueOnce(error);
+
+        try {
+            await expect(
+                client.postMessage({
+                    organizationUuid: 'org-uuid',
+                    channel: 'C123',
+                    text: 'Table preview',
+                    blocks: [
+                        {
+                            type: 'data_table',
+                            caption: 'Customers',
+                            rows: [
+                                [{ type: 'raw_text', text: 'Customer' }],
+                                [{ type: 'raw_text', text: sensitiveCell }],
+                            ],
+                        } as unknown as Block,
+                    ],
+                }),
+            ).rejects.toBe(error);
+
+            expect(logError).toHaveBeenCalledWith(
+                'Slack invalid_blocks error for channel C123',
+                { blockTypes: ['data_table'], rejectedIndices: [0] },
+            );
+            expect(JSON.stringify(logError.mock.calls)).not.toContain(
+                sensitiveCell,
+            );
+        } finally {
+            logError.mockRestore();
+        }
     });
 
     it('does not retry when both image and non-image blocks were rejected', async () => {

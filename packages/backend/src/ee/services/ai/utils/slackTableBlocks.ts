@@ -7,23 +7,26 @@ import { type Block, type KnownBlock } from '@slack/web-api';
 
 export const SLACK_TABLE_MAX_ROWS = 200;
 const SLACK_TABLE_MAX_COLUMNS = 20;
-const SLACK_TABLE_MAX_CELL_CHARACTERS = 500;
 const SLACK_TABLE_MESSAGE_CHARACTER_BUDGET = 20_000;
+
+export type SlackTableQueryResults = {
+    rows: Record<string, unknown>[];
+    fields: ItemsMap;
+    truncated: boolean;
+};
 
 export type SlackTablePreview = {
     blockId: string;
     title: string;
     url: string;
-    queryResults: {
-        rows: Record<string, unknown>[];
-        fields: ItemsMap;
-    };
-    truncated: boolean;
-};
-
-export type SlackTableQueryResults = SlackTablePreview['queryResults'] & {
-    truncated: boolean;
-};
+} & (
+    | {
+          status: 'ready';
+          queryResults: Pick<SlackTableQueryResults, 'rows' | 'fields'>;
+          truncated: boolean;
+      }
+    | { status: 'unavailable' }
+);
 
 type SlackTableCell =
     | { type: 'raw_text'; text: string }
@@ -40,38 +43,66 @@ interface SlackDataTableBlock extends Block {
 const shortenText = (text: string, maximum: number): string =>
     text.length > maximum ? `${text.slice(0, maximum - 1)}…` : text;
 
-const getExploreButton = (preview: SlackTablePreview) => ({
+const getThreadButton = (preview: SlackTablePreview) => ({
     type: 'button' as const,
-    text: { type: 'plain_text' as const, text: 'Explore in Lightdash' },
+    text: { type: 'plain_text' as const, text: 'Open agent thread' },
     url: preview.url,
     action_id: `actions.explore_card_button_click.${preview.blockId}`,
 });
 
-/** Native tables sit beside chart cards in the final answer. Every table shares
- * Slack's aggregate cell-character budget, rather than consuming it separately. */
+const getThreadLinkBlock = (
+    preview: SlackTablePreview,
+    title: string,
+    message: string,
+): KnownBlock => ({
+    type: 'section',
+    block_id: `${preview.blockId}_link`,
+    text: { type: 'plain_text', text: `${title}\n${message}` },
+    accessory: getThreadButton(preview),
+});
+
+const getTableBudgets = (demands: number[]): number[] => {
+    const budgets = demands.map(() => 0);
+    const pending = demands
+        .map((characters, index) => ({ characters, index }))
+        .filter(({ characters }) => characters > 0)
+        .sort((left, right) => left.characters - right.characters);
+    let remaining = SLACK_TABLE_MESSAGE_CHARACTER_BUDGET;
+
+    for (let index = 0; index < pending.length; index += 1) {
+        const share = Math.floor(remaining / (pending.length - index));
+        if (pending[index].characters <= share) {
+            budgets[pending[index].index] = pending[index].characters;
+            remaining -= pending[index].characters;
+        } else {
+            for (let next = index; next < pending.length; next += 1) {
+                const budget = Math.floor(remaining / (pending.length - next));
+                budgets[pending[next].index] = budget;
+                remaining -= budget;
+            }
+            break;
+        }
+    }
+    return budgets;
+};
+
+/** Native tables sit beside chart cards and share Slack's cell-character budget. */
 export const getSlackTableBlocks = (
     previews: SlackTablePreview[],
 ): (Block | KnownBlock)[] => {
-    let remainingCharacters = SLACK_TABLE_MESSAGE_CHARACTER_BUDGET;
+    const prepared = previews.map((preview) => {
+        const title = shortenText(
+            `Preview: ${preview.title || 'Query results'}`,
+            250,
+        );
+        if (preview.status === 'unavailable') {
+            return { kind: 'unavailable' as const, preview, title, demand: 0 };
+        }
 
-    return previews.flatMap((preview, previewIndex): (Block | KnownBlock)[] => {
         const { rows, fields } = preview.queryResults;
         const allFieldIds = Object.keys(rows[0] ?? {});
         const fieldIds = allFieldIds.slice(0, SLACK_TABLE_MAX_COLUMNS);
-        const title = shortenText(preview.title || 'Query results', 250);
-        const characterBudget = Math.floor(
-            remainingCharacters / (previews.length - previewIndex),
-        );
-        let shortenedCells = false;
-        const cellText = (value: string) => {
-            const text = value || '—';
-            const shortened = shortenText(
-                text,
-                SLACK_TABLE_MAX_CELL_CHARACTERS,
-            );
-            shortenedCells ||= shortened !== text;
-            return shortened;
-        };
+        const cellText = (value: string) => value || '—';
         const headers: SlackTableCell[] = fieldIds.map((fieldId) => ({
             type: 'raw_text',
             text: cellText(
@@ -80,67 +111,109 @@ export const getSlackTableBlocks = (
                     : fieldId,
             ),
         }));
-        const tableRows = [headers];
-        let characters = headers.reduce(
-            (total, cell) => total + cell.text.length,
-            0,
-        );
-
-        for (const row of rows.slice(0, SLACK_TABLE_MAX_ROWS)) {
-            const cells = fieldIds.map((fieldId): SlackTableCell => {
+        const dataRows = rows.slice(0, SLACK_TABLE_MAX_ROWS).map((row) =>
+            fieldIds.map((fieldId): SlackTableCell => {
                 const value = row[fieldId];
                 const text = cellText(formatItemValue(fields[fieldId], value));
                 return typeof value === 'number' && Number.isFinite(value)
                     ? { type: 'raw_number', value, text }
                     : { type: 'raw_text', text };
-            });
+            }),
+        );
+        const tableRows = [headers, ...dataRows];
+        return {
+            kind: 'ready' as const,
+            preview,
+            title,
+            allFieldIds,
+            fieldIds,
+            tableRows,
+            demand:
+                rows.length === 0 || fieldIds.length === 0
+                    ? 0
+                    : tableRows
+                          .flat()
+                          .reduce((total, cell) => total + cell.text.length, 0),
+        };
+    });
+    const budgets = getTableBudgets(prepared.map(({ demand }) => demand));
+
+    return prepared.flatMap((table, tableIndex): (Block | KnownBlock)[] => {
+        if (table.kind === 'unavailable') {
+            return [
+                getThreadLinkBlock(
+                    table.preview,
+                    table.title,
+                    'Could not load this table preview. Open the agent thread to inspect the analysis.',
+                ),
+            ];
+        }
+
+        const { preview, title, allFieldIds, fieldIds, tableRows } = table;
+        const { rows } = preview.queryResults;
+        if (rows.length === 0) {
+            return [
+                getThreadLinkBlock(
+                    preview,
+                    title,
+                    'This query returned no rows.',
+                ),
+            ];
+        }
+        if (fieldIds.length === 0) {
+            return [
+                getThreadLinkBlock(
+                    preview,
+                    title,
+                    'No columns are available for this Slack preview.',
+                ),
+            ];
+        }
+
+        const includedRows = [tableRows[0]];
+        let characters = tableRows[0].reduce(
+            (total, cell) => total + cell.text.length,
+            0,
+        );
+        for (const cells of tableRows.slice(1)) {
             const rowCharacters = cells.reduce(
                 (total, cell) => total + cell.text.length,
                 0,
             );
-            if (characters + rowCharacters > characterBudget) break;
-            tableRows.push(cells);
+            if (characters + rowCharacters > budgets[tableIndex]) break;
+            includedRows.push(cells);
             characters += rowCharacters;
         }
-
-        if (fieldIds.length === 0 || tableRows.length < 2) {
+        if (includedRows.length < 2) {
             return [
-                {
-                    type: 'section',
-                    block_id: `${preview.blockId}_link`,
-                    text: {
-                        type: 'plain_text',
-                        text: `${title}\n${rows.length === 0 ? 'No rows available to preview.' : 'Open in Lightdash to view the table.'}`,
-                    },
-                    accessory: getExploreButton(preview),
-                },
+                getThreadLinkBlock(
+                    preview,
+                    title,
+                    'No complete row fits in Slack’s table size limit. Open the agent thread to inspect the analysis.',
+                ),
             ];
         }
 
-        remainingCharacters -= characters;
-        const table: SlackDataTableBlock = {
+        const block: SlackDataTableBlock = {
             type: 'data_table',
             block_id: preview.blockId,
             caption: title,
-            rows: tableRows,
+            rows: includedRows,
             page_size: 5,
         };
-        const blocks: (Block | KnownBlock)[] = [table];
-        const shownRows = tableRows.length - 1;
+        const blocks: (Block | KnownBlock)[] = [block];
+        const shownRows = includedRows.length - 1;
         const notes: string[] = [];
         if (shownRows < rows.length) {
-            notes.push(
-                `Showing ${shownRows} of ${rows.length} available rows.`,
-            );
+            notes.push(`Showing ${shownRows} of ${rows.length} preview rows.`);
         }
         if (fieldIds.length < allFieldIds.length) {
             notes.push(
                 `Showing ${fieldIds.length} of ${allFieldIds.length} columns.`,
             );
         }
-        if (shortenedCells) notes.push('Some cell values were shortened.');
         if (preview.truncated) {
-            notes.push('Additional rows are available in Lightdash.');
+            notes.push('More returned rows were omitted from Slack.');
         }
         if (notes.length > 0) {
             blocks.push({
@@ -152,7 +225,7 @@ export const getSlackTableBlocks = (
         blocks.push({
             type: 'actions',
             block_id: `${preview.blockId}_actions`,
-            elements: [getExploreButton(preview)],
+            elements: [getThreadButton(preview)],
         });
         return blocks;
     });

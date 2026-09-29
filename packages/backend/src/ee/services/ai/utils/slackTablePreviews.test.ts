@@ -120,6 +120,7 @@ describe('getSlackTablePreviews', () => {
         });
         expect(previews).toMatchObject([
             {
+                status: 'ready',
                 title: 'Saved presentation',
                 artifactVersionUuid: 'saved-table',
             },
@@ -145,6 +146,10 @@ describe('getSlackTablePreviews', () => {
         expect(previews.map((preview) => preview.title)).toEqual([
             'Results first',
             'Results second',
+        ]);
+        expect(previews.map((preview) => preview.status)).toEqual([
+            'ready',
+            'ready',
         ]);
         expect(input.getResults.mock.calls).toEqual([
             [
@@ -210,7 +215,9 @@ describe('getSlackTablePreviews', () => {
     it('treats a null chart config as a table', async () => {
         const input = setup();
         input.toolCalls = [call('first', null)];
-        expect(await getSlackTablePreviews(input)).toHaveLength(1);
+        expect(await getSlackTablePreviews(input)).toMatchObject([
+            { status: 'ready' },
+        ]);
     });
 
     it('passes all merged source explores for authorization before reading rows', async () => {
@@ -283,6 +290,14 @@ describe('getSlackTablePreviews', () => {
         const previews = await getSlackTablePreviews(input);
         const blocks = getSlackTableBlocks(previews);
         expect(input.onLoadError).toHaveBeenCalledWith('first');
+        expect(previews).toEqual([
+            {
+                blockId: 'ai_agent_table_first',
+                title: 'Results first',
+                url: input.url,
+                status: 'unavailable',
+            },
+        ]);
         expect(blocks).toMatchObject([
             {
                 type: 'section',
@@ -308,6 +323,7 @@ describe('getSlackTablePreviews', () => {
         });
         expect(previews).toMatchObject([
             {
+                status: 'ready',
                 queryResults: { rows: [{ customers: 42 }], fields: {} },
                 truncated: true,
             },
@@ -333,9 +349,17 @@ describe('getSlackTablePreviews', () => {
                 ],
             ]),
         });
-        expect(previews.map((preview) => preview.queryResults.rows)).toEqual([
-            [{ customers: 42 }],
-            [{ month: 'September', customers: 100 }],
+        expect(previews).toMatchObject([
+            {
+                status: 'ready',
+                queryResults: { rows: [{ customers: 42 }] },
+            },
+            {
+                status: 'ready',
+                queryResults: {
+                    rows: [{ month: 'September', customers: 100 }],
+                },
+            },
         ]);
         expect(input.getResults).toHaveBeenCalledExactlyOnceWith({
             queryUuid: 'query-second',
@@ -360,8 +384,13 @@ describe('getSlackTablePreviews', () => {
             toolCalls: [call('first')],
             runtimeResults,
         });
-        expect(previews).toMatchObject([
-            { queryResults: { rows: [], fields: {} }, truncated: false },
+        expect(previews).toEqual([
+            {
+                blockId: 'ai_agent_table_first',
+                title: 'Results first',
+                url: input.url,
+                status: 'unavailable',
+            },
         ]);
         expect(getRuntimeResults).not.toHaveBeenCalled();
         expect(input.getResults).not.toHaveBeenCalled();
@@ -425,9 +454,13 @@ describe('getSlackTablePreviews', () => {
             truncated: true,
         });
         const previews = await getSlackTablePreviews(input);
-        expect(previews.every((preview) => preview.truncated)).toBe(true);
+        expect(
+            previews.every(
+                (preview) => preview.status === 'ready' && preview.truncated,
+            ),
+        ).toBe(true);
         expect(JSON.stringify(getSlackTableBlocks(previews))).toContain(
-            'Additional rows are available in Lightdash',
+            'More returned rows were omitted from Slack.',
         );
     });
 });

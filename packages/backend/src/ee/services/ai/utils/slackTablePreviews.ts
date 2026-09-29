@@ -155,6 +155,7 @@ export const getSlackTablePreviews = async ({
                         }));
                     return {
                         ...preview,
+                        status: 'ready' as const,
                         queryResults,
                         truncated: queryResults.truncated,
                     };
@@ -164,8 +165,7 @@ export const getSlackTablePreviews = async ({
                     onLoadError(call.tool_call_id);
                     return {
                         ...preview,
-                        queryResults: { rows: [], fields: {} },
-                        truncated: false,
+                        status: 'unavailable' as const,
                     };
                 }
             }),
