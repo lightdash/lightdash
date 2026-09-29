@@ -1,3 +1,12 @@
+# [2.366.0](https://github.com/lightdash/lightdash/compare/2.365.0...2.366.0) (2026-09-29)
+
+
+### Features
+
+* **mcp:** add client setup guides ([#30114](https://github.com/lightdash/lightdash/issues/30114)) ([908bdbc](https://github.com/lightdash/lightdash/commit/908bdbcc4fd8dd2c5ac7f6745ad19dd1cfcd3e83))
+* **mcp:** add dedicated settings pages ([#30113](https://github.com/lightdash/lightdash/issues/30113)) ([02e7cf8](https://github.com/lightdash/lightdash/commit/02e7cf86733ce982a5ec75728f351eee7551b38b))
+* **mcp:** separate Connect from admin settings ([#30136](https://github.com/lightdash/lightdash/issues/30136)) ([4aa0f41](https://github.com/lightdash/lightdash/commit/4aa0f415f0ec4c7d54879385e15b4f80d1adafda))
+
 # [2.365.0](https://github.com/lightdash/lightdash/compare/2.364.0...2.365.0) (2026-09-29)
 
 
