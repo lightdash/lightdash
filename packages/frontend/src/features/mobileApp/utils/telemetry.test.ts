@@ -17,6 +17,9 @@ describe('mobile setup telemetry', () => {
         expect(redactMobileSetupUrl(`${secretUrl}&c=OTHER`)).not.toContain(
             'OTHER',
         );
+        expect(redactMobileSetupUrl('/mobile-setup?%63=SECRET')).not.toContain(
+            'SECRET',
+        );
         expect(redactMobileSetupUrl('/chart?field=country')).toBe(
             '/chart?field=country',
         );

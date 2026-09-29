@@ -24,6 +24,7 @@ import {
 import {
     redactMobileSetupBreadcrumb,
     redactMobileSetupEvent,
+    redactMobileSetupUrl,
 } from '../../features/mobileApp/utils/telemetry';
 import { useProjectUuid } from '../useProjectUuid';
 
@@ -52,11 +53,11 @@ const useSentry = (
                         : [
                               replayIntegration({
                                   beforeAddRecordingEvent(event) {
-                                      return /[?&](?:c|verification_code|code_verifier|code_challenge)=/i.test(
-                                          JSON.stringify(event),
-                                      )
-                                          ? null
-                                          : event;
+                                      const encoded = JSON.stringify(event);
+                                      return redactMobileSetupUrl(encoded) ===
+                                          encoded
+                                          ? event
+                                          : null;
                                   },
                               }),
                           ]),

@@ -1,9 +1,26 @@
 import { type Breadcrumb, type Event } from '@sentry/react';
 
+const setupSecretKeys = new Set([
+    'c',
+    'verification_code',
+    'code_verifier',
+    'code_challenge',
+]);
+
 export const redactMobileSetupUrl = (value: string): string =>
     value.replace(
-        /([?&](?:c|verification_code|code_verifier|code_challenge)=)[^&#\s]*/gi,
-        '$1[redacted]',
+        /([?&])([^?=&#\s]+)=([^&#\s"'<>]*)/g,
+        (match, prefix: string, key: string) => {
+            try {
+                return setupSecretKeys.has(
+                    decodeURIComponent(key).toLowerCase(),
+                )
+                    ? `${prefix}${key}=[redacted]`
+                    : match;
+            } catch {
+                return match;
+            }
+        },
     );
 
 export const redactMobileSetupBreadcrumb = (
