@@ -1,3 +1,10 @@
+## [2.373.1](https://github.com/lightdash/lightdash/compare/2.373.0...2.373.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* restrict unverified user sessions ([#27802](https://github.com/lightdash/lightdash/issues/27802)) ([3e95bee](https://github.com/lightdash/lightdash/commit/3e95beeac36686d51afa6a5d9797bd3010bb4407))
+
 # [2.373.0](https://github.com/lightdash/lightdash/compare/2.372.1...2.373.0) (2026-09-29)
 
 
