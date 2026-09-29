@@ -439,6 +439,37 @@ test('pool retirement catches abandoned warming-ready instances but preserves li
     assert.deepEqual(retired, [abandoned.id, 'dead']);
 });
 
+test('one failed spare retirement does not block the others', async () => {
+    const f = fixture();
+    const stuck = {
+        ...structuredClone(f.spare),
+        id: 'stuck',
+        phase: 'failed' as const,
+    };
+    const next = {
+        ...structuredClone(f.spare),
+        id: 'next',
+        phase: 'failed' as const,
+    };
+    const retired: string[] = [];
+    await assert.rejects(
+        retireStalePoolInstances(f.spare.parent, {
+            ...retirementTestHooks,
+            withLock: mutex().withLock,
+            instances: async () => [stuck, next],
+            down: async (instance) => {
+                if (instance.id === 'stuck') throw new Error('lsof timed out');
+                retired.push(instance.id);
+            },
+            saveInstance: f.operations.saveInstance,
+            alive: () => false,
+            spareBackendMode: async () => 'bundle' as const,
+        }),
+        /lsof timed out/,
+    );
+    assert.deepEqual(retired, ['next']);
+});
+
 test('same-SHA parent refresh retires only old named spares and checks user activity before teardown', async () => {
     const f = fixture();
     const parent = (await f.operations.parents())[0];

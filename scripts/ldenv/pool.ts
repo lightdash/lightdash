@@ -688,6 +688,7 @@ export async function retireStalePoolInstances(
             });
         return records;
     });
+    const failures: unknown[] = [];
     for (const instance of reserved) {
         await (operations.waitForGrace ?? delay)(2000);
         const retire = () =>
@@ -729,11 +730,25 @@ export async function retireStalePoolInstances(
                 },
                 { timeoutMs: null },
             );
-        await operations.withLock('pool', retire, {
-            timeoutMs: null,
-            yieldToForeground: false,
-        });
+        try {
+            await operations.withLock('pool', retire, {
+                timeoutMs: null,
+                yieldToForeground: false,
+            });
+        } catch (error) {
+            failures.push(error);
+        }
     }
+    if (failures.length === 1) throw failures[0];
+    if (failures.length)
+        throw new AggregateError(
+            failures,
+            `${failures.length} spare retirements failed: ${failures
+                .map((error) =>
+                    error instanceof Error ? error.message : String(error),
+                )
+                .join('; ')}`,
+        );
 }
 
 const fillOperations = {

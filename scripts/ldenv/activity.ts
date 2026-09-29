@@ -188,7 +188,7 @@ async function listProcesses(): Promise<ActivityProcess[]> {
     const { stdout } = await execFileAsync(
         'ps',
         ['-axo', 'pid=,ppid=,command='],
-        { timeout: 1000, maxBuffer: 8 * 1024 * 1024 },
+        { timeout: 15_000, maxBuffer: 8 * 1024 * 1024 },
     );
     return stdout.split('\n').flatMap((line) => {
         const match = line.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/);
@@ -264,7 +264,7 @@ async function macCwds(pids: number[]): Promise<Map<number, string>> {
         ({ stdout } = await execFileAsync(
             'lsof',
             ['-nP', '-a', '-d', 'cwd', '-p', pids.join(','), '-Fpfn'],
-            { timeout: 1000, maxBuffer: 8 * 1024 * 1024 },
+            { timeout: 15_000, maxBuffer: 8 * 1024 * 1024 },
         ));
     } catch (error) {
         if (
@@ -348,7 +348,7 @@ export async function openFileReferences(
         args,
     ) =>
         execFileAsync('lsof', args, {
-            timeout: 5000,
+            timeout: 30_000,
             maxBuffer: 32 * 1024 * 1024,
         }),
 ): Promise<Map<number, string[]>> {
