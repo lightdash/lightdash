@@ -60,7 +60,7 @@ const isAiCallFeature = (value: unknown): value is AiCallFeature =>
  * customer's self-managed (bring-your-own) key. Lets analytics/CS tell who is
  * on a Lightdash-managed key — e.g. to follow up on upgrades, or spot orgs
  * using our key when they shouldn't. Null when the origin isn't known for the
- * call (e.g. embeddings/instance-only paths).
+ * call.
  */
 export type AiKeyManagement = 'lightdash-managed' | 'self-managed';
 
