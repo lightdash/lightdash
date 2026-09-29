@@ -1,4 +1,4 @@
-import { ChartType, type DocumentCell } from '@lightdash/common';
+import { type DocumentCell } from '@lightdash/common';
 import { Node } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
@@ -74,8 +74,7 @@ const parseContentAttribute = (
 };
 
 export const isEditableChart = (content: DocumentChartContent | null) =>
-    content?.source === 'semantic' &&
-    content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ;
+    content?.source === 'semantic';
 
 // No group: charts are only allowed at the document's top level (see
 // DocumentWithCharts), so they can never nest in tables, lists or quotes.

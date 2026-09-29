@@ -1,5 +1,8 @@
-import { ChartType, type DocumentCell } from '@lightdash/common';
-import { type ReactNode } from 'react';
+import {
+    getDocumentRuntimeChartConfig,
+    type DocumentCell,
+} from '@lightdash/common';
+import { useMemo, type ReactNode } from 'react';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import DocumentChartExploreButton from './DocumentChartExploreButton';
@@ -37,6 +40,10 @@ const DocumentChart = ({
         versionUuid,
         cellIndex,
     );
+    const renderTarget = useMemo(
+        () => ({ documentUuid, versionUuid, cellIndex }),
+        [documentUuid, versionUuid, cellIndex],
+    );
     return (
         <DocumentChartVisualization
             projectUuid={projectUuid}
@@ -44,10 +51,10 @@ const DocumentChart = ({
             chart={chart}
             showTitle={showTitle}
             query={query}
+            renderTarget={renderTarget}
             actions={
                 actions ??
                 (cell.content.source === 'semantic' &&
-                chart.chartConfig.type !== ChartType.DATA_APP_VIZ &&
                 authoringEnabled &&
                 canViewExplore &&
                 query.data &&
@@ -56,7 +63,9 @@ const DocumentChart = ({
                         projectUuid={projectUuid}
                         chart={{
                             ...chart,
-                            chartConfig: chart.chartConfig,
+                            chartConfig: getDocumentRuntimeChartConfig(
+                                chart.chartConfig,
+                            ),
                             metricQuery: query.data.metricQuery,
                             parameters: query.data.usedParametersValues,
                             tableConfig: chart.tableConfig ?? {

@@ -1,14 +1,16 @@
 import {
     ChartType,
     ECHARTS_DEFAULT_COLORS,
+    getDocumentRuntimeChartConfig,
     isWarehouseResourceLimitError,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
+    type DocumentQueryReference,
     type SemanticChartAsCode,
 } from '@lightdash/common';
-import { Box, Text } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { type UseQueryResult } from '@tanstack/react-query';
-import { type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import LightdashVisualization from '../../components/LightdashVisualization';
@@ -17,6 +19,7 @@ import MetricQueryDataProvider from '../../components/MetricQueryData/MetricQuer
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { useInfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import { DocumentRenderTargetContext } from '../chartTypes/documentRenderTarget/context';
 import ReportChartFrame from './presentation/ReportChartFrame';
 
 type Props = {
@@ -29,6 +32,8 @@ type Props = {
     >;
     actions?: ReactNode;
     showTitle?: boolean;
+    /** The saved cell being rendered; unsaved drafts have none. */
+    renderTarget?: DocumentQueryReference;
 };
 
 const DocumentChartVisualization = ({
@@ -38,7 +43,12 @@ const DocumentChartVisualization = ({
     query,
     actions,
     showTitle = false,
+    renderTarget,
 }: Props) => {
+    const chartConfig = useMemo(
+        () => getDocumentRuntimeChartConfig(chart.chartConfig),
+        [chart.chartConfig],
+    );
     const palette = useProjectColorPalette(projectUuid, { spaceUuid });
     const results = useInfiniteQueryResults(
         projectUuid,
@@ -77,19 +87,6 @@ const DocumentChartVisualization = ({
             </ReportChartFrame>
         );
     }
-    if (chart.chartConfig.type === ChartType.DATA_APP_VIZ) {
-        return (
-            <ReportChartFrame
-                ariaLabel={chart.name}
-                title={showTitle ? chart.name : undefined}
-                description={showTitle ? undefined : chart.description}
-            >
-                <Text c="dimmed">
-                    This chart type is not supported in documents.
-                </Text>
-            </ReportChartFrame>
-        );
-    }
     const isLoading = query.isFetching || results.isFetchingRows || !query.data;
     return (
         <ReportChartFrame
@@ -117,7 +114,7 @@ const DocumentChartVisualization = ({
                 >
                     <VisualizationProvider
                         minimal
-                        chartConfig={chart.chartConfig}
+                        chartConfig={chartConfig}
                         initialPivotDimensions={chart.pivotConfig?.columns}
                         initialPivotRows={chart.pivotConfig?.rows}
                         resultsData={{
@@ -136,9 +133,15 @@ const DocumentChartVisualization = ({
                         containerWidth={width}
                         containerHeight={height}
                     >
-                        <Box h="100%" ref={measureRef}>
-                            <LightdashVisualization enableContextMenu={false} />
-                        </Box>
+                        <DocumentRenderTargetContext.Provider
+                            value={renderTarget}
+                        >
+                            <Box h="100%" ref={measureRef}>
+                                <LightdashVisualization
+                                    enableContextMenu={false}
+                                />
+                            </Box>
+                        </DocumentRenderTargetContext.Provider>
                     </VisualizationProvider>
                 </MetricQueryDataProvider>
             )}

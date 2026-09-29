@@ -7,6 +7,7 @@ import {
     MERGE_TABLE_NAME,
     type ApiError,
     type DataAppVizContext,
+    type ExternalFetchRequest,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
@@ -28,6 +29,7 @@ import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { type SdkManifest } from '../../features/apps/hooks/useAppSdkBridge';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { useDocumentRenderTarget } from '../../features/chartTypes/documentRenderTarget/useDocumentRenderTarget';
 import {
     useDataAppVizPreviewToken,
     useDataAppVizRenderMetadata,
@@ -189,6 +191,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const pivotDetails = resultsData?.pivotDetails ?? null;
 
     const chartVersionUuid = useChartVersionPreview();
+    const documentTarget = useDocumentRenderTarget();
     const savedDataAppVizConfig =
         savedChartReference?.chartConfig.type === ChartType.DATA_APP_VIZ
             ? savedChartReference.chartConfig.config
@@ -207,23 +210,33 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             isEmbedded: !!embedToken,
             savedChartUuid: renderSavedChartUuid,
             chartVersionUuid,
+            document: documentTarget,
         }),
-        [embedToken, renderSavedChartUuid, chartVersionUuid],
+        [embedToken, renderSavedChartUuid, chartVersionUuid, documentTarget],
     );
-    const chartContext = useMemo(
-        () =>
-            renderSavedChartUuid
-                ? {
-                      savedChartUuid: renderSavedChartUuid,
-                      chartVersionUuid,
-                  }
-                : undefined,
-        [renderSavedChartUuid, chartVersionUuid],
-    );
+    // External connections authorize through whatever renders the chart, in
+    // the same order as the render target: a Document cell, then a saved chart.
+    const chartContext = useMemo<
+        ExternalFetchRequest['chartContext'] | undefined
+    >(() => {
+        if (!embedToken && documentTarget) {
+            return {
+                documentUuid: documentTarget.documentUuid,
+                documentVersionUuid: documentTarget.versionUuid,
+                cellIndex: documentTarget.cellIndex,
+            };
+        }
+        return renderSavedChartUuid
+            ? {
+                  savedChartUuid: renderSavedChartUuid,
+                  chartVersionUuid,
+              }
+            : undefined;
+    }, [embedToken, documentTarget, renderSavedChartUuid, chartVersionUuid]);
     // Embedded previews retain their recorded version; Chart Studio's
     // chart-less edit canvas previews the latest generated version.
     const renderPinnedVersion =
-        embedToken || renderSavedChartUuid || !isEditMode
+        embedToken || renderSavedChartUuid || documentTarget || !isEditMode
             ? config?.dataAppVizVersion
             : undefined;
     const { data: renderMetadata, error: renderMetadataError } =

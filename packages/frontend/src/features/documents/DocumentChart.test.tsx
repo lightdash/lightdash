@@ -186,20 +186,28 @@ describe('Document chart titles', () => {
         ).not.toBeInTheDocument();
     });
 
-    test('omits exploration for unsupported custom visualizations', () => {
+    test('offers exploration for a custom chart type', () => {
         renderChart({
             type: 'chart',
             content: {
                 source: 'semantic',
                 chart: {
                     ...semanticCell.content.chart,
-                    chartConfig: { type: ChartType.DATA_APP_VIZ },
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'viz-1',
+                            dataAppVizSlug: 'grouped-bars',
+                            dataAppVizVersion: 2,
+                            fieldMapping: { category: 'orders_status' },
+                        },
+                    },
                 },
             },
         });
         expect(
-            screen.queryByRole('button', { name: 'Explore from here' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('button', { name: 'Explore from here' }),
+        ).toBeInTheDocument();
     });
 
     test.each(['permission', 'phone', 'loading', 'refreshing'])(
