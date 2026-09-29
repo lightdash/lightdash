@@ -271,6 +271,7 @@ const makeMcpService = ({
     };
     filterExpressionsEnabled?: boolean;
 } = {}) => {
+    const analytics = { track: vi.fn() };
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
         executeAsyncMetricQuery: vi.fn(),
@@ -573,7 +574,7 @@ const makeMcpService = ({
         },
         aiRouterService: {},
         aiWritebackService: {},
-        analytics: { track: vi.fn() },
+        analytics,
         asyncQueryService,
         catalogService,
         contentService: {},
@@ -614,6 +615,7 @@ const makeMcpService = ({
     );
 
     return {
+        analytics,
         aiAgentService,
         aiAgentToolsService,
         asyncQueryService,
@@ -1100,7 +1102,7 @@ describe('MCP async query polling', () => {
     });
 
     it('resolves run_metric_query filter expressions before execution', async () => {
-        const { asyncQueryService } = makeMcpService({
+        const { asyncQueryService, analytics } = makeMcpService({
             filterExpressionsEnabled: true,
         });
         asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
@@ -1141,6 +1143,18 @@ describe('MCP async query polling', () => {
                 result: { status: 'running', queryUuid },
             },
         });
+        await vi.waitFor(() => {
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'mcp_tool_call',
+                    properties: expect.objectContaining({
+                        queryId: queryUuid,
+                        actorType: 'user',
+                        status: 'success',
+                    }),
+                }),
+            );
+        });
         expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
             expect.objectContaining({
                 metricQuery: expect.objectContaining({
@@ -1163,9 +1177,10 @@ describe('MCP async query polling', () => {
 
     it('tracks located filter-expression failures without executing or capturing Sentry', async () => {
         vi.mocked(Sentry.captureException).mockClear();
-        const { asyncQueryService, mcpToolCallModel } = makeMcpService({
-            filterExpressionsEnabled: true,
-        });
+        const { asyncQueryService, mcpToolCallModel, analytics } =
+            makeMcpService({
+                filterExpressionsEnabled: true,
+            });
 
         const result = await getToolCallback(McpToolName.RUN_METRIC_QUERY)(
             {
@@ -1206,6 +1221,17 @@ describe('MCP async query polling', () => {
         ).not.toHaveBeenCalled();
         expect(Sentry.captureException).not.toHaveBeenCalled();
         await vi.waitFor(() => {
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'mcp_tool_call',
+                    properties: expect.objectContaining({
+                        toolCallId: expect.stringMatching(/^[a-f0-9-]{36}$/),
+                        actorType: 'user',
+                        status: 'error',
+                        toolName: McpToolName.RUN_METRIC_QUERY,
+                    }),
+                }),
+            );
             expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
                 expect.objectContaining({
                     tool_name: McpToolName.RUN_METRIC_QUERY,

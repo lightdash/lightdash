@@ -13,9 +13,24 @@ export const systemStreamMetrics: Record<
     | 'ai_usage'
     | 'data_app_events'
     | 'export_events'
-    | 'agent_steps',
+    | 'agent_steps'
+    | 'mcp_tool_calls',
     SystemMetricDefinition[]
 > = {
+    mcp_tool_calls: [
+        {
+            name: 'total_mcp_calls',
+            description: 'Captured MCP tool-call events, including errors',
+            type: MetricType.COUNT,
+            column: 'event_name',
+        },
+        {
+            name: 'unique_users',
+            description: 'Distinct registered users making MCP tool calls',
+            type: MetricType.COUNT_DISTINCT,
+            column: 'user_id',
+        },
+    ],
     agent_steps: [
         {
             name: 'total_steps',
@@ -248,7 +263,13 @@ export const userActivityMetrics: SystemMetricDefinition[] = [
         column: 'query_count',
     },
     ...(
-        ['ai_usage', 'export_events', 'data_app_events', 'agent_steps'] as const
+        [
+            'ai_usage',
+            'export_events',
+            'data_app_events',
+            'agent_steps',
+            'mcp_tool_calls',
+        ] as const
     ).flatMap((stream) =>
         systemStreamMetrics[stream]
             .filter(

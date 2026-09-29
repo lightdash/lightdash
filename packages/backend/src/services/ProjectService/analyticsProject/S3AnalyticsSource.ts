@@ -91,11 +91,11 @@ export const createS3AnalyticsSourceResolver = ({
                         throw new Error('Unexpected analytics object scope');
                     }
                     const match =
-                        /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
+                        /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
                     const userActivity =
-                        /^model=user_activity\/stream=(query_events|ai_usage|data_app_events|export_events|agent_steps)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.test(
+                        /^model=user_activity\/stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.test(
                             key.slice(prefix.length),
                         );
                     const dimension = usageDimensionNames.find(
