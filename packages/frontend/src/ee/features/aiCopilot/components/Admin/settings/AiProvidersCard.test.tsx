@@ -117,6 +117,24 @@ describe('AiProvidersCard', () => {
         );
     });
 
+    it('reports what is missing instead of saving an incomplete config', async () => {
+        const onUpdateKeys = vi.fn();
+        renderCard({ onUpdateKeys });
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Set configuration' }),
+        );
+
+        expect(
+            await screen.findByText('Select an AWS region'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Enter a Bedrock API key')).toBeInTheDocument();
+        expect(
+            screen.getByText('Select at least one model'),
+        ).toBeInTheDocument();
+        expect(onUpdateKeys).not.toHaveBeenCalled();
+    });
+
     it('keeps the stored key when only the region changes', async () => {
         const onUpdateKeys = vi.fn();
         renderCard({
