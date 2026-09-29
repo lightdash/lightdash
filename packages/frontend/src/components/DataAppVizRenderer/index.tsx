@@ -521,6 +521,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             },
             drillDown: { enabled: drillDownEnabled },
             pointMenu: { enabled: pointMenuEnabled },
+            subtotals: { enabled: false, dimensions: [] },
         };
     }, [
         reconciledFieldMapping,

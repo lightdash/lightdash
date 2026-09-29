@@ -8,6 +8,7 @@ import type { Transport } from './types';
 import {
     buildVizDrillDown,
     buildVizPointMenu,
+    buildVizSubtotals,
     buildVizUnderlyingData,
     getFieldLabel,
     getFormatted,
@@ -83,6 +84,9 @@ const inboundValueColorsRemainOptional: Assert<
 const inboundFieldsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'fields'>
 > = true;
+const inboundSubtotalsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'subtotals'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
@@ -93,7 +97,38 @@ void [
     inboundSeriesColorsRemainOptional,
     inboundValueColorsRemainOptional,
     inboundFieldsRemainOptional,
+    inboundSubtotalsRemainOptional,
 ];
+
+describe('subtotal context', () => {
+    const request = { level: 1, parentValues: ['Europe'] };
+
+    it('defaults to disabled for older hosts', async () => {
+        const state = toVizContextState({
+            type: 'lightdash:sdk:data-app-viz-context',
+            fieldMapping: {},
+            rows: [],
+        });
+        expect(state.subtotalsEnabled).toBe(false);
+        const subtotals = buildVizSubtotals(false, [], null);
+        expect(subtotals.enabled).toBe(false);
+        await expect(subtotals.get(request)).rejects.toThrow();
+    });
+
+    it('requires host opt-in and transport support', async () => {
+        const getVizSubtotals = vi.fn().mockResolvedValue({ rows: [row] });
+        const transport = { getVizSubtotals } as unknown as Transport;
+        expect(buildVizSubtotals(true, ['region'], null).enabled).toBe(false);
+        expect(buildVizSubtotals(false, ['region'], transport).enabled).toBe(
+            false,
+        );
+        const subtotals = buildVizSubtotals(true, ['region'], transport);
+        expect(subtotals.enabled).toBe(true);
+        expect(subtotals.dimensions).toEqual(['region']);
+        await expect(subtotals.get(request)).resolves.toEqual({ rows: [row] });
+        expect(getVizSubtotals).toHaveBeenCalledWith(request);
+    });
+});
 
 const row: VizContextRow = {
     orders_status: { value: { raw: 'completed', formatted: 'Completed' } },
@@ -346,6 +381,8 @@ describe('toVizContextState', () => {
             seriesColors: {},
             valueColors: {},
             pivotDetails: null,
+            subtotalsEnabled: false,
+            subtotalDimensions: [],
             underlyingDataEnabled: false,
             underlyingDataOpenEnabled: false,
             drillDownEnabled: false,

@@ -1306,6 +1306,7 @@ describe('data-app-viz-context push', () => {
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
         pointMenu: { enabled: false },
+        subtotals: { enabled: false, dimensions: [] },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {

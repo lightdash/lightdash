@@ -175,3 +175,58 @@ describe('viz context paint acknowledgement', () => {
         );
     });
 });
+
+describe('viz context subtotals identity', () => {
+    let root: Root | undefined;
+    let container: HTMLDivElement | undefined;
+    const seen: unknown[] = [];
+
+    function SubtotalsConsumer() {
+        seen.push(useVizContext().subtotals);
+        return null;
+    }
+
+    const send = async (dimensions: string[], rows: unknown[]) =>
+        act(async () => {
+            window.dispatchEvent(
+                new MessageEvent('message', {
+                    data: {
+                        type: VIZ_CONTEXT_MESSAGE,
+                        fieldMapping: {},
+                        rows,
+                        subtotals: { enabled: true, dimensions },
+                    },
+                    source: window,
+                }),
+            );
+        });
+
+    afterEach(async () => {
+        await act(async () => root?.unmount());
+        container?.remove();
+        seen.length = 0;
+    });
+
+    it('keeps the same object across pushes until the hierarchy changes', async () => {
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        root = createRoot(container);
+        await act(async () => {
+            root?.render(
+                createElement(
+                    VizContextProvider,
+                    null,
+                    createElement(SubtotalsConsumer),
+                ),
+            );
+        });
+
+        await send(['country', 'city'], []);
+        const first = seen.at(-1);
+        await send(['country', 'city'], [{}]);
+        expect(seen.at(-1)).toBe(first);
+
+        await send(['city', 'country'], [{}]);
+        expect(seen.at(-1)).not.toBe(first);
+    });
+});
