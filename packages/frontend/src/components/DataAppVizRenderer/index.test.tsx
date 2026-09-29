@@ -260,6 +260,7 @@ vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
 
+import { DocumentRenderTargetContext } from '../../features/chartTypes/documentRenderTarget/context';
 import {
     RENDER_ACK_FALLBACK_MS,
     SCREENSHOT_READY_FALLBACK_MS,
@@ -762,6 +763,31 @@ describe('DataAppVizRenderer', () => {
 
         expect(mocks.iframePreview).toHaveBeenLastCalledWith(
             expect.objectContaining({ chartContext: undefined }),
+            undefined,
+        );
+    });
+
+    it('passes the Document cell as chart context when rendered in a Document', () => {
+        render(
+            <DocumentRenderTargetContext.Provider
+                value={{
+                    documentUuid: 'document-uuid',
+                    versionUuid: 'document-version-uuid',
+                    cellIndex: 3,
+                }}
+            >
+                {rendererElement()}
+            </DocumentRenderTargetContext.Provider>,
+        );
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: {
+                    documentUuid: 'document-uuid',
+                    documentVersionUuid: 'document-version-uuid',
+                    cellIndex: 3,
+                },
+            }),
             undefined,
         );
     });

@@ -3,6 +3,7 @@ import {
     type ApiDataAppVizRenderMetadataResponse,
     type ApiError,
     type DataAppVizRenderMetadata,
+    type DocumentQueryReference,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -20,6 +21,8 @@ type DataAppVizRenderTarget = {
     // Set only while previewing an older chart version; the backend authorizes
     // against that version's config instead of the latest.
     chartVersionUuid?: string | undefined;
+    // Set when rendering a saved Document cell, which authorizes through the Document.
+    document?: DocumentQueryReference | undefined;
 };
 
 // Rendering a saved chart authorizes against that chart; the chart-less route is
@@ -27,8 +30,11 @@ type DataAppVizRenderTarget = {
 const getRenderBaseUrl = (
     projectUuid: string,
     dataAppVizUuid: string,
-    { isEmbedded, savedChartUuid }: DataAppVizRenderTarget,
+    { isEmbedded, savedChartUuid, document }: DataAppVizRenderTarget,
 ): string => {
+    if (!isEmbedded && document) {
+        return `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/documents/${document.documentUuid}/cells/${document.cellIndex}`;
+    }
     if (isEmbedded) {
         return savedChartUuid
             ? `/embed/${projectUuid}/chart/${savedChartUuid}/visualizations/${dataAppVizUuid}`
@@ -43,10 +49,15 @@ const getChartVersionQuery = ({
     isEmbedded,
     savedChartUuid,
     chartVersionUuid,
-}: DataAppVizRenderTarget): string =>
-    !isEmbedded && savedChartUuid && chartVersionUuid
+    document,
+}: DataAppVizRenderTarget): string => {
+    if (!isEmbedded && document) {
+        return `?documentVersionUuid=${document.versionUuid}`;
+    }
+    return !isEmbedded && savedChartUuid && chartVersionUuid
         ? `?chartVersionUuid=${chartVersionUuid}`
         : '';
+};
 
 // Immutable chart-less artifacts include their pin; authoring stays latest.
 const getRenderMetadataQuery = (
@@ -89,6 +100,7 @@ const getRenderMetadataQueryKey = (
     target.isEmbedded ? 'embed' : 'registered',
     target.savedChartUuid,
     target.chartVersionUuid,
+    target.document,
     pinnedVersion,
 ];
 
@@ -142,6 +154,7 @@ export const useDataAppVizPreviewToken = (
             target.isEmbedded ? 'embed' : 'registered',
             target.savedChartUuid,
             target.chartVersionUuid,
+            target.document,
         ],
         queryFn: async () => {
             const { token } = await lightdashApi<
@@ -167,7 +180,10 @@ export const useDataAppVizPreviewToken = (
             queryClient.getDefaultOptions().queries?.onError?.(error);
             // A repinned chart rejects tokens for the cached metadata's version.
             // Refresh its metadata once; unchanged versions retain the error.
-            if (error.error.statusCode === 403 && target.savedChartUuid) {
+            if (
+                error.error.statusCode === 403 &&
+                (target.savedChartUuid || target.document)
+            ) {
                 void queryClient.invalidateQueries(
                     {
                         queryKey: getRenderMetadataQueryKey(

@@ -69,6 +69,7 @@ describe('useDataAppVizRender', () => {
             'chart-1',
             undefined,
             undefined,
+            undefined,
         ]);
         expect(query.enabled).toBe(true);
         await query.queryFn();
@@ -84,6 +85,36 @@ describe('useDataAppVizRender', () => {
             typeof query.refetchInterval === 'function' &&
                 query.refetchInterval({ latestBuildInProgress: false }),
         ).toBe(false);
+    });
+
+    it('authorizes a saved Document cell through the Document routes', async () => {
+        const target = {
+            isEmbedded: false,
+            savedChartUuid: undefined,
+            document: {
+                documentUuid: 'document-1',
+                versionUuid: 'document-version-2',
+                cellIndex: 4,
+            },
+        };
+        const { result } = renderHook(() =>
+            useDataAppVizRenderMetadata('project-1', 'viz-1', target, 3),
+        );
+        await (result.current as unknown as CapturedQuery).queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/cells/4/render-metadata?documentVersionUuid=document-version-2',
+        });
+
+        mocks.lightdashApi.mockResolvedValue({ token: 'token-3' });
+        const { result: tokenResult } = renderHook(() =>
+            useDataAppVizPreviewToken('project-1', 'viz-1', 3, target, 3),
+        );
+        await (tokenResult.current as unknown as CapturedQuery).queryFn();
+        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/cells/4/versions/3/preview-token?documentVersionUuid=document-version-2',
+        });
     });
 
     it('passes the previewed chart version through to the registered route', async () => {
@@ -242,6 +273,7 @@ describe('useDataAppVizRender', () => {
             7,
             'embed',
             'chart-1',
+            undefined,
             undefined,
         ]);
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
