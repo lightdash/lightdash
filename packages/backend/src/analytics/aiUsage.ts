@@ -19,6 +19,7 @@ export const AI_CALL_FEATURES = [
     'deep-research',
     'agent-subtask',
     'chart-metadata',
+    'google-sheets-extension',
     'chart-similarity',
     'chart-type-fields',
     'chart-type-explore',
