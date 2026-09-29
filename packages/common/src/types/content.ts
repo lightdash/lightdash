@@ -1,4 +1,5 @@
 import { type AppVersionStatus, type DataAppTemplate } from '../ee/apps/types';
+import type { UUID } from './api/uuid';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type DashboardOwner } from './dashboard';
 import type { KnexPaginatedData } from './knex-paginate';
@@ -243,10 +244,9 @@ export interface BulkActionable<Tx extends unknown> {
 
 /** A rendered, signed-in content page interaction; retries reuse viewId. */
 export type RecordContentView = {
-    projectUuid: string;
-    contentUuid: string;
+    projectUuid: UUID;
+    contentUuid: UUID;
     contentType: 'dashboard' | 'chart' | 'sql_chart';
-    /** @format uuid */
-    viewId: string;
+    viewId: UUID;
     context: 'direct' | 'preview';
 };
