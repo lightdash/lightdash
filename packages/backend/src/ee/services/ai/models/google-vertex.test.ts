@@ -126,10 +126,10 @@ describe('Vertex model routing', () => {
             expect.objectContaining({
                 provider: 'vertex',
                 modelId: 'gemini-3.8-flash',
-                displayName: 'gemini-3.8-flash (Vertex AI)',
+                displayName: 'Gemini 3.8 Flash (Vertex AI)',
                 groupLabel: 'Google Vertex AI',
-                custom: true,
-                contextWindowTokens: null,
+                custom: false,
+                contextWindowTokens: 400_000,
                 supportsReasoning: false,
             }),
         ]);
@@ -234,6 +234,8 @@ describe('Vertex model routing', () => {
                 modelId: 'projects/test/locations/global/endpoints/custom',
                 displayName:
                     'projects/test/locations/global/endpoints/custom (Vertex AI)',
+                custom: true,
+                contextWindowTokens: null,
             }),
         ]);
         expect(
@@ -250,51 +252,71 @@ describe('Vertex model routing', () => {
         );
     });
 
-    it('lists and routes the configured fast model without changing the default', () => {
-        const fastConfig = aiCopilotConfigSchema.parse({
-            ...config,
-            providers: {
-                vertex: {
-                    ...config.providers.vertex,
-                    fastModelName: 'gemini-3.5-flash-lite',
+    it.each([
+        {
+            modelName: 'gemini-3.8-flash',
+            displayName: 'Gemini 3.8 Flash (Vertex AI)',
+            fastModelName: 'gemini-3.5-flash-lite',
+            fastDisplayName: 'Gemini 3.5 Flash-Lite (Vertex AI)',
+        },
+        {
+            modelName: 'gemini-3.1-pro-preview',
+            displayName: 'Gemini 3.1 Pro Preview (Vertex AI)',
+            fastModelName: 'gemini-3.6-flash',
+            fastDisplayName: 'Gemini 3.6 Flash (Vertex AI)',
+        },
+    ])(
+        'lists and routes $modelName and its configured fast model',
+        ({ modelName, displayName, fastModelName, fastDisplayName }) => {
+            const fastConfig = aiCopilotConfigSchema.parse({
+                ...config,
+                providers: {
+                    vertex: {
+                        ...config.providers.vertex,
+                        modelName,
+                        fastModelName,
+                    },
                 },
-            },
-        });
-        expect(getAvailableModels(fastConfig)).toEqual([
-            expect.objectContaining({
-                modelId: 'gemini-3.8-flash',
-                displayName: 'gemini-3.8-flash (Vertex AI)',
+            });
+            expect(getAvailableModels(fastConfig)).toEqual([
+                expect.objectContaining({
+                    modelId: modelName,
+                    displayName,
+                    provider: 'vertex',
+                    custom: false,
+                    contextWindowTokens: 400_000,
+                }),
+                expect.objectContaining({
+                    modelId: fastModelName,
+                    displayName: fastDisplayName,
+                    provider: 'vertex',
+                    custom: false,
+                    contextWindowTokens: 400_000,
+                }),
+            ]);
+            expect(getDefaultModel(fastConfig)).toEqual({
+                name: modelName,
                 provider: 'vertex',
-                custom: true,
-                contextWindowTokens: null,
-            }),
-            expect.objectContaining({
-                modelId: 'gemini-3.5-flash-lite',
-                displayName: 'gemini-3.5-flash-lite (Vertex AI)',
-                provider: 'vertex',
-                custom: true,
-                contextWindowTokens: null,
-            }),
-        ]);
-        expect(getDefaultModel(fastConfig)).toEqual(getDefaultModel(config));
-        expect(
-            getModel(fastConfig, { modelName: 'gemini-3.5-flash-lite' }).model
-                .modelId,
-        ).toBe('gemini-3.5-flash-lite');
-        expect(
-            getModel(fastConfig, { modelName: 'unconfigured-model' }).model
-                .modelId,
-        ).toBe('gemini-3.8-flash');
-        expect(
-            getModel(fastConfig, {
-                modelName: 'gemini-3.8-flash',
-                useFastModel: true,
-            }).model.modelId,
-        ).toBe('gemini-3.5-flash-lite');
-        expect(
-            getFastModelForAccessibleKey(fastConfig, null).model.modelId,
-        ).toBe('gemini-3.5-flash-lite');
-    });
+            });
+            expect(
+                getModel(fastConfig, { modelName: fastModelName }).model
+                    .modelId,
+            ).toBe(fastModelName);
+            expect(
+                getModel(fastConfig, { modelName: 'unconfigured-model' }).model
+                    .modelId,
+            ).toBe(modelName);
+            expect(
+                getModel(fastConfig, {
+                    modelName,
+                    useFastModel: true,
+                }).model.modelId,
+            ).toBe(fastModelName);
+            expect(
+                getFastModelForAccessibleKey(fastConfig, null).model.modelId,
+            ).toBe(fastModelName);
+        },
+    );
 
     it('lists a model only once when the primary and fast model match', () => {
         const sameFastModel = aiCopilotConfigSchema.parse({

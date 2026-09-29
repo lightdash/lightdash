@@ -598,7 +598,56 @@ export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
     };
 }
 
+// Use a 400k context budget for known Vertex models rather than their full window.
+const VERTEX_MODEL_METADATA: Record<
+    string,
+    | {
+          displayName: string;
+          description: string;
+          contextWindowTokens: number;
+      }
+    | undefined
+> = {
+    'gemini-3.8-flash': {
+        displayName: 'Gemini 3.8 Flash (Vertex AI)',
+        description: 'General-purpose model for agentic tasks',
+        contextWindowTokens: 400_000,
+    },
+    'gemini-3.5-flash-lite': {
+        displayName: 'Gemini 3.5 Flash-Lite (Vertex AI)',
+        description: 'Lightweight model for fast, low-cost tasks',
+        contextWindowTokens: 400_000,
+    },
+    'gemini-3.1-pro-preview': {
+        displayName: 'Gemini 3.1 Pro Preview (Vertex AI)',
+        description: 'Preview model for complex reasoning tasks',
+        contextWindowTokens: 400_000,
+    },
+    'gemini-3.6-flash': {
+        displayName: 'Gemini 3.6 Flash (Vertex AI)',
+        description: 'Fast model for agentic tasks',
+        contextWindowTokens: 400_000,
+    },
+};
+
 export function vertexPreset(modelName: string): ModelPreset<'vertex'> {
+    const metadata = VERTEX_MODEL_METADATA[modelName];
+
+    if (metadata) {
+        return {
+            name: modelName,
+            provider: 'vertex',
+            modelId: modelName,
+            ...metadata,
+            groupLabel: 'Google Vertex AI',
+            custom: false,
+            // Metadata does not enable a thinking toggle; use provider defaults.
+            supportsReasoning: false,
+            callOptions: {},
+            providerOptions: undefined,
+        };
+    }
+
     return {
         name: modelName,
         provider: 'vertex',
