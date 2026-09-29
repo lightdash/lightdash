@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+    mkdir,
+    mkdtemp,
+    readFile,
+    rm,
+    symlink,
+    writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -216,6 +223,7 @@ describe('resolveSandboxRuntime active command limits', () => {
 });
 
 describe('detectSandboxDbtVersion', () => {
+    let root: string;
     let binDir: string;
     let calls: string;
 
@@ -240,13 +248,69 @@ describe('detectSandboxDbtVersion', () => {
 
     beforeEach(async () => {
         resetSandboxDbtVersionCache();
-        binDir = await mkdtemp(path.join(tmpdir(), 'learn-dbt-version-'));
-        calls = path.join(binDir, 'calls.log');
+        root = await mkdtemp(path.join(tmpdir(), 'learn-dbt-version-'));
+        // Laid out like a venv, so <venv>/lib is where metadata would live.
+        binDir = path.join(root, 'venv', 'bin');
+        await mkdir(binDir, { recursive: true });
+        calls = path.join(root, 'calls.log');
     });
 
     afterEach(async () => {
         resetSandboxDbtVersionCache();
-        await rm(binDir, { recursive: true, force: true });
+        await rm(root, { recursive: true, force: true });
+    });
+
+    const installDistInfo = (version: string, python = 'python3.11') =>
+        mkdir(
+            path.join(
+                root,
+                'venv',
+                'lib',
+                python,
+                'site-packages',
+                `dbt_core-${version}.dist-info`,
+            ),
+            { recursive: true },
+        );
+
+    it('reads the version from the venv package metadata without starting dbt', async () => {
+        await writeFakeDbt('Core:\n  - installed: 9.9.9');
+        await installDistInfo('1.12.0');
+        // Shipped alongside dbt-core in the prod image; must not count as a
+        // second dbt-core install.
+        await mkdir(
+            path.join(
+                root,
+                'venv/lib/python3.11/site-packages',
+                'dbt_core_experimental_parser-2.0.5.dist-info',
+            ),
+        );
+        await expect(detectSandboxDbtVersion({ PATH: binDir })).resolves.toBe(
+            '1.12.0',
+        );
+        expect(await callCount()).toBe(0);
+    });
+
+    it('follows a symlinked dbt to the venv that owns it', async () => {
+        await writeFakeDbt('Core:\n  - installed: 9.9.9');
+        await installDistInfo('1.10.4');
+        const linkDir = path.join(root, 'links');
+        await mkdir(linkDir);
+        await symlink(path.join(binDir, 'dbt'), path.join(linkDir, 'dbt'));
+        await expect(detectSandboxDbtVersion({ PATH: linkDir })).resolves.toBe(
+            '1.10.4',
+        );
+        expect(await callCount()).toBe(0);
+    });
+
+    it('asks dbt when the metadata is ambiguous', async () => {
+        await writeFakeDbt('Core:\n  - installed: 1.12.3');
+        await installDistInfo('1.12.0', 'python3.11');
+        await installDistInfo('1.9.0', 'python3.12');
+        await expect(detectSandboxDbtVersion({ PATH: binDir })).resolves.toBe(
+            '1.12.3',
+        );
+        expect(await callCount()).toBe(1);
     });
 
     it('reads the installed dbt-core version and asks dbt only once', async () => {
