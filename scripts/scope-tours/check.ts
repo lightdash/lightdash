@@ -100,14 +100,20 @@ const knownRoutePieces = (): Set<string> => {
     for (const relative of [
         'packages/frontend/src/Routes.tsx',
         'packages/frontend/src/ee/CommercialRoutes.tsx',
+        // Settings pages nest their own routers under `/generalSettings/*`
+        'packages/frontend/src/pages/Settings.tsx',
+        'packages/frontend/src/components/Settings/ProjectSettings.tsx',
     ]) {
         const file = path.join(root, relative);
         if (!existsSync(file)) continue;
         for (const match of readFileSync(file, 'utf8').matchAll(
-            /path:\s*'([^']+)'/g,
+            /path:\s*['`]([^'`$]+)['`]/g,
         )) {
             pieces.add(
-                match[1].replace(/^\//, '').replace(/:[A-Za-z]+/g, ':p'),
+                match[1]
+                    .replace(/^\//, '')
+                    .replace(/\/\*$/, '')
+                    .replace(/:[A-Za-z]+/g, ':p'),
             );
         }
     }
@@ -157,6 +163,7 @@ const coveredBy = (
 const isKnownRoute = (route: string, pieceSet: Set<string>): boolean => {
     const tail = route
         .replace(/^\/projects\/:projectUuid\/?/, '')
+        .replace(/^\//, '')
         .replace(/:[A-Za-z]+/g, ':p');
     if (tail === '') return true;
     const pieces = [...pieceSet]

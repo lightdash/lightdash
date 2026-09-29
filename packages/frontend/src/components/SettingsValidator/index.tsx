@@ -202,7 +202,20 @@ export const SettingsValidator: FC<{
                 onClose={closeDeleteModal}
                 onDeleted={() => setRowSelection({})}
             />
-            <Stack gap="sm">
+            <Stack
+                gap="sm"
+                // Walkthrough result marker for manage:Validation: the
+                // report, holding the seeded chart's broken field once the
+                // run is done. The run button shows its loader until then.
+                data-tour-scope="manage:Validation"
+                data-tour-step="1"
+                data-tour-route="/generalSettings/projectManagement/:projectUuid/validator"
+                data-tour-label="See what the validator found"
+                data-tour-docs="workflow/validating-your-content.mdx#intro:1-2"
+                data-tour-return="none"
+                data-tour-busy='[data-tour-anchor="validation-running"]'
+                data-tour-resultdocs="workflow/validating-your-content.mdx#what-content-is-included-in-the-validation:1"
+            >
                 {summary && (
                     <ValidationSummarySection
                         summary={summary}
@@ -296,6 +309,19 @@ export const SettingsValidator: FC<{
                         validateProject();
                     }}
                     loading={isValidating}
+                    // Named only while the run is in progress: the busy
+                    // surface the walkthrough's closing step waits on.
+                    data-tour-anchor={
+                        isValidating ? 'validation-running' : undefined
+                    }
+                    data-tour-scope="manage:Validation"
+                    data-tour-step="2"
+                    data-tour-route="/generalSettings/projectManagement/:projectUuid/validator"
+                    data-tour-label="Click Run validation"
+                    data-tour-title="Find broken content with the validator"
+                    data-tour-interactive="true"
+                    data-tour-via='[data-tour-nav="settings"] >> [data-tour-nav="project-settings"]'
+                    data-tour-docs="workflow/validating-your-content.mdx#how-can-i-validate-my-content:1"
                 >
                     Run validation
                 </Button>

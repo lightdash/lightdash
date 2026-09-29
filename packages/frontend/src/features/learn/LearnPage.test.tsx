@@ -252,7 +252,7 @@ describe('LearnPage analytics', () => {
         const { container } = renderPage();
         const { moduleCount, startedCount, completedCount } =
             viewEvents()[0].properties;
-        expect(moduleCount).toBe(43);
+        expect(moduleCount).toBe(44);
         expect(startedCount).toBe(1);
         expect(completedCount).toBe(1);
         expect(
@@ -423,8 +423,8 @@ describe('LearnPage access', () => {
         const input = screen.getByRole('textbox', {
             name: 'Search the library',
         });
-        await userEvent.type(input, 'dashboard');
-        expect(shown(container)).toEqual(['view:Dashboard']);
+        await userEvent.type(input, 'validator');
+        expect(shown(container)).toEqual(['manage:Validation']);
         await userEvent.clear(input);
         expect(sorted(shown(container))).toEqual(
             sorted(['manage:Validation', 'view:Dashboard', ...lessons]),

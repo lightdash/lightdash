@@ -163,24 +163,26 @@ export const seedPlaygroundContent = async ({
 
     const chartUuids = new Map(
         await Promise.all(
-            content.charts.map(async ({ key, slug, ...chart }) => {
-                const savedChart = await savedChartModel.create(
-                    projectUuid,
-                    user.userUuid,
-                    {
-                        ...chart,
-                        spaceUuid: space.uuid,
-                        slug,
-                        forceSlug: true,
-                        updatedByUser: {
-                            userUuid: user.userUuid,
-                            firstName: user.firstName,
-                            lastName: user.lastName,
+            content.charts.map(
+                async ({ key, slug, brokenFields, ...chart }) => {
+                    const savedChart = await savedChartModel.create(
+                        projectUuid,
+                        user.userUuid,
+                        {
+                            ...chart,
+                            spaceUuid: space.uuid,
+                            slug,
+                            forceSlug: true,
+                            updatedByUser: {
+                                userUuid: user.userUuid,
+                                firstName: user.firstName,
+                                lastName: user.lastName,
+                            },
                         },
-                    },
-                );
-                return [key, savedChart.uuid] as const;
-            }),
+                    );
+                    return [key, savedChart.uuid] as const;
+                },
+            ),
         ),
     );
 

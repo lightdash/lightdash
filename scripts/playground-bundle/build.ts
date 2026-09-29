@@ -91,7 +91,16 @@ const validatePlaygroundContent = (
             ...chart.metricQuery.metrics,
             ...chart.metricQuery.sorts.map(({ fieldId }) => fieldId),
         ];
+        const brokenFields = new Set(chart.brokenFields ?? []);
+        for (const fieldId of brokenFields) {
+            if (findFieldByIdInExplore(explore, fieldId)) {
+                throw new Error(
+                    `Playground chart ${chart.key} lists ${fieldId} as broken, but the explore has it`,
+                );
+            }
+        }
         for (const fieldId of fieldIds) {
+            if (brokenFields.has(fieldId)) continue;
             const field = findFieldByIdInExplore(explore, fieldId);
             if (!field) {
                 throw new Error(
