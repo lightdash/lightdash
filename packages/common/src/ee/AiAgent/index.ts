@@ -57,6 +57,7 @@ export * from './documentTypes';
 export * from './skillTypes';
 export * from './skillValidation';
 export * from './filterExploreByTags';
+export * from './generativeUi';
 export * from './projectContext';
 export * from './requestTypes';
 export * from './schemas';
