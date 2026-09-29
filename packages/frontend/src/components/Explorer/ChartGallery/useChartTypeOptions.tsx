@@ -23,6 +23,7 @@ import {
     IconTable,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
 import {
     isBigNumberVisualizationConfig,
@@ -89,6 +90,7 @@ export const useChartTypeOptions = () => {
         resultsData,
         pivotDimensions,
     } = useVisualizationContext();
+    const { embedToken } = useEmbed();
 
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
     const cartesianConfig = isCartesianVisualizationConfig(visualizationConfig)
@@ -277,6 +279,10 @@ export const useChartTypeOptions = () => {
         selected: isCustomVisualizationConfig(visualizationConfig),
         select: () => resetCartesian(ChartType.CUSTOM),
     };
+    // Vega is only offered to charts already on it, and never in embeds
+    const isVegaSelectable =
+        embedToken === undefined &&
+        isCustomVisualizationConfig(visualizationConfig);
 
     const isCustomChart =
         isCustomVisualizationConfig(visualizationConfig) ||
@@ -307,6 +313,6 @@ export const useChartTypeOptions = () => {
         options,
         resetCartesianState,
         selectedChartType,
-        vegaOption,
+        vegaOption: isVegaSelectable ? vegaOption : null,
     };
 };

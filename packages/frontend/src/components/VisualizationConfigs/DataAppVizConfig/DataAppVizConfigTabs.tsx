@@ -1,5 +1,4 @@
 import {
-    ChartType,
     deriveDataAppVizPivotConfig,
     diffDataAppVizSchema,
     FeatureFlags,
@@ -62,7 +61,6 @@ export const ConfigTabs: FC = memo(() => {
         visualizationConfig,
         itemsMap,
         colorPalette: resolvedColorPalette,
-        setChartType,
         setPivotDimensions,
     } = useVisualizationContext();
     const { addableItems, isFieldPending } = useAddFieldsToQuery();
@@ -326,7 +324,8 @@ export const ConfigTabs: FC = memo(() => {
                         selected={selectedOption}
                         selectedDataAppViz={dataAppViz ?? null}
                         hasColumns={hasColumns}
-                        onSelectVega={() => setChartType(ChartType.CUSTOM)}
+                        // Vega is closed to charts that aren't already on it
+                        onSelectVega={null}
                         onSelectProjectType={(picked) =>
                             selectProjectChartType(picked, effectiveItemsMap)
                         }

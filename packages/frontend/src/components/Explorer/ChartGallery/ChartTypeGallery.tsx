@@ -559,7 +559,10 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const matchesBuiltInSearch = (option: ChartTypeOption) =>
         option.label.toLowerCase().includes(debouncedSearch.toLowerCase());
 
-    const builtInItems: ChartTypeGalleryItem[] = [...options, vegaOption]
+    const builtInItems: ChartTypeGalleryItem[] = [
+        ...options,
+        ...(vegaOption ? [vegaOption] : []),
+    ]
         .filter(matchesBuiltInSearch)
         .map(({ id, ...option }) => ({
             ...option,

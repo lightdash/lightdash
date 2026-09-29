@@ -12,6 +12,7 @@ import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
+import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useChartTypesEnabled } from '../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { chartTypeBuilderPath } from '../../../../features/chartTypes/utils/chartTypeBuilderPath';
@@ -138,6 +139,7 @@ export const ConfigTabs: React.FC = memo(() => {
     const navigate = useNavigate();
 
     const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
+    const { embedToken } = useEmbed();
 
     const [isLoading, setIsLoading] = useState(true);
     const schemas = useRef<Schema[] | null>(null);
@@ -250,6 +252,15 @@ export const ConfigTabs: React.FC = memo(() => {
     const { itemsMap } = useVisualizationContext();
 
     if (!isCustomConfig) return null;
+
+    // Embeds don't ship Monaco's JSON worker, so the spec is read-only there
+    if (embedToken !== undefined) {
+        return (
+            <Text c="dimmed" size="sm">
+                Vega-Lite charts can't be edited here.
+            </Text>
+        );
+    }
 
     if (!monacoOptions || isLoading) {
         return <Loader color="gray" size="xs" />;

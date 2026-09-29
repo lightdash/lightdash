@@ -87,3 +87,10 @@ describe('getSelectedChartTypeItem', () => {
         });
     });
 });
+
+describe('vegaOption', () => {
+    it('is hidden for charts not already on Vega', () => {
+        const { result } = renderHookWithProviders(() => useChartTypeOptions());
+        expect(result.current.vegaOption).toBeNull();
+    });
+});
