@@ -712,6 +712,8 @@ export const assertDeepResearchPromptExecution = ({
 
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
+    // The host application's id for the viewer, when its token carries one.
+    externalUserId: string | null;
     spaceAccess: string[];
     userAttributeOverrides: UserAttributeValueMap;
 };
@@ -2395,6 +2397,8 @@ export class AiAgentService extends BaseService {
             tokenAgentUuid: content.agentUuid,
             runtimeOptions: {
                 embedSpaceUuid: spaceUuid,
+                externalUserId:
+                    account.authentication.data.user?.externalId ?? null,
                 spaceAccess: [spaceUuid],
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
@@ -4303,6 +4307,7 @@ export class AiAgentService extends BaseService {
                 prompt: body.prompt,
                 context,
                 modelConfig,
+                externalUserId: runtimeOptions?.externalUserId ?? null,
             });
             await this.persistSkillInvocation(promptUuid);
             this.enqueueMobilePushThreadReconciliation(threadUuid);
@@ -4506,6 +4511,7 @@ export class AiAgentService extends BaseService {
             context,
             modelConfig: body.modelConfig,
             hidden: body.hidden,
+            externalUserId: runtimeOptions?.externalUserId ?? null,
         });
         await this.persistSkillInvocation(messageUuid);
         this.enqueueMobilePushThreadReconciliation(threadUuid);
@@ -6806,33 +6812,58 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    private static getPromptUsageChannel(
+    private static getPromptUsageAttribution(
         prompt: SlackPrompt | AiWebAppPrompt,
-    ): AiUsageChannel {
-        return getAiUsageChannel({
-            createdFrom: prompt.threadCreatedFrom,
-            embedSpaceUuid: isSlackPrompt(prompt)
-                ? null
-                : prompt.threadEmbedSpaceUuid,
-        });
+    ): { channel: AiUsageChannel; externalUserId: string | null } {
+        return isSlackPrompt(prompt)
+            ? {
+                  channel: getAiUsageChannel({
+                      createdFrom: prompt.threadCreatedFrom,
+                      embedSpaceUuid: null,
+                  }),
+                  externalUserId: null,
+              }
+            : {
+                  channel: getAiUsageChannel({
+                      createdFrom: prompt.threadCreatedFrom,
+                      embedSpaceUuid: prompt.threadEmbedSpaceUuid,
+                  }),
+                  externalUserId: prompt.externalUserId,
+              };
     }
 
     // Usage attribution must never fail the call it describes.
-    private async getThreadUsageChannel(
-        threadUuid: string,
-    ): Promise<AiUsageChannel | null> {
+    private async getThreadUsageAttribution({
+        threadUuid,
+        promptUuid,
+    }: {
+        threadUuid: string;
+        promptUuid: string | null;
+    }): Promise<{
+        channel: AiUsageChannel | null;
+        externalUserId: string | null;
+    }> {
         try {
+            const prompt = promptUuid
+                ? await this.aiAgentModel.findWebAppPrompt(promptUuid)
+                : undefined;
+            if (prompt) {
+                return AiAgentService.getPromptUsageAttribution(prompt);
+            }
             const origin = await this.aiAgentModel.findThreadOrigin(threadUuid);
-            return origin ? getAiUsageChannel(origin) : null;
+            return {
+                channel: origin ? getAiUsageChannel(origin) : null,
+                externalUserId: null,
+            };
         } catch (error) {
             this.logger.warn(
-                'Could not resolve the usage channel of a thread',
+                'Could not resolve the usage attribution of a thread',
                 {
                     threadUuid,
                     error: getErrorMessage(error),
                 },
             );
-            return null;
+            return { channel: null, externalUserId: null };
         }
     }
 
@@ -6961,7 +6992,7 @@ export class AiAgentService extends BaseService {
                 organizationUuid: user.organizationUuid ?? null,
                 threadUuid,
                 promptUuid: previousPrompt.ai_prompt_uuid,
-                channel: AiAgentService.getPromptUsageChannel(prompt),
+                ...AiAgentService.getPromptUsageAttribution(prompt),
             },
         };
 
@@ -8190,7 +8221,10 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 promptUuid,
                 userUuid: user.userUuid,
-                channel: await this.getThreadUsageChannel(threadUuid),
+                ...(await this.getThreadUsageAttribution({
+                    threadUuid,
+                    promptUuid,
+                })),
             },
         };
 
@@ -8236,7 +8270,11 @@ export class AiAgentService extends BaseService {
                     agentUuid,
                     threadUuid,
                     userUuid: user.userUuid,
-                    channel: await this.getThreadUsageChannel(threadUuid),
+                    // A title belongs to the thread, not to one viewer.
+                    ...(await this.getThreadUsageAttribution({
+                        threadUuid,
+                        promptUuid: null,
+                    })),
                 },
             };
 
@@ -12676,7 +12714,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         agentUuid: prompt.agentUuid,
                         threadUuid: prompt.threadUuid,
                         userUuid: user.userUuid,
-                        channel: AiAgentService.getPromptUsageChannel(prompt),
+                        ...AiAgentService.getPromptUsageAttribution(prompt),
                     },
                 },
                 { ...generatorContext, styleReferenceTitle: current.title },
@@ -14098,7 +14136,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             messageHistory,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
-            channel: AiAgentService.getPromptUsageChannel(prompt),
+            ...AiAgentService.getPromptUsageAttribution(prompt),
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,

@@ -37,6 +37,25 @@ describe('getAiCallTelemetry', () => {
         });
     });
 
+    it('carries the embedded viewer id for usage but withholds it from telemetry providers', () => {
+        const { telemetry, runtimeContext } = getAiCallTelemetry({
+            functionId: 'streamAgentResponse',
+            feature: 'agent',
+            organizationUuid: 'org',
+            keyManagement: 'lightdash-managed',
+            channel: 'embed',
+            externalUserId: 'viewer@customer.example',
+        });
+
+        expect(runtimeContext.externalUserId).toBe('viewer@customer.example');
+        expect(telemetry.includeRuntimeContext).toEqual({
+            feature: true,
+            organizationUuid: true,
+            keyManagement: true,
+            channel: true,
+        });
+    });
+
     it('exports an extra key when its name is allow-listed', () => {
         // generateAgentSuggestions attributes org/project/agent only via extra,
         // so this pass-through is load-bearing, not an oversight.

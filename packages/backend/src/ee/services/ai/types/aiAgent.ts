@@ -230,6 +230,8 @@ export type AiAgentArgs = AnyAiModel & {
     keyManagement: AiKeyManagement;
     // Surface the thread was created from, carried through for usage analytics.
     channel: AiUsageChannel;
+    // Viewer id from the embed token that sent the prompt; null outside embeds.
+    externalUserId: string | null;
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
     knowledgeDocuments: AiAgentDocumentContext[];

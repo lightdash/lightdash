@@ -25,6 +25,7 @@ const makePrompt = (): AiWebAppPrompt => ({
     threadUuid: 'thread-uuid',
     threadCreatedFrom: 'web_app',
     threadEmbedSpaceUuid: null,
+    externalUserId: null,
     createdByUserUuid: 'user-uuid',
     userUuid: 'user-uuid',
     prompt: 'Join revenue with signups',

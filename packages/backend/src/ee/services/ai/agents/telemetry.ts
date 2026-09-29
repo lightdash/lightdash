@@ -43,6 +43,7 @@ export const getAgentTelemetryConfig = (
         model,
         keyManagement,
         channel,
+        externalUserId,
         execution,
     }: Pick<
         AiAgentArgs,
@@ -55,6 +56,7 @@ export const getAgentTelemetryConfig = (
         | 'model'
         | 'keyManagement'
         | 'channel'
+        | 'externalUserId'
     > & { execution?: AiAgentArgs['execution'] },
     feature: AiCallFeature = 'agent',
 ) =>
@@ -70,6 +72,7 @@ export const getAgentTelemetryConfig = (
         ...getLanguageModelAttribution(model),
         keyManagement,
         channel,
+        externalUserId,
         ...(execution?.mode === 'deep_research'
             ? {
                   extra: getDeepResearchTelemetryExtra(

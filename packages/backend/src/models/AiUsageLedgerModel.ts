@@ -28,6 +28,7 @@ export class AiUsageLedgerModel {
             organization_uuid: properties.organizationId,
             project_uuid: properties.projectId,
             user_uuid: event.userId ?? null,
+            external_user_id: properties.externalUserId,
             agent_uuid: properties.aiAgentId,
             thread_uuid: properties.threadId,
             prompt_uuid: properties.promptId,

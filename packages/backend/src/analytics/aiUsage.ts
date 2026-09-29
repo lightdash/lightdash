@@ -203,11 +203,25 @@ export type AiUsageEvent = BaseTrack & {
         provider: string | null;
         keyManagement: AiKeyManagement | null;
         channel: AiUsageChannel | null;
+        // The host application's id for an embedded viewer. Customer data:
+        // it reaches the ledger and the usage stream, never logs or Rudderstack.
+        externalUserId: string | null;
         managedAgentRunId: string | null;
         deepResearchRunId: string | null;
         deepResearchPhase: AiDeepResearchPhase | null;
     } & AiUsageTokens;
 };
+
+export const omitExternalUserId = ({
+    externalUserId,
+    ...properties
+}: AiUsageEvent['properties']): Omit<
+    AiUsageEvent['properties'],
+    'externalUserId'
+> => properties;
+
+export const isAiUsageEvent = (event: BaseTrack): event is AiUsageEvent =>
+    event.event === 'ai.usage';
 
 type AiUsageTrackFn = (event: AiUsageEvent) => void;
 
@@ -264,6 +278,7 @@ export type AiCallRuntimeContextKey =
     | 'provider'
     | 'keyManagement'
     | 'channel'
+    | 'externalUserId'
     | 'appUuid'
     | 'runUuid'
     | 'deepResearchRunUuid'
@@ -318,6 +333,7 @@ export const emitAiUsage = (
                 getMetadataString(metadata, 'keyManagement'),
             ),
             channel: parseChannel(getMetadataString(metadata, 'channel')),
+            externalUserId: getMetadataString(metadata, 'externalUserId'),
             managedAgentRunId:
                 metadata.feature === 'managed-agent'
                     ? getMetadataString(metadata, 'runUuid')
@@ -346,7 +362,7 @@ export const emitAiUsage = (
             {
                 event: 'ai.usage',
                 userId: userUuid,
-                ...properties,
+                ...omitExternalUserId(properties),
             },
         );
 

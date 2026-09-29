@@ -425,6 +425,7 @@ export type DbAiWebAppPrompt = {
     ai_slack_prompt_uuid: string;
     ai_prompt_uuid: string;
     user_uuid: string;
+    external_user_id: string | null;
 };
 
 export type AiSlackPromptTable = Knex.CompositeTableType<
@@ -441,7 +442,8 @@ export type AiSlackPromptTable = Knex.CompositeTableType<
 
 export type AiWebAppPromptTable = Knex.CompositeTableType<
     DbAiWebAppPrompt,
-    Pick<DbAiWebAppPrompt, 'ai_prompt_uuid' | 'user_uuid'>,
+    Pick<DbAiWebAppPrompt, 'ai_prompt_uuid' | 'user_uuid'> &
+        Partial<Pick<DbAiWebAppPrompt, 'external_user_id'>>,
     Pick<DbAiWebAppPrompt, 'user_uuid'>
 >;
 
