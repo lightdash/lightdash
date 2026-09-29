@@ -1,4 +1,5 @@
 import {
+    AI_USER_THREAD_CREATED_FROM,
     assertUnreachable,
     getAiAgentMemoryConsolidationOperationSlugs,
     getAiProjectContextObjectKey,
@@ -52,10 +53,7 @@ import {
 // Keeps list payloads bounded; the memory page shows the full body
 const MEMORY_LIST_SUMMARY_MAX_LENGTH = 280;
 
-export const AI_AGENT_MEMORY_THREAD_SOURCES = [
-    'web_app',
-    'slack',
-] as const satisfies readonly AiThreadCreatedFrom[];
+export const AI_AGENT_MEMORY_THREAD_SOURCES = AI_USER_THREAD_CREATED_FROM;
 
 type SourceThreadMemory = {
     organizationUuid: UUID;

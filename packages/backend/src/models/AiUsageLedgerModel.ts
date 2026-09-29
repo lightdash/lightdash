@@ -37,6 +37,7 @@ export class AiUsageLedgerModel {
             model: properties.model,
             provider: properties.provider,
             key_management: properties.keyManagement,
+            usage_channel: properties.channel,
             outcome: properties.outcome,
             input_tokens: properties.inputTokens,
             output_tokens: properties.outputTokens,

@@ -1,5 +1,9 @@
 import { Knex } from 'knex';
-import type { AiKeyManagement, AiUsageOutcome } from '../../analytics/aiUsage';
+import type {
+    AiKeyManagement,
+    AiUsageChannel,
+    AiUsageOutcome,
+} from '../../analytics/aiUsage';
 
 export const AiUsageLedgerTableName = 'ai_usage_ledger';
 
@@ -18,6 +22,7 @@ export type DbAiUsageLedger = {
     model: string | null;
     provider: string | null;
     key_management: AiKeyManagement | null;
+    usage_channel: AiUsageChannel | null;
     outcome: AiUsageOutcome;
     // bigint columns arrive as strings through the pg driver.
     input_tokens: string | null;

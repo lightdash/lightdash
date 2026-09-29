@@ -3,6 +3,7 @@ import type {
     AiCallFeature,
     AiCallRuntimeContextKey,
     AiKeyManagement,
+    AiUsageChannel,
 } from '../../../../analytics/aiUsage';
 
 export type { AiCallFeature };
@@ -26,6 +27,8 @@ export type AiCallAttribution = {
     provider?: string | null;
     // Whether the call ran on a Lightdash-managed key or the org's own key.
     keyManagement?: AiKeyManagement | null;
+    // Surface the call's thread was created from.
+    channel?: AiUsageChannel | null;
 };
 
 /**
@@ -99,6 +102,7 @@ export const ATTRIBUTION_KEYS = [
     'model',
     'provider',
     'keyManagement',
+    'channel',
 ] as const satisfies readonly (keyof AiCallAttribution)[];
 
 /**

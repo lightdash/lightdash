@@ -23,6 +23,7 @@ import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.
 import { type ModelMessage } from 'ai';
 import {
     AiKeyManagement,
+    AiUsageChannel,
     type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
@@ -227,6 +228,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
     // Stamped by the model builder and carried through for usage analytics.
     keyManagement: AiKeyManagement;
+    // Surface the thread was created from, carried through for usage analytics.
+    channel: AiUsageChannel;
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
     knowledgeDocuments: AiAgentDocumentContext[];

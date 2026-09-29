@@ -1,5 +1,9 @@
 import { Box, SegmentedControl, Text, Tooltip } from '@mantine/core';
-import { IconBrandSlack, IconMessageCircleStar } from '@tabler/icons-react';
+import {
+    IconApi,
+    IconBrandSlack,
+    IconMessageCircleStar,
+} from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
 
@@ -53,13 +57,23 @@ export const SourceFilter = ({
             ),
             value: 'slack',
         },
+        {
+            label: (
+                <Tooltip label="API threads">
+                    <Box>
+                        <MantineIcon icon={IconApi} {...iconProps} />
+                    </Box>
+                </Tooltip>
+            ),
+            value: 'api',
+        },
     ];
     return (
         <SegmentedControl
             size="xs"
             value={selectedSource}
             onChange={(value) =>
-                setSelectedSource(value as 'all' | 'web_app' | 'slack')
+                setSelectedSource(value as 'all' | 'web_app' | 'slack' | 'api')
             }
             data={data}
         />

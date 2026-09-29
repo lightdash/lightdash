@@ -40,7 +40,7 @@ export const useAiAgentAdminFilters = () => {
     const projectsParam = useSearchParams<string>('projects');
     const agentsParam = useSearchParams<string>('agents');
     const usersParam = useSearchParams<string>('users');
-    const sourceParam = useSearchParams<'web_app' | 'slack'>('source');
+    const sourceParam = useSearchParams<'web_app' | 'slack' | 'api'>('source');
     const feedbackParam = useSearchParams<'thumbs_up' | 'thumbs_down'>(
         'feedback',
     );
