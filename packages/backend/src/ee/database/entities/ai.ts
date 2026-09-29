@@ -705,3 +705,23 @@ export type AiSqlApprovalTable = Knex.CompositeTableType<
         Partial<Pick<DbAiSqlApproval, 'decided_by_user_uuid'>>,
     never
 >;
+
+export const AiToolUserInputTableName = 'ai_tool_user_input';
+
+// What a user submitted to a tool that waits for input (generateUi).
+export type DbAiToolUserInput = {
+    tool_call_id: string;
+    tool_name: string;
+    input: unknown;
+    user_uuid: string | null;
+    created_at: Date;
+};
+
+export type AiToolUserInputTable = Knex.CompositeTableType<
+    DbAiToolUserInput,
+    Pick<
+        DbAiToolUserInput,
+        'tool_call_id' | 'tool_name' | 'input' | 'user_uuid'
+    >,
+    never
+>;

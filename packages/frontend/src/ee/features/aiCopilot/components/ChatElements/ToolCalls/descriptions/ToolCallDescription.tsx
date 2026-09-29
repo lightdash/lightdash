@@ -404,6 +404,7 @@ export const ToolCallDescription: FC<{
         case 'runCode':
         case 'searchApi':
         case 'describeApi':
+        case 'generateUi':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

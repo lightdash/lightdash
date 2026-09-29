@@ -31,6 +31,10 @@ const wideInputSchemaOverrides = {
     editContent: mcpEditContentArgsSchema,
 } as const;
 
+// generateUi's output carries recursive JSON responses, which exhaust the
+// Redux draft types; its card reads the result metadata with a schema instead.
+type OpaqueResultToolName = 'generateUi';
+
 type ToolArgs<TName extends ToolName> =
     TName extends keyof typeof wideInputSchemaOverrides
         ? z.infer<(typeof wideInputSchemaOverrides)[TName]>
@@ -44,9 +48,10 @@ type ToolOutputSchema<TName extends ToolName> =
     >
         ? TOutputSchema
         : never;
-type ToolResult<TName extends ParsedToolName> = z.infer<
-    NonNullable<ToolOutputSchema<TName>>
->;
+type ToolResult<TName extends ParsedToolName> =
+    TName extends OpaqueResultToolName
+        ? { result: string; metadata: unknown }
+        : z.infer<NonNullable<ToolOutputSchema<TName>>>;
 
 export type AiAgentToolOutput = {
     [K in ParsedToolName]: ToolResult<K>;

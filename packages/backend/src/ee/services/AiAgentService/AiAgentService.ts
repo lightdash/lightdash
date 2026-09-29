@@ -69,6 +69,7 @@ import {
     assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
+    compileGenerativeUiSpec,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -94,6 +95,7 @@ import {
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    generativeUiActionSubmissionSchema,
     getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
@@ -152,6 +154,7 @@ import {
     substituteAiAgentSkillArguments,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchemaPersisted,
+    toolGenerateUiArgsSchema,
     UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
@@ -397,6 +400,7 @@ import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import { getGenerativeUiApiCatalog } from '../ai/generativeUi/apiOperationCatalog';
 import { assertGenerativeUiAvailable } from '../ai/generativeUi/generativeUiAccess';
+import { buildGenerativeUiOutcome } from '../ai/generativeUi/generativeUiOutcome';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -3994,6 +3998,153 @@ export class AiAgentService extends BaseService {
         return getGenerativeUiApiCatalog().listForClient();
     }
 
+    /**
+     * Records what the user did with a generated UI card and reopens its
+     * prompt, so the next stream request resumes the agent with the outcome.
+     * The card's requests already ran as the user under their own abilities.
+     */
+    async recordUiActionOutcome(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            toolCallId,
+            outcome,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            toolCallId: string;
+            outcome: unknown;
+        },
+    ): Promise<{ recorded: boolean; promptUuid: string; resume: boolean }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        await this.assertGenerativeUiAvailable(user);
+
+        const submission =
+            generativeUiActionSubmissionSchema.safeParse(outcome);
+        if (!submission.success) {
+            throw new ParameterError('The card outcome is not valid');
+        }
+
+        const context = await this.aiAgentModel.findToolCallContext(toolCallId);
+        if (!context) {
+            throw new NotFoundError(`Tool call not found: ${toolCallId}`);
+        }
+        if (context.threadUuid !== threadUuid) {
+            throw new ForbiddenError(
+                'Tool call does not belong to the supplied thread',
+            );
+        }
+        if (context.agentUuid !== agentUuid) {
+            throw new ForbiddenError(
+                'Tool call does not belong to the supplied agent',
+            );
+        }
+        if (context.toolName !== 'generateUi') {
+            throw new ParameterError(
+                `Tool call ${toolCallId} is not a generated UI card`,
+            );
+        }
+        if (context.hasResult) {
+            throw new AlreadyExistsError(
+                `Tool call ${toolCallId} has already been resolved`,
+            );
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to act on this agent thread',
+            );
+        }
+
+        const spec = toolGenerateUiArgsSchema.safeParse(context.toolArgs);
+        const compiled = spec.success
+            ? compileGenerativeUiSpec(spec.data, {
+                  operations: new Map(
+                      getGenerativeUiApiCatalog()
+                          .listForClient()
+                          .map((operation) => [
+                              operation.operationId,
+                              operation,
+                          ]),
+                  ),
+                  projectUuid: agent.projectUuid,
+              })
+            : null;
+        if (compiled === null || !compiled.ok) {
+            throw new ParameterError(
+                `Tool call ${toolCallId} does not hold a valid card`,
+            );
+        }
+
+        const result = await this.aiAgentModel.recordToolUserInputForResume({
+            promptUuid: context.promptUuid,
+            toolCallId,
+            toolName: 'generateUi',
+            input: buildGenerativeUiOutcome(compiled.compiled, submission.data),
+            userUuid: user.userUuid,
+        });
+        this.logger.info(
+            `Generated UI outcome for tool call ${toolCallId} on prompt ${context.promptUuid}: ${submission.data.status}, ${result}`,
+        );
+        switch (result) {
+            case 'recorded':
+                return {
+                    recorded: true,
+                    promptUuid: context.promptUuid,
+                    resume: true,
+                };
+            case 'duplicate': {
+                // Recorded earlier, but the resume may never have started: a
+                // lost response or a closed tab. Resume unless a run is on.
+                const prompt = await this.aiAgentModel.findWebAppPrompt(
+                    context.promptUuid,
+                );
+                const awaitingResume =
+                    prompt !== undefined &&
+                    prompt.response === null &&
+                    !this.inFlightStreamPrompts.has(context.promptUuid);
+                return {
+                    recorded: false,
+                    promptUuid: context.promptUuid,
+                    resume: awaitingResume,
+                };
+            }
+            case 'not_resumable':
+                throw new ConflictError(
+                    'This card is no longer waiting for input',
+                );
+            default:
+                return assertUnreachable(
+                    result,
+                    'Unknown generated UI record result',
+                );
+        }
+    }
+
     async decideSqlApproval(
         user: SessionUser,
         {
@@ -4017,8 +4168,7 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
-        const context =
-            await this.aiAgentModel.findSqlApprovalContext(toolCallId);
+        const context = await this.aiAgentModel.findToolCallContext(toolCallId);
         if (!context) {
             throw new NotFoundError(`Tool call not found: ${toolCallId}`);
         }
@@ -14920,6 +15070,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
+            findToolUserInput: (toolCallId) =>
+                this.aiAgentModel.findToolUserInput(toolCallId),
             loadSkill: async (name, loadOptions) => {
                 const builtIn =
                     await this.aiAgentToolsService.loadAgentSkill(name);
@@ -16261,6 +16413,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
+                case 'generateUi':
                     return 'Preparing the answer...';
                 case 'runSql':
                 case 'runComposerQueries':
@@ -17135,7 +17288,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // a Lightdash user and require the same SqlRunner scope as the
                 // web approval path (decideSqlApproval) before recording.
                 const approvalContext =
-                    await this.aiAgentModel.findSqlApprovalContext(toolCallId);
+                    await this.aiAgentModel.findToolCallContext(toolCallId);
                 if (!approvalContext?.agentUuid) {
                     await respond({
                         text: 'This SQL approval request is no longer available.',

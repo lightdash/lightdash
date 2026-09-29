@@ -878,6 +878,20 @@ export type ApiAiAgentSqlApprovalRequest = {
     decision: 'approved' | 'rejected';
 };
 
+export type ApiAiAgentUiActionRequest = {
+    // A GenerativeUiActionSubmission; the service validates it with zod
+    // because TSOA cannot read zod types.
+    outcome: unknown;
+};
+
+export type ApiAiAgentUiActionResponse = ApiSuccess<{
+    recorded: boolean;
+    promptUuid: string;
+    // True when the caller should start the thread stream: the outcome is
+    // recorded and nothing is generating this prompt yet.
+    resume: boolean;
+}>;
+
 export type ApiAiAgentThreadStreamRequest = {
     /**
      * Per-thread toggle that decides whether the agent gets access to the

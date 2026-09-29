@@ -56,6 +56,7 @@ import {
     FindContentFn,
     FindCustomChartTypesFn,
     FindExploresFn,
+    FindToolUserInputFn,
     GenerateDataAppFn,
     GetDashboardChartsFn,
     GetExploreFn,
@@ -414,6 +415,7 @@ export type AiAgentDependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    findToolUserInput: FindToolUserInputFn;
     loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
 };

@@ -2794,6 +2794,1933 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
+    "description": "Render an interactive card in the chat: inputs the user fills in, and one button that runs a short chain of Lightdash API requests as the user. Use it when you need input (pick a space, choose charts, set a schedule) or a confirmation before a change.
+
+Workflow: find operations with searchApi, read their parameters with describeApi, then call this tool once with the whole card. The run pauses while the card is open. The result is the outcome: success (every response), failed (the failing step and its error; earlier steps already ran) or dismissed.
+
+Values: any parameter value is a literal or a reference:
+- {"$state": key}: an input value, or the selected row ids of a table.
+- {"$query": id, "path"?: "a.b"}: a declared query's \`results\`.
+- {"$result": stepId, "path"?: "a.b"}: an earlier step's \`results\`; a forEach step's result is an array with one entry per element.
+- {"$item": "a.b"}: the current forEach element ("" for the element itself).
+There are no expressions. To send one request per selected item, use forEach.
+
+Rules:
+- Use only operationIds from searchApi. Queries are GET operations; steps are not.
+- Query params may only reference $state. Never set projectUuid; it is filled in.
+- $result names an earlier step. $item appears only in forEach steps, and every forEach step uses it.
+- A forEach over an empty selection runs no requests; set required on the input when a choice is needed.
+- Keys and step ids are unique. Set action.confirm when any step uses DELETE.
+- Limits: 40 blocks, depth 4, 6 queries, 10 steps, 8 table columns, 500 characters per string. Text renders as plain text.
+- Bind options and rows to queries instead of pasting long lists.
+
+Blocks (every block except stack and group accepts visibleWhen):
+- stack(gap?, children): Vertical layout.
+- group(grow?, children): Horizontal layout; children wrap on narrow screens.
+- heading(text): Section heading.
+- text(text, variant?): Paragraph of plain text.
+- callout(variant, text): Highlighted note.
+- divider(): Horizontal rule.
+- textInput(key, label, placeholder?, initial?, required?): Single-line text; the value is a string.
+- textarea(key, label, placeholder?, initial?, required?): Multi-line text; the value is a string.
+- numberInput(key, label, initial?, min?, max?, required?): Number; the value is a number, or null when empty.
+- checkbox(key, label, initial?): Checkbox; the value is a boolean.
+- dateInput(key, label, initial?, required?): Date picker; the value is "YYYY-MM-DD", or null when empty.
+- select(key, label, options, initial?, required?, searchable?): Dropdown; the value is the chosen option value, or null.
+- multiSelect(key, label, options, initial?, required?): Multi-choice dropdown; the value is an array of option values.
+- segmented(key, label, options, initial): Segmented control with 2-6 options; the value is the chosen option value.
+- table(rows, columns, selectable?): Read-only table, optionally with row selection.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "definitions": {
+        "__schema1": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "description": "A GET operation whose \`results\` feed options and tables. Its params may reference $state only; it re-runs when those inputs change.",
+            "properties": {
+              "operationId": {
+                "description": "An operationId returned by searchApi.",
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string",
+              },
+              "params": {
+                "$ref": "#/definitions/__schema4",
+              },
+            },
+            "required": [
+              "operationId",
+            ],
+            "type": "object",
+          },
+          "propertyNames": {
+            "pattern": "^[A-Za-z]\\w{0,63}$",
+            "type": "string",
+          },
+          "type": "object",
+        },
+        "__schema10": {
+          "additionalProperties": false,
+          "properties": {
+            "$query": {
+              "pattern": "^[A-Za-z]\\w{0,63}$",
+              "type": "string",
+            },
+            "path": {
+              "maxLength": 200,
+              "type": "string",
+            },
+          },
+          "required": [
+            "$query",
+          ],
+          "type": "object",
+        },
+        "__schema12": {
+          "additionalProperties": false,
+          "properties": {
+            "$result": {
+              "pattern": "^[A-Za-z]\\w{0,63}$",
+              "type": "string",
+            },
+            "path": {
+              "maxLength": 200,
+              "type": "string",
+            },
+          },
+          "required": [
+            "$result",
+          ],
+          "type": "object",
+        },
+        "__schema13": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/__schema7",
+              },
+              {
+                "items": {
+                  "$ref": "#/definitions/__schema7",
+                },
+                "maxItems": 50,
+                "type": "array",
+              },
+            ],
+          },
+          "type": "object",
+        },
+        "__schema14": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema7",
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/__schema15",
+              },
+              "maxItems": 50,
+              "type": "array",
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema15",
+              },
+              "type": "object",
+            },
+          ],
+        },
+        "__schema15": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema7",
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/__schema16",
+              },
+              "maxItems": 50,
+              "type": "array",
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema16",
+              },
+              "type": "object",
+            },
+          ],
+        },
+        "__schema16": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema7",
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/__schema17",
+              },
+              "maxItems": 50,
+              "type": "array",
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema17",
+              },
+              "type": "object",
+            },
+          ],
+        },
+        "__schema17": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema7",
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/__schema18",
+              },
+              "maxItems": 50,
+              "type": "array",
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema18",
+              },
+              "type": "object",
+            },
+          ],
+        },
+        "__schema18": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema7",
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/__schema7",
+              },
+              "maxItems": 50,
+              "type": "array",
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema7",
+              },
+              "type": "object",
+            },
+          ],
+        },
+        "__schema19": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/__schema20",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Vertical layout.",
+              "properties": {
+                "children": {
+                  "$ref": "#/definitions/__schema67",
+                },
+                "gap": {
+                  "enum": [
+                    "xs",
+                    "sm",
+                    "md",
+                  ],
+                  "type": "string",
+                },
+                "type": {
+                  "const": "stack",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "children",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Horizontal layout; children wrap on narrow screens.",
+              "properties": {
+                "children": {
+                  "$ref": "#/definitions/__schema87",
+                },
+                "grow": {
+                  "description": "Stretch the children to share the row.",
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "group",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "children",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema20": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "description": "Section heading.",
+              "properties": {
+                "text": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "type": {
+                  "const": "heading",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "text",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Paragraph of plain text.",
+              "properties": {
+                "text": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "type": {
+                  "const": "text",
+                  "type": "string",
+                },
+                "variant": {
+                  "enum": [
+                    "body",
+                    "dimmed",
+                  ],
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "text",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Highlighted note.",
+              "properties": {
+                "text": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "type": {
+                  "const": "callout",
+                  "type": "string",
+                },
+                "variant": {
+                  "enum": [
+                    "info",
+                    "warning",
+                    "danger",
+                  ],
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "variant",
+                "text",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Horizontal rule.",
+              "properties": {
+                "type": {
+                  "const": "divider",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Single-line text; the value is a string.",
+              "properties": {
+                "initial": {
+                  "maxLength": 500,
+                  "type": "string",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "placeholder": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "required": {
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "textInput",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Multi-line text; the value is a string.",
+              "properties": {
+                "initial": {
+                  "maxLength": 500,
+                  "type": "string",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "placeholder": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "required": {
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "textarea",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Number; the value is a number, or null when empty.",
+              "properties": {
+                "initial": {
+                  "type": "number",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "max": {
+                  "type": "number",
+                },
+                "min": {
+                  "type": "number",
+                },
+                "required": {
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "numberInput",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Checkbox; the value is a boolean.",
+              "properties": {
+                "initial": {
+                  "type": "boolean",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "type": {
+                  "const": "checkbox",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Date picker; the value is "YYYY-MM-DD", or null when empty.",
+              "properties": {
+                "initial": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "required": {
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "dateInput",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Dropdown; the value is the chosen option value, or null.",
+              "properties": {
+                "initial": {
+                  "maxLength": 500,
+                  "type": "string",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "options": {
+                  "$ref": "#/definitions/__schema45",
+                },
+                "required": {
+                  "type": "boolean",
+                },
+                "searchable": {
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "select",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+                "options",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Multi-choice dropdown; the value is an array of option values.",
+              "properties": {
+                "initial": {
+                  "items": {
+                    "maxLength": 500,
+                    "type": "string",
+                  },
+                  "maxItems": 100,
+                  "type": "array",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "options": {
+                  "$ref": "#/definitions/__schema45",
+                },
+                "required": {
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "multiSelect",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+                "options",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Segmented control with 2-6 options; the value is the chosen option value.",
+              "properties": {
+                "initial": {
+                  "maxLength": 500,
+                  "type": "string",
+                },
+                "key": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+                "label": {
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "options": {
+                  "$ref": "#/definitions/__schema54",
+                },
+                "type": {
+                  "const": "segmented",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "key",
+                "label",
+                "options",
+                "initial",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Read-only table, optionally with row selection.",
+              "properties": {
+                "columns": {
+                  "$ref": "#/definitions/__schema59",
+                },
+                "rows": {
+                  "$ref": "#/definitions/__schema56",
+                },
+                "selectable": {
+                  "$ref": "#/definitions/__schema61",
+                },
+                "type": {
+                  "const": "table",
+                  "type": "string",
+                },
+                "visibleWhen": {
+                  "$ref": "#/definitions/__schema22",
+                },
+              },
+              "required": [
+                "type",
+                "rows",
+                "columns",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema22": {
+          "additionalProperties": false,
+          "description": "Show the block only while the input with this key equals the value.",
+          "properties": {
+            "$state": {
+              "pattern": "^[A-Za-z]\\w{0,63}$",
+              "type": "string",
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string",
+                },
+                {
+                  "type": "number",
+                },
+                {
+                  "type": "boolean",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
+          },
+          "required": [
+            "$state",
+            "equals",
+          ],
+          "type": "object",
+        },
+        "__schema4": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema5",
+            },
+          ],
+        },
+        "__schema45": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema46",
+            },
+            {
+              "$ref": "#/definitions/__schema48",
+            },
+          ],
+          "description": "Literal options, or options read from a declared query's results.",
+        },
+        "__schema46": {
+          "items": {
+            "$ref": "#/definitions/__schema47",
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema47": {
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string",
+            },
+            "value": {
+              "maxLength": 500,
+              "type": "string",
+            },
+          },
+          "required": [
+            "label",
+            "value",
+          ],
+          "type": "object",
+        },
+        "__schema48": {
+          "additionalProperties": false,
+          "properties": {
+            "$query": {
+              "pattern": "^[A-Za-z]\\w{0,63}$",
+              "type": "string",
+            },
+            "label": {
+              "description": "Dotted path to each item's label.",
+              "maxLength": 200,
+              "type": "string",
+            },
+            "path": {
+              "description": "Dotted path to the array inside \`results\`; omit when \`results\` is the array.",
+              "maxLength": 200,
+              "type": "string",
+            },
+            "value": {
+              "description": "Dotted path to each item's value.",
+              "maxLength": 200,
+              "type": "string",
+            },
+          },
+          "required": [
+            "$query",
+            "label",
+            "value",
+          ],
+          "type": "object",
+        },
+        "__schema5": {
+          "additionalProperties": false,
+          "properties": {
+            "body": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/__schema14",
+                },
+              ],
+              "description": "JSON request body.",
+            },
+            "path": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/__schema6",
+                },
+              ],
+              "description": "Path parameters by name. Never set projectUuid.",
+            },
+            "query": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/__schema13",
+                },
+              ],
+              "description": "Query-string parameters by name.",
+            },
+          },
+          "type": "object",
+        },
+        "__schema54": {
+          "items": {
+            "$ref": "#/definitions/__schema47",
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "type": "array",
+        },
+        "__schema56": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema10",
+            },
+            {
+              "$ref": "#/definitions/__schema57",
+            },
+          ],
+          "description": "A query reference to an array of row objects, or literal rows (at most 8 keys each).",
+        },
+        "__schema57": {
+          "items": {
+            "$ref": "#/definitions/__schema58",
+          },
+          "maxItems": 100,
+          "type": "array",
+        },
+        "__schema58": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+              {
+                "type": "boolean",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "type": "object",
+        },
+        "__schema59": {
+          "items": {
+            "$ref": "#/definitions/__schema60",
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema6": {
+          "additionalProperties": {
+            "$ref": "#/definitions/__schema7",
+          },
+          "type": "object",
+        },
+        "__schema60": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "description": "Dotted path to the cell value in each row.",
+              "maxLength": 200,
+              "type": "string",
+            },
+            "label": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          "required": [
+            "key",
+            "label",
+          ],
+          "type": "object",
+        },
+        "__schema61": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema62",
+            },
+          ],
+          "description": "Row selection; the value is an array of row ids when multiple, else a row id or null.",
+        },
+        "__schema62": {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "pattern": "^[A-Za-z]\\w{0,63}$",
+              "type": "string",
+            },
+            "multiple": {
+              "type": "boolean",
+            },
+            "required": {
+              "description": "Require at least one selected row.",
+              "type": "boolean",
+            },
+            "rowKey": {
+              "description": "Dotted path to the id stored for each selected row.",
+              "maxLength": 200,
+              "type": "string",
+            },
+          },
+          "required": [
+            "key",
+            "rowKey",
+            "multiple",
+          ],
+          "type": "object",
+        },
+        "__schema67": {
+          "items": {
+            "$ref": "#/definitions/__schema68",
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema68": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/__schema20",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Vertical layout.",
+              "properties": {
+                "children": {
+                  "$ref": "#/definitions/__schema71",
+                },
+                "gap": {
+                  "enum": [
+                    "xs",
+                    "sm",
+                    "md",
+                  ],
+                  "type": "string",
+                },
+                "type": {
+                  "const": "stack",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "children",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Horizontal layout; children wrap on narrow screens.",
+              "properties": {
+                "children": {
+                  "$ref": "#/definitions/__schema83",
+                },
+                "grow": {
+                  "description": "Stretch the children to share the row.",
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "group",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "children",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema7": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string",
+            },
+            {
+              "type": "number",
+            },
+            {
+              "type": "boolean",
+            },
+            {
+              "type": "null",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "$state": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "$state",
+              ],
+              "type": "object",
+            },
+            {
+              "$ref": "#/definitions/__schema10",
+            },
+            {
+              "$ref": "#/definitions/__schema12",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "$item": {
+                  "maxLength": 200,
+                  "type": "string",
+                },
+              },
+              "required": [
+                "$item",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema71": {
+          "items": {
+            "$ref": "#/definitions/__schema72",
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema72": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/__schema20",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Vertical layout.",
+              "properties": {
+                "children": {
+                  "$ref": "#/definitions/__schema75",
+                },
+                "gap": {
+                  "enum": [
+                    "xs",
+                    "sm",
+                    "md",
+                  ],
+                  "type": "string",
+                },
+                "type": {
+                  "const": "stack",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "children",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Horizontal layout; children wrap on narrow screens.",
+              "properties": {
+                "children": {
+                  "$ref": "#/definitions/__schema79",
+                },
+                "grow": {
+                  "description": "Stretch the children to share the row.",
+                  "type": "boolean",
+                },
+                "type": {
+                  "const": "group",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "children",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema75": {
+          "items": {
+            "$ref": "#/definitions/__schema20",
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema79": {
+          "items": {
+            "$ref": "#/definitions/__schema20",
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema83": {
+          "items": {
+            "$ref": "#/definitions/__schema72",
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema87": {
+          "items": {
+            "$ref": "#/definitions/__schema68",
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema90": {
+          "description": "Run in order; the chain stops at the first failure.",
+          "items": {
+            "$ref": "#/definitions/__schema91",
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema91": {
+          "additionalProperties": false,
+          "description": "One non-GET request, run as the user.",
+          "properties": {
+            "forEach": {
+              "$ref": "#/definitions/__schema94",
+            },
+            "id": {
+              "description": "Unique step id; later steps read the response with {"$result": id}.",
+              "pattern": "^[A-Za-z]\\w{0,63}$",
+              "type": "string",
+            },
+            "operationId": {
+              "description": "An operationId returned by searchApi.",
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string",
+            },
+            "params": {
+              "$ref": "#/definitions/__schema93",
+            },
+          },
+          "required": [
+            "id",
+            "operationId",
+          ],
+          "type": "object",
+        },
+        "__schema93": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema5",
+            },
+          ],
+        },
+        "__schema94": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema95",
+            },
+          ],
+          "description": "Run the step once per element of this array; {"$item": path} reads the element.",
+        },
+        "__schema95": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "$state": {
+                  "pattern": "^[A-Za-z]\\w{0,63}$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "$state",
+              ],
+              "type": "object",
+            },
+            {
+              "$ref": "#/definitions/__schema10",
+            },
+            {
+              "$ref": "#/definitions/__schema12",
+            },
+          ],
+        },
+      },
+      "properties": {
+        "action": {
+          "additionalProperties": false,
+          "description": "The single button at the bottom of the card.",
+          "properties": {
+            "confirm": {
+              "description": "Question asked on the first click. Required when any step uses DELETE.",
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string",
+            },
+            "label": {
+              "description": "Button text.",
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string",
+            },
+            "steps": {
+              "$ref": "#/definitions/__schema90",
+            },
+            "successMessage": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          "required": [
+            "label",
+            "steps",
+          ],
+          "type": "object",
+        },
+        "blocks": {
+          "description": "Card body, top to bottom (at most 40 blocks in total, nested at most 4 deep).",
+          "items": {
+            "$ref": "#/definitions/__schema19",
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "type": "array",
+        },
+        "description": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+        },
+        "queries": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema1",
+            },
+          ],
+          "description": "Read-only queries by id (at most 6).",
+        },
+        "title": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string",
+        },
+        "version": {
+          "const": 1,
+          "type": "number",
+        },
+      },
+      "required": [
+        "version",
+        "title",
+        "blocks",
+        "action",
+      ],
+      "type": "object",
+    },
+    "name": "generateUi",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "type": "boolean",
+                      },
+                      {
+                        "type": "null",
+                      },
+                      {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "state",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "type": "boolean",
+                      },
+                      {
+                        "type": "null",
+                      },
+                      {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+                "steps": {
+                  "additionalProperties": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "request": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "method": {
+                            "enum": [
+                              "GET",
+                              "POST",
+                              "PUT",
+                              "PATCH",
+                              "DELETE",
+                            ],
+                            "type": "string",
+                          },
+                          "operationId": {
+                            "type": "string",
+                          },
+                          "pathTemplate": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "operationId",
+                          "method",
+                          "pathTemplate",
+                        ],
+                        "type": "object",
+                      },
+                      "responses": {
+                        "description": "Response \`results\`, one per request; a forEach step has one per element.",
+                        "items": {
+                          "$ref": "#/definitions/__schema0",
+                        },
+                        "type": "array",
+                      },
+                      "truncated": {
+                        "description": "True when long arrays or strings were cut short.",
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "request",
+                      "responses",
+                      "truncated",
+                    ],
+                    "type": "object",
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+              },
+              "required": [
+                "status",
+                "state",
+                "steps",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "type": "boolean",
+                      },
+                      {
+                        "type": "null",
+                      },
+                      {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "status": {
+                  "const": "failed",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "state",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "completed": {
+                  "additionalProperties": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "request": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "method": {
+                            "enum": [
+                              "GET",
+                              "POST",
+                              "PUT",
+                              "PATCH",
+                              "DELETE",
+                            ],
+                            "type": "string",
+                          },
+                          "operationId": {
+                            "type": "string",
+                          },
+                          "pathTemplate": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "operationId",
+                          "method",
+                          "pathTemplate",
+                        ],
+                        "type": "object",
+                      },
+                      "responses": {
+                        "description": "Response \`results\`, one per request; a forEach step has one per element.",
+                        "items": {
+                          "$ref": "#/definitions/__schema0",
+                        },
+                        "type": "array",
+                      },
+                      "truncated": {
+                        "description": "True when long arrays or strings were cut short.",
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "request",
+                      "responses",
+                      "truncated",
+                    ],
+                    "type": "object",
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "failedStep": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "statusCode": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                      },
+                      "required": [
+                        "statusCode",
+                        "name",
+                        "message",
+                      ],
+                      "type": "object",
+                    },
+                    "id": {
+                      "type": "string",
+                    },
+                    "itemIndex": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "request": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "method": {
+                          "enum": [
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "PATCH",
+                            "DELETE",
+                          ],
+                          "type": "string",
+                        },
+                        "operationId": {
+                          "type": "string",
+                        },
+                        "pathTemplate": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "operationId",
+                        "method",
+                        "pathTemplate",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "itemIndex",
+                    "request",
+                    "error",
+                  ],
+                  "type": "object",
+                },
+                "state": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "type": "boolean",
+                      },
+                      {
+                        "type": "null",
+                      },
+                      {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "status": {
+                  "const": "failed",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "state",
+                "completed",
+                "failedStep",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "type": "boolean",
+                      },
+                      {
+                        "type": "null",
+                      },
+                      {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "status": {
+                  "const": "dismissed",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "state",
+              ],
+              "type": "object",
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "type": "boolean",
+                      },
+                      {
+                        "type": "null",
+                      },
+                      {
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                    ],
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "status": {
+                  "const": "dismissed",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "state",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+      "definitions": {
+        "__schema0": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "type": "number",
+            },
+            {
+              "type": "boolean",
+            },
+            {
+              "type": "null",
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/__schema0",
+              },
+              "type": "array",
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/definitions/__schema0",
+              },
+              "propertyNames": {
+                "type": "string",
+              },
+              "type": "object",
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
     "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -19242,6 +21169,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "updateUserName",
   "searchApi",
   "describeApi",
+  "generateUi",
   "runContentQuery",
   "listContent",
   "loadSkill",

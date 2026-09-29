@@ -810,6 +810,7 @@ describe('empty finishes and interrupts', () => {
     const runStreamOnFinish = async (
         interrupted: boolean,
         execution?: Record<string, unknown>,
+        finalStepContent: unknown[] = [],
     ) => {
         const { updatePrompt, dependencies } =
             buildInterruptibleDependencies(interrupted);
@@ -830,7 +831,11 @@ describe('empty finishes and interrupts', () => {
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '', usage: { totalTokens: 10 } }],
-            finalStep: { reasoning: [], usage: { totalTokens: 10 } },
+            finalStep: {
+                content: finalStepContent,
+                reasoning: [],
+                usage: { totalTokens: 10 },
+            },
             finishReason: 'tool-calls',
         });
         expect(updatePrompt).toHaveBeenCalledWith(
@@ -843,6 +848,23 @@ describe('empty finishes and interrupts', () => {
 
     it('stream: persists an empty response instead of an error when the prompt was interrupted', async () => {
         const updatePrompt = await runStreamOnFinish(true);
+
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),
+        );
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('stream: persists an empty response when the run halted on a tool approval', async () => {
+        const updatePrompt = await runStreamOnFinish(false, undefined, [
+            {
+                type: 'tool-approval-request',
+                approvalId: 'approval-1',
+                toolCall: { toolCallId: 'tc-ui', toolName: 'generateUi' },
+            },
+        ]);
 
         expect(updatePrompt).toHaveBeenCalledWith(
             expect.objectContaining({ promptUuid: 'prompt-1', response: '' }),

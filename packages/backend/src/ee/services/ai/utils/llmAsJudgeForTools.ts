@@ -43,6 +43,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     updateUserName: 'update_user_name',
     searchApi: 'search_api',
     describeApi: 'describe_api',
+    generateUi: 'generate_ui',
     loadSkill: 'load_skill',
     generateHashes: 'generate_hashes',
     loadProjectContext: 'load_project_context',

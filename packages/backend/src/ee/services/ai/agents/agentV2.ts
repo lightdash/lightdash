@@ -92,6 +92,7 @@ import { getFindCustomChartTypes } from '../tools/findCustomChartTypes';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGenerateDataApp } from '../tools/generateDataApp';
 import { getGenerateHashes } from '../tools/generateHashes';
+import { getGenerateUi } from '../tools/generateUi';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
@@ -2102,6 +2103,11 @@ export const getAgentTools = (
                   describeApi: getDescribeApi({
                       catalog: getGenerativeUiApiCatalog(),
                   }),
+                  generateUi: getGenerateUi({
+                      catalog: getGenerativeUiApiCatalog(),
+                      projectUuid: args.agentSettings.projectUuid,
+                      findToolUserInput: dependencies.findToolUserInput,
+                  }),
               }
             : {}),
     };
@@ -2468,6 +2474,7 @@ export const getAgentMessages = (
             args.enableToolSearch && isToolRoutingEnabled(args.execution),
         enableCodeMode:
             args.enableCodeMode && isToolRoutingEnabled(args.execution),
+        enableGenerativeUi: args.enableGenerativeUi,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
         sqlScope: args.sqlScope,
@@ -3637,9 +3644,19 @@ export const streamAgentResponse = async ({
                 // generation, so an empty response is expected and persisted
                 // as-is instead of surfacing as an error.
                 const isEmptyResponse = !completeResponse.trim();
-                const interrupted = isEmptyResponse
-                    ? await dependencies.isPromptInterrupted(args.promptUuid)
-                    : false;
+                // A run halted on a tool approval (a generateUi card waiting
+                // for the user) ends without an answer on purpose.
+                const awaitingApproval = finalStep.content.some(
+                    (part) => part.type === 'tool-approval-request',
+                );
+                const interrupted =
+                    isEmptyResponse && !awaitingApproval
+                        ? await dependencies.isPromptInterrupted(
+                              args.promptUuid,
+                          )
+                        : false;
+                const isUnexpectedEmptyResponse =
+                    isEmptyResponse && !interrupted && !awaitingApproval;
                 const responseTiming = {
                     startedAt: new Date(startTime).toISOString(),
                     firstTokenAt:
@@ -3649,7 +3666,7 @@ export const streamAgentResponse = async ({
                     finishedAt: new Date().toISOString(),
                     stages: timing.getStageTiming(),
                 };
-                if (isEmptyResponse && !interrupted) {
+                if (isUnexpectedEmptyResponse) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
                         : new AiAgentEmptyResponseError(
