@@ -87,6 +87,42 @@ if [[ "$(slack_payload '#engineering')" != '{"text":"held","channel":"#engineeri
     failures=$((failures + 1))
 fi
 
+slack_posts() {
+    local log_file
+    log_file=$(mktemp)
+    (
+        curl() {
+            local data=''
+            while [[ $# -gt 0 ]]; do
+                if [[ $1 == --data ]]; then
+                    data=$2
+                fi
+                shift
+            done
+            jq -c '.blocks[1].image_url // null' <<<"$data" >>"$log_file"
+            if [[ "${REJECT_IMAGES:-}" == 1 ]] && jq -e '.blocks' <<<"$data" >/dev/null; then
+                return 22
+            fi
+        }
+        ESCALATION=https://slack.test/webhook post_slack 'frozen' "$1" || true
+    )
+    paste -sd, "$log_file"
+    rm -f "$log_file"
+}
+
+if [[ "$(slack_posts '')" != 'null' ]]; then
+    printf 'expected one text-only post without an image, got %s\n' "$(slack_posts '')" >&2
+    failures=$((failures + 1))
+fi
+if [[ "$(slack_posts 'https://images.test/a.gif')" != '"https://images.test/a.gif"' ]]; then
+    printf 'expected one post with the image, got %s\n' "$(slack_posts 'https://images.test/a.gif')" >&2
+    failures=$((failures + 1))
+fi
+if [[ "$(REJECT_IMAGES=1 slack_posts 'https://images.test/a.gif')" != '"https://images.test/a.gif",null' ]]; then
+    printf 'expected a text-only retry after Slack rejects the image, got %s\n' "$(REJECT_IMAGES=1 slack_posts 'https://images.test/a.gif')" >&2
+    failures=$((failures + 1))
+fi
+
 if [[ $failures -ne 0 ]]; then
     printf '%s verdict validation assertion(s) failed\n' "$failures" >&2
     exit 1

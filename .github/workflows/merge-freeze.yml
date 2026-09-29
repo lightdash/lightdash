@@ -464,6 +464,7 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
+          FREEZE_IMAGE_URL: ${{ vars.MERGE_FREEZE_IMAGE_URL }}
         run: |
           set -euo pipefail
 
@@ -490,15 +491,31 @@ jobs:
           fi
           text="$text"$'\n'"<${RUN_URL}|View run>"
 
-          payload=$(jq -n --arg text "$text" '{channel: "#engineering", username: "Merge freeze", text: $text}')
+          image_url=""
+          if [ "$ACTION" = "freeze" ] && [ -n "${FREEZE_IMAGE_URL:-}" ]; then
+            image_url=${FREEZE_IMAGE_URL//\{actor\}/${ACTOR_LOGIN#*:}}
+          fi
+
+          text_payload=$(jq -n --arg text "$text" '{channel: "#engineering", username: "Merge freeze", text: $text}')
+          payload=$text_payload
+          if [ -n "$image_url" ]; then
+            payload=$(jq --arg image "$image_url" '. + {blocks: [
+                {type: "section", text: {type: "mrkdwn", text: .text}},
+                {type: "image", image_url: $image, alt_text: "Merge freeze"}
+              ]}' <<<"$text_payload")
+          fi
 
           # Never fail the run on a Slack problem: the freeze is already applied
           # by this point, and a failed job here would read as "the freeze did
           # not take" to whoever dispatched it.
-          if ! curl --connect-timeout 10 --max-time 30 --fail --silent --show-error \
-                 --request POST \
-                 --header 'Content-Type: application/json' \
-                 --data "$payload" \
-                 "$WEBHOOK" >/dev/null; then
+          post() {
+            curl --connect-timeout 10 --max-time 30 --fail --silent --show-error \
+              --request POST \
+              --header 'Content-Type: application/json' \
+              --data "$1" \
+              "$WEBHOOK" >/dev/null
+          }
+
+          if ! post "$payload" && { [ -z "$image_url" ] || ! post "$text_payload"; }; then
             echo "::warning::Could not post the announcement to #engineering. Merges are still $([ "$ACTION" = freeze ] && echo frozen || echo open) - tell the team by hand."
           fi

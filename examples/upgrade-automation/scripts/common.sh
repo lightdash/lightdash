@@ -68,13 +68,30 @@ write_bump_value() {
 
 post_slack() {
     local message=$1
+    local image_url=${2:-}
     if [[ -z "${ESCALATION:-}" ]]; then
         return
     fi
+    local text_payload
+    text_payload=$(jq -n --arg text "$message" --arg channel "${ESCALATION_CHANNEL:-}" '{text: $text} + (if $channel == "" then {} else {channel: $channel} end)')
+    if [[ -n "$image_url" ]]; then
+        local image_payload
+        image_payload=$(jq --arg image "$image_url" '. + {blocks: [
+            {type: "section", text: {type: "mrkdwn", text: .text}},
+            {type: "image", image_url: $image, alt_text: "Upgrade automation"}
+        ]}' <<<"$text_payload")
+        if send_slack_payload "$image_payload"; then
+            return
+        fi
+    fi
+    send_slack_payload "$text_payload"
+}
+
+send_slack_payload() {
     curl --connect-timeout 10 --max-time 30 --fail --silent --show-error \
         --request POST \
         --header 'Content-Type: application/json' \
-        --data "$(jq -n --arg text "$message" --arg channel "${ESCALATION_CHANNEL:-}" '{text: $text} + (if $channel == "" then {} else {channel: $channel} end)')" \
+        --data "$1" \
         "$ESCALATION" >/dev/null
 }
 
