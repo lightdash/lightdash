@@ -1,3 +1,10 @@
+# [2.379.0](https://github.com/lightdash/lightdash/compare/2.378.0...2.379.0) (2026-09-29)
+
+
+### Features
+
+* **learn:** add organization-level view permission ([#30177](https://github.com/lightdash/lightdash/issues/30177)) ([0249296](https://github.com/lightdash/lightdash/commit/0249296f6830ca3020e3b5808ee94881f9d3a4a2))
+
 # [2.378.0](https://github.com/lightdash/lightdash/compare/2.377.0...2.378.0) (2026-09-29)
 
 
