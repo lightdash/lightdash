@@ -84,7 +84,7 @@ import {
     type ParametersValuesMap,
     type SessionUser,
 } from '@lightdash/common';
-import { isArray } from 'lodash';
+import { isArray, uniq } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromJwt } from '../../../auth/account';
@@ -766,13 +766,14 @@ export class EmbedService extends BaseService {
         checkPermissions: boolean = true,
     ): Promise<DashboardAvailableFilters> {
         const chartTiles = savedChartUuidsAndTileUuids.filter(
-            (tile): tile is { tileUuid: string; savedChartUuid: string } =>
-                'savedChartUuid' in tile,
+            (tile) => 'savedChartUuid' in tile,
         );
-        const sqlTiles = savedChartUuidsAndTileUuids.filter(
-            (tile): tile is { tileUuid: string; savedSqlUuid: string } =>
-                'savedSqlUuid' in tile,
+        const boundaryChartTiles = chartTiles.filter(
+            (tile) => tile.includeBoundaryContext,
         );
+        const sqlTiles = savedChartUuidsAndTileUuids
+            .filter((tile) => 'savedSqlUuid' in tile)
+            .filter((tile) => tile.includeBoundaryContext);
         const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
@@ -795,11 +796,6 @@ export class EmbedService extends BaseService {
                 hiddenFilterableFieldIds: [],
             };
         }
-
-        let allFilters: {
-            uuid: string;
-            filters: CompiledDimension[];
-        }[] = [];
 
         const savedQueryUuids = chartTiles.map(
             ({ savedChartUuid }) => savedChartUuid,
@@ -914,15 +910,13 @@ export class EmbedService extends BaseService {
             return acc;
         }, []);
 
-        const [resolvedExplores] = await Promise.all([
-            Promise.all(explorePromises),
-        ]);
+        const resolvedExplores = await Promise.all(explorePromises);
 
         resolvedExplores.forEach(({ key, explore }) => {
             exploreCache[key] = explore;
         });
 
-        const filterPromises = savedCharts.map(async (savedChart) => {
+        const allFilters = savedCharts.map((savedChart) => {
             const explore = exploreCache[savedChart.tableName];
             if (!explore || isExploreError(explore))
                 return { uuid: savedChart.uuid, filters: [] };
@@ -932,8 +926,6 @@ export class EmbedService extends BaseService {
 
             return { uuid: savedChart.uuid, filters };
         });
-
-        allFilters = await Promise.all(filterPromises);
 
         const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
@@ -998,13 +990,14 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const contextsByChart =
-            await this.projectService.getDashboardFilterBoundaryContexts(
-                account,
-                projectUuid,
-                savedCharts.map((chart) => chart.uuid),
-                exploreCache,
-            );
+        const contextsByChart = boundaryChartTiles.length
+            ? await this.projectService.getDashboardFilterBoundaryContexts(
+                  account,
+                  projectUuid,
+                  uniq(boundaryChartTiles.map((tile) => tile.savedChartUuid)),
+                  exploreCache,
+              )
+            : {};
         const contextFieldIds = new Set([
             ...allFilterableFields.map(getItemId),
             ...hiddenFilterableFieldIds,
@@ -1013,7 +1006,7 @@ export class EmbedService extends BaseService {
         return {
             filterBoundaryContexts: Object.fromEntries([
                 ...sqlContextsByTile,
-                ...chartTiles.map(({ tileUuid, savedChartUuid }) => [
+                ...boundaryChartTiles.map(({ tileUuid, savedChartUuid }) => [
                     tileUuid,
                     (contextsByChart[savedChartUuid] ?? []).map((source) => ({
                         ...source,

@@ -1267,3 +1267,4 @@ export * from './utils/dashboardTilePositions';
 export * from './utils/savedMerge';
 
 export * from './utils/filterBoundaries';
+export * from './utils/dashboardFilterBoundaries';

@@ -276,7 +276,7 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
-import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
+import { applyOpenChartDraft } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
     exploreHasFilteredAttribute,
@@ -5729,16 +5729,7 @@ export class AsyncQueryService extends ProjectService {
                 inputMetricQuery.filters,
                 new Set(),
                 getAllDimensionsMap(queryComposer.getFilterExplore()),
-                {
-                    timezone: queryComposer.getTimezone(),
-                    startOfWeek:
-                        warehouseSqlBuilder.getStartOfWeek() ??
-                        getDefaultStartOfWeek(
-                            warehouseSqlBuilder.getAdapterType(),
-                        ),
-                    useTimezoneAwareDateTrunc:
-                        queryComposer.getUseTimezoneAwareDateTrunc(),
-                },
+                queryComposer.getFilterBoundaryContext(),
             );
         }
         const fields = queryComposer.getFields();
@@ -6967,31 +6958,6 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    // Only the draft's author sees it; a corrupt draft falls back to the
-    // published chart, as the chart read path does
-    private async applyOpenChartDraft(
-        account: Account,
-        chart: SavedChartDAO,
-    ): Promise<SavedChartDAO> {
-        if (isJwtUser(account)) return chart;
-        const draft = await this.contentDraftModel.findOpenDraft(
-            chart.projectUuid,
-            'chart',
-            chart.uuid,
-            account.user.userUuid,
-        );
-        if (!draft) return chart;
-        try {
-            return mergeDraftIntoChart(chart, draft.draft);
-        } catch (error) {
-            this.logger.warn(
-                `Ignoring invalid chart draft ${draft.uuid} while running dashboard tile`,
-                error,
-            );
-            return chart;
-        }
-    }
-
     /** Explores of every metric source, so filters can be resolved per side. */
     private async getMergeSourceExplores({
         account,
@@ -7348,7 +7314,13 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
             }));
         const savedChart = includeUnpublishedDraft
-            ? await this.applyOpenChartDraft(account, publishedChart)
+            ? await applyOpenChartDraft({
+                  account,
+                  projectUuid: publishedChart.projectUuid,
+                  chart: publishedChart,
+                  contentDraftModel: this.contentDraftModel,
+                  logger: this.logger,
+              })
             : publishedChart;
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
@@ -7638,16 +7610,7 @@ export class AsyncQueryService extends ProjectService {
                 filters: resolvedDashboardFilters,
                 tileUuid,
                 explore: queryComposer.getFilterExplore(),
-                context: {
-                    timezone: queryComposer.getTimezone(),
-                    startOfWeek:
-                        warehouseSqlBuilder.getStartOfWeek() ??
-                        getDefaultStartOfWeek(
-                            warehouseSqlBuilder.getAdapterType(),
-                        ),
-                    useTimezoneAwareDateTrunc:
-                        queryComposer.getUseTimezoneAwareDateTrunc(),
-                },
+                context: queryComposer.getFilterBoundaryContext(),
             });
         }
         const fieldsWithOverrides = queryComposer.getFields();
@@ -8016,14 +7979,7 @@ export class AsyncQueryService extends ProjectService {
             filters,
             new Set(),
             getAllDimensionsMap(queryComposer.getFilterExplore()),
-            {
-                timezone: queryComposer.getTimezone(),
-                startOfWeek:
-                    warehouseSqlBuilder.getStartOfWeek() ??
-                    getDefaultStartOfWeek(warehouseSqlBuilder.getAdapterType()),
-                useTimezoneAwareDateTrunc:
-                    queryComposer.getUseTimezoneAwareDateTrunc(),
-            },
+            queryComposer.getFilterBoundaryContext(),
         );
 
         const queryTagsWithUserAttributes =

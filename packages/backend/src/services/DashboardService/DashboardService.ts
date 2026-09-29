@@ -24,7 +24,7 @@ import {
     ForbiddenError,
     generateSlug,
     getDashboardDeleteAccess,
-    getDefaultStartOfWeek,
+    getDashboardFilterBoundaryContexts,
     getItemId,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
@@ -45,7 +45,6 @@ import {
     ParameterError,
     PossibleAbilities,
     RegisteredAccount,
-    resolveQueryTimezone,
     SCHEDULER_TASKS,
     SchedulerAndTargets,
     SchedulerFormat,
@@ -67,6 +66,7 @@ import {
     type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
+    type DashboardFilterBoundarySourceContext,
     type DashboardHistory,
     type DashboardTileTarget,
     type DashboardVersion,
@@ -1393,73 +1393,44 @@ export class DashboardService
                         !tile.uuid || rule.tileTargets?.[tile.uuid] !== false,
                 );
                 if (!rules.length) return;
+                let sources: DashboardFilterBoundarySourceContext[] = [];
                 if (
                     tile.type === DashboardTileTypes.SAVED_CHART &&
                     tile.properties.savedChartUuid
                 ) {
-                    for (const source of contexts[
-                        tile.properties.savedChartUuid
-                    ] ?? []) {
-                        const timezone = resolveQueryTimezone({
-                            sessionTimezone: null,
-                            metricQuery: { timezone: source.timezone },
-                            projectTimezone: source.projectTimezone,
-                            userTimezone: user.timezone,
-                        });
-                        for (const rule of rules) {
-                            const target =
-                                (tile.uuid && rule.tileTargets?.[tile.uuid]) ||
-                                rule.target;
-                            const field = source.fields[target.fieldId];
-                            if (field && !target.isSqlColumn) {
-                                const error = validateFilterBoundary(
-                                    rule.boundaries,
-                                    rule,
-                                    {
-                                        ...field,
-                                        timezone,
-                                        startOfWeek: source.startOfWeek,
-                                        useTimezoneAwareDateTrunc:
-                                            source.useTimezoneAwareDateTrunc,
-                                        now,
-                                    },
-                                );
-                                if (error) throw new ParameterError(error);
-                            }
-                        }
-                    }
+                    sources = contexts[tile.properties.savedChartUuid] ?? [];
                 } else if (
                     tile.type === DashboardTileTypes.SQL_CHART &&
-                    tile.properties.savedSqlUuid
-                ) {
-                    const sqlRules = rules.flatMap((rule) => {
+                    tile.properties.savedSqlUuid &&
+                    rules.some((rule) => {
                         const target =
                             tile.uuid && rule.tileTargets?.[tile.uuid];
-                        return target && target.isSqlColumn
-                            ? [{ rule, target }]
-                            : [];
-                    });
-                    if (!sqlRules.length) return;
-                    const settings =
-                        await this.projectService.getWarehouseSqlBuilderSettings(
+                        return target && target.isSqlColumn;
+                    })
+                ) {
+                    sources = [
+                        await this.projectService.getSqlChartFilterBoundaryContext(
                             projectUuid,
-                            {
-                                kind: 'sqlChart',
-                                savedSqlUuid: tile.properties.savedSqlUuid,
+                            tile.properties.savedSqlUuid,
+                        ),
+                    ];
+                }
+                for (const rule of rules) {
+                    for (const context of getDashboardFilterBoundaryContexts(
+                        tile.uuid ? rule : { ...rule, tileTargets: undefined },
+                        {
+                            filterBoundaryContexts: {
+                                [tile.uuid ?? '']: sources,
                             },
-                        );
-                    for (const { rule, target } of sqlRules) {
+                            sessionTimezone: null,
+                            userTimezone: user.timezone ?? null,
+                            context: { now },
+                        },
+                    )) {
                         const error = validateFilterBoundary(
                             rule.boundaries,
                             rule,
-                            {
-                                fieldType: target.fallbackType,
-                                timezone: 'UTC',
-                                startOfWeek:
-                                    settings.startOfWeek ??
-                                    getDefaultStartOfWeek(settings.type),
-                                now,
-                            },
+                            context,
                         );
                         if (error) throw new ParameterError(error);
                     }

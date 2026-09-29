@@ -1,4 +1,5 @@
 import {
+    getDefaultStartOfWeek,
     getFieldFormatOverrideProps,
     getMetricOverridesWithPopInheritance,
     mergeReservedDefinitions,
@@ -6,6 +7,7 @@ import {
     resolveReservedParameterValues,
     type DateZoom,
     type Explore,
+    type FilterBoundaryContext,
     type IntrinsicUserAttributes,
     type ItemsMap,
     type MetricQuery,
@@ -266,6 +268,17 @@ export class QueryComposer {
     /** Resolved timezone the SQL was compiled with. */
     getTimezone(): string | undefined {
         return this.context.timezone;
+    }
+
+    getFilterBoundaryContext(): FilterBoundaryContext {
+        const { warehouseSqlBuilder } = this.context;
+        return {
+            timezone: this.getTimezone(),
+            startOfWeek:
+                warehouseSqlBuilder.getStartOfWeek() ??
+                getDefaultStartOfWeek(warehouseSqlBuilder.getAdapterType()),
+            useTimezoneAwareDateTrunc: this.getUseTimezoneAwareDateTrunc(),
+        };
     }
 
     /** Flag-gated timezone echoed to clients and persisted with the query. */

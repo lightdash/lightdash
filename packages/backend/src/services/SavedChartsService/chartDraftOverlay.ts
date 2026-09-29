@@ -1,10 +1,14 @@
 import {
+    isJwtUser,
     normalizeSavedMergeDefinition,
     ParameterError,
+    type Account,
     type SavedChartDAO,
     type SavedMergeDefinition,
     type SavedMergeQuery,
 } from '@lightdash/common';
+import type Logger from '../../logging/logger';
+import type { ContentDraftModel } from '../../models/ContentDraftModel';
 
 export type ChartDraftOverlay = Partial<
     Pick<
@@ -103,4 +107,39 @@ export const mergeDraftIntoChart = <
             spaceUuid: draft.spaceUuid,
         }),
     };
+};
+
+/** Query execution and boundary metadata must use the same author-owned draft. */
+export const applyOpenChartDraft = async <
+    T extends Pick<SavedChartDAO, 'uuid' | 'metricQuery'>,
+>({
+    account,
+    projectUuid,
+    chart,
+    contentDraftModel,
+    logger,
+}: {
+    account: Account;
+    projectUuid: string;
+    chart: T;
+    contentDraftModel: Pick<ContentDraftModel, 'findOpenDraft'>;
+    logger: Pick<typeof Logger, 'warn'>;
+}): Promise<T> => {
+    if (isJwtUser(account)) return chart;
+    const draft = await contentDraftModel.findOpenDraft(
+        projectUuid,
+        'chart',
+        chart.uuid,
+        account.user.userUuid,
+    );
+    if (!draft) return chart;
+    try {
+        return mergeDraftIntoChart(chart, draft.draft);
+    } catch (error) {
+        logger.warn(
+            `Ignoring invalid chart draft ${draft.uuid} while resolving chart query`,
+            error,
+        );
+        return chart;
+    }
 };

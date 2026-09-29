@@ -1,9 +1,6 @@
 import {
+    getDashboardChartBoundaryErrors,
     getAvailableParametersFromTables,
-    getDashboardBoundaryErrors,
-    getExecutableFilterFieldIds,
-    getFilterBoundaryFieldContext,
-    findFieldByIdInExplore,
     ParameterError,
     getChartZoomableFields,
     getDateZoomCapabilities,
@@ -23,7 +20,6 @@ import { useEffect, useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useApp from '../../providers/App/useApp';
-import { getDashboardChartBoundaryErrors } from '../../providers/Dashboard/dashboardFilterBoundaryErrors';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
@@ -315,44 +311,16 @@ export const useDashboardChartReadyQuery = (
             const isEmbedContext =
                 requestedContext === QueryExecutionContext.EMBED;
 
-            if (savedFilters) {
-                const sourceContexts = filterBoundaryContexts?.[tileUuid];
-                const errors = sourceContexts
-                    ? getDashboardChartBoundaryErrors({
-                          savedFilters,
-                          filters: timezoneFixFilters,
-                          filterBoundaryContexts: {
-                              [tileUuid]: sourceContexts,
-                          },
-                          sessionTimezone,
-                          userTimezone: user.data?.timezone ?? null,
-                          context: { getUiString },
-                      })
-                    : getDashboardBoundaryErrors(
-                          // Until source metadata loads, the server validates
-                          // dates using the actual execution context. A project
-                          // fallback can incorrectly reject a valid chart date.
-                          {
-                              dimensions: savedFilters.dimensions.filter(
-                                  (rule) => rule.boundaries?.type !== 'date',
-                              ),
-                              metrics: savedFilters.metrics,
-                              tableCalculations: savedFilters.tableCalculations,
-                          },
-                          timezoneFixFilters,
-                          tileUuid,
-                          getExecutableFilterFieldIds(explore),
-                          (target) => ({
-                              ...getFilterBoundaryFieldContext(
-                                  findFieldByIdInExplore(
-                                      explore,
-                                      target.fieldId,
-                                  ),
-                                  explore.caseSensitive,
-                              ),
-                              getUiString,
-                          }),
-                      );
+            const sourceContexts = filterBoundaryContexts?.[tileUuid];
+            if (savedFilters && sourceContexts) {
+                const errors = getDashboardChartBoundaryErrors({
+                    savedFilters,
+                    filters: timezoneFixFilters,
+                    filterBoundaryContexts: { [tileUuid]: sourceContexts },
+                    sessionTimezone,
+                    userTimezone: user.data?.timezone ?? null,
+                    context: { getUiString },
+                });
                 if (errors.length) throw new ParameterError(errors.join(' '));
             }
 

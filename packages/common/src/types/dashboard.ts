@@ -421,8 +421,13 @@ export type SavedChartsInfoForDashboardAvailableFilters = (
           tileUuid: string;
           savedChartUuid: string;
           includeUnpublishedDraft?: boolean;
+          includeBoundaryContext?: boolean;
       }
-    | { tileUuid: string; savedSqlUuid: string }
+    | {
+          tileUuid: string;
+          savedSqlUuid: string;
+          includeBoundaryContext?: boolean;
+      }
 )[];
 
 export const isDashboardUnversionedFields = (

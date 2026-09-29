@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import FilterConfiguration from './index';
@@ -38,13 +39,18 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
 
 const boundaryMetadata = vi.hoisted(() => ({
     current: undefined as DashboardAvailableFilters['filterBoundaryContexts'],
+    pending: false,
+    tiles: [] as DashboardTile[],
 }));
 
 vi.mock('../../../components/common/Filters/useFiltersContext', () => ({
     default: vi.fn(() => ({
         projectUuid: 'test-project-uuid',
         metricQueryTimezone: 'project_timezone',
-        filterBoundaryContexts: boundaryMetadata.current,
+        dashboardTiles: boundaryMetadata.tiles,
+        filterBoundaryContexts: boundaryMetadata.pending
+            ? undefined
+            : (boundaryMetadata.current ?? {}),
         getAutocompleteFilterGroup: vi.fn(() => undefined),
         getField: vi.fn(() => undefined),
         parameterValues: {},
@@ -107,11 +113,29 @@ const anyValueRule: DashboardFilterRule = {
     label: undefined,
 };
 
+const filterConfiguration = (
+    rule: DashboardFilterRule,
+    props: Partial<ComponentProps<typeof FilterConfiguration>> = {},
+) => (
+    <FilterConfiguration
+        tiles={[]}
+        tabs={[]}
+        availableTileFilters={{}}
+        defaultFilterRule={rule}
+        originalFilterRule={rule}
+        isEditMode={false}
+        onSave={vi.fn()}
+        {...props}
+    />
+);
+
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         fieldValueResults.current = [];
         boundaryMetadata.current = undefined;
+        boundaryMetadata.pending = false;
+        boundaryMetadata.tiles = [];
         mockDashboardContext.current.dashboardFilters = {
             dimensions: [],
             metrics: [],
@@ -224,16 +248,11 @@ describe('FilterConfiguration', () => {
                 boundaries: { type: 'string', values: ['Pending', 'Active'] },
             };
             renderWithProviders(
-                <FilterConfiguration
-                    tiles={[]}
-                    tabs={[]}
-                    field={mockField}
-                    availableTileFilters={{}}
-                    defaultFilterRule={constrainedRule}
-                    originalFilterRule={constrainedRule}
-                    isEditMode={isEditMode}
-                    onSave={onSave}
-                />,
+                filterConfiguration(constrainedRule, {
+                    field: mockField,
+                    isEditMode: isEditMode,
+                    onSave: onSave,
+                }),
             );
             expect(
                 await screen.findByText('Choose one of: Pending, Active.'),
@@ -245,6 +264,52 @@ describe('FilterConfiguration', () => {
             expect(onSave).not.toHaveBeenCalled();
         },
     );
+
+    it('waits for source settings after enabling the first boundary before allowing Apply', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        boundaryMetadata.pending = true;
+        boundaryMetadata.tiles = [
+            {
+                uuid: 'tile',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { savedChartUuid: 'chart' },
+            },
+        ] as DashboardTile[];
+        const numberField = {
+            ...mockField,
+            type: DimensionType.NUMBER,
+        } as DashboardFilterableField;
+        const rule = {
+            ...anyValueRule,
+            disabled: false,
+            singleValue: true,
+            values: [5],
+        };
+        const element = filterConfiguration(rule, {
+            field: numberField,
+            tiles: boundaryMetadata.tiles,
+            isEditMode: true,
+            onSave,
+        });
+        const { rerender } = renderWithProviders(element);
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        await user.click(
+            screen.getByRole('switch', { name: 'Filter boundaries' }),
+        );
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        expect(onSave).not.toHaveBeenCalled();
+        boundaryMetadata.pending = false;
+        rerender(element);
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({
+                boundaries: { type: 'number', min: 0, max: 100 },
+                values: [5],
+            }),
+        );
+    });
 
     it('validates the current numeric input when Apply is clicked before its debounce', async () => {
         const user = userEvent.setup();
@@ -261,16 +326,7 @@ describe('FilterConfiguration', () => {
             boundaries: { type: 'number', min: 0, max: 10 },
         };
         renderWithProviders(
-            <FilterConfiguration
-                tiles={[]}
-                tabs={[]}
-                field={numberField}
-                availableTileFilters={{}}
-                defaultFilterRule={rule}
-                originalFilterRule={rule}
-                isEditMode={false}
-                onSave={onSave}
-            />,
+            filterConfiguration(rule, { field: numberField, onSave: onSave }),
         );
         const input = screen.getByRole('spinbutton');
         await user.click(input);
@@ -293,16 +349,11 @@ describe('FilterConfiguration', () => {
             boundaries: { type: 'string', values: ['Pending', 'Active'] },
         };
         renderWithProviders(
-            <FilterConfiguration
-                tiles={[]}
-                tabs={[]}
-                field={mockField}
-                availableTileFilters={{}}
-                defaultFilterRule={rule}
-                originalFilterRule={rule}
-                isEditMode
-                onSave={onSave}
-            />,
+            filterConfiguration(rule, {
+                field: mockField,
+                isEditMode: true,
+                onSave: onSave,
+            }),
         );
         await user.click(
             screen.getByRole('button', { name: 'Multiple values' }),
@@ -312,6 +363,42 @@ describe('FilterConfiguration', () => {
             expect.objectContaining({ singleValue: true, values: ['Active'] }),
         );
     });
+
+    it.each([true, false])(
+        'uses the affected source case sensitivity instead of the merged field (%s)',
+        (caseSensitive) => {
+            boundaryMetadata.current = {
+                chart: [
+                    {
+                        timezone: 'UTC',
+                        projectTimezone: 'UTC',
+                        startOfWeek: WeekDay.MONDAY,
+                        useTimezoneAwareDateTrunc: false,
+                        fields: { customers_first_name: { caseSensitive } },
+                    },
+                ],
+            };
+            renderWithProviders(
+                filterConfiguration(
+                    {
+                        ...anyValueRule,
+                        disabled: false,
+                        values: ['active'],
+                        boundaries: { type: 'string', values: ['Active'] },
+                    },
+                    {
+                        field: {
+                            ...mockField,
+                            caseSensitive: true,
+                        } as DashboardFilterableField,
+                    },
+                ),
+            );
+            const apply = screen.getByRole('button', { name: 'Apply' });
+            if (caseSensitive) expect(apply).toBeDisabled();
+            else expect(apply).toBeEnabled();
+        },
+    );
 
     it.each([true, false])(
         'validates manual dates using every affected chart timezone (edit mode: %s)',
@@ -351,16 +438,10 @@ describe('FilterConfiguration', () => {
                     },
                 };
                 renderWithProviders(
-                    <FilterConfiguration
-                        tiles={[]}
-                        tabs={[]}
-                        field={mockTimestampField}
-                        availableTileFilters={{}}
-                        defaultFilterRule={rule}
-                        originalFilterRule={rule}
-                        isEditMode={isEditMode}
-                        onSave={vi.fn()}
-                    />,
+                    filterConfiguration(rule, {
+                        field: mockTimestampField,
+                        isEditMode: isEditMode,
+                    }),
                 );
                 expect(
                     screen.getByRole('button', { name: 'Apply' }),
@@ -400,15 +481,7 @@ describe('FilterConfiguration', () => {
                 },
             };
             renderWithProviders(
-                <FilterConfiguration
-                    tiles={[]}
-                    tabs={[]}
-                    availableTileFilters={{}}
-                    defaultFilterRule={rule}
-                    originalFilterRule={rule}
-                    isEditMode
-                    onSave={vi.fn()}
-                />,
+                filterConfiguration(rule, { isEditMode: true }),
             );
             expect(
                 screen.queryByText('Choose dates within the last 12 months.'),
@@ -436,16 +509,7 @@ describe('FilterConfiguration', () => {
             },
         };
         renderWithProviders(
-            <FilterConfiguration
-                tiles={[]}
-                tabs={[]}
-                field={mockTimestampField}
-                availableTileFilters={{}}
-                defaultFilterRule={dateRule}
-                originalFilterRule={dateRule}
-                isEditMode={false}
-                onSave={vi.fn()}
-            />,
+            filterConfiguration(dateRule, { field: mockTimestampField }),
         );
         expect(
             screen.queryByText('Choose dates within the last 12 years.'),

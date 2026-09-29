@@ -16,6 +16,7 @@ import {
     FieldType,
     FilterOperator,
     ForbiddenError,
+    getDefaultStartOfWeek,
     getFilterRulesFromGroup,
     isMergeMetricSource,
     MergeJoinType,
@@ -221,6 +222,7 @@ const createQueryComposerMock = ({
     fields = {},
     missingParameterReferences = [],
     timezone = undefined,
+    startOfWeek = undefined,
     displayTimezone = null,
     useTimezoneAwareDateTrunc = false,
     userAccessControls = undefined,
@@ -232,6 +234,7 @@ const createQueryComposerMock = ({
     fields?: ItemsMap;
     missingParameterReferences?: string[];
     timezone?: string;
+    startOfWeek?: WeekDay | null;
     displayTimezone?: string | null;
     useTimezoneAwareDateTrunc?: boolean;
     userAccessControls?: UserAccessControls;
@@ -251,6 +254,13 @@ const createQueryComposerMock = ({
         getParameters: () => undefined,
         getDateZoom: () => undefined,
         getTimezone: () => timezone,
+        getFilterBoundaryContext: () => ({
+            timezone,
+            startOfWeek:
+                startOfWeek ??
+                getDefaultStartOfWeek(warehouseClientMock.getAdapterType()),
+            useTimezoneAwareDateTrunc,
+        }),
         getDisplayTimezone: () => displayTimezone,
         getUseTimezoneAwareDateTrunc: () => useTimezoneAwareDateTrunc,
         getUserAccessControls: () => userAccessControls,
@@ -6920,13 +6930,31 @@ describe('AsyncQueryService', () => {
             config: {},
             limit: 10,
             project: { projectUuid },
+            space: { uuid: 'spaceUuid' },
             organization: {
                 organizationUuid: projectSummary.organizationUuid,
             },
         };
-        const composer = () =>
+        const dateExplore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    dimensions: {
+                        ...validExplore.tables.a.dimensions,
+                        dim1: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            type: DimensionType.DATE,
+                        },
+                    },
+                },
+            },
+        };
+        const composer = (startOfWeek?: WeekDay | null) =>
             createQueryComposerMock({
                 sql: 'SELECT 1',
+                startOfWeek,
                 userAccessControls: {
                     userAttributes: {},
                     intrinsicUserAttributes: {},
@@ -6953,8 +6981,16 @@ describe('AsyncQueryService', () => {
                         projectUuid,
                     })),
                 } as unknown as SpaceModel,
+                permissionsService: {
+                    checkEmbedSqlChartPermissions: vi.fn(async () => {}),
+                } as unknown as PermissionsService,
                 dashboardModel: {
                     getByIdOrSlug: vi.fn(async () => ({
+                        uuid: 'dashboard-uuid',
+                        name: 'Dashboard',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        spaceUuid: 'spaceUuid',
                         filters: {
                             dimensions: [],
                             metrics: [],
@@ -7008,7 +7044,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue({ fields: {} });
             internals.prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
-                .mockImplementation(async () => composer());
+                .mockImplementation(async () => composer(startOfWeek));
             internals.assertSavedChartAccess = vi.fn(async () => {});
             internals.checkDashboardChartQueryPermissions = vi.fn(
                 async () => {},
@@ -7020,7 +7056,7 @@ describe('AsyncQueryService', () => {
                 ...resolvedCredentials,
                 queryTags: {},
                 metricQuery: metricQueryMock,
-                queryComposer: composer(),
+                queryComposer: composer(startOfWeek),
                 originalColumns: {},
                 parameterReferences: [],
                 usedParameters: {},
@@ -7123,23 +7159,6 @@ describe('AsyncQueryService', () => {
                 vi.setSystemTime(new Date('2026-09-28T12:00:00Z'));
                 try {
                     const { service, execute } = buildService(startOfWeek);
-                    const dateExplore = {
-                        ...validExplore,
-                        tables: {
-                            ...validExplore.tables,
-                            a: {
-                                ...validExplore.tables.a,
-                                dimensions: {
-                                    ...validExplore.tables.a.dimensions,
-                                    dim1: {
-                                        ...validExplore.tables.a.dimensions
-                                            .dim1,
-                                        type: DimensionType.DATE,
-                                    },
-                                },
-                            },
-                        },
-                    };
                     const rule = {
                         id: 'date-boundary',
                         label: undefined,
@@ -7172,6 +7191,7 @@ describe('AsyncQueryService', () => {
                         createQueryComposerMock({
                             explore: dateExplore,
                             timezone: 'UTC',
+                            startOfWeek,
                             userAccessControls: {
                                 userAttributes: {},
                                 intrinsicUserAttributes: {},
@@ -7213,23 +7233,6 @@ describe('AsyncQueryService', () => {
                 vi.setSystemTime(new Date('2026-03-01T00:30:00Z'));
                 try {
                     const { service, execute } = buildService();
-                    const dateExplore = {
-                        ...validExplore,
-                        tables: {
-                            ...validExplore.tables,
-                            a: {
-                                ...validExplore.tables.a,
-                                dimensions: {
-                                    ...validExplore.tables.a.dimensions,
-                                    dim1: {
-                                        ...validExplore.tables.a.dimensions
-                                            .dim1,
-                                        type: DimensionType.DATE,
-                                    },
-                                },
-                            },
-                        },
-                    };
                     const rule = {
                         id: 'date-boundary',
                         label: undefined,
@@ -7404,30 +7407,6 @@ describe('AsyncQueryService', () => {
                         allowed,
                     }) => {
                         const { service, execute } = buildService();
-                        const dashboard =
-                            await service.dashboardModel.getByIdOrSlug(
-                                'dashboard-uuid',
-                            );
-                        vi.mocked(
-                            service.dashboardModel.getByIdOrSlug,
-                        ).mockResolvedValue({
-                            ...dashboard,
-                            uuid: 'dashboard-uuid',
-                            name: 'Dashboard',
-                            organizationUuid: projectSummary.organizationUuid,
-                            projectUuid,
-                            spaceUuid: 'spaceUuid',
-                        });
-                        vi.mocked(
-                            service.savedSqlModel.getByUuid,
-                        ).mockResolvedValue({
-                            ...sqlChart,
-                            space: { uuid: 'spaceUuid' },
-                        } as never);
-                        (
-                            service as AnyType
-                        ).permissionsService.checkEmbedSqlChartPermissions =
-                            vi.fn(async () => {});
                         const account = {
                             ...buildAccount({
                                 accountType: 'jwt',

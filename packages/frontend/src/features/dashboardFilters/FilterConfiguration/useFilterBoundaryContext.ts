@@ -1,12 +1,13 @@
 import {
     resolveQueryTimezone,
     FeatureFlags,
-    isDashboardChartTileType,
-    isDashboardSqlChartTile,
-    type DashboardFilterRule,
+    getDashboardFilterBoundaryContexts,
     getDefaultStartOfWeek,
     SupportedDbtAdapter,
     getFilterBoundaryFieldContext,
+    isDashboardChartTileType,
+    isDashboardSqlChartTile,
+    type DashboardFilterRule,
     type FilterableItem,
     type FilterBoundaryContext,
 } from '@lightdash/common';
@@ -16,78 +17,71 @@ import { useProject } from '../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSessionTimezone } from '../../../hooks/useSessionTimezone';
 import useApp from '../../../providers/App/useApp';
-import { getDashboardFilterBoundaryContexts } from '../../../providers/Dashboard/dashboardFilterBoundaryErrors';
 
-const useFilterBoundaryContext = (
+export const useFilterBoundaryContexts = (
     field?: FilterableItem,
-): FilterBoundaryContext => {
-    const { projectUuid, startOfWeek, metricQueryTimezone } =
-        useFiltersContext();
+    rule?: DashboardFilterRule,
+): { contexts: FilterBoundaryContext[]; isLoading: boolean } => {
+    const {
+        projectUuid,
+        startOfWeek,
+        metricQueryTimezone,
+        dashboardTiles,
+        filterBoundaryContexts,
+    } = useFiltersContext();
     const { data: project } = useProject(projectUuid);
     const sessionTimezone = useSessionTimezone();
     const { user } = useApp();
     const getUiString = useUiStrings();
     const { data: timezoneSupport } = useServerFeatureFlag(
         FeatureFlags.EnableTimezoneSupport,
+        { enabled: !!rule?.boundaries },
     );
-    return {
-        ...getFilterBoundaryFieldContext(field),
-        timezone: resolveQueryTimezone({
-            sessionTimezone,
-            metricQuery: { timezone: metricQueryTimezone },
-            projectTimezone: project?.queryTimezone ?? 'UTC',
-            userTimezone: user.data?.timezone ?? null,
-        }),
-        startOfWeek:
-            startOfWeek ??
-            getDefaultStartOfWeek(
-                project?.warehouseConnection?.type ??
-                    SupportedDbtAdapter.POSTGRES,
-            ),
-        useTimezoneAwareDateTrunc: timezoneSupport?.enabled ?? false,
-        getUiString,
-    };
-};
-
-export const useFilterBoundaryContexts = (
-    field?: FilterableItem,
-    rule?: DashboardFilterRule,
-): FilterBoundaryContext[] => {
-    const fallbackContext = useFilterBoundaryContext(field);
-    const { filterBoundaryContexts } = useFiltersContext();
-    const sessionTimezone = useSessionTimezone();
-    const { user } = useApp();
     const contexts = rule
         ? getDashboardFilterBoundaryContexts(rule, {
               filterBoundaryContexts,
               sessionTimezone,
               userTimezone: user.data?.timezone ?? null,
-              context: { getUiString: fallbackContext.getUiString },
+              context: { getUiString },
           })
         : [];
-    return contexts.length
-        ? contexts
-        : [
-              {
-                  ...fallbackContext,
-                  ...(rule?.target.isSqlColumn && {
-                      fieldType: rule.target.fallbackType,
-                      timezone: 'UTC',
-                  }),
-              },
-          ];
-};
-
-export const useIsFilterBoundaryContextLoading = (
-    rule?: DashboardFilterRule,
-) => {
-    const { filterBoundaryContexts, dashboardTiles } = useFiltersContext();
-    return !!(
-        rule?.boundaries?.type === 'date' &&
-        !filterBoundaryContexts &&
-        dashboardTiles?.some(
-            (tile) =>
-                isDashboardChartTileType(tile) || isDashboardSqlChartTile(tile),
-        )
-    );
+    return {
+        isLoading:
+            !!rule?.boundaries &&
+            !filterBoundaryContexts &&
+            !!dashboardTiles?.some(
+                (tile) =>
+                    isDashboardChartTileType(tile) ||
+                    isDashboardSqlChartTile(tile),
+            ),
+        contexts: contexts.length
+            ? contexts
+            : [
+                  {
+                      ...getFilterBoundaryFieldContext(field),
+                      timezone: rule?.target.isSqlColumn
+                          ? 'UTC'
+                          : resolveQueryTimezone({
+                                sessionTimezone,
+                                metricQuery: { timezone: metricQueryTimezone },
+                                projectTimezone:
+                                    project?.queryTimezone ?? 'UTC',
+                                userTimezone: user.data?.timezone ?? null,
+                            }),
+                      ...(rule?.target.isSqlColumn && {
+                          fieldType: rule.target.fallbackType,
+                      }),
+                      startOfWeek:
+                          startOfWeek ??
+                          project?.warehouseConnection?.startOfWeek ??
+                          getDefaultStartOfWeek(
+                              project?.warehouseConnection?.type ??
+                                  SupportedDbtAdapter.POSTGRES,
+                          ),
+                      useTimezoneAwareDateTrunc:
+                          timezoneSupport?.enabled ?? false,
+                      getUiString,
+                  },
+              ],
+    };
 };

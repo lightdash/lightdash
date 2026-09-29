@@ -50,7 +50,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
-    const boundaryContexts = useFilterBoundaryContexts(
+    const { contexts: boundaryContexts } = useFilterBoundaryContexts(
         field,
         isDashboardFilterRule(rule) ? rule : undefined,
     );

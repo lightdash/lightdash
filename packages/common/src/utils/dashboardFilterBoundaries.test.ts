@@ -1,17 +1,17 @@
+import { describe, expect, it } from 'vitest';
+import { type DashboardFilterBoundarySourceContext } from '../types/dashboard';
+import { DimensionType } from '../types/field';
 import {
-    DimensionType,
     FilterOperator,
     UnitOfTime,
-    WeekDay,
-    validateFilterBoundary,
-    type DashboardFilterBoundarySourceContext,
     type DashboardFilters,
-} from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+} from '../types/filter';
 import {
     getDashboardChartBoundaryErrors,
     getDashboardFilterBoundaryContexts,
-} from './dashboardFilterBoundaryErrors';
+} from './dashboardFilterBoundaries';
+import { validateFilterBoundary } from './filterBoundaries';
+import { WeekDay } from './timeFrames';
 
 const filters: DashboardFilters = {
     dimensions: [

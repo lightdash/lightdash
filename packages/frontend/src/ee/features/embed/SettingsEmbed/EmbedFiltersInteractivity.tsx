@@ -3,10 +3,7 @@ import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
     getItemId,
-    isDashboardChartTileType,
-    isDashboardSqlChartTile,
     type DashboardFilterInteractivityOptions,
-    type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
 import {
     Checkbox,
@@ -23,6 +20,7 @@ import { useCallback, useMemo } from 'react';
 import { getConditionalRuleLabelFromItem } from '../../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
+import { getDashboardAvailableFilterSources } from '../../../../hooks/dashboard/getDashboardAvailableFilterSources';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
@@ -68,37 +66,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     }, [dashboard]);
 
     const savedChartUuidsAndTileUuids = useMemo(
-        () =>
-            dashboard?.tiles
-                ?.filter(
-                    (tile) =>
-                        isDashboardChartTileType(tile) ||
-                        isDashboardSqlChartTile(tile),
-                )
-                .reduce<SavedChartsInfoForDashboardAvailableFilters>(
-                    (acc, tile) => {
-                        if (
-                            isDashboardChartTileType(tile) &&
-                            tile.properties.savedChartUuid
-                        ) {
-                            acc.push({
-                                tileUuid: tile.uuid,
-                                savedChartUuid: tile.properties.savedChartUuid,
-                            });
-                        }
-                        if (
-                            isDashboardSqlChartTile(tile) &&
-                            tile.properties.savedSqlUuid
-                        ) {
-                            acc.push({
-                                tileUuid: tile.uuid,
-                                savedSqlUuid: tile.properties.savedSqlUuid,
-                            });
-                        }
-                        return acc;
-                    },
-                    [],
-                ) || [],
+        () => getDashboardAvailableFilterSources(dashboard?.tiles),
         [dashboard?.tiles],
     );
 

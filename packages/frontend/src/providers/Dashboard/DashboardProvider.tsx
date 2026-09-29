@@ -1,7 +1,7 @@
 import {
+    getDashboardChartBoundaryErrors,
+    getDashboardFilterBoundaryContexts,
     restoreDashboardFilterBoundaries,
-    getDefaultStartOfWeek,
-    SupportedDbtAdapter,
     validateFilterBoundary,
     getFilterBoundaryFieldContext,
     applyDimensionOverrides,
@@ -39,7 +39,6 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
-    type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
 } from '@lightdash/common';
 import clone from 'lodash/clone';
@@ -74,13 +73,13 @@ import {
     isLockedDashboardFilterRule,
 } from '../../features/dashboardFilters/lockedFilters';
 import { useParameters } from '../../features/parameters';
+import { getDashboardAvailableFilterSources } from '../../hooks/dashboard/getDashboardAvailableFilterSources';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
     useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useProject } from '../../hooks/useProject';
 import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
@@ -88,7 +87,6 @@ import {
 import { useSessionTimezone } from '../../hooks/useSessionTimezone';
 import useApp from '../App/useApp';
 import DashboardContext from './context';
-import { getDashboardChartBoundaryErrors } from './dashboardFilterBoundaryErrors';
 import {
     getDashboardParameterOverrides,
     parseDashboardParametersUrl,
@@ -146,7 +144,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     searchRef.current = search;
     const navigate = useNavigate();
     const { showToastWarning, showToastInfo } = useToaster();
-    const { data: boundaryProject } = useProject(projectUuid);
     const getUiString = useUiStrings();
     const sessionTimezone = useSessionTimezone();
     const { user } = useApp();
@@ -918,41 +915,36 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [dashboardTiles],
     );
 
+    const needsBoundaryMetadata = [
+        (dashboard ?? embedDashboard)?.filters,
+        dashboardFilters,
+    ].some((filters) =>
+        Object.values(filters ?? {})
+            .flat()
+            .some((rule) => !!rule.boundaries),
+    );
+    // Embedded editors manage their own edit mode; preload settings for an
+    // authorized author so their first boundary is validated before Apply.
+    const canAuthorEmbeddedDashboard =
+        !!embed.writeActions &&
+        embedDashboard?.spaceUuid === embed.writeActions.spaceUuid &&
+        embed.embedWriteContext?.canUpdateDashboard === true;
+    const includeBoundaryContext =
+        isEditMode || canAuthorEmbeddedDashboard || needsBoundaryMetadata;
     const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboardTiles
-                ?.filter(
-                    (tile) =>
-                        isDashboardChartTileType(tile) ||
-                        isDashboardSqlChartTile(tile),
-                )
-                .reduce<SavedChartsInfoForDashboardAvailableFilters>(
-                    (acc, tile) => {
-                        if (
-                            isDashboardChartTileType(tile) &&
-                            tile.properties.savedChartUuid
-                        ) {
-                            acc.push({
-                                tileUuid: tile.uuid,
-                                savedChartUuid: tile.properties.savedChartUuid,
-                                includeUnpublishedDraft,
-                            });
-                        }
-                        if (
-                            isDashboardSqlChartTile(tile) &&
-                            tile.properties.savedSqlUuid
-                        ) {
-                            acc.push({
-                                tileUuid: tile.uuid,
-                                savedSqlUuid: tile.properties.savedSqlUuid,
-                            });
-                        }
-                        return acc;
-                    },
-                    [],
-                ),
+                ? getDashboardAvailableFilterSources(dashboardTiles, {
+                      includeBoundaryContext,
+                      includeUnpublishedDraft,
+                  })
+                : undefined,
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [savedChartUuidsAndTileUuidsKey, includeUnpublishedDraft],
+        [
+            savedChartUuidsAndTileUuidsKey,
+            includeUnpublishedDraft,
+            includeBoundaryContext,
+        ],
     );
 
     const {
@@ -1009,11 +1001,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         embedToken,
     ]);
 
-    const needsBoundaryMetadata = Object.values(
-        (dashboard ?? embedDashboard)?.filters ?? {},
-    )
-        .flat()
-        .some((rule) => !!rule.boundaries);
     const filterBoundaryContexts =
         dashboardAvailableFiltersData?.filterBoundaryContexts;
 
@@ -1281,13 +1268,22 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                       updatedDashboardFilters,
                   )
                 : updatedDashboardFilters;
+            const boundaryContextArgs = {
+                filterBoundaryContexts,
+                sessionTimezone,
+                userTimezone: user.data?.timezone ?? null,
+                context: { getUiString },
+            };
             const boundaryErrors = !isEditMode
                 ? Object.values(nextFilters)
                       .flat()
                       .flatMap((rule) => {
                           if (
-                              rule.boundaries?.type === 'date' &&
-                              needsBoundaryMetadata
+                              rule.boundaries?.type === 'date' ||
+                              getDashboardFilterBoundaryContexts(
+                                  rule,
+                                  boundaryContextArgs,
+                              ).length
                           )
                               return [];
                           const field =
@@ -1303,19 +1299,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                                   ...(rule.target.isSqlColumn && {
                                       fieldType: rule.target.fallbackType,
                                   }),
-                                  timezone: rule.target.isSqlColumn
-                                      ? 'UTC'
-                                      : (embed.timezone ??
-                                        boundaryProject?.queryTimezone ??
-                                        'UTC'),
-                                  startOfWeek:
-                                      boundaryProject?.warehouseConnection
-                                          ?.startOfWeek ??
-                                      getDefaultStartOfWeek(
-                                          boundaryProject?.warehouseConnection
-                                              ?.type ??
-                                              SupportedDbtAdapter.POSTGRES,
-                                      ),
                                   getUiString,
                               },
                           );
@@ -1327,12 +1310,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     ...getDashboardChartBoundaryErrors({
                         savedFilters: currentDashboard.filters,
                         filters: nextFilters,
-                        filterBoundaryContexts,
-                        sessionTimezone,
-                        userTimezone: user.data?.timezone ?? null,
-                        context: {
-                            getUiString,
-                        },
+                        ...boundaryContextArgs,
                     }),
                 );
             }
@@ -1352,7 +1330,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
         setOriginalDashboardFilters(currentDashboard.filters);
     }, [
-        boundaryProject,
         filterBoundaryContexts,
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,

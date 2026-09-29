@@ -56,10 +56,7 @@ import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
-import {
-    useFilterBoundaryContexts,
-    useIsFilterBoundaryContextLoading,
-} from './useFilterBoundaryContext';
+import { useFilterBoundaryContexts } from './useFilterBoundaryContext';
 import {
     getFilterRuleRevertableObject,
     hasFilterValueSet,
@@ -121,10 +118,8 @@ const FilterConfiguration: FC<Props> = ({
         DashboardFilterRule | undefined
     >(defaultFilterRule);
 
-    const boundaryContexts = useFilterBoundaryContexts(
-        selectedField,
-        draftFilterRule,
-    );
+    const { contexts: boundaryContexts, isLoading: isBoundaryContextLoading } =
+        useFilterBoundaryContexts(selectedField, draftFilterRule);
     const validateBoundary = (rule: DashboardFilterRule | undefined) => {
         if (!rule?.boundaries) return null;
         if (
@@ -141,8 +136,6 @@ const FilterConfiguration: FC<Props> = ({
                 .find((error) => error !== null) ?? null
         );
     };
-    const isBoundaryContextLoading =
-        useIsFilterBoundaryContextLoading(draftFilterRule);
     const boundaryContextLoadingRef = useRef(isBoundaryContextLoading);
     boundaryContextLoadingRef.current = isBoundaryContextLoading;
     const boundaryError = isBoundaryContextLoading

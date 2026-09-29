@@ -164,85 +164,122 @@ describe('EmbedService', () => {
                 },
             }) as unknown as AnonymousAccount;
 
-        test('returns hidden ids referenced by the embedded dashboard saved filters', async () => {
-            const explore: Explore = {
-                ...validExplore,
-                tables: {
-                    ...validExplore.tables,
-                    a: {
-                        ...validExplore.tables.a,
-                        metrics: {
-                            met1: {
-                                ...validExplore.tables.a.metrics.met1,
-                                hidden: true,
+        test.each([false, true])(
+            'returns only dashboard-authorized hidden fields (include context: %s)',
+            async (includeBoundaryContext) => {
+                const explore: Explore = {
+                    ...validExplore,
+                    tables: {
+                        ...validExplore.tables,
+                        a: {
+                            ...validExplore.tables.a,
+                            metrics: {
+                                met1: {
+                                    ...validExplore.tables.a.metrics.met1,
+                                    hidden: true,
+                                },
+                            },
+                        },
+                        b: {
+                            ...validExplore.tables.b,
+                            dimensions: {
+                                ...validExplore.tables.b.dimensions,
+                                dim1: {
+                                    ...validExplore.tables.b.dimensions.dim1,
+                                    hidden: true,
+                                },
                             },
                         },
                     },
-                    b: {
-                        ...validExplore.tables.b,
-                        dimensions: {
-                            ...validExplore.tables.b.dimensions,
-                            dim1: {
-                                ...validExplore.tables.b.dimensions.dim1,
-                                hidden: true,
-                            },
-                        },
+                };
+                const chart = {
+                    uuid: 'chart-uuid',
+                    tableName: explore.name,
+                    projectUuid: mockProjectUuid,
+                    spaceUuid: 'space-uuid',
+                };
+                const savedRule = (
+                    id: string,
+                    fieldId: string,
+                ): DashboardFilterRule => ({
+                    id,
+                    target: { fieldId, tableName: 'stale-table-name' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['x'],
+                    label: undefined,
+                });
+                const getByIdOrSlug = vi.fn().mockResolvedValue({
+                    uuid: 'dashboard-uuid',
+                    filters: {
+                        dimensions: [
+                            savedRule('hidden', 'b_dim1'),
+                            savedRule('visible', 'a_dim1'),
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
                     },
-                },
-            };
-            const chart = {
-                uuid: 'chart-uuid',
-                tableName: explore.name,
-                projectUuid: mockProjectUuid,
-                spaceUuid: 'space-uuid',
-            };
-            const savedRule = (
-                id: string,
-                fieldId: string,
-            ): DashboardFilterRule => ({
-                id,
-                target: { fieldId, tableName: 'stale-table-name' },
-                operator: FilterOperator.EQUALS,
-                values: ['x'],
-                label: undefined,
-            });
-            const getByIdOrSlug = vi.fn().mockResolvedValue({
-                uuid: 'dashboard-uuid',
-                filters: {
-                    dimensions: [
-                        savedRule('hidden', 'b_dim1'),
-                        savedRule('visible', 'a_dim1'),
-                    ],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-            });
-            const scopedService = new EmbedService({
-                ...EmbedServiceArgumentsMock,
-                dashboardModel: { getByIdOrSlug },
-                savedChartModel: {
-                    getInfoForAvailableFilters: vi
-                        .fn()
-                        .mockResolvedValue([chart]),
-                },
-                projectModel: {
-                    getExploreFromCache: vi.fn().mockResolvedValue(explore),
-                },
-            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                });
+                const sourceContext = {
+                    timezone: 'UTC',
+                    projectTimezone: 'UTC',
+                    startOfWeek: WeekDay.MONDAY,
+                    useTimezoneAwareDateTrunc: false,
+                    fields: { a_dim1: {}, b_dim1: {}, a_met1: {} },
+                };
+                const metadata = vi
+                    .fn()
+                    .mockResolvedValue({ 'chart-uuid': [sourceContext] });
+                const scopedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    projectService: {
+                        getDashboardFilterBoundaryContexts: metadata,
+                    },
+                    dashboardModel: { getByIdOrSlug },
+                    savedChartModel: {
+                        getInfoForAvailableFilters: vi
+                            .fn()
+                            .mockResolvedValue([chart]),
+                    },
+                    projectModel: {
+                        getExploreFromCache: vi.fn().mockResolvedValue(explore),
+                    },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
 
-            const result =
-                await scopedService.getAvailableFiltersForSavedQueries(
-                    mockProjectUuid,
-                    embedAccount(FilterInteractivityValues.all),
-                    [{ savedChartUuid: chart.uuid, tileUuid: 'tile-uuid' }],
-                    false,
+                const result =
+                    await scopedService.getAvailableFiltersForSavedQueries(
+                        mockProjectUuid,
+                        embedAccount(FilterInteractivityValues.all),
+                        [
+                            {
+                                savedChartUuid: chart.uuid,
+                                tileUuid: 'tile-uuid',
+                                includeBoundaryContext,
+                            },
+                        ],
+                        false,
+                    );
+
+                expect(result.hiddenFilterableFieldIds).toEqual(['b_dim1']);
+                expect(result.filterBoundaryContexts).toEqual(
+                    includeBoundaryContext
+                        ? {
+                              'tile-uuid': [
+                                  {
+                                      ...sourceContext,
+                                      fields: { a_dim1: {}, b_dim1: {} },
+                                  },
+                              ],
+                          }
+                        : {},
                 );
-
-            expect(result.hiddenFilterableFieldIds).toEqual(['b_dim1']);
-            expect(getByIdOrSlug).toHaveBeenCalledWith('dashboard-uuid', {
-                projectUuid: mockProjectUuid,
-            });
-        });
+                expect(metadata).toHaveBeenCalledTimes(
+                    includeBoundaryContext ? 1 : 0,
+                );
+                expect(getByIdOrSlug).toHaveBeenCalledWith('dashboard-uuid', {
+                    projectUuid: mockProjectUuid,
+                });
+            },
+        );
 
         test('returns selected SQL connection context only after embed authorization', async () => {
             const sqlContext = {
@@ -268,7 +305,22 @@ describe('EmbedService', () => {
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const account = embedAccount(FilterInteractivityValues.all);
-            const tiles = [{ tileUuid: 'sql-tile', savedSqlUuid: 'sql-chart' }];
+            const tiles = [
+                {
+                    tileUuid: 'sql-tile',
+                    savedSqlUuid: 'sql-chart',
+                    includeBoundaryContext: true,
+                },
+            ];
+            const ordinary =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    account,
+                    [{ tileUuid: 'sql-tile', savedSqlUuid: 'sql-chart' }],
+                );
+            expect(ordinary.filterBoundaryContexts).toEqual({});
+            expect(checkPermissions).not.toHaveBeenCalled();
+            expect(getSqlContext).not.toHaveBeenCalled();
             const result =
                 await scopedService.getAvailableFiltersForSavedQueries(
                     mockProjectUuid,

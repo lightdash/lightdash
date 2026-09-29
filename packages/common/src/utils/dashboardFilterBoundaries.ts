@@ -1,13 +1,17 @@
 import {
-    getDashboardBoundaryErrors,
-    resolveQueryTimezone,
     type DashboardAvailableFilters,
-    type DashboardFieldTarget,
     type DashboardFilterBoundarySourceContext,
+} from '../types/dashboard';
+import {
+    type DashboardFieldTarget,
     type DashboardFilterRule,
     type DashboardFilters,
+} from '../types/filter';
+import {
+    getDashboardBoundaryErrors,
     type FilterBoundaryContext,
-} from '@lightdash/common';
+} from './filterBoundaries';
+import { resolveQueryTimezone } from './resolveQueryTimezone';
 
 type BoundaryContextArgs = {
     filterBoundaryContexts: DashboardAvailableFilters['filterBoundaryContexts'];

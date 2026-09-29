@@ -35,10 +35,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import {
-    useFilterBoundaryContexts,
-    useIsFilterBoundaryContextLoading,
-} from '../FilterConfiguration/useFilterBoundaryContext';
+import { useFilterBoundaryContexts } from '../FilterConfiguration/useFilterBoundaryContext';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import LockedFilter from '../LockedFilter';
 import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
@@ -104,8 +101,10 @@ const MemberInput: FC<MemberInputProps> = ({
         rule: DashboardFilterRule;
     }>();
     const currentRule = draft?.base === member ? draft.rule : member;
-    const contexts = useFilterBoundaryContexts(field, currentRule);
-    const isContextLoading = useIsFilterBoundaryContextLoading(currentRule);
+    const { contexts, isLoading: isContextLoading } = useFilterBoundaryContexts(
+        field,
+        currentRule,
+    );
     const validateRule = (rule: DashboardFilterRule) =>
         contexts
             .map((context) =>
