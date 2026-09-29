@@ -10,7 +10,7 @@ import { useMobileSetupAutoOpen } from './useMobileSetupAutoOpen';
 
 const navigated = vi.mocked(navigateTo);
 
-const SCHEME_URL = 'com.lightdash.mobile://setup?v=1&i=http%3A%2F%2Fx&c=CODE';
+const SCHEME_URL = 'com.lightdash.mobile://setup?v=2&i=http%3A%2F%2Fx&c=CODE';
 const STORE_URL = 'https://play.google.com/store/apps/details?id=x';
 
 const setHidden = (hidden: boolean) => {

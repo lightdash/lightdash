@@ -21,6 +21,10 @@ import {
     isChunkLoadErrorObject,
     RouteChunkLoadError,
 } from '../../features/chunkErrorHandler';
+import {
+    redactMobileSetupBreadcrumb,
+    redactMobileSetupEvent,
+} from '../../features/mobileApp/utils/telemetry';
 import { useProjectUuid } from '../useProjectUuid';
 
 const useSentry = (
@@ -43,7 +47,19 @@ const useSentry = (
                         createRoutesFromChildren,
                         matchRoutes,
                     }),
-                    replayIntegration(),
+                    ...(window.location.pathname.endsWith('/mobile-setup')
+                        ? []
+                        : [
+                              replayIntegration({
+                                  beforeAddRecordingEvent(event) {
+                                      return /[?&](?:c|verification_code|code_verifier|code_challenge)=/i.test(
+                                          JSON.stringify(event),
+                                      )
+                                          ? null
+                                          : event;
+                                  },
+                              }),
+                          ]),
                 ],
                 tracesSampler(samplingContext) {
                     if (disableDashboardTracing) {
@@ -63,6 +79,8 @@ const useSentry = (
                     return sentryConfig.tracesSampleRate;
                 },
                 replaysOnErrorSampleRate: 1.0,
+                beforeBreadcrumb: redactMobileSetupBreadcrumb,
+                beforeSendTransaction: redactMobileSetupEvent,
                 beforeSend(event, hint) {
                     const error = hint.originalException;
                     if (error instanceof RouteChunkLoadError) {
@@ -96,7 +114,7 @@ const useSentry = (
                         }
                     }
 
-                    return event;
+                    return redactMobileSetupEvent(event);
                 },
             });
         }

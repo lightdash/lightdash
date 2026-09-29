@@ -48,13 +48,16 @@ export const MobileSetupLanding: FC = () => {
         enabled: platform !== 'desktop' && link.status === 'valid',
     });
 
-    const badges = playStoreUrl ? (
-        <AppStoreBadges playStoreUrl={playStoreUrl} appStoreUrl={appStoreUrl} />
-    ) : null;
+    const badges = (
+        <AppStoreBadges
+            playStoreUrl={platform === 'ios' ? null : (playStoreUrl ?? null)}
+            appStoreUrl={platform === 'android' ? null : appStoreUrl}
+        />
+    );
 
     if (link.status === 'unsupported-version') {
         return (
-            <Box className={classes.page}>
+            <Box className={classes.page} data-sentry-block>
                 <Stack gap="md" className={classes.content}>
                     <Title order={3}>Update the Lightdash app</Title>
                     <Text c="dimmed">
@@ -69,7 +72,7 @@ export const MobileSetupLanding: FC = () => {
 
     if (link.status === 'invalid') {
         return (
-            <Box className={classes.page}>
+            <Box className={classes.page} data-sentry-block>
                 <Stack gap="md" className={classes.content}>
                     <Title order={3}>This setup link is not valid</Title>
                     <Text c="dimmed">{SCAN_AGAIN_HINT}</Text>
@@ -80,7 +83,7 @@ export const MobileSetupLanding: FC = () => {
 
     if (platform === 'desktop') {
         return (
-            <Box className={classes.page}>
+            <Box className={classes.page} data-sentry-block>
                 <Stack gap="md" className={classes.content}>
                     <Title order={3}>Open this on your phone</Title>
                     <Text c="dimmed">
@@ -94,10 +97,10 @@ export const MobileSetupLanding: FC = () => {
     }
 
     return (
-        <Box className={classes.page}>
+        <Box className={classes.page} data-sentry-block>
             <Stack gap="md" className={classes.content}>
                 <Title order={3}>Sign in to the Lightdash app</Title>
-                <Paper withBorder p="sm" className={classes.origin}>
+                <Paper p="sm" className={classes.origin}>
                     <Text fz="xs" c="dimmed">
                         Signing in to
                     </Text>
@@ -106,7 +109,8 @@ export const MobileSetupLanding: FC = () => {
                     </Text>
                 </Paper>
                 <Text c="dimmed">
-                    Opening the app. If nothing happens, use the buttons below.
+                    Opening the app. Enter the six-digit code from your computer
+                    when the app asks. If nothing happens, use the button below.
                 </Text>
                 <Button
                     component="a"

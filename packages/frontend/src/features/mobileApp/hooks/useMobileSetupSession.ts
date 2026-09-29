@@ -35,9 +35,12 @@ export const useMobileSetupSession = ({ projectUuid, enabled }: Args) => {
     const codeId = code?.codeId;
     const expiresAt = code?.expiresAt;
 
-    const { data: codeState } = useMobileSetupCodeStatus(codeId, {
-        poll: isVisible,
-    });
+    const { data: codeState, error: statusError } = useMobileSetupCodeStatus(
+        codeId,
+        {
+            poll: isVisible,
+        },
+    );
 
     const status = codeState?.status ?? MobileSetupCodeStatus.PENDING;
 
@@ -66,7 +69,7 @@ export const useMobileSetupSession = ({ projectUuid, enabled }: Args) => {
     useEffect(() => {
         if (!enabled || !projectUuid || !expiresAt) return;
         if (!isVisible) return;
-        if (!ROTATABLE_STATUSES.includes(status)) return;
+        if (!codeState || !ROTATABLE_STATUSES.includes(status)) return;
 
         const msUntilRotation =
             new Date(expiresAt).getTime() -
@@ -78,7 +81,15 @@ export const useMobileSetupSession = ({ projectUuid, enabled }: Args) => {
         );
 
         return () => clearTimeout(timer);
-    }, [enabled, projectUuid, expiresAt, isVisible, status, mintCode]);
+    }, [
+        enabled,
+        projectUuid,
+        expiresAt,
+        isVisible,
+        status,
+        codeState,
+        mintCode,
+    ]);
 
     const setupAnotherDevice = useCallback(() => {
         if (projectUuid) mintCode(projectUuid);
@@ -87,9 +98,13 @@ export const useMobileSetupSession = ({ projectUuid, enabled }: Args) => {
     return {
         link: code?.link,
         status,
+        verificationCode:
+            status === MobileSetupCodeStatus.AWAITING_VERIFICATION
+                ? (codeState?.verificationCode ?? null)
+                : null,
         redeemedPlatform: codeState?.redeemedPlatform ?? null,
         isLoading: isMinting && !code,
-        error: mintError,
+        error: mintError ?? statusError,
         setupAnotherDevice,
     };
 };

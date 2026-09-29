@@ -25,11 +25,17 @@ const MobileAppSettingsPanel: FC = () => {
     const { activeProjectUuid, isLoading: isProjectLoading } =
         useActiveProjectUuid();
 
-    const { link, status, isLoading, error, setupAnotherDevice } =
-        useMobileSetupSession({
-            projectUuid: activeProjectUuid,
-            enabled: !isProjectLoading,
-        });
+    const {
+        link,
+        status,
+        verificationCode,
+        isLoading,
+        error,
+        setupAnotherDevice,
+    } = useMobileSetupSession({
+        projectUuid: activeProjectUuid,
+        enabled: !isProjectLoading,
+    });
 
     const renderCode = () => {
         if (status === MobileSetupCodeStatus.REDEEMED) {
@@ -40,8 +46,9 @@ const MobileAppSettingsPanel: FC = () => {
                             icon={IconDeviceMobileCheck}
                             color="green.6"
                         />
-                        <Text fw={500}>Signed in on your phone</Text>
+                        <Text fw={500}>Code verified</Text>
                     </Group>
+                    <Text c="dimmed">Finish signing in on your phone.</Text>
                     <Button variant="default" onClick={setupAnotherDevice}>
                         Set up another device
                     </Button>
@@ -49,12 +56,42 @@ const MobileAppSettingsPanel: FC = () => {
             );
         }
 
-        if (status === MobileSetupCodeStatus.REVOKED) {
+        if (
+            status === MobileSetupCodeStatus.AWAITING_VERIFICATION &&
+            verificationCode &&
+            !error
+        ) {
+            return (
+                <Stack gap="md" align="flex-start" aria-live="polite">
+                    <Text fw={500}>Enter this code on your phone</Text>
+                    <Text
+                        data-sentry-block
+                        className={classes.verificationCode}
+                        aria-label={`Verification code: ${verificationCode.split('').join(' ')}`}
+                    >
+                        {verificationCode.slice(0, 3)}{' '}
+                        {verificationCode.slice(3)}
+                    </Text>
+                    <Text fz="sm" c="dimmed">
+                        Enter it only in the Lightdash app you just opened on
+                        your phone. Never share it with another person.
+                    </Text>
+                    <Button variant="default" onClick={setupAnotherDevice}>
+                        Start again with a new QR code
+                    </Button>
+                </Stack>
+            );
+        }
+
+        if (
+            status === MobileSetupCodeStatus.REVOKED ||
+            status === MobileSetupCodeStatus.EXPIRED
+        ) {
             return (
                 <Stack gap="md" align="flex-start">
                     <Text c="dimmed">
-                        This code was replaced by a newer one, so it no longer
-                        works.
+                        This code is no longer valid. Start again with a new QR
+                        code.
                     </Text>
                     <Button variant="default" onClick={setupAnotherDevice}>
                         Show a new code
@@ -66,8 +103,8 @@ const MobileAppSettingsPanel: FC = () => {
         if (error) {
             return (
                 <SuboptimalState
-                    title="We could not create a setup code"
-                    description={error.error.message}
+                    title="We could not load your setup code"
+                    description="Check your connection, then start again."
                     action={
                         <Button variant="default" onClick={setupAnotherDevice}>
                             Try again
@@ -98,8 +135,9 @@ const MobileAppSettingsPanel: FC = () => {
                     <Stack gap={4}>
                         <Title order={5}>Lightdash on your phone</Title>
                         <Text fz="sm" c="dimmed">
-                            Point your phone's camera at this code to open
-                            Lightdash signed in on your current project.
+                            Scan this QR code with your phone's camera. Then
+                            enter the six-digit code shown here in the Lightdash
+                            app to sign in on your current project.
                         </Text>
                     </Stack>
 

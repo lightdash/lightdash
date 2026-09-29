@@ -25,6 +25,7 @@ const getMobileSetupCodeStatus = async (codeId: string) =>
         url: `/user/me/mobile-setup-codes/${codeId}`,
         method: 'GET',
         body: undefined,
+        sensitive: true,
     });
 
 const revokeMobileSetupCode = async (codeId: string) =>
@@ -64,11 +65,15 @@ export const useMobileSetupCodeStatus = (
         queryFn: () => getMobileSetupCodeStatus(codeId!),
         enabled: !!codeId,
         refetchInterval: (data) =>
-            poll && data?.status === MobileSetupCodeStatus.PENDING
+            poll &&
+            (!data ||
+                data.status === MobileSetupCodeStatus.PENDING ||
+                data.status === MobileSetupCodeStatus.AWAITING_VERIFICATION)
                 ? STATUS_POLL_INTERVAL_MS
                 : false,
         refetchIntervalInBackground: false,
         retry: false,
+        cacheTime: 0,
     });
 
 export const useRevokeMobileSetupCode = () =>

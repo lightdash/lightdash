@@ -1,4 +1,4 @@
-const MOBILE_SETUP_LINK_VERSION = '1';
+const MOBILE_SETUP_LINK_VERSION = '2';
 
 const MOBILE_APP_SCHEME = 'com.lightdash.mobile';
 
@@ -21,6 +21,14 @@ const LOOPBACK_HOSTNAMES = ['localhost', '127.0.0.1'];
 const parseInstanceOrigin = (value: string): string | null => {
     try {
         const url = new URL(value);
+        if (
+            url.username ||
+            url.password ||
+            url.search ||
+            url.hash ||
+            url.pathname !== '/'
+        )
+            return null;
         if (url.protocol === 'https:') return url.origin;
         // Cleartext is for local development only. Without this a link naming
         // i=http://evil.example would send the app to a plaintext server.
@@ -39,8 +47,11 @@ const parseInstanceOrigin = (value: string): string | null => {
 export const parseMobileSetupLinkParams = (
     search: URLSearchParams,
 ): ParsedMobileSetupLink => {
+    if (['v', 'i', 'c'].some((key) => search.getAll(key).length !== 1)) {
+        return { status: 'invalid' };
+    }
     const version = search.get('v');
-    if (version !== null && version !== MOBILE_SETUP_LINK_VERSION) {
+    if (version !== MOBILE_SETUP_LINK_VERSION) {
         return { status: 'unsupported-version' };
     }
 

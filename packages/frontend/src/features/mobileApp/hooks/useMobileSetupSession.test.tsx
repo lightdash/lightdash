@@ -37,7 +37,7 @@ const mintedCode = (
 ) => ({
     codeId: overrides.codeId ?? CODE_ID,
     code: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567',
-    link: 'https://app.example.com/mobile-setup?v=1&i=x&c=y',
+    link: 'https://app.example.com/mobile-setup?v=2&i=x&c=y',
     expiresAt:
         overrides.expiresAt ?? new Date(Date.now() + 300_000).toISOString(),
     projectUuid: PROJECT_UUID,
@@ -160,6 +160,71 @@ describe('useMobileSetupSession', () => {
         await waitFor(() =>
             expect(result.current.status).toBe(MobileSetupCodeStatus.REDEEMED),
         );
+    });
+
+    it('shows digits only while awaiting verification and marks status requests sensitive', async () => {
+        mockApi.mockImplementation(({ method }: { method: string }) => {
+            if (method === 'POST') return Promise.resolve(mintedCode());
+            if (method === 'GET')
+                return Promise.resolve({
+                    ...codeState(MobileSetupCodeStatus.AWAITING_VERIFICATION),
+                    verificationCode: '001234',
+                });
+            return Promise.resolve(null);
+        });
+        const { result } = renderHook(
+            () =>
+                useMobileSetupSession({
+                    projectUuid: PROJECT_UUID,
+                    enabled: true,
+                }),
+            { wrapper: createWrapper() },
+        );
+        await waitFor(() =>
+            expect(result.current.verificationCode).toBe('001234'),
+        );
+        expect(mockApi).toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'GET', sensitive: true }),
+        );
+        expect(callsTo('POST', 'mobile-setup-codes')).toHaveLength(1);
+    });
+
+    it('keeps polling after a scan and hides digits when the code is redeemed', async () => {
+        let polls = 0;
+        mockApi.mockImplementation(({ method }: { method: string }) => {
+            if (method === 'POST') return Promise.resolve(mintedCode());
+            if (method === 'GET') {
+                polls += 1;
+                return Promise.resolve({
+                    ...codeState(
+                        polls === 1
+                            ? MobileSetupCodeStatus.AWAITING_VERIFICATION
+                            : MobileSetupCodeStatus.REDEEMED,
+                    ),
+                    verificationCode: '001234',
+                });
+            }
+            return Promise.resolve(null);
+        });
+        const { result } = renderHook(
+            () =>
+                useMobileSetupSession({
+                    projectUuid: PROJECT_UUID,
+                    enabled: true,
+                }),
+            { wrapper: createWrapper() },
+        );
+        await waitFor(() =>
+            expect(result.current.verificationCode).toBe('001234'),
+        );
+        await waitFor(
+            () =>
+                expect(result.current.status).toBe(
+                    MobileSetupCodeStatus.REDEEMED,
+                ),
+            { timeout: 4500 },
+        );
+        expect(result.current.verificationCode).toBeNull();
     });
 
     it('mints again when the user sets up another device', async () => {

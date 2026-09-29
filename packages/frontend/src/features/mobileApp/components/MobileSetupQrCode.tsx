@@ -10,7 +10,7 @@ type Props = {
 };
 
 export const MobileSetupQrCode: FC<Props> = ({ value }) => (
-    <Box className={classes.surface}>
+    <Box className={classes.surface} data-sentry-block>
         <QRCode
             value={value}
             size={QR_SIZE}

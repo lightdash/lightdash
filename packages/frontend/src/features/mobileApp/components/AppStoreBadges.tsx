@@ -4,7 +4,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
-    playStoreUrl: string;
+    playStoreUrl: string | null;
     appStoreUrl: string | null;
 };
 
@@ -22,15 +22,17 @@ export const AppStoreBadges: FC<Props> = ({ playStoreUrl, appStoreUrl }) => (
                 Download on the App Store
             </Button>
         ) : null}
-        <Button
-            component="a"
-            href={playStoreUrl}
-            target="_blank"
-            rel="noreferrer"
-            variant="default"
-            leftSection={<MantineIcon icon={IconBrandGooglePlay} />}
-        >
-            Get it on Google Play
-        </Button>
+        {playStoreUrl ? (
+            <Button
+                component="a"
+                href={playStoreUrl}
+                target="_blank"
+                rel="noreferrer"
+                variant="default"
+                leftSection={<MantineIcon icon={IconBrandGooglePlay} />}
+            >
+                Get it on Google Play
+            </Button>
+        ) : null}
     </Group>
 );

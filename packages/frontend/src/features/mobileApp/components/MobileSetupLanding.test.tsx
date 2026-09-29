@@ -53,7 +53,7 @@ const renderAt = (search: string) => {
     );
 };
 
-const validSearch = `?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`;
+const validSearch = `?v=2&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`;
 
 afterEach(() => {
     setUserAgent(MAC_UA);
@@ -68,7 +68,7 @@ describe('MobileSetupLanding', () => {
         const open = screen.getByRole('link', { name: /open in lightdash/i });
         expect(open).toHaveAttribute(
             'href',
-            `com.lightdash.mobile://setup?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
+            `com.lightdash.mobile://setup?v=2&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
         );
     });
 
@@ -90,10 +90,21 @@ describe('MobileSetupLanding', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('does not send iPhone users to Google Play', () => {
+        setUserAgent(IPHONE_UA);
+        renderAt(validSearch);
+        expect(
+            screen.queryByRole('link', { name: /google play/i }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/six-digit code from your computer/),
+        ).toBeInTheDocument();
+    });
+
     it('builds the app URL from the validated params only', () => {
         setUserAgent(IPHONE_UA);
         renderAt(
-            `?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}&redirect=https%3A%2F%2Fevil.example&extra=1`,
+            `?v=2&i=${encodeURIComponent(ORIGIN)}&c=${CODE}&redirect=https%3A%2F%2Fevil.example&extra=1`,
         );
 
         const open = screen.getByRole('link', { name: /open in lightdash/i });
@@ -109,7 +120,7 @@ describe('MobileSetupLanding', () => {
         renderAt(validSearch);
 
         expect(navigateTo).toHaveBeenCalledWith(
-            `com.lightdash.mobile://setup?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
+            `com.lightdash.mobile://setup?v=2&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
         );
     });
 
@@ -149,7 +160,7 @@ describe('MobileSetupLanding', () => {
             screen.getByRole('link', { name: /open in lightdash/i }),
         ).toHaveAttribute(
             'href',
-            `com.lightdash.mobile://setup?v=1&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
+            `com.lightdash.mobile://setup?v=2&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`,
         );
     });
 
@@ -184,7 +195,7 @@ describe('MobileSetupLanding', () => {
 
     it('refuses an unknown link version', () => {
         setUserAgent(IPHONE_UA);
-        renderAt(`?v=2&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`);
+        renderAt(`?v=99&i=${encodeURIComponent(ORIGIN)}&c=${CODE}`);
 
         expect(
             screen.getByText('Update the Lightdash app'),
@@ -196,7 +207,7 @@ describe('MobileSetupLanding', () => {
 
     it('refuses a malformed code', () => {
         setUserAgent(IPHONE_UA);
-        renderAt(`?v=1&i=${encodeURIComponent(ORIGIN)}&c=nope`);
+        renderAt(`?v=2&i=${encodeURIComponent(ORIGIN)}&c=nope`);
 
         expect(
             screen.getByText('This setup link is not valid'),
