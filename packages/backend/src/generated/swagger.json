@@ -24008,6 +24008,180 @@
             "ApiAiRouterDecisionListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiRouterDecision-Array_"
             },
+            "GoogleSheetsExtensionReportDraftOperator": {
+                "type": "string",
+                "enum": [
+                    "equals",
+                    "notEquals",
+                    "include",
+                    "startsWith",
+                    "isNull",
+                    "notNull",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "lessThan",
+                    "lessThanOrEqual"
+                ]
+            },
+            "GoogleSheetsExtensionReportDraftFilter": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftOperator"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["values", "operator", "fieldId"],
+                "type": "object"
+            },
+            "GoogleSheetsExtensionReportDraftSettings": {
+                "properties": {
+                    "groupRows": {
+                        "type": "boolean"
+                    },
+                    "totals": {
+                        "properties": {
+                            "columns": {
+                                "type": "boolean"
+                            },
+                            "rows": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["columns", "rows"],
+                        "type": "object"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "properties": {
+                                "descending": {
+                                    "type": "boolean"
+                                },
+                                "fieldId": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["descending", "fieldId"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftFilter"
+                        },
+                        "type": "array"
+                    },
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "rows": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "groupRows",
+                    "totals",
+                    "limit",
+                    "sorts",
+                    "filters",
+                    "values",
+                    "columns",
+                    "rows"
+                ],
+                "type": "object"
+            },
+            "GeneratedGoogleSheetsExtensionReportDraft": {
+                "properties": {
+                    "report": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftSettings"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ready", "clarification", "unsupported"]
+                    }
+                },
+                "required": ["report", "message", "status"],
+                "type": "object"
+            },
+            "GenerateGoogleSheetsExtensionReportDraftRequest": {
+                "properties": {
+                    "protectedFilters": {
+                        "items": {
+                            "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftFilter"
+                        },
+                        "type": "array",
+                        "description": "Filter settings stay in the client; these filters must remain unchanged."
+                    },
+                    "clarifications": {
+                        "items": {
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "prompt": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["message", "prompt"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "current": {
+                        "$ref": "#/components/schemas/GoogleSheetsExtensionReportDraftSettings"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "protectedFilters",
+                    "clarifications",
+                    "timezone",
+                    "current",
+                    "prompt",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
             "ApiAiGenerateCustomVizResponse": {
                 "properties": {
                     "results": {
@@ -67674,7 +67848,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.368.1",
+        "version": "2.369.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+# [2.369.0](https://github.com/lightdash/lightdash/compare/2.368.1...2.369.0) (2026-09-29)
+
+
+### Features
+
+* **ai:** add Google Sheets report drafting endpoint ([#30178](https://github.com/lightdash/lightdash/issues/30178)) ([3c1779d](https://github.com/lightdash/lightdash/commit/3c1779d8eec0d1cd936430d7ba647bf0990b8756))
+
 ## [2.368.1](https://github.com/lightdash/lightdash/compare/2.368.0...2.368.1) (2026-09-29)
 
 

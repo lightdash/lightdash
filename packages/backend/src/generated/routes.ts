@@ -22433,6 +22433,164 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiRouterDecision-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleSheetsExtensionReportDraftOperator: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['equals'] },
+                { dataType: 'enum', enums: ['notEquals'] },
+                { dataType: 'enum', enums: ['include'] },
+                { dataType: 'enum', enums: ['startsWith'] },
+                { dataType: 'enum', enums: ['isNull'] },
+                { dataType: 'enum', enums: ['notNull'] },
+                { dataType: 'enum', enums: ['greaterThan'] },
+                { dataType: 'enum', enums: ['greaterThanOrEqual'] },
+                { dataType: 'enum', enums: ['lessThan'] },
+                { dataType: 'enum', enums: ['lessThanOrEqual'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleSheetsExtensionReportDraftFilter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                operator: {
+                    ref: 'GoogleSheetsExtensionReportDraftOperator',
+                    required: true,
+                },
+                fieldId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleSheetsExtensionReportDraftSettings: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                groupRows: { dataType: 'boolean', required: true },
+                totals: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        columns: { dataType: 'boolean', required: true },
+                        rows: { dataType: 'boolean', required: true },
+                    },
+                    required: true,
+                },
+                limit: { dataType: 'double', required: true },
+                sorts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            descending: { dataType: 'boolean', required: true },
+                            fieldId: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                filters: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'GoogleSheetsExtensionReportDraftFilter',
+                    },
+                    required: true,
+                },
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                columns: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                rows: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GeneratedGoogleSheetsExtensionReportDraft: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                report: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'GoogleSheetsExtensionReportDraftSettings' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                message: { dataType: 'string', required: true },
+                status: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['ready'] },
+                        { dataType: 'enum', enums: ['clarification'] },
+                        { dataType: 'enum', enums: ['unsupported'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GenerateGoogleSheetsExtensionReportDraftRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                protectedFilters: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'GoogleSheetsExtensionReportDraftFilter',
+                    },
+                    required: true,
+                },
+                clarifications: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            message: { dataType: 'string', required: true },
+                            prompt: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                timezone: { dataType: 'string', required: true },
+                current: {
+                    ref: 'GoogleSheetsExtensionReportDraftSettings',
+                    required: true,
+                },
+                prompt: { dataType: 'string', required: true },
+                exploreName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiGenerateCustomVizResponse: {
         dataType: 'refAlias',
         type: {
@@ -84149,6 +84307,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listDecisions',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiController_generateGoogleSheetsExtensionReportDraft: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'GenerateGoogleSheetsExtensionReportDraftRequest',
+        },
+    };
+    app.post(
+        '/api/v1/ai/:projectUuid/google-sheets-extension/report-draft',
+        ...fetchMiddlewares<RequestHandler>(AiController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiController.prototype.generateGoogleSheetsExtensionReportDraft,
+        ),
+
+        async function AiController_generateGoogleSheetsExtensionReportDraft(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiController_generateGoogleSheetsExtensionReportDraft,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiController>(AiController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'generateGoogleSheetsExtensionReportDraft',
                     controller,
                     response,
                     next,
