@@ -11017,36 +11017,365 @@ Input modes:
     "name": "runContentQuery",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "queryCacheHit": {
-              "type": "boolean",
-            },
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "queryCacheHit": {
+                      "type": "boolean",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "chart": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "chartUuid": {
+                              "type": "string",
+                            },
+                            "customDimensions": {
+                              "description": "Custom dimension field ids.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "customMetrics": {
+                              "description": "Custom metric field ids.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "dimensions": {
+                              "description": "Dimension field ids.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "exploreName": {
+                              "type": "string",
+                            },
+                            "filters": {
+                              "additionalProperties": {},
+                              "description": "The saved chart filters, as stored.",
+                              "propertyNames": {
+                                "type": "string",
+                              },
+                              "type": "object",
+                            },
+                            "limit": {
+                              "description": "Row limit saved on the chart.",
+                              "type": "number",
+                            },
+                            "metrics": {
+                              "description": "Metric field ids.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "sorts": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "descending": {
+                                    "type": "boolean",
+                                  },
+                                  "fieldId": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "fieldId",
+                                  "descending",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            "tableCalculations": {
+                              "description": "Table calculation names.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "chartUuid",
+                            "name",
+                            "exploreName",
+                            "dimensions",
+                            "metrics",
+                            "filters",
+                            "sorts",
+                            "limit",
+                            "tableCalculations",
+                            "customMetrics",
+                            "customDimensions",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The saved chart that was run; null when an unsaved metricQuery was run.",
+                    },
+                    "columns": {
+                      "description": "Ordered columns: \`fieldId\` keys each row, \`label\` is the CSV header shown to the model.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "fieldId",
+                          "label",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "outcome": {
+                      "const": "rows",
+                      "type": "string",
+                    },
+                    "rowCount": {
+                      "description": "Total rows the query returned.",
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer",
+                    },
+                    "rows": {
+                      "description": "Result rows keyed by field id.",
+                      "items": {
+                        "additionalProperties": {},
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "shownRowCount": {
+                      "description": "Rows included in \`rows\`; fewer than rowCount when the result was truncated to keep the conversation small.",
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer",
+                    },
+                  },
+                  "required": [
+                    "outcome",
+                    "chart",
+                    "rowCount",
+                    "shownRowCount",
+                    "columns",
+                    "rows",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "outcome": {
+                      "const": "noResults",
+                      "description": "The query ran but returned no rows.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "outcome",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "chart": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "chartUuid": {
+                              "type": "string",
+                            },
+                            "dimensions": {
+                              "description": "Dimension field ids.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "exploreName": {
+                              "type": "string",
+                            },
+                            "metrics": {
+                              "description": "Metric field ids.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "chartUuid",
+                            "name",
+                            "exploreName",
+                            "dimensions",
+                            "metrics",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Structure of the saved chart; null when an unsaved metricQuery was validated instead.",
+                    },
+                    "outcome": {
+                      "const": "dataAccessDisabled",
+                      "description": "Data access is disabled for this agent; no rows were fetched.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "outcome",
+                    "chart",
+                  ],
+                  "type": "object",
+                },
+              ],
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "queryCacheHit": {
+                      "type": "boolean",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
