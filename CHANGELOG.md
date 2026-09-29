@@ -1,3 +1,10 @@
+# [2.380.0](https://github.com/lightdash/lightdash/compare/2.379.1...2.380.0) (2026-09-29)
+
+
+### Features
+
+* **learn:** validator walkthrough in the learner's training copy ([#30182](https://github.com/lightdash/lightdash/issues/30182)) ([a7e75b7](https://github.com/lightdash/lightdash/commit/a7e75b7ad077fc67fb23adc7ed1bc95fb91fdd88))
+
 ## [2.379.1](https://github.com/lightdash/lightdash/compare/2.379.0...2.379.1) (2026-09-29)
 
 
