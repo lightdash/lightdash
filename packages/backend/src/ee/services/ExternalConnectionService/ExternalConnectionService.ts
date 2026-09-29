@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
+    DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     EXTERNAL_CONNECTION_IDENTITY_HEADERS,
     ForbiddenError,
@@ -50,6 +51,8 @@ import {
     assertCanViewEmbeddedApp,
     type DataAppProjectContext,
 } from '../AppGenerateService/appAuthz';
+import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
+import { type EmbedService } from '../EmbedService/EmbedService';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
@@ -75,6 +78,8 @@ type ExternalConnectionServiceArguments = {
     analytics: LightdashAnalytics;
     externalConnectionModel: ExternalConnectionModel;
     appModel: AppModel;
+    appGenerateService: AppGenerateService;
+    embedService: EmbedService;
     spacePermissionService: SpacePermissionService;
     googleTokenProvider: GoogleServiceAccountTokenProvider;
     oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
@@ -89,6 +94,10 @@ export class ExternalConnectionService extends BaseService {
     private readonly externalConnectionModel: ExternalConnectionModel;
 
     private readonly appModel: AppModel;
+
+    private readonly appGenerateService: AppGenerateService;
+
+    private readonly embedService: EmbedService;
 
     private readonly spacePermissionService: SpacePermissionService;
 
@@ -108,6 +117,8 @@ export class ExternalConnectionService extends BaseService {
         this.analytics = args.analytics;
         this.externalConnectionModel = args.externalConnectionModel;
         this.appModel = args.appModel;
+        this.appGenerateService = args.appGenerateService;
+        this.embedService = args.embedService;
         this.spacePermissionService = args.spacePermissionService;
         this.googleTokenProvider = args.googleTokenProvider;
         this.oauthClientCredentialsTokenProvider =
@@ -674,15 +685,12 @@ export class ExternalConnectionService extends BaseService {
         });
     }
 
-    async proxyFetch(
+    private async authorizeProxyApp(
         account: Account,
         projectUuid: string,
         appUuid: string,
-        req: ExternalFetchRequest,
-    ): Promise<ExternalFetchResponse> {
-        const start = performance.now();
-
-        // 1. Load app + authorize VIEW (same authz as reading the app).
+        chartContext: ExternalFetchRequest['chartContext'],
+    ) {
         if (isJwtUser(account)) {
             const app = await this.appModel.findApp(appUuid, projectUuid);
             if (!app) {
@@ -690,20 +698,33 @@ export class ExternalConnectionService extends BaseService {
                     'Data app is not authorized by this embed',
                 );
             }
-            await assertCanViewEmbeddedApp(
-                {
-                    createAuditedAbility: (embeddedAccount) =>
-                        this.createAuditedAbility(embeddedAccount),
-                    appModel: this.appModel,
-                },
-                account,
-                app,
-            );
-        } else {
-            assertRegisteredAccount(account);
-            const app = await this.appModel.getApp(appUuid, projectUuid);
-            const user = toSessionUser(account);
-            await assertCanViewApp(
+            // Chart types inherit authorization from the chart or explorer rendering them.
+            if (app.template === DATA_APP_VIZ_TEMPLATE) {
+                await this.embedService.assertCanAccessDataAppVisualization(
+                    account,
+                    projectUuid,
+                    appUuid,
+                    chartContext,
+                );
+            } else {
+                await assertCanViewEmbeddedApp(
+                    {
+                        createAuditedAbility: (embeddedAccount) =>
+                            this.createAuditedAbility(embeddedAccount),
+                        appModel: this.appModel,
+                    },
+                    account,
+                    app,
+                );
+            }
+            return app;
+        }
+
+        assertRegisteredAccount(account);
+        const user = toSessionUser(account);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const assertCanViewDataApp = () =>
+            assertCanViewApp(
                 {
                     auditedAbility: this.createAuditedAbility(user),
                     resolveAccess: (userUuid, targetApp) =>
@@ -720,14 +741,56 @@ export class ExternalConnectionService extends BaseService {
                 user,
                 app,
             );
+        if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+            await assertCanViewDataApp();
+            return app;
         }
+
+        // Chart type authors keep data app permissions; chart access is additive.
+        try {
+            await assertCanViewDataApp();
+        } catch (error) {
+            if (
+                !(error instanceof ForbiddenError) &&
+                !(error instanceof NotFoundError)
+            ) {
+                throw error;
+            }
+            await this.appGenerateService.assertCanAccessDataAppVisualization(
+                user,
+                projectUuid,
+                appUuid,
+                chartContext,
+            );
+        }
+        return app;
+    }
+
+    async proxyFetch(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        req: ExternalFetchRequest,
+    ): Promise<ExternalFetchResponse> {
+        const start = performance.now();
+
+        const app = await this.authorizeProxyApp(
+            account,
+            projectUuid,
+            appUuid,
+            req.chartContext,
+        );
 
         // 2. Resolve the alias → connection (must be linked to this app).
         const connection = await this.externalConnectionModel.resolveAppAlias(
             appUuid,
             req.connectionAlias,
         );
-        if (!connection) {
+        if (
+            !connection ||
+            connection.projectUuid !== app.project_uuid ||
+            connection.organizationUuid !== app.organization_uuid
+        ) {
             throw new ForbiddenError(
                 'This app is not linked to the requested connection',
             );

@@ -63,6 +63,7 @@ const mocks = vi.hoisted(() => ({
         current: undefined as ReturnType<typeof apiError> | undefined,
     },
     embedToken: { current: undefined as string | undefined },
+    chartVersionUuid: { current: undefined as string | undefined },
     pathname: { current: '/projects/project-uuid/saved/chart-uuid' },
     dataAppVizUuid: { current: 'viz-uuid' as string | null },
     dataAppVizVersion: { current: 7 as number | undefined },
@@ -119,6 +120,12 @@ vi.mock('../../hooks/useProjectUuid', () => ({
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: mocks.embedToken.current }),
 }));
+vi.mock(
+    '../../features/apps/ChartVersionPreview/useChartVersionPreview',
+    () => ({
+        useChartVersionPreview: () => mocks.chartVersionUuid.current,
+    }),
+);
 vi.mock('../../features/apps/AppIframePreview', () => ({
     default: mocks.iframePreview,
 }));
@@ -333,6 +340,7 @@ describe('DataAppVizRenderer', () => {
         mocks.token.current = 'preview-token';
         mocks.tokenError.current = undefined;
         mocks.embedToken.current = undefined;
+        mocks.chartVersionUuid.current = undefined;
         mocks.dataAppVizUuid.current = 'viz-uuid';
         mocks.dataAppVizVersion.current = 7;
         mocks.setDataAppVizVersion.mockClear();
@@ -726,6 +734,49 @@ describe('DataAppVizRenderer', () => {
         expect(mocks.iframePreview).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 src: 'https://preview.example.com/api/apps/viz-uuid/versions/7/t/preview-token/?r=0#transport=postMessage&projectUuid=project-uuid',
+            }),
+            undefined,
+        );
+    });
+
+    it.each([false, true])(
+        'passes saved chart context to the iframe (embedded: %s)',
+        (isEmbedded) => {
+            mocks.embedToken.current = isEmbedded ? 'embed-token' : undefined;
+
+            renderRenderer();
+
+            expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    chartContext: { savedChartUuid: 'saved-chart-uuid' },
+                }),
+                undefined,
+            );
+        },
+    );
+
+    it('omits chart context in the explorer without a saved chart', () => {
+        mocks.vizContextOverrides.current = { savedChartUuid: undefined };
+
+        renderRenderer();
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({ chartContext: undefined }),
+            undefined,
+        );
+    });
+
+    it('passes the chart version selected by the host', () => {
+        mocks.chartVersionUuid.current = 'chart-version-uuid';
+
+        renderRenderer();
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: {
+                    savedChartUuid: 'saved-chart-uuid',
+                    chartVersionUuid: 'chart-version-uuid',
+                },
             }),
             undefined,
         );

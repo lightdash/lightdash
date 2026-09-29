@@ -210,6 +210,16 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         }),
         [embedToken, renderSavedChartUuid, chartVersionUuid],
     );
+    const chartContext = useMemo(
+        () =>
+            renderSavedChartUuid
+                ? {
+                      savedChartUuid: renderSavedChartUuid,
+                      chartVersionUuid,
+                  }
+                : undefined,
+        [renderSavedChartUuid, chartVersionUuid],
+    );
     // Embedded previews retain their recorded version; Chart Studio's
     // chart-less edit canvas previews the latest generated version.
     const renderPinnedVersion =
@@ -850,6 +860,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     identityKey={dataAppVizUuid}
                     dataAppVizContext={renderRequest.context}
                     dataAppVizMode
+                    chartContext={chartContext}
                     vizRenderId={renderRequest.id}
                     onVizContextRequest={handleVizContextRequest}
                     onScreenshotAvailabilityChange={

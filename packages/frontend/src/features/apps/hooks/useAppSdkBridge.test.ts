@@ -1011,6 +1011,7 @@ describe('external-fetch branch', () => {
 
     function renderBridgeExternal(
         onExternalRequestEvent: (event: ExternalRequestEvent) => void,
+        chartContext?: { savedChartUuid: string; chartVersionUuid?: string },
     ) {
         const iframeRef = {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -1024,6 +1025,7 @@ describe('external-fetch branch', () => {
                 appUuid: APP_UUID,
                 previewToken: PREVIEW_TOKEN,
                 onExternalRequestEvent,
+                chartContext,
             }),
         );
     }
@@ -1075,6 +1077,44 @@ describe('external-fetch branch', () => {
         });
         // No app-supplied headers leak through.
         expect(Object.keys(init.headers)).toEqual(['Content-Type']);
+    });
+
+    it('stamps host chart context and ignores an iframe-supplied override', async () => {
+        renderBridgeExternal(() => undefined, {
+            savedChartUuid: 'host-chart-uuid',
+            chartVersionUuid: 'host-version-uuid',
+        });
+        mockFetchOk({ status: 'ok', results: { status: 200 } });
+
+        postExternalFetch({
+            alias: 'stripe',
+            path: '/v1/charges',
+            chartContext: { savedChartUuid: 'other-chart-uuid' },
+        });
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(JSON.parse(init.body)).toMatchObject({
+            chartContext: {
+                savedChartUuid: 'host-chart-uuid',
+                chartVersionUuid: 'host-version-uuid',
+            },
+        });
+    });
+
+    it('omits iframe chart context when the host has no saved chart', async () => {
+        renderBridgeExternal(() => undefined);
+        mockFetchOk({ status: 'ok', results: { status: 200 } });
+
+        postExternalFetch({
+            alias: 'stripe',
+            path: '/v1/charges',
+            chartContext: { savedChartUuid: 'other-chart-uuid' },
+        });
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(JSON.parse(init.body)).not.toHaveProperty('chartContext');
     });
 
     it('authenticates external fetches in embed mode with the embed JWT', async () => {

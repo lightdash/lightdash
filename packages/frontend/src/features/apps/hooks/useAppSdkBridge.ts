@@ -24,6 +24,7 @@ import {
     type DataAppInsightAction,
     type DataAppInsightsPayload,
     type DataAppVizContext,
+    type ExternalFetchRequest,
     type ExternalFetchResponse,
     type QueryExecutionContext,
 } from '@lightdash/common';
@@ -298,6 +299,8 @@ export type UseAppSdkBridgeParams = {
     dataAppVizContext?: DataAppVizContext;
     /** Chart types render host-provided rows and cannot query independently. */
     dataAppVizMode?: boolean;
+    /** Saved chart identity supplied by the host for external fetch authorization. */
+    chartContext?: ExternalFetchRequest['chartContext'];
     /**
      * Rewrites the viz underlying-data virtual route
      * (`APP_SDK_VIZ_UNDERLYING_DATA_PATH`) into the real API request, which
@@ -388,6 +391,7 @@ export function useAppSdkBridge({
     onExternalRequestEvent,
     dataAppVizContext,
     dataAppVizMode = false,
+    chartContext,
     rewriteVizUnderlyingDataRequest,
     onVizUnderlyingDataIntent,
     onVizDrillDownIntent,
@@ -771,18 +775,17 @@ export function useAppSdkBridge({
 
                 emitExternal({ status: 'pending' });
 
-                // Build the EE request body from app-supplied fields ONLY.
-                // No URL, no headers, no connection UUID — the backend resolves
-                // the alias and attaches the connection's secrets. The
-                // ALLOWED_ROUTES allowlist is deliberately NOT consulted here:
-                // this is a dedicated, separately-authorized endpoint.
+                // Host-supplied chart context only; the backend resolves the
+                // alias, attaches secrets, and authorizes this endpoint, so
+                // ALLOWED_ROUTES is deliberately not consulted here.
                 const externalFetchPath = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/external-fetch`;
-                const externalFetchBody = {
+                const externalFetchBody: ExternalFetchRequest = {
                     connectionAlias: alias,
                     method: externalMethod ?? 'GET',
                     path: externalPath,
                     query: externalQuery,
                     body: externalBody,
+                    chartContext,
                 };
 
                 try {
@@ -1341,6 +1344,7 @@ export function useAppSdkBridge({
             vizRenderId,
             onVizContextRequest,
             dataAppVizMode,
+            chartContext,
             health.data,
             user.data,
             deliveryCapture,

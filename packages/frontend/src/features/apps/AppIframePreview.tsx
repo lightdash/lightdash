@@ -4,6 +4,7 @@ import {
     type DataAppInsightsPayload,
     type DataAppVizContext,
     type DashboardFilters,
+    type ExternalFetchRequest,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useComputedColorScheme } from '@mantine/core';
@@ -129,6 +130,8 @@ type Props = {
     dataAppVizContext?: DataAppVizContext;
     /** Enables the restricted bridge contract used by custom chart types. */
     dataAppVizMode?: boolean;
+    /** Host-owned saved chart identity for the external-connection proxy. */
+    chartContext?: ExternalFetchRequest['chartContext'];
     /** Rewrites the viz underlying-data virtual route into the real API
      *  request. Only set by DataAppVizRenderer when the capability is on. */
     rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
@@ -216,6 +219,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             capabilities,
             dataAppVizContext,
             dataAppVizMode,
+            chartContext,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
@@ -341,6 +345,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onExternalRequestEvent,
             dataAppVizContext,
             dataAppVizMode,
+            chartContext,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
