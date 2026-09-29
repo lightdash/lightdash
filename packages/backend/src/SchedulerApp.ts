@@ -9,6 +9,7 @@ import { Knex } from 'knex';
 import {
     registerAiUsageLedger,
     registerAiUsageTracker,
+    type AiUsageRecordedHook,
 } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
@@ -218,9 +219,14 @@ export default class SchedulerApp {
             database: this.database,
             utils,
         });
-        registerAiUsageLedger((event) =>
-            this.models.getAiUsageLedgerModel().recordEvent(event),
-        );
+        registerAiUsageLedger(async (event) => {
+            await this.models.getAiUsageLedgerModel().recordEvent(event);
+            if (this.models.hasModelProvider('aiCreditUsageModel')) {
+                await this.models
+                    .getAiCreditUsageModel<AiUsageRecordedHook>()
+                    .onUsageRecorded(event);
+            }
+        });
 
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,

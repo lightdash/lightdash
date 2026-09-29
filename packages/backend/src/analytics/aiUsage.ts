@@ -239,6 +239,11 @@ export const registerAiUsageTracker = (fn: AiUsageTrackFn): void => {
 
 type AiUsageLedgerFn = (event: AiUsageEvent) => Promise<unknown>;
 
+/** Structural view of the EE credit usage model, so OSS runtimes can wire it without importing it. */
+export type AiUsageRecordedHook = {
+    onUsageRecorded: (event: AiUsageEvent) => Promise<void>;
+};
+
 let aiUsageLedgerFn: AiUsageLedgerFn | null = null;
 
 /**

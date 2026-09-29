@@ -8,6 +8,7 @@ import { Knex } from 'knex';
 import {
     registerAiUsageLedger,
     registerAiUsageTracker,
+    type AiUsageRecordedHook,
 } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
@@ -156,9 +157,14 @@ export default class NatsWorkerApp {
             database: this.database,
             utils,
         });
-        registerAiUsageLedger((event) =>
-            models.getAiUsageLedgerModel().recordEvent(event),
-        );
+        registerAiUsageLedger(async (event) => {
+            await models.getAiUsageLedgerModel().recordEvent(event);
+            if (models.hasModelProvider('aiCreditUsageModel')) {
+                await models
+                    .getAiCreditUsageModel<AiUsageRecordedHook>()
+                    .onUsageRecorded(event);
+            }
+        });
 
         const clients = new ClientRepository({
             clientProviders: args.clientProviders,
