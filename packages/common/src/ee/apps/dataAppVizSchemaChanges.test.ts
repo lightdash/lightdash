@@ -213,6 +213,56 @@ describe('diffDataAppVizSchema', () => {
             hasDataAppVizSchemaChanges(diffDataAppVizSchema(withPalette, base)),
         ).toBe(true);
     });
+
+    describe('hierarchy', () => {
+        const levels = {
+            name: 'levels',
+            label: 'Levels',
+            type: 'dimension' as const,
+            required: true,
+            multiple: true,
+        };
+        const regions = { ...levels, name: 'regions', label: 'Regions' };
+        const plain: DataAppVizSchema = {
+            ...base,
+            fields: [...base.fields, levels, regions],
+        };
+        const onLevels = { ...plain, hierarchy: { field: 'levels' } };
+        const onRegions = { ...plain, hierarchy: { field: 'regions' } };
+
+        it.each([
+            ['added', plain, onLevels],
+            ['removed', onLevels, plain],
+            ['changed', onLevels, onRegions],
+        ] as const)('reports a hierarchy %s', (change, before, after) => {
+            const changes = diffDataAppVizSchema(before, after);
+
+            expect(changes.hierarchy).toBe(change);
+            expect(changes.fields.changed).toEqual([]);
+            expect(hasDataAppVizSchemaChanges(changes)).toBe(true);
+            expect(summarizeDataAppVizSchemaChanges(changes)).toEqual([
+                `hierarchy ${change}`,
+            ]);
+        });
+
+        it('reports nothing when the hierarchy stays on the same field', () => {
+            const changes = diffDataAppVizSchema(
+                onLevels,
+                structuredClone(onLevels),
+            );
+
+            expect(changes.hierarchy).toBe('unchanged');
+            expect(hasDataAppVizSchemaChanges(changes)).toBe(false);
+            expect(summarizeDataAppVizSchemaChanges(changes)).toEqual([]);
+        });
+
+        it('reports nothing when neither version declares one', () => {
+            expect(
+                diffDataAppVizSchema(plain, { ...plain, hierarchy: undefined })
+                    .hierarchy,
+            ).toBe('unchanged');
+        });
+    });
 });
 
 it('compares gradient defaults structurally after persistence', () => {

@@ -1,8 +1,10 @@
 import {
+    assertUnreachable,
     type DataAppVizConfigOption,
     type DataAppVizConfigOptionChange,
     type DataAppVizField,
     type DataAppVizFieldChange,
+    type DataAppVizHierarchyChange,
     type DataAppVizSchemaChanges,
 } from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
@@ -10,6 +12,7 @@ import {
     IconAdjustmentsHorizontal,
     IconCircle,
     IconColumns,
+    IconHierarchy,
     IconMinus,
     IconPalette,
     IconPlus,
@@ -125,6 +128,21 @@ const describeOptionChange = ({
     return parts.join(', ');
 };
 
+const hierarchyChangeKind = (
+    change: Exclude<DataAppVizHierarchyChange, 'unchanged'>,
+): ChangeKind => {
+    switch (change) {
+        case 'added':
+            return 'added';
+        case 'changed':
+            return 'updated';
+        case 'removed':
+            return 'removed';
+        default:
+            return assertUnreachable(change, 'Unknown hierarchy change');
+    }
+};
+
 const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
     ...changes.fields.added.map((f) => ({
         key: `f+${f.name}`,
@@ -179,6 +197,18 @@ const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
                   detail: null,
               },
           ]),
+    ...(changes.hierarchy === 'unchanged'
+        ? []
+        : [
+              {
+                  key: 'hierarchy',
+                  kind: hierarchyChangeKind(changes.hierarchy),
+                  icon: IconHierarchy,
+                  label: 'Hierarchy',
+                  detail:
+                      changes.hierarchy === 'changed' ? 'field changed' : null,
+              },
+          ]),
 ];
 
 type Props = {
@@ -188,7 +218,7 @@ type Props = {
 };
 
 /**
- * The field, option and palette deltas between two chart type versions,
+ * The field, option, palette and hierarchy deltas between two chart type versions,
  * grouped the way field reviews are.
  */
 const VizSchemaChangesList: FC<Props> = ({ changes, compact = false }) => {
