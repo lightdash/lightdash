@@ -30,6 +30,8 @@ const DUMP_TOOL_RESULT_POLICIES = {
     createContent: 'keep',
     createScheduledDelivery: 'keep',
     updateUserName: 'keep',
+    searchApi: 'keep',
+    describeApi: 'keep',
     listKnowledgeDocuments: 'keep',
     generateHashes: 'keep',
     generateUuids: 'keep',

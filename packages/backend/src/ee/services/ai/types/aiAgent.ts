@@ -271,6 +271,9 @@ export type AiAgentArgs = AnyAiModel & {
     enableToolSearch: boolean;
     // AI SDK code mode: the runCode tool orchestrates read-only tools.
     enableCodeMode: boolean;
+    // Generative UI: the searchApi/describeApi discovery tools (and generateUi)
+    // for web threads on standard runs.
+    enableGenerativeUi: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
     // a trusted prompt identity. Independent of enableAiWriteback.

@@ -42,6 +42,8 @@ export * from './mcpDocumentContent';
 export * from './toolCreateScheduledDeliveryArgs';
 export * from './toolUpdateUserNameArgs';
 export * from './toolGenerateUiArgs';
+export * from './toolSearchApiArgs';
+export * from './toolDescribeApiArgs';
 export * from './toolListContentArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';

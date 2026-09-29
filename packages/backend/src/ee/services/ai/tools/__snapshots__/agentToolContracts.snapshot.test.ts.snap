@@ -2383,6 +2383,417 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
+    "description": "Search the Lightdash API operations a generateUi card may call, by what they do (e.g. "move charts to a space", "dashboard schedules"). Returns up to 15 operations with operationId, method, path, summary and kind: a query (GET) feeds a card's inputs and tables, a mutation runs in its action. Read an operation with describeApi before binding it.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "description": "query for read-only GET operations, mutation for the rest; null for both.",
+          "enum": [
+            "query",
+            "mutation",
+            null,
+          ],
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "query": {
+          "description": "What the operation should do, in a few words.",
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "query",
+        "kind",
+      ],
+      "type": "object",
+    },
+    "name": "searchApi",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "operations": {
+                  "description": "Best matches first; empty when nothing matches.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "query",
+                          "mutation",
+                        ],
+                        "type": "string",
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE",
+                        ],
+                        "type": "string",
+                      },
+                      "operationId": {
+                        "type": "string",
+                      },
+                      "pathTemplate": {
+                        "type": "string",
+                      },
+                      "summary": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                    },
+                    "required": [
+                      "operationId",
+                      "method",
+                      "pathTemplate",
+                      "kind",
+                      "summary",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "operations",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
+    "description": "Show one operation from searchApi as a compact TypeScript-like signature: path and query parameters, request body, and the response \`results\` that $query and $result paths read. projectUuid path parameters are filled in automatically; never set them.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "operationId": {
+          "description": "An operationId returned by searchApi.",
+          "maxLength": 100,
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "operationId",
+      ],
+      "type": "object",
+    },
+    "name": "describeApi",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "autoFilledPathParams": {
+                  "description": "Path parameters filled in from the conversation.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+                "kind": {
+                  "enum": [
+                    "query",
+                    "mutation",
+                  ],
+                  "type": "string",
+                },
+                "method": {
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE",
+                  ],
+                  "type": "string",
+                },
+                "operationId": {
+                  "type": "string",
+                },
+                "pathParams": {
+                  "description": "Path parameters a card must set in params.path.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+                "pathTemplate": {
+                  "type": "string",
+                },
+                "signature": {
+                  "description": "Parameters, body and response results as TypeScript.",
+                  "type": "string",
+                },
+                "summary": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "operationId",
+                "method",
+                "pathTemplate",
+                "kind",
+                "summary",
+                "pathParams",
+                "autoFilledPathParams",
+                "signature",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
     "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -18829,6 +19240,8 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "createContent",
   "createScheduledDelivery",
   "updateUserName",
+  "searchApi",
+  "describeApi",
   "runContentQuery",
   "listContent",
   "loadSkill",

@@ -553,17 +553,21 @@ export const TOOL_GENERATE_UI_DESCRIPTION = [
     ...blockVocabulary,
 ].join('\n');
 
+// A plain union so TSOA can read API types that carry it.
+export type GenerativeUiHttpMethod =
+    | 'GET'
+    | 'POST'
+    | 'PUT'
+    | 'PATCH'
+    | 'DELETE';
+
 export const generativeUiHttpMethodSchema = z.enum([
     'GET',
     'POST',
     'PUT',
     'PATCH',
     'DELETE',
-]);
-
-export type GenerativeUiHttpMethod = z.infer<
-    typeof generativeUiHttpMethodSchema
->;
+]) satisfies z.ZodType<GenerativeUiHttpMethod>;
 
 export const generativeUiStateSchema = z.record(
     z.string(),

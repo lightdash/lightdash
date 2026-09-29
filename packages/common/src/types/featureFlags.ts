@@ -384,6 +384,14 @@ export enum FeatureFlags {
      * combined in one step. Off by default; enable per-org.
      */
     AiAgentCodeMode = 'ai-agent-code-mode',
+
+    /**
+     * AI agent generative UI: the generateUi tool renders a form card in the
+     * thread whose action calls allowlisted Lightdash API operations as the
+     * user, found with the searchApi and describeApi tools. Web threads and
+     * standard runs only. Off by default; enable per-org.
+     */
+    AiAgentGenerativeUi = 'ai-agent-generative-ui',
 }
 
 export type FeatureFlag = {
