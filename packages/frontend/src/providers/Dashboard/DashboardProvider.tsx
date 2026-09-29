@@ -17,6 +17,7 @@ import {
     getMissingRequiredParameters,
     getUnmetFilterRequirements,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     isFilterLockedOnTab,
     isStandardDateGranularity,
     isSubDayGranularity,
@@ -41,7 +42,6 @@ import {
     type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
 } from '@lightdash/common';
-import { useQueries } from '@tanstack/react-query';
 import clone from 'lodash/clone';
 import isEqual from 'lodash/isEqual';
 import sortBy from 'lodash/sortBy';
@@ -85,7 +85,6 @@ import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
-import { getSavedQuery } from '../../hooks/useSavedQuery';
 import { useSessionTimezone } from '../../hooks/useSessionTimezone';
 import useApp from '../App/useApp';
 import DashboardContext from './context';
@@ -905,10 +904,14 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const savedChartUuidsAndTileUuidsKey = useMemo(
         () =>
             dashboardTiles
-                ?.filter(isDashboardChartTileType)
+                ?.filter(
+                    (tile) =>
+                        isDashboardChartTileType(tile) ||
+                        isDashboardSqlChartTile(tile),
+                )
                 .map(
                     (tile) =>
-                        `${tile.uuid}:${tile.properties.savedChartUuid ?? ''}`,
+                        `${tile.uuid}:${isDashboardChartTileType(tile) ? (tile.properties.savedChartUuid ?? '') : (tile.properties.savedSqlUuid ?? '')}`,
                 )
                 .sort()
                 .join(',') ?? '',
@@ -918,13 +921,30 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboardTiles
-                ?.filter(isDashboardChartTileType)
+                ?.filter(
+                    (tile) =>
+                        isDashboardChartTileType(tile) ||
+                        isDashboardSqlChartTile(tile),
+                )
                 .reduce<SavedChartsInfoForDashboardAvailableFilters>(
                     (acc, tile) => {
-                        if (tile.properties.savedChartUuid) {
+                        if (
+                            isDashboardChartTileType(tile) &&
+                            tile.properties.savedChartUuid
+                        ) {
                             acc.push({
                                 tileUuid: tile.uuid,
                                 savedChartUuid: tile.properties.savedChartUuid,
+                                includeUnpublishedDraft,
+                            });
+                        }
+                        if (
+                            isDashboardSqlChartTile(tile) &&
+                            tile.properties.savedSqlUuid
+                        ) {
+                            acc.push({
+                                tileUuid: tile.uuid,
+                                savedSqlUuid: tile.properties.savedSqlUuid,
                             });
                         }
                         return acc;
@@ -932,7 +952,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     [],
                 ),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [savedChartUuidsAndTileUuidsKey],
+        [savedChartUuidsAndTileUuidsKey, includeUnpublishedDraft],
     );
 
     const {
@@ -989,36 +1009,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         embedToken,
     ]);
 
-    const needsBoundaryChartMetadata =
-        embed.mode === 'sdk' &&
-        Object.values((dashboard ?? embedDashboard)?.filters ?? {})
-            .flat()
-            .some(
-                (rule) =>
-                    rule.boundaries?.type === 'date' &&
-                    !rule.target.isSqlColumn,
-            );
-    const boundaryChartQueries = useQueries({
-        queries: (needsBoundaryChartMetadata
-            ? (savedChartUuidsAndTileUuids ?? [])
-            : []
-        ).map(({ savedChartUuid }) => ({
-            queryKey: [
-                'saved_query',
-                savedChartUuid,
-                projectUuid,
-                includeUnpublishedDraft,
-            ],
-            queryFn: () =>
-                getSavedQuery(
-                    savedChartUuid,
-                    projectUuid!,
-                    includeUnpublishedDraft,
-                ),
-            enabled: !!projectUuid,
-            retry: false,
-        })),
-    });
+    const needsBoundaryMetadata = Object.values(
+        (dashboard ?? embedDashboard)?.filters ?? {},
+    )
+        .flat()
+        .some((rule) => !!rule.boundaries);
+    const filterBoundaryContexts =
+        dashboardAvailableFiltersData?.filterBoundaryContexts;
 
     /**
      * Apply interactivity filtering for embedded dashboards
@@ -1161,10 +1158,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     return;
                 }
 
-                // Validate SDK date selections with the same chart settings as execution.
+                // Wait for the same per-source settings used by query execution.
                 if (
-                    needsBoundaryChartMetadata &&
-                    boundaryChartQueries.some((query) => !query.data)
+                    needsBoundaryMetadata &&
+                    (!savedChartUuidsAndTileUuids ||
+                        (savedChartUuidsAndTileUuids.length > 0 &&
+                            !filterBoundaryContexts))
                 )
                     return;
 
@@ -1288,8 +1287,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                       .flatMap((rule) => {
                           if (
                               rule.boundaries?.type === 'date' &&
-                              !rule.target.isSqlColumn &&
-                              needsBoundaryChartMetadata
+                              needsBoundaryMetadata
                           )
                               return [];
                           const field =
@@ -1324,40 +1322,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                           return error ? [error] : [];
                       })
                 : [];
-            if (!isEditMode && needsBoundaryChartMetadata) {
+            if (!isEditMode && needsBoundaryMetadata) {
                 boundaryErrors.push(
                     ...getDashboardChartBoundaryErrors({
                         savedFilters: currentDashboard.filters,
                         filters: nextFilters,
-                        charts: (savedChartUuidsAndTileUuids ?? []).flatMap(
-                            ({ tileUuid }, index) => {
-                                const chart = boundaryChartQueries[index]?.data;
-                                return chart
-                                    ? [
-                                          {
-                                              tileUuid,
-                                              metricQuery: chart.metricQuery,
-                                              fields:
-                                                  filterableFieldsByTileUuid?.[
-                                                      tileUuid
-                                                  ] ?? [],
-                                          },
-                                      ]
-                                    : [];
-                            },
-                        ),
-                        projectTimezone:
-                            boundaryProject?.queryTimezone ?? 'UTC',
+                        filterBoundaryContexts,
                         sessionTimezone,
                         userTimezone: user.data?.timezone ?? null,
                         context: {
-                            startOfWeek:
-                                boundaryProject?.warehouseConnection
-                                    ?.startOfWeek ??
-                                getDefaultStartOfWeek(
-                                    boundaryProject?.warehouseConnection
-                                        ?.type ?? SupportedDbtAdapter.POSTGRES,
-                                ),
                             getUiString,
                         },
                     }),
@@ -1380,8 +1353,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setOriginalDashboardFilters(currentDashboard.filters);
     }, [
         boundaryProject,
-        boundaryChartQueries,
-        needsBoundaryChartMetadata,
+        filterBoundaryContexts,
+        isLoadingDashboardFilters,
+        isFetchingDashboardFilters,
+        needsBoundaryMetadata,
         sessionTimezone,
         user.data?.timezone,
         getUiString,
@@ -2056,6 +2031,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,
+        filterBoundaryContexts,
         chartZoomableFieldsByTileUuid,
         setChartZoomableFields,
         allFilters,

@@ -30,6 +30,7 @@ type Props = {
     onSearchChange?: (search: string) => void;
     rightSection?: ReactNode;
     preserveWhitespace?: boolean;
+    singleValue?: boolean;
     onChange: (values: string[]) => void;
     disabled?: boolean;
     placeholder?: string;
@@ -46,6 +47,7 @@ const FilterMultiStringInput: FC<Props> = ({
     suggestionLabels,
     onSearchChange,
     preserveWhitespace = false,
+    singleValue = false,
     disabled,
     onChange,
     placeholder,
@@ -74,9 +76,11 @@ const FilterMultiStringInput: FC<Props> = ({
 
     const handleChange = useCallback(
         (updatedValues: string[]) => {
-            onChange(uniq(updatedValues));
+            onChange(
+                singleValue ? updatedValues.slice(-1) : uniq(updatedValues),
+            );
         },
-        [onChange],
+        [onChange, singleValue],
     );
 
     const handleAdd = useCallback(

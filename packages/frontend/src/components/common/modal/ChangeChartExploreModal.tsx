@@ -180,6 +180,10 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
 
             handleClose();
             await queryClient.invalidateQueries(['saved_query', chartUuid]);
+            await queryClient.invalidateQueries([
+                'dashboards',
+                'availableFilters',
+            ]);
             await queryClient.resetQueries({
                 predicate: (query) =>
                     query.queryKey[0] === 'dashboard_chart_ready_query' &&

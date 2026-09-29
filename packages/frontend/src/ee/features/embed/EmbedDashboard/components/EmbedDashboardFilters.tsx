@@ -29,6 +29,9 @@ const EmbedDashboardFilters: FC<Props> = ({
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardContext((c) => c.activeTab);
     const allFilters = useDashboardContext((c) => c.allFilters);
+    const filterBoundaryContexts = useDashboardContext(
+        (c) => c.filterBoundaryContexts,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -107,6 +110,7 @@ const EmbedDashboardFilters: FC<Props> = ({
             itemsMap={allFilterableFieldsMap}
             startOfWeek={undefined}
             dashboardFilters={allFilters}
+            filterBoundaryContexts={filterBoundaryContexts}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTab?.uuid}

@@ -1,6 +1,7 @@
 import {
     getDashboardFilterField,
     type DashboardFilterableField,
+    type DashboardAvailableFilters,
     type DashboardFilters,
     type DashboardTile,
     type FilterableItem,
@@ -27,6 +28,7 @@ type Props<T extends DefaultFieldsMap> = {
     parameterValues?: ParametersValuesMap;
     activeTabUuid?: string;
     metricQueryTimezone?: string;
+    filterBoundaryContexts?: DashboardAvailableFilters['filterBoundaryContexts'];
     children?: ReactNode;
 };
 
@@ -42,6 +44,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     parameterValues,
     activeTabUuid,
     metricQueryTimezone,
+    filterBoundaryContexts,
     children,
 }: Props<T>) => {
     const getField = useCallback(
@@ -85,6 +88,8 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 popoverProps,
                 parameterValues,
                 metricQueryTimezone,
+                dashboardTiles,
+                filterBoundaryContexts,
             }}
         >
             {children}

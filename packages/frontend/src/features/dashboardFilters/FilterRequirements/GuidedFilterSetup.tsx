@@ -3,6 +3,7 @@ import {
     getFilterTypeFromItem,
     getFilterTypeFromItemType,
     isValuelessDashboardFilterRule,
+    validateFilterBoundary,
     type DashboardFilterRule,
     type FilterableItem,
     type FilterType,
@@ -34,6 +35,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    useFilterBoundaryContexts,
+    useIsFilterBoundaryContextLoading,
+} from '../FilterConfiguration/useFilterBoundaryContext';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import LockedFilter from '../LockedFilter';
 import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
@@ -92,7 +97,36 @@ const MemberInput: FC<MemberInputProps> = ({
     popoverProps,
     onChange,
 }) => {
-    const filterType = getMemberFilterType(member, field);
+    // Invalid input stays local so it cannot satisfy a requirement or execute
+    // a query. Discard the draft if the applied rule changes elsewhere.
+    const [draft, setDraft] = useState<{
+        base: DashboardFilterRule;
+        rule: DashboardFilterRule;
+    }>();
+    const currentRule = draft?.base === member ? draft.rule : member;
+    const contexts = useFilterBoundaryContexts(field, currentRule);
+    const isContextLoading = useIsFilterBoundaryContextLoading(currentRule);
+    const validateRule = (rule: DashboardFilterRule) =>
+        contexts
+            .map((context) =>
+                validateFilterBoundary(rule.boundaries, rule, context),
+            )
+            .find((error) => error !== null);
+    const boundaryError =
+        draft?.base === member ? validateRule(currentRule) : undefined;
+    const handleChange = (rule: DashboardFilterRule) => {
+        const nextRule = { ...rule, disabled: !hasFilterValueSet(rule) };
+        if (
+            nextRule.boundaries &&
+            (isContextLoading || validateRule(nextRule))
+        ) {
+            setDraft({ base: member, rule: nextRule });
+        } else {
+            setDraft(undefined);
+            onChange(nextRule);
+        }
+    };
+    const filterType = getMemberFilterType(currentRule, field);
 
     return (
         // Label sits on its own line above a full-width input so long field
@@ -106,26 +140,33 @@ const MemberInput: FC<MemberInputProps> = ({
                     <OperatorPicker
                         filterType={filterType}
                         field={field}
-                        member={member}
+                        member={currentRule}
                         label={label}
-                        onChange={onChange}
+                        onChange={handleChange}
                         onOpen={popoverProps.onOpen}
                         onClose={popoverProps.onClose}
                     />
                 </Group>
             )}
             {/* Keyed so a changed operator fades its new input shape in */}
-            <Box key={member.operator} className={classes.valueSwap}>
+            <Box key={currentRule.operator} className={classes.valueSwap}>
                 <FilterInputComponent
                     filterType={filterType}
                     field={field}
-                    rule={member}
+                    rule={currentRule}
+                    boundaries={currentRule.boundaries}
+                    disabled={isContextLoading}
                     popoverProps={popoverProps}
                     onChange={(newRule) =>
-                        onChange(newRule as DashboardFilterRule)
+                        handleChange(newRule as DashboardFilterRule)
                     }
                 />
             </Box>
+            {boundaryError && (
+                <Text size="xs" c="red">
+                    {boundaryError}
+                </Text>
+            )}
         </Stack>
     );
 };
@@ -198,6 +239,9 @@ const GuidedFilterSetup: FC<Props> = ({
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const allFilters = useDashboardContext((c) => c.allFilters);
+    const filterBoundaryContexts = useDashboardContext(
+        (c) => c.filterBoundaryContexts,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -252,6 +296,7 @@ const GuidedFilterSetup: FC<Props> = ({
             itemsMap={allFilterableFieldsMap}
             startOfWeek={startOfWeek}
             dashboardFilters={allFilters}
+            filterBoundaryContexts={filterBoundaryContexts}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTab?.uuid}

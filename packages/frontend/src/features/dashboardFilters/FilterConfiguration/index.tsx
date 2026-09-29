@@ -56,7 +56,10 @@ import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
-import { useFilterBoundaryContext } from './useFilterBoundaryContext';
+import {
+    useFilterBoundaryContexts,
+    useIsFilterBoundaryContextLoading,
+} from './useFilterBoundaryContext';
 import {
     getFilterRuleRevertableObject,
     hasFilterValueSet,
@@ -118,7 +121,10 @@ const FilterConfiguration: FC<Props> = ({
         DashboardFilterRule | undefined
     >(defaultFilterRule);
 
-    const boundaryContext = useFilterBoundaryContext(selectedField);
+    const boundaryContexts = useFilterBoundaryContexts(
+        selectedField,
+        draftFilterRule,
+    );
     const validateBoundary = (rule: DashboardFilterRule | undefined) => {
         if (!rule?.boundaries) return null;
         if (
@@ -127,15 +133,21 @@ const FilterConfiguration: FC<Props> = ({
             rule.disabled
         )
             return null;
-        return validateFilterBoundary(rule.boundaries, rule, {
-            ...boundaryContext,
-            ...(rule.target.isSqlColumn && {
-                fieldType: rule.target.fallbackType,
-                timezone: 'UTC',
-            }),
-        });
+        return (
+            boundaryContexts
+                .map((context) =>
+                    validateFilterBoundary(rule.boundaries, rule, context),
+                )
+                .find((error) => error !== null) ?? null
+        );
     };
-    const boundaryError = validateBoundary(draftFilterRule);
+    const isBoundaryContextLoading =
+        useIsFilterBoundaryContextLoading(draftFilterRule);
+    const boundaryContextLoadingRef = useRef(isBoundaryContextLoading);
+    boundaryContextLoadingRef.current = isBoundaryContextLoading;
+    const boundaryError = isBoundaryContextLoading
+        ? null
+        : validateBoundary(draftFilterRule);
     const validateBoundaryRef = useRef(validateBoundary);
     validateBoundaryRef.current = validateBoundary;
     const draftFilterRuleRef = useRef(draftFilterRule);
@@ -423,7 +435,11 @@ const FilterConfiguration: FC<Props> = ({
         }
 
         const ruleToSave = draftFilterRuleRef.current;
-        if (ruleToSave && !validateBoundaryRef.current(ruleToSave))
+        if (
+            ruleToSave &&
+            !boundaryContextLoadingRef.current &&
+            !validateBoundaryRef.current(ruleToSave)
+        )
             onSave(ruleToSave);
     }, [onSave]);
 
@@ -716,7 +732,8 @@ const FilterConfiguration: FC<Props> = ({
                             disabled={
                                 isApplyDisabled ||
                                 isLockedRequiredMissingValue ||
-                                !!boundaryError
+                                !!boundaryError ||
+                                isBoundaryContextLoading
                             }
                             // We use onMouseDown instead of onClick: when an
                             // inline dropdown (Select/MultiSelect) is open,

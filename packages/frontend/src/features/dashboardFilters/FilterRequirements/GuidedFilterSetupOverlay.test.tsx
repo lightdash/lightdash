@@ -42,9 +42,21 @@ const memberInputPopoverProps = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../components/common/Filters/FilterInputs', () => ({
-    default: vi.fn(({ popoverProps }) => {
+    default: vi.fn(({ popoverProps, rule, onChange, disabled }) => {
         memberInputPopoverProps.current = popoverProps;
-        return <input placeholder="any value" />;
+        return (
+            <input
+                placeholder="any value"
+                disabled={disabled}
+                value={rule.values?.join(',') ?? ''}
+                onChange={(event) =>
+                    onChange({
+                        ...rule,
+                        values: event.target.value ? [event.target.value] : [],
+                    })
+                }
+            />
+        );
     }),
 }));
 
@@ -262,6 +274,68 @@ describe('GuidedFilterSetupOverlay', () => {
             false,
             false,
         );
+    });
+
+    it('keeps an invalid bounded required selection as a draft without updating the dashboard', async () => {
+        const boundedRule: DashboardFilterRule = {
+            ...unmetRule,
+            boundaries: { type: 'string', values: ['Pending', 'Active'] },
+        };
+        mockDashboardContext.current.dashboardFilters = {
+            dimensions: [boundedRule],
+            metrics: [],
+            tableCalculations: [],
+        };
+        mockDashboardContext.current.allFilters =
+            mockDashboardContext.current.dashboardFilters;
+        renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
+        const input = screen.getByPlaceholderText('any value');
+        fireEvent.change(input, { target: { value: 'Other' } });
+        expect(input).toHaveValue('Other');
+        expect(
+            screen.getByText('Choose one of: Pending, Active.'),
+        ).toBeVisible();
+        expect(
+            mockDashboardContext.current.updateDimensionDashboardFilter,
+        ).not.toHaveBeenCalled();
+        fireEvent.change(input, { target: { value: 'Active' } });
+        expect(
+            mockDashboardContext.current.updateDimensionDashboardFilter,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ values: ['Active'], disabled: false }),
+            0,
+            false,
+            false,
+        );
+    });
+
+    it('only offers permitted operators for a bounded required filter', async () => {
+        const boundedRule: DashboardFilterRule = {
+            ...unmetRule,
+            boundaries: { type: 'string', values: ['Pending', 'Active'] },
+        };
+        mockDashboardContext.current.dashboardFilters = {
+            dimensions: [boundedRule],
+            metrics: [],
+            tableCalculations: [],
+        };
+        mockDashboardContext.current.allFilters =
+            mockDashboardContext.current.dashboardFilters;
+        renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: 'Change operator for customers_first_name',
+            }),
+        );
+        expect(
+            screen.queryByRole('menuitem', {
+                name: 'starts with',
+                hidden: true,
+            }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: 'is null', hidden: true }),
+        ).not.toBeInTheDocument();
     });
 
     it('satisfies the rule immediately when a no-value operator is picked', async () => {

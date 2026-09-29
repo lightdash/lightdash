@@ -248,6 +248,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     onChangeFilterRule({
                                         ...filterRule,
                                         singleValue: !filterRule.singleValue,
+                                        values:
+                                            !filterRule.singleValue &&
+                                            filterType === FilterType.STRING
+                                                ? filterRule.values?.slice(-1)
+                                                : filterRule.values,
                                     });
                                 }}
                             >

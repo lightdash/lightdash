@@ -1,5 +1,7 @@
 import {
     type AndFilterGroup,
+    type DashboardAvailableFilters,
+    type DashboardTile,
     type FilterableItem,
     type FilterRule,
     type ItemsMap,
@@ -32,6 +34,8 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
     popoverProps?: FilterPopoverProps;
     parameterValues?: ParametersValuesMap;
     metricQueryTimezone?: string;
+    dashboardTiles?: DashboardTile[];
+    filterBoundaryContexts?: DashboardAvailableFilters['filterBoundaryContexts'];
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);

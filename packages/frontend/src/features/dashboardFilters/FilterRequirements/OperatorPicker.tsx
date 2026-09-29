@@ -1,5 +1,7 @@
 import {
     getFilterRuleWithDefaultValue,
+    getBoundaryOperators,
+    type FilterOperator,
     type DashboardFilterRule,
     type FilterableItem,
     type FilterType,
@@ -38,8 +40,15 @@ const OperatorPicker: FC<Props> = ({
     onClose,
 }) => {
     const options = useMemo(
-        () => getFilterOperatorOptions(filterType, field),
-        [filterType, field],
+        () =>
+            getFilterOperatorOptions(filterType, field).filter(
+                (option) =>
+                    !member.boundaries ||
+                    getBoundaryOperators(member.boundaries).includes(
+                        option.value as FilterOperator,
+                    ),
+            ),
+        [filterType, field, member.boundaries],
     );
     const currentLabel =
         options.find((option) => option.value === member.operator)?.label ??

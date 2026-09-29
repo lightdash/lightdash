@@ -3,6 +3,7 @@ import {
     type ApiError,
     type ChartZoomableField,
     type Dashboard,
+    type DashboardAvailableFilters,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -43,6 +44,7 @@ export type TilePreAggregateStatus = {
 export type DashboardContextType = {
     projectUuid?: string;
     includeUnpublishedDraft: boolean;
+    filterBoundaryContexts?: DashboardAvailableFilters['filterBoundaryContexts'];
     isDashboardLoading: boolean;
     dashboard: Dashboard | undefined;
     setEmbedDashboard: Dispatch<SetStateAction<Dashboard | undefined>>;

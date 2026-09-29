@@ -265,6 +265,10 @@ export const useUpdateWarehouseConnection = (
                 options.onSuccess();
                 await Promise.all([
                     invalidate(),
+                    queryClient.invalidateQueries([
+                        'dashboards',
+                        'availableFilters',
+                    ]),
                     queryClient.invalidateQueries(
                         connectionQueryKey(
                             projectUuid,

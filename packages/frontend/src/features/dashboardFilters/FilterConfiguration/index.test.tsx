@@ -4,6 +4,8 @@ import {
     FieldType,
     FilterOperator,
     UnitOfTime,
+    WeekDay,
+    type DashboardAvailableFilters,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
@@ -34,10 +36,15 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
 
+const boundaryMetadata = vi.hoisted(() => ({
+    current: undefined as DashboardAvailableFilters['filterBoundaryContexts'],
+}));
+
 vi.mock('../../../components/common/Filters/useFiltersContext', () => ({
     default: vi.fn(() => ({
         projectUuid: 'test-project-uuid',
         metricQueryTimezone: 'project_timezone',
+        filterBoundaryContexts: boundaryMetadata.current,
         getAutocompleteFilterGroup: vi.fn(() => undefined),
         getField: vi.fn(() => undefined),
         parameterValues: {},
@@ -104,6 +111,7 @@ describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         fieldValueResults.current = [];
+        boundaryMetadata.current = undefined;
         mockDashboardContext.current.dashboardFilters = {
             dimensions: [],
             metrics: [],
@@ -235,6 +243,136 @@ describe('FilterConfiguration', () => {
             ).toBeDisabled();
             expect(screen.getByText('Other', { exact: true })).toBeVisible();
             expect(onSave).not.toHaveBeenCalled();
+        },
+    );
+
+    it('validates the current numeric input when Apply is clicked before its debounce', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        const numberField = {
+            ...mockField,
+            type: DimensionType.NUMBER,
+        } as DashboardFilterableField;
+        const rule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            singleValue: true,
+            values: [5],
+            boundaries: { type: 'number', min: 0, max: 10 },
+        };
+        renderWithProviders(
+            <FilterConfiguration
+                tiles={[]}
+                tabs={[]}
+                field={numberField}
+                availableTileFilters={{}}
+                defaultFilterRule={rule}
+                originalFilterRule={rule}
+                isEditMode={false}
+                onSave={onSave}
+            />,
+        );
+        const input = screen.getByRole('spinbutton');
+        await user.click(input);
+        fireEvent.change(input, { target: { value: '20' } });
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.getByText('Enter a number between 0 and 10.'),
+        ).toBeVisible();
+        expect(input).toHaveValue(20);
+    });
+
+    it('keeps single selection behavior when a bounded filter is switched to single value', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        const rule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            values: ['Pending', 'Active'],
+            boundaries: { type: 'string', values: ['Pending', 'Active'] },
+        };
+        renderWithProviders(
+            <FilterConfiguration
+                tiles={[]}
+                tabs={[]}
+                field={mockField}
+                availableTileFilters={{}}
+                defaultFilterRule={rule}
+                originalFilterRule={rule}
+                isEditMode
+                onSave={onSave}
+            />,
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Multiple values' }),
+        );
+        await user.click(screen.getByRole('button', { name: 'Apply' }));
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({ singleValue: true, values: ['Active'] }),
+        );
+    });
+
+    it.each([true, false])(
+        'validates manual dates using every affected chart timezone (edit mode: %s)',
+        (isEditMode) => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-03-01T00:30:00Z'));
+            try {
+                boundaryMetadata.current = {
+                    chart: [
+                        {
+                            timezone: 'America/New_York',
+                            projectTimezone: 'UTC',
+                            startOfWeek: WeekDay.MONDAY,
+                            useTimezoneAwareDateTrunc: false,
+                            fields: {
+                                orders_created_at: {
+                                    fieldType: DimensionType.TIMESTAMP,
+                                },
+                            },
+                        },
+                    ],
+                };
+                const rule: DashboardFilterRule = {
+                    ...anyValueRule,
+                    disabled: false,
+                    target: {
+                        fieldId: 'orders_created_at',
+                        tableName: 'orders',
+                    },
+                    values: ['2026-02-15T12:00:00Z'],
+                    boundaries: {
+                        type: 'date',
+                        mode: 'relative',
+                        value: 1,
+                        unitOfTime: UnitOfTime.months,
+                        completed: true,
+                    },
+                };
+                renderWithProviders(
+                    <FilterConfiguration
+                        tiles={[]}
+                        tabs={[]}
+                        field={mockTimestampField}
+                        availableTileFilters={{}}
+                        defaultFilterRule={rule}
+                        originalFilterRule={rule}
+                        isEditMode={isEditMode}
+                        onSave={vi.fn()}
+                    />,
+                );
+                expect(
+                    screen.getByRole('button', { name: 'Apply' }),
+                ).toBeDisabled();
+                expect(
+                    screen.getByText(
+                        'Choose dates within the last 1 completed month.',
+                    ),
+                ).toBeVisible();
+            } finally {
+                vi.useRealTimers();
+            }
         },
     );
 

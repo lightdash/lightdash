@@ -119,4 +119,61 @@ describe('FilterMultiStringInput', () => {
         );
         expect(onChange).toHaveBeenCalledWith([' Pending ', 'Active', '', ' ']);
     });
+    it.each([true, false])(
+        'respects single value mode when selecting suggestions (%s)',
+        async (singleValue) => {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
+            renderWithProviders(
+                <FilterMultiStringInput
+                    values={['Pending']}
+                    suggestions={['Pending', 'Active']}
+                    singleValue={singleValue}
+                    onChange={onChange}
+                    preserveWhitespace
+                />,
+            );
+            await user.click(screen.getByRole('textbox'));
+            await user.click(screen.getByRole('option', { name: 'Active' }));
+            expect(onChange).toHaveBeenCalledWith(
+                singleValue ? ['Active'] : ['Pending', 'Active'],
+            );
+        },
+    );
+
+    it('replaces a single value with a typed value without trimming it', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        renderWithProviders(
+            <FilterMultiStringInput
+                values={['Pending']}
+                singleValue
+                preserveWhitespace
+                onChange={onChange}
+            />,
+        );
+        await user.type(screen.getByRole('textbox'), ' Other {Enter}');
+        expect(onChange).toHaveBeenCalledWith([' Other ']);
+    });
+
+    it('retains only the last pasted value in single value mode', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        renderWithProviders(
+            <FilterMultiStringInput
+                values={['Pending']}
+                singleValue
+                preserveWhitespace
+                onChange={onChange}
+            />,
+        );
+        fireEvent.paste(screen.getByRole('textbox'), {
+            clipboardData: { getData: () => 'Active, Other ' },
+        });
+        expect(onChange).not.toHaveBeenCalled();
+        await user.click(
+            await screen.findByRole('button', { name: /multiple values/i }),
+        );
+        expect(onChange).toHaveBeenCalledWith([' Other ']);
+    });
 });

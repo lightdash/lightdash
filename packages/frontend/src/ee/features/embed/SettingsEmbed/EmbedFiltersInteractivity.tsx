@@ -4,6 +4,7 @@ import {
     getFilterInteractivityValue,
     getItemId,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     type DashboardFilterInteractivityOptions,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
@@ -69,13 +70,29 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboard?.tiles
-                ?.filter(isDashboardChartTileType)
+                ?.filter(
+                    (tile) =>
+                        isDashboardChartTileType(tile) ||
+                        isDashboardSqlChartTile(tile),
+                )
                 .reduce<SavedChartsInfoForDashboardAvailableFilters>(
                     (acc, tile) => {
-                        if (tile.properties.savedChartUuid) {
+                        if (
+                            isDashboardChartTileType(tile) &&
+                            tile.properties.savedChartUuid
+                        ) {
                             acc.push({
                                 tileUuid: tile.uuid,
                                 savedChartUuid: tile.properties.savedChartUuid,
+                            });
+                        }
+                        if (
+                            isDashboardSqlChartTile(tile) &&
+                            tile.properties.savedSqlUuid
+                        ) {
+                            acc.push({
+                                tileUuid: tile.uuid,
+                                savedSqlUuid: tile.properties.savedSqlUuid,
                             });
                         }
                         return acc;

@@ -63,6 +63,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         !field ||
                         isTableCalculation(field) ? (
                         <FilterMultiStringInput
+                            singleValue={isSingleValue}
                             preserveWhitespace={boundaries?.type === 'string'}
                             suggestions={
                                 boundaries?.type === 'string'

@@ -17,7 +17,7 @@ import { Flex, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
-import { useFilterBoundaryContext } from '../../../../features/dashboardFilters/FilterConfiguration/useFilterBoundaryContext';
+import { useFilterBoundaryContexts } from '../../../../features/dashboardFilters/FilterConfiguration/useFilterBoundaryContext';
 import { NumberInput } from '../../NumberInput';
 import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
@@ -50,15 +50,10 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 ) => {
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
-    const fieldBoundaryContext = useFilterBoundaryContext(field);
-    const boundaryContext = {
-        ...fieldBoundaryContext,
-        ...(isDashboardFilterRule(rule) &&
-            rule.target.isSqlColumn && {
-                fieldType: rule.target.fallbackType,
-                timezone: 'UTC',
-            }),
-    };
+    const boundaryContexts = useFilterBoundaryContexts(
+        field,
+        isDashboardFilterRule(rule) ? rule : undefined,
+    );
     const getUiString = useUiStrings();
 
     const isTimestamp =
@@ -88,43 +83,48 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     });
     const invalidDateFilterValue = getInvalidDateFilterValue(rule.values);
     const isDateAllowed = (date: Date): boolean => {
-        if (!props.boundaries || props.boundaries.type !== 'date') return true;
-        if (isTimestamp) {
-            const interval = resolveFilterBoundaryInterval(
-                props.boundaries,
-                boundaryContext,
-            );
-            const calendarDay = dayjs(date).format('YYYY-MM-DD');
-            const dayInterval = resolveFilterBoundaryInterval(
-                {
-                    type: 'date',
-                    mode: 'fixed',
-                    start: calendarDay,
-                    end: calendarDay,
-                },
-                boundaryContext,
-            );
+        const boundaries = props.boundaries;
+        if (!boundaries || boundaries.type !== 'date') return true;
+        return boundaryContexts.every((boundaryContext) => {
+            // A timestamp picker selects a time after selecting the day. Keep a
+            // day available when it overlaps the permitted timestamp interval.
+            if (boundaryContext.fieldType !== DimensionType.DATE) {
+                const interval = resolveFilterBoundaryInterval(
+                    boundaries,
+                    boundaryContext,
+                );
+                const calendarDay = dayjs(date).format('YYYY-MM-DD');
+                const dayInterval = resolveFilterBoundaryInterval(
+                    {
+                        type: 'date',
+                        mode: 'fixed',
+                        start: calendarDay,
+                        end: calendarDay,
+                    },
+                    boundaryContext,
+                );
+                return (
+                    !!interval &&
+                    !!dayInterval &&
+                    dayInterval.end > interval.start &&
+                    (dayInterval.start < interval.end ||
+                        (interval.endInclusive &&
+                            dayInterval.start === interval.end))
+                );
+            }
             return (
-                !!interval &&
-                !!dayInterval &&
-                dayInterval.end > interval.start &&
-                (dayInterval.start < interval.end ||
-                    (interval.endInclusive &&
-                        dayInterval.start === interval.end))
+                validateFilterBoundary(
+                    props.boundaries,
+                    {
+                        ...rule,
+                        disabled: false,
+                        operator: FilterOperator.EQUALS,
+                        values: [dayjs(date).format('YYYY-MM-DD')],
+                    },
+                    boundaryContext,
+                ) === null
             );
-        }
-        return (
-            validateFilterBoundary(
-                props.boundaries,
-                {
-                    ...rule,
-                    disabled: false,
-                    operator: FilterOperator.EQUALS,
-                    values: [dayjs(date).format('YYYY-MM-DD')],
-                },
-                boundaryContext,
-            ) === null
-        );
+        });
     };
     const excludeDate = props.boundaries
         ? (date: string) => !isDateAllowed(dayjs(date).toDate())
@@ -424,15 +424,18 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         isOptionAllowed={
                             props.boundaries
                                 ? (settings) =>
-                                      validateFilterBoundary(
-                                          props.boundaries,
-                                          {
-                                              ...rule,
-                                              disabled: false,
-                                              settings,
-                                          },
-                                          boundaryContext,
-                                      ) === null
+                                      boundaryContexts.every(
+                                          (context) =>
+                                              validateFilterBoundary(
+                                                  props.boundaries,
+                                                  {
+                                                      ...rule,
+                                                      disabled: false,
+                                                      settings,
+                                                  },
+                                                  context,
+                                              ) === null,
+                                      )
                                 : undefined
                         }
                         disabled={disabled}
@@ -469,11 +472,18 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     isOptionAllowed={
                         props.boundaries
                             ? (settings) =>
-                                  validateFilterBoundary(
-                                      props.boundaries,
-                                      { ...rule, disabled: false, settings },
-                                      boundaryContext,
-                                  ) === null
+                                  boundaryContexts.every(
+                                      (context) =>
+                                          validateFilterBoundary(
+                                              props.boundaries,
+                                              {
+                                                  ...rule,
+                                                  disabled: false,
+                                                  settings,
+                                              },
+                                              context,
+                                          ) === null,
+                                  )
                             : undefined
                     }
                     w="100%"
