@@ -224,6 +224,7 @@ export type ModelManifest = {
     managedAgentModel: unknown;
     mobilePushNotificationModel: unknown;
     aiOrganizationSettingsModel: unknown;
+    aiCreditRateCardModel: unknown;
     embedModel: unknown;
     serviceAccountModel: unknown;
     scimRequestLogModel: unknown;
@@ -1190,6 +1191,10 @@ export class ModelRepository
 
     public getAiOrganizationSettingsModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiOrganizationSettingsModel');
+    }
+
+    public getAiCreditRateCardModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiCreditRateCardModel');
     }
 
     public getEmbedModel<ModelImplT>(): ModelImplT {

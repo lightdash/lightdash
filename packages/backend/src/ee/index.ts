@@ -41,6 +41,7 @@ import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiAgentSkillModel } from './models/AiAgentSkillModel';
+import { AiCreditRateCardModel } from './models/AiCreditRateCardModel';
 import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
@@ -1543,6 +1544,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     database,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
+            aiCreditRateCardModel: ({ database }) =>
+                new AiCreditRateCardModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
             slackAuthenticationModel: ({ database }) =>
