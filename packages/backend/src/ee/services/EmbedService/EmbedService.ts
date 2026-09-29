@@ -53,6 +53,7 @@ import {
     isDashboardSlugContent,
     isDashboardSqlChartTile,
     isExploreError,
+    isExternalFetchDocumentContext,
     isFilterableDimension,
     isFilterInteractivityEnabled,
     isFilterLockedOnTab,
@@ -2050,6 +2051,12 @@ export class EmbedService extends BaseService {
         dataAppVizUuid: string,
         chartContext: ExternalFetchRequest['chartContext'],
     ): Promise<void> {
+        // Documents are not embeddable, so an embed can never render one.
+        if (isExternalFetchDocumentContext(chartContext)) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
         const dataAppViz = chartContext
             ? (
                   await this.getAuthorizedDataAppVizForEmbed(

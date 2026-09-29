@@ -45,41 +45,23 @@ export class DocumentQueryContext {
         reference: DocumentQueryReference;
         sourceRowCap: number;
     }): Promise<DocumentQueryContext> {
-        // Any saved version can be read: the version pins the exact cell,
-        // and the query still runs with the caller's current permissions.
-        const document = await documentService.getVersion(
+        const content = await documentService.getChartCell(
             account,
             projectUuid,
-            reference.documentUuid,
-            reference.versionUuid,
+            reference,
         );
-        if (
-            !Number.isSafeInteger(reference.cellIndex) ||
-            reference.cellIndex < 0
-        ) {
-            throw new ParameterError(
-                'Document cell index must be a non-negative integer',
-            );
-        }
-        const cell = document.version.content.cells[reference.cellIndex];
-        if (!cell || cell.type !== 'chart') {
-            throw new NotFoundError('Document chart cell not found');
-        }
         const metricQuery = {
-            ...cell.content.chart.metricQuery,
-            filters: normalizeFilterIds(cell.content.chart.metricQuery.filters),
+            ...content.chart.metricQuery,
+            filters: normalizeFilterIds(content.chart.metricQuery.filters),
         };
         return new DocumentQueryContext(
             account.user.userUuid,
             projectUuid,
             reference,
-            cell.content,
+            content,
             metricQuery,
-            cell.content.source === 'merge'
-                ? buildMergeQueryFromSaved(
-                      metricQuery,
-                      cell.content.chart.merge,
-                  )
+            content.source === 'merge'
+                ? buildMergeQueryFromSaved(metricQuery, content.chart.merge)
                 : undefined,
             sourceRowCap,
         );

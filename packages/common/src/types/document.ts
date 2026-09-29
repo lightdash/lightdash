@@ -21,7 +21,7 @@ export type MergeChartAsCode = SemanticChartAsCode & {
     merge: SavedMergeQuery;
 };
 
-type DocumentChartContent =
+export type DocumentChartContent =
     | { source: 'semantic'; chart: SemanticChartAsCode }
     | { source: 'merge'; chart: MergeChartAsCode };
 

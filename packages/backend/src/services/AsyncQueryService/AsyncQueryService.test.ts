@@ -118,7 +118,7 @@ import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
-import type { DocumentService } from '../DocumentService/DocumentService';
+import { DocumentService } from '../DocumentService/DocumentService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
@@ -375,13 +375,20 @@ const getMockedAsyncQueryService = (
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
         getDocumentService: () =>
-            (documentService ?? {
-                get: vi
-                    .fn()
-                    .mockRejectedValue(new NotFoundError('Document not found')),
-                getVersion: vi
-                    .fn()
-                    .mockRejectedValue(new NotFoundError('Document not found')),
+            ({
+                ...(documentService ?? {
+                    get: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new NotFoundError('Document not found'),
+                        ),
+                    getVersion: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new NotFoundError('Document not found'),
+                        ),
+                }),
+                getChartCell: DocumentService.prototype.getChartCell,
             }) as DocumentService,
         getQuerySourceService: () => {
             querySourceService ??= new QuerySourceService({
@@ -10373,6 +10380,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             'getDocumentService',
         ).mockReturnValue({
             getVersion: vi.fn().mockResolvedValue(document),
+            getChartCell: DocumentService.prototype.getChartCell,
         } as unknown as DocumentService);
         const result = await service.executeAsyncDocumentCellQuery({
             account,

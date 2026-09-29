@@ -190,17 +190,34 @@ export const EXTERNAL_CONNECTION_DEFAULTS = {
     timeoutMs: 10000,
 } as const;
 
+/** A saved chart (optionally at a specific version) rendering a chart type. */
+export type ExternalFetchSavedChartContext = {
+    savedChartUuid: UUID;
+    chartVersionUuid?: UUID;
+};
+
+/** A chart cell of a specific Document version rendering a chart type. */
+export type ExternalFetchDocumentContext = {
+    documentUuid: UUID;
+    documentVersionUuid: UUID;
+    cellIndex: number;
+};
+
+export const isExternalFetchDocumentContext = (
+    context: ExternalFetchRequest['chartContext'],
+): context is ExternalFetchDocumentContext =>
+    !!context && 'documentUuid' in context;
+
 export type ExternalFetchRequest = {
     connectionAlias: string;
     method?: ExternalConnectionMethod;
     path: string;
     query?: Record<string, string>;
     body?: unknown;
-    /** Host-supplied saved chart identity for custom chart type rendering. */
-    chartContext?: {
-        savedChartUuid: UUID;
-        chartVersionUuid?: UUID;
-    };
+    /** Host-supplied identity of what is rendering a custom chart type. */
+    chartContext?:
+        | ExternalFetchSavedChartContext
+        | ExternalFetchDocumentContext;
 };
 
 export type ExternalFetchResponse = {

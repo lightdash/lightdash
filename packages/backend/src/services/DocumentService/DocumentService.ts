@@ -16,8 +16,10 @@ import {
     type Document,
     type DocumentAsCode,
     type DocumentCell,
+    type DocumentChartContent,
     type DocumentContent,
     type DocumentList,
+    type DocumentQueryReference,
     type DocumentVersionList,
     type DuplicateDocumentRequest,
     type MetricQuery,
@@ -966,6 +968,36 @@ export class DocumentService extends BaseService {
                 ),
             },
         };
+    }
+
+    /**
+     * A chart cell of a saved Document version. Any version can be read by
+     * anyone who can view the Document: the version pins the exact cell.
+     */
+    async getChartCell(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        reference: DocumentQueryReference,
+    ): Promise<DocumentChartContent> {
+        if (
+            !Number.isSafeInteger(reference.cellIndex) ||
+            reference.cellIndex < 0
+        ) {
+            throw new ParameterError(
+                'Document cell index must be a non-negative integer',
+            );
+        }
+        const document = await this.getVersion(
+            account,
+            projectUuid,
+            reference.documentUuid,
+            reference.versionUuid,
+        );
+        const cell = document.version.content.cells[reference.cellIndex];
+        if (!cell || cell.type !== 'chart') {
+            throw new NotFoundError('Document chart cell not found');
+        }
+        return cell.content;
     }
 
     async getAsCode(

@@ -43,6 +43,14 @@ const chartRequest = {
     ...request,
     chartContext: { savedChartUuid: 'chart-1' },
 };
+const documentRequest: ExternalFetchRequest = {
+    ...request,
+    chartContext: {
+        documentUuid: 'doc-1',
+        documentVersionUuid: 'doc-version-1',
+        cellIndex: 1,
+    },
+};
 
 const sessionAccount = (
     role = OrganizationMemberRole.VIEWER,
@@ -97,6 +105,7 @@ function buildService({
     connectionOrganizationUuid = 'org-1',
     dashboardChartUuid = 'chart-1',
     flagsEnabled = true,
+    documentAppUuid = 'app-1',
 }: {
     template?: string;
     chartAccessible?: boolean;
@@ -107,6 +116,7 @@ function buildService({
     connectionOrganizationUuid?: string;
     dashboardChartUuid?: string;
     flagsEnabled?: boolean;
+    documentAppUuid?: string;
 } = {}) {
     const app = {
         app_id: 'app-1',
@@ -176,11 +186,34 @@ function buildService({
         dashboardModel,
         spacePermissionService,
     } as never);
+    const documentService = {
+        getChartCell: vi.fn(
+            async (
+                _account: unknown,
+                _projectUuid: string,
+                reference: { documentUuid: string },
+            ) => {
+                if (reference.documentUuid !== 'doc-1') {
+                    throw new ForbiddenError('No access to this document');
+                }
+                return {
+                    source: 'semantic',
+                    chart: {
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: { dataAppVizUuid: documentAppUuid },
+                        },
+                    },
+                };
+            },
+        ),
+    };
     const appGenerateService = new AppGenerateService({
         appModel,
         savedChartModel,
         savedChartService,
         featureFlagModel,
+        documentService,
     } as never);
     const embedService = new EmbedService({
         appModel,
@@ -232,6 +265,7 @@ function buildService({
         externalConnectionModel,
         savedChartModel,
         dashboardModel,
+        documentService,
     };
 }
 
@@ -263,6 +297,70 @@ describe('custom chart type external connection authorization', () => {
                 headers: { Authorization: 'Bearer connection-secret' },
             }),
         );
+    });
+
+    it('allows a Document viewer to use the credential of a chart type in that Document', async () => {
+        const { service, documentService } = buildService();
+        await expect(
+            service.proxyFetch(
+                sessionAccount(),
+                'proj-1',
+                'app-1',
+                documentRequest,
+            ),
+        ).resolves.toMatchObject({ body: { ok: true } });
+        expect(documentService.getChartCell).toHaveBeenCalledWith(
+            expect.anything(),
+            'proj-1',
+            {
+                documentUuid: 'doc-1',
+                versionUuid: 'doc-version-1',
+                cellIndex: 1,
+            },
+        );
+    });
+
+    it('rejects a Document cell that renders a different chart type', async () => {
+        const { service, externalConnectionModel } = buildService({
+            documentAppUuid: 'another-app',
+        });
+        await expect(
+            service.proxyFetch(
+                sessionAccount(),
+                'proj-1',
+                'app-1',
+                documentRequest,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            externalConnectionModel.getDecryptedSecret,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a Document the user cannot view', async () => {
+        const { service } = buildService();
+        await expect(
+            service.proxyFetch(sessionAccount(), 'proj-1', 'app-1', {
+                ...request,
+                chartContext: {
+                    documentUuid: 'other-doc',
+                    documentVersionUuid: 'doc-version-1',
+                    cellIndex: 1,
+                },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects a Document context from an embed', async () => {
+        const { service } = buildService();
+        await expect(
+            service.proxyFetch(
+                embeddedAccount('chart'),
+                'proj-1',
+                'app-1',
+                documentRequest,
+            ),
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('allows an explorer user to use a chart type created by someone else', async () => {

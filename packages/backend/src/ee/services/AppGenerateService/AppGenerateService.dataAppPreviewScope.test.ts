@@ -124,6 +124,7 @@ const buildService = () =>
             }),
         } as never,
         coderService: {} as never,
+        documentService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
