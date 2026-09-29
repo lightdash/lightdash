@@ -32,6 +32,10 @@ inputs:
     description: Optional Slack incoming webhook from a repository secret; never commit the URL in plaintext
     required: false
     default: ''
+  escalation_channel:
+    description: Optional Slack channel for escalations, such as '#engineering'; overrides the webhook's default channel
+    required: false
+    default: ''
   freeze_label:
     description: Open-issue label that disarms upgrade planning
     required: false
@@ -76,6 +80,7 @@ runs:
         SAFETY_GATE: ${{ inputs.safety_gate }}
         AUTO_MERGE: ${{ inputs.auto_merge }}
         ESCALATION: ${{ inputs.escalation }}
+        ESCALATION_CHANNEL: ${{ inputs.escalation_channel }}
         FREEZE_LABEL: ${{ inputs.freeze_label }}
         HOLD_LABEL: ${{ inputs.hold_label }}
         HOLD_REMINDER_INTERVAL: ${{ inputs.hold_reminder_interval }}
