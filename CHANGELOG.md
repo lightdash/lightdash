@@ -1,3 +1,10 @@
+# [2.378.0](https://github.com/lightdash/lightdash/compare/2.377.0...2.378.0) (2026-09-29)
+
+
+### Features
+
+* support required_attributes and any_attributes on metrics ([#30209](https://github.com/lightdash/lightdash/issues/30209)) ([1a72186](https://github.com/lightdash/lightdash/commit/1a72186cb4cbcd27ed81ff2dce248a88598e7727))
+
 # [2.377.0](https://github.com/lightdash/lightdash/compare/2.376.0...2.377.0) (2026-09-29)
 
 
