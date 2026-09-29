@@ -43,6 +43,22 @@ export class AiCreditHoldModel {
         return row ? toHold(row) : undefined;
     }
 
+    async findActiveAllowanceExhaustedHoldUntil(
+        organizationUuid: string,
+        until: Date,
+    ): Promise<AiCreditHold | undefined> {
+        const row = await this.database(AiCreditHoldsTableName)
+            .where({
+                organization_uuid: organizationUuid,
+                user_uuid: null,
+                reason: 'allowance_exhausted',
+            })
+            .whereNull('released_at')
+            .where('expires_at', '>=', until)
+            .first();
+        return row ? toHold(row) : undefined;
+    }
+
     /** Undefined when a concurrent call already placed the hold for this entitlement. */
     async createAllowanceExhaustedHold(
         entitlement: AiCreditEntitlement,

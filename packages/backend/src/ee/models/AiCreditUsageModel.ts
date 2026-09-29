@@ -198,6 +198,14 @@ export class AiCreditUsageModel {
         if (await this.holdModel.findAllowanceExhaustedHold(entitlement.uuid)) {
             return;
         }
+        if (
+            await this.holdModel.findActiveAllowanceExhaustedHoldUntil(
+                entitlement.organizationUuid,
+                entitlement.periodEnd,
+            )
+        ) {
+            return;
+        }
         const used = await this.sumCredits(
             entitlement.organizationUuid,
             entitlement,
@@ -225,10 +233,13 @@ export class AiCreditUsageModel {
                 organizationId,
                 at,
             );
-        await Promise.all(
-            entitlements.map((entitlement) =>
-                this.placeHoldIfExhausted(entitlement),
-            ),
-        );
+        // Longest window first, so its hold covers shorter windows that run out with it.
+        await [...entitlements]
+            .sort((a, b) => b.periodEnd.getTime() - a.periodEnd.getTime())
+            .reduce<Promise<void>>(
+                (previous, entitlement) =>
+                    previous.then(() => this.placeHoldIfExhausted(entitlement)),
+                Promise.resolve(),
+            );
     }
 }

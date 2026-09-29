@@ -268,6 +268,45 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
             );
         });
 
+        test('windows that run out together place one hold, for the longest window', async () => {
+            const year = {
+                periodStart: period.periodStart,
+                periodEnd: new Date('2027-09-15T00:00:00Z'),
+            };
+            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS);
+            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS, year);
+
+            await recordAndEvaluate(usageEvent(organizationUuid));
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            const active = await holds.findActive(organizationUuid, now);
+            expect(active).toHaveLength(1);
+            expect(active[0].expiresAt?.toISOString()).toBe(
+                year.periodEnd.toISOString(),
+            );
+        });
+
+        test('a shorter window that ran out is held once the longer hold is released', async () => {
+            const year = {
+                periodStart: period.periodStart,
+                periodEnd: new Date('2027-09-15T00:00:00Z'),
+            };
+            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS);
+            await insertEntitlement(SONNET_INPUT_MTOK_CREDITS, year);
+            await recordAndEvaluate(usageEvent(organizationUuid));
+            await transaction('ai_credit_holds')
+                .where({ organization_uuid: organizationUuid })
+                .update({ released_at: now });
+
+            await recordAndEvaluate(usageEvent(organizationUuid));
+
+            const active = await holds.findActive(organizationUuid, now);
+            expect(active).toHaveLength(1);
+            expect(active[0].expiresAt?.toISOString()).toBe(
+                period.periodEnd.toISOString(),
+            );
+        });
+
         test('never places a hold without an agreed allowance', async () => {
             await insertEntitlement(null);
             await recordAndEvaluate(usageEvent(organizationUuid));
