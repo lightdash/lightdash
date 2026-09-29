@@ -1,5 +1,5 @@
 import execa from 'execa';
-import { access, constants } from 'node:fs/promises';
+import { access, constants, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 export const LEARN_SANDBOX_COMMAND_TIMEOUT_MS = 120_000;
@@ -151,26 +151,65 @@ export const resetSandboxRuntimeCache = (): void => {
 
 const DBT_VERSION_DETECTION_TIMEOUT_MS = 30_000;
 const DBT_CORE_INSTALLED_REGEX = /installed:\s*(\S+)/;
+const DBT_CORE_DIST_INFO_REGEX = /^dbt_core-(\d+\.\d+\.\d+\S*)\.dist-info$/;
+const PYTHON_LIB_DIR_REGEX = /^python\d/;
 
 let dbtVersionCache = new Map<string, Promise<string | undefined>>();
 
+const findExecutablePath = async (
+    bin: string,
+    dirs: string[],
+): Promise<string | undefined> => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const dir of dirs) {
+        // eslint-disable-next-line no-await-in-loop
+        if (await isExecutableIn(dir, bin)) {
+            return path.join(dir, bin);
+        }
+    }
+    return undefined;
+};
+
+const listDir = (dir: string): Promise<string[]> =>
+    readdir(dir).catch(() => []);
+
 /**
- * The dbt-core version the sandbox's `dbt` resolves to, asked once per
- * process for each PATH. The CLI otherwise runs `dbt --version` four times
- * per `lightdash deploy`, and each run is a cold Python start that costs
- * seconds on a scheduler pod; the result goes to the child as
- * LIGHTDASH_DBT_VERSION instead. Anything short of a clean answer returns
- * undefined and is not cached, so the CLI falls back to asking dbt itself.
+ * The dbt-core version installed in the venv that owns the `dbt` on PATH,
+ * read from its `dbt_core-<version>.dist-info` directory. No process is
+ * started: `dbt --version` also asks PyPI for the latest release and takes
+ * about 7 s on a scheduler pod (CS-333). Returns undefined for anything
+ * other than one unambiguous match (no venv layout, dbt Fusion, several
+ * dbt-core installs), so the caller falls back to asking dbt.
  */
-export const detectSandboxDbtVersion = (
+const readDbtCoreVersionFromMetadata = async (
     env: Record<string, string>,
 ): Promise<string | undefined> => {
-    const key = env.PATH ?? '';
-    const cached = dbtVersionCache.get(key);
-    if (cached) {
-        return cached;
-    }
-    const detection = execa('dbt', ['--version'], {
+    const dirs = (env.PATH ?? '').split(path.delimiter).filter(Boolean);
+    const dbt = await findExecutablePath('dbt', dirs);
+    if (!dbt) return undefined;
+    const resolved = await realpath(dbt).catch(() => undefined);
+    if (!resolved) return undefined;
+    const libDir = path.join(path.dirname(path.dirname(resolved)), 'lib');
+    const pythonDirs = (await listDir(libDir)).filter((name) =>
+        PYTHON_LIB_DIR_REGEX.test(name),
+    );
+    const versions = (
+        await Promise.all(
+            pythonDirs.map((name) =>
+                listDir(path.join(libDir, name, 'site-packages')),
+            ),
+        )
+    )
+        .flat()
+        .map((name) => DBT_CORE_DIST_INFO_REGEX.exec(name)?.[1])
+        .filter((version): version is string => version !== undefined);
+    return versions.length === 1 ? versions[0] : undefined;
+};
+
+const askDbtForVersion = (
+    env: Record<string, string>,
+): Promise<string | undefined> =>
+    execa('dbt', ['--version'], {
         env,
         extendEnv: false,
         shell: false,
@@ -183,7 +222,29 @@ export const detectSandboxDbtVersion = (
                 ? DBT_CORE_INSTALLED_REGEX.exec(result.all ?? '')?.[1]
                 : undefined,
         )
+        .catch(() => undefined);
+
+/**
+ * The dbt-core version the sandbox's `dbt` resolves to, looked up once per
+ * process for each PATH. The CLI otherwise runs `dbt --version` four times
+ * per `lightdash deploy`, and each run is a cold Python start that costs
+ * seconds on a scheduler pod; the result goes to the child as
+ * LIGHTDASH_DBT_VERSION instead. The version comes from the venv's package
+ * metadata when it can, and from `dbt --version` otherwise. Anything short
+ * of a clean answer returns undefined and is not cached, so the CLI falls
+ * back to asking dbt itself.
+ */
+export const detectSandboxDbtVersion = (
+    env: Record<string, string>,
+): Promise<string | undefined> => {
+    const key = env.PATH ?? '';
+    const cached = dbtVersionCache.get(key);
+    if (cached) {
+        return cached;
+    }
+    const detection = readDbtCoreVersionFromMetadata(env)
         .catch(() => undefined)
+        .then((version) => version ?? askDbtForVersion(env))
         .then((version) => {
             if (version === undefined) {
                 dbtVersionCache.delete(key);
