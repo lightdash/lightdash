@@ -61,24 +61,24 @@ jobs:
           ADDITIONAL_WATCH_PATHS: ${{ inputs.additional_watch_paths }}
         run: |
           set -euo pipefail
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${RELEASE_TAG}$" | tail -1 || true)
-          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$RELEASE_TAG" ]; then
+          WATCH_PATHS=("$TEMPLATE_DIRECTORY")
+          while IFS= read -r watch_path; do
+            [ -n "$watch_path" ] && WATCH_PATHS+=("$watch_path")
+          done <<< "$ADDITIONAL_WATCH_PATHS"
+          STATUS=0
+          CHANGED=$(.github/scripts/sandbox-image-changes.sh "$RELEASE_TAG" "${WATCH_PATHS[@]}") || STATUS=$?
+          if [ "$STATUS" -eq 10 ]; then
             echo "No previous tag found — performing full build"
             ACTION="build"
+          elif [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          elif [ -n "$CHANGED" ]; then
+            echo "Template changed — performing full build"
+            echo "$CHANGED"
+            ACTION="build"
           else
-            WATCH_PATHS=("$TEMPLATE_DIRECTORY")
-            while IFS= read -r watch_path; do
-              [ -n "$watch_path" ] && WATCH_PATHS+=("$watch_path")
-            done <<< "$ADDITIONAL_WATCH_PATHS"
-            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- "${WATCH_PATHS[@]}" || true)
-            if [ -n "$CHANGED" ]; then
-              echo "Template changed since $PREVIOUS_TAG — performing full build"
-              echo "$CHANGED"
-              ACTION="build"
-            else
-              echo "No template changes since $PREVIOUS_TAG — re-tagging :latest"
-              ACTION="retag"
-            fi
+            echo "No template changes — re-tagging :latest"
+            ACTION="retag"
           fi
           echo "action=$ACTION" >> "$GITHUB_OUTPUT"
 
