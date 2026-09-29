@@ -34,12 +34,19 @@ import type { UserService } from '../UserService';
 import { buildArgv } from './allowlist';
 import { OutputBuffer } from './outputBuffer';
 import {
+    buildPartialParseBaseline,
+    partialParseBaselineKey,
+    partialParseBaselinePath,
+    seedPartialParse,
+} from './partialParse';
+import {
     buildSandboxEnvironment,
     detectSandboxDbtVersion,
     detectSandboxRuntime,
     LEARN_SANDBOX_COMMAND_TIMEOUT_MS,
     resolveSandboxRuntime,
     type LearnSandboxActiveCommandLimits,
+    type LearnSandboxRuntime,
 } from './runtime';
 import {
     isEditablePath,
@@ -47,6 +54,7 @@ import {
     materialiseWorkspace,
     validateYaml,
     writeCliConfig,
+    type LearnBundle,
 } from './workspace';
 
 const MAX_FILE_BYTES = 64 * 1024;
@@ -54,6 +62,9 @@ const MAX_PATH_LENGTH = 255;
 const MAX_OVERLAY_FILES = 200;
 const STALE_WORKSPACE_MS = 60 * 60 * 1000;
 const STALE_RUNNING_GRACE_MS = 5 * 60 * 1000;
+// A baseline that failed to build is not retried on every command: each
+// attempt is a full dbt parse on the scheduler.
+const PARTIAL_PARSE_RETRY_MS = 10 * 60 * 1000;
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 // Set by provisionTrainingProject on both the shared TRAINING project and
 // every learner's PREVIEW copy of it.
@@ -109,6 +120,11 @@ type LearnSandboxServiceArguments = {
     schedulerClient: LearnSandboxSchedulerClient;
     execa?: typeof execaDefault;
     workspaceRoot?: string;
+    /**
+     * Where partial-parse baselines live, outside the swept workspaceRoot.
+     * null turns partial parsing off: every command runs a full parse.
+     */
+    partialParseRoot?: string | null;
     commandTimeoutMs?: number;
     activeCommandLimits?: LearnSandboxActiveCommandLimits;
 };
@@ -138,6 +154,12 @@ export class LearnSandboxService extends BaseService {
 
     private readonly workspaceRoot: string;
 
+    private readonly partialParseRoot: string | null;
+
+    private readonly partialParseBuilds = new Map<string, Promise<void>>();
+
+    private readonly partialParseRetryAt = new Map<string, number>();
+
     private readonly commandTimeoutMs: number;
 
     private readonly activeCommandLimits: LearnSandboxActiveCommandLimits;
@@ -155,6 +177,10 @@ export class LearnSandboxService extends BaseService {
         this.workspaceRoot =
             args.workspaceRoot ??
             path.join(os.tmpdir(), 'lightdash-learn', 'ws');
+        this.partialParseRoot =
+            args.partialParseRoot === undefined
+                ? path.join(path.dirname(this.workspaceRoot), 'partial-parse')
+                : args.partialParseRoot;
         this.commandTimeoutMs =
             args.commandTimeoutMs ?? LEARN_SANDBOX_COMMAND_TIMEOUT_MS;
         this.activeCommandLimits =
@@ -456,6 +482,7 @@ export class LearnSandboxService extends BaseService {
         let token = '';
         let status: LearnCommandStatus = 'error';
         let exitCode: number | null = null;
+        let missingBaseline: { key: string; bundle: LearnBundle } | undefined;
         const buffer = new OutputBuffer({
             secrets: [],
             onFlush: (chunks) =>
@@ -495,8 +522,9 @@ export class LearnSandboxService extends BaseService {
                 pat_uuid: patUuid,
             });
             await rm(workspaceDir, { recursive: true, force: true });
+            const bundle = await loadLearnBundle();
             await materialiseWorkspace({
-                bundle: await loadLearnBundle(),
+                bundle,
                 overlay: await this.learnWorkspaceModel.listFiles(
                     command.project_uuid,
                 ),
@@ -524,10 +552,33 @@ export class LearnSandboxService extends BaseService {
             // Told the version up front, the CLI skips the four `dbt --version`
             // starts it would otherwise make per deploy (CS-330).
             const dbtVersion = await detectSandboxDbtVersion(baseEnv);
-            const env =
-                dbtVersion === undefined
-                    ? baseEnv
-                    : { ...baseEnv, LIGHTDASH_DBT_VERSION: dbtVersion };
+            // Seeded with a parse of the pristine bundle, dbt re-parses only
+            // the files the learner changed (CS-334).
+            const baselineKey = partialParseBaselineKey({
+                bundle,
+                databasePath: runtime.databasePath,
+                dbtVersion,
+                sandboxPath: baseEnv.PATH ?? '',
+            });
+            const partialParse =
+                this.partialParseRoot !== null &&
+                (await seedPartialParse(
+                    partialParseBaselinePath(
+                        this.partialParseRoot,
+                        baselineKey,
+                    ),
+                    workspaceDir,
+                ));
+            if (!partialParse && this.partialParseRoot !== null) {
+                missingBaseline = { key: baselineKey, bundle };
+            }
+            const env = {
+                ...baseEnv,
+                DBT_PARTIAL_PARSE: partialParse ? 'true' : 'false',
+                ...(dbtVersion === undefined
+                    ? {}
+                    : { LIGHTDASH_DBT_VERSION: dbtVersion }),
+            };
             const [bin, ...args] = command.argv;
             // No `forceKillAfterTimeout` here on purpose: it isn't part of
             // execa v5's top-level Options type, and reading execa's own
@@ -650,7 +701,57 @@ export class LearnSandboxService extends BaseService {
                 finished_at: new Date(),
                 ...(tokenRevoked ? { pat_uuid: null } : {}),
             });
+            // Built after the command has finished, so the learner who
+            // found no baseline does not wait for it (or share the CPU with
+            // it); the next command on this worker picks it up.
+            if (missingBaseline) {
+                this.ensurePartialParseBaseline(missingBaseline, runtime);
+            }
         }
+    }
+
+    private ensurePartialParseBaseline(
+        { key, bundle }: { key: string; bundle: LearnBundle },
+        runtime: LearnSandboxRuntime,
+    ): void {
+        const root = this.partialParseRoot;
+        if (root === null || this.partialParseBuilds.has(key)) {
+            return;
+        }
+        const retryAt = this.partialParseRetryAt.get(key);
+        if (retryAt !== undefined && Date.now() < retryAt) {
+            return;
+        }
+        const build = buildPartialParseBaseline({
+            root,
+            key,
+            bundle,
+            databasePath: runtime.databasePath,
+            pathPrefix: runtime.pathPrefix,
+            processEnvironment: process.env,
+            execa: this.execa,
+        })
+            .catch(() => false)
+            .then((built) => {
+                if (built) {
+                    this.partialParseRetryAt.delete(key);
+                    this.logger.info(
+                        `Learn sandbox: built partial-parse baseline ${key}`,
+                    );
+                } else {
+                    this.partialParseRetryAt.set(
+                        key,
+                        Date.now() + PARTIAL_PARSE_RETRY_MS,
+                    );
+                    this.logger.warn(
+                        `Learn sandbox: could not build partial-parse baseline ${key}; commands keep running full parses`,
+                    );
+                }
+            })
+            .finally(() => {
+                this.partialParseBuilds.delete(key);
+            });
+        this.partialParseBuilds.set(key, build);
     }
 
     async sweep(): Promise<{
