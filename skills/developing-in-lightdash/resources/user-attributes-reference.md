@@ -188,7 +188,8 @@ any_attributes:
 
 ### Access Control Notes
 
-- Hidden dimensions also hide any metrics derived from them
+- Column-level metrics inherit the parent dimension's `required_attributes` / `any_attributes`; setting either key on the metric overrides that key
+- Model-level metrics don't inherit from the columns their `sql` references — set attributes on the metric or the table
 - Querying a hidden dimension returns a Forbidden error
 - `required_attributes` and `any_attributes` do **not** support intrinsic attributes (`email`)
 - Values are always strings — use `"true"` not `true`

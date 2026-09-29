@@ -4259,3 +4259,82 @@ describe('nested and repeated columns on Databricks', () => {
         ]);
     });
 });
+
+describe('metric user attributes', () => {
+    const modelWithGatedColumn: DbtModelNode & { relation_name: string } = {
+        ...model,
+        meta: {
+            metrics: {
+                open_model_metric: {
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.salary',
+                },
+                gated_model_metric: {
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.salary',
+                    required_attributes: { is_finance: 'true' },
+                    any_attributes: { team: ['hr', 'finance'] },
+                },
+            },
+        },
+        columns: {
+            salary: {
+                name: 'salary',
+                data_type: DimensionType.NUMBER,
+                meta: {
+                    dimension: {
+                        required_attributes: { is_admin: 'true' },
+                        any_attributes: { region: 'emea' },
+                    },
+                    metrics: {
+                        inherited_salary: { type: MetricType.SUM },
+                        overridden_salary: {
+                            type: MetricType.AVERAGE,
+                            required_attributes: { is_manager: 'true' },
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    const table = convertTable(
+        SupportedDbtAdapter.POSTGRES,
+        modelWithGatedColumn,
+        DEFAULT_SPOTLIGHT_CONFIG,
+    );
+
+    it('should leave a model-level metric without attributes ungated', () => {
+        expect(
+            table.metrics.open_model_metric.requiredAttributes,
+        ).toBeUndefined();
+        expect(table.metrics.open_model_metric.anyAttributes).toBeUndefined();
+    });
+
+    it('should read attributes set on a model-level metric', () => {
+        expect(table.metrics.gated_model_metric.requiredAttributes).toEqual({
+            is_finance: 'true',
+        });
+        expect(table.metrics.gated_model_metric.anyAttributes).toEqual({
+            team: ['hr', 'finance'],
+        });
+    });
+
+    it('should inherit the dimension attributes on a column-level metric', () => {
+        expect(table.metrics.inherited_salary.requiredAttributes).toEqual({
+            is_admin: 'true',
+        });
+        expect(table.metrics.inherited_salary.anyAttributes).toEqual({
+            region: 'emea',
+        });
+    });
+
+    it('should let a column-level metric override each attribute field', () => {
+        expect(table.metrics.overridden_salary.requiredAttributes).toEqual({
+            is_manager: 'true',
+        });
+        expect(table.metrics.overridden_salary.anyAttributes).toEqual({
+            region: 'emea',
+        });
+    });
+});

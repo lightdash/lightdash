@@ -759,6 +759,40 @@
                                     },
                                     "required": ["field", "interval"]
                                 },
+                                "required_attributes": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                        "oneOf": [
+                                            {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "any_attributes": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                        "oneOf": [
+                                            {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
                                 "spotlight": {
                                     "type": "object",
                                     "description": "Set the visibility and/or categories of a metric in Spotlight",
@@ -1418,6 +1452,40 @@
                                         }
                                     },
                                     "required": ["field", "interval"]
+                                },
+                                "required_attributes": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                        "oneOf": [
+                                            {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "any_attributes": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                        "oneOf": [
+                                            {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
                                 },
                                 "spotlight": {
                                     "type": "object",

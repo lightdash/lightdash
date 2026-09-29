@@ -360,6 +360,9 @@ export type DbtColumnLightdashMetric = {
     percentile?: number;
     distinct_keys?: string | string[]; // dimension references for sum_distinct deduplication key
     default_time_dimension?: DefaultTimeDimension;
+    // Override the parent dimension's attributes when set on a column-level metric
+    required_attributes?: Record<string, string | string[]>;
+    any_attributes?: Record<string, string | string[]>;
     spotlight?: {
         visibility?: NonNullable<
             LightdashProjectConfig['spotlight']
@@ -773,8 +776,8 @@ export const convertModelMetric = ({
                   }
                 : undefined,
         ),
-        requiredAttributes,
-        anyAttributes,
+        requiredAttributes: metric.required_attributes ?? requiredAttributes,
+        anyAttributes: metric.any_attributes ?? anyAttributes,
         ...(metric.urls ? { urls: metric.urls } : null),
         ...(metric.tags
             ? {

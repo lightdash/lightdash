@@ -447,6 +447,12 @@
                 },
                 "default_time_dimension": {
                     "$ref": "#/definitions/DefaultTimeDimension"
+                },
+                "required_attributes": {
+                    "$ref": "#/definitions/RequiredAttributes"
+                },
+                "any_attributes": {
+                    "$ref": "#/definitions/AnyAttributes"
                 }
             }
         },

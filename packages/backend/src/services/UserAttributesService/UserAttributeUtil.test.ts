@@ -7,6 +7,7 @@ import {
     EXPLORE_FILTERED_WITH_SALES_AND_ANALYST,
     EXPLORE_WITH_DIMENSION_ANY_ATTRIBUTES,
     EXPLORE_WITH_DIMENSION_REQUIRED_ATTRIBUTES,
+    EXPLORE_WITH_METRIC_REQUIRED_ATTRIBUTES,
     EXPLORE_WITH_NO_REQUIRED_ATTRIBUTES,
     EXPLORE_WITH_TABLE_AND_DIMENSION_ANY_ATTRIBUTES,
     EXPLORE_WITH_TABLE_AND_DIMENSION_REQUIRED_ATTRIBUTES,
@@ -528,5 +529,30 @@ describe('getFilteredExplore with anyAttributes', () => {
                 department: ['hr'], // Does not match payments anyAttributes (needs analyst/admin role)
             }),
         ).toThrow("You don't have authorization to access this explore");
+    });
+});
+
+describe('metric-level attributes', () => {
+    test('should detect when only a metric has attributes', () => {
+        expect(
+            exploreHasFilteredAttribute(EXPLORE_WITH_METRIC_REQUIRED_ATTRIBUTES),
+        ).toStrictEqual(true);
+    });
+    test('should hide the metric from users without the attribute', () => {
+        const filtered = getFilteredExplore(
+            EXPLORE_WITH_METRIC_REQUIRED_ATTRIBUTES,
+            {},
+        );
+        expect(filtered.tables.orders?.metrics).toStrictEqual({});
+        expect(filtered.tables.orders?.dimensions.amount).toBeDefined();
+    });
+    test('should keep the metric for users with the attribute', () => {
+        const filtered = getFilteredExplore(
+            EXPLORE_WITH_METRIC_REQUIRED_ATTRIBUTES,
+            { is_finance: ['true'] },
+        );
+        expect(
+            filtered.tables.orders?.metrics.average_order_size,
+        ).toBeDefined();
     });
 });

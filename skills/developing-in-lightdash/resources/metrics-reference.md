@@ -264,6 +264,8 @@ metrics:
 
 ### Access Control
 
+Metrics accept `required_attributes` and `any_attributes`. A column-level metric inherits them from its parent dimension; setting either key on the metric overrides that key only. A model-level metric inherits nothing from the columns its `sql` references.
+
 ```yaml
 metrics:
   confidential_revenue:
