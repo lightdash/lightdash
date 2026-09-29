@@ -1,6 +1,6 @@
 import { FilterOperator, MetricType, type Metric } from '@lightdash/common';
 
-type SystemMetricDefinition = Pick<
+export type SystemMetricDefinition = Pick<
     Metric,
     'name' | 'description' | 'percentile' | 'filters'
 > & {
@@ -9,10 +9,85 @@ type SystemMetricDefinition = Pick<
 };
 
 export const systemStreamMetrics: Record<
-    'query_events' | 'ai_usage' | 'data_app_events' | 'export_events',
+    | 'query_events'
+    | 'ai_usage'
+    | 'data_app_events'
+    | 'export_events'
+    | 'agent_steps',
     SystemMetricDefinition[]
 > = {
+    agent_steps: [
+        {
+            name: 'total_steps',
+            description: 'Completed agent loop steps',
+            type: MetricType.COUNT,
+            column: 'event_name',
+            filters: [
+                {
+                    id: 'agent-steps',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['ai_agent.step_completed'],
+                },
+            ],
+        },
+        {
+            name: 'total_tool_calls',
+            description: 'Completed agent tool calls, including failures',
+            type: MetricType.COUNT,
+            column: 'event_name',
+            filters: [
+                {
+                    id: 'agent-tools',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['ai_agent.tool_call_completed'],
+                },
+            ],
+        },
+        {
+            name: 'unique_users',
+            description: 'Distinct users with agent activity',
+            type: MetricType.COUNT_DISTINCT,
+            column: 'user_id',
+        },
+    ],
     export_events: [
+        {
+            name: 'total_downloads',
+            description: 'Completed result exports; excludes starts and errors',
+            type: MetricType.COUNT,
+            column: 'event_name',
+            filters: [
+                {
+                    id: 'completed-downloads',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['download_results.completed'],
+                },
+            ],
+        },
+        {
+            name: 'total_csv_downloads',
+            description:
+                'Completed CSV result exports; excludes starts and errors',
+            type: MetricType.COUNT,
+            column: 'event_name',
+            filters: [
+                {
+                    id: 'completed-csv-downloads',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['download_results.completed'],
+                },
+                {
+                    id: 'csv-format',
+                    target: { fieldRef: 'format' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['csv'],
+                },
+            ],
+        },
         {
             name: 'total_events',
             description:
@@ -149,3 +224,58 @@ export const systemStreamMetrics: Record<
         },
     ],
 };
+
+/** Reuse event metric filters so totals and per-user reports have the same meaning. */
+export const userActivityMetrics: SystemMetricDefinition[] = [
+    {
+        name: 'total_events',
+        description:
+            'Captured events across all streams, including lifecycle events and automated activity',
+        type: MetricType.SUM,
+        column: 'event_count',
+    },
+    {
+        name: 'unique_users',
+        description:
+            'Distinct identified users with captured activity; excludes anonymous events',
+        type: MetricType.COUNT_DISTINCT,
+        column: 'user_id',
+    },
+    {
+        name: 'total_queries',
+        description: 'Queries executed, including failed and automated queries',
+        type: MetricType.SUM,
+        column: 'query_count',
+    },
+    ...(
+        ['ai_usage', 'export_events', 'data_app_events', 'agent_steps'] as const
+    ).flatMap((stream) =>
+        systemStreamMetrics[stream]
+            .filter(
+                (metric) =>
+                    metric.name !== 'total_events' &&
+                    metric.type !== MetricType.COUNT_DISTINCT,
+            )
+            .map((metric) => ({
+                ...metric,
+                name:
+                    metric.name === 'total_views'
+                        ? 'total_data_app_views'
+                        : metric.name,
+                type: MetricType.SUM,
+                column:
+                    metric.type === MetricType.COUNT
+                        ? 'event_count'
+                        : metric.column,
+                filters: [
+                    ...(metric.filters ?? []),
+                    {
+                        id: `${stream}-${metric.name}`,
+                        target: { fieldRef: 'stream' },
+                        operator: FilterOperator.EQUALS,
+                        values: [stream],
+                    },
+                ],
+            })),
+    ),
+];

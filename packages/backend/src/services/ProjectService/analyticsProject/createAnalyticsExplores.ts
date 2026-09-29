@@ -17,7 +17,14 @@ import {
     usageDimensionTable,
     type UsageDimensionName,
 } from '../../../analytics/eventStream/usageDimensions';
-import { systemStreamMetrics } from '../../../analytics/systemExplores/systemStreamMetrics';
+import {
+    analyticsStreams,
+    userActivityColumns,
+} from '../../../analytics/eventStream/userActivity';
+import {
+    systemStreamMetrics,
+    userActivityMetrics,
+} from '../../../analytics/systemExplores/systemStreamMetrics';
 
 const dimensionFields = {
     charts: { key: 'chart_id', label: 'Chart name' },
@@ -38,12 +45,7 @@ const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
 export const createAnalyticsExplores = (): Explore[] => {
     const sqlBuilder = warehouseSqlBuilderFromType(WarehouseTypes.DUCKDB);
     const compiler = new ExploreCompiler(sqlBuilder);
-    const streams = [
-        'query_events',
-        'ai_usage',
-        'data_app_events',
-        'export_events',
-    ] as const;
+    const streams = [...analyticsStreams, 'user_activity'] as const;
 
     const buildTable = (name: (typeof streams)[number]) => {
         const label = friendlyName(name);
@@ -54,7 +56,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const metrics: Record<string, Metric> = Object.fromEntries(
-            systemStreamMetrics[name].map(({ column, ...definition }) => [
+            (name === 'user_activity'
+                ? userActivityMetrics
+                : systemStreamMetrics[name]
+            ).map(({ column, ...definition }) => [
                 definition.name,
                 {
                     ...base,
@@ -65,7 +70,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             ]),
         );
 
-        return {
+        const table = {
             name,
             label,
             ...(name === 'query_events'
@@ -79,16 +84,28 @@ export const createAnalyticsExplores = (): Explore[] => {
                 qualifyColumnReferences: true,
                 tableName: name,
                 tableLabel: label,
-                columns: compactedStreamSchemas[name].map(
-                    ({ name: reference, type }) => ({
-                        reference,
-                        type: dimensionTypes[type],
-                    }),
-                ),
+                columns: (name === 'user_activity'
+                    ? userActivityColumns
+                    : compactedStreamSchemas[name]
+                ).map(({ name: reference, type }) => ({
+                    reference,
+                    type: dimensionTypes[type],
+                })),
                 warehouseSqlBuilder: sqlBuilder,
             }),
             metrics,
         };
+        table.dimensions.user_id.label = 'User UUID';
+        table.dimensions.project_id.label = 'Project UUID';
+        if (name === 'user_activity') {
+            table.dimensions.org_id.hidden = true;
+            for (const column of userActivityColumns.filter(
+                ({ type }) => type === 'BIGINT',
+            )) {
+                table.dimensions[column.name].hidden = true;
+            }
+        }
+        return table;
     };
 
     return streams.map((name) => {
@@ -96,7 +113,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'query_events' || name === 'export_events'
                 ? ['charts', 'dashboards', 'users']
                 : ['users'];
-        if (name === 'ai_usage') dimensions.push('agents');
+        if (name === 'ai_usage' || name === 'agent_steps')
+            dimensions.push('agents');
         const dimensionTables = Object.fromEntries(
             dimensions.map((dimension) => {
                 const tableName = usageDimensionTable(dimension);
