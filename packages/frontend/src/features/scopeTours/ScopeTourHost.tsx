@@ -14,8 +14,14 @@ import {
     useRef,
     useState,
 } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import { GuidedTour, type TourPoint } from '../../components/common/GuidedTour';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
@@ -141,6 +147,7 @@ const ScopeTourHost: FC = () => {
     const project = projectRoute?.project ?? projectFromParam;
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const [activeScope, setActiveScope] = useState<string | null>(null);
     const [reachedStep, setReachedStep] = useState(0);
@@ -261,6 +268,10 @@ const ScopeTourHost: FC = () => {
         await navigate(to, { state: LEAVING_COPY_STATE });
         closeCopy({ trainingProjectUuid });
     };
+    // The training project of the copy a tour is running in, kept for the
+    // moment the learner is no longer on that copy.
+    const tourUpstreamRef = useRef<string | null>(null);
+    if (activeScope && upstream) tourUpstreamRef.current = upstream;
     const handleClose = () => {
         // Capture before the state is cleared, and reset the ref so a later
         // Skip stays a Skip.
@@ -285,7 +296,16 @@ const ScopeTourHost: FC = () => {
         }
         startedAtRef.current = null;
         deepLinkTrackedRef.current = null;
-        if (!upstream) return;
+        // Already off the copy (the learner left by a link, see below): there
+        // is nowhere to send them, only the copy they left to put away.
+        if (!upstream) {
+            if (tourUpstreamRef.current) {
+                closeCopy({ trainingProjectUuid: tourUpstreamRef.current });
+            }
+            tourUpstreamRef.current = null;
+            return;
+        }
+        tourUpstreamRef.current = null;
         if (finished && scope) {
             setFinishedScope(scope);
             return;
@@ -295,6 +315,19 @@ const ScopeTourHost: FC = () => {
             upstream,
         );
     };
+    // The tour lives here, above the pages, so a page can be left without
+    // the tour hearing of it: the workspace's Back to library link, or the
+    // browser's back button. No tour runs on the library, so arriving there
+    // with one open means the learner walked away from it. That is a
+    // dismissal, the same as Skip; left open, the card would sit over the
+    // library pointing at a control that is no longer there.
+    const { pathname } = useLocation();
+    const isOnLibrary = /^\/projects\/[^/]+\/learn\/?$/.test(pathname);
+    const handleCloseRef = useRef(handleClose);
+    handleCloseRef.current = handleClose;
+    useEffect(() => {
+        if (activeScope && isOnLibrary) handleCloseRef.current();
+    }, [activeScope, isOnLibrary]);
     const handleBackToLibrary = () => {
         if (!upstream) return;
         setFinishedScope(null);
@@ -315,8 +348,12 @@ const ScopeTourHost: FC = () => {
             leavingCopy?: boolean;
         }
     >(({ trainingProjectUuid }) => createTrainingPreview(trainingProjectUuid), {
-        onError: () => {
+        onError: ({ error }) => {
             copyRequestedRef.current = false;
+            showToastApiError({
+                title: 'Could not start the walkthrough',
+                apiError: error,
+            });
         },
         onSuccess: async (copy, { scope, from, leavingCopy }) => {
             const to = tourUrlInCopy(copy.projectUuid, scope, from);

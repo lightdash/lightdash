@@ -87,6 +87,7 @@ export enum FeatureFlags {
      */
     EnableDataApps = 'enable-data-apps',
     // Enable the Learn library, walkthroughs and training project per org.
+    // On by default on Lightdash Cloud, off by default for self-hosted.
     EnableLearn = 'enable-learn',
 
     /**

@@ -144,7 +144,10 @@ export const DrillDownModal: FC<DrillDownModalProps> = ({
                 drillDownConfig.pivotReference !== undefined
                     ? hashFieldReference(drillDownConfig.pivotReference)
                     : getItemId(drillDownConfig.item);
-            return drillDownConfig.fieldValues[fieldId]?.formatted;
+            return (
+                drillDownConfig.fieldValues[fieldId]?.formatted ??
+                drillDownConfig.valueLabel
+            );
         }
     }, [drillDownConfig]);
 

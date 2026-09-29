@@ -180,6 +180,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         tabUuids: ['tab-1', 'tab-2'],
         selectedTabs,
         filterableFieldsByTileUuid,
+        hiddenFilterableFieldIds: new Set(['orders_hidden']),
     });
 
     // One required filter per tab, each targeting only its own tab's tile
@@ -317,6 +318,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 'tile-1': [field('automatic')],
                 'data-app-1': [],
             },
+            hiddenFilterableFieldIds: new Set<string>(),
         };
         const automaticFilter = rule({
             id: 'automatic',
@@ -346,6 +348,55 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         ).toEqual([]);
     });
 
+    it('does not block on a required filter on a hidden field', () => {
+        const hiddenFieldFilter = rule({
+            id: 'hidden',
+            required: true,
+            target: { fieldId: 'orders_hidden', tableName: 'orders' },
+            tileTargets: undefined,
+        });
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([hiddenFieldFilter, tab2Filter]),
+                [],
+                tabScope(null),
+            ).filtersWithUnmetRequirements.map((filter) => filter.id),
+        ).toEqual(['tab2']);
+    });
+
+    it('keeps a group with a hidden member unmet while a visible member is valueless', () => {
+        const group = [
+            rule({
+                id: 'hidden',
+                requiredGroupId: 'g1',
+                target: { fieldId: 'orders_hidden', tableName: 'orders' },
+                tileTargets: undefined,
+            }),
+            rule({
+                id: 'visible',
+                requiredGroupId: 'g1',
+                target: { fieldId: 'orders_tab1', tableName: 'orders' },
+                tileTargets: undefined,
+            }),
+        ];
+
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters(group),
+                [],
+                tabScope(null),
+            ).unmetRequirements,
+        ).toEqual([{ type: 'group', groupId: 'g1', filters: group }]);
+        expect(
+            getSchedulerFilterRequirements(
+                dashboardFilters([group[0]]),
+                [],
+                tabScope(null),
+            ).unmetRequirements,
+        ).toEqual([]);
+    });
+
     it('scopes nothing out while the tiles filterable fields are unknown', () => {
         expect(
             getSchedulerFilterRequirements(filters, [], {
@@ -353,6 +404,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 tabUuids: ['tab-1', 'tab-2'],
                 selectedTabs: ['tab-2'],
                 filterableFieldsByTileUuid: undefined,
+                hiddenFilterableFieldIds: new Set<string>(),
             }).filtersWithUnmetRequirements.map((f) => f.id),
         ).toEqual(['tab1', 'tab2']);
     });

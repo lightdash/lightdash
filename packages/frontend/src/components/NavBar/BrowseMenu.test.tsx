@@ -88,13 +88,13 @@ describe('BrowseMenu', () => {
         ).toHaveAttribute('href', '/projects/jaffle-shop/documents');
     });
 
-    it('links to the gallery when data apps are enabled and the user can manage explores', async () => {
+    it('links to Chart Studio when data apps are enabled and the user can manage explores', async () => {
         renderMenu();
 
-        const item = await screen.findByText('Chart types');
+        const item = await screen.findByText('Chart Studio');
         expect(item.closest('a')).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types',
+            '/projects/jaffle-shop/chart-studio',
         );
     });
 
@@ -103,7 +103,7 @@ describe('BrowseMenu', () => {
         renderMenu();
 
         await screen.findByText('All saved charts');
-        expect(screen.queryByText('Chart types')).not.toBeInTheDocument();
+        expect(screen.queryByText('Chart Studio')).not.toBeInTheDocument();
     });
 
     it('hides chart types when the user cannot manage explores', async () => {
@@ -114,7 +114,7 @@ describe('BrowseMenu', () => {
 
         await screen.findByText('All saved charts');
         await waitFor(() => {
-            expect(screen.queryByText('Chart types')).not.toBeInTheDocument();
+            expect(screen.queryByText('Chart Studio')).not.toBeInTheDocument();
         });
     });
 
@@ -129,7 +129,7 @@ describe('BrowseMenu', () => {
 
         await screen.findByText('All saved charts');
         await waitFor(() => {
-            expect(screen.queryByText('Chart types')).not.toBeInTheDocument();
+            expect(screen.queryByText('Chart Studio')).not.toBeInTheDocument();
         });
     });
 });

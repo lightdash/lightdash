@@ -7,6 +7,8 @@ type Props = {
     description?: string;
     ariaLabel?: string;
     actions?: ReactNode;
+    /** 'content' lets short charts such as tables shrink to their rows. */
+    fit?: 'fixed' | 'content';
     children: ReactNode;
 };
 
@@ -15,6 +17,7 @@ const ReportChartFrame = ({
     description,
     ariaLabel,
     actions,
+    fit = 'fixed',
     children,
 }: Props) => (
     <Box className={styles.reportEvidence}>
@@ -31,7 +34,11 @@ const ReportChartFrame = ({
         )}
         <Box
             component="figure"
-            className={styles.chartTile}
+            className={
+                fit === 'content'
+                    ? `${styles.chartTile} ${styles.chartTileFitContent}`
+                    : styles.chartTile
+            }
             aria-label={
                 ariaLabel ?? (typeof title === 'string' ? title : undefined)
             }

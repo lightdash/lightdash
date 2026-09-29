@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
 import DocumentPage from './Document';
 
 const mocks = vi.hoisted(() => ({
@@ -16,6 +15,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.unmock('@uiw/react-markdown-preview');
 vi.mock('../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../features/documents/useCanEditDocument', () => ({
+    useCanEditDocument: () => true,
+}));
+vi.mock('../features/documents/DocumentEditor', () => ({
+    default: ({ onClose }: { onClose: () => void }) => (
+        <button onClick={onClose}>Close editor</button>
+    ),
+}));
 vi.mock('../features/documents/DocumentActions', () => ({
     default: () => null,
 }));
@@ -77,6 +84,7 @@ const chart: DocumentCell = {
 };
 const document: Document = {
     pinnedListUuid: null,
+    createdBy: null,
     documentUuid: 'document-uuid',
     projectUuid: 'project-uuid',
     organizationUuid: 'org-uuid',
@@ -116,6 +124,7 @@ const document: Document = {
 const renderPage = (
     returnTo?: string,
     documentIdentifier = 'document-uuid',
+    state: unknown = null,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, cacheTime: 0 } },
@@ -142,7 +151,14 @@ const renderPage = (
         ],
         {
             initialEntries: [
-                `/projects/project-slug/documents/${documentIdentifier}${returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`,
+                {
+                    pathname: `/projects/project-slug/documents/${documentIdentifier}`,
+                    search:
+                        returnTo === undefined
+                            ? ''
+                            : `?returnTo=${encodeURIComponent(returnTo)}`,
+                    state,
+                },
             ],
         },
     );
@@ -157,6 +173,32 @@ const renderPage = (
 };
 
 describe('Document page', () => {
+    test('offers editing for an authorized document author', async () => {
+        renderPage();
+        expect(
+            await screen.findByRole('button', { name: 'Edit document' }),
+        ).toBeInTheDocument();
+    });
+
+    test('opens straight into the editor after creation, only once', async () => {
+        const { router } = renderPage(undefined, 'document-uuid', {
+            startEditing: true,
+        });
+        expect(
+            await screen.findByRole('button', { name: 'Close editor' }),
+        ).toBeInTheDocument();
+        await waitFor(() => expect(router.state.location.state).toBeNull());
+        expect(router.state.location.pathname).toBe(
+            '/projects/project-slug/documents/document-uuid',
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+        expect(
+            await screen.findByRole('button', { name: 'Edit document' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /^Drag chart/ }),
+        ).not.toBeInTheDocument();
+    });
     beforeEach(() => {
         mocks.chartFails = false;
         mocks.chart.mockReset();
@@ -193,7 +235,7 @@ describe('Document page', () => {
         expect(screen.getByText('Loading document')).toBeInTheDocument();
     });
 
-    test('renders ordered markdown and chart cells with title and description', async () => {
+    test('renders ordered markdown and chart cells with a title but no description', async () => {
         const { container } = renderPage();
         expect(
             await screen.findByRole('heading', {
@@ -201,7 +243,10 @@ describe('Document page', () => {
                 level: 1,
             }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Revenue and next steps')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Revenue and next steps'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText(/^Last edited/)).toBeInTheDocument();
         expect(
             screen.queryByText('Document', { exact: true }),
         ).not.toBeInTheDocument();
@@ -223,12 +268,63 @@ describe('Document page', () => {
                     'h1[data-report-heading], h2, [data-testid="document-chart"]',
                 ),
             ).map((element) => element.textContent),
-        ).toEqual([
-            'Findings',
-            'Orders chart',
-            'Orders chart',
-            'Recommendations',
-        ]);
+        ).toEqual(['Findings', 'Orders chart', 'Recommendations']);
+    });
+
+    test('shows the creator beside the edit timestamp without attributing the latest edit to them', async () => {
+        mocks.api.mockResolvedValue({
+            ...document,
+            createdBy: {
+                userUuid: 'original-author',
+                firstName: 'Original',
+                lastName: 'Author',
+                avatarUrl: '/api/v1/user/original-author/avatar?v=hash',
+                avatarGradient: null,
+            },
+            version: {
+                ...document.version,
+                createdByUserUuid: 'latest-editor',
+            },
+        });
+        renderPage();
+        expect(await screen.findByText('Original Author')).toBeInTheDocument();
+        expect(screen.getByLabelText('Created by')).toHaveTextContent(
+            'Original Author',
+        );
+        expect(screen.getByText(/^Last edited/)).not.toHaveTextContent(
+            'Original Author',
+        );
+    });
+
+    test('keeps the timestamp without inventing an author when the creator is unavailable', async () => {
+        renderPage();
+        expect(await screen.findByText(/^Last edited/)).toBeInTheDocument();
+        expect(screen.queryByLabelText('Created by')).not.toBeInTheDocument();
+    });
+
+    test('identifies the opening section even when an introductory cell precedes it', async () => {
+        mocks.api.mockResolvedValue({
+            ...document,
+            version: {
+                ...document.version,
+                content: {
+                    cells: [
+                        {
+                            type: 'markdown',
+                            content: { markdown: 'Opening narrative' },
+                        },
+                        ...document.version.content.cells,
+                    ],
+                },
+            },
+        });
+        renderPage();
+        expect(
+            await screen.findByRole('heading', { name: 'Findings' }),
+        ).toHaveAttribute('data-first-heading', 'true');
+        expect(
+            screen.getByRole('heading', { name: 'Recommendations' }),
+        ).not.toHaveAttribute('data-first-heading');
     });
 
     test('shows unavailable content without leaking the server error', async () => {
@@ -274,14 +370,11 @@ describe('Document page', () => {
         expect(
             screen.getByRole('button', { name: 'Findings' }),
         ).toBeInTheDocument();
-        expect(heading).toHaveAttribute('id', 'document-heading-0-0');
+        expect(heading).toHaveAttribute('id', 'document-heading-0');
         expect(heading.tagName).toBe('H1');
-        expect(heading.closest('section')).toHaveClass(
-            reportStyles.reportFinding,
-        );
         expect(
             screen.getByRole('heading', { name: 'Recommendations' }),
-        ).toHaveAttribute('id', 'document-heading-2-0');
+        ).toHaveAttribute('id', 'document-heading-1');
     });
 
     test('omits chart names and Markdown H2s from the contents', async () => {
@@ -310,12 +403,9 @@ describe('Document page', () => {
             },
         });
         renderPage();
-        expect(
-            await screen.findByRole('heading', {
-                name: 'Chart section',
-                level: 2,
-            }),
-        ).not.toHaveAttribute('data-report-heading');
+        expect(await screen.findByText('Chart section')).not.toHaveAttribute(
+            'data-report-heading',
+        );
         expect(
             screen.queryByRole('button', { name: 'Chart section' }),
         ).not.toBeInTheDocument();
@@ -327,7 +417,7 @@ describe('Document page', () => {
         ).not.toBeInTheDocument();
     });
 
-    test('preserves the chart title and Markdown navigation when its renderer throws', async () => {
+    test('preserves the chart title and Markdown navigation when a chart renderer throws', async () => {
         mocks.chartFails = true;
         const errorLog = vi
             .spyOn(console, 'error')
@@ -355,12 +445,14 @@ describe('Document page', () => {
         });
         try {
             renderPage();
+            await screen.findByRole('heading', { name: 'Findings' });
             expect(
-                await screen.findByRole('heading', {
-                    name: 'Failed chart section',
-                    level: 2,
-                }),
-            ).not.toHaveAttribute('data-report-heading');
+                screen.getByText('Failed chart section'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('figure', { name: 'Failed chart section' })
+                    .parentElement,
+            ).toContainElement(screen.getByText('Failed chart section'));
             expect(
                 screen.queryByRole('button', { name: 'Failed chart section' }),
             ).not.toBeInTheDocument();
@@ -403,9 +495,7 @@ describe('Document page', () => {
             },
         });
         const { container } = renderPage();
-        expect(
-            await screen.findByRole('heading', { name: title }),
-        ).toBeInTheDocument();
+        expect(await screen.findByText(title)).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: title }),
         ).not.toBeInTheDocument();
@@ -466,23 +556,26 @@ describe('Document page', () => {
     });
 
     test.each(['Weekly review', 'A long document name '.repeat(20)])(
-        'shows the document name in the toolbar without Back: %s',
+        'shows one document title with its actions and no Back: %s',
         async (name) => {
             mocks.api.mockResolvedValue({ ...document, name });
             renderPage('/projects/project-uuid/research');
             expect(
                 await screen.findByRole('heading', {
                     name: name.trim(),
-                    level: 6,
+                    level: 1,
                 }),
             ).toBeInTheDocument();
             expect(
-                screen.getByRole('heading', { name: name.trim(), level: 1 }),
-            ).toBeInTheDocument();
+                screen.getAllByRole('heading', { name: name.trim() }),
+            ).toHaveLength(1);
             expect(
-                screen.getByRole('heading', { name: name.trim(), level: 6 })
-                    .parentElement,
-            ).toHaveClass(reportStyles.reportControls);
+                screen
+                    .getByRole('heading', { name: name.trim() })
+                    .closest('header'),
+            ).toContainElement(
+                screen.getByRole('group', { name: 'Document controls' }),
+            );
             expect(
                 screen.queryByRole('link', { name: 'Back' }),
             ).not.toBeInTheDocument();

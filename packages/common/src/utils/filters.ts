@@ -1474,15 +1474,25 @@ const findAndOverrideChartFilter = (
     filterRulesList: FilterRule[],
     timeBasedOverrideMap: TimeBasedOverrideMap | undefined,
 ): FilterGroupItem => {
-    const overridingDashboardFilter = isFilterRule(item)
-        ? filterRulesList.find((dashboardFilter) =>
-              doesDashboardFilterOverrideChartFilter(
-                  item,
-                  dashboardFilter,
-                  timeBasedOverrideMap,
-              ),
-          )
-        : undefined;
+    if (isFilterGroup(item)) {
+        const overrideNested = (nested: FilterGroupItem) =>
+            findAndOverrideChartFilter(
+                nested,
+                filterRulesList,
+                timeBasedOverrideMap,
+            );
+        return isAndFilterGroup(item)
+            ? { id: item.id, and: item.and.map(overrideNested) }
+            : { id: item.id, or: item.or.map(overrideNested) };
+    }
+
+    const overridingDashboardFilter = filterRulesList.find((dashboardFilter) =>
+        doesDashboardFilterOverrideChartFilter(
+            item,
+            dashboardFilter,
+            timeBasedOverrideMap,
+        ),
+    );
 
     return overridingDashboardFilter
         ? {
@@ -1496,6 +1506,11 @@ const findAndOverrideChartFilter = (
                   settings: overridingDashboardFilter.settings,
               }),
               operator: overridingDashboardFilter.operator,
+              // Set unconditionally: the chart rule's own includeNull and
+              // disabled state must not survive being replaced by an active
+              // dashboard rule.
+              includeNull: overridingDashboardFilter.includeNull,
+              disabled: overridingDashboardFilter.disabled,
           }
         : item;
 };
@@ -1596,6 +1611,9 @@ const convertDashboardFilterRuleToFilterRule = (
     }),
     ...(dashboardFilterRule.disabled && {
         disabled: dashboardFilterRule.disabled,
+    }),
+    ...(dashboardFilterRule.includeNull === true && {
+        includeNull: dashboardFilterRule.includeNull,
     }),
 });
 
@@ -1815,13 +1833,21 @@ export const addDashboardFiltersToMetricQuery = (
     };
 };
 
-// Mirrors the UI's getAvailableFiltersForSavedQueries. Matching on field-id (not tableName) is the source of truth — see getDashboardFilterRulesForTables below for why.
-export const getAvailableFilterFieldIds = (explore: Explore): string[] => [
+// Dashboard pickers (getAvailableFiltersForSavedQueries) omit hidden fields, but a saved rule on a hidden field still applies, as in default_filters.
+// Matching on field-id (not tableName) is the source of truth — see getDashboardFilterRulesForTables below for why.
+export const getExecutableFilterFieldIds = (explore: Explore): string[] => [
     ...Object.entries(getDimensionMapFromTables(explore.tables))
-        .filter(([, field]) => isFilterableDimension(field) && !field.hidden)
+        .filter(([, field]) => isFilterableDimension(field))
+        .map(([fieldId]) => fieldId),
+    ...Object.keys(getMetricsMapFromTables(explore.tables)),
+];
+
+export const getHiddenFilterableFieldIds = (explore: Explore): string[] => [
+    ...Object.entries(getDimensionMapFromTables(explore.tables))
+        .filter(([, field]) => isFilterableDimension(field) && field.hidden)
         .map(([fieldId]) => fieldId),
     ...Object.entries(getMetricsMapFromTables(explore.tables))
-        .filter(([, field]) => !field.hidden)
+        .filter(([, field]) => field.hidden)
         .map(([fieldId]) => fieldId),
 ];
 
@@ -1841,7 +1867,7 @@ export const applyDashboardFiltersForTile = ({
 } => {
     const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
         tileUuid,
-        getAvailableFilterFieldIds(explore),
+        getExecutableFilterFieldIds(explore),
         dashboardFilters,
     );
     return {

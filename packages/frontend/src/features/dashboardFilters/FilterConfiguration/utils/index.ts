@@ -188,6 +188,10 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
         case FilterOperator.IN_PERIOD_TO_DATE:
             return true;
         case FilterOperator.EQUALS:
+            return (
+                filterRule.includeNull === true ||
+                (filterRule.values && filterRule.values.length > 0)
+            );
         case FilterOperator.NOT_EQUALS:
         case FilterOperator.LESS_THAN:
         case FilterOperator.GREATER_THAN:
@@ -250,17 +254,29 @@ export const getFilterRuleRevertableObject = (
     return {
         disabled: filterRule.disabled,
         values: filterRule.values,
+        includeNull: filterRule.includeNull,
         operator: filterRule.operator,
         settings: filterRule.settings,
         label: filterRule.label,
     };
 };
 
+// includeNull is tri-state in stored rules (absent/false/true) but binary in
+// behavior, so a comparison must not read undefined vs false as a change.
+const getComparableFilterRuleObject = (filterRule: RevertableFilterRule) => ({
+    ...getFilterRuleRevertableObject(filterRule),
+    includeNull: filterRule.includeNull === true,
+});
+
 export const hasSavedFilterValueChanged = (
     originalFilterRule: RevertableFilterRule,
     filterRule: RevertableFilterRule,
 ) => {
-    if (originalFilterRule.disabled && filterRule.values === undefined) {
+    if (
+        originalFilterRule.disabled &&
+        filterRule.values === undefined &&
+        filterRule.includeNull !== true
+    ) {
         return false;
     }
 
@@ -275,7 +291,7 @@ export const hasSavedFilterValueChanged = (
     });
 
     return !isEqual(
-        getFilterRuleRevertableObject(originalFilterRule),
-        getFilterRuleRevertableObject(serializedInternalFilterRule),
+        getComparableFilterRuleObject(originalFilterRule),
+        getComparableFilterRuleObject(serializedInternalFilterRule),
     );
 };

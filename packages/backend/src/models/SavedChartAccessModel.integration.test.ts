@@ -657,20 +657,20 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
             .returning('group_uuid');
 
         await expect(grantUser(randomUUID())).rejects.toMatchObject({
-            name: 'NotFoundError',
+            name: 'ParameterError',
         });
         await expect(
             grantUser(noProjectPrincipal.userUuid),
         ).rejects.toMatchObject({
-            name: 'NotFoundError',
+            name: 'ParameterError',
         });
         await expect(
             grantUser(inactivePrincipal.userUuid),
         ).rejects.toMatchObject({
-            name: 'NotFoundError',
+            name: 'ParameterError',
         });
         await expect(grantUser(fixture.foreignUserUuid)).rejects.toMatchObject({
-            name: 'NotFoundError',
+            name: 'ParameterError',
         });
         await expect(
             store.upsertAccess({
@@ -684,7 +684,7 @@ describe('SavedChartAccessModel PostgreSQL integration', () => {
                 organizationUuid: fixture.organizationUuid,
                 grantedByUserUuid: fixture.userUuid,
             }),
-        ).rejects.toMatchObject({ name: 'NotFoundError' });
+        ).rejects.toMatchObject({ name: 'ParameterError' });
         await expect(snapshotAccess(fixture.directChartUuid)).resolves.toEqual({
             users: [],
             groups: [],

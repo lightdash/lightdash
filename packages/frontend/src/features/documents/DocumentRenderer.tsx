@@ -1,68 +1,72 @@
 import { type Document } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
-import { useMemo } from 'react';
-import ErrorBoundary from '../errorBoundary/ErrorBoundary';
-import DocumentChart from './DocumentChart';
-import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
+import { Box, Text } from '@mantine/core';
+import { EditorContent } from '@tiptap/react';
+import { useMemo, type ReactNode } from 'react';
+import DocumentByline from './DocumentByline';
+import { DocumentEditorProvider } from './editor/DocumentEditorContext';
+import { useDocumentReader } from './editor/useDocumentEditor';
+import { useMentionNavigation } from './editor/useMentionNavigation';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
-import ReportMarkdown from './presentation/ReportMarkdown';
 import styles from './presentation/ReportPresentation.module.css';
-import ReportSection from './presentation/ReportSection';
 
-const DocumentRenderer = ({ document }: { document: Document }) => {
+const DocumentRenderer = ({
+    document,
+    actions,
+    metadata,
+    rail,
+    initialScrollTop,
+    onScrollTopChange,
+}: {
+    document: Document;
+    actions?: ReactNode;
+    /** Replaces the default creator byline. */
+    metadata?: ReactNode;
+    /** Replaces the contents rail. */
+    rail?: ReactNode;
+    initialScrollTop?: number;
+    onScrollTopChange?: (scrollTop: number) => void;
+}) => {
     const { cells } = document.version.content;
-    const headings = useMemo(() => getDocumentHeadings(cells), [cells]);
+    const { editor, headings } = useDocumentReader(document);
+    const mentions = useMentionNavigation(editor, document.projectUuid);
+    const target = useMemo(
+        () => ({
+            projectUuid: document.projectUuid,
+            spaceUuid: document.spaceUuid,
+            documentUuid: document.documentUuid,
+            versionUuid: document.version.versionUuid,
+        }),
+        [
+            document.projectUuid,
+            document.spaceUuid,
+            document.documentUuid,
+            document.version.versionUuid,
+        ],
+    );
     return (
         <DocumentReportLayout
             title={document.name}
             contentsLabel={null}
-            description={document.description}
             headings={headings}
+            variant="document"
+            actions={actions}
+            metadata={metadata ?? <DocumentByline document={document} />}
+            rail={rail}
+            initialScrollTop={initialScrollTop}
+            onScrollTopChange={onScrollTopChange}
         >
-            <Stack
-                className={`${styles.structuredReport} ${styles.documentCells}`}
-            >
-                {cells.length === 0 && (
-                    <Text c="dimmed">This document is empty.</Text>
-                )}
-                {cells.map((cell, index) =>
-                    cell.type === 'chart' ? (
-                        <ReportSection
-                            key={`${document.version.versionUuid}:${index}`}
-                            title={cell.content.chart.name}
-                        >
-                            <ErrorBoundary>
-                                <DocumentChart
-                                    projectUuid={document.projectUuid}
-                                    spaceUuid={document.spaceUuid}
-                                    documentUuid={document.documentUuid}
-                                    versionUuid={document.version.versionUuid}
-                                    cellIndex={index}
-                                    cell={cell}
-                                />
-                            </ErrorBoundary>
-                        </ReportSection>
-                    ) : cell.type === 'markdown' ? (
-                        <ErrorBoundary
-                            key={`${document.version.versionUuid}:${index}`}
-                        >
-                            <ReportMarkdown
-                                markdown={cell.content.markdown}
-                                headingId={(offset) =>
-                                    getDocumentHeadingId(index, offset)
-                                }
-                            />
-                        </ErrorBoundary>
-                    ) : (
-                        <Text
-                            key={`${document.version.versionUuid}:${index}`}
-                            c="dimmed"
-                        >
-                            This content type is not supported yet.
-                        </Text>
-                    ),
-                )}
-            </Stack>
+            {cells.length === 0 ? (
+                <Text c="dimmed">This document is empty.</Text>
+            ) : (
+                <DocumentEditorProvider value={target}>
+                    <Box role="presentation" {...mentions}>
+                        <EditorContent
+                            editor={editor}
+                            className={styles.documentProse}
+                        />
+                    </Box>
+                </DocumentEditorProvider>
+            )}
         </DocumentReportLayout>
     );
 };

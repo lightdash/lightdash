@@ -46,13 +46,13 @@ import {
     formatRows,
     friendlyName,
     getAccountUserTimezone,
-    getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
     getDimensions,
     getDimensionsWithValidParameters,
     getErrorMessage,
+    getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
     getFieldsFromMetricQuery,
     getItemId,
@@ -5456,7 +5456,7 @@ export class AsyncQueryService extends ProjectService {
         // it — silent drop is intentional, see ExecuteAsyncMetricQueryRequestParams.
         let metricQuery: MetricQuery = inputMetricQuery;
         if (dashboardFilters) {
-            const availableFieldIds = getAvailableFilterFieldIds(explore);
+            const availableFieldIds = getExecutableFilterFieldIds(explore);
             metricQuery = addDashboardFiltersToMetricQuery(
                 inputMetricQuery,
                 {
@@ -6430,7 +6430,7 @@ export class AsyncQueryService extends ProjectService {
         // — mirrors executeAsyncMetricQuery; see ExecuteAsyncSavedChartRequestParams.
         let metricQueryWithLimit = limitedMetricQuery;
         if (dashboardFilters) {
-            const availableFieldIds = getAvailableFilterFieldIds(explore);
+            const availableFieldIds = getExecutableFilterFieldIds(explore);
             metricQueryWithLimit = addDashboardFiltersToMetricQuery(
                 limitedMetricQuery,
                 {
@@ -7568,8 +7568,10 @@ export class AsyncQueryService extends ProjectService {
                 }
 
                 validDimensionsCount += 1;
-                // If there is no explicit column list, we can show up to 50 dimensions
-                return validDimensionsCount <= 50;
+                return (
+                    validDimensionsCount <=
+                    this.lightdashConfig.query.underlyingDataMaxDimensions
+                );
             }
             return false;
         });
@@ -11401,7 +11403,7 @@ export class AsyncQueryService extends ProjectService {
             savedChart.tableName,
             organizationUuid,
         );
-        const availableFieldIds = getAvailableFilterFieldIds(explore);
+        const availableFieldIds = getExecutableFilterFieldIds(explore);
 
         const appliedDashboardFilters = dashboardFilters
             ? {

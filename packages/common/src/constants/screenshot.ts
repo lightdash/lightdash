@@ -65,6 +65,19 @@ export const LOADING_CHART_CLASS = 'loading_chart';
 export const MARKDOWN_TILE_CLASS = 'markdown-tile';
 
 /**
+ * Attribute set on a custom chart type (`DATA_APP_VIZ`) tile that reported
+ * screenshot-ready through the fallback timer because its bundle never
+ * acknowledged the render (`viz-rendered`). The value is
+ * `<dataAppVizUuid>@<version>`.
+ *
+ * Usage:
+ * - Frontend: Set by DataAppVizRenderer when the render-ack fallback fires
+ * - Backend: Counted by UnfurlService.saveScreenshot() after the ready wait
+ */
+export const CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE =
+    'data-custom-chart-ready-fallback';
+
+/**
  * Class name for the dashboard screenshot/PDF target wrapper.
  * Wraps the dashboard's grid(s) so the backend can measure and screenshot a
  * single deterministic element. When a multi-tab PDF export is rendered we
@@ -130,6 +143,8 @@ export const SCREENSHOT_SELECTORS = {
     MARKDOWN_TILE: `.${MARKDOWN_TILE_CLASS}`,
     /** Class selector: .react-grid-layout */
     DASHBOARD_GRID: `.${DASHBOARD_GRID_CLASS}`,
+    /** Attribute selector: [data-custom-chart-ready-fallback] */
+    CUSTOM_CHART_READY_FALLBACK: `[${CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE}]`,
     /** ID selector: #lightdash-error-boundary */
     ERROR_BOUNDARY: `#${ERROR_BOUNDARY_ID}`,
     /** ID selector: #lightdash-login-page */

@@ -5,7 +5,7 @@ import { useSpaceSummaries } from '../useSpaces';
 
 const useCreateInAnySpaceAccess = (
     projectUuid: string | undefined,
-    subjectName: 'Dashboard' | 'SavedChart',
+    subjectName: 'Dashboard' | 'SavedChart' | 'Document',
     options?: { enabled?: boolean },
 ): boolean => {
     const { user } = useApp();

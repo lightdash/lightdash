@@ -1,4 +1,1 @@
 packages/backend/src/ee/postgresWire/pgCatalog/catalogSchema.json linguist-generated=true
-
-# Preserve blank context lines in the verbatim upstream diff.
-docker/security/perl-bookworm/globmapper.patch whitespace=-blank-at-eol

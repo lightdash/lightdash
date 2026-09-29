@@ -72,6 +72,7 @@ interface Props {
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
+    hiddenFilterableFieldIds?: ReadonlySet<string>;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
     /** Create-mode only: pre-fills the new delivery. */
@@ -93,6 +94,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     currentParameterValues,
     availableParameters,
     filterableFieldsByTileUuid,
+    hiddenFilterableFieldIds,
     onClose,
     onBack,
 }) => {
@@ -147,6 +149,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         currentParameterValues,
         initialFormValues,
         filterableFieldsByTileUuid,
+        hiddenFilterableFieldIds,
     });
 
     // The AI agent selector filters by the delivered content's space.

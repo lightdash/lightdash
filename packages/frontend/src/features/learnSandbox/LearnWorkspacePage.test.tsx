@@ -1,5 +1,12 @@
 import { MantineProvider } from '@mantine/core';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -150,6 +157,7 @@ vi.mock('./WorkspaceEditor', () => ({
         editable,
         saving,
         dirty,
+        invalid,
         onChange,
         onBlur,
     }: {
@@ -158,6 +166,7 @@ vi.mock('./WorkspaceEditor', () => ({
         editable: boolean;
         saving: boolean;
         dirty: boolean;
+        invalid: string | null;
         onChange: (content: string) => void;
         onBlur: () => void;
     }) => (
@@ -167,6 +176,7 @@ vi.mock('./WorkspaceEditor', () => ({
             data-editable={String(editable)}
             data-saving={String(saving)}
             data-dirty={String(dirty)}
+            data-invalid={invalid ?? ''}
         >
             <textarea
                 aria-label="File"
@@ -183,20 +193,20 @@ vi.mock('./Terminal', () => ({
         value,
         onValueChange,
         onRun,
-        running,
+        busy,
         disabled,
         output,
     }: {
         value: string;
         onValueChange: (value: string) => void;
         onRun: () => void;
-        running: boolean;
+        busy: boolean;
         disabled: boolean;
         output: { error: string | null; chunks: { text: string }[] };
     }) => (
         <div
             data-testid="terminal"
-            data-running={String(running)}
+            data-busy={String(busy)}
             data-disabled={String(disabled)}
         >
             <input
@@ -217,14 +227,22 @@ vi.mock('./Terminal', () => ({
 
 import LearnWorkspacePage from './LearnWorkspacePage';
 
-const renderPage = () =>
+const renderPage = () => {
+    const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+    });
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     render(
         <MemoryRouter initialEntries={['/projects/copy-1/learn/workspace']}>
-            <MantineProvider env="test">
-                <LearnWorkspacePage />
-            </MantineProvider>
+            <QueryClientProvider client={queryClient}>
+                <MantineProvider env="test">
+                    <LearnWorkspacePage />
+                </MantineProvider>
+            </QueryClientProvider>
         </MemoryRouter>,
     );
+    return { invalidateQueries };
+};
 
 const selectOrders = async (user: ReturnType<typeof userEvent.setup>) => {
     state.file.data = {
@@ -315,7 +333,7 @@ describe('LearnWorkspacePage', () => {
         // instant) would save the draft away before the file query's own
         // update is observed, hiding the case under test.
         fireEvent.change(screen.getByLabelText('File'), {
-            target: { value: 'version: 2\nx' },
+            target: { value: 'version: 2\n# x' },
         });
         expect(screen.getByTestId('editor')).toHaveAttribute(
             'data-dirty',
@@ -413,7 +431,7 @@ describe('LearnWorkspacePage', () => {
         await screen.findByTestId('editor');
 
         await user.type(screen.getByLabelText('Command'), 'dbt parse');
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         expect(screen.getByTestId('editor')).toHaveAttribute(
             'data-dirty',
             'true',
@@ -426,7 +444,7 @@ describe('LearnWorkspacePage', () => {
         await waitFor(() => expect(state.calls).toEqual(['save', 'run']));
         expect(state.saveMutateAsync).toHaveBeenCalledWith({
             path: 'models/orders.yml',
-            content: 'version: 2\nx',
+            content: 'version: 2\n# x',
         });
         expect(state.runMutateAsync).toHaveBeenCalledWith({
             tool: 'dbt',
@@ -514,7 +532,7 @@ describe('LearnWorkspacePage', () => {
         await screen.findByTestId('editor');
 
         await user.type(screen.getByLabelText('Command'), 'dbt parse');
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
         await waitFor(() =>
@@ -546,7 +564,7 @@ describe('LearnWorkspacePage', () => {
         await screen.findByTestId('editor');
 
         await user.type(screen.getByLabelText('Command'), 'dbt parse');
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         // Clicking the command input blurs the editor, which starts the save.
         await user.click(screen.getByLabelText('Command'));
         expect(state.saveMutateAsync).toHaveBeenCalledTimes(1);
@@ -573,9 +591,85 @@ describe('LearnWorkspacePage', () => {
             ),
         );
         expect(screen.getByTestId('terminal')).toHaveAttribute(
-            'data-running',
+            'data-busy',
             'true',
         );
+    });
+
+    it('is busy from the click that starts a run, over the save in front of it', async () => {
+        const user = userEvent.setup();
+        let releaseSave = () => {};
+        state.saveMutateAsync = vi.fn(
+            () =>
+                new Promise<undefined>((resolve) => {
+                    releaseSave = () => {
+                        state.calls.push('save');
+                        resolve(undefined);
+                    };
+                }),
+        );
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.type(screen.getByLabelText('File'), '# x');
+        // fireEvent, not userEvent: a real click would blur the editor and
+        // start the autosave before Run ever asked for one.
+        fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal')).toHaveAttribute(
+                'data-busy',
+                'true',
+            ),
+        );
+
+        releaseSave();
+        await waitFor(() => expect(state.calls).toEqual(['save', 'run']));
+    });
+
+    // Nothing is running: a step waiting on the terminal would otherwise be
+    // held by an edit the learner made on the way past.
+    it('is not busy while the editor blur autosave is the only thing in flight', () => {
+        state.saveIsLoading = true;
+        renderPage();
+
+        expect(screen.getByTestId('terminal')).toHaveAttribute(
+            'data-busy',
+            'false',
+        );
+        expect(screen.getByTestId('terminal')).toHaveAttribute(
+            'data-disabled',
+            'true',
+        );
+    });
+
+    it('drops the cached explores once a lightdash deploy has finished', async () => {
+        const user = userEvent.setup();
+        const { invalidateQueries } = renderPage();
+
+        await user.type(screen.getByLabelText('Command'), 'lightdash deploy');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(invalidateQueries).toHaveBeenCalledWith(['tables']),
+        );
+    });
+
+    it('leaves the cached explores alone when the finished command was not a deploy', async () => {
+        const user = userEvent.setup();
+        const { invalidateQueries } = renderPage();
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-chunks')).toHaveTextContent(
+                'command-1 output',
+            ),
+        );
+        expect(invalidateQueries).not.toHaveBeenCalled();
     });
 
     it('empties the pane of the finished command when the next run is refused', async () => {
@@ -600,8 +694,10 @@ describe('LearnWorkspacePage', () => {
                 },
             }),
         );
+        // A command the browser accepts but this server refuses (its list
+        // may be narrower than the shared one).
         await user.clear(screen.getByLabelText('Command'));
-        await user.type(screen.getByLabelText('Command'), 'dbt run');
+        await user.type(screen.getByLabelText('Command'), 'lightdash lint');
         await user.click(screen.getByRole('button', { name: 'Run' }));
 
         await waitFor(() =>
@@ -611,6 +707,35 @@ describe('LearnWorkspacePage', () => {
         );
         expect(screen.getByTestId('terminal-chunks')).toHaveTextContent('');
         expect(state.useCommandOutput).toHaveBeenLastCalledWith('copy-1', null);
+    });
+
+    it('does not send a file that is not YAML, and says which line to fix', async () => {
+        const user = userEvent.setup();
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        // A stray word between the file's keys.
+        await user.type(screen.getByLabelText('File'), 'oops');
+        await user.click(screen.getByLabelText('Command'));
+
+        expect(screen.getByTestId('editor')).toHaveAttribute(
+            'data-invalid',
+            expect.stringMatching(
+                /^Fix the YAML error on line \d+ to continue$/,
+            ),
+        );
+        expect(state.saveMutateAsync).not.toHaveBeenCalled();
+        expect(state.showToastApiError).not.toHaveBeenCalled();
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-error')).toHaveTextContent(
+                /^Fix the YAML error on line \d+, then run the command again$/,
+            ),
+        );
+        expect(state.runMutateAsync).not.toHaveBeenCalled();
     });
 
     it('saves on editor blur and keeps the draft when the save fails', async () => {
@@ -625,7 +750,7 @@ describe('LearnWorkspacePage', () => {
         await selectOrders(user);
         await screen.findByTestId('editor');
 
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         await user.click(screen.getByLabelText('Command'));
 
         await waitFor(() =>
@@ -636,6 +761,40 @@ describe('LearnWorkspacePage', () => {
                 }),
             }),
         );
+        expect(screen.getByTestId('editor')).toHaveAttribute(
+            'data-dirty',
+            'true',
+        );
+    });
+
+    it('keeps what was typed while a save was in flight', async () => {
+        const user = userEvent.setup();
+        let releaseSave = () => {};
+        state.saveMutateAsync = vi.fn(
+            () =>
+                new Promise<undefined>((resolve) => {
+                    releaseSave = () => resolve(undefined);
+                }),
+        );
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        await user.type(screen.getByLabelText('File'), '# one');
+        // Blur starts the save; the learner goes straight back and types on.
+        await user.click(screen.getByLabelText('Command'));
+        expect(state.saveMutateAsync).toHaveBeenCalledTimes(1);
+        await user.type(screen.getByLabelText('File'), ' two');
+        const typed = (screen.getByLabelText('File') as HTMLTextAreaElement)
+            .value;
+        expect(typed).toContain('# one two');
+
+        await act(async () => {
+            releaseSave();
+        });
+
+        // The editor still holds the newer text, and it is still unsaved.
+        expect(screen.getByLabelText('File')).toHaveValue(typed);
         expect(screen.getByTestId('editor')).toHaveAttribute(
             'data-dirty',
             'true',

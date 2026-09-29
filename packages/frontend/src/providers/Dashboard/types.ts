@@ -103,6 +103,7 @@ export type DashboardContextType = {
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     allFilterableFieldsMap: Record<string, FilterableDimension>;
     allFilterableMetricsMap: Record<string, Metric>;
+    hiddenFilterableFieldIds: ReadonlySet<string>;
     allFilterableFields: FilterableDimension[] | undefined;
     allFilterableMetrics: Metric[] | undefined;
     filterableFieldsByTileUuid:

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { type DataAppVizOptionValues } from '../../types/savedCharts';
-import { type DataAppVizSchema } from './types';
+import { dataAppVizGradientValueSchema, type DataAppVizSchema } from './types';
 
 export type DataAppVizPreview = {
     rows?: Record<string, string | number | boolean | null>[];
@@ -15,7 +15,12 @@ export const dataAppVizPreviewSchema = z.object({
         .min(1)
         .max(1000)
         .optional(),
-    optionValues: z.record(z.string(), previewValueSchema).optional(),
+    optionValues: z
+        .record(
+            z.string(),
+            z.union([previewValueSchema, dataAppVizGradientValueSchema]),
+        )
+        .optional(),
 });
 
 export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
@@ -45,14 +50,18 @@ export const getDataAppVizPreviewSchema = (schema: DataAppVizSchema) =>
             const option = schema.configOptions.find(
                 (item) => item.name === name,
             );
-            const valid =
-                option &&
-                (option.type === 'select'
-                    ? option.choices.some((choice) => choice.value === value)
-                    : typeof value ===
-                      (option.type === 'color' || option.type === 'text'
-                          ? 'string'
-                          : option.type));
+            let valid = false;
+            if (option?.type === 'gradient') {
+                valid = dataAppVizGradientValueSchema.safeParse(value).success;
+            } else if (option?.type === 'select') {
+                valid = option.choices.some((choice) => choice.value === value);
+            } else if (option) {
+                valid =
+                    typeof value ===
+                    (option.type === 'color' || option.type === 'text'
+                        ? 'string'
+                        : option.type);
+            }
             if (!valid) {
                 ctx.addIssue({
                     code: 'custom',

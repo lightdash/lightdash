@@ -68,3 +68,8 @@ export type ApiDirectAccessGroupsResponse = {
     status: 'ok';
     results: DirectAccessGroupPrincipal[];
 };
+
+export type ApiDirectAccessUsersResponse = {
+    status: 'ok';
+    results: DirectAccessUserPrincipal[];
+};

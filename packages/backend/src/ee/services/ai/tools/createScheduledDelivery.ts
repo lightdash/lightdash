@@ -3,11 +3,17 @@ import {
     SchedulerFormat,
     type CreateSchedulerAndTargetsWithoutIds,
     type ToolCreateScheduledDeliveryArgs,
+    type ToolCreateScheduledDeliveryOutput,
+    type ToolCreateScheduledDeliveryStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateScheduledDeliveryFn } from '../types/aiAgentDependencies';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     createScheduledDelivery: CreateScheduledDeliveryFn;
@@ -42,12 +48,50 @@ const toSchedulerPayload = (
     ),
 });
 
+type SuccessMetadata = Extract<
+    ToolCreateScheduledDeliveryOutput['metadata'],
+    { status: 'success' }
+>;
+
+const renderSummary = (
+    delivery: ToolCreateScheduledDeliveryStructuredContent,
+): string =>
+    [
+        `Created scheduled delivery "${delivery.name}" (uuid: ${delivery.schedulerUuid}).`,
+        `Schedule: ${delivery.cron}${
+            delivery.timezone ? ` (${delivery.timezone})` : ''
+        }.`,
+        `Targets: ${delivery.targets
+            .map((t) =>
+                t.type === 'slack' ? `Slack ${t.channel}` : t.recipient,
+            )
+            .join(', ')}.`,
+        delivery.enabled
+            ? 'The delivery is enabled and live.'
+            : 'The delivery was created paused (disabled).',
+        delivery.aiAugmentationAttached
+            ? 'AI augmentation is attached and will write the delivery message on each send.'
+            : null,
+        `Share this markdown link with the user verbatim (the link text must be the delivery name) — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: [${delivery.name}](${delivery.href})`,
+        ...delivery.warnings,
+    ]
+        .filter(Boolean)
+        .join('\n');
+
 export const getCreateScheduledDelivery = ({
     createScheduledDelivery,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (
+            args,
+        ): Promise<
+            | ExecuteStructuredToolResult<
+                  ToolCreateScheduledDeliveryStructuredContent,
+                  SuccessMetadata
+              >
+            | ExecuteToolErrorResult
+        > => {
             try {
                 const {
                     scheduler,
@@ -62,34 +106,22 @@ export const getCreateScheduledDelivery = ({
                     aiAugmentationPrompt: args.aiAugmentationPrompt,
                 });
 
-                const summary = [
-                    `Created scheduled delivery "${scheduler.name}" (uuid: ${scheduler.schedulerUuid}).`,
-                    `Schedule: ${scheduler.cron}${
-                        scheduler.timezone ? ` (${scheduler.timezone})` : ''
-                    }.`,
-                    `Targets: ${args.targets
-                        .map((t) =>
-                            t.type === 'slack'
-                                ? `Slack ${t.channel}`
-                                : t.recipient,
-                        )
-                        .join(', ')}.`,
-                    scheduler.enabled
-                        ? 'The delivery is enabled and live.'
-                        : 'The delivery was created paused (disabled).',
-                    aiAugmentationAttached
-                        ? 'AI augmentation is attached and will write the delivery message on each send.'
-                        : null,
-                    `Share this markdown link with the user verbatim (the link text must be the delivery name) — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: [${scheduler.name}](${href})`,
-                    ...warnings,
-                ]
-                    .filter(Boolean)
-                    .join('\n');
+                const delivery: ToolCreateScheduledDeliveryStructuredContent = {
+                    schedulerUuid: scheduler.schedulerUuid,
+                    name: scheduler.name,
+                    cron: scheduler.cron,
+                    timezone: scheduler.timezone || null,
+                    targets: args.targets,
+                    enabled: scheduler.enabled,
+                    aiAugmentationAttached,
+                    href,
+                    warnings,
+                };
 
                 return {
-                    result: summary,
+                    result: renderSummary(delivery),
                     metadata: {
-                        status: 'success' as const,
+                        status: 'success',
                         schedulerUuid: scheduler.schedulerUuid,
                         name: scheduler.name,
                         cron: scheduler.cron,
@@ -99,17 +131,13 @@ export const getCreateScheduledDelivery = ({
                         aiAugmentationAttached,
                         warnings,
                     },
+                    structuredContent: delivery,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        `Error creating scheduled delivery "${args.name}". The delivery was not created.`,
-                    ),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    `Error creating scheduled delivery "${args.name}". The delivery was not created.`,
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

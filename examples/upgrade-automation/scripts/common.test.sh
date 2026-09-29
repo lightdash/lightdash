@@ -59,6 +59,34 @@ expect_rejected 'a non-array requiredStops' "$(with_field requiredStops '"1.2.4"
 expect_rejected 'an unexpected extra key' "$(jq -c '.unexpected = true' <<<"$base_verdict")"
 expect_rejected 'malformed json' 'not json at all'
 
+slack_payload() {
+    local payload_file
+    payload_file=$(mktemp)
+    (
+        curl() {
+            while [[ $# -gt 0 ]]; do
+                if [[ $1 == --data ]]; then
+                    printf '%s' "$2" >"$payload_file"
+                    return
+                fi
+                shift
+            done
+        }
+        ESCALATION=https://slack.test/webhook ESCALATION_CHANNEL=$1 post_slack 'held'
+    )
+    jq -c . "$payload_file"
+    rm -f "$payload_file"
+}
+
+if [[ "$(slack_payload '')" != '{"text":"held"}' ]]; then
+    printf 'expected no channel without ESCALATION_CHANNEL, got %s\n' "$(slack_payload '')" >&2
+    failures=$((failures + 1))
+fi
+if [[ "$(slack_payload '#engineering')" != '{"text":"held","channel":"#engineering"}' ]]; then
+    printf 'expected the #engineering channel, got %s\n' "$(slack_payload '#engineering')" >&2
+    failures=$((failures + 1))
+fi
+
 if [[ $failures -ne 0 ]]; then
     printf '%s verdict validation assertion(s) failed\n' "$failures" >&2
     exit 1

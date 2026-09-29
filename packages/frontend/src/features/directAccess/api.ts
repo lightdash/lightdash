@@ -1,6 +1,7 @@
 import {
     type ApiSuccessEmpty,
     type ApiDirectAccessGroupsResponse,
+    type ApiDirectAccessUsersResponse,
     type DirectAccessAssignment,
     type DirectAccessPrincipalType,
     type DirectAccessResourceType,
@@ -27,6 +28,17 @@ export const getDirectAccessGroups = (
     lightdashApi<ApiDirectAccessGroupsResponse['results']>({
         version: 'v2',
         url: `/projects/${projectUuid}/direct-access/${ref.resourceType}/${ref.resourceUuid}/groups`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const getDirectAccessUsers = (
+    projectUuid: string,
+    ref: DirectAccessResourceRef,
+) =>
+    lightdashApi<ApiDirectAccessUsersResponse['results']>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/direct-access/${ref.resourceType}/${ref.resourceUuid}/users`,
         method: 'GET',
         body: undefined,
     });

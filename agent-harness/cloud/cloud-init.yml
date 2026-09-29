@@ -204,6 +204,8 @@ runcmd:
     export PGPORT=15432
     export PGUSER=postgres
     export PGPASSWORD=password
+    # Keep Claude Code on the pinned version from the install step
+    export DISABLE_AUTOUPDATER=1
     ENVFILE
 
     # .profile.d/agent-harness.sh
@@ -311,8 +313,8 @@ runcmd:
     su - lightdash -c '
       export PATH="/home/lightdash/.local/share/fnm:$PATH"
       eval "$(fnm env --shell bash)"
-      npm install -g @anthropic-ai/claude-code
-      claude install --yes
+      npm install -g @anthropic-ai/claude-code@2.1.284
+      claude install 2.1.284 --yes
     '
 
   # -- Install happy-coder (mobile Claude Code client) -------------------------

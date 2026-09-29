@@ -4516,7 +4516,7 @@ export const uploadHandler = async (
                     if (action === 'create') {
                         GlobalState.log(
                             phase.isChartTypes
-                                ? `New chart type: ${config.context.serverUrl}/projects/${projectId}/chart-types/${appUuid}`
+                                ? `New chart type: ${config.context.serverUrl}/projects/${projectId}/chart-studio/${appUuid}`
                                 : `New app: ${config.context.serverUrl}/projects/${projectId}/apps/${appUuid}`,
                         );
                     }

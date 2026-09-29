@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
+    DashboardTileTypes,
     type CreateSavedChartVersion,
+    type DashboardChartTile,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -21,7 +23,22 @@ const DASHBOARD_UUID = 'dashboard-uuid';
 
 const editChart = mockSavedChartResponse();
 
-const state = vi.hoisted(() => ({ chartEditorEnabled: true }));
+const copiedTile: DashboardChartTile = {
+    uuid: 'copy-tile',
+    type: DashboardTileTypes.SAVED_CHART,
+    x: 0,
+    y: 0,
+    w: 6,
+    h: 6,
+    tabUuid: undefined,
+    properties: { savedChartUuid: editChart.uuid, belongsToDashboard: true },
+};
+
+const state = vi.hoisted(() => ({
+    chartEditorEnabled: true,
+    haveTilesChanged: false,
+    verified: false,
+}));
 
 vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../hooks/useContentAuthoringEnabled', () => ({
@@ -50,6 +67,11 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
             tabs: [],
             config: {},
+            get verification() {
+                return state.verified
+                    ? { verifiedBy: { userUuid: 'other-user' } }
+                    : undefined;
+            },
         },
         dashboardError: undefined,
         dashboardFilters: {
@@ -62,7 +84,9 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
             metrics: [],
             tableCalculations: [],
         },
-        dashboardTiles: [],
+        get dashboardTiles() {
+            return [copiedTile];
+        },
         dashboardTabs: [],
         dashboardCustomMetrics: [],
         dashboardParameters: {},
@@ -74,9 +98,11 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
         missingRequiredParameters: [],
         dateZoomGranularities: [],
         defaultDateZoomGranularity: undefined,
-        dateZoomConfig: undefined,
+        dateZoomConfig: { controls: [], tileTargets: {} },
         activeTab: undefined,
-        haveTilesChanged: false,
+        get haveTilesChanged() {
+            return state.haveTilesChanged;
+        },
         haveFiltersChanged: false,
         haveTabsChanged: false,
         haveCustomMetricsChanged: false,
@@ -140,17 +166,32 @@ vi.mock('../components/common/Dashboard/DashboardHeader', () => ({
     default: () => null,
 }));
 
-vi.mock('../features/dashboardTabs', () => ({ default: () => null }));
+vi.mock('../features/dashboardTabs', async () => {
+    const { Menu, Button } = await import('@mantine/core');
+    const { default: EditChartMenuItem } =
+        await import('../components/DashboardTiles/EditChartMenuItem');
+    return {
+        default: () => (
+            <Menu>
+                <Menu.Target>
+                    <Button>Tile actions</Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <EditChartMenuItem
+                        tile={copiedTile}
+                        chart={editChart}
+                        chartSlug={editChart.slug}
+                    />
+                </Menu.Dropdown>
+            </Menu>
+        ),
+    };
+});
 
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
         data: { enabled: state.chartEditorEnabled },
     }),
-}));
-
-vi.mock('../hooks/dashboard/useDashboard', () => ({
-    useUpdateDashboard: () => ({ mutate: vi.fn(), isSuccess: false }),
-    appendNewTilesToBottom: (tiles: unknown[]) => tiles,
 }));
 
 vi.mock('../features/contentAsCode/hooks/useContentDrafts', () => ({
@@ -270,24 +311,35 @@ vi.mock(
 // eslint-disable-next-line import/first
 import DashboardPage from './Dashboard';
 
-const manageChartAbility = new Ability<PossibleAbilities>([manageChartRule]);
+const manageChartAbility = new Ability<PossibleAbilities>([
+    manageChartRule,
+    { action: 'manage', subject: 'Explore' },
+]);
 
 const UrlProbe = () => {
     const location = useLocation();
-    return <div data-testid="url">{location.search}</div>;
+    return (
+        <div data-testid="url" data-pathname={location.pathname}>
+            {location.search}
+        </div>
+    );
 };
 
 const renderDashboard = (search: string) => {
     const router = createMemoryRouter(
         [
             {
-                path: '/projects/:projectUuid/dashboards/:dashboardUuid',
+                path: '/projects/:projectUuid/dashboards/:dashboardUuid/:mode?',
                 element: (
                     <>
                         <UrlProbe />
                         <DashboardPage />
                     </>
                 ),
+            },
+            {
+                path: '/projects/:projectUuid/saved/:chartSlug/edit',
+                element: <UrlProbe />,
             },
         ],
         {
@@ -322,6 +374,10 @@ const urlParams = () =>
 describe('Dashboard in-dashboard chart editor url', () => {
     beforeEach(() => {
         state.chartEditorEnabled = true;
+        state.haveTilesChanged = false;
+        state.verified = false;
+        sessionStorage.clear();
+        vi.mocked(lightdashApi).mockClear();
         vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
             if (
                 method === 'GET' &&
@@ -331,6 +387,178 @@ describe('Dashboard in-dashboard chart editor url', () => {
             }
             return new Promise(() => {});
         }) as typeof lightdashApi);
+    });
+
+    it('offers to save dashboard edits before navigating to the chart editor and can cancel', async () => {
+        state.chartEditorEnabled = false;
+        state.haveTilesChanged = true;
+        renderDashboard('/edit');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tile actions' }),
+        );
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Edit chart' }),
+        );
+        expect(
+            await screen.findByText(
+                'You have unsaved dashboard changes. These will be saved before opening the chart editor.',
+            ),
+        ).toBeVisible();
+        await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        await waitFor(() =>
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+        );
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([request]) => request.method === 'PATCH'),
+        ).toBe(false);
+        expect(
+            sessionStorage.getItem('unsavedDashboardTiles:dashboard-uuid'),
+        ).toBeNull();
+    });
+
+    it('keeps edits on save failure and opens the selected chart only after a successful retry', async () => {
+        state.chartEditorEnabled = false;
+        state.haveTilesChanged = true;
+        let finishSave: (value: unknown) => void = () => {};
+        let failSave: (reason: unknown) => void = () => {};
+        const savedDashboard = {
+            uuid: DASHBOARD_UUID,
+            slug: 'payments',
+            tiles: [],
+            tabs: [],
+        };
+        vi.mocked(lightdashApi).mockImplementation((({ method }) => {
+            if (method === 'PATCH') {
+                return new Promise<unknown>((resolve, reject) => {
+                    finishSave = resolve;
+                    failSave = reject;
+                });
+            }
+            return new Promise(() => {});
+        }) as typeof lightdashApi);
+        renderDashboard('/edit');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tile actions' }),
+        );
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Edit chart' }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Save and edit chart' }),
+        );
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+        expect(screen.getByTestId('url')).toHaveAttribute(
+            'data-pathname',
+            `/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}/edit`,
+        );
+        failSave({ error: { message: 'Save failed' } });
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Save and edit chart' }),
+            ).toBeEnabled(),
+        );
+        expect(screen.getByTestId('url')).toHaveAttribute(
+            'data-pathname',
+            `/projects/${PROJECT_UUID}/dashboards/${DASHBOARD_UUID}/edit`,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Save and edit chart' }),
+        );
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'PATCH',
+                body: expect.stringContaining('"tiles":[{"uuid":"copy-tile"'),
+            }),
+        );
+        finishSave(savedDashboard);
+        await waitFor(() =>
+            expect(screen.getByTestId('url')).toHaveAttribute(
+                'data-pathname',
+                `/projects/${PROJECT_UUID}/saved/${editChart.slug}/edit`,
+            ),
+        );
+        expect(urlParams().get('fromDashboard')).toBe(DASHBOARD_UUID);
+    });
+
+    it('keeps the verification choice before saving a verified dashboard', async () => {
+        state.chartEditorEnabled = false;
+        state.haveTilesChanged = true;
+        state.verified = true;
+        renderDashboard('/edit');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tile actions' }),
+        );
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Edit chart' }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Save and edit chart' }),
+        );
+        expect(
+            await screen.findByText('Save verified dashboard'),
+        ).toBeVisible();
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([request]) => request.method === 'PATCH'),
+        ).toBe(false);
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Save anyway' }),
+        );
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'PATCH',
+                    body: expect.stringContaining(
+                        '"preserveVerification":false',
+                    ),
+                }),
+            ),
+        );
+    });
+
+    it('opens the in-dashboard editor without saving staged dashboard edits', async () => {
+        state.haveTilesChanged = true;
+        renderDashboard('/edit');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tile actions' }),
+        );
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Edit chart' }),
+        );
+        expect(await screen.findByTestId('store-limit')).toBeVisible();
+        expect(urlParams().get('editChart')).toBe(editChart.uuid);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([request]) => request.method === 'PATCH'),
+        ).toBe(false);
+    });
+
+    it('navigates without prompting or saving when the dashboard is unchanged', async () => {
+        state.chartEditorEnabled = false;
+        renderDashboard('/edit');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Tile actions' }),
+        );
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Edit chart' }),
+        );
+        await waitFor(() =>
+            expect(screen.getByTestId('url')).toHaveAttribute(
+                'data-pathname',
+                `/projects/${PROJECT_UUID}/saved/${editChart.slug}/edit`,
+            ),
+        );
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(([request]) => request.method === 'PATCH'),
+        ).toBe(false);
     });
 
     it('opens the editor on the edits carried in the url', async () => {

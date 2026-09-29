@@ -5,6 +5,7 @@ import {
     type ApiDocumentCellQueryResponse,
     type ApiDocumentListResponse,
     type ApiDocumentResponse,
+    type ApiDocumentVersionListResponse,
     type ApiErrorPayload,
     type ApiTogglePinnedItem,
     type CreateDocumentRequest,
@@ -183,6 +184,52 @@ export class DocumentController extends BaseController {
             results: await this.services
                 .getDocumentService()
                 .updateContent(req.account, projectUuid, documentUuid, body),
+        };
+    }
+
+    // Same path template as UpdateDocumentContent, so OpenAPI sees one path.
+    @Get('{documentUuid}/versions')
+    @OperationId('ListDocumentVersions')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async listVersions(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+        @Query() limit?: number,
+        @Query() offset?: number,
+    ): Promise<ApiDocumentVersionListResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .listVersions(req.account, projectUuid, documentUuid, {
+                    limit,
+                    offset,
+                }),
+        };
+    }
+
+    @Get('{documentUuid}/versions/{versionUuid}')
+    @OperationId('GetDocumentVersion')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async getVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+        @Path() versionUuid: UUID,
+    ): Promise<ApiDocumentResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .getVersion(
+                    req.account,
+                    projectUuid,
+                    documentUuid,
+                    versionUuid,
+                ),
         };
     }
 

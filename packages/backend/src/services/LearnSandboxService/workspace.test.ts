@@ -8,6 +8,7 @@ import {
     materialiseWorkspace,
     renderProfiles,
     validateYaml,
+    writeCliConfig,
 } from './workspace';
 
 describe('workspace helpers', () => {
@@ -89,6 +90,35 @@ describe('workspace helpers', () => {
                     await stat(path.join(dir, 'project', 'dbt_project.yml'))
                 ).isFile(),
             ).toBe(true);
+        } finally {
+            await rm(dir, { recursive: true, force: true });
+        }
+    });
+    it('writeCliConfig puts the token where the CLI reads it, readable by the owner only', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'learn-ws-'));
+        try {
+            const file = await writeCliConfig({
+                workspaceDir: dir,
+                apiKey: 'ldpat_abc',
+                serverUrl: 'https://learn.test',
+                projectUuid: 'copy',
+            });
+            expect(file).toBe(
+                path.join(dir, '.config', 'lightdash', 'config.yaml'),
+            );
+            const permissions = async (target: string) =>
+                ((await stat(target)).mode % 0o1000).toString(8);
+            expect(await permissions(file)).toBe('600');
+            expect(
+                await permissions(path.join(dir, '.config', 'lightdash')),
+            ).toBe('700');
+            expect(parseYaml(await readFile(file, 'utf8'))).toEqual({
+                context: {
+                    apiKey: 'ldpat_abc',
+                    serverUrl: 'https://learn.test',
+                    project: 'copy',
+                },
+            });
         } finally {
             await rm(dir, { recursive: true, force: true });
         }

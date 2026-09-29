@@ -4,6 +4,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartType,
+    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
     DashboardTileTypes,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
@@ -286,6 +287,41 @@ const getAppBrowserEndpoint = (
     }
     endpoint.searchParams.set('launch', JSON.stringify({ args }));
     return endpoint.toString();
+};
+
+/**
+ * Grow the viewport to cover the whole dashboard grid before waiting for the
+ * ready indicator. Chromium stops running animation frames in cross-origin
+ * iframes outside the viewport, so a custom chart tile below the fold never
+ * acknowledges its render and holds the ready indicator back. Grid height is
+ * fixed by the layout, so it is known before any tile has loaded.
+ *
+ * The height is capped: loading a very tall dashboard with every tile on
+ * screen at once can crash the shared browser. Custom chart tiles below the
+ * cap fall back to the renderer's render-acknowledgement timeout.
+ *
+ * Returns the new viewport height, or undefined when the grid already fits.
+ */
+export const MAX_PRE_READY_VIEWPORT_HEIGHT = 16_384;
+
+export const expandViewportToDashboardGrid = async (
+    page: Pick<Page, 'locator' | 'setViewportSize' | 'viewportSize'>,
+    width: number,
+    timeoutMs: number,
+): Promise<number | undefined> => {
+    const grid = page.locator(SCREENSHOT_SELECTORS.DASHBOARD_GRID).first();
+    await grid.waitFor({ state: 'attached', timeout: timeoutMs });
+    const box = await grid.boundingBox({ timeout: timeoutMs });
+    if (!box) return undefined;
+
+    const height = Math.min(
+        Math.ceil(box.y + box.height),
+        MAX_PRE_READY_VIEWPORT_HEIGHT,
+    );
+    if (height <= (page.viewportSize()?.height ?? 0)) return undefined;
+
+    await page.setViewportSize({ width, height });
+    return height;
 };
 
 const isBrowserQueueFullError = (error: unknown): boolean => {
@@ -1295,6 +1331,38 @@ export class UnfurlService extends BaseService {
      * never mounted the React tree (e.g. JS module-init crash) or pre-dates
      * the progress indicator deploy, both of which are logged distinctly.
      */
+    /**
+     * Custom chart tiles whose bundle never acknowledged its render are
+     * released by a frontend fallback timer and may be captured before they
+     * paint. Log them so we can tell how often that happens.
+     */
+    private async logCustomChartReadyFallbacks(
+        page: Page,
+        url: string,
+        unfurlId: string,
+    ): Promise<void> {
+        try {
+            const fallbacks = await page
+                .locator(SCREENSHOT_SELECTORS.CUSTOM_CHART_READY_FALLBACK)
+                .evaluateAll(
+                    (elements, attribute) =>
+                        elements.map((el) => el.getAttribute(attribute)),
+                    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
+                );
+            if (fallbacks.length > 0) {
+                this.logger.warn(
+                    `Custom chart render acknowledgement fallback used for ${fallbacks.length} tile(s) - unfurlId: ${unfurlId}, url: ${url}, chartTypes: ${JSON.stringify(fallbacks)}`,
+                );
+            }
+        } catch (e) {
+            this.logger.debug(
+                `Failed to check custom chart ready fallbacks - unfurlId: ${unfurlId}, error: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        }
+    }
+
     private async logUnreadyTilesOnTimeout(
         page: Page,
         url: string,
@@ -2112,6 +2180,29 @@ export class UnfurlService extends BaseService {
                             APP_ANIMATION_BUFFER_MS,
                         );
                     } else {
+                        if (lightdashPage === LightdashPage.DASHBOARD) {
+                            try {
+                                const expandedHeight =
+                                    await expandViewportToDashboardGrid(
+                                        page,
+                                        gridWidth ?? viewport.width,
+                                        this.screenshotTimeoutMs,
+                                    );
+                                if (expandedHeight) {
+                                    this.logger.info(
+                                        `Expanded viewport to dashboard grid height ${expandedHeight}px before ready wait - unfurlId: ${imageId}`,
+                                    );
+                                }
+                            } catch (expandError) {
+                                // Best effort: the ready wait below still
+                                // runs and reports which tiles never settled.
+                                this.logger.warn(
+                                    `Could not expand viewport to dashboard grid before ready wait - unfurlId: ${imageId}, error: ${getErrorMessage(
+                                        expandError,
+                                    )}`,
+                                );
+                            }
+                        }
                         this.logger.info(
                             `Waiting for screenshot ready indicator - unfurlId: ${imageId}`,
                         );
@@ -2125,6 +2216,11 @@ export class UnfurlService extends BaseService {
                             );
                             this.logger.info(
                                 `Screenshot ready indicator found - page is ready - unfurlId: ${imageId}`,
+                            );
+                            await this.logCustomChartReadyFallbacks(
+                                page,
+                                url,
+                                imageId,
                             );
                         } catch (waitError) {
                             // Probe the always-mounted progress indicator to

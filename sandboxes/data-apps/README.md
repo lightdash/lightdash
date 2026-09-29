@@ -91,7 +91,20 @@ automatically — they tag each release as `lightdash-data-app:<version>` (and r
 
 ## Cloud Run gateway image
 
-Use the Node version in `.nvmrc` and pnpm version in the root `package.json`.
+Each Lightdash release publishes a prebuilt `linux/amd64` gateway image to
+Docker Hub from `.github/workflows/post-release.yml`:
+
+```bash
+docker pull lightdash/lightdash-data-app-sandbox-cloud-run:<lightdash-version>
+```
+
+Use the tag matching your deployed Lightdash version; `:latest` tracks the most
+recent release. Copy it into your own registry and deploy it with the
+[Cloud Run sandbox deployment instructions](https://docs.lightdash.com/self-host/customize-deployment/sandboxes#google-cloud-run-sandboxes-self-hosted-preview).
+Custom npm dependencies in data apps still install at build time from the hosts in
+`LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS`.
+
+To build the image yourself instead, use the Node version in `.nvmrc` and pnpm version in the root `package.json`.
 Install repository dependencies with `sfw pnpm install --frozen-lockfile` from
 its root (`npm install -g sfw` installs the dependency firewall if needed).
 Docker with Buildx must be running.

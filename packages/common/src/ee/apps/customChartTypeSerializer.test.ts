@@ -227,3 +227,50 @@ describe('serializeCustomChartTypeSchema', () => {
         ).toBe(serializeCustomChartTypeSchema(minimal));
     });
 });
+
+it('serializes gradient fixed colors and bounds for the agent', () => {
+    const value = {
+        colors: ['#000000', '#ffffff'],
+        min: 'auto' as const,
+        max: 100,
+    };
+    expect(
+        serializeCustomChartTypeSchema({
+            ...cohortWaterfall,
+            schema: {
+                ...cohortWaterfall.schema,
+                configOptions: [
+                    {
+                        type: 'gradient',
+                        name: 'scale',
+                        label: 'Scale',
+                        default: value,
+                    },
+                ],
+            },
+        }),
+    ).toContain(`- scale "Scale" [gradient] default: ${JSON.stringify(value)}`);
+});
+
+it('includes gradient bounds visibility in the agent schema', () => {
+    const type: CustomChartType = {
+        ...cohortWaterfall,
+        schema: {
+            ...cohortWaterfall.schema,
+            configOptions: [
+                {
+                    type: 'gradient',
+                    name: 'scale',
+                    label: 'Scale',
+                    showBounds: false,
+                    default: {
+                        colors: ['#000', '#fff'],
+                        min: 'auto',
+                        max: 'auto',
+                    },
+                },
+            ],
+        },
+    };
+    expect(serializeCustomChartTypeSchema(type)).toContain('showBounds: false');
+});

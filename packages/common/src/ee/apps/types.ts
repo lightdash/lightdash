@@ -22,6 +22,7 @@ import {
     type SavedChart,
 } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { isHexCodeColor } from '../../utils/colors';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
@@ -35,6 +36,7 @@ import { type DataAppVizPreview } from './preview';
 export type {
     DataAppVizConfigOption,
     DataAppVizConfigOptionType,
+    DataAppVizGradientValue,
     DataAppVizOptionValue,
     DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
@@ -801,6 +803,26 @@ export type DataAppGenerationUsage = {
 };
 
 /**
+ * The coding agent CLI's running totals for one session, as of its last
+ * result event. A resumed run reports cost, API time and per-model tokens
+ * since the session began, so the next run subtracts this to find its own.
+ */
+export type DataAppCodingAgentSessionUsage = {
+    sessionId: string;
+    costUsd: number;
+    durationApiMs: number;
+    modelUsage: Record<
+        string,
+        {
+            inputTokens: number;
+            outputTokens: number;
+            cacheReadInputTokens: number;
+            cacheCreationInputTokens: number;
+        }
+    > | null;
+};
+
+/**
  * One data app generation event — a row of the org-wide activity log. Backed by
  * an `app_versions` row, so it covers both new apps and iterations, and both
  * successful and failed generations.
@@ -993,6 +1015,22 @@ const vizFieldsForGeneration = z
     .array(vizField(true))
     .describe(vizFieldsDescription);
 
+export const dataAppVizGradientValueSchema = z.object({
+    colors: z
+        .array(
+            z
+                .string()
+                .refine(
+                    isHexCodeColor,
+                    'Expected a 3, 6, or 8-digit hex color',
+                ),
+        )
+        .min(2)
+        .max(5),
+    min: z.union([z.number().finite(), z.literal('auto')]),
+    max: z.union([z.number().finite(), z.literal('auto')]),
+});
+
 const vizConfigOptions = z.array(
     z.discriminatedUnion('type', [
         z.object({
@@ -1052,6 +1090,21 @@ const vizConfigOptions = z.array(
             default: z
                 .string()
                 .describe('Hex colour used until the viewer changes it.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('gradient'),
+            showBounds: z
+                .boolean()
+                .nullable()
+                .transform((value) => value ?? undefined)
+                .optional()
+                .describe(
+                    'Show minimum and maximum controls in the config panel. Defaults to true; false hides the controls without changing the gradient value or bounds.',
+                ),
+            default: dataAppVizGradientValueSchema.describe(
+                'Fixed hex colors and numeric or automatic bounds used until the viewer changes them.',
+            ),
         }),
     ]),
 );
@@ -1178,6 +1231,8 @@ const matchesDeclaredType = (
     value: DataAppVizOptionValue,
 ): boolean => {
     switch (option.type) {
+        case 'gradient':
+            return dataAppVizGradientValueSchema.safeParse(value).success;
         case 'boolean':
             return typeof value === 'boolean';
         case 'number':

@@ -1,4 +1,9 @@
-import { DimensionType, FieldType, MetricType } from '@lightdash/common';
+import {
+    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
+    DimensionType,
+    FieldType,
+    MetricType,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import { act, render, screen } from '@testing-library/react';
@@ -245,7 +250,10 @@ vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
 
-import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
+import {
+    RENDER_ACK_FALLBACK_MS,
+    SCREENSHOT_READY_FALLBACK_MS,
+} from './constants';
 import DataAppVizRenderer from './index';
 
 function apiError(statusCode: number) {
@@ -1143,11 +1151,11 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         }
     });
 
-    it('never falls back for a modern SDK awaiting paint', () => {
+    it('waits past the legacy fallback for a modern SDK awaiting paint', () => {
         vi.useFakeTimers();
         try {
             const onScreenshotReady = vi.fn();
-            renderRenderer({ onScreenshotReady });
+            const view = renderRenderer({ onScreenshotReady });
             loadIframe();
             requestVizContext();
             announceModernSdk();
@@ -1156,6 +1164,43 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
                 vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS * 2);
             });
             expect(onScreenshotReady).not.toHaveBeenCalled();
+            announceRendered();
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+            act(() => {
+                vi.advanceTimersByTime(RENDER_ACK_FALLBACK_MS);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+            expect(
+                view.container.querySelector(
+                    `[${CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE}]`,
+                ),
+            ).toBeNull();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('releases a modern SDK that never acknowledges paint and marks the tile', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+            const view = renderRenderer({ onScreenshotReady });
+            loadIframe();
+            requestVizContext();
+            announceModernSdk();
+            act(() => {
+                vi.advanceTimersByTime(RENDER_ACK_FALLBACK_MS - 1);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+            expect(
+                view.container
+                    .querySelector(`[${CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE}]`)
+                    ?.getAttribute(CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE),
+            ).toBe(`viz-uuid@${readyMetadata().version}`);
             announceRendered();
             expect(onScreenshotReady).toHaveBeenCalledTimes(1);
         } finally {

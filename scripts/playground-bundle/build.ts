@@ -1,5 +1,4 @@
 import {
-    DimensionType,
     findFieldByIdInExplore,
     isExploreError,
     SupportedDbtVersions,
@@ -17,21 +16,13 @@ import {
     rm,
     writeFile,
 } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { DbtLocalProjectAdapter } from '../../packages/backend/src/projectAdapters/dbtLocalProjectAdapter';
 import { prepareDbtProjectCopy, writeLearnBundle } from './build-learn';
+import { getCatalog, withDatabase } from './compile';
 import { playgroundContent } from './content';
-
-type DuckDbConnection = {
-    closeSync(): void;
-    run(
-        sql: string,
-    ): Promise<{ getRowObjects(): Promise<Record<string, unknown>[]> }>;
-};
 
 const root = path.resolve(__dirname, '../..');
 const sourceDbtProjectDir = path.join(
@@ -51,47 +42,13 @@ const maxSeedRows = 5_000;
 const quoteIdentifier = (value: string) => `"${value.replaceAll('"', '""')}"`;
 const quoteLiteral = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
-const loadDuckDb = async () => {
-    const requireFromWarehouses = createRequire(
-        path.join(root, 'packages/warehouses/package.json'),
-    );
-    const modulePath = requireFromWarehouses.resolve('@duckdb/node-api');
-    return import(pathToFileURL(modulePath).href) as Promise<{
-        DuckDBInstance: {
-            create(
-                database: string,
-                options?: Record<string, string>,
-            ): Promise<{
-                connect(): Promise<DuckDbConnection>;
-                closeSync(): void;
-            }>;
-        };
-    }>;
-};
-
-const withDatabase = async <T>(
-    callback: (connection: DuckDbConnection) => Promise<T>,
-): Promise<T> => {
-    const { DuckDBInstance } = await loadDuckDb();
-    const instance = await DuckDBInstance.create(databasePath, {
-        default_block_size: '16384',
-    });
-    const connection = await instance.connect();
-    try {
-        return await callback(connection);
-    } finally {
-        connection.closeSync();
-        instance.closeSync();
-    }
-};
-
 const loadSeeds = async () => {
     await rm(databasePath, { force: true });
     const csvFiles = (await readdir(seedDir, { recursive: true }))
         .filter((file) => file.endsWith('.csv'))
         .sort();
 
-    await withDatabase(async (connection) => {
+    await withDatabase(databasePath, async (connection) => {
         await connection.run('CREATE SCHEMA jaffle');
         await csvFiles.reduce(
             (previous, file) =>
@@ -108,42 +65,6 @@ const loadSeeds = async () => {
     });
     return csvFiles.length;
 };
-
-const typeFromDuckDb = (type: string): DimensionType => {
-    if (/BOOL/i.test(type)) return DimensionType.BOOLEAN;
-    if (/TIMESTAMP|TIME/i.test(type)) return DimensionType.TIMESTAMP;
-    if (/DATE/i.test(type)) return DimensionType.DATE;
-    if (/INT|DECIMAL|NUMERIC|DOUBLE|FLOAT|REAL/i.test(type)) {
-        return DimensionType.NUMBER;
-    }
-    return DimensionType.STRING;
-};
-
-const getCatalog = () =>
-    withDatabase(async (connection) => {
-        const result = await connection.run(`
-            SELECT table_catalog, table_schema, table_name, column_name, data_type
-            FROM information_schema.columns
-            WHERE table_schema = 'jaffle'
-            ORDER BY table_name, ordinal_position
-        `);
-        const rows = await result.getRowObjects();
-        const catalog: Record<
-            string,
-            Record<string, Record<string, Record<string, DimensionType>>>
-        > = {};
-        for (const row of rows) {
-            const database = String(row.table_catalog);
-            const schema = String(row.table_schema);
-            const table = String(row.table_name);
-            catalog[database] ??= {};
-            catalog[database][schema] ??= {};
-            catalog[database][schema][table] ??= {};
-            catalog[database][schema][table][String(row.column_name)] =
-                typeFromDuckDb(String(row.data_type));
-        }
-        return catalog;
-    });
 
 const validatePlaygroundContent = (
     explores: (Explore | ExploreError)[],
@@ -266,7 +187,8 @@ const main = async () => {
             throw error;
         }
 
-        adapter.cachedWarehouse.warehouseCatalog = await getCatalog();
+        adapter.cachedWarehouse.warehouseCatalog =
+            await getCatalog(databasePath);
         const explores = await adapter.compileAllExplores();
         validatePlaygroundContent(explores);
         const exploresJson = `${JSON.stringify(explores)}\n`;

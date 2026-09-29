@@ -24,6 +24,8 @@ import {
     getTabsForFilterRule,
 } from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
+import LockedFilter from '../LockedFilter';
+import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import Filter from './Filter';
 
 interface ActiveFiltersProps {
@@ -35,6 +37,19 @@ interface ActiveFiltersProps {
     triggerClassName?: string;
     dropdownClassName?: string;
 }
+
+const UnresolvedFilter: FC<{
+    isEditMode: boolean;
+    filterRule: DashboardFilterRule;
+    onRemove: () => void;
+}> = (props) => {
+    const isLocked = useIsLockedDashboardFilterRule();
+    return isLocked(props.filterRule) ? (
+        <LockedFilter {...props} />
+    ) : (
+        <InvalidFilter {...props} />
+    );
+};
 
 const DraggableItem: FC<{
     id: string;
@@ -322,7 +337,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                         }
                                     />
                                 ) : (
-                                    <InvalidFilter
+                                    <UnresolvedFilter
                                         key={item.id}
                                         isEditMode={isEditMode}
                                         filterRule={item}
@@ -398,7 +413,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                             </DraggableItem>
                         </DroppableArea>
                     ) : (
-                        <InvalidFilter
+                        <UnresolvedFilter
                             key={item.id}
                             isEditMode={isEditMode}
                             filterRule={item}
@@ -455,7 +470,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         }
                     />
                 ) : (
-                    <InvalidFilter
+                    <UnresolvedFilter
                         key={item.id}
                         isEditMode={isEditMode}
                         filterRule={item}
@@ -510,7 +525,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         }
                     />
                 ) : (
-                    <InvalidFilter
+                    <UnresolvedFilter
                         key={item.id}
                         isEditMode={isEditMode}
                         filterRule={item}

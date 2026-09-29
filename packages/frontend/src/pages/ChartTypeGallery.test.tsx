@@ -188,12 +188,12 @@ const LocationPathname = () => {
     return <div data-testid="location-pathname">{pathname}</div>;
 };
 
-const renderPage = (initialEntry = '/projects/project-1/chart-types') =>
+const renderPage = (initialEntry = '/projects/project-1/chart-studio') =>
     renderWithProviders(
         <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route
-                    path="/projects/:projectUuid/chart-types"
+                    path="/projects/:projectUuid/chart-studio"
                     element={
                         <>
                             <ChartTypeGallery />
@@ -206,7 +206,7 @@ const renderPage = (initialEntry = '/projects/project-1/chart-types') =>
                     element={<div>home</div>}
                 />
                 <Route
-                    path="/projects/:projectUuid/chart-types/:slug"
+                    path="/projects/:projectUuid/chart-studio/:slug"
                     element={<LocationPathname />}
                 />
                 <Route
@@ -401,7 +401,7 @@ describe('ChartTypeGallery', () => {
         });
 
         it('does not paginate installed charts while browsing the library', () => {
-            renderPage('/projects/project-1/chart-types?tab=chart-library');
+            renderPage('/projects/project-1/chart-studio?tab=chart-library');
 
             expect(
                 screen.queryByTestId('chart-types-pagination'),
@@ -427,7 +427,8 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
-        expect(screen.getByText('Chart types')).toBeInTheDocument();
+        expect(screen.getByText('Chart Studio')).toBeInTheDocument();
+        expect(document.title).toContain('Chart Studio');
         expect(screen.getByText('(2)')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));
@@ -437,7 +438,7 @@ describe('ChartTypeGallery', () => {
             screen.getByRole('link', { name: 'Edit' }).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types/radial-gauge',
+            '/projects/jaffle-shop/chart-studio/radial-gauge',
         );
         expect(screen.getByText('v3')).toBeInTheDocument();
         // Typed field breakdown, matching the library modal.
@@ -477,7 +478,7 @@ describe('ChartTypeGallery', () => {
 
     it('opens the chart library tab from a deep link', () => {
         setData([makeDataAppViz({})]);
-        renderPage('/projects/project-1/chart-types?tab=chart-library');
+        renderPage('/projects/project-1/chart-studio?tab=chart-library');
 
         expect(
             screen.getByRole('tab', { name: 'Chart type library Beta' }),
@@ -492,7 +493,7 @@ describe('ChartTypeGallery', () => {
         (query) => {
             setFlags({ chartTypeRegistry: false });
             setData([makeDataAppViz({})]);
-            renderPage(`/projects/project-1/chart-types${query}`);
+            renderPage(`/projects/project-1/chart-studio${query}`);
 
             expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
             expect(screen.queryByRole('tab')).not.toBeInTheDocument();
@@ -510,7 +511,7 @@ describe('ChartTypeGallery', () => {
                 error: null,
             } as unknown as ReturnType<typeof useRegistryChartTypes>);
             setData([makeDataAppViz({})]);
-            renderPage('/projects/project-1/chart-types?tab=chart-library');
+            renderPage('/projects/project-1/chart-studio?tab=chart-library');
 
             expect(useRegistryChartTypes).toHaveBeenCalledWith(
                 'project-1',
@@ -568,7 +569,7 @@ describe('ChartTypeGallery', () => {
             screen.getByLabelText('Edit Radial gauge').closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/jaffle-shop/chart-types/radial-gauge',
+            '/projects/jaffle-shop/chart-studio/radial-gauge',
         );
 
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
@@ -718,7 +719,7 @@ describe('ChartTypeGallery', () => {
                 version: '1.2.0',
             },
         ]);
-        renderPage('/projects/project-1/chart-types?tab=chart-library');
+        renderPage('/projects/project-1/chart-studio?tab=chart-library');
 
         fireEvent.click(
             screen.getByRole('button', {
@@ -1069,7 +1070,7 @@ describe('ChartTypeGallery', () => {
                     expect(
                         screen.getByTestId('location-pathname'),
                     ).toHaveTextContent(
-                        '/projects/jaffle-shop/chart-types/radial-gauge-custom-2',
+                        '/projects/jaffle-shop/chart-studio/radial-gauge-custom-2',
                     ),
                 );
             },

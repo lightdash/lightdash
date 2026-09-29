@@ -179,6 +179,7 @@ const AiAgentBattlePage: FC = () => {
                     agentUuid={agentUuid}
                     messageCount={threadA.messages.length}
                     showSuggestions={false}
+                    showFastMode={false}
                 />
             </Box>
         </Stack>

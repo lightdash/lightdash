@@ -36,12 +36,13 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
-    getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
+    getExecutableFilterFieldIds,
     getFilterInteractivityValue,
+    getHiddenFilterableFieldIds,
     getItemId,
     InteractivityOptions,
     IntrinsicUserAttributes,
@@ -776,6 +777,7 @@ export class EmbedService extends BaseService {
                 allFilterableMetrics: [],
                 savedQueryMetricFilters: {},
                 defaultTimeDimensions: {},
+                hiddenFilterableFieldIds: [],
             };
         }
 
@@ -929,12 +931,45 @@ export class EmbedService extends BaseService {
             };
         }, {});
 
+        const hiddenFieldIds = new Set(
+            savedCharts.flatMap((savedChart) => {
+                const explore = exploreCache[savedChart.tableName];
+                return explore && !isExploreError(explore)
+                    ? getHiddenFilterableFieldIds(explore)
+                    : [];
+            }),
+        );
+        let hiddenFilterableFieldIds: string[] = [];
+        if (hiddenFieldIds.size > 0) {
+            const dashboard = await this.dashboardModel.getByIdOrSlug(
+                dashboardUuid,
+                { projectUuid },
+            );
+            const savedFilterFieldIds = [
+                ...dashboard.filters.dimensions,
+                ...dashboard.filters.metrics,
+            ].flatMap((rule) => [
+                rule.target.fieldId,
+                ...Object.values(rule.tileTargets ?? {}).flatMap((target) =>
+                    target ? [target.fieldId] : [],
+                ),
+            ]);
+            hiddenFilterableFieldIds = Array.from(
+                new Set(
+                    savedFilterFieldIds.filter((fieldId) =>
+                        hiddenFieldIds.has(fieldId),
+                    ),
+                ),
+            );
+        }
+
         return {
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics: [],
             savedQueryMetricFilters: {},
             defaultTimeDimensions: {},
+            hiddenFilterableFieldIds,
         };
     }
 
@@ -1209,7 +1244,7 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const availableFieldIds = getAvailableFilterFieldIds(explore);
+        const availableFieldIds = getExecutableFilterFieldIds(explore);
 
         // Look up which tab this tile belongs to so we can evaluate lock state
         // for the right tab. Tiles created before tabs may have null/undefined.

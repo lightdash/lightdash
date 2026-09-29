@@ -5449,6 +5449,42 @@
                 "$ref": "#/components/schemas/Record_string.string-or-string-Array_",
                 "description": "Maps a viz field name to one query field id or an ordered collection."
             },
+            "DataAppVizGradientValue": {
+                "properties": {
+                    "max": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["auto"]
+                            }
+                        ]
+                    },
+                    "min": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["auto"]
+                            }
+                        ]
+                    },
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["max", "min", "colors"],
+                "type": "object"
+            },
             "DataAppVizOptionValue": {
                 "anyOf": [
                     {
@@ -5460,6 +5496,9 @@
                     },
                     {
                         "type": "string"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppVizGradientValue"
                     }
                 ],
                 "description": "A persisted config value; its shape is set by the option's declared `type`."
@@ -16939,6 +16978,12 @@
                     "defaultTimeDimensions": {
                         "$ref": "#/components/schemas/Record_string.DashboardFieldTarget_"
                     },
+                    "hiddenFilterableFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "savedQueryMetricFilters": {
                         "$ref": "#/components/schemas/Record_string.number-Array_"
                     },
@@ -16959,6 +17004,7 @@
                     }
                 },
                 "required": [
+                    "hiddenFilterableFieldIds",
                     "savedQueryMetricFilters",
                     "allFilterableMetrics",
                     "allFilterableFields",
@@ -19873,6 +19919,33 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["color"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["default", "label", "name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "default": {
+                                "$ref": "#/components/schemas/DataAppVizGradientValue"
+                            },
+                            "showBounds": {
+                                "type": "boolean",
+                                "description": "Whether the config panel shows bounds controls; defaults to true."
+                            },
+                            "group": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["gradient"],
                                 "nullable": false
                             }
                         },
@@ -29090,261 +29163,620 @@
                                     "metadata": {
                                         "anyOf": [
                                             {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "ranking": {
+                                                "allOf": [
+                                                    {
                                                         "properties": {
-                                                            "topMatchingFields": {
-                                                                "items": {
-                                                                    "properties": {
-                                                                        "verifiedChartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "tableName": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "name": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    "required": [
-                                                                        "fieldType",
-                                                                        "tableName",
-                                                                        "label",
-                                                                        "name"
-                                                                    ],
-                                                                    "type": "object"
-                                                                },
-                                                                "type": "array"
-                                                            },
-                                                            "exploreSearchResults": {
-                                                                "items": {
-                                                                    "properties": {
-                                                                        "requiredFilters": {
-                                                                            "items": {
-                                                                                "properties": {
-                                                                                    "settings": {},
-                                                                                    "values": {
-                                                                                        "items": {},
-                                                                                        "type": "array"
-                                                                                    },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
-                                                                                    },
-                                                                                    "operator": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "fieldRef": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "fieldId": {
-                                                                                        "type": "string"
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "required",
-                                                                                    "operator",
-                                                                                    "tableName",
-                                                                                    "fieldRef",
-                                                                                    "fieldId"
-                                                                                ],
-                                                                                "type": "object"
-                                                                            },
-                                                                            "type": "array"
-                                                                        },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "name": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    "required": [
-                                                                        "label",
-                                                                        "name"
-                                                                    ],
-                                                                    "type": "object"
-                                                                },
-                                                                "type": "array"
-                                                            },
-                                                            "searchQuery": {
-                                                                "type": "string"
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
                                                             }
                                                         },
-                                                        "required": [
-                                                            "searchQuery"
-                                                        ],
+                                                        "required": ["status"],
                                                         "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
-                                                "properties": {
-                                                    "ranking": {
+                                                "allOf": [
+                                                    {
                                                         "properties": {
-                                                            "searchQueries": {
-                                                                "items": {
-                                                                    "properties": {
-                                                                        "pagination": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "topMatchingFields": {
+                                                                        "items": {
                                                                             "properties": {
-                                                                                "totalPageCount": {
+                                                                                "verifiedChartUsage": {
                                                                                     "type": "number",
-                                                                                    "format": "double"
+                                                                                    "format": "double",
+                                                                                    "nullable": true
                                                                                 },
-                                                                                "totalResults": {
+                                                                                "chartUsage": {
                                                                                     "type": "number",
-                                                                                    "format": "double"
+                                                                                    "format": "double",
+                                                                                    "nullable": true
                                                                                 },
-                                                                                "pageSize": {
+                                                                                "searchRank": {
                                                                                     "type": "number",
-                                                                                    "format": "double"
+                                                                                    "format": "double",
+                                                                                    "nullable": true
                                                                                 },
-                                                                                "page": {
-                                                                                    "type": "number",
-                                                                                    "format": "double"
+                                                                                "fieldType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "tableName": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "totalPageCount",
-                                                                                "totalResults",
-                                                                                "pageSize",
-                                                                                "page"
+                                                                                "fieldType",
+                                                                                "tableName",
+                                                                                "label",
+                                                                                "name"
                                                                             ],
                                                                             "type": "object"
                                                                         },
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "status": {
-                                                                            "type": "string",
-                                                                            "enum": [
-                                                                                "error",
-                                                                                "success"
-                                                                            ]
-                                                                        },
-                                                                        "results": {
-                                                                            "items": {
-                                                                                "properties": {
-                                                                                    "verifiedChartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "searchRank": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "label": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "name": {
-                                                                                        "type": "string"
-                                                                                    }
-                                                                                },
-                                                                                "required": [
-                                                                                    "fieldType",
-                                                                                    "tableName",
-                                                                                    "label",
-                                                                                    "name"
-                                                                                ],
-                                                                                "type": "object"
-                                                                            },
-                                                                            "type": "array"
-                                                                        },
-                                                                        "label": {
-                                                                            "type": "string"
-                                                                        }
+                                                                        "type": "array"
                                                                     },
-                                                                    "required": [
-                                                                        "results",
-                                                                        "label"
-                                                                    ],
-                                                                    "type": "object"
+                                                                    "exploreSearchResults": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "requiredFilters": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "settings": {},
+                                                                                            "values": {
+                                                                                                "items": {},
+                                                                                                "type": "array"
+                                                                                            },
+                                                                                            "required": {
+                                                                                                "type": "boolean"
+                                                                                            },
+                                                                                            "operator": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldRef": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldId": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "required",
+                                                                                            "operator",
+                                                                                            "tableName",
+                                                                                            "fieldRef",
+                                                                                            "fieldId"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "joinedTables": {
+                                                                                    "items": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "type": "array",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "searchRank": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "label",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "searchQuery": {
+                                                                        "type": "string"
+                                                                    }
                                                                 },
-                                                                "type": "array"
+                                                                "required": [
+                                                                    "searchQuery"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
                                                             }
                                                         },
-                                                        "required": [
-                                                            "searchQueries"
-                                                        ],
+                                                        "required": ["status"],
                                                         "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "topMatchingFields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "verifiedChartUsage": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "chartUsage": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "searchRank": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "tableName": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "fieldType",
+                                                                                "tableName",
+                                                                                "label",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "exploreSearchResults": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "requiredFilters": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "settings": {},
+                                                                                            "values": {
+                                                                                                "items": {},
+                                                                                                "type": "array"
+                                                                                            },
+                                                                                            "required": {
+                                                                                                "type": "boolean"
+                                                                                            },
+                                                                                            "operator": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldRef": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "fieldId": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "required",
+                                                                                            "operator",
+                                                                                            "tableName",
+                                                                                            "fieldRef",
+                                                                                            "fieldId"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "joinedTables": {
+                                                                                    "items": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "type": "array",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "searchRank": {
+                                                                                    "type": "number",
+                                                                                    "format": "double",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "label",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "searchQuery": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "searchQuery"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "searchQueries": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "pagination": {
+                                                                                    "properties": {
+                                                                                        "totalPageCount": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "totalResults": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "pageSize": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "page": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "totalPageCount",
+                                                                                        "totalResults",
+                                                                                        "pageSize",
+                                                                                        "page"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "error": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "status": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "error",
+                                                                                        "success"
+                                                                                    ]
+                                                                                },
+                                                                                "results": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "verifiedChartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "chartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "searchRank": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "fieldType": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "label": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "name": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "fieldType",
+                                                                                            "tableName",
+                                                                                            "label",
+                                                                                            "name"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "results",
+                                                                                "label"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "searchQueries"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "ranking": {
+                                                                "properties": {
+                                                                    "searchQueries": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "pagination": {
+                                                                                    "properties": {
+                                                                                        "totalPageCount": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "totalResults": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "pageSize": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        },
+                                                                                        "page": {
+                                                                                            "type": "number",
+                                                                                            "format": "double"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "totalPageCount",
+                                                                                        "totalResults",
+                                                                                        "pageSize",
+                                                                                        "page"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "error": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "status": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "error",
+                                                                                        "success"
+                                                                                    ]
+                                                                                },
+                                                                                "results": {
+                                                                                    "items": {
+                                                                                        "properties": {
+                                                                                            "verifiedChartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "chartUsage": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "searchRank": {
+                                                                                                "type": "number",
+                                                                                                "format": "double",
+                                                                                                "nullable": true
+                                                                                            },
+                                                                                            "fieldType": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "tableName": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "label": {
+                                                                                                "type": "string"
+                                                                                            },
+                                                                                            "name": {
+                                                                                                "type": "string"
+                                                                                            }
+                                                                                        },
+                                                                                        "required": [
+                                                                                            "fieldType",
+                                                                                            "tableName",
+                                                                                            "label",
+                                                                                            "name"
+                                                                                        ],
+                                                                                        "type": "object"
+                                                                                    },
+                                                                                    "type": "array"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "results",
+                                                                                "label"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "searchQueries"
+                                                                ],
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -29380,18 +29812,66 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success",
-                                                            "not_found"
-                                                        ]
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
+                                            },
+                                            {
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error",
+                                                                    "success",
+                                                                    "not_found"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
+                                                    }
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -29727,156 +30207,216 @@
                                                 "type": "object"
                                             },
                                             {
-                                                "properties": {
-                                                    "aiWritebackRunUuid": {
-                                                        "type": "string"
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "aiWritebackRunUuid": {
+                                                                "type": "string"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "aiWritebackRunUuid",
+                                                            "status"
+                                                        ],
+                                                        "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["pending"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": [
-                                                    "aiWritebackRunUuid",
-                                                    "status"
-                                                ],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
-                                                "properties": {
-                                                    "dbtSourceOptions": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "projectSubPath": {
-                                                                    "type": "string",
-                                                                    "nullable": true
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "dbtSourceOptions": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "projectSubPath": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "branch": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "repository": {
+                                                                            "type": "string",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "isPrimary": {
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "projectDbtSourceUuid": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "projectSubPath",
+                                                                        "branch",
+                                                                        "repository",
+                                                                        "isPrimary",
+                                                                        "name",
+                                                                        "projectDbtSourceUuid"
+                                                                    ],
+                                                                    "type": "object"
                                                                 },
-                                                                "branch": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
-                                                                },
-                                                                "isPrimary": {
-                                                                    "type": "boolean"
-                                                                },
-                                                                "name": {
-                                                                    "type": "string"
-                                                                },
-                                                                "projectDbtSourceUuid": {
-                                                                    "type": "string"
-                                                                }
+                                                                "type": "array",
+                                                                "nullable": true
                                                             },
-                                                            "required": [
-                                                                "projectSubPath",
-                                                                "branch",
-                                                                "repository",
-                                                                "isPrimary",
-                                                                "name",
-                                                                "projectDbtSourceUuid"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "needsDbtSourceSelection": {
-                                                        "type": "boolean",
-                                                        "nullable": true
-                                                    },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "label": {
-                                                                    "type": "string"
-                                                                },
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "stage",
-                                                                        "compile",
-                                                                        "edit",
-                                                                        "read",
-                                                                        "search"
-                                                                    ]
-                                                                }
+                                                            "needsDbtSourceSelection": {
+                                                                "type": "boolean",
+                                                                "nullable": true
                                                             },
-                                                            "required": [
-                                                                "label",
-                                                                "kind"
-                                                            ],
-                                                            "type": "object"
+                                                            "steps": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "kind": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                                "stage",
+                                                                                "compile",
+                                                                                "edit",
+                                                                                "read",
+                                                                                "search"
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "label",
+                                                                        "kind"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
+                                                            "previewUrl": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "deletions": {
+                                                                "type": "number",
+                                                                "format": "double",
+                                                                "nullable": true
+                                                            },
+                                                            "additions": {
+                                                                "type": "number",
+                                                                "format": "double",
+                                                                "nullable": true
+                                                            },
+                                                            "commitSha": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "prAction": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "opened",
+                                                                    "updated",
+                                                                    null
+                                                                ],
+                                                                "nullable": true
+                                                            },
+                                                            "prUrl": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
+                                                            }
                                                         },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "previewUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "deletions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "additions": {
-                                                        "type": "number",
-                                                        "format": "double",
-                                                        "nullable": true
-                                                    },
-                                                    "commitSha": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "prAction": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "opened",
-                                                            "updated",
-                                                            null
+                                                        "required": [
+                                                            "prUrl",
+                                                            "status"
                                                         ],
-                                                        "nullable": true
+                                                        "type": "object"
                                                     },
-                                                    "prUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "pending",
+                                                                    "success"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["prUrl", "status"],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
-                                                "properties": {
-                                                    "errorCode": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "unknown",
-                                                            "bitbucket_token_missing",
-                                                            "git_write_permission",
-                                                            "github_not_installed",
-                                                            "gitlab_not_installed",
-                                                            "pull_request_not_open",
-                                                            "unsupported_source_control",
-                                                            null
-                                                        ],
-                                                        "nullable": true
+                                                "allOf": [
+                                                    {
+                                                        "properties": {
+                                                            "errorCode": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "unknown",
+                                                                    "bitbucket_token_missing",
+                                                                    "git_write_permission",
+                                                                    "github_not_installed",
+                                                                    "gitlab_not_installed",
+                                                                    "pull_request_not_open",
+                                                                    "unsupported_source_control",
+                                                                    null
+                                                                ],
+                                                                "nullable": true
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["error"],
-                                                        "nullable": false
+                                                    {
+                                                        "properties": {
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "error"
+                                                                ],
+                                                                "nullable": false
+                                                            }
+                                                        },
+                                                        "required": ["status"],
+                                                        "type": "object"
                                                     }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
+                                                ]
                                             },
                                             {
                                                 "properties": {
@@ -29966,6 +30506,19 @@
                                                     "appUuid",
                                                     "status"
                                                 ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
                                                 "type": "object"
                                             },
                                             {
@@ -31215,6 +31768,10 @@
                     "autoApproveSql": {
                         "type": "boolean",
                         "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                    },
+                    "enableFastDecisions": {
+                        "type": "boolean",
+                        "description": "Per-user Fast mode opt-out. `false` turns fast decisions off for this\nstream; it can never turn them on past the org feature flag."
                     },
                     "enableSqlMode": {
                         "type": "boolean",
@@ -61244,6 +61801,36 @@
                 ],
                 "type": "object"
             },
+            "Pick_LightdashUser.userUuid-or-firstName-or-lastName-or-avatarUrl-or-avatarGradient_": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "avatarUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "avatarGradient": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "userUuid",
+                    "firstName",
+                    "lastName",
+                    "avatarUrl",
+                    "avatarGradient"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___": {
                 "anyOf": [
                     {
@@ -61395,20 +61982,6 @@
             "SemanticChartAsCode": {
                 "$ref": "#/components/schemas/Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
-            "DocumentSemanticChartContent": {
-                "properties": {
-                    "chart": {
-                        "$ref": "#/components/schemas/SemanticChartAsCode"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["semantic"],
-                        "nullable": false
-                    }
-                },
-                "required": ["chart", "source"],
-                "type": "object"
-            },
             "MergeChartAsCode": {
                 "allOf": [
                     {
@@ -61425,27 +61998,35 @@
                     }
                 ]
             },
-            "DocumentMergeChartContent": {
-                "properties": {
-                    "chart": {
-                        "$ref": "#/components/schemas/MergeChartAsCode"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["merge"],
-                        "nullable": false
-                    }
-                },
-                "required": ["chart", "source"],
-                "type": "object"
-            },
             "DocumentChartContent": {
                 "anyOf": [
                     {
-                        "$ref": "#/components/schemas/DocumentSemanticChartContent"
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/SemanticChartAsCode"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["semantic"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chart", "source"],
+                        "type": "object"
                     },
                     {
-                        "$ref": "#/components/schemas/DocumentMergeChartContent"
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/MergeChartAsCode"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["merge"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chart", "source"],
+                        "type": "object"
                     }
                 ]
             },
@@ -61548,9 +62129,17 @@
                             },
                             "version": {
                                 "$ref": "#/components/schemas/DocumentVersion"
+                            },
+                            "createdBy": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName-or-avatarUrl-or-avatarGradient_"
+                                    }
+                                ],
+                                "nullable": true
                             }
                         },
-                        "required": ["pinnedListUuid", "version"],
+                        "required": ["pinnedListUuid", "version", "createdBy"],
                         "type": "object"
                     }
                 ]
@@ -61661,6 +62250,81 @@
                 },
                 "required": ["content", "baseVersionUuid"],
                 "type": "object"
+            },
+            "Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_": {
+                "properties": {
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "versionNumber": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["versionUuid", "createdAt", "versionNumber"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentVersionSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_"
+                    },
+                    {
+                        "properties": {
+                            "createdBy": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName-or-avatarUrl-or-avatarGradient_"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Who saved this version; null when the user was deleted or unknown."
+                            }
+                        },
+                        "required": ["createdBy"],
+                        "type": "object"
+                    }
+                ],
+                "description": "One entry in a Document's immutable version history, newest first."
+            },
+            "DocumentVersionList": {
+                "properties": {
+                    "nextOffset": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "items": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentVersionSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["nextOffset", "items"],
+                "type": "object"
+            },
+            "ApiSuccess_DocumentVersionList_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DocumentVersionList"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentVersionListResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentVersionList_"
             },
             "DocumentList": {
                 "properties": {
@@ -64971,6 +65635,23 @@
                 ],
                 "type": "object"
             },
+            "ApiDirectAccessUsersResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DirectAccessUserPrincipal"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "DirectAccessPrincipal": {
                 "anyOf": [
                     {
@@ -66839,7 +67520,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.346.0",
+        "version": "2.362.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -104447,6 +105128,124 @@
                         }
                     }
                 }
+            },
+            "get": {
+                "operationId": "ListDocumentVersions",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentVersionListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/versions/{versionUuid}": {
+            "get": {
+                "operationId": "GetDocumentVersion",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/as-code": {
@@ -107032,6 +107831,63 @@
                 },
                 "description": "List project groups eligible for sharing this resource. Requires the\nsame permission as managing its direct access assignments.",
                 "summary": "List groups eligible for direct access",
+                "tags": ["v2", "Direct Access"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/DirectAccessResourceType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "resourceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/direct-access/{resourceType}/{resourceUuid}/users": {
+            "get": {
+                "operationId": "List direct access users",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDirectAccessUsersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List users eligible for sharing this resource: active users with\ncurrent access to the project. Requires the same permission as managing\nits direct access assignments.",
+                "summary": "List users eligible for direct access",
                 "tags": ["v2", "Direct Access"],
                 "security": [],
                 "parameters": [

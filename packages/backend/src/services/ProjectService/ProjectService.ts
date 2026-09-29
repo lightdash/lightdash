@@ -94,7 +94,6 @@ import {
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
-    getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
     getCompiledModels,
@@ -104,7 +103,9 @@ import {
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
+    getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
+    getHiddenFilterableFieldIds,
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
@@ -5519,7 +5520,9 @@ export class ProjectService extends BaseService {
                     candidate.upstreamProjectUuid === projectUuid,
             );
             await Promise.all(
-                copies.map((copy) => this.deleteTrainingCopy(copy.projectUuid)),
+                copies.map((copy) =>
+                    this.deletePreviewAndAppFiles(copy.projectUuid),
+                ),
             );
         }
 
@@ -5560,7 +5563,10 @@ export class ProjectService extends BaseService {
 
         const results = await Promise.allSettled(
             expiredProjects.map(({ projectUuid }) =>
-                this.projectModel.delete(projectUuid).then(() => {
+                // A preview can carry copied data apps (every training copy
+                // does); deleting the rows alone leaves their bundles in the
+                // bucket for good.
+                this.deletePreviewAndAppFiles(projectUuid).then(() => {
                     this.logger.info(
                         `Deleted expired preview project: ${projectUuid}`,
                     );
@@ -8327,7 +8333,7 @@ export class ProjectService extends BaseService {
             dashboardUuid ? { source: 'dashboard', dashboardUuid } : undefined,
         );
 
-        const availableFieldIds = getAvailableFilterFieldIds(explore);
+        const availableFieldIds = getExecutableFilterFieldIds(explore);
         const appliedDashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
                 availableFieldIds,
@@ -11709,6 +11715,7 @@ export class ProjectService extends BaseService {
             uuid: string;
             filters: CompiledDimension[];
             metricFilters: Metric[];
+            hiddenFieldIds: string[];
         };
 
         let allFilters: ChartFilters[] = [];
@@ -11797,6 +11804,7 @@ export class ProjectService extends BaseService {
                             uuid: savedChart.uuid,
                             filters: [],
                             metricFilters: [],
+                            hiddenFieldIds: [],
                         };
                     }
 
@@ -11804,6 +11812,7 @@ export class ProjectService extends BaseService {
 
                     let filters: CompiledDimension[] = [];
                     let metricFilters: Metric[] = [];
+                    let hiddenFieldIds: string[] = [];
                     if (explore && !isExploreError(explore)) {
                         filters = getDimensions(explore).filter(
                             (field) =>
@@ -11812,12 +11821,14 @@ export class ProjectService extends BaseService {
                         metricFilters = getMetrics(explore).filter(
                             (field) => !field.hidden,
                         );
+                        hiddenFieldIds = getHiddenFilterableFieldIds(explore);
                     }
 
                     return {
                         uuid: savedChart.uuid,
                         filters,
                         metricFilters,
+                        hiddenFieldIds,
                     };
                 });
             },
@@ -11893,6 +11904,11 @@ export class ProjectService extends BaseService {
             allFilterableFields,
             allFilterableMetrics,
             savedQueryMetricFilters,
+            hiddenFilterableFieldIds: Array.from(
+                new Set(
+                    allFilters.flatMap(({ hiddenFieldIds }) => hiddenFieldIds),
+                ),
+            ),
         };
     }
 
@@ -12764,11 +12780,17 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // One copy at a time per learner, and not more often than a person
-        // clicks: a copy is a whole project duplicate, and a loop of them is
-        // the cheapest way to load the instance.
+        // One copy at a time per learner, not more often than a person
+        // clicks, and only so many per organization at once: a copy is a
+        // whole project duplicate, and a loop of them is the cheapest way to
+        // load the instance.
         return this.onboardingModel.runInTrainingCopyLock(
-            user.userUuid,
+            {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                maxConcurrentPerOrganization:
+                    ProjectService.TRAINING_COPY_ORG_CONCURRENCY,
+            },
             async () => {
                 const existing = (
                     await this.projectModel.getAllByOrganizationUuid(
@@ -12799,6 +12821,13 @@ export class ProjectService extends BaseService {
     }
 
     private static readonly TRAINING_COPY_COOLDOWN_MS = 15_000;
+
+    /**
+     * Copies one organization may have in flight at once. A copy is a whole
+     * project duplicate, so a workshop clicking Start together is asked to
+     * retry rather than allowed to pile onto the instance.
+     */
+    private static readonly TRAINING_COPY_ORG_CONCURRENCY = 5;
 
     private async makeTrainingCopy(
         user: SessionUser & { organizationUuid: string },
@@ -12990,30 +13019,36 @@ export class ProjectService extends BaseService {
                 project.createdByUserUuid === user.userUuid,
         );
         await Promise.all(
-            copies.map((copy) => this.deleteTrainingCopy(copy.projectUuid)),
+            copies.map((copy) =>
+                this.deletePreviewAndAppFiles(copy.projectUuid),
+            ),
         );
         this.userModel.invalidateSessionUserCache(user.userUuid);
         return { deleted: copies.length };
     }
 
     /**
-     * Remove a training copy and the app files it duplicated into the
-     * bucket, which deleting the project rows alone would leave behind.
+     * Remove a preview (a training copy, or any preview that aged out) and
+     * the app files it duplicated into the bucket, which deleting the
+     * project rows alone would leave behind. A bucket failure is reported
+     * but never keeps the project alive.
      */
-    private async deleteTrainingCopy(copyProjectUuid: string): Promise<void> {
+    private async deletePreviewAndAppFiles(
+        previewProjectUuid: string,
+    ): Promise<void> {
         try {
             await this.getAppGenerateService?.()?.deleteProjectAppFiles(
-                copyProjectUuid,
+                previewProjectUuid,
             );
         } catch (error) {
             Sentry.captureException(error);
             this.logger.warn(
-                `Could not remove the app files of training copy ${copyProjectUuid}: ${
+                `Could not remove the app files of preview ${previewProjectUuid}: ${
                     error instanceof Error ? error.message : String(error)
                 }`,
             );
         }
-        await this.projectModel.delete(copyProjectUuid);
+        await this.projectModel.delete(previewProjectUuid);
     }
 
     /*

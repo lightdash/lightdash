@@ -99,7 +99,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'external-fetch',
-        appliesTo: ['data_app'],
+        appliesTo: ['data_app', 'chart_type'],
         label: 'External data fetch',
         description:
             'Fetch approved external HTTP data sources through the Lightdash proxy.',
@@ -235,6 +235,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         description:
             'Show real field labels and semantic-layer formats in reusable visualizations — axis titles, legends and default labels read "Total order amount" instead of the raw field id.',
         wiring: 'Read display names with getFieldLabel(context, fieldId) — it falls back to the raw field id on hosts that send no metadata — and build axis-tick or legend formatters from useVizContext().fields[fieldId]?.format; treat the whole fields map as possibly empty.',
+    },
+    {
+        key: 'viz-gradient-options',
+        appliesTo: ['chart_type'],
+        label: 'Gradient options',
+        description:
+            'Map values to a configurable two-to-five-colour gradient with automatic or fixed bounds.',
+        wiring: 'Declare a gradient config option, then call createGradientColorScale(context.options[name], values) once per render with the numeric values the chart wants the scale to cover. Call the returned function for each mark and provide a fallback for undefined colours.',
     },
 ];
 

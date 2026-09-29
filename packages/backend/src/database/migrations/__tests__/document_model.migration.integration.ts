@@ -1,6 +1,7 @@
 import {
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    getUserAvatarUrl,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
     SpaceMemberRole,
@@ -53,7 +54,8 @@ describe('DocumentModel PostgreSQL integration', () => {
             CREATE TABLE organizations (organization_id integer PRIMARY KEY, organization_uuid uuid NOT NULL);
             CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE NOT NULL, organization_id integer NOT NULL);
             CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid NOT NULL, project_id integer NOT NULL, deleted_at timestamptz, deleted_by_user_uuid uuid);
-            CREATE TABLE users (user_uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4(), first_name text, last_name text, is_marketing_opted_in boolean, is_tracking_anonymized boolean, is_setup_complete boolean, is_active boolean);
+            CREATE TABLE users (user_uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4(), first_name text, last_name text, avatar_gradient text, is_marketing_opted_in boolean, is_tracking_anonymized boolean, is_setup_complete boolean, is_active boolean);
+            CREATE TABLE user_avatars (user_uuid uuid PRIMARY KEY REFERENCES users(user_uuid) ON DELETE CASCADE, content_hash text NOT NULL);
         `);
         await transaction.raw('INSERT INTO organizations VALUES (1, ?)', [
             randomUUID(),
@@ -561,7 +563,7 @@ describe('DocumentModel PostgreSQL integration', () => {
                     role: SpaceMemberRole.VIEWER,
                     grantedByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
                 }),
-            ).rejects.toThrow('not found');
+            ).rejects.toThrow('does not have access to the project');
             await grant(document.documentUuid);
             await expect(
                 transaction.transaction(async (savepoint) => {
@@ -575,7 +577,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             ).rejects.toMatchObject({ code: '23505' });
             await transaction.raw('UPDATE users SET is_active=false');
             await expect(grant(document.documentUuid)).rejects.toThrow(
-                'not found',
+                'does not have access to the project',
             );
         });
 
@@ -1167,6 +1169,71 @@ describe('DocumentModel PostgreSQL integration', () => {
         }
     });
 
+    test('returns the original creator independently of the latest editor', async () => {
+        await transaction('users')
+            .where('user_uuid', input.createdByUserUuid)
+            .update({ first_name: 'Original', last_name: 'Author' });
+        await transaction.raw('INSERT INTO user_avatars VALUES (?, ?)', [
+            input.createdByUserUuid,
+            'avatar-hash',
+        ]);
+        const document = await model.create(input);
+        const creator = {
+            userUuid: input.createdByUserUuid,
+            firstName: 'Original',
+            lastName: 'Author',
+            avatarUrl: getUserAvatarUrl(
+                SEED_ORG_1_ADMIN.user_uuid,
+                'avatar-hash',
+            ),
+            avatarGradient: null,
+        };
+        expect(document.createdBy).toEqual(creator);
+        const editorUuid = randomUUID();
+        await transaction.raw(
+            'INSERT INTO users (user_uuid, first_name, last_name) VALUES (?, ?, ?)',
+            [editorUuid, 'Latest', 'Editor'],
+        );
+        const updated = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: document.version.versionUuid,
+                content: { cells: [] },
+            },
+            editorUuid,
+        );
+        expect(updated.createdBy).toEqual(creator);
+        expect(updated.version.createdByUserUuid).toBe(editorUuid);
+    });
+
+    test('returns null for an unattributed document', async () => {
+        const document = await model.create({
+            ...input,
+            createdByUserUuid: null,
+        });
+        expect(document.createdBy).toBeNull();
+    });
+
+    test('returns initials metadata without an uploaded avatar', async () => {
+        await transaction('users')
+            .where('user_uuid', input.createdByUserUuid)
+            .update({
+                first_name: 'Original',
+                last_name: 'Author',
+                avatar_gradient: 'invalid',
+            });
+        const document = await model.create(input);
+        expect(document.createdBy).toEqual({
+            userUuid: input.createdByUserUuid,
+            firstName: 'Original',
+            lastName: 'Author',
+            avatarUrl: null,
+            avatarGradient: null,
+        });
+    });
+
     test('creates identity and first immutable version together', async () => {
         const document = await model.create(input);
         expect(document.version).toMatchObject({
@@ -1214,6 +1281,113 @@ describe('DocumentModel PostgreSQL integration', () => {
         );
         expect(latest.version.versionNumber).toBe(2);
         expect(latest.version.content).toEqual({ cells: [] });
+    });
+
+    test('lists version history newest first with authors and pages', async () => {
+        await transaction('users')
+            .where('user_uuid', input.createdByUserUuid)
+            .update({ first_name: 'Original', last_name: 'Author' });
+        const editorUuid = randomUUID();
+        const leaverUuid = randomUUID();
+        await transaction.raw(
+            'INSERT INTO users (user_uuid, first_name, last_name) VALUES (?, ?, ?), (?, ?, ?)',
+            [editorUuid, 'Latest', 'Editor', leaverUuid, 'Gone', 'User'],
+        );
+        const first = await model.create(input);
+        const second = await model.updateContent(
+            input.projectUuid,
+            first.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: first.version.versionUuid,
+                content: { cells: [] },
+            },
+            editorUuid,
+        );
+        const third = await model.updateContent(
+            input.projectUuid,
+            first.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: second.version.versionUuid,
+                content: { cells: [] },
+            },
+            leaverUuid,
+        );
+        await transaction('users').where('user_uuid', leaverUuid).delete();
+
+        const page = await model.listVersions(
+            input.projectUuid,
+            first.documentUuid,
+            { limit: 2, offset: 0 },
+        );
+        expect(page.items.map((item) => item.versionNumber)).toEqual([3, 2]);
+        expect(page.items[0]).toMatchObject({
+            versionUuid: third.version.versionUuid,
+            createdBy: null,
+        });
+        expect(page.items[1].createdBy).toMatchObject({
+            userUuid: editorUuid,
+            firstName: 'Latest',
+            lastName: 'Editor',
+        });
+        expect(page.nextOffset).toBe(2);
+
+        const rest = await model.listVersions(
+            input.projectUuid,
+            first.documentUuid,
+            { limit: 2, offset: 2 },
+        );
+        expect(rest.items.map((item) => item.versionNumber)).toEqual([1]);
+        expect(rest.items[0].createdBy).toMatchObject({
+            firstName: 'Original',
+            lastName: 'Author',
+        });
+        expect(rest.nextOffset).toBeNull();
+    });
+
+    test('reads a historical version without changing the current one', async () => {
+        const first = await model.create(input);
+        await model.updateContent(
+            input.projectUuid,
+            first.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: first.version.versionUuid,
+                content: { cells: [] },
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        const historical = await model.getVersion(
+            input.projectUuid,
+            first.documentUuid,
+            first.version.versionUuid,
+        );
+        expect(historical.version).toMatchObject({
+            versionUuid: first.version.versionUuid,
+            versionNumber: 1,
+            content: input.content,
+        });
+        const current = await model.get(input.projectUuid, first.documentUuid);
+        expect(current.version.versionNumber).toBe(2);
+    });
+
+    test('never reads another document version or a foreign project', async () => {
+        const first = await model.create(input);
+        const other = await model.create({ ...input, name: 'Other' });
+        await expect(
+            model.getVersion(
+                input.projectUuid,
+                first.documentUuid,
+                other.version.versionUuid,
+            ),
+        ).rejects.toThrow('Document version not found');
+        await expect(
+            model.listVersions(randomUUID(), first.documentUuid, {
+                limit: 10,
+                offset: 0,
+            }),
+        ).rejects.toThrow('Document not found');
     });
 
     test('rejects cross-project identity and destination lookups', async () => {
@@ -1336,6 +1510,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             document.documentUuid,
         );
         expect(preserved.createdByUserUuid).toBeNull();
+        expect(preserved.createdBy).toBeNull();
         expect(preserved.version.createdByUserUuid).toBeNull();
     });
 

@@ -214,3 +214,74 @@ describe('diffDataAppVizSchema', () => {
         ).toBe(true);
     });
 });
+
+it('compares gradient defaults structurally after persistence', () => {
+    const schema: DataAppVizSchema = {
+        ...base,
+        configOptions: [
+            {
+                type: 'gradient',
+                name: 'scale',
+                label: 'Scale',
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 100,
+                },
+            },
+        ],
+    };
+    expect(
+        hasDataAppVizSchemaChanges(
+            diffDataAppVizSchema(schema, JSON.parse(JSON.stringify(schema))),
+        ),
+    ).toBe(false);
+    for (const defaultValue of [
+        { colors: ['#ffffff', '#000000'], min: 'auto' as const, max: 100 },
+        { colors: ['#000000', '#ffffff'], min: 0, max: 100 },
+        { colors: ['#000000', '#ffffff'], min: 'auto' as const, max: 200 },
+    ]) {
+        const updated: DataAppVizSchema = {
+            ...schema,
+            configOptions: [
+                {
+                    type: 'gradient',
+                    name: 'scale',
+                    label: 'Scale',
+                    default: defaultValue,
+                },
+            ],
+        };
+        expect(
+            diffDataAppVizSchema(schema, updated).configOptions.changed,
+        ).toHaveLength(1);
+    }
+});
+
+it('treats omitted gradient bounds visibility as true and detects visibility changes', () => {
+    const declaration = {
+        type: 'gradient' as const,
+        name: 'scale',
+        label: 'Scale',
+        default: {
+            colors: ['#000', '#fff'],
+            min: 'auto' as const,
+            max: 'auto' as const,
+        },
+    };
+    const before = { ...base, configOptions: [declaration] };
+    const visible = {
+        ...base,
+        configOptions: [{ ...declaration, showBounds: true }],
+    };
+    const hidden = {
+        ...base,
+        configOptions: [{ ...declaration, showBounds: false }],
+    };
+    expect(
+        hasDataAppVizSchemaChanges(diffDataAppVizSchema(before, visible)),
+    ).toBe(false);
+    expect(diffDataAppVizSchema(before, hidden).configOptions.changed).toEqual([
+        { before: declaration, after: hidden.configOptions[0] },
+    ]);
+});

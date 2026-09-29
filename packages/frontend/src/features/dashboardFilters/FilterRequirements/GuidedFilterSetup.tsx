@@ -35,6 +35,8 @@ import TruncatedText from '../../../components/common/TruncatedText';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
+import LockedFilter from '../LockedFilter';
+import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import classes from './GuidedFilterSetup.module.css';
 import OperatorPicker from './OperatorPicker';
 import { AndSeparator, OrSeparator } from './RuleSeparators';
@@ -213,6 +215,7 @@ const GuidedFilterSetup: FC<Props> = ({
     const [expandedRuleIds, setExpandedRuleIds] = useState<string[]>([]);
 
     const getField = useDashboardFilterField();
+    const isLocked = useIsLockedDashboardFilterRule();
 
     // Keep the first unmet rule in view as the viewer works down the list;
     // scrollIntoView targets the modal body's scroll area
@@ -345,28 +348,43 @@ const GuidedFilterSetup: FC<Props> = ({
                                                                 0 && (
                                                                 <OrSeparator />
                                                             )}
-                                                            <MemberInput
-                                                                member={member}
-                                                                field={getField(
-                                                                    member,
-                                                                )}
-                                                                label={getDashboardFilterRuleLabel(
-                                                                    member,
-                                                                    getField,
-                                                                )}
-                                                                showLabel={
-                                                                    isMultiMember
-                                                                }
-                                                                popoverProps={{
-                                                                    withinPortal: true,
-                                                                    onOpen: onSubPopoverOpen,
-                                                                    onClose:
-                                                                        onSubPopoverClose,
-                                                                }}
-                                                                onChange={
-                                                                    handleChangeFilterRule
-                                                                }
-                                                            />
+                                                            {isLocked(
+                                                                member,
+                                                            ) ? (
+                                                                <LockedFilter
+                                                                    isEditMode={
+                                                                        false
+                                                                    }
+                                                                    filterRule={
+                                                                        member
+                                                                    }
+                                                                />
+                                                            ) : (
+                                                                <MemberInput
+                                                                    member={
+                                                                        member
+                                                                    }
+                                                                    field={getField(
+                                                                        member,
+                                                                    )}
+                                                                    label={getDashboardFilterRuleLabel(
+                                                                        member,
+                                                                        getField,
+                                                                    )}
+                                                                    showLabel={
+                                                                        isMultiMember
+                                                                    }
+                                                                    popoverProps={{
+                                                                        withinPortal: true,
+                                                                        onOpen: onSubPopoverOpen,
+                                                                        onClose:
+                                                                            onSubPopoverClose,
+                                                                    }}
+                                                                    onChange={
+                                                                        handleChangeFilterRule
+                                                                    }
+                                                                />
+                                                            )}
                                                         </Fragment>
                                                     ),
                                                 )}

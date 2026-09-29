@@ -1,33 +1,38 @@
 import {
     generateHashesToolDefinition,
     hashStringToBase36,
+    type ToolGenerateHashesStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 const toolDefinition = generateHashesToolDefinition.for('agent');
 
 export const getGenerateHashes = () =>
     tool({
         ...toolDefinition,
-        execute: async ({ inputs }) => {
+        execute: async ({
+            inputs,
+        }): Promise<
+            | ExecuteStructuredToolResult<ToolGenerateHashesStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
+                const structuredContent = {
+                    hashes: inputs.map(hashStringToBase36),
+                };
                 return {
-                    result: JSON.stringify({
-                        hashes: inputs.map(hashStringToBase36),
-                    }),
-                    metadata: {
-                        status: 'success' as const,
-                    },
+                    result: JSON.stringify(structuredContent),
+                    metadata: { status: 'success' },
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(error, 'Error generating hashes.'),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(error, 'Error generating hashes.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

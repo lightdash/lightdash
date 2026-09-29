@@ -3,14 +3,19 @@ import {
     serializeCustomChartTypeSchema,
     type CustomChartType,
     type ToolFindCustomChartTypesArgs,
+    type ToolFindCustomChartTypesStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindCustomChartTypesFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
+import {
+    type ExecuteStructuredToolResult,
+    type ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { formatToolJsonOutput } from './toolOutputFormat';
 
 type Dependencies = {
@@ -35,7 +40,7 @@ export const parseFindCustomChartTypesArgs = (
 export const buildFindCustomChartTypesStructuredContent = (
     request: { query: string } | { slug: string },
     matches: CustomChartType[],
-) => {
+): ToolFindCustomChartTypesStructuredContent => {
     const note = (() => {
         if (matches.length === 0) {
             return 'slug' in request
@@ -66,13 +71,21 @@ export const getFindCustomChartTypes = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (
+            args,
+        ): Promise<
+            | ExecuteStructuredToolResult<ToolFindCustomChartTypesStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
                 const request = parseFindCustomChartTypesArgs(args);
                 if (request === null) {
+                    const result =
+                        'Set exactly one of `query` (keyword search) or `slug` (exact fetch), not both and not neither.';
                     return {
-                        result: 'Set exactly one of `query` (keyword search) or `slug` (exact fetch), not both and not neither.',
-                        metadata: { status: 'error' as const },
+                        result,
+                        metadata: { status: 'error' },
+                        structuredContent: { error: result },
                     };
                 }
                 await updateProgress(
@@ -82,23 +95,21 @@ export const getFindCustomChartTypes = ({
                 );
 
                 const matches = await findCustomChartTypes(request);
+                const structuredContent =
+                    buildFindCustomChartTypesStructuredContent(
+                        request,
+                        matches,
+                    );
                 return {
-                    result: formatToolJsonOutput(
-                        buildFindCustomChartTypesStructuredContent(
-                            request,
-                            matches,
-                        ),
-                    ),
-                    metadata: { status: 'success' as const },
+                    result: formatToolJsonOutput(structuredContent),
+                    metadata: { status: 'success' },
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error finding custom chart types.',
-                    ),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(
+                    error,
+                    'Error finding custom chart types.',
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

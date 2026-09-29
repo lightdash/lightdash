@@ -325,6 +325,7 @@ import {
     codingAgentContextTokensPerTurn,
     codingAgentRetryStart,
     codingAgentSessionFlags,
+    CodingAgentSessionUsageLedger,
     decideCodingAgentSessionStart,
     findCodingAgentCompactionOutcome,
     findCodingAgentSessionId,
@@ -3995,6 +3996,8 @@ export class AppGenerateService extends BaseService {
         // Null for follow-up turns of the same version (build fixes), whose
         // session the generating turn already recorded.
         sessionHooks: CodingAgentSessionHooks | null,
+        // Null when the run is not on a thread's session (metadata).
+        sessionUsage: CodingAgentSessionUsageLedger | null,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
@@ -4190,7 +4193,15 @@ export class AppGenerateService extends BaseService {
                     stderr: redactOutput(raw.stderr),
                 }));
             const toolCallCount = processor.totalToolCalls;
-            const usage = processor.lastUsage;
+            // A resumed session reports running totals; keep this run's share.
+            const runSessionId =
+                session.kind === 'resume'
+                    ? session.sessionId
+                    : learnedSessionId;
+            const usage =
+                processor.lastUsage && sessionUsage && runSessionId
+                    ? sessionUsage.record(runSessionId, processor.lastUsage)
+                    : processor.lastUsage;
             const { timeToFirstTokenMs, turnDurationsMs } = processor;
             telemetry = addClaudeGenerationAttempt(
                 telemetry,
@@ -4530,6 +4541,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         sessionStart: CodingAgentSessionStart,
         sessionHooks: CodingAgentSessionHooks | null,
+        sessionUsage: CodingAgentSessionUsageLedger | null,
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         reasoningEffort: DataAppClaudeEffort,
@@ -4553,6 +4565,7 @@ export class AppGenerateService extends BaseService {
             version,
             sessionStart,
             sessionHooks,
+            sessionUsage,
             codingAgentEnv,
             claudeModel,
             reasoningEffort,
@@ -4741,6 +4754,7 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         version: number,
+        sessionUsage: CodingAgentSessionUsageLedger | null,
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
@@ -4847,6 +4861,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 { kind: 'continue' }, // keep thread context from generation
                 null,
+                sessionUsage,
                 codingAgentEnv,
                 claudeModel,
                 claudeEffort,
@@ -5112,6 +5127,7 @@ export class AppGenerateService extends BaseService {
     ): {
         sessionStart: CodingAgentSessionStart;
         sessionHooks: CodingAgentSessionHooks;
+        sessionUsage: CodingAgentSessionUsageLedger;
     } {
         const { appUuid } = args.tracking;
         const sessionStart = decideCodingAgentSessionStart({
@@ -5147,7 +5163,22 @@ export class AppGenerateService extends BaseService {
                 });
             },
         };
-        return { sessionStart, sessionHooks };
+        const sessionUsage = new CodingAgentSessionUsageLedger(
+            thread.coding_agent_session_usage,
+            (snapshot) => {
+                this.appModel
+                    .setThreadCodingAgentSessionUsage(
+                        thread.app_thread_uuid,
+                        snapshot,
+                    )
+                    .catch((error: unknown) => {
+                        this.logger.warn(
+                            `App ${appUuid}: failed to record coding agent session usage: ${getErrorMessage(error)}`,
+                        );
+                    });
+            },
+        );
+        return { sessionStart, sessionHooks, sessionUsage };
     }
 
     /**
@@ -5162,6 +5193,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<{
         sessionStart: CodingAgentSessionStart;
         sessionHooks: CodingAgentSessionHooks;
+        sessionUsage: CodingAgentSessionUsageLedger;
         appThreadUuid: string;
         // Set by a retry whose earlier attempt already compacted this version.
         compactedOnEarlierAttempt: boolean;
@@ -5263,6 +5295,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         sessionId: string,
         copilot: CodingAgentConfig,
+        sessionUsage: CodingAgentSessionUsageLedger,
     ): Promise<CodingAgentCompactionRun> {
         const start = performance.now();
         const done = (
@@ -5305,7 +5338,10 @@ export class AppGenerateService extends BaseService {
                 },
             );
             const outcome = findCodingAgentCompactionOutcome(result.stdout);
-            const usage = findClaudeResultUsage(result.stdout);
+            const reported = findClaudeResultUsage(result.stdout);
+            const usage = reported
+                ? sessionUsage.record(sessionId, reported)
+                : null;
             const cliVersion =
                 findCodingAgentSessionInit(result.stdout)?.cliVersion ?? null;
             if (outcome?.result === 'success') {
@@ -5933,6 +5969,7 @@ export class AppGenerateService extends BaseService {
         const {
             sessionStart,
             sessionHooks,
+            sessionUsage,
             appThreadUuid,
             compactedOnEarlierAttempt,
         } = await this.resolveCodingAgentSession(
@@ -6050,6 +6087,7 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     decision.sessionToCompact,
                     copilot,
+                    sessionUsage,
                 );
                 durations.compactMs = compaction.durationMs;
             }
@@ -6079,6 +6117,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     sessionStart,
                     sessionHooks,
+                    sessionUsage,
                     codingAgentEnv,
                     claudeModel,
                     claudeEffort,
@@ -6242,6 +6281,7 @@ export class AppGenerateService extends BaseService {
                     sandbox,
                     appUuid,
                     version,
+                    sessionUsage,
                     codingAgentEnv,
                     claudeModel,
                     claudeEffort,
@@ -8027,7 +8067,7 @@ export class AppGenerateService extends BaseService {
                 // Best-effort breadcrumb in the thread's session so the next
                 // turn knows the working tree was reset. Skipped when the
                 // thread would start a new session anyway.
-                const { sessionStart, sessionHooks } =
+                const { sessionStart, sessionHooks, sessionUsage } =
                     this.resolveThreadSession(currentThread, {
                         sandboxWasResumed: true,
                         threadHasVersionThatReachedAgent:
@@ -8053,6 +8093,7 @@ export class AppGenerateService extends BaseService {
                         copilot,
                         sessionStart,
                         sessionHooks,
+                        sessionUsage,
                     );
                 }
             } catch (error) {
@@ -8328,6 +8369,7 @@ export class AppGenerateService extends BaseService {
         copilot: CodingAgentConfig,
         sessionStart: CodingAgentSessionStart,
         sessionHooks: CodingAgentSessionHooks,
+        sessionUsage: CodingAgentSessionUsageLedger,
     ): Promise<void> {
         let claudeCodeEnv: Record<string, string>;
         try {
@@ -8389,6 +8431,16 @@ export class AppGenerateService extends BaseService {
                     `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(redactSandboxEnvSecrets(result.stderr, claudeCodeEnv, CLAUDE_CODE_SECRET_ENV_KEYS), 500)}`,
                 );
                 return;
+            }
+            // The notice is one more turn on the session, so its totals go
+            // on the ledger and the next build reports only its own share.
+            const noticeSessionId =
+                start.kind === 'resume'
+                    ? start.sessionId
+                    : findCodingAgentSessionId(result.stdout);
+            const noticeUsage = findClaudeResultUsage(result.stdout);
+            if (noticeSessionId !== null && noticeUsage !== null) {
+                sessionUsage.record(noticeSessionId, noticeUsage);
             }
             if (start.kind !== 'resume') {
                 const learnedSessionId = findCodingAgentSessionId(
@@ -8673,7 +8725,7 @@ export class AppGenerateService extends BaseService {
             sourceApp.name ||
             (isChartType ? 'untitled chart type' : 'untitled app');
         const sourcePreviewPath = isChartType
-            ? `/projects/${projectUuid}/chart-types/${sourceApp.app_id}`
+            ? `/projects/${projectUuid}/chart-studio/${sourceApp.app_id}`
             : `/projects/${projectUuid}/apps/${sourceApp.app_id}/versions/${sourceVersion.version}/view`;
         const prompt = `Promote [${sourceDisplayName}](${sourcePreviewPath})`;
         const { client: s3Client, bucket } = this.getS3Client();

@@ -9,6 +9,7 @@ import {
     Menu,
     Tooltip,
 } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
 import {
     IconArrowBack,
     IconDots,
@@ -153,6 +154,33 @@ export const HeaderEdit: FC = () => {
             onSave();
         }
     }, [hasErrors, config, sql, dispatch, onSave]);
+
+    const isAnyModalOpen =
+        isSaveModalOpen ||
+        isUpdateModalOpen ||
+        isDeleteModalOpen ||
+        isChartErrorsAlertOpen;
+
+    // Save on cmd/ctrl + s, including while the SQL editor is focused
+    useHotkeys(
+        [
+            [
+                'mod+s',
+                () => {
+                    if (
+                        config &&
+                        sql &&
+                        hasChanges &&
+                        !isLoading &&
+                        !isAnyModalOpen
+                    ) {
+                        onSaveClick();
+                    }
+                },
+            ],
+        ],
+        [],
+    );
 
     const handleGoBackToViewPage = useCallback(async () => {
         await queryClient.resetQueries({

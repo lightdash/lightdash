@@ -375,6 +375,8 @@ export type DashboardAvailableFilters = {
     allFilterableFields: FilterableDimension[];
     allFilterableMetrics: Metric[];
     savedQueryMetricFilters: Record<string, number[]>;
+    // Hidden fields stay out of the pickers but saved filters on them still apply
+    hiddenFilterableFieldIds: string[];
     // Wire-compat with SDK bundles 1.64.0-1.197.x: those frontends call
     // Object.entries() on this key unguarded, so it must stay present (empty)
     // even though the auto-mapping feature it fed was removed in #27619.

@@ -10,6 +10,53 @@ import DocumentReportLayout from './DocumentReportLayout';
 import ReportChartFrame from './ReportChartFrame';
 
 describe('Shared report presentation', () => {
+    it('places document actions beside the single title in the report header', () => {
+        render(
+            <MantineProvider env="test">
+                <DocumentReportLayout
+                    title="Orders review"
+                    variant="document"
+                    headings={[]}
+                    actions={<button aria-label="Share">Share</button>}
+                    metadata={<p>Last edited yesterday</p>}
+                >
+                    <p>Report narrative</p>
+                </DocumentReportLayout>
+            </MantineProvider>,
+        );
+        const title = screen.getByRole('heading', { name: 'Orders review' });
+        const share = screen.getByRole('button', { name: 'Share' });
+        expect(title.closest('header')).toContainElement(share);
+        expect(screen.getByRole('article')).toContainElement(share);
+        expect(title.closest('header')).toContainElement(
+            screen.getByText('Last edited yesterday'),
+        );
+    });
+
+    it('opens at a carried-over scroll offset and reports scrolling', async () => {
+        const onScrollTopChange = vi.fn();
+        const { container } = render(
+            <MantineProvider env="test">
+                <DocumentReportLayout
+                    title="Long report"
+                    variant="document"
+                    headings={[]}
+                    initialScrollTop={640}
+                    onScrollTopChange={onScrollTopChange}
+                >
+                    <p>Report narrative</p>
+                </DocumentReportLayout>
+            </MantineProvider>,
+        );
+        const viewport = container.querySelector<HTMLElement>(
+            '.mantine-ScrollArea-viewport',
+        )!;
+        await waitFor(() => expect(viewport.scrollTop).toBe(640));
+        viewport.scrollTop = 900;
+        fireEvent.scroll(viewport);
+        expect(onScrollTopChange).toHaveBeenLastCalledWith(900);
+    });
+
     it('preserves declarative heading identities when an earlier cell failed to render', async () => {
         render(
             <MantineProvider env="test">

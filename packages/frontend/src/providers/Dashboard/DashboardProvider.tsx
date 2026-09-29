@@ -62,6 +62,10 @@ import {
     type useDashboardCommentsCheck,
 } from '../../features/comments';
 import { hasSavedFilterValueChanged } from '../../features/dashboardFilters/FilterConfiguration/utils';
+import {
+    excludeLockedFilterRequirements,
+    isLockedDashboardFilterRule,
+} from '../../features/dashboardFilters/lockedFilters';
 import { useParameters } from '../../features/parameters';
 import {
     useDashboardQuery,
@@ -1493,6 +1497,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             : {};
     }, [dashboardAvailableFiltersData]);
 
+    const hiddenFilterableFieldIds = useMemo(
+        () => new Set(dashboardAvailableFiltersData?.hiddenFilterableFieldIds),
+        [dashboardAvailableFiltersData],
+    );
+
     const allFilterableMetricsMap = useMemo(() => {
         return dashboardAvailableFiltersData?.allFilterableMetrics &&
             dashboardAvailableFiltersData.allFilterableMetrics.length > 0
@@ -1821,8 +1830,20 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     ]);
 
     const unmetFilterRequirements = useMemo(
-        () => getUnmetFilterRequirements(dashboardFilters),
-        [dashboardFilters],
+        () =>
+            excludeLockedFilterRequirements(
+                getUnmetFilterRequirements(dashboardFilters),
+                (filterRule) =>
+                    isLockedDashboardFilterRule(filterRule, {
+                        filterableFieldsByTileUuid,
+                        hiddenFilterableFieldIds,
+                    }),
+            ),
+        [
+            dashboardFilters,
+            filterableFieldsByTileUuid,
+            hiddenFilterableFieldIds,
+        ],
     );
 
     const value = {
@@ -1863,6 +1884,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setHaveFiltersChanged,
         allFilterableFieldsMap,
         allFilterableMetricsMap,
+        hiddenFilterableFieldIds,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
         allFilterableMetrics:
             dashboardAvailableFiltersData?.allFilterableMetrics,

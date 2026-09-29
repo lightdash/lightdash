@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MergeJoinType } from '../../../../types/mergeQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { dataAppVizGradientValueSchema } from '../../../apps/types';
 import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
@@ -223,6 +224,7 @@ const chartConfigBuiltinSchema = z.object({
 });
 
 const customChartTypeOptionValueSchema = z.union([
+    dataAppVizGradientValueSchema,
     z.string(),
     z.number(),
     z.boolean(),

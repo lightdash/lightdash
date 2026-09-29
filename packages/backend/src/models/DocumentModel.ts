@@ -4,6 +4,10 @@ import {
     DOCUMENT_SCHEMA_VERSION,
     DocumentContent,
     DocumentSummary,
+    DocumentVersionList,
+    DocumentVersionSummary,
+    getUserAvatarUrl,
+    isUserAvatarColorValue,
     NotFoundError,
     parseDocumentContent,
     UpdateDocumentContentRequest,
@@ -17,6 +21,8 @@ import {
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
+import { UserAvatarsTableName } from '../database/entities/userAvatars';
+import { UserTableName } from '../database/entities/users';
 import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
@@ -57,6 +63,31 @@ const toSummary = (row: DocumentRow): DocumentSummary => ({
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
+
+type UserDisplayRow = {
+    user_uuid: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    avatar_gradient: string | null;
+    avatar_content_hash: string | null;
+};
+
+const toUserDisplay = (row: UserDisplayRow): Document['createdBy'] =>
+    row.user_uuid
+        ? {
+              userUuid: row.user_uuid,
+              firstName: row.first_name ?? '',
+              lastName: row.last_name ?? '',
+              avatarUrl: row.avatar_content_hash
+                  ? getUserAvatarUrl(row.user_uuid, row.avatar_content_hash)
+                  : null,
+              avatarGradient:
+                  row.avatar_gradient &&
+                  isUserAvatarColorValue(row.avatar_gradient)
+                      ? row.avatar_gradient
+                      : null,
+          }
+        : null;
 
 export class DocumentModel {
     private readonly database: Knex;
@@ -274,6 +305,79 @@ export class DocumentModel {
         return this.getWithDatabase(this.database, projectUuid, documentUuid);
     }
 
+    /** A Document with one of its historical versions in place of the latest. */
+    async getVersion(
+        projectUuid: string,
+        documentUuid: string,
+        versionUuid: string,
+    ): Promise<Document> {
+        return this.getWithDatabase(
+            this.database,
+            projectUuid,
+            documentUuid,
+            versionUuid,
+        );
+    }
+
+    /** Version history, newest first, with each version's author. */
+    async listVersions(
+        projectUuid: string,
+        documentUuid: string,
+        { limit, offset }: { limit: number; offset: number },
+    ): Promise<DocumentVersionList> {
+        const document = await this.activeDocuments(this.database, projectUuid)
+            .where('documents.document_uuid', documentUuid)
+            .first();
+        if (!document) {
+            throw new NotFoundError('Document not found');
+        }
+        const rows = await this.database(DocumentVersionsTableName)
+            .leftJoin(
+                UserTableName,
+                'users.user_uuid',
+                'document_versions.created_by_user_uuid',
+            )
+            .leftJoin(
+                UserAvatarsTableName,
+                'user_avatars.user_uuid',
+                'users.user_uuid',
+            )
+            .where('document_versions.document_id', document.document_id)
+            .orderBy('document_versions.version_number', 'desc')
+            .limit(limit + 1)
+            .offset(offset)
+            .select<
+                Array<
+                    UserDisplayRow & {
+                        document_version_uuid: string;
+                        version_number: number;
+                        created_at: Date;
+                    }
+                >
+            >(
+                'document_versions.document_version_uuid',
+                'document_versions.version_number',
+                'document_versions.created_at',
+                'users.user_uuid',
+                'users.first_name',
+                'users.last_name',
+                'users.avatar_gradient',
+                'user_avatars.content_hash as avatar_content_hash',
+            );
+        const items: DocumentVersionSummary[] = rows
+            .slice(0, limit)
+            .map((row) => ({
+                versionUuid: row.document_version_uuid,
+                versionNumber: row.version_number,
+                createdAt: row.created_at,
+                createdBy: toUserDisplay(row),
+            }));
+        return {
+            items,
+            nextOffset: rows.length > limit ? offset + limit : null,
+        };
+    }
+
     async getBySlug(projectUuid: string, slug: string): Promise<Document> {
         const row = await this.activeDocuments(this.database, projectUuid)
             .where('documents.slug', slug)
@@ -346,6 +450,8 @@ export class DocumentModel {
         database: Knex,
         projectUuid: string,
         documentUuid: string,
+        /** A specific historical version; null loads the latest. */
+        versionUuid: string | null = null,
     ): Promise<Document> {
         const row = await this.activeDocuments(database, projectUuid)
             .leftJoin(
@@ -354,21 +460,50 @@ export class DocumentModel {
                 'documents.document_uuid',
             )
             .select('pinned_document.pinned_list_uuid')
+            .leftJoin(
+                UserTableName,
+                'users.user_uuid',
+                'documents.created_by_user_uuid',
+            )
+            .leftJoin(
+                UserAvatarsTableName,
+                'user_avatars.user_uuid',
+                'users.user_uuid',
+            )
+            .select(
+                'users.user_uuid as creator_uuid',
+                'users.first_name as creator_first_name',
+                'users.last_name as creator_last_name',
+                'users.avatar_gradient as creator_avatar_gradient',
+                'user_avatars.content_hash as creator_avatar_content_hash',
+            )
             .where('documents.document_uuid', documentUuid)
             .first();
         if (!row) {
             throw new NotFoundError('Document not found');
         }
-        const version = await database(DocumentVersionsTableName)
-            .where('document_id', row.document_id)
-            .orderBy('version_number', 'desc')
-            .first();
+        const versions = database(DocumentVersionsTableName).where(
+            'document_id',
+            row.document_id,
+        );
+        const version = await (
+            versionUuid === null
+                ? versions.orderBy('version_number', 'desc')
+                : versions.where('document_version_uuid', versionUuid)
+        ).first();
         if (!version) {
             throw new NotFoundError('Document version not found');
         }
         return {
             ...toSummary(row),
             pinnedListUuid: row.pinned_list_uuid ?? null,
+            createdBy: toUserDisplay({
+                user_uuid: row.creator_uuid,
+                first_name: row.creator_first_name,
+                last_name: row.creator_last_name,
+                avatar_gradient: row.creator_avatar_gradient,
+                avatar_content_hash: row.creator_avatar_content_hash,
+            }),
             version: {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,

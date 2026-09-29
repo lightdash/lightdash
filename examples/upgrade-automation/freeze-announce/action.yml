@@ -25,8 +25,16 @@ inputs:
   freeze_label:
     description: Open-issue label that disarms upgrade planning
     required: true
+  instance:
+    description: Optional name of the instance that the freeze label pauses, such as staging.lightdash.cloud; the announcement names it
+    required: false
+    default: ''
   escalation:
     description: Optional Slack incoming webhook from a repository secret; never commit the URL in plaintext
+    required: false
+    default: ''
+  escalation_channel:
+    description: Optional Slack channel for escalations, such as '#engineering'; overrides the webhook's default channel
     required: false
     default: ''
   github_token:
@@ -46,6 +54,8 @@ runs:
         ACTOR_LOGIN: ${{ inputs.actor_login }}
         LABEL_NAME: ${{ inputs.label_name }}
         FREEZE_LABEL: ${{ inputs.freeze_label }}
+        INSTANCE: ${{ inputs.instance }}
         ESCALATION: ${{ inputs.escalation }}
+        ESCALATION_CHANNEL: ${{ inputs.escalation_channel }}
         GH_TOKEN: ${{ inputs.github_token }}
       run: "$GITHUB_ACTION_PATH/../scripts/freeze-announce.sh"

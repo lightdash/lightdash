@@ -17,6 +17,7 @@ import {
 import * as Sentry from '@sentry/node';
 import Logger from '../../../../logging/logger';
 import { serializeData } from './serializeData';
+import type { ExecuteToolErrorResult } from './structuredToolResult';
 
 // Reported as 4xx to API callers, but nothing the model can fix by rephrasing
 // its request: the warehouse or an integration is down or misconfigured.
@@ -79,4 +80,21 @@ Try again if you believe the error can be resolved.
     Logger.error(`[AiAgent][Tool Error Handler] ${errorMessage}`);
 
     return errorMessage;
+};
+
+/**
+ * The complete error output of an agent tool: the model-facing text plus its
+ * structured `{ error }` mirror, so every tool path returns `structuredContent`.
+ */
+export const toolErrorOutput = (
+    error: unknown,
+    message: string,
+    options: { captureToSentry?: boolean } = {},
+): ExecuteToolErrorResult => {
+    const result = toolErrorHandler(error, message, options);
+    return {
+        result,
+        metadata: { status: 'error' },
+        structuredContent: { error: result },
+    };
 };

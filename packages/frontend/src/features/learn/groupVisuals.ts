@@ -9,10 +9,11 @@ import {
     IconSettings,
     IconSparkles,
     IconTelescope,
+    IconTerminal2,
     type Icon,
 } from '@tabler/icons-react';
 import { type CSSProperties } from 'react';
-import { FOUNDATIONS, type LearnGroup } from './catalogue';
+import { DEVELOPER, FOUNDATIONS, type LearnGroup } from './catalogue';
 
 export const GROUP_ICONS: Record<LearnGroup, Icon> = {
     [FOUNDATIONS]: IconCompass,
@@ -24,6 +25,7 @@ export const GROUP_ICONS: Record<LearnGroup, Icon> = {
     [ScopeGroup.PROJECT_MANAGEMENT]: IconSettings,
     [ScopeGroup.SPOTLIGHT]: IconTelescope,
     [ScopeGroup.ORGANIZATION_MANAGEMENT]: IconBuilding,
+    [DEVELOPER]: IconTerminal2,
 };
 
 /**
@@ -41,6 +43,7 @@ const GROUP_HUES: Record<LearnGroup, string> = {
     [ScopeGroup.PROJECT_MANAGEMENT]: 'blue',
     [ScopeGroup.SPOTLIGHT]: 'orange',
     [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'gray',
+    [DEVELOPER]: 'violet',
 };
 
 const hueVar = (hue: string, shade: number) =>

@@ -1,9 +1,16 @@
-import { listWarehouseTablesToolDefinition } from '@lightdash/common';
+import {
+    listWarehouseTablesToolDefinition,
+    type ToolListWarehouseTablesStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { rankCandidates } from '../decisions/rankCandidates';
 import type { ListWarehouseTablesFn } from '../types/aiAgentDependencies';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { compileMatcher, extractKeywords } from './grepFieldsIndex';
 
 type Dependencies = {
@@ -21,16 +28,20 @@ export const getListWarehouseTables = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({ schema, search, limit }) => {
+        execute: async ({
+            schema,
+            search,
+            limit,
+        }): Promise<
+            | ExecuteStructuredToolResult<ToolListWarehouseTablesStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
                 const all = await listWarehouseTables();
 
                 const searchLower = search?.toLowerCase();
-                let matches: Array<{
-                    database: string;
-                    schema: string;
-                    table: string;
-                }> = [];
+                let matches: ToolListWarehouseTablesStructuredContent['tables'] =
+                    [];
 
                 for (const [database, schemas] of Object.entries(all)) {
                     if (!decisions && matches.length >= limit) break;
@@ -56,6 +67,7 @@ export const getListWarehouseTables = ({
                                         database,
                                         schema: schemaName,
                                         table: tableName,
+                                        qualifiedName: `${database}.${schemaName}.${tableName}`,
                                     });
                                 }
                             }
@@ -93,12 +105,19 @@ export const getListWarehouseTables = ({
                             decisions,
                             query,
                             candidates: shortlist,
-                            describe: (table) => ({
-                                ...table,
+                            // qualifiedName is for structuredContent only;
+                            // keep the ranking payload as the model saw it.
+                            describe: ({
+                                database,
+                                schema: tableSchema,
+                                table,
+                            }) => ({
+                                database,
+                                schema: tableSchema,
+                                table,
                                 tableType:
-                                    all[table.database][table.schema][
-                                        table.table
-                                    ].tableType ?? null,
+                                    all[database][tableSchema][table]
+                                        .tableType ?? null,
                             }),
                             operation: 'warehouse-table-ranking',
                             relevanceInstructions:
@@ -116,12 +135,23 @@ export const getListWarehouseTables = ({
                 }
                 matches = matches.slice(0, limit);
 
-                if (matches.length === 0) {
+                const structuredContent: ToolListWarehouseTablesStructuredContent =
+                    {
+                        matchCount: matches.length,
+                        filters: {
+                            schema: schema ?? null,
+                            search: search ?? null,
+                        },
+                        tables: matches,
+                    };
+
+                if (structuredContent.matchCount === 0) {
                     return {
                         result: `No tables matched. Filters: schema=${
                             schema ?? '(none)'
                         }, search=${search ?? '(none)'}. Try a broader search.`,
                         metadata: { status: 'success' },
+                        structuredContent,
                     };
                 }
 
@@ -141,15 +171,10 @@ export const getListWarehouseTables = ({
                 return {
                     result: lines.join('\n'),
                     metadata: { status: 'success' },
+                    structuredContent,
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(
-                        e,
-                        'Error listing warehouse tables.',
-                    ),
-                    metadata: { status: 'error' },
-                };
+                return toolErrorOutput(e, 'Error listing warehouse tables.');
             }
         },
     });

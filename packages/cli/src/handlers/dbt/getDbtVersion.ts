@@ -17,6 +17,14 @@ const DBT_FUSION_VERSION_REGEX = /dbt-fusion.*/;
 const DBT_V2_VERSION_REGEX = /^dbt 2\.\d+\.\d+\S*/m;
 
 const getDbtCLIVersion = async () => {
+    // Callers that already know the dbt version (the Learn sandbox pins the
+    // binary server-side) pass it here so the CLI doesn't start a Python
+    // interpreter just to ask. Each `dbt --version` costs seconds on a small
+    // machine and one deploy asks four times.
+    const knownVersion = process.env.LIGHTDASH_DBT_VERSION?.trim();
+    if (knownVersion) {
+        return knownVersion;
+    }
     try {
         const { all } = await execa('dbt', ['--version'], {
             all: true,

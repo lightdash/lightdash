@@ -20,6 +20,18 @@ import DirectAccessModal from './DirectAccessModal';
 vi.mock('../hooks/useDirectAccess', () => ({
     useDirectAccessAssignments: vi.fn(),
     useDirectAccessGroups: vi.fn(),
+    useDirectAccessUsers: vi.fn(() => ({
+        data: [
+            {
+                type: 'user',
+                userUuid: 'member-uuid',
+                firstName: 'Mallory',
+                lastName: 'Member',
+                email: 'mallory@example.com',
+            },
+        ],
+        isError: false,
+    })),
     useDirectAccessAvailability: vi.fn(() => ({
         isAvailable: true,
         isLoading: false,
@@ -27,19 +39,6 @@ vi.mock('../hooks/useDirectAccess', () => ({
     useUpsertDirectAccessAssignment: vi.fn(),
     useRevokeDirectAccessAssignment: vi.fn(),
     useResetDirectAccess: vi.fn(),
-}));
-
-vi.mock('../../../hooks/useOrganizationUsers', () => ({
-    useOrganizationUsers: vi.fn(() => ({
-        data: [
-            {
-                userUuid: 'member-uuid',
-                firstName: 'Mallory',
-                lastName: 'Member',
-                email: 'mallory@example.com',
-            },
-        ],
-    })),
 }));
 
 const SESSION_USER_UUID = 'session-user-uuid';
@@ -201,7 +200,7 @@ describe('DirectAccessModal', () => {
         renderModal();
         expect(
             screen.getByText(
-                'Unable to load groups. Close and reopen this dialog to retry.',
+                'Unable to load users and groups. Close and reopen this dialog to retry.',
             ),
         ).toBeInTheDocument();
     });

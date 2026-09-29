@@ -1,6 +1,8 @@
+import { DbtProjectType, FeatureFlags } from '@lightdash/common';
 import { Alert, Text, Select } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
 
@@ -20,6 +22,17 @@ const StartOfWeekSelect: FC<{
 }> = ({ disabled, isRedeployRequired = true }) => {
     const form = useFormContext();
     const field = form.getInputProps('warehouse.startOfWeek');
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled === true;
+    const isTimezoneSupportDisabled = timezoneSupportFlag?.enabled === false;
+    const isCliDeployed = form.values.dbt.type === DbtProjectType.NONE;
+    const isDaySelected = field.value !== null && field.value !== undefined;
+    const dayName = daysOfWeekOptions.find(
+        (option) => option.value === field.value?.toString(),
+    )?.label;
+
     return (
         <>
             <Select
@@ -27,7 +40,11 @@ const StartOfWeekSelect: FC<{
                 clearable
                 placeholder="Auto"
                 label="Start of week"
-                description="Will be taken into account when using 'WEEK' time interval"
+                description={
+                    isTimezoneSupportEnabled
+                        ? 'Sets the first day of the week for week time intervals. Changes apply straight away.'
+                        : 'Sets the first day of the week for week time intervals.'
+                }
                 data={daysOfWeekOptions}
                 value={field.value?.toString()}
                 onChange={(value) =>
@@ -39,20 +56,23 @@ const StartOfWeekSelect: FC<{
                     middlewares: { flip: false },
                 }}
             />
-            {isRedeployRequired && parseInt(field.value) >= 0 && (
-                <Alert
-                    icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
-                    title="Required CLI option"
-                    color="blue"
-                >
-                    Going forward, if you use the CLI to deploy the project, you
-                    will need to run the deploy command with the option{' '}
-                    <Text fw={500}>
-                        <code>--start-of-week={field.value}</code>
-                    </Text>
-                    , for the changes to take effect.
-                </Alert>
-            )}
+            {isTimezoneSupportDisabled &&
+                isRedeployRequired &&
+                isCliDeployed &&
+                isDaySelected && (
+                    <Alert
+                        icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
+                        title="Required CLI option"
+                        color="blue"
+                    >
+                        Going forward, if you use the CLI to deploy the project,
+                        you will need to run the deploy command with the option{' '}
+                        <Text fw={500} span>
+                            <code>--start-of-week={field.value}</code>
+                        </Text>{' '}
+                        ({dayName}), for the changes to take effect.
+                    </Alert>
+                )}
         </>
     );
 };

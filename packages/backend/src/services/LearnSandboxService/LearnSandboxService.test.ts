@@ -27,7 +27,10 @@ import path from 'node:path';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LearnSandboxService } from './LearnSandboxService';
-import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from './runtime';
+import {
+    LEARN_SANDBOX_COMMAND_TIMEOUT_MS,
+    resetSandboxDbtVersionCache,
+} from './runtime';
 
 const user: SessionUser = {
     ...defaultSessionUser,
@@ -76,6 +79,10 @@ describe('LearnSandboxService', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        countActiveCommands: vi.fn(async () => ({
+            forUser: 0,
+            forOrganization: 0,
+        })),
         claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),
@@ -331,6 +338,75 @@ describe('LearnSandboxService', () => {
         );
     });
 
+    it('refuses a second command while the learner has one in flight elsewhere', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.countActiveCommands.mockResolvedValueOnce({
+            forUser: 1,
+            forOrganization: 1,
+        });
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow(
+            'You already have a command running in another training copy',
+        );
+        expect(files.createCommand).not.toHaveBeenCalled();
+        expect(schedulerClient.learnSandboxCommand).not.toHaveBeenCalled();
+    });
+
+    it('refuses a command once the organization has reached its in-flight limit', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.countActiveCommands.mockResolvedValueOnce({
+            forUser: 0,
+            forOrganization: 4,
+        });
+        await expect(
+            service.enqueueCommand(user, 'copy', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
+        ).rejects.toThrow(
+            'Your organization has reached its limit of running Learn commands',
+        );
+        expect(files.createCommand).not.toHaveBeenCalled();
+    });
+
+    it('counts only live commands in the organization, from the same stale cutoff as the workspace check', async () => {
+        files.findActiveCommand.mockResolvedValueOnce(undefined);
+        files.countActiveCommands.mockResolvedValueOnce({
+            forUser: 0,
+            forOrganization: 3,
+        });
+        files.createCommand.mockResolvedValueOnce({ commandUuid: 'c1' });
+        const before = Date.now();
+        await service.enqueueCommand(user, 'copy', {
+            tool: 'dbt',
+            subcommand: 'parse',
+            args: [],
+        });
+        expect(files.countActiveCommands).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                staleCutoff: expect.any(Date),
+            }),
+        );
+        const { staleCutoff } = (
+            files.countActiveCommands.mock.calls as unknown as [
+                { staleCutoff: Date },
+            ][]
+        )[0][0];
+        const cutoff = staleCutoff.getTime();
+        expect(cutoff).toBeLessThanOrEqual(
+            before - LEARN_SANDBOX_COMMAND_TIMEOUT_MS,
+        );
+        expect(files.createCommand).toHaveBeenCalledOnce();
+    });
+
     it('falls back to the database unique index for the 409 when the pre-check races', async () => {
         files.findActiveCommand.mockResolvedValueOnce(undefined);
         files.createCommand.mockRejectedValueOnce(
@@ -539,6 +615,10 @@ describe('LearnSandboxService.sweep', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        countActiveCommands: vi.fn(async () => ({
+            forUser: 0,
+            forOrganization: 0,
+        })),
         claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),
@@ -688,6 +768,10 @@ describe('LearnSandboxService.runCommand', () => {
         createCommand: vi.fn(),
         getCommand: vi.fn(),
         findActiveCommand: vi.fn(),
+        countActiveCommands: vi.fn(async () => ({
+            forUser: 0,
+            forOrganization: 0,
+        })),
         claimCommand: vi.fn(),
         updateCommand: vi.fn(),
         appendOutput: vi.fn(),
@@ -731,6 +815,7 @@ describe('LearnSandboxService.runCommand', () => {
         );
         bin = await mkdtemp(path.join(tmpdir(), 'learn-bin-'));
         process.env.LEARN_SANDBOX_PATH_PREFIX = bin;
+        resetSandboxDbtVersionCache();
     });
 
     afterEach(async () => {
@@ -773,7 +858,11 @@ describe('LearnSandboxService.runCommand', () => {
             path.join(bin, 'dbt'),
             [
                 '#!/bin/sh',
-                'echo "parse ok key=$LIGHTDASH_API_KEY project=$LIGHTDASH_PROJECT"',
+                'echo "parse ok key=${LIGHTDASH_API_KEY:-unset} project=$LIGHTDASH_PROJECT"',
+                // The CLI reads its token from $HOME/.config/lightdash/config.yaml;
+                // dbt's env_var() cannot reach a file, so that is where it lives.
+                'echo "config-mode=$(ls -l "$HOME/.config/lightdash/config.yaml" | cut -c1-10)"',
+                'cat "$HOME/.config/lightdash/config.yaml"',
                 'echo "warn" 1>&2',
                 'echo "home=$HOME profiles=$DBT_PROFILES_DIR project_dir=$DBT_PROJECT_DIR pwd=$(pwd) sentinel=$SANDBOX_HOST_SENTINEL"',
                 'exit 0',
@@ -831,7 +920,13 @@ describe('LearnSandboxService.runCommand', () => {
             .join('');
         const workspaceDir = path.join(workspaceRoot, 'copy-c1');
         const projectDir = path.join(workspaceDir, 'project');
-        expect(text).toContain('parse ok key=*** project=copy');
+        expect(text).toContain('parse ok key=unset project=copy');
+        expect(text).toContain('config-mode=-rw-------');
+        // The file carries the token (redacted here, as all output is) and
+        // points the CLI at the copy on this instance.
+        expect(text).toContain('apiKey: ***');
+        expect(text).toContain('project: copy');
+        expect(text).toContain('serverUrl: ');
         expect(text).toContain('warn');
         expect(text).not.toContain('ldpat_abc');
         expect(text).toContain(`home=${workspaceDir}`);
@@ -888,6 +983,57 @@ describe('LearnSandboxService.runCommand', () => {
         );
         const text = appended.map((c) => c.text).join('');
         expect(text).toContain('project=copy');
+    });
+
+    const runWithFakeDbt = async (script: string[]) => {
+        await writeFile(path.join(bin, 'dbt'), [...script, ''].join('\n'), {
+            mode: 0o755,
+        });
+        files.getCommand.mockResolvedValue({
+            command_uuid: 'c-v',
+            project_uuid: 'copy',
+            user_uuid: user.userUuid,
+            status: 'queued',
+            argv: ['dbt', 'parse'],
+            pat_uuid: null,
+        });
+        files.listFiles.mockResolvedValue([]);
+        const appended: { text: string }[] = [];
+        files.appendOutput.mockImplementation(async (_id, chunks) => {
+            appended.push(...chunks);
+        });
+        await buildService().service.runCommand({
+            commandUuid: 'c-v',
+            projectUuid: 'copy',
+            organizationUuid: 'org',
+            userUuid: user.userUuid,
+        });
+        return appended.map((c) => c.text).join('');
+    };
+
+    it('tells the child the detected dbt version so the CLI need not ask dbt', async () => {
+        const text = await runWithFakeDbt([
+            '#!/bin/sh',
+            'if [ "$1" = "--version" ]; then',
+            '  printf "Core:\\n  - installed: 1.12.3\\n"',
+            '  exit 0',
+            'fi',
+            'echo "dbt_version=${LIGHTDASH_DBT_VERSION:-unset}"',
+        ]);
+        expect(text).toContain('dbt_version=1.12.3');
+    });
+
+    it('leaves LIGHTDASH_DBT_VERSION unset when the version cannot be detected', async () => {
+        const text = await runWithFakeDbt([
+            '#!/bin/sh',
+            'if [ "$1" = "--version" ]; then exit 1; fi',
+            'echo "dbt_version=${LIGHTDASH_DBT_VERSION:-unset}"',
+        ]);
+        expect(text).toContain('dbt_version=unset');
+        expect(files.updateCommand).toHaveBeenLastCalledWith(
+            'c-v',
+            expect.objectContaining({ status: 'done', exit_code: 0 }),
+        );
     });
 
     it('marks a non-zero exit as error and still revokes the PAT', async () => {

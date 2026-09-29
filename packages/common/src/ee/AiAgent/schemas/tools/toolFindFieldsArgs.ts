@@ -1,9 +1,14 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import { toolNameFor } from './discoveryToolNames';
 
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
 export const TOOL_FIND_FIELDS_DESCRIPTION = ({
     runtime,
     toolName,
@@ -24,6 +29,7 @@ Usage tips:
 `;
 };
 
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
 export const toolFindFieldsArgsSchema = createToolSchema()
     .extend({
         table: z.string().describe('The table to search in.'),
@@ -36,8 +42,10 @@ export const toolFindFieldsArgsSchema = createToolSchema()
     .withPagination()
     .build();
 
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
 export const toolFindFieldsArgsSchemaTransformed = toolFindFieldsArgsSchema;
 
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
 export const findFieldsRankingMetadataSchema = z.object({
     searchQueries: z.array(
         z.object({
@@ -103,7 +111,8 @@ const findFieldsSearchErrorSchema = z.object({
     error: z.string(),
 });
 
-export const findFieldsResultSchema = z.object({
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
+export const toolFindFieldsStructuredContentSchema = z.object({
     searchResults: z.array(
         z.discriminatedUnion('status', [
             findFieldsSearchSuccessSchema,
@@ -112,14 +121,30 @@ export const findFieldsResultSchema = z.object({
     ),
 });
 
-export const toolFindFieldsOutputSchema = z.object({
-    result: z.string(),
-    metadata: baseOutputMetadataSchema.extend({
-        ranking: findFieldsRankingMetadataSchema.optional(),
-    }),
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
+export const toolFindFieldsMetadataSchema = baseOutputMetadataSchema.extend({
+    ranking: findFieldsRankingMetadataSchema.optional(),
 });
 
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
+export const toolFindFieldsOutputSchema = structuredToolOutputSchema({
+    metadata: toolFindFieldsMetadataSchema,
+    structuredContent: toolFindFieldsStructuredContentSchema,
+});
+
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
+export const isToolFindFieldsResult = makeBuiltInToolResultGuard(
+    'findFields',
+    toolFindFieldsMetadataSchema,
+);
+
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
 export type ToolFindFieldsArgs = z.infer<typeof toolFindFieldsArgsSchema>;
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
 export type ToolFindFieldsArgsTransformed = ToolFindFieldsArgs;
-export type FindFieldsResult = z.infer<typeof findFieldsResultSchema>;
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
+export type ToolFindFieldsStructuredContent = z.infer<
+    typeof toolFindFieldsStructuredContentSchema
+>;
+/** @deprecated Legacy `findFields` tool contract, kept for historical tool calls. */
 export type ToolFindFieldsOutput = z.infer<typeof toolFindFieldsOutputSchema>;

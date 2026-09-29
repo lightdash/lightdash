@@ -38,6 +38,18 @@ const isSameOption = (
     a: DataAppVizConfigOption,
     b: DataAppVizConfigOption,
 ): boolean => {
+    if (a.type === 'gradient' && b.type === 'gradient') {
+        return (
+            a.label === b.label &&
+            (a.showBounds ?? true) === (b.showBounds ?? true) &&
+            a.default.min === b.default.min &&
+            a.default.max === b.default.max &&
+            a.default.colors.length === b.default.colors.length &&
+            a.default.colors.every(
+                (color, index) => color === b.default.colors[index],
+            )
+        );
+    }
     if (a.type !== b.type || a.label !== b.label || a.default !== b.default) {
         return false;
     }

@@ -332,6 +332,7 @@ const makeService = ({
                 .mockResolvedValueOnce([])
                 .mockResolvedValue([
                     {
+                        toolType: 'built-in' as const,
                         toolName: 'editDbtProject',
                         result: 'Opened a pull request.',
                         metadata: { status: 'success', prUrl: PR_URL },
@@ -2839,6 +2840,49 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
         );
     });
 
+    it('treats a stored editDbtProject result without structuredContent as terminal', async () => {
+        // Rows in ai_agent_tool_results keep only the text and the metadata,
+        // so the persisted envelope has no structuredContent.
+        const getToolResultsForPrompt = vi.fn().mockResolvedValue([
+            {
+                toolType: 'built-in' as const,
+                toolName: 'editDbtProject',
+                result: 'Opened a pull request.',
+                metadata: { status: 'success', prUrl: PR_URL },
+            },
+        ]);
+        const generateAgentThreadResponse = vi.fn();
+        const createRemediationEvent = vi.fn().mockResolvedValue(undefined);
+        const setReviewItemWritebackStatus = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentModel: { getToolResultsForPrompt },
+            aiAgentService: { generateAgentThreadResponse },
+            aiAgentReviewClassifierModel: {
+                createRemediationEvent,
+                setReviewItemWritebackStatus,
+            },
+        });
+
+        await expect(
+            service.runReviewItemWritebackJob(payload),
+        ).resolves.toBeUndefined();
+
+        expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+        expect(createRemediationEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: {
+                    eventType: 'pr_opened',
+                    payload: { prUrl: PR_URL, prNumber: 42 },
+                },
+            }),
+        );
+        expect(setReviewItemWritebackStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
     it('continues the build-fix thread when the dbt source is unresolved', async () => {
         const generateAgentThreadResponse = vi
             .fn()
@@ -2980,6 +3024,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                     .mockResolvedValueOnce([])
                     .mockResolvedValueOnce([
                         {
+                            toolType: 'built-in' as const,
                             toolName: 'editDbtProject',
                             result: 'Writeback is running.',
                             metadata: {
@@ -2990,6 +3035,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                     ])
                     .mockResolvedValue([
                         {
+                            toolType: 'built-in' as const,
                             toolName: 'editDbtProject',
                             result: 'Opened a pull request.',
                             metadata: {
@@ -3038,6 +3084,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
                 ]),
                 getToolResultsForPrompt: vi.fn().mockResolvedValue([
                     {
+                        toolType: 'built-in' as const,
                         toolName: 'editDbtProject',
                         result: 'Writeback is running.',
                         metadata: {
@@ -3069,6 +3116,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
             aiAgentModel: {
                 getToolResultsForPrompt: vi.fn().mockResolvedValue([
                     {
+                        toolType: 'built-in' as const,
                         toolName: 'editDbtProject',
                         result: 'Select a dbt source and try again.',
                         metadata: {
@@ -3134,6 +3182,7 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
             aiAgentModel: {
                 getToolResultsForPrompt: vi.fn().mockResolvedValue([
                     {
+                        toolType: 'built-in' as const,
                         toolName: 'editDbtProject',
                         result: 'No file changes were needed.',
                         metadata: {

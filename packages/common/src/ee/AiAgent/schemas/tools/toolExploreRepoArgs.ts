@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { structuredToolOutputSchema } from '../outputMetadata';
 
 export const TOOL_EXPLORE_REPO_DESCRIPTION = [
     'Read-only access to source code via a real bash shell restricted to a read-only command set, over a single virtual filesystem that mounts every repository this organization can access.',
@@ -26,13 +27,25 @@ export const toolExploreRepoArgsSchema = z.object({
         ),
 });
 
-export const toolExploreRepoOutputSchema = z.object({
-    result: z.string(),
+export const toolExploreRepoStructuredContentSchema = z.object({
+    output: z
+        .string()
+        .describe(
+            'The command output exactly as shown in `result`: stdout (clamped to the output limit), followed by any stderr diagnostic and truncation notes.',
+        ),
+});
+
+export const toolExploreRepoOutputSchema = structuredToolOutputSchema({
     metadata: z.object({
         status: z.enum(['success', 'error']),
     }),
+    structuredContent: toolExploreRepoStructuredContentSchema,
 });
 
 export type ToolExploreRepoArgs = z.infer<typeof toolExploreRepoArgsSchema>;
+
+export type ToolExploreRepoStructuredContent = z.infer<
+    typeof toolExploreRepoStructuredContentSchema
+>;
 
 export type ToolExploreRepoOutput = z.infer<typeof toolExploreRepoOutputSchema>;

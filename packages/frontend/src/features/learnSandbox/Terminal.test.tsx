@@ -19,7 +19,7 @@ type RenderOverrides = {
     value?: string;
     onValueChange?: (value: string) => void;
     onRun?: () => void;
-    running?: boolean;
+    busy?: boolean;
     disabled?: boolean;
     output?: Partial<TerminalOutput>;
 };
@@ -33,7 +33,7 @@ const renderTerminal = (overrides: RenderOverrides = {}) => {
                 value={overrides.value ?? ''}
                 onValueChange={onValueChange}
                 onRun={onRun}
-                running={overrides.running ?? false}
+                busy={overrides.busy ?? false}
                 disabled={overrides.disabled ?? false}
                 output={{ ...EMPTY_OUTPUT, ...overrides.output }}
             />
@@ -70,14 +70,14 @@ describe('Terminal', () => {
         );
     });
 
-    it('shows data-tour-busy="true" and status Running while running, removing it when done', () => {
+    it('shows data-tour-busy="true" and status Running while busy, removing it when done', () => {
         const { rerender } = render(
             <MantineProvider env="test">
                 <Terminal
                     value=""
                     onValueChange={vi.fn()}
                     onRun={vi.fn()}
-                    running
+                    busy
                     disabled={false}
                     output={{
                         ...EMPTY_OUTPUT,
@@ -111,7 +111,7 @@ describe('Terminal', () => {
                     value=""
                     onValueChange={vi.fn()}
                     onRun={vi.fn()}
-                    running={false}
+                    busy={false}
                     disabled={false}
                     output={{
                         ...EMPTY_OUTPUT,
@@ -129,10 +129,52 @@ describe('Terminal', () => {
         expect(screen.getByText('Finished · 8s')).toBeInTheDocument();
     });
 
-    it('disables the Run button while running', () => {
-        renderTerminal({ running: true });
+    it('is busy for the tour from the moment Run is clicked, before the first poll', () => {
+        renderTerminal({ busy: true });
+
+        const pane = document.querySelector('[data-learn-terminal-output]');
+        expect(pane).toHaveAttribute('data-tour-busy', 'true');
+        expect(pane).toHaveAttribute('data-tour-anchor', 'terminal-running');
+    });
+
+    it('disables the Run button while busy', () => {
+        renderTerminal({ busy: true });
 
         expect(screen.getByRole('button', { name: /run/i })).toBeDisabled();
+    });
+
+    it('disables Run and says why for a command the terminal would refuse', () => {
+        renderTerminal({ value: 'lightdash depl' });
+        const run = document.querySelector(
+            '[data-tour-anchor="terminal-run"]',
+        ) as HTMLButtonElement;
+        expect(run).toBeDisabled();
+        expect(run).toHaveAttribute(
+            'title',
+            'That command is not available in the Learn terminal',
+        );
+    });
+
+    it('marks the command input as exact, so a walkthrough advances only on the suggested command', () => {
+        renderTerminal();
+        expect(screen.getByLabelText('Command')).toHaveAttribute(
+            'data-tour-exact',
+            'true',
+        );
+    });
+
+    it('marks a failed or timed-out run for the tour, and nothing else', () => {
+        const pane = () =>
+            document.querySelector('[data-learn-terminal-output]')!;
+        renderTerminal({ output: { status: 'error', exitCode: 1 } });
+        expect(pane()).toHaveAttribute('data-tour-failed', 'true');
+    });
+
+    it('does not mark a finished or running command as failed', () => {
+        renderTerminal({ output: { status: 'done', exitCode: 0 } });
+        expect(
+            document.querySelector('[data-learn-terminal-output]'),
+        ).not.toHaveAttribute('data-tour-failed');
     });
 
     it('has an accessible name for the command input', () => {
@@ -154,6 +196,20 @@ describe('Terminal', () => {
         renderTerminal({ disabled: true });
 
         expect(screen.getByLabelText('Command')).toBeEnabled();
+    });
+
+    it('runs through the Run button on Enter, so a walkthrough waiting on that click sees it', async () => {
+        const { onRun } = renderTerminal({ value: 'dbt parse' });
+        const clicked = vi.fn();
+        screen
+            .getByRole('button', { name: 'Run' })
+            .addEventListener('click', clicked);
+
+        await userEvent.click(screen.getByLabelText('Command'));
+        await userEvent.keyboard('{Enter}');
+
+        expect(clicked).toHaveBeenCalledTimes(1);
+        expect(onRun).toHaveBeenCalledTimes(1);
     });
 
     it('calls onRun when Enter is pressed in the command input', async () => {
@@ -196,8 +252,8 @@ describe('Terminal', () => {
         expect(onValueChange).toHaveBeenCalledWith('dbt parse');
     });
 
-    it('disables the quick command chips while running', () => {
-        renderTerminal({ running: true });
+    it('disables the quick command chips while busy', () => {
+        renderTerminal({ busy: true });
 
         expect(
             screen.getByRole('button', { name: 'dbt parse' }),

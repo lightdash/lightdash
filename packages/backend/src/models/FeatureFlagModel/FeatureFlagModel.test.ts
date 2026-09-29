@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, LightdashMode } from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -211,8 +211,72 @@ describe('FeatureFlagModel', () => {
         },
     );
     describe('Learn', () => {
-        it('is off by default', async () => {
+        it('is off by default on self-hosted', async () => {
             const model = buildModel({}, buildFakeDatabase({}));
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.EnableLearn,
+                enabled: false,
+            });
+        });
+
+        it('is on by default on Lightdash Cloud', async () => {
+            const model = buildModel(
+                { mode: LightdashMode.CLOUD_BETA },
+                buildFakeDatabase({}),
+            );
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                }),
+            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
+        });
+
+        it('stays on for Lightdash Cloud when the flag row has no default', async () => {
+            const model = buildModel(
+                { mode: LightdashMode.CLOUD_BETA },
+                buildFakeDatabase({ flag: { default_enabled: null } }),
+            );
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                }),
+            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
+        });
+
+        it('turns off for one Lightdash Cloud organization with an override', async () => {
+            const model = buildModel(
+                { mode: LightdashMode.CLOUD_BETA },
+                buildFakeDatabase({
+                    flag: { default_enabled: null },
+                    orgOverride: { enabled: false },
+                }),
+            );
+            await expect(
+                model.get({
+                    user: dbUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.EnableLearn,
+                enabled: false,
+            });
+        });
+
+        it('is off on Lightdash Cloud when the kill switch lists it', async () => {
+            const model = buildModel(
+                {
+                    mode: LightdashMode.CLOUD_BETA,
+                    disabledFeatureFlags: new Set([FeatureFlags.EnableLearn]),
+                },
+                buildFakeDatabase({}),
+            );
             await expect(
                 model.get({
                     user: dbUser,
