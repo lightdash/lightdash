@@ -20,14 +20,17 @@ const allowedRequests = [
     { method: 'GET', path: '/api/v2/feature-flag/new-onboarding' },
 ] as const;
 
-const normalizePath = (path: string) =>
-    path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
+const normalizePath = (path: string) => {
+    const lowerCasePath = path.toLowerCase();
+    return lowerCasePath.length > 1 && lowerCasePath.endsWith('/')
+        ? lowerCasePath.slice(0, -1)
+        : lowerCasePath;
+};
 
 const isAllowedRequest = (method: string, path: string) =>
     allowedRequests.some(
         (allowedRequest) =>
-            allowedRequest.method === method &&
-            allowedRequest.path === normalizePath(path),
+            allowedRequest.method === method && allowedRequest.path === path,
     );
 
 const isSessionAccount = (

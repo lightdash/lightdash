@@ -190,6 +190,18 @@ const rejectedRequests: EndpointRequest[] = [
         path: '/api/v1/user/identity',
         body: { issuer: 'google' },
     },
+    {
+        capability: 'personal access token creation with an upper-case path',
+        method: 'POST',
+        path: '/API/v1/user/me/personal-access-tokens',
+        body: { description: 'restricted token' },
+    },
+    {
+        capability: 'organization creation with a mixed-case path',
+        method: 'PUT',
+        path: '/Api/V1/Org',
+        body: { name: 'Restricted organization' },
+    },
 ];
 
 const allowedRequests: EndpointRequest[] = [
