@@ -216,10 +216,27 @@ describe('getSlackTableBlocks', () => {
             elements: [
                 {
                     text: expect.stringContaining(
-                        'Showing 9 of 200 preview rows. More returned rows were omitted from Slack.',
+                        'Showing first 9 rows; more rows omitted.',
                     ),
                 },
             ],
+        });
+    });
+
+    it('labels the actual number of rows sent when the query was truncated', () => {
+        const rows = Array.from(
+            { length: SLACK_TABLE_MAX_ROWS },
+            (_, index) => ({
+                value: index,
+            }),
+        );
+        const blocks = getSlackTableBlocks([
+            preview(rows, { truncated: true }),
+        ]);
+
+        expect(blocks[1]).toMatchObject({
+            type: 'context',
+            elements: [{ text: 'Showing first 200 rows; more rows omitted.' }],
         });
     });
 

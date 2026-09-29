@@ -460,7 +460,7 @@ describe('getSlackTablePreviews', () => {
             ),
         ).toBe(true);
         expect(JSON.stringify(getSlackTableBlocks(previews))).toContain(
-            'More returned rows were omitted from Slack.',
+            'Showing first 1 row; more rows omitted.',
         );
     });
 });

@@ -204,16 +204,17 @@ export const getSlackTableBlocks = (
         const blocks: (Block | KnownBlock)[] = [block];
         const shownRows = includedRows.length - 1;
         const notes: string[] = [];
-        if (shownRows < rows.length) {
+        if (preview.truncated) {
+            notes.push(
+                `Showing first ${shownRows} ${shownRows === 1 ? 'row' : 'rows'}; more rows omitted.`,
+            );
+        } else if (shownRows < rows.length) {
             notes.push(`Showing ${shownRows} of ${rows.length} preview rows.`);
         }
         if (fieldIds.length < allFieldIds.length) {
             notes.push(
                 `Showing ${fieldIds.length} of ${allFieldIds.length} columns.`,
             );
-        }
-        if (preview.truncated) {
-            notes.push('More returned rows were omitted from Slack.');
         }
         if (notes.length > 0) {
             blocks.push({
