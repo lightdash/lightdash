@@ -367,6 +367,34 @@ describe('restricted unverified sessions', () => {
         expect(response.status).toBe(403);
     });
 
+    test('redirects a browser page load to the verification page', async () => {
+        const path =
+            '/api/v1/oauth/authorize?client_id=lightdash-cli&state=abc';
+        const response = await fetch(`${origin}${path}`, {
+            headers: { accept: 'text/html,application/xhtml+xml' },
+            redirect: 'manual',
+        });
+
+        expect(response.status).toBe(302);
+        expect(response.headers.get('location')).toBe(
+            `/verify-email?redirect=${encodeURIComponent(path)}`,
+        );
+    });
+
+    test('rejects a browser form submission instead of redirecting', async () => {
+        const response = await fetch(`${origin}/api/v1/org`, {
+            method: 'PUT',
+            headers: {
+                accept: 'text/html',
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ name: 'Restricted organization' }),
+            redirect: 'manual',
+        });
+
+        expect(response.status).toBe(403);
+    });
+
     test('allows the frontend verification route to load', async () => {
         const response = await sendRequest(origin, {
             capability: 'frontend verification route',

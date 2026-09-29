@@ -39,7 +39,7 @@ const isSessionAccount = (
 
 export const createRestrictUnverifiedSessionMiddleware =
     ({ hasEmailClient }: RestrictUnverifiedSessionOptions): RequestHandler =>
-    (req, _res, next) => {
+    (req, res, next) => {
         const { account } = req;
         const path = normalizePath(req.path);
         if (
@@ -53,6 +53,12 @@ export const createRestrictUnverifiedSessionMiddleware =
         }
         if (account.user.isEmailVerified === true) {
             next();
+            return;
+        }
+        if (req.method === 'GET' && req.accepts(['json', 'html']) === 'html') {
+            res.redirect(
+                `/verify-email?redirect=${encodeURIComponent(req.originalUrl)}`,
+            );
             return;
         }
         next(new ForbiddenError('User has not verified their email'));
