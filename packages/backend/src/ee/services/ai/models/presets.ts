@@ -2,7 +2,10 @@ import { CallSettings } from 'ai';
 import { ProviderOptionsMap } from './types';
 
 export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
-export type SelectableModelProvider = ModelPresetProvider | 'openrouter';
+export type SelectableModelProvider =
+    | ModelPresetProvider
+    | 'openrouter'
+    | 'vertex';
 
 export type ReasoningStyle = 'budget' | 'adaptive';
 // How hard a reasoning model should think. 'xhigh' is the top level the
@@ -31,7 +34,7 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     providerOptions: ProviderOptionsMap[P] | undefined;
 } & (
     | { custom?: false; contextWindowTokens: number }
-    // Pass-through gateway models are the only ones whose window is unknown
+    // Instance-configured models may have an unknown context window.
     | { custom: true; contextWindowTokens: null }
 );
 
@@ -589,6 +592,72 @@ export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
         description: 'Model served through OpenRouter',
         custom: true,
         contextWindowTokens: null,
+        supportsReasoning: false,
+        callOptions: {},
+        providerOptions: undefined,
+    };
+}
+
+// Use a 400k context budget for known Vertex models rather than their full window.
+const VERTEX_MODEL_METADATA: Record<
+    string,
+    | {
+          displayName: string;
+          description: string;
+          contextWindowTokens: number;
+      }
+    | undefined
+> = {
+    'gemini-3.8-flash': {
+        displayName: 'Gemini 3.8 Flash (Vertex AI)',
+        description: 'General-purpose model for agentic tasks',
+        contextWindowTokens: 400_000,
+    },
+    'gemini-3.5-flash-lite': {
+        displayName: 'Gemini 3.5 Flash-Lite (Vertex AI)',
+        description: 'Lightweight model for fast, low-cost tasks',
+        contextWindowTokens: 400_000,
+    },
+    'gemini-3.1-pro-preview': {
+        displayName: 'Gemini 3.1 Pro Preview (Vertex AI)',
+        description: 'Preview model for complex reasoning tasks',
+        contextWindowTokens: 400_000,
+    },
+    'gemini-3.6-flash': {
+        displayName: 'Gemini 3.6 Flash (Vertex AI)',
+        description: 'Fast model for agentic tasks',
+        contextWindowTokens: 400_000,
+    },
+};
+
+export function vertexPreset(modelName: string): ModelPreset<'vertex'> {
+    const metadata = VERTEX_MODEL_METADATA[modelName];
+
+    if (metadata) {
+        return {
+            name: modelName,
+            provider: 'vertex',
+            modelId: modelName,
+            ...metadata,
+            groupLabel: 'Google Vertex AI',
+            custom: false,
+            // Metadata does not enable a thinking toggle; use provider defaults.
+            supportsReasoning: false,
+            callOptions: {},
+            providerOptions: undefined,
+        };
+    }
+
+    return {
+        name: modelName,
+        provider: 'vertex',
+        modelId: modelName,
+        displayName: `${modelName} (Vertex AI)`,
+        description: 'Model served through Google Vertex AI',
+        groupLabel: 'Google Vertex AI',
+        custom: true,
+        contextWindowTokens: null,
+        // No thinking toggle: arbitrary Vertex models use provider defaults.
         supportsReasoning: false,
         callOptions: {},
         providerOptions: undefined,
