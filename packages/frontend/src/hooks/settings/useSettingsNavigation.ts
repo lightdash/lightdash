@@ -743,6 +743,7 @@ export const useSettingsNavigation = (
                         keywords: ['validation', 'errors', 'content'],
                         children: [],
                         exact: true,
+                        tourNav: 'validator',
                     },
                 ],
             });
@@ -1054,6 +1055,7 @@ export const useSettingsNavigation = (
                     keywords: ['validation', 'errors', 'content'],
                     children: [],
                     exact: true,
+                    tourNav: 'validator',
                 });
             }
 

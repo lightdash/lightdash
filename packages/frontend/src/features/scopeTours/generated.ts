@@ -2806,6 +2806,19 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: ['[data-tour-nav="settings"]'],
             },
             {
+                target: '[data-tour-nav="validator"]',
+                route: '/generalSettings/projectManagement/:projectUuid/validator',
+                title: 'Open the Validator',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+                advanceOnTargetInput: false,
+                via: [
+                    '[data-tour-nav="settings"]',
+                    '[data-tour-nav="project-settings"]',
+                ],
+            },
+            {
                 target: '[data-tour-scope="manage:Validation"][data-tour-step="2"]',
                 route: '/generalSettings/projectManagement/:projectUuid/validator',
                 title: 'Click Run validation',
@@ -2816,6 +2829,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="settings"]',
                     '[data-tour-nav="project-settings"]',
+                    '[data-tour-nav="validator"]',
                 ],
             },
             {

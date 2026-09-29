@@ -40,6 +40,8 @@ export type SettingsNavigationItem = {
     children: SettingsNavigationItem[];
     exact?: boolean;
     onClick?: () => void;
+    /** `data-tour-nav` for scope walkthroughs; hints are declared in SettingsNavigation. */
+    tourNav?: string;
 };
 
 export type SettingsNavigationSection = {

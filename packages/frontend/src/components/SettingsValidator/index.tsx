@@ -320,7 +320,9 @@ export const SettingsValidator: FC<{
                     data-tour-label="Click Run validation"
                     data-tour-title="Find broken content with the validator"
                     data-tour-interactive="true"
-                    data-tour-via='[data-tour-nav="settings"] >> [data-tour-nav="project-settings"]'
+                    // Admins land on Connection settings, learners on the
+                    // Validator: the sidebar link works for both.
+                    data-tour-via='[data-tour-nav="settings"] >> [data-tour-nav="project-settings"] >> [data-tour-nav="validator"]'
                     data-tour-docs="workflow/validating-your-content.mdx#how-can-i-validate-my-content:1"
                 >
                     Run validation
