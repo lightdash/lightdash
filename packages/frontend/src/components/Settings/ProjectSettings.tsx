@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { Stack, Text, Title } from '@mantine/core';
+import * as Sentry from '@sentry/react';
 import {
     useMemo,
     type FC,
@@ -22,7 +23,9 @@ import ContentReviewPage from '../../features/contentAsCode/components/ContentRe
 import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
+import ScopeTourHost from '../../features/scopeTours/ScopeTourHost';
 import { useOrganization } from '../../hooks/organization/useOrganization';
+import { LEARNER_COPY_SETTINGS_PAGE } from '../../hooks/settings/projectSettingsAccess';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -77,9 +80,11 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
     </SettingsPage>
 );
 
-const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
-    externalSourcesEnabled,
-}) => {
+const ProjectSettings: FC<{
+    externalSourcesEnabled: boolean;
+    /** A learner's training copy: the Validator only, every other page redirects to it. */
+    learnerCopyOnly?: boolean;
+}> = ({ externalSourcesEnabled, learnerCopyOnly = false }) => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
 
@@ -145,6 +150,23 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
             return [];
+        }
+        if (learnerCopyOnly) {
+            return [
+                {
+                    path: `/${LEARNER_COPY_SETTINGS_PAGE}`,
+                    element: <SettingsValidator projectUuid={projectUuid} />,
+                },
+                {
+                    path: '*',
+                    element: (
+                        <Navigate
+                            to={`/generalSettings/projectManagement/${projectUuid}/${LEARNER_COPY_SETTINGS_PAGE}`}
+                            replace
+                        />
+                    ),
+                },
+            ];
         }
         return [
             {
@@ -530,6 +552,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         ];
     }, [
         projectUuid,
+        learnerCopyOnly,
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
@@ -588,14 +611,24 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         <>
             <DocumentTitle title="Project Settings" />
 
+            {/* A walkthrough that clicked into project settings continues here. */}
+            <Sentry.ErrorBoundary fallback={<></>}>
+                <ScopeTourHost />
+            </Sentry.ErrorBoundary>
+
             <Stack gap="xl">
                 <SettingsPageContainer>
                     <PageBreadcrumbs
                         items={[
-                            {
-                                title: 'All projects',
-                                to: '/generalSettings/projectManagement',
-                            },
+                            // A learner copy has no project list to go back to.
+                            ...(learnerCopyOnly
+                                ? []
+                                : [
+                                      {
+                                          title: 'All projects',
+                                          to: '/generalSettings/projectManagement',
+                                      },
+                                  ]),
                             {
                                 title: project.name,
                                 active: true,

@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { type Icon as TablerIcon } from '@tabler/icons-react';
 import { type UserWithAbility } from '../user/useUser';
+import { type ProjectSettingsAccess } from './projectSettingsAccess';
 
 /**
  * An in-page sub-section heading (e.g. "User impersonation" inside the org
@@ -39,6 +40,8 @@ export type SettingsNavigationItem = {
     children: SettingsNavigationItem[];
     exact?: boolean;
     onClick?: () => void;
+    /** `data-tour-nav` for scope walkthroughs; hints are declared in SettingsNavigation. */
+    tourNav?: string;
 };
 
 export type SettingsNavigationSection = {
@@ -89,6 +92,9 @@ export type SettingsContext = {
     isGroupManagementEnabled: boolean;
     isWarehouseCredentialsEnabled: boolean;
     isGitProject: boolean;
+    /** Which project settings the user can open; see `getProjectSettingsAccess`. */
+    projectSettingsAccess: ProjectSettingsAccess;
+    isProjectSettingsAccessLoading: boolean;
     isContentReviewAvailable: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;

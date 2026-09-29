@@ -21,6 +21,13 @@ on 2026-09-10.
 | 5     | `delete:VirtualView`          | Add deletion of a disposable virtual view.                                     | The learner deletes the view and verifies its removal. Creation alone does not satisfy this outcome.                       |
 | 6     | `manage:DeletedContent`       | Check Recently deleted availability and add restoration of a disposable chart. | The restored chart appears in its space. Permanent deletion, if taught, uses a separate disposable item.                   |
 
+Validation (`manage:Validation`, CS-231) left Coming Soon on 2026-09-29. The
+Validator sits in project settings, which need `update:Project`, a scope a
+trainee never holds. In a learner's training copy, project settings open on the
+Validator alone (`getProjectSettingsAccess`), every other settings page
+redirects to it, and the seed carries one chart built on a renamed field so the
+run has something to report.
+
 ## Delivery criteria
 
 - Use existing controls and anchors before adding new ones. Scope mappings may
@@ -56,7 +63,7 @@ The curriculum does not change those authorization rules.
 ## Later work
 
 The other 21 scope entries now show Coming Soon: 12 embedding,
-3 content-as-code, 2 promotion, validation, analytics, and 2 agent-document
+3 content-as-code, 2 promotion, analytics, and 2 agent-document
 scopes. Their execution environments and access constraints need separate work;
 new interactive formats will be delivered as separate tickets. Reading delivery
 is removed.

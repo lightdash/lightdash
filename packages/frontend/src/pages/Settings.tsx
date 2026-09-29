@@ -197,6 +197,8 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading,
         isProjectLoading,
         projectError,
+        projectSettingsAccess,
+        isProjectSettingsAccessLoading,
     } = context;
 
     const routes = useMemo<RouteObject[]>(() => {
@@ -501,13 +503,7 @@ const Settings: FC = () => {
             project &&
             organization &&
             !organization.needsProject &&
-            user?.ability.can(
-                'update',
-                subject('Project', {
-                    organizationUuid: organization.organizationUuid,
-                    projectUuid: project.projectUuid,
-                }),
-            )
+            projectSettingsAccess !== 'none'
         ) {
             allowedRoutes.push({
                 path: '/projectManagement/:projectUuid/*',
@@ -516,6 +512,9 @@ const Settings: FC = () => {
                         <ProjectSettings
                             externalSourcesEnabled={
                                 externalSourcesFlag?.enabled ?? false
+                            }
+                            learnerCopyOnly={
+                                projectSettingsAccess === 'learnerCopy'
                             }
                         />
                     </TrackPage>
@@ -855,6 +854,7 @@ const Settings: FC = () => {
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
+        projectSettingsAccess,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -1004,6 +1004,7 @@ const Settings: FC = () => {
         isOrganizationLoading ||
         isActiveProjectUuidLoading ||
         isProjectLoading ||
+        isProjectSettingsAccessLoading ||
         isAwaitingAiSettingsRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute

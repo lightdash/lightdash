@@ -158,6 +158,63 @@ export const playgroundContent = {
                 ],
             },
         },
+        {
+            // The validator walkthrough's sample: built before the payments
+            // model renamed gross_revenue to total_revenue, so the validator
+            // reports its metric as missing. See brokenFields.
+            key: 'gross-revenue-by-payment-method',
+            slug: 'gross-revenue-by-payment-method',
+            name: 'Gross revenue by payment method',
+            description:
+                'Built on gross_revenue, since renamed to total_revenue',
+            tableName: 'payments',
+            brokenFields: ['payments_gross_revenue'],
+            metricQuery: {
+                exploreName: 'payments',
+                dimensions: ['payments_payment_method'],
+                metrics: ['payments_gross_revenue'],
+                filters: {},
+                sorts: [
+                    {
+                        fieldId: 'payments_gross_revenue',
+                        descending: true,
+                    },
+                ],
+                limit: 10,
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'payments_payment_method',
+                        yField: ['payments_gross_revenue'],
+                    },
+                    eChartsConfig: {
+                        series: [
+                            {
+                                encode: {
+                                    xRef: {
+                                        field: 'payments_payment_method',
+                                    },
+                                    yRef: {
+                                        field: 'payments_gross_revenue',
+                                    },
+                                },
+                                type: CartesianSeriesType.BAR,
+                                yAxisIndex: 0,
+                            },
+                        ],
+                    },
+                },
+            },
+            tableConfig: {
+                columnOrder: [
+                    'payments_payment_method',
+                    'payments_gross_revenue',
+                ],
+            },
+        },
     ],
     dashboard: {
         slug: 'jaffle-shop-overview',

@@ -7,7 +7,6 @@ export const COMING_SOON_SCOPES = [
     'manage:ContentAsCode',
     'promote:SavedChart',
     'promote:Dashboard',
-    'manage:Validation',
     'view:EmbedDashboardFilters',
     'view:EmbedDashboardFilterAddition',
     'view:EmbedDashboardParameters',

@@ -106,6 +106,40 @@ for (const explore of shippedExplores) {
         `Learn bundle is missing a model for shipped explore "${explore.name}"; run pnpm build:learn-bundle`,
     );
 }
+// A chart's brokenFields must stay broken, or the validator walkthrough has
+// nothing to find. The build checks this against freshly compiled explores;
+// this checks the shipped ones without a rebuild.
+const shippedFieldIds = (exploreName: string): Set<string> => {
+    const explore = (
+        shippedExplores as {
+            name: string;
+            tables?: Record<
+                string,
+                {
+                    dimensions: Record<string, unknown>;
+                    metrics: Record<string, unknown>;
+                }
+            >;
+        }[]
+    ).find(({ name }) => name === exploreName);
+    return new Set(
+        Object.entries(explore?.tables ?? {}).flatMap(([table, fields]) =>
+            [
+                ...Object.keys(fields.dimensions),
+                ...Object.keys(fields.metrics),
+            ].map((field) => `${table}_${field}`),
+        ),
+    );
+};
+for (const chart of playgroundContent.charts) {
+    const available = shippedFieldIds(chart.metricQuery.exploreName);
+    for (const fieldId of chart.brokenFields ?? []) {
+        assert.ok(
+            !available.has(fieldId),
+            `Playground chart ${chart.key} lists ${fieldId} as broken, but the shipped explore has it`,
+        );
+    }
+}
 assert.equal(learnBundle.version, 1);
 assert.ok(
     learnBundle.files.every((f) => !f.path.endsWith('.py')),

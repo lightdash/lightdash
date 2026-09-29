@@ -53,6 +53,7 @@ import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
+import { LEARNER_COPY_SETTINGS_PAGE } from './projectSettingsAccess';
 import {
     type SettingsContext,
     type SettingsNavigationItem,
@@ -97,6 +98,7 @@ export const useSettingsNavigation = (
         isResultsCacheEnabled,
         isGitProject,
         isContentReviewAvailable,
+        projectSettingsAccess,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
@@ -718,18 +720,34 @@ export const useSettingsNavigation = (
             },
         ];
 
+        const hasProjectSettings =
+            !!organization && !organization.needsProject && !!project;
         const canUpdateCurrentProject =
-            !!organization &&
-            !organization.needsProject &&
-            !!project &&
-            (ability?.can(
-                'update',
-                subject('Project', {
-                    organizationUuid: organization.organizationUuid,
-                    projectUuid: project.projectUuid,
-                }),
-            ) ??
-                false);
+            hasProjectSettings && projectSettingsAccess === 'full';
+
+        // A learner in their training copy gets the Validator alone.
+        if (
+            hasProjectSettings &&
+            project &&
+            projectSettingsAccess === 'learnerCopy'
+        ) {
+            sections.push({
+                id: 'current-project',
+                title: 'Current project',
+                subtitle: project.name,
+                items: [
+                    {
+                        label: 'Validator',
+                        to: `/generalSettings/projectManagement/${project.projectUuid}/${LEARNER_COPY_SETTINGS_PAGE}`,
+                        icon: IconChecklist,
+                        keywords: ['validation', 'errors', 'content'],
+                        children: [],
+                        exact: true,
+                        tourNav: 'validator',
+                    },
+                ],
+            });
+        }
 
         if (canUpdateCurrentProject && project && organization) {
             const base = `/generalSettings/projectManagement/${project.projectUuid}`;
@@ -1037,6 +1055,7 @@ export const useSettingsNavigation = (
                     keywords: ['validation', 'errors', 'content'],
                     children: [],
                     exact: true,
+                    tourNav: 'validator',
                 });
             }
 
@@ -1191,6 +1210,7 @@ export const useSettingsNavigation = (
         isResultsCacheEnabled,
         isGitProject,
         isContentReviewAvailable,
+        projectSettingsAccess,
         track,
     ]);
 };

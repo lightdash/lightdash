@@ -4,12 +4,14 @@ import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
+import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
 import { useProject } from '../useProject';
 import { useProjects } from '../useProjects';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
+import { getProjectSettingsAccess } from './projectSettingsAccess';
 import { type SettingsContext } from './types';
 
 /**
@@ -130,6 +132,13 @@ export const useSettingsContext = (): SettingsContext => {
     } = useProject(settingsProjectUuid);
 
     const isGitProject = useIsGitProject(settingsProjectUuid ?? '');
+    const { isTrainingCopy, isLoading: isProjectSettingsAccessLoading } =
+        useIsTrainingCopy(project);
+    const projectSettingsAccess = getProjectSettingsAccess({
+        ability: user?.ability,
+        project,
+        isTrainingCopy,
+    });
     const { isAvailable: isContentReviewAvailable } =
         useContentReviewAvailability();
 
@@ -233,6 +242,8 @@ export const useSettingsContext = (): SettingsContext => {
         isGroupManagementEnabled,
         isWarehouseCredentialsEnabled,
         isGitProject,
+        projectSettingsAccess,
+        isProjectSettingsAccessLoading,
         isContentReviewAvailable,
         isHealthLoading,
         healthError,

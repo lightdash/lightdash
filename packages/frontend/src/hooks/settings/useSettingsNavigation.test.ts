@@ -40,6 +40,8 @@ const settingsContext = (
     isGroupManagementEnabled: false,
     isWarehouseCredentialsEnabled: false,
     isGitProject: false,
+    projectSettingsAccess: 'none',
+    isProjectSettingsAccessLoading: false,
     isContentReviewAvailable: false,
     isHealthLoading: false,
     healthError: null,

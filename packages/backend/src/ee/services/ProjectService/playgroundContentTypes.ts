@@ -11,6 +11,13 @@ export type PlaygroundChartDefinition = Omit<
 > & {
     key: string;
     slug: string;
+    /**
+     * Fields this chart references on purpose although the explore lacks
+     * them: a teaching sample the content validator reports as broken. The
+     * bundle build requires each one to be missing, so the sample stays
+     * broken, and accepts no other unavailable field.
+     */
+    brokenFields?: string[];
 };
 
 export type PlaygroundDashboardChartTile = Omit<
