@@ -2,6 +2,7 @@ import {
     AgentToolOutput,
     AI_DATA_APP_BUILD_PENDING_GRACE_MS,
     AI_DEEP_RESEARCH_TERMINAL_STATUSES,
+    AI_USER_THREAD_CREATED_FROM,
     AI_WRITEBACK_PENDING_GRACE_MS,
     AI_WRITEBACK_RUN_TERMINAL_STATUSES,
     AiAgentAdminConversationsSummary,
@@ -77,6 +78,7 @@ import {
     getGenerateDataAppBuildOutcome,
     isAiAgentMcpToolName,
     isAiAgentToolName,
+    isAiAppThreadCreatedFrom,
     isAiWritebackRunInProgress,
     isThreadPrompt,
     isToolDataAppBuildResult,
@@ -111,6 +113,7 @@ import {
 import { Knex } from 'knex';
 import moment from 'moment';
 import { z } from 'zod';
+import type { AiThreadOrigin } from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
 import {
@@ -3451,7 +3454,7 @@ export class AiAgentModel {
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
-        createdFrom?: ('web_app' | 'slack' | 'evals')[];
+        createdFrom?: AiThreadCreatedFrom[];
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -3705,8 +3708,11 @@ export class AiAgentModel {
                 `${AiThreadTableName}.organization_uuid`,
                 organizationUuid,
             )
-            // Exclude eval threads by default - only show web_app and slack threads
-            .whereIn(`${AiThreadTableName}.created_from`, ['web_app', 'slack']);
+            // Exclude eval threads by default
+            .whereIn(
+                `${AiThreadTableName}.created_from`,
+                AI_USER_THREAD_CREATED_FROM,
+            );
 
         const finalQuery = threadsWithFeedbackQuery;
 
@@ -4098,7 +4104,10 @@ export class AiAgentModel {
             )
             .where(`${AiThreadTableName}.organization_uuid`, organizationUuid)
             .where(`${AiThreadTableName}.project_uuid`, projectUuid)
-            .whereIn(`${AiThreadTableName}.created_from`, ['web_app', 'slack'])
+            .whereIn(
+                `${AiThreadTableName}.created_from`,
+                AI_USER_THREAD_CREATED_FROM,
+            )
             .where(`${AiPromptTableName}.created_at`, '>=', startDate)
             .groupBy('date')
             .orderBy('date', 'asc')
@@ -6679,6 +6688,7 @@ export class AiAgentModel {
                 promptUuid: `${AiPromptTableName}.ai_prompt_uuid`,
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
                 threadCreatedFrom: `${AiThreadTableName}.created_from`,
+                threadEmbedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
                 agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 userUuid: `${AiWebAppPromptTableName}.user_uuid`,
@@ -6728,6 +6738,23 @@ export class AiAgentModel {
 
             return row.ai_thread_uuid;
         });
+    }
+
+    async findThreadOrigin(
+        threadUuid: string,
+    ): Promise<AiThreadOrigin | undefined> {
+        return this.database(AiThreadTableName)
+            .leftJoin(
+                AiWebAppThreadTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiWebAppThreadTableName}.ai_thread_uuid`,
+            )
+            .select({
+                createdFrom: `${AiThreadTableName}.created_from`,
+                embedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
+            })
+            .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
+            .first();
     }
 
     async getWebAppThreadEmbedSpace(threadUuid: string) {
@@ -10419,8 +10446,10 @@ export class AiAgentModel {
                 );
             }
 
-            if (sourceThread.created_from !== 'web_app') {
-                throw new ParameterError('Only web app threads can be shared');
+            if (!isAiAppThreadCreatedFrom(sourceThread.created_from)) {
+                throw new ParameterError(
+                    'Only threads started in the app or through the API can be shared',
+                );
             }
 
             const latestPrompt = await trx(AiPromptTableName)

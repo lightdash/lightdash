@@ -3,6 +3,7 @@ import {
     AiUsageEvent,
     embeddingModelUsageToTokens,
     emitAiUsage,
+    getAiUsageChannel,
     languageModelUsageToTokens,
     registerAiUsageLedger,
     registerAiUsageTracker,
@@ -236,6 +237,7 @@ describe('emitAiUsage', () => {
             model: 'claude-sonnet-5',
             provider: 'anthropic',
             keyManagement: null,
+            channel: null,
             managedAgentRunId: null,
             deepResearchRunId: null,
             deepResearchPhase: null,
@@ -295,6 +297,38 @@ describe('emitAiUsage', () => {
             tokens,
         );
         expect(track.mock.calls[0][0].properties.keyManagement).toBeNull();
+    });
+
+    it('reports the channel of the call and drops unknown values', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    channel: 'slack',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.channel).toBe('slack');
+
+        track.mockClear();
+        emitAiUsage(
+            {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
+                    feature: 'agent',
+                    organizationUuid: 'org-1',
+                    channel: 'carrier-pigeon',
+                },
+            },
+            tokens,
+        );
+        expect(track.mock.calls[0][0].properties.channel).toBeNull();
     });
 
     it('does not misattribute another feature’s generic run UUID to Autopilot', () => {
@@ -364,4 +398,23 @@ describe('emitAiUsage', () => {
         );
         expect(Logger.info).toHaveBeenCalledTimes(1);
     });
+});
+
+describe('getAiUsageChannel', () => {
+    it.each([
+        ['web_app', null, 'web'],
+        ['web_app', 'space-1', 'embed'],
+        ['api', null, 'api'],
+        ['slack', null, 'slack'],
+        ['evals', null, 'evals'],
+        ['scheduler', null, 'scheduler'],
+        ['data_app', null, 'data_app'],
+    ] as const)(
+        'labels a %s thread (embed space %s) as %s',
+        (createdFrom, embedSpaceUuid, channel) => {
+            expect(getAiUsageChannel({ createdFrom, embedSpaceUuid })).toBe(
+                channel,
+            );
+        },
+    );
 });

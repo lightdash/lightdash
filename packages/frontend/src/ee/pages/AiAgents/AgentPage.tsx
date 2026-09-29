@@ -1,4 +1,4 @@
-import { type AiAgent } from '@lightdash/common';
+import { isAiAppThreadCreatedFrom, type AiAgent } from '@lightdash/common';
 import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
@@ -267,7 +267,8 @@ const AgentPage = () => {
                             />
                         }
                         onShare={
-                            thread?.createdFrom === 'web_app'
+                            thread &&
+                            isAiAppThreadCreatedFrom(thread.createdFrom)
                                 ? handleShare
                                 : undefined
                         }

@@ -5,6 +5,7 @@ import {
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
     AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
+    AI_USER_THREAD_CREATED_FROM,
     AiAgent,
     AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
@@ -111,6 +112,7 @@ import {
     InsufficientGitPermissionsError,
     isAgentToolName,
     isAiAgentSqlArtifactVizQuery,
+    isAiAppThreadCreatedFrom,
     isAiComposerChartArtifactConfig,
     isAiDeepResearchRunTerminal,
     isAiMergeChartArtifactConfig,
@@ -216,6 +218,10 @@ import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import { z } from 'zod';
+import {
+    getAiUsageChannel,
+    type AiUsageChannel,
+} from '../../../analytics/aiUsage';
 import {
     AiAgentArtifactsRetrievedEvent,
     AiAgentArtifactVersionVerifiedEvent,
@@ -3061,7 +3067,7 @@ export class AiAgentService extends BaseService {
                 organizationUuid,
                 agentUuid,
                 userUuid,
-                createdFrom: ['web_app', 'slack'],
+                createdFrom: [...AI_USER_THREAD_CREATED_FROM],
             });
             const sorted = [...threads].sort(
                 (a, b) =>
@@ -3543,7 +3549,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             // Only filter by userUuid if not requesting all users or if user lacks admin permissions
             userUuid: canViewAllThreads ? undefined : user.userUuid,
-            createdFrom: ['web_app', 'slack'],
+            createdFrom: [...AI_USER_THREAD_CREATED_FROM],
         });
         const liveStatuses = await this.getLiveStatusesForVisibleThreads(
             organizationUuid,
@@ -3651,7 +3657,7 @@ export class AiAgentService extends BaseService {
                     : accessibleAgentUuids,
                 createdFrom: filters?.createdFrom
                     ? [filters.createdFrom]
-                    : ['web_app', 'slack'],
+                    : [...AI_USER_THREAD_CREATED_FROM],
                 search: filters?.search,
                 paginateArgs,
             });
@@ -4300,7 +4306,7 @@ export class AiAgentService extends BaseService {
             });
             await this.persistSkillInvocation(promptUuid);
             this.enqueueMobilePushThreadReconciliation(threadUuid);
-            if (createdFrom === 'web_app') {
+            if (isAiAppThreadCreatedFrom(createdFrom)) {
                 await this.startMobilePushLiveActivitiesForPrompt({
                     user,
                     projectUuid: agent.projectUuid,
@@ -6800,6 +6806,36 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    private static getPromptUsageChannel(
+        prompt: SlackPrompt | AiWebAppPrompt,
+    ): AiUsageChannel {
+        return getAiUsageChannel({
+            createdFrom: prompt.threadCreatedFrom,
+            embedSpaceUuid: isSlackPrompt(prompt)
+                ? null
+                : prompt.threadEmbedSpaceUuid,
+        });
+    }
+
+    // Usage attribution must never fail the call it describes.
+    private async getThreadUsageChannel(
+        threadUuid: string,
+    ): Promise<AiUsageChannel | null> {
+        try {
+            const origin = await this.aiAgentModel.findThreadOrigin(threadUuid);
+            return origin ? getAiUsageChannel(origin) : null;
+        } catch (error) {
+            this.logger.warn(
+                'Could not resolve the usage channel of a thread',
+                {
+                    threadUuid,
+                    error: getErrorMessage(error),
+                },
+            );
+            return null;
+        }
+    }
+
     private async maybeCompactThreadBeforeResponse(
         user: SessionUser,
         {
@@ -6925,6 +6961,7 @@ export class AiAgentService extends BaseService {
                 organizationUuid: user.organizationUuid ?? null,
                 threadUuid,
                 promptUuid: previousPrompt.ai_prompt_uuid,
+                channel: AiAgentService.getPromptUsageChannel(prompt),
             },
         };
 
@@ -8153,6 +8190,7 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 promptUuid,
                 userUuid: user.userUuid,
+                channel: await this.getThreadUsageChannel(threadUuid),
             },
         };
 
@@ -8198,6 +8236,7 @@ export class AiAgentService extends BaseService {
                     agentUuid,
                     threadUuid,
                     userUuid: user.userUuid,
+                    channel: await this.getThreadUsageChannel(threadUuid),
                 },
             };
 
@@ -12637,6 +12676,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         agentUuid: prompt.agentUuid,
                         threadUuid: prompt.threadUuid,
                         userUuid: user.userUuid,
+                        channel: AiAgentService.getPromptUsageChannel(prompt),
                     },
                 },
                 { ...generatorContext, styleReferenceTitle: current.title },
@@ -14058,6 +14098,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             messageHistory,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
+            channel: AiAgentService.getPromptUsageChannel(prompt),
 
             debugLoggingEnabled:
                 this.lightdashConfig.ai.copilot.debugLoggingEnabled,

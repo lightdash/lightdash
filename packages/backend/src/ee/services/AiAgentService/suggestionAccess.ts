@@ -1,6 +1,7 @@
 import {
     AGENT_SUGGESTION_TOOLS,
     assertUnreachable,
+    isAiAppThreadCreatedFrom,
     type AgentSuggestion,
     type AgentSuggestionTool,
 } from '@lightdash/common';
@@ -15,7 +16,9 @@ type SuggestionThread = {
 export const canGeneratePostResponseSuggestions = (
     userUuid: string,
     thread: SuggestionThread,
-) => thread.createdFrom === 'web_app' && thread.user.uuid === userUuid;
+) =>
+    isAiAppThreadCreatedFrom(thread.createdFrom) &&
+    thread.user.uuid === userUuid;
 
 type SuggestionAbilities = {
     canRunSql: boolean;

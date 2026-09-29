@@ -25,6 +25,7 @@ const usageEvent = (
         model: 'claude-sonnet-5',
         provider: 'anthropic',
         keyManagement: 'lightdash-managed',
+        channel: 'web',
         managedAgentRunId: null,
         deepResearchRunId: null,
         deepResearchPhase: null,
@@ -95,6 +96,28 @@ describe('AI usage ledger on the real PostgreSQL schema', () => {
             ].map(Number),
         ).toEqual([1200, 300, 800, 100, 1500]);
         expect(row.reasoning_tokens).toBeNull();
+    });
+
+    test('records the channel of a call, and none for a call with no thread', async () => {
+        const slackTurn = usageEvent({ channel: 'slack' });
+        const embedding = usageEvent({
+            feature: 'embedding',
+            threadId: null,
+            channel: null,
+        });
+        await model.recordEvent(slackTurn);
+        await model.recordEvent(embedding);
+
+        const rows = await transaction(TABLE)
+            .whereIn('event_id', [
+                slackTurn.properties.eventId,
+                embedding.properties.eventId,
+            ])
+            .orderBy('feature');
+        expect(rows.map((row) => [row.feature, row.usage_channel])).toEqual([
+            ['agent', 'slack'],
+            ['embedding', null],
+        ]);
     });
 
     test('drops a call that has no organisation to attribute it to', async () => {

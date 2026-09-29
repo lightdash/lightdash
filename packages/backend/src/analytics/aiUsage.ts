@@ -1,7 +1,12 @@
-import type { AiDeepResearchPhase } from '@lightdash/common';
+import {
+    assertUnreachable,
+    type AiDeepResearchPhase,
+    type AiThreadCreatedFrom,
+} from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import Logger from '../logging/logger';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -55,6 +60,8 @@ const FEATURES: ReadonlySet<string> = new Set(AI_CALL_FEATURES);
 const isAiCallFeature = (value: unknown): value is AiCallFeature =>
     typeof value === 'string' && FEATURES.has(value);
 
+const aiKeyManagementSchema = z.enum(['lightdash-managed', 'self-managed']);
+
 /**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the
  * customer's self-managed (bring-your-own) key. Lets analytics/CS tell who is
@@ -62,17 +69,54 @@ const isAiCallFeature = (value: unknown): value is AiCallFeature =>
  * using our key when they shouldn't. Null when the origin isn't known for the
  * call.
  */
-export type AiKeyManagement = 'lightdash-managed' | 'self-managed';
+export type AiKeyManagement = z.infer<typeof aiKeyManagementSchema>;
 
-const AI_KEY_MANAGEMENT_VALUES: readonly AiKeyManagement[] = [
-    'lightdash-managed',
-    'self-managed',
-];
+const aiUsageChannelSchema = z.enum([
+    'web',
+    'slack',
+    'embed',
+    'api',
+    'mcp',
+    'evals',
+    'scheduler',
+    'data_app',
+]);
+
+/**
+ * Where the call's thread was created, never the request that continues it.
+ * `mcp` is reserved: MCP does not run agent threads, so no call reports it yet.
+ */
+export type AiUsageChannel = z.infer<typeof aiUsageChannelSchema>;
+
+const parseChannel = (value: string | null): AiUsageChannel | null =>
+    aiUsageChannelSchema.safeParse(value).data ?? null;
+
+export type AiThreadOrigin = {
+    createdFrom: AiThreadCreatedFrom;
+    embedSpaceUuid: string | null;
+};
+
+export const getAiUsageChannel = ({
+    createdFrom,
+    embedSpaceUuid,
+}: AiThreadOrigin): AiUsageChannel => {
+    switch (createdFrom) {
+        case 'web_app':
+            // An embedded chat is a web thread scoped to the embed's space.
+            return embedSpaceUuid === null ? 'web' : 'embed';
+        case 'api':
+        case 'slack':
+        case 'evals':
+        case 'scheduler':
+        case 'data_app':
+            return createdFrom;
+        default:
+            return assertUnreachable(createdFrom, 'Unknown AI thread origin');
+    }
+};
 
 const parseKeyManagement = (value: string | null): AiKeyManagement | null =>
-    value !== null && (AI_KEY_MANAGEMENT_VALUES as string[]).includes(value)
-        ? (value as AiKeyManagement)
-        : null;
+    aiKeyManagementSchema.safeParse(value).data ?? null;
 
 /**
  * Token counts for a single AI call, normalized across providers and call
@@ -158,6 +202,7 @@ export type AiUsageEvent = BaseTrack & {
         model: string | null;
         provider: string | null;
         keyManagement: AiKeyManagement | null;
+        channel: AiUsageChannel | null;
         managedAgentRunId: string | null;
         deepResearchRunId: string | null;
         deepResearchPhase: AiDeepResearchPhase | null;
@@ -218,6 +263,7 @@ export type AiCallRuntimeContextKey =
     | 'model'
     | 'provider'
     | 'keyManagement'
+    | 'channel'
     | 'appUuid'
     | 'runUuid'
     | 'deepResearchRunUuid'
@@ -271,6 +317,7 @@ export const emitAiUsage = (
             keyManagement: parseKeyManagement(
                 getMetadataString(metadata, 'keyManagement'),
             ),
+            channel: parseChannel(getMetadataString(metadata, 'channel')),
             managedAgentRunId:
                 metadata.feature === 'managed-agent'
                     ? getMetadataString(metadata, 'runUuid')
@@ -295,7 +342,7 @@ export const emitAiUsage = (
                 `inputTokens=${properties.inputTokens} outputTokens=${properties.outputTokens} ` +
                 `cacheReadTokens=${properties.cacheReadTokens} cacheWriteTokens=${properties.cacheWriteTokens} ` +
                 `reasoningTokens=${properties.reasoningTokens} totalTokens=${properties.totalTokens} ` +
-                `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid} managedAgentRunId=${properties.managedAgentRunId}`,
+                `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid} channel=${properties.channel} managedAgentRunId=${properties.managedAgentRunId}`,
             {
                 event: 'ai.usage',
                 userId: userUuid,

@@ -118,6 +118,7 @@ export type AiPromptResponseTiming = {
 export const AI_THREAD_CREATED_FROM = [
     'slack',
     'web_app',
+    'api',
     'evals',
     'scheduler',
     'data_app',
@@ -131,12 +132,37 @@ export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
 /** Origins for threads created through the web app path — everything but Slack. */
 export const AI_WEB_APP_THREAD_CREATED_FROM = [
     'web_app',
+    'api',
     'evals',
     'scheduler',
     'data_app',
 ] as const satisfies readonly AiThreadCreatedFrom[];
 export type AiWebAppThreadCreatedFrom =
     (typeof AI_WEB_APP_THREAD_CREATED_FROM)[number];
+
+/**
+ * Threads a person owns in the app. An `api` thread is the same thread started
+ * with an access token instead of a browser session, so it must behave alike.
+ */
+export const AI_APP_THREAD_CREATED_FROM = [
+    'web_app',
+    'api',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiAppThreadCreatedFrom =
+    (typeof AI_APP_THREAD_CREATED_FROM)[number];
+
+export const isAiAppThreadCreatedFrom = (
+    createdFrom: string,
+): createdFrom is AiAppThreadCreatedFrom =>
+    (AI_APP_THREAD_CREATED_FROM as readonly string[]).includes(createdFrom);
+
+/** Threads started by a person, as opposed to evals, schedules and data apps. */
+export const AI_USER_THREAD_CREATED_FROM = [
+    ...AI_APP_THREAD_CREATED_FROM,
+    'slack',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiUserThreadCreatedFrom =
+    (typeof AI_USER_THREAD_CREATED_FROM)[number];
 
 /** Origins handled through the Slack path. */
 export const AI_SLACK_THREAD_CREATED_FROM = [
@@ -205,6 +231,8 @@ export type SlackPrompt = AiPrompt & {
 
 export type AiWebAppPrompt = AiPrompt & {
     userUuid: string;
+    /** Set when the thread belongs to an embedded agent chat. */
+    threadEmbedSpaceUuid: string | null;
 };
 
 export const isSlackPrompt = (prompt: AiPrompt): prompt is SlackPrompt =>
