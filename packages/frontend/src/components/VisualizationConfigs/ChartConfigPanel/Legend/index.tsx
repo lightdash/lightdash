@@ -21,6 +21,7 @@ import {
 import { useDebouncedCallback } from '@mantine/hooks';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
+import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -141,6 +142,8 @@ type Props = {
 
 export const Legend: FC<Props> = ({ items }) => {
     const projectUuid = useProjectUuid();
+    // The SDK bundle ships no Monaco workers, so the HTML tooltip editor is not offered in embeds.
+    const { embedToken } = useEmbed();
 
     const { visualizationConfig } = useVisualizationContext();
 
@@ -347,7 +350,7 @@ export const Legend: FC<Props> = ({ items }) => {
                 <Config.Section>
                     <Config.Heading>Tooltips</Config.Heading>
                     <TooltipSortConfig />
-                    {projectUuid && (
+                    {projectUuid && !embedToken && (
                         <Suspense fallback={<Loader size="sm" />}>
                             <TooltipConfig fields={autocompleteFieldsTooltip} />
                         </Suspense>
