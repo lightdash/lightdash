@@ -45,9 +45,7 @@ export type ToggleAllAction = {
  * Resolves a "select all" click: select any unchecked exact-match tiles first,
  * otherwise deselect everything. Already-checked tiles keep their mapping.
  */
-export const getToggleAllAction = (
-    tiles: ToggleAllTile[],
-): ToggleAllAction => {
+export const getToggleAllAction = (tiles: ToggleAllTile[]): ToggleAllAction => {
     const uncheckedExactMatches = tiles.filter(
         (tile) => tile.hasExactMatch && !tile.disabled && !tile.checked,
     );
