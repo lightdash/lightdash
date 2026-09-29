@@ -1,3 +1,11 @@
+# [2.371.0](https://github.com/lightdash/lightdash/compare/2.370.0...2.371.0) (2026-09-29)
+
+
+### Features
+
+* add MCP and agent tool activity analytics ([#30180](https://github.com/lightdash/lightdash/issues/30180)) ([b633782](https://github.com/lightdash/lightdash/commit/b6337820ba723216f7ffcce33b767d158d94b127))
+* **dev:** let a machine start port claims at its own slot ([#30189](https://github.com/lightdash/lightdash/issues/30189)) ([d300aa2](https://github.com/lightdash/lightdash/commit/d300aa204b7b90b2c375a783c318386fd75c8b08))
+
 # [2.370.0](https://github.com/lightdash/lightdash/compare/2.369.1...2.370.0) (2026-09-29)
 
 
