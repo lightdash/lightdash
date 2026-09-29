@@ -86,8 +86,6 @@ const FAST_MODELS = {
     anthropic: 'claude-haiku-4-5',
     google: DEFAULT_GOOGLE_FAST_MODEL_NAME,
     bedrock: 'claude-haiku-4-5',
-    // Vertex fast models are selected from the instance configuration.
-    vertex: undefined,
 } satisfies Record<ModelPresetProvider, string | undefined>;
 
 // Picks the model an ambient/fast task should use on a BYO Anthropic key:

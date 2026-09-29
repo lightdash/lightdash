@@ -1,13 +1,11 @@
 import { CallSettings } from 'ai';
 import { ProviderOptionsMap } from './types';
 
-export type ModelPresetProvider =
-    | 'openai'
-    | 'anthropic'
-    | 'google'
-    | 'bedrock'
+export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
+export type SelectableModelProvider =
+    | ModelPresetProvider
+    | 'openrouter'
     | 'vertex';
-export type SelectableModelProvider = ModelPresetProvider | 'openrouter';
 
 export type ReasoningStyle = 'budget' | 'adaptive';
 // How hard a reasoning model should think. 'xhigh' is the top level the
@@ -44,7 +42,6 @@ export const MODEL_PRESETS: {
     openai: ModelPreset<'openai'>[];
     anthropic: ModelPreset<'anthropic'>[];
     google: ModelPreset<'google'>[];
-    vertex: ModelPreset<'vertex'>[];
     bedrock: ModelPreset<'bedrock'>[];
 } = {
     openai: [
@@ -365,33 +362,6 @@ export const MODEL_PRESETS: {
             providerOptions: undefined,
         },
     ],
-    vertex: [
-        {
-            name: 'gemini-3.8-flash',
-            provider: 'vertex',
-            modelId: 'gemini-3.8-flash',
-            displayName: 'Gemini 3.8 Flash (Vertex AI)',
-            description: 'Fast agentic model served through Google Vertex AI',
-            groupLabel: 'Google Vertex AI',
-            contextWindowTokens: 400_000,
-            // Vertex currently leaves thinking settings at the model defaults.
-            supportsReasoning: false,
-            callOptions: {},
-            providerOptions: undefined,
-        },
-        {
-            name: 'gemini-3.5-flash-lite',
-            provider: 'vertex',
-            modelId: 'gemini-3.5-flash-lite',
-            displayName: 'Gemini 3.5 Flash-Lite (Vertex AI)',
-            description: 'Lightweight model served through Google Vertex AI',
-            groupLabel: 'Google Vertex AI',
-            contextWindowTokens: 400_000,
-            supportsReasoning: false,
-            callOptions: {},
-            providerOptions: undefined,
-        },
-    ],
     bedrock: [
         {
             name: 'claude-opus-4-7',
@@ -629,11 +599,6 @@ export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
 }
 
 export function vertexPreset(modelName: string): ModelPreset<'vertex'> {
-    const vertexModelPreset = MODEL_PRESETS.vertex.find(
-        (preset) => preset.modelId === modelName,
-    );
-    if (vertexModelPreset) return vertexModelPreset;
-
     return {
         name: modelName,
         provider: 'vertex',
@@ -643,6 +608,7 @@ export function vertexPreset(modelName: string): ModelPreset<'vertex'> {
         groupLabel: 'Google Vertex AI',
         custom: true,
         contextWindowTokens: null,
+        // No thinking toggle: arbitrary Vertex models use provider defaults.
         supportsReasoning: false,
         callOptions: {},
         providerOptions: undefined,

@@ -126,8 +126,10 @@ describe('Vertex model routing', () => {
             expect.objectContaining({
                 provider: 'vertex',
                 modelId: 'gemini-3.8-flash',
-                displayName: 'Gemini 3.8 Flash (Vertex AI)',
+                displayName: 'gemini-3.8-flash (Vertex AI)',
                 groupLabel: 'Google Vertex AI',
+                custom: true,
+                contextWindowTokens: null,
                 supportsReasoning: false,
             }),
         ]);
@@ -261,15 +263,17 @@ describe('Vertex model routing', () => {
         expect(getAvailableModels(fastConfig)).toEqual([
             expect.objectContaining({
                 modelId: 'gemini-3.8-flash',
-                displayName: 'Gemini 3.8 Flash (Vertex AI)',
+                displayName: 'gemini-3.8-flash (Vertex AI)',
                 provider: 'vertex',
-                contextWindowTokens: 400_000,
+                custom: true,
+                contextWindowTokens: null,
             }),
             expect.objectContaining({
                 modelId: 'gemini-3.5-flash-lite',
-                displayName: 'Gemini 3.5 Flash-Lite (Vertex AI)',
+                displayName: 'gemini-3.5-flash-lite (Vertex AI)',
                 provider: 'vertex',
-                contextWindowTokens: 400_000,
+                custom: true,
+                contextWindowTokens: null,
             }),
         ]);
         expect(getDefaultModel(fastConfig)).toEqual(getDefaultModel(config));
