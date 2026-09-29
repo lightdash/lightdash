@@ -527,6 +527,7 @@ const isIgnoredIncomingRequest = (
         path === '/mobile-setup' ||
         path === '/api/v1/oauth/mobile-setup/challenge' ||
         path === '/api/v1/oauth/token' ||
+        path === '/api/v1/oauth/revoke' ||
         path.endsWith('/status') ||
         path.endsWith('/favicon.ico') ||
         path.endsWith('/robots.txt') ||

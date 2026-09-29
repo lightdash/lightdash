@@ -2,6 +2,8 @@ const sensitiveQueryKeys = new Set([
     'downloadtoken',
     'c',
     'code',
+    'token',
+    'client_secret',
     'code_verifier',
     'verification_code',
 ]);
@@ -25,6 +27,8 @@ export const sanitizeRequestUrl = (url: string): string =>
 const sensitiveKeys = new Set([
     'c',
     'code',
+    'token',
+    'client_secret',
     'code_verifier',
     'codeVerifier',
     'code_challenge',

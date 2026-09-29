@@ -553,6 +553,7 @@ describe('mobile setup trace privacy', () => {
         '/mobile-setup?c=secret',
         '/api/v1/oauth/mobile-setup/challenge',
         '/api/v1/oauth/token',
+        '/api/v1/oauth/revoke',
     ])('does not trace %s', (url) => {
         const http = createOtelInstrumentations().find(
             ({ instrumentationName }) =>

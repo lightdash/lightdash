@@ -10,6 +10,8 @@ describe('sanitizeAuthTelemetry', () => {
                 url: 'https://example.com/mobile-setup?v=2&c=qr-secret',
                 data: {
                     code: 'qr-secret',
+                    token: 'access-secret',
+                    client_secret: 'client-secret',
                     verification_code: '012345',
                     code_verifier: 'phone-secret',
                 },
@@ -24,7 +26,13 @@ describe('sanitizeAuthTelemetry', () => {
             },
         };
         const sanitized = JSON.stringify(sanitizeAuthTelemetry(event));
-        for (const secret of ['qr-secret', '012345', 'phone-secret'])
+        for (const secret of [
+            'qr-secret',
+            '012345',
+            'phone-secret',
+            'access-secret',
+            'client-secret',
+        ])
             expect(sanitized).not.toContain(secret);
         expect(sanitized).toContain('verification_failed');
         expect(event.request.data.verification_code).toBe('012345');
@@ -35,9 +43,11 @@ describe('sanitizeAuthTelemetry', () => {
         );
         expect(
             sanitizeAuthTelemetry({
-                data: 'code=hidden&verification_code=012345',
+                data: 'code=hidden&verification_code=012345&token=access-secret&client_secret=client-secret',
             }),
-        ).toEqual({ data: 'code=[REDACTED]&verification_code=[REDACTED]' });
+        ).toEqual({
+            data: 'code=[REDACTED]&verification_code=[REDACTED]&token=[REDACTED]&client_secret=[REDACTED]',
+        });
         expect(
             sanitizeAuthTelemetry({
                 data: '{"code_verifier":"hidden","verification_code":"012345"}',
