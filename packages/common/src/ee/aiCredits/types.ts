@@ -33,3 +33,13 @@ export type AiCreditHold = {
     expiresAt: Date | null;
     releasedAt: Date | null;
 };
+
+// Without an entitlement, usage is reported by UTC calendar month.
+export const getCalendarMonthPeriod = (at: Date): AiCreditPeriod => {
+    const year = at.getUTCFullYear();
+    const month = at.getUTCMonth();
+    return {
+        periodStart: new Date(Date.UTC(year, month, 1)),
+        periodEnd: new Date(Date.UTC(year, month + 1, 1)),
+    };
+};

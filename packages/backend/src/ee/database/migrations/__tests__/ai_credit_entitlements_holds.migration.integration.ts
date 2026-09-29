@@ -376,4 +376,90 @@ describe('AI credit entitlements, holds and usage on the real PostgreSQL schema'
             ).rejects.toThrow(/ai_credit_entitlements_period_check/);
         });
     });
+
+    describe('usage summary for a period', () => {
+        test('splits calls into billable, self-managed and excluded, with breakdowns', async () => {
+            await record(usageEvent(organizationUuid));
+            await record(
+                usageEvent(organizationUuid, {
+                    model: 'claude-opus-5',
+                    inputTokens: 100_000,
+                    totalTokens: 100_000,
+                }),
+            );
+            await record(
+                usageEvent(organizationUuid, { keyManagement: 'self-managed' }),
+            );
+            await record(
+                usageEvent(organizationUuid, { feature: 'review-classifier' }),
+            );
+            await record(
+                usageEvent(organizationUuid, {
+                    feature: 'data-app',
+                    outcome: 'failed',
+                }),
+            );
+            await record(
+                usageEvent(organizationUuid, {
+                    provider: 'google',
+                    model: 'gemini-3.8-flash',
+                    inputTokens: 500,
+                    totalTokens: 500,
+                }),
+            );
+
+            const summary = await usage.summarize(organizationUuid, period);
+
+            // 40 for a million Sonnet tokens plus 10 for a hundred thousand Opus tokens.
+            expect(summary.billable.credits).toBeCloseTo(50, 6);
+            expect(summary.billable.calls).toBe(2);
+            expect(summary.selfManaged.credits).toBeCloseTo(40, 6);
+            expect(summary.excluded.calls).toBe(2);
+            expect(summary.unpricedTokens).toBe(500);
+            expect(summary.byFeature).toEqual({
+                agent: expect.objectContaining({ calls: 2 }),
+            });
+            expect(Object.keys(summary.byTier).sort()).toEqual([
+                'premium',
+                'standard',
+            ]);
+            expect(summary.byKeyOrigin['self-managed']?.calls).toBe(1);
+            expect(summary.byKeyOrigin['lightdash-managed']?.calls).toBe(4);
+        });
+
+        test('only counts calls inside the period', async () => {
+            await record(usageEvent(organizationUuid));
+            await record(
+                usageEvent(organizationUuid),
+                new Date('2026-08-01T00:00:00Z'),
+            );
+            const summary = await usage.summarize(organizationUuid, period);
+            expect(summary.billable.calls).toBe(1);
+        });
+    });
+
+    describe('entitlements covering an instant', () => {
+        test('returns every covering entitlement, agreed allowance or not', async () => {
+            const entitlements = new AiCreditEntitlementModel({
+                database: transaction,
+            });
+            await insertEntitlement(null);
+            await insertEntitlement(5_000, {
+                periodStart: new Date('2026-01-01T00:00:00Z'),
+                periodEnd: new Date('2027-01-01T00:00:00Z'),
+            });
+            await insertEntitlement(1, {
+                periodStart: new Date('2026-11-01T00:00:00Z'),
+                periodEnd: new Date('2026-12-01T00:00:00Z'),
+            });
+            const covering = await entitlements.findCovering(
+                organizationUuid,
+                now,
+            );
+            expect(covering.map((e) => e.allowanceCredits).sort()).toEqual([
+                5_000,
+                null,
+            ]);
+        });
+    });
 });

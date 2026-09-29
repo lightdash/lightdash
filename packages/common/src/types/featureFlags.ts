@@ -10,6 +10,12 @@ export enum FeatureFlags {
     Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */
     AnalyticsProject = 'analytics-project',
+    /**
+     * Show an organisation's AI usage in credits: the usage endpoint, the
+     * settings card and the credit metrics on the analytics explore. Gates
+     * visibility only, never enforcement.
+     */
+    AiCredits = 'ai-credits',
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 

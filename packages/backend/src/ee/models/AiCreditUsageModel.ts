@@ -1,7 +1,12 @@
 import {
+    calculateAiCredits,
+    findAiCreditRate,
     priceAiUsageInCredits,
     type AiCreditPeriod,
     type AiCreditRateCardRow,
+    type AiCreditUsageBreakdownRow,
+    type AiCreditUsageSummary,
+    type AiCreditUsageTotals,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -75,6 +80,139 @@ type LedgerUsageRow = Pick<
 > & { provider: string; model: string };
 
 type LedgerCursor = { createdAt: Date; uuid: string };
+
+const LEDGER_SUMMARY_COLUMNS = [
+    ...LEDGER_USAGE_COLUMNS,
+    'feature',
+    'key_management',
+    'outcome',
+    'total_tokens',
+] as const;
+
+type LedgerSummaryRow = Pick<
+    DbAiUsageLedger,
+    (typeof LEDGER_SUMMARY_COLUMNS)[number]
+>;
+
+export type AiCreditUsageAccumulator = Pick<
+    AiCreditUsageSummary,
+    'billable' | 'selfManaged' | 'excluded' | 'unpricedTokens'
+> & {
+    byFeature: Record<string, AiCreditUsageTotals>;
+    byTier: Record<string, AiCreditUsageTotals>;
+    byKeyOrigin: Record<string, AiCreditUsageTotals>;
+};
+
+const emptyTotals = (): AiCreditUsageTotals => ({
+    credits: 0,
+    tokens: 0,
+    calls: 0,
+});
+
+const addTotals = (
+    totals: AiCreditUsageTotals,
+    credits: number,
+    tokens: number,
+): AiCreditUsageTotals => ({
+    credits: totals.credits + credits,
+    tokens: totals.tokens + tokens,
+    calls: totals.calls + 1,
+});
+
+const addKeyed = (
+    rows: Record<string, AiCreditUsageTotals>,
+    key: string,
+    credits: number,
+    tokens: number,
+): Record<string, AiCreditUsageTotals> => ({
+    ...rows,
+    [key]: addTotals(rows[key] ?? emptyTotals(), credits, tokens),
+});
+
+export const emptyAccumulator = (): AiCreditUsageAccumulator => ({
+    billable: emptyTotals(),
+    selfManaged: emptyTotals(),
+    excluded: emptyTotals(),
+    unpricedTokens: 0,
+    byFeature: {},
+    byTier: {},
+    byKeyOrigin: {},
+});
+
+/** Sorts a keyed breakdown into rows, largest credits first. */
+export const toBreakdownRows = (
+    rows: Record<string, AiCreditUsageTotals>,
+): AiCreditUsageBreakdownRow[] =>
+    Object.entries(rows)
+        .map(([key, totals]) => ({ key, ...totals }))
+        .sort((a, b) => b.credits - a.credits);
+
+/**
+ * Folds one ledger row into the summary. Exported so the rules can be tested
+ * without a database.
+ */
+export const accumulateUsage = (
+    rateCard: AiCreditRateCardRow[],
+    acc: AiCreditUsageAccumulator,
+    row: LedgerSummaryRow,
+): AiCreditUsageAccumulator => {
+    const tokens = Number(row.total_tokens ?? 0);
+    const rate =
+        row.provider === null || row.model === null
+            ? null
+            : findAiCreditRate(rateCard, {
+                  provider: row.provider,
+                  model: row.model,
+                  at: row.created_at,
+              });
+    if (rate === null) {
+        return { ...acc, unpricedTokens: acc.unpricedTokens + tokens };
+    }
+    const toCountOrNull = (value: string | null) =>
+        value === null ? null : Number(value);
+    const credits = calculateAiCredits(
+        {
+            inputTokens: toCountOrNull(row.input_tokens),
+            outputTokens: toCountOrNull(row.output_tokens),
+            cacheReadTokens: toCountOrNull(row.cache_read_tokens),
+            cacheWriteTokens: toCountOrNull(row.cache_write_tokens),
+        },
+        rate,
+    );
+    const byKeyOrigin = addKeyed(
+        acc.byKeyOrigin,
+        row.key_management ?? 'unknown',
+        credits,
+        tokens,
+    );
+    if (
+        isAiUsageBillable({
+            feature: row.feature as AiCallFeature,
+            keyManagement: row.key_management,
+            outcome: row.outcome,
+        })
+    ) {
+        return {
+            ...acc,
+            billable: addTotals(acc.billable, credits, tokens),
+            byFeature: addKeyed(acc.byFeature, row.feature, credits, tokens),
+            byTier: addKeyed(acc.byTier, rate.tier, credits, tokens),
+            byKeyOrigin,
+        };
+    }
+    if (row.key_management === 'self-managed') {
+        return {
+            ...acc,
+            selfManaged: addTotals(acc.selfManaged, credits, tokens),
+            byKeyOrigin,
+        };
+    }
+    return {
+        ...acc,
+        excluded: addTotals(acc.excluded, credits, tokens),
+        byKeyOrigin,
+    };
+};
 
 const toCount = (value: string | null): number | null =>
     value === null ? null : Number(value);
@@ -189,6 +327,71 @@ export class AiCreditUsageModel {
             await this.rateCardModel.getAll(),
             null,
             0,
+        );
+    }
+
+    private async foldSummaryPages(
+        organizationUuid: string,
+        period: AiCreditPeriod,
+        rateCard: AiCreditRateCardRow[],
+        after: LedgerCursor | null,
+        acc: AiCreditUsageAccumulator,
+    ): Promise<AiCreditUsageAccumulator> {
+        const rows: LedgerSummaryRow[] = await this.database(
+            AiUsageLedgerTableName,
+        )
+            .select(LEDGER_SUMMARY_COLUMNS)
+            .where({ organization_uuid: organizationUuid })
+            .where('created_at', '>=', period.periodStart)
+            .where('created_at', '<', period.periodEnd)
+            .modify((query) => {
+                if (after !== null) {
+                    void query.where((builder) => {
+                        void builder
+                            .where('created_at', '>', after.createdAt)
+                            .orWhere((tie) => {
+                                void tie
+                                    .where('created_at', after.createdAt)
+                                    .where(
+                                        'ai_usage_ledger_uuid',
+                                        '>',
+                                        after.uuid,
+                                    );
+                            });
+                    });
+                }
+            })
+            .orderBy([
+                { column: 'created_at', order: 'asc' },
+                { column: 'ai_usage_ledger_uuid', order: 'asc' },
+            ])
+            .limit(LEDGER_PAGE_SIZE);
+        const pageAcc = rows.reduce(
+            (current, row) => accumulateUsage(rateCard, current, row),
+            acc,
+        );
+        if (rows.length < LEDGER_PAGE_SIZE) return pageAcc;
+        const last = rows[rows.length - 1];
+        return this.foldSummaryPages(
+            organizationUuid,
+            period,
+            rateCard,
+            { createdAt: last.created_at, uuid: last.ai_usage_ledger_uuid },
+            pageAcc,
+        );
+    }
+
+    /** Everything the usage card needs for one period, from one walk over the ledger. */
+    async summarize(
+        organizationUuid: string,
+        period: AiCreditPeriod,
+    ): Promise<AiCreditUsageAccumulator> {
+        return this.foldSummaryPages(
+            organizationUuid,
+            period,
+            await this.rateCardModel.getAll(),
+            null,
+            emptyAccumulator(),
         );
     }
 

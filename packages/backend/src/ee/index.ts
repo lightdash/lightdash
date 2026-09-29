@@ -86,6 +86,7 @@ import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotifi
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentSkillService } from './services/AiAgentSkillService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
+import { AiCreditService } from './services/AiCreditService';
 import { AiDeepResearchExecutor } from './services/AiDeepResearchService/AiDeepResearchExecutor';
 import { AiDeepResearchService } from './services/AiDeepResearchService/AiDeepResearchService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
@@ -898,6 +899,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     aiAgentReviewNotificationService:
                         repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
+                }),
+            aiCreditService: ({ models, context }) =>
+                new AiCreditService({
+                    lightdashConfig: context.lightdashConfig,
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    aiCreditUsageModel:
+                        models.getAiCreditUsageModel<AiCreditUsageModel>(),
+                    aiCreditEntitlementModel:
+                        models.getAiCreditEntitlementModel<AiCreditEntitlementModel>(),
+                    aiCreditHoldModel:
+                        models.getAiCreditHoldModel<AiCreditHoldModel>(),
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({

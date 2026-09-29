@@ -34,6 +34,19 @@ export class AiCreditEntitlementModel {
         this.database = database;
     }
 
+    /** Every entitlement whose period covers the instant, agreed allowance or not. */
+    async findCovering(
+        organizationUuid: string,
+        at: Date,
+    ): Promise<AiCreditEntitlement[]> {
+        const rows = await this.database(AiCreditEntitlementsTableName)
+            .where({ organization_uuid: organizationUuid })
+            .where('period_start', '<=', at)
+            .where('period_end', '>', at)
+            .orderBy('period_start', 'desc');
+        return rows.map(toEntitlement);
+    }
+
     // Periods may overlap, e.g. a monthly reset inside an annual pool, and each allowance applies on its own.
     async findCoveringWithAllowance(
         organizationUuid: string,
