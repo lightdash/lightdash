@@ -130,6 +130,7 @@ import {
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
+    type ExternalFetchRequest,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -10342,6 +10343,29 @@ export class AppGenerateService extends BaseService {
         }
 
         return { dataAppViz, chart };
+    }
+
+    async assertCanAccessDataAppVisualization(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        chartContext: ExternalFetchRequest['chartContext'],
+    ): Promise<void> {
+        if (chartContext) {
+            await this.getAuthorizedDataAppVizForChart(
+                user,
+                projectUuid,
+                chartContext.savedChartUuid,
+                dataAppVizUuid,
+                chartContext.chartVersionUuid,
+            );
+        } else {
+            await this.getAuthorizedDataAppVizForAuthoring(
+                user,
+                projectUuid,
+                dataAppVizUuid,
+            );
+        }
     }
 
     private resolveVizRenderMetadata(

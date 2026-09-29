@@ -981,6 +981,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
+                    appGenerateService:
+                        repository.getAppGenerateService<AppGenerateService>(),
+                    embedService: repository.getEmbedService<EmbedService>(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                     googleTokenProvider:

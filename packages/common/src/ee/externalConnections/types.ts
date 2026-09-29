@@ -194,6 +194,11 @@ export type ExternalFetchRequest = {
     path: string;
     query?: Record<string, string>;
     body?: unknown;
+    /** Host-supplied saved chart identity for custom chart type rendering. */
+    chartContext?: {
+        savedChartUuid: string;
+        chartVersionUuid?: string;
+    };
 };
 
 export type ExternalFetchResponse = {

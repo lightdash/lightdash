@@ -74,6 +74,7 @@ import {
     type DataAppViz,
     type DataAppVizListSort,
     type DataAppVizRenderMetadata,
+    type ExternalFetchRequest,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type ParameterDefinitions,
@@ -2041,6 +2042,36 @@ export class EmbedService extends BaseService {
         }
 
         return { dataAppViz, chart };
+    }
+
+    async assertCanAccessDataAppVisualization(
+        account: AnonymousAccount,
+        projectUuid: string,
+        dataAppVizUuid: string,
+        chartContext: ExternalFetchRequest['chartContext'],
+    ): Promise<void> {
+        const dataAppViz = chartContext
+            ? (
+                  await this.getAuthorizedDataAppVizForEmbed(
+                      account,
+                      projectUuid,
+                      chartContext.savedChartUuid,
+                      dataAppVizUuid,
+                  )
+              ).dataAppViz
+            : await this.getAuthorizedProjectDataAppVizForEmbed(
+                  account,
+                  projectUuid,
+                  dataAppVizUuid,
+              );
+        if (
+            dataAppViz.organization_uuid !==
+            account.embed.organization.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
     }
 
     async getEmbedDataAppVizRenderMetadata(

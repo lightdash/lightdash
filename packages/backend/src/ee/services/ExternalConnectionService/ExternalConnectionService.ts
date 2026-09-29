@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
+    DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     EXTERNAL_CONNECTION_IDENTITY_HEADERS,
     ForbiddenError,
@@ -50,6 +51,8 @@ import {
     assertCanViewEmbeddedApp,
     type DataAppProjectContext,
 } from '../AppGenerateService/appAuthz';
+import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
+import { type EmbedService } from '../EmbedService/EmbedService';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
@@ -75,6 +78,8 @@ type ExternalConnectionServiceArguments = {
     analytics: LightdashAnalytics;
     externalConnectionModel: ExternalConnectionModel;
     appModel: AppModel;
+    appGenerateService: AppGenerateService;
+    embedService: EmbedService;
     spacePermissionService: SpacePermissionService;
     googleTokenProvider: GoogleServiceAccountTokenProvider;
     oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
@@ -89,6 +94,10 @@ export class ExternalConnectionService extends BaseService {
     private readonly externalConnectionModel: ExternalConnectionModel;
 
     private readonly appModel: AppModel;
+
+    private readonly appGenerateService: AppGenerateService;
+
+    private readonly embedService: EmbedService;
 
     private readonly spacePermissionService: SpacePermissionService;
 
@@ -108,6 +117,8 @@ export class ExternalConnectionService extends BaseService {
         this.analytics = args.analytics;
         this.externalConnectionModel = args.externalConnectionModel;
         this.appModel = args.appModel;
+        this.appGenerateService = args.appGenerateService;
+        this.embedService = args.embedService;
         this.spacePermissionService = args.spacePermissionService;
         this.googleTokenProvider = args.googleTokenProvider;
         this.oauthClientCredentialsTokenProvider =
@@ -682,14 +693,37 @@ export class ExternalConnectionService extends BaseService {
     ): Promise<ExternalFetchResponse> {
         const start = performance.now();
 
-        // 1. Load app + authorize VIEW (same authz as reading the app).
-        if (isJwtUser(account)) {
-            const app = await this.appModel.findApp(appUuid, projectUuid);
-            if (!app) {
-                throw new ForbiddenError(
-                    'Data app is not authorized by this embed',
+        if (!isJwtUser(account)) {
+            assertRegisteredAccount(account);
+        }
+        const app = isJwtUser(account)
+            ? await this.appModel.findApp(appUuid, projectUuid)
+            : await this.appModel.getApp(appUuid, projectUuid);
+        if (!app) {
+            throw new ForbiddenError(
+                'Data app is not authorized by this embed',
+            );
+        }
+
+        // Chart types inherit authorization from the chart or explorer rendering them.
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            if (isJwtUser(account)) {
+                await this.embedService.assertCanAccessDataAppVisualization(
+                    account,
+                    projectUuid,
+                    appUuid,
+                    req.chartContext,
+                );
+            } else {
+                assertRegisteredAccount(account);
+                await this.appGenerateService.assertCanAccessDataAppVisualization(
+                    toSessionUser(account),
+                    projectUuid,
+                    appUuid,
+                    req.chartContext,
                 );
             }
+        } else if (isJwtUser(account)) {
             await assertCanViewEmbeddedApp(
                 {
                     createAuditedAbility: (embeddedAccount) =>
@@ -701,7 +735,6 @@ export class ExternalConnectionService extends BaseService {
             );
         } else {
             assertRegisteredAccount(account);
-            const app = await this.appModel.getApp(appUuid, projectUuid);
             const user = toSessionUser(account);
             await assertCanViewApp(
                 {
@@ -727,7 +760,11 @@ export class ExternalConnectionService extends BaseService {
             appUuid,
             req.connectionAlias,
         );
-        if (!connection) {
+        if (
+            !connection ||
+            connection.projectUuid !== app.project_uuid ||
+            connection.organizationUuid !== app.organization_uuid
+        ) {
             throw new ForbiddenError(
                 'This app is not linked to the requested connection',
             );
