@@ -22,7 +22,7 @@ export const resolveReviewJudgeModel = async ({
     orgAiCopilotConfigResolver: ReviewJudgeConfigResolver;
     instanceCopilotConfig: LightdashConfig['ai']['copilot'];
 }) => {
-    const { canJudgeOnByoKey } =
+    const { canJudgeOnByoKey, byoJudgeProvider } =
         await orgAiCopilotConfigResolver.getReviewJudgeAvailability(
             organizationUuid,
         );
@@ -30,9 +30,7 @@ export const resolveReviewJudgeModel = async ({
         ? await orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid)
         : instanceCopilotConfig;
     const model = getModel(copilotConfig, {
-        provider: canJudgeOnByoKey
-            ? 'anthropic'
-            : resolveReviewJudgeProvider(copilotConfig),
+        provider: byoJudgeProvider ?? resolveReviewJudgeProvider(copilotConfig),
         useFastModel: true,
     });
 

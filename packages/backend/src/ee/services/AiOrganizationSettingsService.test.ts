@@ -27,12 +27,19 @@ const settingsWithKeys: AiOrganizationSettings = {
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
     modelVisibility: null,
-    providerApiKeysSet: { anthropic: true, google: false, openai: false },
+    providerApiKeysSet: {
+        anthropic: true,
+        google: false,
+        openai: false,
+        bedrock: false,
+    },
     providerApiKeyHints: {
         anthropic: 'sk-ant-api03-R2D...igAA',
         google: null,
         openai: null,
+        bedrock: null,
     },
+    bedrockConfig: null,
 };
 
 describe('validateDeepResearchLimits', () => {
@@ -167,7 +174,11 @@ describe('findUnconfiguredProviderKeyWrites', () => {
 
 describe('areReviewsEnabledForSettings', () => {
     const on = { aiAgentReviewsEnabled: true };
-    const noByo = { hasActiveByoKey: false, canJudgeOnByoKey: false };
+    const noByo = {
+        hasActiveByoKey: false,
+        canJudgeOnByoKey: false,
+        byoJudgeProvider: null,
+    };
 
     it('returns false when there are no settings', () => {
         expect(areReviewsEnabledForSettings(null, noByo)).toBe(false);
@@ -191,6 +202,7 @@ describe('areReviewsEnabledForSettings', () => {
             areReviewsEnabledForSettings(on, {
                 hasActiveByoKey: true,
                 canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
             }),
         ).toBe(false);
     });
@@ -200,6 +212,7 @@ describe('areReviewsEnabledForSettings', () => {
             areReviewsEnabledForSettings(on, {
                 hasActiveByoKey: true,
                 canJudgeOnByoKey: true,
+                byoJudgeProvider: 'anthropic',
             }),
         ).toBe(true);
     });
@@ -381,6 +394,80 @@ describe('upsertSettings model validation', () => {
     const restrictToSonnet = {
         anthropic: { enabled: true, allowedModels: ['claude-sonnet-5'] },
     };
+
+    it('repoints the org default at Bedrock when Bedrock is configured', async () => {
+        const { service, upsert } = buildService({
+            storedDefault: {
+                modelName: 'claude-sonnet-5',
+                modelProvider: 'anthropic',
+            },
+        });
+        await service.upsertSettings(user, {
+            providerApiKeys: {
+                bedrock: {
+                    apiKey: 'ABSKtest',
+                    region: 'ap-northeast-1',
+                    allowedModels: ['claude-sonnet-4-5', 'claude-haiku-4-5'],
+                },
+            },
+        });
+        expect(upsert).toHaveBeenCalledWith(
+            'org-uuid',
+            expect.objectContaining({
+                defaultAiAgentModelConfig: {
+                    modelName: 'claude-sonnet-4-5',
+                    modelProvider: 'bedrock',
+                },
+            }),
+        );
+    });
+
+    it('keeps an explicitly submitted default when Bedrock is configured', async () => {
+        const { service, upsert } = buildService();
+        await service.upsertSettings(user, {
+            defaultAiAgentModelConfig: {
+                modelName: 'claude-haiku-4-5',
+                modelProvider: 'bedrock',
+            },
+            providerApiKeys: {
+                bedrock: {
+                    apiKey: 'ABSKtest',
+                    region: 'us-east-1',
+                    allowedModels: ['claude-sonnet-4-5', 'claude-haiku-4-5'],
+                },
+            },
+        });
+        expect(upsert).toHaveBeenCalledWith(
+            'org-uuid',
+            expect.objectContaining({
+                defaultAiAgentModelConfig: {
+                    modelName: 'claude-haiku-4-5',
+                    modelProvider: 'bedrock',
+                },
+            }),
+        );
+    });
+
+    it('rejects a default outside the allowed Bedrock models', async () => {
+        const { service } = buildService();
+        await expect(
+            service.upsertSettings(user, {
+                defaultAiAgentModelConfig: {
+                    modelName: 'claude-opus-5',
+                    modelProvider: 'bedrock',
+                },
+                providerApiKeys: {
+                    bedrock: {
+                        apiKey: 'ABSKtest',
+                        region: 'us-east-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                    },
+                },
+            }),
+        ).rejects.toThrow(
+            'The default AI model must be one of the allowed Bedrock models',
+        );
+    });
 
     // Regression: this validation used to live inside the modelVisibility
     // branch, so a default-only request skipped it entirely — and because

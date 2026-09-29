@@ -264,6 +264,7 @@ describe('AiAgentReviewClassifierService', () => {
     } as unknown as import('vitest').Mocked<AiOrganizationSettingsModel>;
     const orgAiCopilotConfigResolver = {
         getReviewJudgeAvailability: vi.fn(),
+        isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
     };
     const catalogModel = {
         getCatalogItemsSummary: vi.fn(),
@@ -310,6 +311,7 @@ describe('AiAgentReviewClassifierService', () => {
             {
                 hasActiveByoKey: false,
                 canJudgeOnByoKey: false,
+                byoJudgeProvider: null,
             },
         );
         aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue({
@@ -327,12 +329,15 @@ describe('AiAgentReviewClassifierService', () => {
                 anthropic: false,
                 google: false,
                 openai: false,
+                bedrock: false,
             },
             providerApiKeyHints: {
                 anthropic: null,
                 google: null,
                 openai: null,
+                bedrock: null,
             },
+            bedrockConfig: null,
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -388,6 +393,36 @@ describe('AiAgentReviewClassifierService', () => {
             },
         ]);
         judgeTurn.mockResolvedValue(makeJudgeOutput());
+    });
+
+    it('does not rank evidence through the instance provider for a Bedrock org', async () => {
+        decisionConfig.apiKey = 'test';
+        featureFlagModel.get.mockResolvedValue({ enabled: true });
+        orgAiCopilotConfigResolver.isOrgBedrockRouted.mockResolvedValue(true);
+        const candidate = makeCandidate({
+            supportingEvidence: [makeWritebackEvidence('Some result')],
+        });
+        model.listTurnReviewCandidates.mockResolvedValue([candidate]);
+        const evaluate = vi.spyOn(AiDecisionClient.prototype, 'evaluate');
+        try {
+            await service.captureJudgeReplayInput({
+                organizationUuid: ORGANIZATION_UUID,
+                promptUuid: PROMPT_UUID,
+            });
+            expect(evaluate).not.toHaveBeenCalled();
+            expect(
+                model.listTurnReviewCandidates,
+            ).toHaveBeenCalledExactlyOnceWith({
+                organizationUuid: ORGANIZATION_UUID,
+                promptUuid: PROMPT_UUID,
+                limit: 1,
+            });
+        } finally {
+            evaluate.mockRestore();
+            orgAiCopilotConfigResolver.isOrgBedrockRouted.mockResolvedValue(
+                false,
+            );
+        }
     });
 
     it('loads a bounded larger evidence pool and preserves a successful writeback through semantic ranking', async () => {
@@ -496,12 +531,15 @@ describe('AiAgentReviewClassifierService', () => {
                     anthropic: false,
                     google: false,
                     openai: false,
+                    bedrock: false,
                 },
                 providerApiKeyHints: {
                     anthropic: null,
                     google: null,
                     openai: null,
+                    bedrock: null,
                 },
+                bedrockConfig: null,
             },
         );
 
