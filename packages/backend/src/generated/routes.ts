@@ -45097,6 +45097,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                bedrock: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgProviderModelVisibility' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -45157,6 +45164,7 @@ const models: TsoaRoute.Models = {
                 anthropic: { dataType: 'boolean', required: true },
                 google: { dataType: 'boolean', required: true },
                 openai: { dataType: 'boolean', required: true },
+                bedrock: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -45196,6 +45204,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                bedrock: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -45204,6 +45220,22 @@ const models: TsoaRoute.Models = {
     AiProviderApiKeyHints: {
         dataType: 'refAlias',
         type: { ref: 'Record_ByoAiProvider.string-or-null_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrgBedrockConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                allowedModels: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                region: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiOrganizationSettings: {
@@ -45217,6 +45249,14 @@ const models: TsoaRoute.Models = {
                         { dataType: 'double' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                },
+                bedrockConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OrgBedrockConfig' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
                 },
                 providerApiKeyHints: {
                     ref: 'AiProviderApiKeyHints',
@@ -45301,6 +45341,11 @@ const models: TsoaRoute.Models = {
                 },
                 isTrial: { dataType: 'boolean', required: true },
                 isCopilotEnabled: { dataType: 'boolean', required: true },
+                bedrockModelOptions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AiModelOption' },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -45379,35 +45424,18 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiOrganizationSettings_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Partial_Record_ByoAiProvider.string-or-null__': {
+    UpdateOrgBedrockConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                anthropic: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
+                apiKey: { dataType: 'string' },
+                allowedModels: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
                 },
-                google: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                openai: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
+                region: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -45416,7 +45444,37 @@ const models: TsoaRoute.Models = {
     UpdateAiProviderApiKeys: {
         dataType: 'refAlias',
         type: {
-            ref: 'Partial_Record_ByoAiProvider.string-or-null__',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                bedrock: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'UpdateOrgBedrockConfig' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                openai: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                google: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                anthropic: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+            },
             validators: {},
         },
     },

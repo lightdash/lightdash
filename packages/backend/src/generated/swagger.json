@@ -44090,6 +44090,9 @@
                     },
                     "openai": {
                         "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    },
+                    "bedrock": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
                     }
                 },
                 "type": "object",
@@ -44127,9 +44130,12 @@
                     },
                     "openai": {
                         "type": "boolean"
+                    },
+                    "bedrock": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["anthropic", "google", "openai"],
+                "required": ["anthropic", "google", "openai", "bedrock"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -44149,20 +44155,47 @@
                     "openai": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "bedrock": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
-                "required": ["anthropic", "google", "openai"],
+                "required": ["anthropic", "google", "openai", "bedrock"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
             "AiProviderApiKeyHints": {
                 "$ref": "#/components/schemas/Record_ByoAiProvider.string-or-null_"
             },
+            "OrgBedrockConfig": {
+                "properties": {
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    }
+                },
+                "required": ["allowedModels", "region"],
+                "type": "object"
+            },
             "AiOrganizationSettings": {
                 "properties": {
                     "threadRetentionHours": {
                         "type": "number",
                         "format": "double",
+                        "nullable": true
+                    },
+                    "bedrockConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OrgBedrockConfig"
+                            }
+                        ],
                         "nullable": true
                     },
                     "providerApiKeyHints": {
@@ -44236,6 +44269,7 @@
                     }
                 },
                 "required": [
+                    "bedrockConfig",
                     "providerApiKeyHints",
                     "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
@@ -44273,12 +44307,19 @@
                     },
                     "isCopilotEnabled": {
                         "type": "boolean"
+                    },
+                    "bedrockModelOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiModelOption"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": [
                     "defaultAiAgentModelOptions",
                     "isTrial",
-                    "isCopilotEnabled"
+                    "isCopilotEnabled",
+                    "bedrockModelOptions"
                 ],
                 "type": "object"
             },
@@ -44355,9 +44396,35 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "Partial_Record_ByoAiProvider.string-or-null__": {
+            "UpdateOrgBedrockConfig": {
                 "properties": {
-                    "anthropic": {
+                    "apiKey": {
+                        "type": "string"
+                    },
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "region": {
+                        "type": "string"
+                    }
+                },
+                "required": ["allowedModels", "region"],
+                "type": "object"
+            },
+            "UpdateAiProviderApiKeys": {
+                "properties": {
+                    "bedrock": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UpdateOrgBedrockConfig"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "openai": {
                         "type": "string",
                         "nullable": true
                     },
@@ -44365,16 +44432,12 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "openai": {
+                    "anthropic": {
                         "type": "string",
                         "nullable": true
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "UpdateAiProviderApiKeys": {
-                "$ref": "#/components/schemas/Partial_Record_ByoAiProvider.string-or-null__"
+                "type": "object"
             },
             "UpdateAiOrganizationSettings": {
                 "properties": {
@@ -67869,7 +67932,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.372.1",
+        "version": "2.373.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

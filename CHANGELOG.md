@@ -1,3 +1,17 @@
+# [2.373.0](https://github.com/lightdash/lightdash/compare/2.372.1...2.373.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **embed:** hide the custom tooltip HTML editor in embedded views ([#30199](https://github.com/lightdash/lightdash/issues/30199)) ([7ac59a1](https://github.com/lightdash/lightdash/commit/7ac59a1fb011dff27f35299597fe06552e87e147))
+* **embed:** hide the Vega editor in embedded views ([#30198](https://github.com/lightdash/lightdash/issues/30198)) ([bcfef59](https://github.com/lightdash/lightdash/commit/bcfef592f6fb5d5b3a2225df5e96cb8b43ddf522))
+* **learn:** order library modules by the docs sidebar (CS-336) ([#30200](https://github.com/lightdash/lightdash/issues/30200)) ([c3f5294](https://github.com/lightdash/lightdash/commit/c3f5294986afd950b82016c7e1c82385bb82a791))
+
+
+### Features
+
+* **ai:** configure organization Bedrock credentials in the UI ([#30165](https://github.com/lightdash/lightdash/issues/30165)) ([47b8d4e](https://github.com/lightdash/lightdash/commit/47b8d4efa9bacd77ac5fd2b44c786c77daa15cc2))
+
 ## [2.372.1](https://github.com/lightdash/lightdash/compare/2.372.0...2.372.1) (2026-09-29)
 
 
