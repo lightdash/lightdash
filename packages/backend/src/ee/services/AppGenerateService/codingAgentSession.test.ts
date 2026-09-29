@@ -4,6 +4,8 @@ import {
     codingAgentContextTokensPerTurn,
     codingAgentRetryStart,
     codingAgentSessionFlags,
+    codingAgentSessionUsageDelta,
+    CodingAgentSessionUsageLedger,
     decideCodingAgentSessionStart,
     findCodingAgentCompactionOutcome,
     findCodingAgentSessionId,
@@ -14,8 +16,46 @@ import {
     versionReachedCodingAgent,
     type CodingAgentCompactionInput,
     type CodingAgentSessionStart,
+    type CodingAgentSessionUsageSnapshot,
     type CodingAgentThreadState,
 } from './codingAgentSession';
+
+// What the CLI reports on the second run of a session: this run's own token
+// counts and turns, but cost, API time and per-model tokens since the
+// session began.
+const SECOND_RUN_RESULT = {
+    inputTokens: 40,
+    outputTokens: 2_000,
+    cacheReadInputTokens: 300_000,
+    cacheCreationInputTokens: 9_000,
+    cacheCreation1hInputTokens: 9_000,
+    cacheCreation5mInputTokens: 0,
+    numTurns: 3,
+    durationApiMs: 133_000,
+    costUsd: 0.65,
+    modelUsage: {
+        'claude-sonnet-5': {
+            inputTokens: 60,
+            outputTokens: 12_000,
+            cacheReadInputTokens: 1_550_000,
+            cacheCreationInputTokens: 60_000,
+        },
+    },
+};
+
+const AFTER_FIRST_RUN: CodingAgentSessionUsageSnapshot = {
+    sessionId: 'session-1',
+    costUsd: 0.56,
+    durationApiMs: 117_000,
+    modelUsage: {
+        'claude-sonnet-5': {
+            inputTokens: 20,
+            outputTokens: 10_000,
+            cacheReadInputTokens: 1_250_000,
+            cacheCreationInputTokens: 51_000,
+        },
+    },
+};
 
 describe('decideCodingAgentSessionStart', () => {
     it.each<[string, CodingAgentThreadState, CodingAgentSessionStart]>([
@@ -467,5 +507,139 @@ describe('versionCompactedCodingAgentSession', () => {
                 entry('stage', 'Loading your data models'),
             ]),
         ).toBe(false);
+    });
+});
+
+describe('codingAgentSessionUsageDelta', () => {
+    it('takes the first run of a session as reported', () => {
+        const { usage, snapshot } = codingAgentSessionUsageDelta({
+            sessionId: 'session-1',
+            result: SECOND_RUN_RESULT,
+            previous: null,
+        });
+
+        expect(usage).toEqual(SECOND_RUN_RESULT);
+        expect(snapshot).toEqual({
+            sessionId: 'session-1',
+            costUsd: 0.65,
+            durationApiMs: 133_000,
+            modelUsage: SECOND_RUN_RESULT.modelUsage,
+        });
+    });
+
+    it("keeps only the resumed run's share of the session totals", () => {
+        const { usage, snapshot } = codingAgentSessionUsageDelta({
+            sessionId: 'session-1',
+            result: SECOND_RUN_RESULT,
+            previous: AFTER_FIRST_RUN,
+        });
+
+        expect(usage.costUsd).toBeCloseTo(0.09);
+        expect(usage.durationApiMs).toBe(16_000);
+        expect(usage.modelUsage).toEqual({
+            'claude-sonnet-5': {
+                inputTokens: 40,
+                outputTokens: 2_000,
+                cacheReadInputTokens: 300_000,
+                cacheCreationInputTokens: 9_000,
+            },
+        });
+        // The token counts and turns on the result were already this run's.
+        expect(usage.cacheReadInputTokens).toBe(300_000);
+        expect(usage.outputTokens).toBe(2_000);
+        expect(usage.numTurns).toBe(3);
+        // The snapshot carries the CLI's totals, not the share.
+        expect(snapshot.costUsd).toBe(0.65);
+    });
+
+    it('takes a run on a different session as reported', () => {
+        const { usage } = codingAgentSessionUsageDelta({
+            sessionId: 'session-2',
+            result: SECOND_RUN_RESULT,
+            previous: AFTER_FIRST_RUN,
+        });
+
+        expect(usage).toEqual(SECOND_RUN_RESULT);
+    });
+
+    it('takes a run whose totals fell below the snapshot as reported', () => {
+        const { usage } = codingAgentSessionUsageDelta({
+            sessionId: 'session-1',
+            result: { ...SECOND_RUN_RESULT, costUsd: 0.1 },
+            previous: AFTER_FIRST_RUN,
+        });
+
+        expect(usage.costUsd).toBe(0.1);
+        expect(usage.durationApiMs).toBe(133_000);
+    });
+
+    it('drops a model the resumed run never called', () => {
+        const { usage } = codingAgentSessionUsageDelta({
+            sessionId: 'session-1',
+            result: {
+                ...SECOND_RUN_RESULT,
+                modelUsage: {
+                    ...AFTER_FIRST_RUN.modelUsage,
+                    'claude-haiku-4-5': {
+                        inputTokens: 5,
+                        outputTokens: 50,
+                        cacheReadInputTokens: 0,
+                        cacheCreationInputTokens: 0,
+                    },
+                },
+            },
+            previous: AFTER_FIRST_RUN,
+        });
+
+        expect(usage.modelUsage).toEqual({
+            'claude-haiku-4-5': {
+                inputTokens: 5,
+                outputTokens: 50,
+                cacheReadInputTokens: 0,
+                cacheCreationInputTokens: 0,
+            },
+        });
+    });
+
+    it('omits the per-model split when nothing is left of it', () => {
+        const { usage } = codingAgentSessionUsageDelta({
+            sessionId: 'session-1',
+            result: {
+                ...SECOND_RUN_RESULT,
+                modelUsage: AFTER_FIRST_RUN.modelUsage ?? undefined,
+            },
+            previous: AFTER_FIRST_RUN,
+        });
+
+        expect(usage.modelUsage).toBeUndefined();
+    });
+});
+
+describe('CodingAgentSessionUsageLedger', () => {
+    it('charges each run its own share and persists the totals after every run', () => {
+        const persisted: CodingAgentSessionUsageSnapshot[] = [];
+        const ledger = new CodingAgentSessionUsageLedger(AFTER_FIRST_RUN, (s) =>
+            persisted.push(s),
+        );
+
+        const second = ledger.record('session-1', SECOND_RUN_RESULT);
+        const third = ledger.record('session-1', {
+            ...SECOND_RUN_RESULT,
+            costUsd: 1.79,
+            durationApiMs: 344_000,
+        });
+
+        expect(second.costUsd).toBeCloseTo(0.09);
+        expect(third.costUsd).toBeCloseTo(1.14);
+        expect(third.durationApiMs).toBe(211_000);
+        expect(persisted.map((s) => s.costUsd)).toEqual([0.65, 1.79]);
+    });
+
+    it('starts over when a thread has no snapshot yet', () => {
+        const ledger = new CodingAgentSessionUsageLedger(null, () => {});
+
+        expect(ledger.record('session-1', SECOND_RUN_RESULT).costUsd).toBe(
+            0.65,
+        );
     });
 });

@@ -16,6 +16,7 @@ import {
     type DataAppActivityFilters,
     type DataAppAutoAnalysis,
     type DataAppCodingAgent,
+    type DataAppCodingAgentSessionUsage,
     type DataAppGenerationUsage,
     type DataAppVizListSort,
     type DataAppVizPreview,
@@ -350,6 +351,21 @@ export class AppModel {
             ])
             .update({ coding_agent_session_id: args.sessionId });
         return updated > 0;
+    }
+
+    // The CLI's running totals after a run on the thread's session; the next
+    // run on it subtracts them to report only its own share.
+    async setThreadCodingAgentSessionUsage(
+        appThreadUuid: string,
+        usage: DataAppCodingAgentSessionUsage,
+    ): Promise<void> {
+        await this.database(AppThreadsTableName)
+            .where({ app_thread_uuid: appThreadUuid })
+            .update({
+                coding_agent_session_usage: JSON.stringify(
+                    usage,
+                ) as unknown as DataAppCodingAgentSessionUsage,
+            });
     }
 
     // Joins a version's own thread and the app's thread 1 (`appIdColumn` names the app).

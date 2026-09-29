@@ -803,6 +803,26 @@ export type DataAppGenerationUsage = {
 };
 
 /**
+ * The coding agent CLI's running totals for one session, as of its last
+ * result event. A resumed run reports cost, API time and per-model tokens
+ * since the session began, so the next run subtracts this to find its own.
+ */
+export type DataAppCodingAgentSessionUsage = {
+    sessionId: string;
+    costUsd: number;
+    durationApiMs: number;
+    modelUsage: Record<
+        string,
+        {
+            inputTokens: number;
+            outputTokens: number;
+            cacheReadInputTokens: number;
+            cacheCreationInputTokens: number;
+        }
+    > | null;
+};
+
+/**
  * One data app generation event — a row of the org-wide activity log. Backed by
  * an `app_versions` row, so it covers both new apps and iterations, and both
  * successful and failed generations.

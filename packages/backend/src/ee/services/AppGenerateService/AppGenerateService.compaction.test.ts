@@ -32,6 +32,12 @@ const makePayload = (): AppGeneratePipelineJobPayload => ({
 function buildService(
     compactStdout: string,
     statusHistory: { kind: string; message: string }[] = [],
+    sessionUsage: {
+        sessionId: string;
+        costUsd: number;
+        durationApiMs: number;
+        modelUsage: null;
+    } | null = null,
 ) {
     const statuses: string[] = [];
     const track = vi.fn();
@@ -52,6 +58,7 @@ function buildService(
             app_id: APP_UUID,
             thread_number: 2,
             coding_agent_session_id: SESSION_ID,
+            coding_agent_session_usage: sessionUsage,
         }),
         threadHasVersionThatReachedCodingAgent: vi.fn().mockResolvedValue(true),
         hasCancelledVersionSinceLastReady: vi.fn().mockResolvedValue(false),
@@ -75,6 +82,7 @@ function buildService(
             }),
         getVersionStatus: vi.fn().mockResolvedValue('generating'),
         recordVersionGenerationUsage: vi.fn().mockResolvedValue(undefined),
+        setThreadCodingAgentSessionUsage: vi.fn().mockResolvedValue(undefined),
         recordBuildNarration: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
     };
@@ -258,6 +266,42 @@ describe('AppGenerateService compact stage', () => {
                     compactCostUsd: 1.5,
                     cacheCreationInputTokens: 0,
                 }),
+            }),
+        );
+    });
+
+    it('charges the summary only what it added to the session totals', async () => {
+        // The CLI reports cost and API time since the session began, so the
+        // summary's own share is what grew past the thread's last snapshot.
+        const { runStages, track, appModel } = buildService(
+            COMPACT_SUCCESS,
+            [],
+            {
+                sessionId: SESSION_ID,
+                costUsd: 1.1,
+                durationApiMs: 25_000,
+                modelUsage: null,
+            },
+        );
+
+        await runStages();
+
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.version.completed',
+                properties: expect.objectContaining({
+                    compactionResult: 'success',
+                    compactCostUsd: expect.closeTo(0.4, 5),
+                    compactCacheCreationInputTokens: 470_000,
+                }),
+            }),
+        );
+        expect(appModel.setThreadCodingAgentSessionUsage).toHaveBeenCalledWith(
+            THREAD_UUID,
+            expect.objectContaining({
+                sessionId: SESSION_ID,
+                costUsd: 1.5,
+                durationApiMs: 40_000,
             }),
         );
     });
