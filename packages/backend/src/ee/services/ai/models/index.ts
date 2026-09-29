@@ -18,6 +18,7 @@ import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getBedrockModel } from './bedrock';
 import { getGoogleGeminiModel } from './google-gemini';
+import { getGoogleVertexModel } from './google-vertex';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
@@ -30,6 +31,7 @@ import {
     openRouterPreset,
     ReasoningEffort,
     SelectableModelProvider,
+    vertexPreset,
 } from './presets';
 import { AiModel, AiProvider } from './types';
 
@@ -79,12 +81,14 @@ const withKeyManagement = <P extends AiProvider>(
 
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
-const FAST_MODELS: Record<ModelPresetProvider, string> = {
+const FAST_MODELS = {
     openai: DEFAULT_OPENAI_FAST_MODEL_NAME,
     anthropic: 'claude-haiku-4-5',
     google: DEFAULT_GOOGLE_FAST_MODEL_NAME,
     bedrock: 'claude-haiku-4-5',
-};
+    // Vertex fast models are selected from the instance configuration.
+    vertex: undefined,
+} satisfies Record<ModelPresetProvider, string | undefined>;
 
 // Picks the model an ambient/fast task should use on a BYO Anthropic key:
 // the fast model when the key can serve it, otherwise the first shipped preset
@@ -167,9 +171,18 @@ export const getAvailableModels = (
         'google',
         'openrouter',
         'bedrock',
+        'vertex',
     ] as const;
     return configuredProviders.flatMap<ModelPreset<SelectableModelProvider>>(
         (provider) => {
+            if (provider === 'vertex') {
+                if (!providers.vertex) return [];
+                const { modelName, fastModelName } = providers.vertex;
+                return [
+                    ...new Set([modelName, fastModelName ?? modelName]),
+                ].map(vertexPreset);
+            }
+
             const providerConfig = providers[provider];
             if (!providerConfig) return [];
 
@@ -455,6 +468,35 @@ export const getModel = (
                 keyManagement,
             );
         }
+        case 'vertex': {
+            const vertexConfig = config.providers.vertex;
+            if (!vertexConfig) {
+                throw new ParameterError('Vertex configuration is required');
+            }
+            const configuredModelName = options?.useFastModel
+                ? (vertexConfig.fastModelName ?? vertexConfig.modelName)
+                : vertexConfig.modelName;
+            const requestedModelName = options?.modelName;
+            const canUseRequestedModel =
+                requestedModelName !== undefined &&
+                (options?.trustPinnedModelName === true ||
+                    (!options?.useFastModel &&
+                        (requestedModelName === vertexConfig.modelName ||
+                            requestedModelName ===
+                                vertexConfig.fastModelName)));
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getGoogleVertexModel({
+                        ...vertexConfig,
+                        modelName: canUseRequestedModel
+                            ? requestedModelName
+                            : configuredModelName,
+                    }),
+                    vertexConfig.supportsStreaming,
+                ),
+                keyManagement,
+            );
+        }
         case 'openrouter': {
             const openrouterConfig = config.providers.openrouter;
             if (!openrouterConfig) {
@@ -561,7 +603,11 @@ export const getCompactionModelMetadata = (
     | { supportsCompaction: false; contextWindowTokens: null } => {
     const provider = options?.provider ?? config.defaultProvider;
 
-    if (provider === 'azure' || provider === 'openrouter') {
+    if (
+        provider === 'azure' ||
+        provider === 'openrouter' ||
+        provider === 'vertex'
+    ) {
         return {
             supportsCompaction: false,
             contextWindowTokens: null,
