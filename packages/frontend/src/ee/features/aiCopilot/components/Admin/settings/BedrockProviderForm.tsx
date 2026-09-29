@@ -202,10 +202,11 @@ export const BedrockProviderForm: FC<Props> = ({
 
                 {config && (
                     <Text c="dimmed" fz="xs">
-                        While Bedrock is set, Ask AI runs only on these models,
-                        and verified-answer semantic search is unavailable
-                        because it would send content to a provider outside this
-                        region.
+                        While Bedrock is set it is the only provider Ask AI
+                        uses, so agents pinned to another provider stop working
+                        until you repoint them. Verified-answer semantic search
+                        and AI repository editing are unavailable, because both
+                        would send content outside this region.
                     </Text>
                 )}
             </Stack>

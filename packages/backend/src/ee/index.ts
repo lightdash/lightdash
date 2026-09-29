@@ -449,6 +449,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        aiModelCatalog,
+                    }),
                 }),
             onboardingAgentService: ({
                 context,

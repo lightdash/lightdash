@@ -732,13 +732,41 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
+        // Configuring Bedrock makes it the org's only provider, so a stored
+        // default pointing at another provider would fail every turn — model
+        // resolution honours the pinned provider, it does not fall back. The
+        // first allowed model becomes the default, which is what the settings
+        // form promises.
+        //
+        // The visibility checks below can't judge a Bedrock default: `remaining`
+        // derives from the INSTANCE config, which need not run Bedrock at all.
+        // Validate against the org's own allowlist instead.
+        const bedrockUpdate = aiSettingsUpdate.providerApiKeys?.bedrock;
+        if (bedrockUpdate) {
+            const submitted = aiSettingsUpdate.defaultAiAgentModelConfig;
+            if (!submitted) {
+                reconciledDefaultModelConfig = {
+                    modelName: bedrockUpdate.allowedModels[0],
+                    modelProvider: 'bedrock',
+                };
+            } else if (
+                submitted.modelProvider !== 'bedrock' ||
+                !bedrockUpdate.allowedModels.includes(submitted.modelName)
+            ) {
+                throw new ParameterError(
+                    'The default AI model must be one of the allowed Bedrock models',
+                );
+            }
+        }
+
         // A supplied default has to be checked against the visibility the write
         // lands on, whether or not this request is the one changing it —
         // visibility filters model LISTINGS only, never resolution, so a
         // default pointing at a restricted model would still be served.
         if (
-            aiSettingsUpdate.modelVisibility ||
-            aiSettingsUpdate.defaultAiAgentModelConfig
+            !bedrockUpdate &&
+            (aiSettingsUpdate.modelVisibility ||
+                aiSettingsUpdate.defaultAiAgentModelConfig)
         ) {
             // Validate against the EFFECTIVE visibility (implicit auto-hide
             // merged under the submission) and real key access — so disabling

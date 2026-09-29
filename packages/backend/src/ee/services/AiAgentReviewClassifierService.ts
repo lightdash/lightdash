@@ -337,16 +337,27 @@ export class AiAgentReviewClassifierService extends BaseService {
             AiAgentReviewClassifierModel['listTurnReviewCandidates']
         >[0],
     ): Promise<AiAgentReviewClassifierTurnCandidate[]> {
-        const decisions = await resolveAiDecisionClient(
-            this.lightdashConfig.ai?.decisions,
-            async () =>
-                (await this.isEnabled(args))
-                    ? this.featureFlagModel.get({
-                          user: { organizationUuid: args.organizationUuid },
-                          featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                      })
-                    : { enabled: false },
-        );
+        // Evidence ranking runs on the instance decision provider, so it would
+        // send turn content out of a Bedrock org's region before its own judge
+        // ever sees it. Skipping it leaves candidates unranked, not unreviewed.
+        const decisions =
+            (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+                args.organizationUuid,
+            ))
+                ? undefined
+                : await resolveAiDecisionClient(
+                      this.lightdashConfig.ai?.decisions,
+                      async () =>
+                          (await this.isEnabled(args))
+                              ? this.featureFlagModel.get({
+                                    user: {
+                                        organizationUuid: args.organizationUuid,
+                                    },
+                                    featureFlagId:
+                                        FeatureFlags.AiAgentFastDecisions,
+                                })
+                              : { enabled: false },
+                  );
         const candidates =
             await this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
                 ...args,

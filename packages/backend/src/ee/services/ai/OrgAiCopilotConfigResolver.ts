@@ -62,7 +62,8 @@ const hasGoogleByoGatewayConflict = (
  * this instance already runs. Two exceptions: custom provider endpoints, whose
  * instance credential may authenticate an arbitrary gateway, so an org key is
  * rejected rather than sent to that endpoint; and Bedrock, which carries its
- * own region and is therefore constructed rather than overlaid.
+ * own region, so it is constructed rather than overlaid and replaces the
+ * provider set outright.
  */
 /**
  * Effective model visibility = stored settings on top of an implicit default:
@@ -90,27 +91,41 @@ export const overlayOrgProviderApiKeys = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
 ): ResolvedCopilotConfig => {
-    const providers = { ...config.providers };
-
-    // Bedrock is the one provider an org can bring without the instance running
+    // Bedrock replaces the provider set instead of joining it. Model visibility
+    // filters model LISTINGS only — `getModel` still honours an agent's pinned
+    // provider — so leaving the instance providers in place would let a pinned
+    // agent keep sending prompts outside the configured region. With only
+    // Bedrock present, such a pin fails closed in `getModelPreset`.
+    //
+    // It is also the one provider an org can bring without the instance running
     // it: the org supplies the region, so there is nothing to overlay onto.
     if (orgKeys.bedrock) {
-        providers.bedrock = {
-            apiKey: orgKeys.bedrock.apiKey,
-            region: orgKeys.bedrock.region,
-            // Japan pins `jp`: the default `apac` profile may serve from Sydney
-            // or Mumbai, which defeats the point of choosing Tokyo or Osaka.
-            // Every other region falls through to the region-derived default.
-            ...(JAPAN_BEDROCK_REGIONS.includes(orgKeys.bedrock.region)
-                ? { inferenceProfilePrefix: 'jp' }
-                : {}),
-            modelName: orgKeys.bedrock.allowedModels[0],
-            availableModels: orgKeys.bedrock.allowedModels,
-            embeddingModelName: DEFAULT_BEDROCK_EMBEDDING_MODEL,
-            customHeaders: {},
-            supportsStreaming: true,
+        const { apiKey, region, allowedModels } = orgKeys.bedrock;
+        return {
+            ...config,
+            defaultProvider: 'bedrock',
+            byoProviders: ['bedrock'],
+            providers: {
+                bedrock: {
+                    apiKey,
+                    region,
+                    // Japan pins `jp`: the region-derived `apac` default may
+                    // serve from Sydney or Mumbai, which defeats the point of
+                    // choosing Tokyo or Osaka.
+                    ...(JAPAN_BEDROCK_REGIONS.includes(region)
+                        ? { inferenceProfilePrefix: 'jp' }
+                        : {}),
+                    modelName: allowedModels[0],
+                    availableModels: allowedModels,
+                    embeddingModelName: DEFAULT_BEDROCK_EMBEDDING_MODEL,
+                    customHeaders: {},
+                    supportsStreaming: true,
+                },
+            },
         };
     }
+
+    const providers = { ...config.providers };
 
     if (orgKeys.anthropic && providers.anthropic) {
         if (hasAnthropicByoGatewayConflict(config, orgKeys)) {

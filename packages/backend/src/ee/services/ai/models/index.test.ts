@@ -1190,6 +1190,30 @@ describe('organization Bedrock routing', () => {
         expect(config.byoProviders).toEqual(['bedrock']);
     });
 
+    it('fails closed for an agent pinned to another provider', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(config.providers.anthropic).toBeUndefined();
+        expect(config.providers.openai).toBeUndefined();
+        expect(() => getModel(config, { provider: 'anthropic' })).toThrow(
+            'anthropic provider configuration is required',
+        );
+    });
+
+    it('wins over an existing org key from another provider', () => {
+        const config = overlayOrgProviderApiKeys(baseCopilotConfig, {
+            anthropic: 'sk-ant-org',
+            bedrock: {
+                apiKey: 'org-bedrock-key',
+                region: 'ap-northeast-1',
+                allowedModels: ['claude-sonnet-4-5'],
+            },
+        });
+        expect(config.defaultProvider).toBe('bedrock');
+        expect(config.byoProviders).toEqual(['bedrock']);
+        expect(config.providers.anthropic).toBeUndefined();
+        expect(getModel(config).model.modelId).toContain('jp.');
+    });
+
     it('falls back to an allowed model when a pinned model is not allowed', () => {
         const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
         expect(
