@@ -15181,6 +15181,19 @@
             },
             "ExternalFetchRequest": {
                 "properties": {
+                    "chartContext": {
+                        "properties": {
+                            "chartVersionUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "savedChartUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        },
+                        "required": ["savedChartUuid"],
+                        "type": "object",
+                        "description": "Host-supplied saved chart identity for custom chart type rendering."
+                    },
                     "body": {},
                     "query": {
                         "$ref": "#/components/schemas/Record_string.string_"
@@ -67848,7 +67861,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.371.0",
+        "version": "2.371.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+## [2.371.1](https://github.com/lightdash/lightdash/compare/2.371.0...2.371.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* authorize chart type connections through chart access ([#30179](https://github.com/lightdash/lightdash/issues/30179)) ([5d6c4e8](https://github.com/lightdash/lightdash/commit/5d6c4e8533422a289bfbb0ebaa2c5f7696fdf617))
+
 # [2.371.0](https://github.com/lightdash/lightdash/compare/2.370.0...2.371.0) (2026-09-29)
 
 

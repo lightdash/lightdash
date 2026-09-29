@@ -14732,6 +14732,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                chartContext: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartVersionUuid: { ref: 'UUID' },
+                        savedChartUuid: { ref: 'UUID', required: true },
+                    },
+                },
                 body: { dataType: 'any' },
                 query: { ref: 'Record_string.string_' },
                 path: { dataType: 'string', required: true },
