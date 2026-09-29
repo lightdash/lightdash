@@ -38,6 +38,8 @@ export const createMobileSetupCodeGrantType = (
                         code: request.body.code,
                         client,
                         platform: request.body.platform,
+                        codeVerifier: request.body.code_verifier,
+                        verificationCode: request.body.verification_code,
                     },
                     async ({ user, projectUuid }, transaction) => {
                         const accessToken = await this.generateAccessToken(

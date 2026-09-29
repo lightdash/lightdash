@@ -60,6 +60,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { registerTelemetry } from 'ai';
 import Logger from '../logging/logger';
+import { sanitizeRequestUrl } from '../utils/sanitizeAuthTelemetry';
 import { VERSION } from '../version';
 
 type TraceSpanOptions = Parameters<typeof Sentry.startSpan>[0];
@@ -97,7 +98,7 @@ const serviceVersion = String(VERSION);
 const parseBoolean = (value: string | undefined) => value === 'true';
 
 const SENSITIVE_OTEL_DIAGNOSTIC_VALUE =
-    /\b(authorization|proxy-authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password)["']?\s*[:=]/iu;
+    /\b(authorization|proxy-authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|code[_-]?verifier|verification[_-]?code|token|password)["']?\s*[:=]/iu;
 
 const redactOtelDiagnosticString = (value: string): string => {
     const redactedUrls = value.replace(
@@ -520,8 +521,12 @@ const isIgnoredIncomingRequest = (
 ): boolean => {
     const [path] = url.split('?');
     return (
+        sanitizeRequestUrl(url) !== url ||
         path === '/api/v1/health' ||
         path === '/health' ||
+        path === '/mobile-setup' ||
+        path === '/api/v1/oauth/mobile-setup/challenge' ||
+        path === '/api/v1/oauth/token' ||
         path.endsWith('/status') ||
         path.endsWith('/favicon.ico') ||
         path.endsWith('/robots.txt') ||

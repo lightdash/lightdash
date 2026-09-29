@@ -7,10 +7,11 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import knex, { type Knex } from 'knex';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { up } from '../../database/migrations/20260914180000_create_mobile_setup_codes';
+import { up as addVerification } from '../../database/migrations/20260929120000_mobile_setup_verification';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MobileSetupCodeModel } from '../../models/MobileSetupCodeModel';
 import { OAuth2Model } from '../../models/OAuth2Model';
@@ -39,7 +40,13 @@ const client: OAuth2Server.Client = {
 };
 const schema = `mobile_setup_test_${randomUUID().replaceAll('-', '')}`;
 
-const request = (code: string) =>
+const verifier = 'a'.repeat(43);
+const challenge = createHash('sha256').update(verifier).digest('base64url');
+const request = (
+    code: string,
+    verificationCode?: string,
+    codeVerifier: string | undefined = verifier,
+) =>
     new OAuth2Server.Request({
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -47,6 +54,8 @@ const request = (code: string) =>
         body: {
             grant_type: MOBILE_SETUP_CODE_GRANT_TYPE,
             code,
+            verification_code: verificationCode,
+            code_verifier: codeVerifier,
             platform: 'ios',
             scope: 'read write',
         },
@@ -57,6 +66,20 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
     let service: MobileSetupService;
     let oauthModel: OAuth2Model;
     let grant: InstanceType<ReturnType<typeof createMobileSetupCodeGrantType>>;
+
+    const verifiedSetup = async () => {
+        const setup = await service.mint(account, projectUuid);
+        const response = await service.beginChallenge({
+            code: setup.code,
+            client,
+            platform: 'ios',
+            codeChallenge: challenge,
+        });
+        expect(response).toEqual({ expiresAt: setup.expiresAt });
+        const status = await service.getStatus(account, setup.codeId);
+        expect(status.verificationCode).toMatch(/^[0-9]{6}$/);
+        return { ...setup, verificationCode: status.verificationCode! };
+    };
 
     beforeAll(async () => {
         if (!process.env.PGCONNECTIONURI && !process.env.PGDATABASE)
@@ -74,6 +97,9 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
             pool: { min: 0, max: 3 },
         });
         await database.schema.createSchema(schema);
+        await database.raw(
+            `CREATE FUNCTION "${schema}".uuid_generate_v4() RETURNS uuid LANGUAGE sql AS 'SELECT gen_random_uuid()'`,
+        );
         await Promise.all(
             [
                 ['users', 'user_uuid'],
@@ -86,6 +112,7 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
             ),
         );
         await database.transaction(up);
+        await database.transaction(addVerification);
         await Promise.all(
             [
                 ['oauth2_access_tokens', 'access_token'],
@@ -165,7 +192,7 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
     it.each(['access', 'refresh'] as const)(
         'leaves the code pending after a failed %s token write and allows a retry',
         async (kind) => {
-            const setup = await service.mint(account, projectUuid);
+            const setup = await verifiedSetup();
             const occupied = 'occupied-token';
             const table =
                 kind === 'access'
@@ -186,13 +213,16 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
             const save = vi.spyOn(oauthModel, 'saveToken');
 
             await expect(
-                grant.handle(request(setup.code), client),
+                grant.handle(
+                    request(setup.code, setup.verificationCode),
+                    client,
+                ),
             ).rejects.toMatchObject({ name: 'invalid_grant' });
             expect(save).toHaveBeenCalledOnce();
             await expect(
                 service.getStatus(account, setup.codeId),
             ).resolves.toMatchObject({
-                status: MobileSetupCodeStatus.PENDING,
+                status: MobileSetupCodeStatus.AWAITING_VERIFICATION,
                 redeemedAt: null,
                 redeemedPlatform: null,
             });
@@ -203,7 +233,10 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
                 await database('oauth2_refresh_tokens').select(),
             ).toHaveLength(kind === 'refresh' ? 1 : 0);
 
-            const token = await grant.handle(request(setup.code), client);
+            const token = await grant.handle(
+                request(setup.code, setup.verificationCode),
+                client,
+            );
             expect(token.accessToken).toBeTruthy();
             expect(token.refreshToken).toBeTruthy();
             expect(token.lightdash_project_uuid).toBe(projectUuid);
@@ -227,10 +260,10 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
     );
 
     it('commits only one token pair for two racing exchanges', async () => {
-        const setup = await service.mint(account, projectUuid);
+        const setup = await verifiedSetup();
         const results = await Promise.allSettled([
-            grant.handle(request(setup.code), client),
-            grant.handle(request(setup.code), client),
+            grant.handle(request(setup.code, setup.verificationCode), client),
+            grant.handle(request(setup.code, setup.verificationCode), client),
         ]);
         expect(
             results.filter((result) => result.status === 'fulfilled'),
@@ -249,5 +282,167 @@ describe('mobile setup token exchange (PostgreSQL)', () => {
         expect(await database('oauth2_refresh_tokens').select()).toHaveLength(
             1,
         );
+    });
+    it('rejects the old code-only exchange without creating tokens', async () => {
+        const setup = await service.mint(account, projectUuid);
+        await expect(
+            grant.handle(request(setup.code), client),
+        ).rejects.toMatchObject({ name: 'invalid_grant' });
+        expect(await database('oauth2_access_tokens').select()).toHaveLength(0);
+        expect(await database('oauth2_refresh_tokens').select()).toHaveLength(
+            0,
+        );
+    });
+
+    it('commits five concurrent wrong guesses and permanently locks the code', async () => {
+        const setup = await verifiedSetup();
+        const wrong = setup.verificationCode === '000000' ? '000001' : '000000';
+        const responses = await Promise.allSettled(
+            Array.from({ length: 8 }, () =>
+                grant.handle(request(setup.code, wrong), client),
+            ),
+        );
+        expect(
+            responses.every((response) => response.status === 'rejected'),
+        ).toBe(true);
+        const stored = await database('mobile_setup_codes').first();
+        expect(stored?.verification_attempts).toBe(5);
+        expect(stored?.revoked_at).not.toBeNull();
+        await expect(
+            grant.handle(request(setup.code, setup.verificationCode), client),
+        ).rejects.toMatchObject({ message: 'attempts_exhausted' });
+        await expect(
+            service.beginChallenge({
+                code: setup.code,
+                client,
+                platform: 'ios',
+                codeChallenge: challenge,
+            }),
+        ).rejects.toMatchObject({ code: 'attempts_exhausted' });
+        expect(await database('oauth2_access_tokens').select()).toHaveLength(0);
+        expect(await database('oauth2_refresh_tokens').select()).toHaveLength(
+            0,
+        );
+    });
+
+    it('lets the same phone retry without resetting the code, expiry or guesses', async () => {
+        const setup = await verifiedSetup();
+        const wrong = setup.verificationCode === '000000' ? '000001' : '000000';
+        await expect(
+            grant.handle(request(setup.code, wrong), client),
+        ).rejects.toMatchObject({ message: 'verification_failed' });
+        const result = await service.beginChallenge({
+            code: setup.code,
+            client,
+            platform: 'ios',
+            codeChallenge: challenge,
+        });
+        expect(result).toEqual({ expiresAt: setup.expiresAt });
+        expect(await service.getStatus(account, setup.codeId)).toMatchObject({
+            verificationCode: setup.verificationCode,
+        });
+        expect(
+            (await database('mobile_setup_codes').first())
+                ?.verification_attempts,
+        ).toBe(1);
+        await expect(
+            grant.handle(request(setup.code, setup.verificationCode), client),
+        ).resolves.toMatchObject({ lightdash_project_uuid: projectUuid });
+        expect(
+            await service.getStatus(account, setup.codeId),
+        ).not.toHaveProperty('verificationCode');
+    });
+
+    it('allows exactly one phone to bind during concurrent scans', async () => {
+        const setup = await service.mint(account, projectUuid);
+        const outcomes = await Promise.allSettled(
+            ['a', 'b'].map((value) =>
+                service.beginChallenge({
+                    code: setup.code,
+                    client,
+                    platform: 'ios',
+                    codeChallenge: value.repeat(43),
+                }),
+            ),
+        );
+        expect(
+            outcomes.filter((value) => value.status === 'fulfilled'),
+        ).toHaveLength(1);
+        expect(outcomes.filter((value) => value.status === 'rejected')).toEqual(
+            [
+                expect.objectContaining({
+                    reason: expect.objectContaining({
+                        code: 'binding_mismatch',
+                    }),
+                }),
+            ],
+        );
+    });
+
+    it('rejects copied QR or digits without the bound phone secret without spending its guesses', async () => {
+        const setup = await verifiedSetup();
+        await expect(
+            grant.handle(
+                request(setup.code, setup.verificationCode, 'b'.repeat(43)),
+                client,
+            ),
+        ).rejects.toMatchObject({ message: 'binding_mismatch' });
+        await expect(
+            service.beginChallenge({
+                code: setup.code,
+                client,
+                platform: 'android',
+                codeChallenge: challenge,
+            }),
+        ).rejects.toMatchObject({ code: 'binding_mismatch' });
+        await expect(
+            grant.handle(request(setup.code, setup.verificationCode), {
+                ...client,
+                id: 'another-mobile-client',
+            }),
+        ).rejects.toMatchObject({ message: 'binding_mismatch' });
+        expect(
+            (await database('mobile_setup_codes').first())
+                ?.verification_attempts,
+        ).toBe(0);
+        expect(await database('oauth2_access_tokens').select()).toHaveLength(0);
+    });
+
+    it('never discloses digits to a bearer-authenticated account', async () => {
+        const setup = await verifiedSetup();
+        const bearerAccount = {
+            ...account,
+            authentication: { ...account.authentication, type: 'oauth' },
+        } as unknown as typeof account;
+        await expect(
+            service.getStatus(bearerAccount, setup.codeId),
+        ).rejects.toThrow('A signed-in session is required');
+        expect(
+            (
+                await database('mobile_setup_codes').first()
+            )?.verification_code_encrypted?.toString(),
+        ).not.toContain(setup.verificationCode);
+    });
+
+    it('keeps the original expiry after a scan and stops exchanges after expiry or cancellation', async () => {
+        const setup = await verifiedSetup();
+        await database('mobile_setup_codes').update({
+            expires_at: new Date(0),
+        });
+        await expect(
+            grant.handle(request(setup.code, setup.verificationCode), client),
+        ).rejects.toMatchObject({ message: 'expired' });
+        expect(
+            await service.getStatus(account, setup.codeId),
+        ).not.toHaveProperty('verificationCode');
+        await database('mobile_setup_codes').delete();
+        const second = await verifiedSetup();
+        await service.revoke(account, second.codeId);
+        await expect(
+            grant.handle(request(second.code, second.verificationCode), client),
+        ).rejects.toMatchObject({ message: 'revoked' });
+        expect(
+            await service.getStatus(account, second.codeId),
+        ).not.toHaveProperty('verificationCode');
     });
 });

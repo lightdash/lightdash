@@ -5,6 +5,7 @@ import {
     getErrorMessage,
     isManagedSignInError,
     MOBILE_SETUP_CODE_GRANT_TYPE,
+    MobileSetupCodeError,
     OAuthIntrospectResponse,
     parseScopeString,
     type OAuthUserInfoResponse,
@@ -17,7 +18,9 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
+import { createMobileSetupRateLimit } from '../middlewares/mobileSetupRateLimit';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
+import { MobileSetupRejection } from '../services/MobileSetupService/MobileSetupRejection';
 import {
     OAuthScope,
     OAuthService,
@@ -297,8 +300,33 @@ oauthRouter.post('/authorize', async (req, res) => {
     }
 });
 
+oauthRouter.post(
+    '/mobile-setup/challenge',
+    createMobileSetupRateLimit(),
+    async (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        res.set('Pragma', 'no-cache');
+        try {
+            const result = await getOAuthService(req).beginMobileSetupChallenge(
+                req.body ?? {},
+            );
+            res.json(result);
+        } catch (error) {
+            res.status(400).json({
+                error: 'invalid_grant',
+                error_description:
+                    error instanceof MobileSetupRejection
+                        ? error.code
+                        : MobileSetupCodeError.UNKNOWN,
+            });
+        }
+    },
+);
+
 // Post token - use OAuth2Server
 oauthRouter.post('/token', async (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    res.set('Pragma', 'no-cache');
     const oauthService = getOAuthService(req);
 
     const oauthReq = new OAuth2Server.Request(req);

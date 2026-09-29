@@ -1,4 +1,8 @@
-import { TooManyRequestsError, type MobilePlatform } from '@lightdash/common';
+import {
+    MobileSetupCodeError,
+    TooManyRequestsError,
+    type MobilePlatform,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     MobileSetupCodesTableName,
@@ -67,32 +71,96 @@ export class MobileSetupCodeModel {
             .update({ revoked_at: this.database.fn.now() });
     }
 
-    async redeem<T>(
+    async beginVerification(
         codeHash: string,
-        clientId: string,
-        platform: MobilePlatform,
         userUuid: string,
-        issueTokens: (transaction: Knex.Transaction) => Promise<T>,
-    ): Promise<T | undefined> {
+        binding: Pick<
+            DbMobileSetupCode,
+            | 'verification_challenge'
+            | 'verification_client_id'
+            | 'verification_platform'
+            | 'verification_code_encrypted'
+        >,
+    ): Promise<DbMobileSetupCode | undefined> {
         return this.database.transaction(async (transaction) => {
             await transaction('users')
                 .where('user_uuid', userUuid)
                 .forUpdate()
                 .first();
-            const [redeemed] = await transaction(MobileSetupCodesTableName)
+            const code = await transaction(MobileSetupCodesTableName)
                 .where('code_hash', codeHash)
                 .where('user_uuid', userUuid)
                 .whereNull('redeemed_at')
                 .whereNull('revoked_at')
                 .where('expires_at', '>', transaction.fn.now())
+                .forUpdate()
+                .first();
+            if (!code || code.verification_challenge !== null) return code;
+            const [bound] = await transaction(MobileSetupCodesTableName)
+                .where('mobile_setup_code_uuid', code.mobile_setup_code_uuid)
+                .update(binding)
+                .returning('*');
+            return bound;
+        });
+    }
+
+    async redeem<T>(
+        codeHash: string,
+        clientId: string,
+        platform: MobilePlatform,
+        userUuid: string,
+        verify: (code: DbMobileSetupCode) => MobileSetupCodeError | null,
+        issueTokens: (transaction: Knex.Transaction) => Promise<T>,
+    ): Promise<{ token: T } | { error: MobileSetupCodeError } | undefined> {
+        return this.database.transaction(async (transaction) => {
+            await transaction('users')
+                .where('user_uuid', userUuid)
+                .forUpdate()
+                .first();
+            const code = await transaction(MobileSetupCodesTableName)
+                .where('code_hash', codeHash)
+                .where('user_uuid', userUuid)
+                .whereNull('redeemed_at')
+                .whereNull('revoked_at')
+                .where('expires_at', '>', transaction.fn.now())
+                .forUpdate()
+                .first();
+            if (code === undefined) return undefined;
+            if (code.expires_at.getTime() <= Date.now())
+                return { error: MobileSetupCodeError.EXPIRED };
+            if (code.verification_attempts >= 5)
+                return { error: MobileSetupCodeError.ATTEMPTS_EXHAUSTED };
+            const error = verify(code);
+            if (error !== null) {
+                if (error === MobileSetupCodeError.VERIFICATION_FAILED) {
+                    const attempts = code.verification_attempts + 1;
+                    await transaction(MobileSetupCodesTableName)
+                        .where(
+                            'mobile_setup_code_uuid',
+                            code.mobile_setup_code_uuid,
+                        )
+                        .update({
+                            verification_attempts: attempts,
+                            ...(attempts >= 5
+                                ? { revoked_at: transaction.fn.now() }
+                                : {}),
+                        });
+                    if (attempts >= 5)
+                        return {
+                            error: MobileSetupCodeError.ATTEMPTS_EXHAUSTED,
+                        };
+                }
+                return { error };
+            }
+            await transaction(MobileSetupCodesTableName)
+                .where('mobile_setup_code_uuid', code.mobile_setup_code_uuid)
                 .update({
                     redeemed_at: transaction.fn.now(),
                     redeemed_client_id: clientId,
                     redeemed_platform: platform,
-                })
-                .returning('*');
-            if (redeemed === undefined) return undefined;
-            return issueTokens(transaction);
+                    verification_code_encrypted: null,
+                });
+            return { token: await issueTokens(transaction) };
         });
     }
 }

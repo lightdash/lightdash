@@ -15,6 +15,11 @@ export type DbMobileSetupCode = {
     redeemed_client_id: string | null;
     redeemed_platform: MobilePlatform | null;
     revoked_at: Date | null;
+    verification_challenge: string | null;
+    verification_client_id: string | null;
+    verification_platform: MobilePlatform | null;
+    verification_code_encrypted: Buffer | null;
+    verification_attempts: number;
 };
 
 export type DbMobileSetupCodeIn = Pick<

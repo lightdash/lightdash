@@ -19,6 +19,11 @@ import { type UserModel } from '../../models/UserModel';
 import { sessionUser } from '../UserService.mock';
 import { MobileSetupService } from './MobileSetupService';
 
+vi.mock('crypto', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('crypto')>()),
+    randomInt: vi.fn(() => 7),
+}));
+
 const projectUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const codeId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const code = 'A'.repeat(32);
@@ -55,6 +60,11 @@ const pendingCode = (): DbMobileSetupCode => ({
     redeemed_client_id: null,
     redeemed_platform: null,
     revoked_at: null,
+    verification_challenge: null,
+    verification_client_id: null,
+    verification_platform: null,
+    verification_code_encrypted: null,
+    verification_attempts: 0,
 });
 
 const createService = () => {
@@ -72,11 +82,23 @@ const createService = () => {
             .fn<MobileSetupCodeModel['findByHash']>()
             .mockResolvedValue(pendingCode()),
         revoke: vi.fn<MobileSetupCodeModel['revoke']>().mockResolvedValue(),
+        beginVerification: vi
+            .fn<MobileSetupCodeModel['beginVerification']>()
+            .mockImplementation(async (_hash, _user, binding) => ({
+                ...pendingCode(),
+                ...binding,
+            })),
         redeem: vi
             .fn<MobileSetupCodeModel['redeem']>()
             .mockImplementation(
-                async (_hash, _clientId, _platform, _userUuid, callback) =>
-                    callback(transaction),
+                async (
+                    _hash,
+                    _clientId,
+                    _platform,
+                    _userUuid,
+                    _verify,
+                    callback,
+                ) => ({ token: await callback(transaction) }),
             ),
     } as unknown as MobileSetupCodeModel;
     const featureFlagModel = {
@@ -145,7 +167,7 @@ describe('MobileSetupService', () => {
         expect(link.origin).toBe('https://mobile.example');
         expect(link.pathname).toBe('/setup');
         expect(Object.fromEntries(link.searchParams)).toEqual({
-            v: '1',
+            v: '2',
             i: 'https://instance.example',
             c: result.code,
         });
@@ -243,7 +265,16 @@ describe('MobileSetupService', () => {
     it('redeems for the bound user, organization and project', async () => {
         const { service, mobileSetupCodeModel, userModel } = createService();
         await expect(
-            service.redeem({ code, client, platform: 'ios' }, issueTokens),
+            service.redeem(
+                {
+                    code,
+                    client,
+                    platform: 'ios',
+                    codeVerifier: 'a'.repeat(43),
+                    verificationCode: '123456',
+                },
+                issueTokens,
+            ),
         ).resolves.toEqual(token);
         expect(issueTokens).toHaveBeenCalledWith(
             { user, projectUuid },
@@ -257,6 +288,7 @@ describe('MobileSetupService', () => {
             client.id,
             'ios',
             user.userUuid,
+            expect.any(Function),
             expect.any(Function),
         );
     });
@@ -272,7 +304,16 @@ describe('MobileSetupService', () => {
             ...overrides,
         });
         await expect(
-            service.redeem({ code, client, platform: 'ios' }, issueTokens),
+            service.redeem(
+                {
+                    code,
+                    client,
+                    platform: 'ios',
+                    codeVerifier: 'a'.repeat(43),
+                    verificationCode: '123456',
+                },
+                issueTokens,
+            ),
         ).rejects.toMatchObject({ code: expected });
         expect(vi.mocked(mobileSetupCodeModel.redeem)).not.toHaveBeenCalled();
     });
@@ -286,7 +327,13 @@ describe('MobileSetupService', () => {
             const { service, mobileSetupCodeModel } = createService();
             await expect(
                 service.redeem(
-                    { code, client: wrongClient, platform: 'ios' },
+                    {
+                        code,
+                        client: wrongClient,
+                        platform: 'ios',
+                        codeVerifier: 'a'.repeat(43),
+                        verificationCode: '123456',
+                    },
                     issueTokens,
                 ),
             ).rejects.toMatchObject({ code: MobileSetupCodeError.UNKNOWN });
@@ -304,7 +351,16 @@ describe('MobileSetupService', () => {
             enabled: false,
         });
         await expect(
-            service.redeem({ code, client, platform: 'ios' }, issueTokens),
+            service.redeem(
+                {
+                    code,
+                    client,
+                    platform: 'ios',
+                    codeVerifier: 'a'.repeat(43),
+                    verificationCode: '123456',
+                },
+                issueTokens,
+            ),
         ).rejects.toBeInstanceOf(ForbiddenError);
         expect(vi.mocked(mobileSetupCodeModel.redeem)).not.toHaveBeenCalled();
     });
@@ -316,7 +372,126 @@ describe('MobileSetupService', () => {
             .mockResolvedValueOnce(pendingCode())
             .mockResolvedValue({ ...pendingCode(), redeemed_at: new Date() });
         await expect(
-            service.redeem({ code, client, platform: 'android' }, issueTokens),
+            service.redeem(
+                {
+                    code,
+                    client,
+                    platform: 'android',
+                    codeVerifier: 'a'.repeat(43),
+                    verificationCode: '123456',
+                },
+                issueTokens,
+            ),
         ).rejects.toMatchObject({ code: MobileSetupCodeError.ALREADY_USED });
     });
+    it('begins with encrypted leading-zero digits but never returns them to the phone', async () => {
+        const { service, mobileSetupCodeModel } = createService();
+        const response = await service.beginChallenge({
+            code,
+            client,
+            platform: 'ios',
+            codeChallenge: 'a'.repeat(43),
+        });
+        expect(Object.keys(response)).toEqual(['expiresAt']);
+        const binding = vi.mocked(mobileSetupCodeModel.beginVerification).mock
+            .calls[0][2];
+        expect(Buffer.isBuffer(binding.verification_code_encrypted)).toBe(true);
+        vi.mocked(mobileSetupCodeModel.findForUser).mockResolvedValue({
+            ...pendingCode(),
+            ...binding,
+        });
+        expect(await service.getStatus(account, codeId)).toMatchObject({
+            status: MobileSetupCodeStatus.AWAITING_VERIFICATION,
+            verificationCode: '000007',
+        });
+    });
+
+    it('checks the feature flag before binding the first phone', async () => {
+        const { service, mobileSetupCodeModel, featureFlagModel } =
+            createService();
+        vi.mocked(featureFlagModel.get).mockResolvedValue({
+            id: FeatureFlags.MobileAppSetup,
+            enabled: false,
+        });
+        await expect(
+            service.beginChallenge({
+                code,
+                client,
+                platform: 'ios',
+                codeChallenge: 'a'.repeat(43),
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mobileSetupCodeModel.beginVerification).not.toHaveBeenCalled();
+    });
+
+    it.each(['beginChallenge', 'redeem'] as const)(
+        'rechecks account activity at %s',
+        async (operation) => {
+            const { service, mobileSetupCodeModel, userModel } =
+                createService();
+            vi.mocked(userModel.findSessionUserAndOrgByUuid).mockResolvedValue({
+                ...user,
+                isActive: false,
+            });
+            const action =
+                operation === 'beginChallenge'
+                    ? service.beginChallenge({
+                          code,
+                          client,
+                          platform: 'ios',
+                          codeChallenge: 'a'.repeat(43),
+                      })
+                    : service.redeem(
+                          {
+                              code,
+                              client,
+                              platform: 'ios',
+                              codeVerifier: 'a'.repeat(43),
+                              verificationCode: '123456',
+                          },
+                          issueTokens,
+                      );
+            await expect(action).rejects.toMatchObject({
+                code: MobileSetupCodeError.UNKNOWN,
+            });
+            expect(
+                mobileSetupCodeModel.beginVerification,
+            ).not.toHaveBeenCalled();
+            expect(mobileSetupCodeModel.redeem).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['beginChallenge', 'redeem'] as const)(
+        'rechecks project organization at %s',
+        async (operation) => {
+            const { service, mobileSetupCodeModel, projectModel } =
+                createService();
+            vi.mocked(projectModel.getSummary).mockResolvedValue({
+                organizationUuid: 'another-org',
+            } as Awaited<ReturnType<ProjectModel['getSummary']>>);
+            const action =
+                operation === 'beginChallenge'
+                    ? service.beginChallenge({
+                          code,
+                          client,
+                          platform: 'ios',
+                          codeChallenge: 'a'.repeat(43),
+                      })
+                    : service.redeem(
+                          {
+                              code,
+                              client,
+                              platform: 'ios',
+                              codeVerifier: 'a'.repeat(43),
+                              verificationCode: '123456',
+                          },
+                          issueTokens,
+                      );
+            await expect(action).rejects.toBeInstanceOf(ForbiddenError);
+            expect(
+                mobileSetupCodeModel.beginVerification,
+            ).not.toHaveBeenCalled();
+            expect(mobileSetupCodeModel.redeem).not.toHaveBeenCalled();
+        },
+    );
 });

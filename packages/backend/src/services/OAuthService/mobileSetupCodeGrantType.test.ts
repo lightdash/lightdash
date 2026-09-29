@@ -25,6 +25,8 @@ const validBody = {
     code: 'A'.repeat(32),
     platform: 'ios',
     scope: 'read write',
+    code_verifier: 'a'.repeat(43),
+    verification_code: '012345',
 };
 const createRequest = (
     body: Omit<typeof validBody, 'scope'> & { scope?: string } = validBody,
@@ -73,6 +75,8 @@ describe('mobile setup code grant', () => {
                 code: validBody.code,
                 client,
                 platform: 'ios',
+                codeVerifier: validBody.code_verifier,
+                verificationCode: validBody.verification_code,
             },
             expect.any(Function),
         );
@@ -134,6 +138,8 @@ describe('mobile setup code grant', () => {
                 grant_type: validBody.grant_type,
                 code: validBody.code,
                 platform: validBody.platform,
+                code_verifier: validBody.code_verifier,
+                verification_code: validBody.verification_code,
             }),
             client,
         );

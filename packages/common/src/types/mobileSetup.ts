@@ -7,6 +7,7 @@ export const MOBILE_SETUP_CODE_GRANT_TYPE =
 
 export enum MobileSetupCodeStatus {
     PENDING = 'pending',
+    AWAITING_VERIFICATION = 'awaiting_verification',
     REDEEMED = 'redeemed',
     EXPIRED = 'expired',
     REVOKED = 'revoked',
@@ -17,6 +18,9 @@ export enum MobileSetupCodeError {
     ALREADY_USED = 'already_used',
     REVOKED = 'revoked',
     UNKNOWN = 'unknown',
+    VERIFICATION_FAILED = 'verification_failed',
+    ATTEMPTS_EXHAUSTED = 'attempts_exhausted',
+    BINDING_MISMATCH = 'binding_mismatch',
 }
 
 export type MobileAppHealth = {
@@ -38,6 +42,7 @@ export type MobileSetupCodeStatusResponse = {
     codeId: UUID;
     status: MobileSetupCodeStatus;
     expiresAt: string;
+    verificationCode?: string;
     redeemedAt: string | null;
     redeemedPlatform: MobilePlatform | null;
 };

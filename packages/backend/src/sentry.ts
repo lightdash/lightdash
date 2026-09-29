@@ -7,6 +7,7 @@ import {
     shouldSelfRegisterHttpInstrumentation,
 } from './prometheus/otelHttpMetrics';
 import { otelTracingEnabled } from './tracing/tracing';
+import { sanitizeAuthTelemetry } from './utils/sanitizeAuthTelemetry';
 import { VERSION } from './version';
 
 const sentryDsn = lightdashConfig.sentry.backend.dsn;
@@ -198,6 +199,9 @@ Sentry.init({
                   : []),
           ],
     ignoreErrors: IGNORE_ERRORS,
+    beforeSend: (event) => sanitizeAuthTelemetry(event),
+    beforeSendTransaction: (event) => sanitizeAuthTelemetry(event),
+    beforeSendSpan: (span) => sanitizeAuthTelemetry(span),
     ...(otelTracingEnabled()
         ? {}
         : {
@@ -225,6 +229,6 @@ Sentry.init({
         ) {
             return null;
         }
-        return breadcrumb;
+        return sanitizeAuthTelemetry(breadcrumb);
     },
 });

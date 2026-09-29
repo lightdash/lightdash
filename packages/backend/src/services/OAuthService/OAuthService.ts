@@ -76,6 +76,21 @@ export class OAuthService extends BaseService {
         this.initializeOAuthServer();
     }
 
+    async beginMobileSetupChallenge(
+        body: Record<string, unknown>,
+    ): Promise<{ expiresAt: string }> {
+        if (typeof body.client_id !== 'string' || !this.getMobileSetupService)
+            throw new OAuth2Server.InvalidGrantError('unknown');
+        const client = await this.oauthModel.getClient(body.client_id);
+        if (!client) throw new OAuth2Server.InvalidGrantError('unknown');
+        return this.getMobileSetupService().beginChallenge({
+            code: body.code,
+            client,
+            platform: body.platform,
+            codeChallenge: body.code_challenge,
+        });
+    }
+
     private initializeOAuthServer(): void {
         const { getManagedSignInService, getMobileSetupService } = this;
         this.oauthServer = new OAuth2Server({
