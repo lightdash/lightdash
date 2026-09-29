@@ -38,6 +38,8 @@ const usageEvent = (
         managedAgentRunId: null,
         deepResearchRunId: null,
         deepResearchPhase: null,
+        channel: null,
+        externalUserId: null,
         inputTokens: 1_000_000,
         outputTokens: 0,
         cacheReadTokens: 0,
