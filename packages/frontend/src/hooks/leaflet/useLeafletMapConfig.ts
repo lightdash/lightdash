@@ -7,7 +7,9 @@ import {
     MapHexbinSizingMode,
     MapHexbinValueBasis,
     MapTileBackground,
+    type ItemsMap,
     type MapFieldConfig,
+    type ResultRow,
 } from '@lightdash/common';
 import { useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
@@ -221,6 +223,261 @@ export const getTileConfig = (
     }
 };
 
+type LeafletSeriesAndLegendArgs = {
+    isLatLong: boolean;
+    resultsData: { rows?: ResultRow[] } | null | undefined;
+    itemsMap: ItemsMap | undefined;
+    latitudeFieldId: string | undefined;
+    longitudeFieldId: string | undefined;
+    locationFieldId: string | undefined;
+    valueFieldId: string | undefined;
+    sizeFieldId: string | undefined;
+    fieldConfig: Record<string, MapFieldConfig> | undefined;
+};
+
+type LeafletSeriesAndLegend = {
+    scatterData: ScatterPoint[] | null;
+    regionData: RegionData[] | null;
+    valueRange: LeafletMapConfig['valueRange'];
+    sizeRange: LeafletMapConfig['sizeRange'];
+    valueFieldLabel: string | null;
+    sizeFieldLabel: string | null;
+    isCategoricalColor: boolean;
+    uniqueStringValues: string[] | null;
+};
+
+const computeLeafletSeriesAndLegend = ({
+    isLatLong,
+    resultsData,
+    itemsMap,
+    latitudeFieldId,
+    longitudeFieldId,
+    locationFieldId,
+    valueFieldId,
+    sizeFieldId,
+    fieldConfig,
+}: LeafletSeriesAndLegendArgs): LeafletSeriesAndLegend => {
+    let scatterData: ScatterPoint[] | null = null;
+    let regionData: RegionData[] | null = null;
+
+    if (resultsData?.rows && resultsData.rows.length > 0) {
+        if (isLatLong) {
+            // Scatter plot mode
+            const mappedData = resultsData.rows
+                .map((row) => {
+                    if (!latitudeFieldId || !longitudeFieldId) return null;
+
+                    const lat = Number(row[latitudeFieldId]?.value.raw);
+                    const lon = Number(row[longitudeFieldId]?.value.raw);
+
+                    // Handle value field - support both numeric and non-numeric values
+                    const rawValue = valueFieldId
+                        ? row[valueFieldId]?.value.raw
+                        : 1;
+                    const numericValue = Number(rawValue);
+                    // Check for null/undefined/empty explicitly since Number(null) = 0, Number('') = 0
+                    const isNumeric =
+                        rawValue !== null &&
+                        rawValue !== undefined &&
+                        rawValue !== '' &&
+                        !isNaN(numericValue);
+                    const value = isNumeric ? numericValue : null;
+                    const displayValue = valueFieldId
+                        ? (row[valueFieldId]?.value.formatted ??
+                          row[valueFieldId]?.value.raw ??
+                          rawValue)
+                        : 1;
+
+                    // Use sizeFieldId if set, otherwise use constant size
+                    const sizeValue = sizeFieldId
+                        ? Number(row[sizeFieldId]?.value.raw)
+                        : 1;
+
+                    if (isNaN(lat) || isNaN(lon)) return null;
+
+                    return {
+                        lat,
+                        lon,
+                        value,
+                        stringValue:
+                            !isNumeric &&
+                            rawValue !== null &&
+                            rawValue !== undefined &&
+                            rawValue !== ''
+                                ? String(rawValue)
+                                : null,
+                        displayValue,
+                        sizeValue: isNaN(sizeValue) ? 1 : sizeValue,
+                        rowData: row as Record<string, any>,
+                    };
+                })
+                .filter((d): d is NonNullable<typeof d> => d !== null);
+            scatterData = mappedData;
+        } else {
+            // Choropleth mode
+            regionData = resultsData.rows
+                .map((row) => {
+                    if (!locationFieldId) return null;
+
+                    const locationName = String(
+                        row[locationFieldId]?.value.raw || '',
+                    );
+                    const rawRegionValue = valueFieldId
+                        ? row[valueFieldId]?.value.raw
+                        : 1;
+                    const numericRegionValue = Number(rawRegionValue);
+                    const isRegionValueNumeric =
+                        rawRegionValue !== null &&
+                        rawRegionValue !== undefined &&
+                        rawRegionValue !== '' &&
+                        !isNaN(numericRegionValue);
+
+                    if (!locationName) return null;
+
+                    return {
+                        name: locationName,
+                        value: isRegionValueNumeric ? numericRegionValue : 0,
+                        stringValue:
+                            !isRegionValueNumeric &&
+                            rawRegionValue !== null &&
+                            rawRegionValue !== undefined &&
+                            rawRegionValue !== ''
+                                ? String(rawRegionValue)
+                                : null,
+                        rowData: row as Record<string, any>,
+                    };
+                })
+                .filter((d): d is RegionData => d !== null);
+        }
+    }
+
+    // Calculate value range for legend (includes both raw and formatted values)
+    let valueRange: LeafletMapConfig['valueRange'] = null;
+    let sizeRange: LeafletMapConfig['sizeRange'] = null;
+    if (scatterData && scatterData.length > 0) {
+        // Single pass to find min/max for both value and size
+        let minPoint: (ScatterPoint & { value: number }) | null = null;
+        let maxPoint: (ScatterPoint & { value: number }) | null = null;
+        let minSizePoint = scatterData[0];
+        let maxSizePoint = scatterData[0];
+
+        for (const point of scatterData) {
+            // Track size range (keep the point reference for formatted values)
+            if (point.sizeValue < minSizePoint.sizeValue) minSizePoint = point;
+            if (point.sizeValue > maxSizePoint.sizeValue) maxSizePoint = point;
+
+            // Track value range (only for numeric values)
+            if (point.value !== null) {
+                if (!minPoint || point.value < minPoint.value) {
+                    minPoint = point as ScatterPoint & { value: number };
+                }
+                if (!maxPoint || point.value > maxPoint.value) {
+                    maxPoint = point as ScatterPoint & { value: number };
+                }
+            }
+        }
+
+        // Only set valueRange when valueFieldId is set, otherwise all points
+        // have displayValue: 1 and the legend would show a meaningless "1 - 1" range
+        if (minPoint && maxPoint && valueFieldId) {
+            valueRange = {
+                min: Math.min(minPoint.value, 0),
+                max: Math.max(maxPoint.value, 1),
+                formattedMin: String(minPoint.displayValue),
+                formattedMax: String(maxPoint.displayValue),
+            };
+        }
+
+        // Only set sizeRange when sizeFieldId is set
+        if (sizeFieldId) {
+            const formattedMinSize =
+                minSizePoint.rowData[sizeFieldId]?.value?.formatted ??
+                String(minSizePoint.sizeValue);
+            const formattedMaxSize =
+                maxSizePoint.rowData[sizeFieldId]?.value?.formatted ??
+                String(maxSizePoint.sizeValue);
+            sizeRange = {
+                min: Math.min(minSizePoint.sizeValue, 0),
+                max: Math.max(maxSizePoint.sizeValue, 1),
+                formattedMin: formattedMinSize,
+                formattedMax: formattedMaxSize,
+            };
+        }
+    } else if (regionData && regionData.length > 0 && valueFieldId) {
+        // Single pass to find min/max values and their regions
+        let minRegion = regionData[0];
+        let maxRegion = regionData[0];
+        for (const region of regionData) {
+            if (region.value < minRegion.value) minRegion = region;
+            if (region.value > maxRegion.value) maxRegion = region;
+        }
+        valueRange = {
+            min: minRegion.value,
+            max: maxRegion.value,
+            formattedMin:
+                minRegion.rowData[valueFieldId]?.value?.formatted ??
+                String(minRegion.value),
+            formattedMax:
+                maxRegion.rowData[valueFieldId]?.value?.formatted ??
+                String(maxRegion.value),
+        };
+    }
+
+    // Get value field label for legend (use custom label from fieldConfig if set)
+    let valueFieldLabel: string | null = null;
+    if (valueFieldId && itemsMap?.[valueFieldId]) {
+        const customLabel = fieldConfig?.[valueFieldId]?.label;
+        if (customLabel) {
+            valueFieldLabel = customLabel;
+        } else {
+            valueFieldLabel = getItemLabelWithoutTableName(
+                itemsMap[valueFieldId],
+            );
+        }
+    }
+
+    // Get size field label for legend (use custom label from fieldConfig if set)
+    let sizeFieldLabel: string | null = null;
+    if (sizeFieldId && itemsMap?.[sizeFieldId]) {
+        const customLabel = fieldConfig?.[sizeFieldId]?.label;
+        if (customLabel) {
+            sizeFieldLabel = customLabel;
+        } else {
+            sizeFieldLabel = getItemLabelWithoutTableName(
+                itemsMap[sizeFieldId],
+            );
+        }
+    }
+
+    // Determine if color field is categorical (non-numeric)
+    const valueItem = valueFieldId ? itemsMap?.[valueFieldId] : undefined;
+    const isCategoricalColor = !!valueItem && !isNumericItem(valueItem);
+
+    // Compute all unique string values for categorical coloring
+    let uniqueStringValues: string[] | null = null;
+    if (isCategoricalColor) {
+        const seen = new Set<string>();
+        const data = scatterData ?? regionData ?? [];
+        for (const point of data) {
+            if (point.stringValue && !seen.has(point.stringValue)) {
+                seen.add(point.stringValue);
+            }
+        }
+        uniqueStringValues = Array.from(seen).sort();
+    }
+
+    return {
+        scatterData,
+        regionData,
+        valueRange,
+        sizeRange,
+        valueFieldLabel,
+        sizeFieldLabel,
+        isCategoricalColor,
+        uniqueStringValues,
+    };
+};
+
 const useLeafletMapConfig = ({
     isInDashboard: _isInDashboard,
 }: Args): LeafletMapConfig | null => {
@@ -307,101 +564,26 @@ const useLeafletMapConfig = ({
             locationType === MapChartType.HEATMAP ||
             locationType === MapChartType.HEXBIN;
 
-        let scatterData: ScatterPoint[] | null = null;
-        let regionData: RegionData[] | null = null;
-
-        if (resultsData?.rows && resultsData.rows.length > 0) {
-            if (isLatLong) {
-                // Scatter plot mode
-                const mappedData = resultsData.rows
-                    .map((row) => {
-                        if (!latitudeFieldId || !longitudeFieldId) return null;
-
-                        const lat = Number(row[latitudeFieldId]?.value.raw);
-                        const lon = Number(row[longitudeFieldId]?.value.raw);
-
-                        // Handle value field - support both numeric and non-numeric values
-                        const rawValue = valueFieldId
-                            ? row[valueFieldId]?.value.raw
-                            : 1;
-                        const numericValue = Number(rawValue);
-                        // Check for null/undefined/empty explicitly since Number(null) = 0, Number('') = 0
-                        const isNumeric =
-                            rawValue !== null &&
-                            rawValue !== undefined &&
-                            rawValue !== '' &&
-                            !isNaN(numericValue);
-                        const value = isNumeric ? numericValue : null;
-                        const displayValue = valueFieldId
-                            ? (row[valueFieldId]?.value.formatted ??
-                              row[valueFieldId]?.value.raw ??
-                              rawValue)
-                            : 1;
-
-                        // Use sizeFieldId if set, otherwise use constant size
-                        const sizeValue = sizeFieldId
-                            ? Number(row[sizeFieldId]?.value.raw)
-                            : 1;
-
-                        if (isNaN(lat) || isNaN(lon)) return null;
-
-                        return {
-                            lat,
-                            lon,
-                            value,
-                            stringValue:
-                                !isNumeric &&
-                                rawValue !== null &&
-                                rawValue !== undefined &&
-                                rawValue !== ''
-                                    ? String(rawValue)
-                                    : null,
-                            displayValue,
-                            sizeValue: isNaN(sizeValue) ? 1 : sizeValue,
-                            rowData: row as Record<string, any>,
-                        };
-                    })
-                    .filter((d): d is NonNullable<typeof d> => d !== null);
-                scatterData = mappedData;
-            } else {
-                // Choropleth mode
-                regionData = resultsData.rows
-                    .map((row) => {
-                        if (!locationFieldId) return null;
-
-                        const locationName = String(
-                            row[locationFieldId]?.value.raw || '',
-                        );
-                        const rawRegionValue = valueFieldId
-                            ? row[valueFieldId]?.value.raw
-                            : 1;
-                        const numericRegionValue = Number(rawRegionValue);
-                        const isRegionValueNumeric =
-                            rawRegionValue !== null &&
-                            rawRegionValue !== undefined &&
-                            rawRegionValue !== '' &&
-                            !isNaN(numericRegionValue);
-
-                        if (!locationName) return null;
-
-                        return {
-                            name: locationName,
-                            value: isRegionValueNumeric
-                                ? numericRegionValue
-                                : 0,
-                            stringValue:
-                                !isRegionValueNumeric &&
-                                rawRegionValue !== null &&
-                                rawRegionValue !== undefined &&
-                                rawRegionValue !== ''
-                                    ? String(rawRegionValue)
-                                    : null,
-                            rowData: row as Record<string, any>,
-                        };
-                    })
-                    .filter((d): d is RegionData => d !== null);
-            }
-        }
+        const {
+            scatterData,
+            regionData,
+            valueRange,
+            sizeRange,
+            valueFieldLabel,
+            sizeFieldLabel,
+            isCategoricalColor,
+            uniqueStringValues,
+        } = computeLeafletSeriesAndLegend({
+            isLatLong,
+            resultsData,
+            itemsMap,
+            latitudeFieldId,
+            longitudeFieldId,
+            locationFieldId,
+            valueFieldId,
+            sizeFieldId,
+            fieldConfig,
+        });
 
         // Calculate extent - use saved values if provided, otherwise defaults based on map type
         const hasSavedExtent =
@@ -412,133 +594,6 @@ const useLeafletMapConfig = ({
             lng: hasSavedExtent ? defaultCenterLon : defaultCenter[1],
             zoom: defaultZoom ?? getMapZoom(mapType),
         };
-
-        // Calculate value range for legend (includes both raw and formatted values)
-        let valueRange: {
-            min: number;
-            max: number;
-            formattedMin: string;
-            formattedMax: string;
-        } | null = null;
-        let sizeRange: {
-            min: number;
-            max: number;
-            formattedMin: string;
-            formattedMax: string;
-        } | null = null;
-        if (scatterData && scatterData.length > 0) {
-            // Single pass to find min/max for both value and size
-            let minPoint: (ScatterPoint & { value: number }) | null = null;
-            let maxPoint: (ScatterPoint & { value: number }) | null = null;
-            let minSizePoint = scatterData[0];
-            let maxSizePoint = scatterData[0];
-
-            for (const point of scatterData) {
-                // Track size range (keep the point reference for formatted values)
-                if (point.sizeValue < minSizePoint.sizeValue)
-                    minSizePoint = point;
-                if (point.sizeValue > maxSizePoint.sizeValue)
-                    maxSizePoint = point;
-
-                // Track value range (only for numeric values)
-                if (point.value !== null) {
-                    if (!minPoint || point.value < minPoint.value) {
-                        minPoint = point as ScatterPoint & { value: number };
-                    }
-                    if (!maxPoint || point.value > maxPoint.value) {
-                        maxPoint = point as ScatterPoint & { value: number };
-                    }
-                }
-            }
-
-            // Only set valueRange when valueFieldId is set, otherwise all points
-            // have displayValue: 1 and the legend would show a meaningless "1 - 1" range
-            if (minPoint && maxPoint && valueFieldId) {
-                valueRange = {
-                    min: Math.min(minPoint.value, 0),
-                    max: Math.max(maxPoint.value, 1),
-                    formattedMin: String(minPoint.displayValue),
-                    formattedMax: String(maxPoint.displayValue),
-                };
-            }
-
-            // Only set sizeRange when sizeFieldId is set
-            if (sizeFieldId) {
-                const formattedMinSize =
-                    minSizePoint.rowData[sizeFieldId]?.value?.formatted ??
-                    String(minSizePoint.sizeValue);
-                const formattedMaxSize =
-                    maxSizePoint.rowData[sizeFieldId]?.value?.formatted ??
-                    String(maxSizePoint.sizeValue);
-                sizeRange = {
-                    min: Math.min(minSizePoint.sizeValue, 0),
-                    max: Math.max(maxSizePoint.sizeValue, 1),
-                    formattedMin: formattedMinSize,
-                    formattedMax: formattedMaxSize,
-                };
-            }
-        } else if (regionData && regionData.length > 0 && valueFieldId) {
-            // Single pass to find min/max values and their regions
-            let minRegion = regionData[0];
-            let maxRegion = regionData[0];
-            for (const region of regionData) {
-                if (region.value < minRegion.value) minRegion = region;
-                if (region.value > maxRegion.value) maxRegion = region;
-            }
-            valueRange = {
-                min: minRegion.value,
-                max: maxRegion.value,
-                formattedMin:
-                    minRegion.rowData[valueFieldId]?.value?.formatted ??
-                    String(minRegion.value),
-                formattedMax:
-                    maxRegion.rowData[valueFieldId]?.value?.formatted ??
-                    String(maxRegion.value),
-            };
-        }
-
-        // Get value field label for legend (use custom label from fieldConfig if set)
-        let valueFieldLabel: string | null = null;
-        if (valueFieldId && itemsMap?.[valueFieldId]) {
-            const customLabel = fieldConfig?.[valueFieldId]?.label;
-            if (customLabel) {
-                valueFieldLabel = customLabel;
-            } else {
-                valueFieldLabel = getItemLabelWithoutTableName(
-                    itemsMap[valueFieldId],
-                );
-            }
-        }
-
-        // Get size field label for legend (use custom label from fieldConfig if set)
-        let sizeFieldLabel: string | null = null;
-        if (sizeFieldId && itemsMap?.[sizeFieldId]) {
-            const customLabel = fieldConfig?.[sizeFieldId]?.label;
-            if (customLabel) {
-                sizeFieldLabel = customLabel;
-            } else {
-                sizeFieldLabel = getItemLabelWithoutTableName(
-                    itemsMap[sizeFieldId],
-                );
-            }
-        }
-
-        // Determine if color field is categorical (non-numeric)
-        const valueItem = valueFieldId ? itemsMap?.[valueFieldId] : undefined;
-        const isCategoricalColor = !!valueItem && !isNumericItem(valueItem);
-
-        // Compute all unique string values for categorical coloring
-        let uniqueStringValues: string[] | null = null;
-        if (isCategoricalColor) {
-            const seen = new Set<string>();
-            const data = scatterData ?? regionData ?? [];
-            for (const point of data) {
-                if (point.stringValue && !seen.has(point.stringValue)) {
-                    seen.add(point.stringValue);
-                }
-            }
-            uniqueStringValues = Array.from(seen).sort();
-        }
 
         const colorOverrides = configColorOverrides ?? {};
 
