@@ -26,4 +26,6 @@ export type DrillDownConfig = {
     fieldValues: Record<string, ResultValue>;
     pivotReference?: PivotReference;
     source?: MetricQueryDataSource;
+    /** Shown instead of the metric's value when the row has no metric cell. */
+    valueLabel?: string;
 };

@@ -1,5 +1,6 @@
 import { AiAgent, SEED_PROJECT } from '@lightdash/common';
 import { beforeAll, describe, expect, it } from 'vitest';
+import type { AiKeyManagement } from '../../../../../analytics/aiUsage';
 import { aiCopilotConfigSchema } from '../../../../../config/aiConfigSchema';
 import { getAiConfig } from '../../../../../config/parseConfig';
 import {
@@ -52,6 +53,8 @@ describeOrSkip.concurrent('agent integration tests', () => {
         },
         getModelPreset('openai', 'gpt-5.4')!,
     );
+    // The judge runs on the developer's own OPENAI_API_KEY.
+    const judgeKeyManagement: AiKeyManagement = 'self-managed';
 
     beforeAll(async () => {
         if (!process.env.OPENAI_API_KEY) {
@@ -149,6 +152,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                             expectedAnswer,
                             judge,
                             callOptions,
+                            keyManagement: judgeKeyManagement,
                             scorerType: 'factuality',
                         });
 
@@ -165,6 +169,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                                 testCase.expectedArgsValidation,
                             judge,
                             callOptions,
+                            keyManagement: judgeKeyManagement,
                         });
 
                         report.addLlmToolJudgeResult(toolsEvaluation);
@@ -210,6 +215,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                                 context: contextForEval,
                                 judge,
                                 callOptions,
+                                keyManagement: judgeKeyManagement,
                                 scorerType: 'contextRelevancy',
                                 contextRelevancyThreshold:
                                     testCase.contextRelevancy.threshold,
@@ -331,6 +337,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                             expectedAnswer,
                             judge,
                             callOptions,
+                            keyManagement: judgeKeyManagement,
                             scorerType: 'factuality',
                         });
 
@@ -347,6 +354,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                                 testCase.expectedArgsValidation,
                             judge,
                             callOptions,
+                            keyManagement: judgeKeyManagement,
                         });
 
                         report.addLlmToolJudgeResult(toolsEvaluation);
@@ -392,6 +400,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
                                 context: contextForEval,
                                 judge,
                                 callOptions,
+                                keyManagement: judgeKeyManagement,
                                 scorerType: 'contextRelevancy',
                                 contextRelevancyThreshold:
                                     testCase.contextRelevancy.threshold,

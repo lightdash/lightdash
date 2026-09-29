@@ -331,3 +331,25 @@
         animation: none;
     }
 }
+
+/* A suggestion of more than one line (a block of YAML the learner would not
+   retype) printed as code: it scrolls sideways rather than widening the card. */
+.suggestionBlock {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0;
+}
+
+/* Already in the file: where the highlighted lines go, not something to type. */
+.suggestionContext {
+    opacity: 0.45;
+}
+
+.suggestionInput {
+    color: light-dark(
+        var(--mantine-color-ldBrandViolet-7),
+        var(--mantine-color-ldBrandViolet-3)
+    );
+    font-weight: 600;
+}

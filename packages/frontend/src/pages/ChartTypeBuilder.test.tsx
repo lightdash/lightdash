@@ -9,6 +9,7 @@ import {
     type ReadyQueryResultsPage,
     type DataAppVizContext,
     type DataAppVizField,
+    type DataAppVizSchema,
     type ItemsMap,
     FeatureFlags,
     type ApiAppVersionSummary,
@@ -49,8 +50,10 @@ import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSave
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
+import { type VizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import { clarificationStub } from '../features/chartTypes/testing/clarificationRoundStub';
 import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
+import * as asyncCalculateTotal from '../hooks/useAsyncCalculateTotal';
 import { ChartColorMappingContext } from '../hooks/useChartColorConfig/context';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -126,39 +129,51 @@ vi.mock('../hooks/appearance/useOrganizationAppearance', () => ({
 vi.mock('../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
 }));
+vi.mock('../hooks/useAsyncCalculateTotal', async (importOriginal) => ({
+    ...(await importOriginal<typeof asyncCalculateTotal>()),
+    fetchColumnSubtotalRows: vi.fn(),
+}));
+const previewSubtotals = vi.hoisted<{
+    handler: VizSubtotalSource['get'] | null;
+}>(() => ({ handler: null }));
 vi.mock('../features/apps/components/AppPreview', () => ({
     default: ({
         version,
         onSdkManifest,
         dataAppVizContext,
+        onVizSubtotalsIntent,
     }: {
         version: number;
         dataAppVizContext?: DataAppVizContext;
+        onVizSubtotalsIntent?: VizSubtotalSource['get'];
         onSdkManifest?: (manifest: {
             sdkVersion: string;
             features: string[];
             fixes: string[];
         }) => void;
-    }) => (
-        <div data-testid="app-preview">
-            {`preview-v${version}`}
-            <output data-testid="viz-context">
-                {JSON.stringify(dataAppVizContext)}
-            </output>
-            <button
-                type="button"
-                onClick={() =>
-                    onSdkManifest?.({
-                        sdkVersion: '1.68.0',
-                        features: ['query'],
-                        fixes: [],
-                    })
-                }
-            >
-                Report SDK manifest
-            </button>
-        </div>
-    ),
+    }) => {
+        previewSubtotals.handler = onVizSubtotalsIntent ?? null;
+        return (
+            <div data-testid="app-preview">
+                {`preview-v${version}`}
+                <output data-testid="viz-context">
+                    {JSON.stringify(dataAppVizContext)}
+                </output>
+                <button
+                    type="button"
+                    onClick={() =>
+                        onSdkManifest?.({
+                            sdkVersion: '1.68.0',
+                            features: ['query'],
+                            fixes: [],
+                        })
+                    }
+                >
+                    Report SDK manifest
+                </button>
+            </div>
+        );
+    },
 }));
 vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
     default: ({
@@ -274,15 +289,15 @@ const builderRoutes = (path: string) => (
             <LocationDisplay />
             <Routes>
                 <Route
-                    path="/projects/:projectUuid/chart-types/new"
+                    path="/projects/:projectUuid/chart-studio/new"
                     element={<ChartTypeBuilder />}
                 />
                 <Route
-                    path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
+                    path="/projects/:projectUuid/chart-studio/:dataAppVizUuid"
                     element={<ChartTypeBuilder />}
                 />
                 <Route
-                    path="/projects/:projectUuid/chart-types"
+                    path="/projects/:projectUuid/chart-studio"
                     element={<div>gallery</div>}
                 />
                 <Route
@@ -335,6 +350,7 @@ const staleUpgradeOffer: SdkUpgradeOffer = {
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        previewSubtotals.handler = null;
         vi.mocked(useAmbientAiEnabled).mockReturnValue(false);
         vi.mocked(useAttachedExplore).mockReturnValue({
             explore: null,
@@ -377,7 +393,7 @@ describe('ChartTypeBuilder', () => {
 
     it('redirects home when data apps are disabled', () => {
         setFlag(false);
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
 
         expect(screen.getByText('home')).toBeInTheDocument();
     });
@@ -385,12 +401,12 @@ describe('ChartTypeBuilder', () => {
     it.each([
         {
             name: 'the data apps feature is disabled',
-            path: '/projects/p1/chart-types/new',
+            path: '/projects/p1/chart-studio/new',
             prepare: () => setFlag(false),
         },
         {
             name: 'the data apps feature flag is loading',
-            path: '/projects/p1/chart-types/new',
+            path: '/projects/p1/chart-studio/new',
             prepare: () =>
                 vi.mocked(useServerFeatureFlag).mockReturnValue({
                     data: undefined,
@@ -399,13 +415,13 @@ describe('ChartTypeBuilder', () => {
         },
         {
             name: 'the author cannot create chart types',
-            path: '/projects/p1/chart-types/new',
+            path: '/projects/p1/chart-studio/new',
             prepare: () =>
                 vi.mocked(useCanCreateDataApp).mockReturnValue(false),
         },
         {
             name: 'the author cannot edit the chart type',
-            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            path: '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
             prepare: () => {
                 setApp(appMeta());
                 vi.mocked(useCanEditDataApp).mockReturnValue(false);
@@ -413,12 +429,12 @@ describe('ChartTypeBuilder', () => {
         },
         {
             name: 'the edit chart metadata is still loading',
-            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            path: '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
             prepare: () => undefined,
         },
         {
             name: 'the app is not a chart type',
-            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            path: '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
             prepare: () =>
                 setApp(
                     appMeta({ template: 'dashboard' as AppMeta['template'] }),
@@ -426,7 +442,7 @@ describe('ChartTypeBuilder', () => {
         },
         {
             name: 'the chart type is registry installed',
-            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            path: '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
             prepare: () => setApp(appMeta({ registrySlug: 'radial-gauge' })),
         },
     ])('does not run a saved chart query while $name', ({ path, prepare }) => {
@@ -444,7 +460,7 @@ describe('ChartTypeBuilder', () => {
 
     it('sends users who cannot create back to the gallery', () => {
         vi.mocked(useCanCreateDataApp).mockReturnValue(false);
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
 
         expect(screen.getByText('gallery')).toBeInTheDocument();
     });
@@ -452,38 +468,44 @@ describe('ChartTypeBuilder', () => {
     it('reports a chart type that does not exist', () => {
         setApp(null, { error: { statusCode: 404 } });
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByText('Chart type not found')).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Back to all chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
     it('resolves an edit route by slug', () => {
         setApp(appMeta());
 
-        renderBuilder('/projects/p1/chart-types/stream-graph');
+        renderBuilder('/projects/p1/chart-studio/stream-graph');
 
         expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
         expect(screen.getByText('Stream graph')).toBeInTheDocument();
         expect(
             screen.getByText('Chart Studio', { exact: true }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
     it.each([
         {
             name: 'its row is loading by slug',
-            path: '/projects/p1/chart-types/stream-graph',
+            path: '/projects/p1/chart-studio/stream-graph',
             prepare: () => undefined,
         },
         {
             name: 'its row is loading by uuid',
-            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            path: '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
             prepare: () => undefined,
         },
         {
             name: 'its history is loading',
-            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            path: '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
             prepare: () => {
                 setApp(
                     appMeta({
@@ -531,7 +553,7 @@ describe('ChartTypeBuilder', () => {
             isLoading: true,
         });
 
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
 
         expect(screen.getByTestId('location')).toHaveTextContent(
             dataAppVizUuid,
@@ -548,7 +570,7 @@ describe('ChartTypeBuilder', () => {
         'omits an unnamed chart type from the header (%j)',
         (name) => {
             setApp(appMeta({ name }));
-            renderBuilder('/projects/p1/chart-types/stream-graph');
+            renderBuilder('/projects/p1/chart-studio/stream-graph');
 
             expect(screen.queryByText(/Untitled/)).not.toBeInTheDocument();
             expect(
@@ -563,7 +585,7 @@ describe('ChartTypeBuilder', () => {
     it('hands non-viz apps to the app builder', () => {
         setApp(appMeta({ template: 'dashboard' as AppMeta['template'] }));
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByText('app-builder')).toBeInTheDocument();
@@ -573,7 +595,7 @@ describe('ChartTypeBuilder', () => {
         setApp(appMeta());
         vi.mocked(useCanEditDataApp).mockReturnValue(false);
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByText('gallery')).toBeInTheDocument();
@@ -582,18 +604,21 @@ describe('ChartTypeBuilder', () => {
     it('sends an official (registry-installed) chart type back to the gallery', () => {
         setApp(appMeta({ registrySlug: 'radial-gauge' }));
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByText('gallery')).toBeInTheDocument();
     });
 
     it('starts the create flow with a prompt and nothing else', () => {
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
 
         expect(
             screen.queryByText('Chart Studio', { exact: true }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
         expect(
             screen.getByText(
                 'Describe the chart you’ve always wanted, or start from an example.',
@@ -636,7 +661,7 @@ describe('ChartTypeBuilder', () => {
             },
         } as unknown as ReturnType<typeof useDataAppVisualization>);
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         // No toggle to find: the panel sits beside the preview from the start.
@@ -668,7 +693,7 @@ describe('ChartTypeBuilder', () => {
             },
         } as unknown as ReturnType<typeof useDataAppVisualization>);
         const route =
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001';
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001';
         const view = renderBuilder(route);
         fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
 
@@ -699,7 +724,7 @@ describe('ChartTypeBuilder', () => {
                 pendingPrompt: 'a stream graph of category share',
             }),
         );
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
 
         // The edit route re-renders with the uuid param; its useGetApp stub
         // has no data, so the header stays bare.
@@ -726,10 +751,10 @@ describe('ChartTypeBuilder', () => {
         );
         const search = explorerSearch();
 
-        renderBuilder(`/projects/p1/chart-types/new${search}`);
+        renderBuilder(`/projects/p1/chart-studio/new${search}`);
 
         expect(screen.getByTestId('location')).toHaveTextContent(
-            `/projects/jaffle-shop/chart-types/1e9a3b2c-0000-4000-8000-000000000009${search}`,
+            `/projects/jaffle-shop/chart-studio/1e9a3b2c-0000-4000-8000-000000000009${search}`,
         );
     });
 
@@ -745,11 +770,11 @@ describe('ChartTypeBuilder', () => {
         const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
 
         renderBuilder(
-            `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
+            `/projects/p1/chart-studio/new?savedChartUuid=${savedChartUuid}`,
         );
 
         expect(screen.getByTestId('location')).toHaveTextContent(
-            `/projects/jaffle-shop/chart-types/1e9a3b2c-0000-4000-8000-000000000009?savedChartUuid=${savedChartUuid}`,
+            `/projects/jaffle-shop/chart-studio/1e9a3b2c-0000-4000-8000-000000000009?savedChartUuid=${savedChartUuid}`,
         );
     });
 
@@ -766,7 +791,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         const view = renderBuilder(
-            `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
+            `/projects/p1/chart-studio/new?savedChartUuid=${savedChartUuid}`,
         );
 
         expect(screen.getByTestId('location')).toHaveTextContent(
@@ -781,7 +806,7 @@ describe('ChartTypeBuilder', () => {
         setApp(appMeta({ appUuid: dataAppVizUuid }));
         view.rerender(
             builderRoutes(
-                `/projects/jaffle-shop/chart-types/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
+                `/projects/jaffle-shop/chart-studio/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
             ),
         );
 
@@ -851,6 +876,7 @@ describe('ChartTypeBuilder', () => {
             };
             const run = {
                 status: 'ready' as const,
+                queryUuid: 'preview-query',
                 rows,
                 itemsMap,
                 columns: Object.values(itemsMap),
@@ -973,7 +999,7 @@ describe('ChartTypeBuilder', () => {
                 });
             }
             renderBuilder(
-                `/projects/p1/chart-types/viz-1?${source !== 'explore' ? 'savedChartUuid=chart-1' : 'exploreName=orders'}`,
+                `/projects/p1/chart-studio/viz-1?${source !== 'explore' ? 'savedChartUuid=chart-1' : 'exploreName=orders'}`,
             );
             const destination = new URL(
                 screen
@@ -1086,6 +1112,259 @@ describe('ChartTypeBuilder', () => {
         },
     );
 
+    describe('hierarchy subtotals', () => {
+        const dimension = (name: string) => ({
+            fieldType: FieldType.DIMENSION as const,
+            type: DimensionType.STRING,
+            name,
+            label: name,
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: name,
+            hidden: false,
+        });
+        const itemsMap = {
+            orders_region: dimension('region'),
+            orders_status: dimension('status'),
+            orders_count: {
+                ...dimension('count'),
+                fieldType: FieldType.METRIC as const,
+                type: MetricType.COUNT,
+            },
+        } satisfies ItemsMap;
+        const cell = (raw: string | number) => ({
+            value: { raw, formatted: String(raw) },
+        });
+        const fields: DataAppVizSchema['fields'] = [
+            {
+                name: 'levels',
+                label: 'Levels',
+                type: 'dimension',
+                required: true,
+                multiple: true,
+            },
+            { name: 'count', label: 'Count', type: 'metric', required: true },
+        ];
+        const hierarchySchema: DataAppVizSchema = {
+            fields,
+            configOptions: [],
+            colorPalette: null,
+            hierarchy: { field: 'levels' },
+        };
+        const setSchema = (schema: DataAppVizSchema) => {
+            setApp(appMeta());
+            vi.mocked(useAppVersionHistory).mockReturnValue(
+                historyStub([appVersion({ version: 1 })], 1),
+            );
+            vi.mocked(useDataAppVisualization).mockReturnValue({
+                data: { schema },
+            } as unknown as ReturnType<typeof useDataAppVisualization>);
+        };
+        const setLiveRun = (runItemsMap: ItemsMap = itemsMap) => {
+            vi.mocked(useAttachedExplore).mockReturnValue({
+                explore: {
+                    name: 'orders',
+                    label: 'Orders',
+                    joinedTableLabels: [],
+                    fields: Object.entries(itemsMap).map(([id, item]) => ({
+                        id,
+                        item,
+                        label: item.label,
+                    })),
+                    itemsMap,
+                },
+                error: null,
+                retry: vi.fn(),
+            });
+            vi.mocked(useExplorePreviewData).mockReturnValue({
+                run: {
+                    status: 'ready',
+                    queryUuid: 'live-query',
+                    rows: [
+                        {
+                            orders_region: cell('west'),
+                            orders_status: cell('placed'),
+                            orders_count: cell(10),
+                        },
+                    ],
+                    itemsMap: runItemsMap,
+                    columns: Object.values(runItemsMap),
+                    pivotDetails: null,
+                    rowCount: 1,
+                    ranAt: new Date(),
+                    fieldMapping: {
+                        levels: ['orders_region', 'orders_status'],
+                        count: 'orders_count',
+                    },
+                },
+                isRunning: false,
+                retry: vi.fn(),
+            });
+        };
+        const previewedContext = (): DataAppVizContext =>
+            JSON.parse(screen.getByTestId('viz-context').textContent!);
+
+        it('serves a live hierarchy preview from the query behind its rows', async () => {
+            setSchema(hierarchySchema);
+            setLiveRun();
+            const subtotalRows = [
+                { orders_region: cell('west'), orders_count: cell(10) },
+            ];
+            vi.mocked(
+                asyncCalculateTotal.fetchColumnSubtotalRows,
+            ).mockResolvedValue(subtotalRows);
+            renderBuilder('/projects/p1/chart-studio/viz-1?exploreName=orders');
+
+            const context = previewedContext();
+            expect(context.rows).toHaveLength(1);
+            expect(context.subtotals).toEqual({
+                enabled: true,
+                dimensions: ['orders_region', 'orders_status'],
+            });
+            await expect(
+                previewSubtotals.handler?.({ level: 0, parentValues: [] }),
+            ).resolves.toEqual({ rows: subtotalRows });
+            expect(
+                asyncCalculateTotal.fetchColumnSubtotalRows,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sourceQueryUuid: 'live-query',
+                    subtotalDimensions: ['orders_region'],
+                }),
+            );
+        });
+
+        it('offers no subtotals to a chart type without a hierarchy', () => {
+            setSchema({ fields, configOptions: [], colorPalette: null });
+            setLiveRun();
+            renderBuilder('/projects/p1/chart-studio/viz-1?exploreName=orders');
+
+            const context = previewedContext();
+            expect(context.rows).toHaveLength(1);
+            expect(context.subtotals).toEqual({
+                enabled: false,
+                dimensions: [],
+            });
+            expect(previewSubtotals.handler).toBeNull();
+        });
+
+        const setSavedChartRun = (merged: boolean) => {
+            const metricQuery = {
+                exploreName: 'orders',
+                dimensions: ['orders_region', 'orders_status'],
+                metrics: ['orders_count'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            };
+            vi.mocked(useSavedChartPreviewData).mockReturnValue({
+                data: {
+                    status: 'ready',
+                    queryUuid: 'saved-query',
+                    chartName: 'Orders',
+                    spaceName: null,
+                    rows: [
+                        {
+                            orders_region: cell('west'),
+                            orders_status: cell('placed'),
+                            orders_count: cell(10),
+                        },
+                    ],
+                    itemsMap,
+                    columns: Object.values(itemsMap),
+                    pivotDetails: null,
+                    rowCount: 1,
+                    ranAt: new Date(),
+                    sourceChart: {
+                        chartConfig: { type: ChartType.TABLE, config: {} },
+                        pivotConfig: undefined,
+                        metricQuery,
+                        originalMetricQuery: metricQuery,
+                        merge: merged
+                            ? {
+                                  queries: {},
+                                  keys: {},
+                                  join: MergeJoinType.LEFT,
+                                  limit: 100,
+                              }
+                            : null,
+                    },
+                },
+                retry: vi.fn(),
+            } as unknown as ReturnType<typeof useSavedChartPreviewData>);
+        };
+        const savedChartRoute =
+            '/projects/p1/chart-studio/viz-1?savedChartUuid=1e9a3b2c-0000-4000-8000-000000000010';
+
+        it('serves a saved chart preview from the query behind its rows', async () => {
+            setSchema(hierarchySchema);
+            setSavedChartRun(false);
+            const subtotalRows = [
+                { orders_region: cell('west'), orders_count: cell(10) },
+            ];
+            vi.mocked(
+                asyncCalculateTotal.fetchColumnSubtotalRows,
+            ).mockResolvedValue(subtotalRows);
+            renderBuilder(savedChartRoute);
+
+            expect(previewedContext().subtotals).toEqual({
+                enabled: true,
+                dimensions: ['orders_region', 'orders_status'],
+            });
+            await expect(
+                previewSubtotals.handler?.({ level: 0, parentValues: [] }),
+            ).resolves.toEqual({ rows: subtotalRows });
+            expect(
+                asyncCalculateTotal.fetchColumnSubtotalRows,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sourceQueryUuid: 'saved-query',
+                    subtotalDimensions: ['orders_region'],
+                }),
+            );
+        });
+
+        it('offers no subtotals when the live run has nothing to subtotal', () => {
+            setSchema(hierarchySchema);
+            setLiveRun({
+                orders_region: itemsMap.orders_region,
+                orders_status: itemsMap.orders_status,
+            });
+            renderBuilder('/projects/p1/chart-studio/viz-1?exploreName=orders');
+
+            expect(previewedContext().subtotals).toEqual({
+                enabled: false,
+                dimensions: [],
+            });
+            expect(previewSubtotals.handler).toBeNull();
+        });
+
+        it('offers no subtotals when the source chart is a merge', () => {
+            setSchema(hierarchySchema);
+            setSavedChartRun(true);
+            renderBuilder(savedChartRoute);
+
+            expect(previewedContext().rows).toHaveLength(1);
+            expect(previewedContext().subtotals).toEqual({
+                enabled: false,
+                dimensions: [],
+            });
+            expect(previewSubtotals.handler).toBeNull();
+        });
+
+        it('offers no subtotals to the fabricated sample preview', () => {
+            setSchema(hierarchySchema);
+            renderBuilder('/projects/p1/chart-studio/viz-1');
+
+            expect(previewedContext().subtotals).toEqual({
+                enabled: false,
+                dimensions: [],
+            });
+            expect(previewSubtotals.handler).toBeNull();
+        });
+    });
+
     it('uses a saved chart without sending its rows by default', () => {
         const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
         const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
@@ -1093,6 +1372,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useSavedChartPreviewData).mockReturnValue({
             data: {
                 status: 'ready',
+                queryUuid: 'preview-query',
                 sourceChart: null,
                 chartName: 'Orders by status',
                 spaceName: 'Sales',
@@ -1107,7 +1387,7 @@ describe('ChartTypeBuilder', () => {
         });
 
         renderBuilder(
-            `/projects/p1/chart-types/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
+            `/projects/p1/chart-studio/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
         );
 
         expect(useDataAppVizBuild).toHaveBeenCalledWith(
@@ -1125,6 +1405,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useSavedChartPreviewData).mockReturnValue({
             data: {
                 status: 'ready',
+                queryUuid: 'preview-query',
                 sourceChart: null,
                 chartName: 'Orders by status',
                 spaceName: 'Sales',
@@ -1138,7 +1419,7 @@ describe('ChartTypeBuilder', () => {
             retry: vi.fn(),
         });
         renderBuilder(
-            `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
+            `/projects/p1/chart-studio/new?savedChartUuid=${savedChartUuid}`,
         );
 
         fireEvent.click(screen.getByRole('button', { name: 'Include rows' }));
@@ -1160,7 +1441,7 @@ describe('ChartTypeBuilder', () => {
         setApp(appMeta({ appUuid: dataAppVizUuid }));
         const search = explorerSearch();
 
-        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}${search}`);
+        renderBuilder(`/projects/p1/chart-studio/${dataAppVizUuid}${search}`);
 
         const backLink = screen.getByRole('link', { name: 'Explorer' });
         const destination = new URL(
@@ -1194,7 +1475,7 @@ describe('ChartTypeBuilder', () => {
             historyStub([appVersion({ version: 1 })], 1),
         );
         renderBuilder(
-            `/projects/p1/chart-types/${dataAppVizUuid}${explorerSearch()}`,
+            `/projects/p1/chart-studio/${dataAppVizUuid}${explorerSearch()}`,
         );
 
         const previewLink = screen.getByRole('link', {
@@ -1239,7 +1520,7 @@ describe('ChartTypeBuilder', () => {
             data: { status: 'running', chartName: 'Orders', spaceName: null },
             retry: vi.fn(),
         });
-        renderBuilder('/projects/p1/chart-types/viz-1?savedChartUuid=chart-1');
+        renderBuilder('/projects/p1/chart-studio/viz-1?savedChartUuid=chart-1');
         expect(
             screen.getByRole('button', { name: 'Preview in explorer' }),
         ).toBeDisabled();
@@ -1267,13 +1548,13 @@ describe('ChartTypeBuilder', () => {
                 },
             },
         } as unknown as ReturnType<typeof useDataAppVisualization>);
-        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
+        renderBuilder(`/projects/p1/chart-studio/${dataAppVizUuid}`);
         fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
         fireEvent.click(screen.getByLabelText('Show grid'));
 
         expect(
-            screen.getByRole('link', { name: 'Chart types' }),
-        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
         fireEvent.click(
             screen.getByRole('button', { name: 'Preview in explorer' }),
         );
@@ -1281,7 +1562,7 @@ describe('ChartTypeBuilder', () => {
             screen.getByRole('dialog', { name: 'Preview in explorer' }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent(
-            `/projects/p1/chart-types/${dataAppVizUuid}`,
+            `/projects/p1/chart-studio/${dataAppVizUuid}`,
         );
         expect(
             screen.getByRole('button', { name: 'Open in explorer' }),
@@ -1313,12 +1594,12 @@ describe('ChartTypeBuilder', () => {
         setApp(appMeta());
 
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001?create_saved_chart_version=not-json',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001?create_saved_chart_version=not-json',
         );
 
         expect(
-            screen.getByRole('link', { name: 'Chart types' }),
-        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
     });
 
     it('keeps a drafted follow-up when the create route adopts the app', () => {
@@ -1327,7 +1608,7 @@ describe('ChartTypeBuilder', () => {
             pendingPrompt: 'a stream graph of category share',
         });
         vi.mocked(useDataAppVizBuild).mockImplementation(() => currentBuild);
-        const view = renderBuilder('/projects/p1/chart-types/new');
+        const view = renderBuilder('/projects/p1/chart-studio/new');
         const composer = screen.getByPlaceholderText('Ask for another change…');
         fireEvent.change(composer, {
             target: { value: 'make the target markers red' },
@@ -1340,7 +1621,7 @@ describe('ChartTypeBuilder', () => {
             claimedVersion: 1,
             pendingPrompt: 'a stream graph of category share',
         });
-        view.rerender(builderRoutes('/projects/p1/chart-types/new'));
+        view.rerender(builderRoutes('/projects/p1/chart-studio/new'));
 
         expect(
             screen.getByPlaceholderText('Ask for another change…'),
@@ -1356,7 +1637,7 @@ describe('ChartTypeBuilder', () => {
             pendingPrompt: 'a stream graph of category share',
         });
         vi.mocked(useDataAppVizBuild).mockImplementation(() => currentBuild);
-        const view = renderBuilder('/projects/p1/chart-types/new');
+        const view = renderBuilder('/projects/p1/chart-studio/new');
         const composer = screen.getByPlaceholderText('Ask for another change…');
         fireEvent.change(composer, {
             target: { value: 'make the target markers red' },
@@ -1369,7 +1650,7 @@ describe('ChartTypeBuilder', () => {
         );
         view.rerender(
             builderRoutes(
-                `/projects/jaffle-shop/chart-types/${dataAppVizUuid}`,
+                `/projects/jaffle-shop/chart-studio/${dataAppVizUuid}`,
             ),
         );
 
@@ -1392,7 +1673,7 @@ describe('ChartTypeBuilder', () => {
             }),
         );
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByTestId('app-preview')).toHaveTextContent(
@@ -1419,7 +1700,7 @@ describe('ChartTypeBuilder', () => {
             }),
         );
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(
@@ -1455,7 +1736,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByText('Reasoning')).toBeInTheDocument();
@@ -1477,7 +1758,7 @@ describe('ChartTypeBuilder', () => {
             ),
         );
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByTestId('app-preview')).toHaveTextContent(
@@ -1522,7 +1803,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         fireEvent.click(screen.getByText('Report SDK manifest'));
@@ -1552,7 +1833,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         const keyedToLatestReady = () =>
@@ -1592,7 +1873,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(
@@ -1609,7 +1890,7 @@ describe('ChartTypeBuilder', () => {
             ),
         );
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         fireEvent.click(screen.getByText('History'));
@@ -1665,7 +1946,7 @@ describe('ChartTypeBuilder', () => {
         );
         setSchemaPerVersion();
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
         fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
 
@@ -1698,7 +1979,7 @@ describe('ChartTypeBuilder', () => {
         );
         setSchemaPerVersion();
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
         fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
 
@@ -1718,7 +1999,7 @@ describe('ChartTypeBuilder', () => {
             historyStub([appVersion({ version: 1 })], 1),
         );
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         // The title is text, not a field you can type over by accident.
@@ -1737,7 +2018,7 @@ describe('ChartTypeBuilder', () => {
     });
 
     it('offers no history toggle before the first version exists', () => {
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
 
         expect(screen.queryByText('History')).toBeNull();
     });
@@ -1749,11 +2030,14 @@ describe('ChartTypeBuilder', () => {
             pendingPrompt: 'a stream graph of category share',
         });
         vi.mocked(useDataAppVizBuild).mockImplementation(() => currentBuild);
-        const view = renderBuilder('/projects/p1/chart-types/new');
+        const view = renderBuilder('/projects/p1/chart-studio/new');
 
         expect(
             screen.getByText('Chart Studio', { exact: true }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'All chart types' }),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-studio');
         const history = screen.getByRole('button', { name: 'History' });
         expect(history).toHaveAttribute('inert');
         expect(
@@ -1770,7 +2054,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useAppVersionHistory).mockReturnValue(
             historyStub([appVersion({ version: 1, status: 'building' })], null),
         );
-        view.rerender(builderRoutes('/projects/p1/chart-types/new'));
+        view.rerender(builderRoutes('/projects/p1/chart-studio/new'));
 
         expect(
             screen.getByRole('heading', { level: 6, name: 'Stream graph' }),
@@ -1794,7 +2078,7 @@ describe('ChartTypeBuilder', () => {
             ),
         );
         renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            '/projects/p1/chart-studio/1e9a3b2c-0000-4000-8000-000000000001',
         );
 
         expect(screen.getByText('The build failed')).toBeInTheDocument();
@@ -1804,7 +2088,7 @@ describe('ChartTypeBuilder', () => {
     });
 
     it('clarifies a first prompt, but never a revision', () => {
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
         expect(mockedClarificationRound.mock.lastCall?.[0]).toMatchObject({
             isFirstBuild: true,
         });
@@ -1813,7 +2097,7 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useAppVersionHistory).mockReturnValue(
             historyStub([appVersion({ version: 1, status: 'ready' })], 1),
         );
-        renderBuilder('/projects/p1/chart-types/viz-1');
+        renderBuilder('/projects/p1/chart-studio/viz-1');
         expect(mockedClarificationRound.mock.lastCall?.[0]).toMatchObject({
             isFirstBuild: false,
         });
@@ -1826,7 +2110,7 @@ describe('ChartTypeBuilder', () => {
         mockedClarificationRound.mockReturnValue(
             clarificationStub({ fellThrough: true }),
         );
-        renderBuilder('/projects/p1/chart-types/new');
+        renderBuilder('/projects/p1/chart-studio/new');
 
         expect(
             screen.getByText(/Couldn’t reach the clarifier/),
@@ -1907,7 +2191,7 @@ describe('ChartTypeBuilder', () => {
                     schema: { fields, configOptions: [], colorPalette: null },
                 },
             } as unknown as ReturnType<typeof useDataAppVisualization>);
-        const path = '/projects/p1/chart-types/viz-1?exploreName=orders';
+        const path = '/projects/p1/chart-studio/viz-1?exploreName=orders';
         const lastPreviewCall = () =>
             vi.mocked(useExplorePreviewData).mock.lastCall![0];
         const marks = () =>
@@ -1954,6 +2238,7 @@ describe('ChartTypeBuilder', () => {
             vi.mocked(useExplorePreviewData).mockReturnValue({
                 run: {
                     status: 'ready',
+                    queryUuid: 'preview-query',
                     rows: [],
                     itemsMap,
                     columns: Object.values(itemsMap),

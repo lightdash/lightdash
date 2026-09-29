@@ -3,14 +3,17 @@ import {
     assertUnreachable,
     getEffectiveOptionValue,
     type DataAppVizConfigOption,
+    type DataAppVizGradientValue,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { Select, Switch, TextInput } from '@mantine/core';
+import { Group, Select, Stack, Switch, TextInput } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { useState, type FC } from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
+import { GradientStopsEditor } from '../common/GradientStopsEditor';
+import { RangeBoundInput } from '../common/RangeBoundInput';
 
 // Free-text and colour edits fire continuously while typing / dragging, so
 // they're debounced before reaching chart state (and the iframe re-render).
@@ -135,6 +138,71 @@ const ColorOptionControl: FC<{
     );
 };
 
+const GradientOptionControl: FC<{
+    option: OptionOfType<'gradient'>;
+    value: DataAppVizGradientValue;
+    colorPalette: string[];
+    onChange: (value: DataAppVizGradientValue) => void;
+}> = ({ option, value, colorPalette, onChange }) => (
+    <Stack gap="xs" role="group" aria-label={option.label}>
+        <Config.Label>{option.label}</Config.Label>
+        <GradientStopsEditor
+            colors={value.colors}
+            startLabel={option.showBounds === false ? 'Start' : 'Low'}
+            endLabel={option.showBounds === false ? 'End' : 'High'}
+            swatches={
+                colorPalette.length > 0 ? colorPalette : ECHARTS_DEFAULT_COLORS
+            }
+            onAddColor={() =>
+                onChange({
+                    ...value,
+                    colors: [
+                        ...value.colors.slice(0, -1),
+                        '#fab005',
+                        value.colors[value.colors.length - 1],
+                    ],
+                })
+            }
+            onRemoveColor={(index) =>
+                onChange({
+                    ...value,
+                    colors: value.colors.filter(
+                        (_, colorIndex) => colorIndex !== index,
+                    ),
+                })
+            }
+            onColorChange={(index, color) =>
+                onChange({
+                    ...value,
+                    colors: value.colors.map((existing, colorIndex) =>
+                        colorIndex === index ? color : existing,
+                    ),
+                })
+            }
+        />
+        {option.showBounds !== false && (
+            <>
+                <Group gap="xs" wrap="nowrap" align="flex-end">
+                    <RangeBoundInput
+                        label="Minimum"
+                        autoLabel="Auto"
+                        value={value.min}
+                        onChange={(min) => onChange({ ...value, min })}
+                    />
+                </Group>
+                <Group gap="xs" wrap="nowrap" align="flex-end">
+                    <RangeBoundInput
+                        label="Maximum"
+                        autoLabel="Auto"
+                        value={value.max}
+                        onChange={(max) => onChange({ ...value, max })}
+                    />
+                </Group>
+            </>
+        )}
+    </Stack>
+);
+
 type Props = {
     option: DataAppVizConfigOption;
     /** Effective value: the stored value, or the declared default. */
@@ -185,6 +253,15 @@ const DataAppVizOptionControl: FC<Props> = ({
                 <TextOptionControl
                     option={option}
                     value={getEffectiveOptionValue(option, value)}
+                    onChange={onChange}
+                />
+            );
+        case 'gradient':
+            return (
+                <GradientOptionControl
+                    option={option}
+                    value={getEffectiveOptionValue(option, value)}
+                    colorPalette={colorPalette}
                     onChange={onChange}
                 />
             );

@@ -66,6 +66,7 @@ import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSave
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
+import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
@@ -76,6 +77,10 @@ import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVi
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { mapSavedChartPreviewFields } from '../features/chartTypes/utils/savedChartPreviewFieldMapping';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
+import {
+    getVizHierarchyDimensions,
+    hasVizSubtotalValues,
+} from '../features/chartTypes/utils/vizSubtotals';
 import {
     MERGE_URL_PARAM,
     serializeMergeState,
@@ -102,7 +107,7 @@ const NO_AI_PICKS: Record<string, ChartInputAiPick> = {};
 const NO_FIELD_NAMES: ReadonlySet<string> = new Set();
 
 /** The saved chart a create session starts from, kept in the URL so a refresh
- *  and the `/new` → `/chart-types/:uuid` move both keep the selection. */
+ *  and the `/new` → `/chart-studio/:uuid` move both keep the selection. */
 const SAVED_CHART_PARAM = 'savedChartUuid';
 /** The explore a create session binds its inputs to. Only the name: the
  *  bindings decide the query, so a refresh re-derives it. Never set
@@ -110,8 +115,8 @@ const SAVED_CHART_PARAM = 'savedChartUuid';
 const EXPLORE_PARAM = 'exploreName';
 
 /**
- * The dedicated chart type builder. Mounted at both `chart-types/new`
- * (create) and `chart-types/:dataAppVizUuid` (edit); the create flow
+ * The dedicated chart type builder. Mounted at both `chart-studio/new`
+ * (create) and `chart-studio/:dataAppVizUuid` (edit); the create flow
  * adopts the new uuid into the URL once the first build is accepted.
  */
 const ChartTypeBuilder: FC = () => {
@@ -460,6 +465,22 @@ const ChartTypeBuilder: FC = () => {
         workspace.history.versions.find(
             (version) => version.version === workspace.previewVersion,
         )?.resources?.vizPreview ?? null;
+    // The backend refuses column subtotals over merged results.
+    const isMergedSource = savedChartUuid !== null && !!sourceChart?.merge;
+    const liveItemsMap = liveRun?.itemsMap ?? NO_ITEMS;
+    const hierarchyDimensions = useMemo(
+        () =>
+            isMergedSource || !hasVizSubtotalValues(liveItemsMap)
+                ? null
+                : getVizHierarchyDimensions(schema, renderedFieldMapping),
+        [schema, renderedFieldMapping, isMergedSource, liveItemsMap],
+    );
+    const subtotalSource = useVizSubtotalSource({
+        projectUuid,
+        sourceQueryUuid: liveRun?.queryUuid,
+        dimensions: hierarchyDimensions,
+    });
+    const subtotalDimensions = subtotalSource?.dimensions ?? null;
     // Real rows when the saved chart's query has run; the fabricated sample
     // otherwise (tuned by the version's vizPreview resource when present).
     // Rebuilt on any option or palette edit.
@@ -474,7 +495,7 @@ const ChartTypeBuilder: FC = () => {
                 vizPreviewData,
             );
         }
-        return buildExplorerVizContext({
+        const context = buildExplorerVizContext({
             schema,
             itemsMap: liveRun.itemsMap,
             persistedFieldMapping: renderedFieldMapping,
@@ -484,6 +505,12 @@ const ChartTypeBuilder: FC = () => {
             optionValues: panel.optionValues,
             resolvedColors,
         });
+        return subtotalDimensions
+            ? {
+                  ...context,
+                  subtotals: { enabled: true, dimensions: subtotalDimensions },
+              }
+            : context;
     }, [
         schema,
         savedChartUuid,
@@ -494,6 +521,7 @@ const ChartTypeBuilder: FC = () => {
         resolvedColors,
         renderedFieldMapping,
         vizPreviewData,
+        subtotalDimensions,
     ]);
 
     // What the next build is told it is changing: the schema on screen, bound
@@ -986,7 +1014,7 @@ const ChartTypeBuilder: FC = () => {
     if (isCreateFlow && !canCreate) {
         return (
             <Navigate
-                to={`/projects/${projectUrlIdentifier}/chart-types`}
+                to={`/projects/${projectUrlIdentifier}/chart-studio`}
                 replace
             />
         );
@@ -1002,10 +1030,10 @@ const ChartTypeBuilder: FC = () => {
                         action={
                             <Button
                                 component={Link}
-                                to={`/projects/${projectUrlIdentifier}/chart-types`}
+                                to={`/projects/${projectUrlIdentifier}/chart-studio`}
                                 variant="default"
                             >
-                                Back to chart types
+                                Back to all chart types
                             </Button>
                         }
                     />
@@ -1027,7 +1055,7 @@ const ChartTypeBuilder: FC = () => {
         if (!canEdit) {
             return (
                 <Navigate
-                    to={`/projects/${projectUrlIdentifier}/chart-types`}
+                    to={`/projects/${projectUrlIdentifier}/chart-studio`}
                     replace
                 />
             );
@@ -1037,7 +1065,7 @@ const ChartTypeBuilder: FC = () => {
         if (appMeta.registrySlug !== null) {
             return (
                 <Navigate
-                    to={`/projects/${projectUrlIdentifier}/chart-types`}
+                    to={`/projects/${projectUrlIdentifier}/chart-studio`}
                     replace
                 />
             );
@@ -1081,8 +1109,8 @@ const ChartTypeBuilder: FC = () => {
               },
           }
         : {
-              label: 'Chart types',
-              to: `/projects/${projectUrlIdentifier}/chart-types`,
+              label: 'All chart types',
+              to: `/projects/${projectUrlIdentifier}/chart-studio`,
           };
 
     return (
@@ -1119,6 +1147,7 @@ const ChartTypeBuilder: FC = () => {
                     projectUuid={projectUuid}
                     workspace={workspace}
                     previewContext={previewContext}
+                    onVizSubtotalsIntent={subtotalSource?.get ?? null}
                     sampleRows={sampleRows}
                     currentBuildContext={currentBuildContext}
                     savedChartSource={savedChartSource}

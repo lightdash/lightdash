@@ -28,6 +28,8 @@ const aiUsageEvent: AiUsageEvent = {
     event: 'ai.usage',
     userId: 'user-1',
     properties: {
+        eventId: 'evt-1',
+        outcome: 'complete',
         feature: 'agent',
         functionId: 'generateAgentResponse',
         organizationId: 'org-1',
@@ -110,6 +112,8 @@ describe('ai_usage stream projection', () => {
             org_id: 'org-1',
             user_id: 'user-1',
             schema_version: EVENT_STREAM_SCHEMA_VERSION,
+            event_id: 'evt-1',
+            outcome: 'complete',
             project_id: 'project-1',
             feature: 'agent',
             function_id: 'generateAgentResponse',

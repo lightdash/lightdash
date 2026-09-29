@@ -63,6 +63,7 @@ const featureFlagModel = {
     })),
 };
 vi.spyOn(analyticsMock, 'track');
+vi.spyOn(analyticsMock, 'group');
 const organizationMemberProfileModel = {
     getOrganizationMembersAndGroups: vi.fn(),
     getOrganizationAdmins: vi.fn(),
@@ -210,6 +211,19 @@ describe('organization service', () => {
                 organizationName: organization.name,
                 onboardingFlow: 'new',
             },
+        });
+    });
+
+    it('groups the user with the created organization', async () => {
+        await organizationService.createAndJoinOrg(
+            { ...user, organizationUuid: undefined },
+            { name: 'Organization' },
+        );
+
+        expect(vi.mocked(analyticsMock.group)).toHaveBeenCalledWith({
+            userId: user.userUuid,
+            groupId: organization.organizationUuid,
+            traits: { name: organization.name },
         });
     });
 

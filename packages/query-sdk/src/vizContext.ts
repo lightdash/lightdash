@@ -23,6 +23,7 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import { isVizGradientValue, type VizGradientValue } from './gradient';
 import { useOptionalTransport } from './LightdashProvider';
 import type {
     ColumnType,
@@ -31,6 +32,7 @@ import type {
     Transport,
     UnderlyingDataResult,
     VizPointMenuResult,
+    VizSubtotalsRequest,
 } from './types';
 
 /** A single cell of a Lightdash result row: `{ value: { raw, formatted } }`. */
@@ -43,11 +45,16 @@ export type VizContextRow = Record<string, VizContextCell | undefined>;
 
 /**
  * A config option value. Its shape follows the option's declared type:
- * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
+ * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string,
+ * `gradient` → fixed colours and automatic or numeric bounds.
  * Series colours are not an option — the host resolves them separately from
  * config options and exposes them through the colour helpers.
  */
-export type VizContextOptionValue = boolean | number | string;
+export type VizContextOptionValue =
+    | boolean
+    | number
+    | string
+    | VizGradientValue;
 
 /**
  * The host's complete backend-pivot layout metadata. This is a structural
@@ -148,6 +155,8 @@ export type DataAppVizContextMessage = {
     valueColors?: Record<string, Record<string, string>>;
     /** Null for unpivoted rows; absent when the installed host predates pivot metadata delivery. */
     pivotDetails?: VizContextPivotDetails | null;
+    /** Absent when the installed host predates subtotal queries. */
+    subtotals?: { enabled: boolean; dimensions: string[] };
     /** Absent when the installed host predates underlying-data delivery. */
     underlyingData?: { enabled?: boolean; openEnabled?: boolean };
     /** Absent when the installed host predates drill-down delivery. */
@@ -296,6 +305,8 @@ export type VizContext = {
     valueColors: Record<string, Record<string, string>>;
     /** Metadata that maps generated pivot column names back to their metric and series values. */
     pivotDetails: VizContextPivotDetails | null;
+    /** Aggregated rows for each level of the declared hierarchy. */
+    subtotals: VizSubtotals;
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
     /** Fetch/export the raw rows behind a clicked data point via the host. */
@@ -315,6 +326,8 @@ type VizContextValue = {
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
     pivotDetails: VizContextPivotDetails | null;
+    subtotalsEnabled: boolean;
+    subtotalDimensions: string[];
     underlyingDataEnabled: boolean;
     underlyingDataOpenEnabled: boolean;
     drillDownEnabled: boolean;
@@ -329,7 +342,8 @@ const isVizContextOptionValue = (
 ): value is VizContextOptionValue =>
     typeof value === 'string' ||
     typeof value === 'boolean' ||
-    (typeof value === 'number' && Number.isFinite(value));
+    (typeof value === 'number' && Number.isFinite(value)) ||
+    isVizGradientValue(value);
 
 const normalizeOptions = (
     options: unknown,
@@ -455,6 +469,13 @@ export function toVizContextState(
         seriesColors: normalizeStringRecord(message.seriesColors),
         valueColors: normalizeValueColors(message.valueColors),
         pivotDetails: message.pivotDetails ?? null,
+        subtotalsEnabled: message.subtotals?.enabled === true,
+        subtotalDimensions: Array.isArray(message.subtotals?.dimensions)
+            ? message.subtotals.dimensions.filter(
+                  (dimension): dimension is string =>
+                      typeof dimension === 'string',
+              )
+            : [],
         // Strict boolean check — non-boolean payloads read as disabled.
         underlyingDataEnabled: message.underlyingData?.enabled === true,
         underlyingDataOpenEnabled: message.underlyingData?.openEnabled === true,
@@ -621,6 +642,34 @@ export function buildVizPointMenu(
                 metric,
                 ...(fieldId === undefined ? {} : { fieldId }),
             });
+        },
+    };
+}
+
+const DIMENSION_KEY_SEPARATOR = '\u0000';
+
+export type VizSubtotals = {
+    enabled: boolean;
+    dimensions: string[];
+    get: (request: VizSubtotalsRequest) => Promise<{ rows: VizContextRow[] }>;
+};
+
+export function buildVizSubtotals(
+    hostEnabled: boolean,
+    dimensions: string[],
+    transport: Transport | null,
+): VizSubtotals {
+    const enabled = hostEnabled && !!transport?.getVizSubtotals;
+    return {
+        enabled,
+        dimensions: enabled ? dimensions : [],
+        get: async (request) => {
+            if (!enabled || !transport?.getVizSubtotals) {
+                throw new Error(
+                    'Subtotals are not available for this visualization.',
+                );
+            }
+            return transport.getVizSubtotals(request);
         },
     };
 }
@@ -807,6 +856,23 @@ export function useVizContext(): VizContext {
         [pointMenuHostEnabled, transport],
     );
 
+    const subtotalsHostEnabled = context?.subtotalsEnabled === true;
+    // Keyed by value so a context push with the same hierarchy keeps identity.
+    const subtotalDimensionsKey = (context?.subtotalDimensions ?? []).join(
+        DIMENSION_KEY_SEPARATOR,
+    );
+    const subtotals = useMemo<VizSubtotals>(
+        () =>
+            buildVizSubtotals(
+                subtotalsHostEnabled,
+                subtotalDimensionsKey === ''
+                    ? []
+                    : subtotalDimensionsKey.split(DIMENSION_KEY_SEPARATOR),
+                transport,
+            ),
+        [subtotalsHostEnabled, subtotalDimensionsKey, transport],
+    );
+
     return {
         fieldMapping: context?.fieldMapping ?? {},
         fields: context?.fields ?? {},
@@ -820,5 +886,6 @@ export function useVizContext(): VizContext {
         underlyingData,
         drillDown,
         pointMenu,
+        subtotals,
     };
 }

@@ -2,6 +2,7 @@ import {
     generateDashboardToolDefinition,
     toolDashboardV2ArgsSchemaTransformed,
     type ToolDashboardV2ArgsTransformed,
+    type ToolDashboardV2StructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
@@ -11,8 +12,12 @@ import type {
     GetPromptFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorHandler, toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateRunQueryTool } from './runQuery';
 
 type Dependencies = {
@@ -34,13 +39,18 @@ export const getGenerateDashboardV2 = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (toolArgs) => {
+        execute: async (
+            toolArgs,
+        ): Promise<
+            | ExecuteStructuredToolResult<ToolDashboardV2StructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
                 const transformedToolArgs =
                     toolDashboardV2ArgsSchemaTransformed.parse(toolArgs);
 
-                const errors: string[] = [];
-                const failedVisualizations: string[] = [];
+                const excludedVisualizations: ToolDashboardV2StructuredContent['excludedVisualizations'] =
+                    [];
                 const validIndices = new Set<number>();
 
                 const vizPromises = transformedToolArgs.visualizations.map(
@@ -60,14 +70,17 @@ export const getGenerateDashboardV2 = ({
                                     index + 1
                                 } (${viz.title})`,
                             );
-                            errors.push(errorMessage);
-                            failedVisualizations.push(viz.title);
+                            excludedVisualizations.push({
+                                title: viz.title,
+                                error: errorMessage,
+                            });
                             return null;
                         }
                     },
                 );
 
                 const validatedVisualizations = await Promise.all(vizPromises);
+                const errors = excludedVisualizations.map(({ error }) => error);
 
                 // Filter out null values (failed validations)
                 const validVisualizations = validatedVisualizations.filter(
@@ -79,15 +92,17 @@ export const getGenerateDashboardV2 = ({
 
                 // Check if we have at least one valid visualization
                 if (validVisualizations.length === 0) {
-                    return {
-                        result: `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
-                            '\n',
-                        )}
+                    const result = `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
+                        '\n',
+                    )}
                     Please fix these issues and try again.
-                    `,
+                    `;
+                    return {
+                        result,
                         metadata: {
                             status: 'error',
                         },
+                        structuredContent: { error: result },
                     };
                 }
 
@@ -129,6 +144,11 @@ export const getGenerateDashboardV2 = ({
                         : 'Dashboard uses the default layout. No requested custom arrangement was applied.';
                 }
 
+                const structuredContent: ToolDashboardV2StructuredContent = {
+                    visualizationCount: validVisualizations.length,
+                    excludedVisualizations,
+                };
+
                 // Return appropriate message based on whether some visualizations failed
                 if (errors.length > 0) {
                     return {
@@ -136,14 +156,15 @@ export const getGenerateDashboardV2 = ({
                             validVisualizations.length
                         } visualization${
                             validVisualizations.length > 1 ? 's' : ''
-                        }.\n\nThe following visualizations were excluded due to validation errors:\n${failedVisualizations
-                            .map((title) => `- ${title}`)
+                        }.\n\nThe following visualizations were excluded due to validation errors:\n${excludedVisualizations
+                            .map(({ title }) => `- ${title}`)
                             .join(
                                 '\n',
                             )}\n\nErrors:\n${errors.join('\n')}${layoutResult ? `\n\n${layoutResult}` : ''}`,
                         metadata: {
                             status: 'success',
                         },
+                        structuredContent,
                     };
                 }
 
@@ -152,14 +173,10 @@ export const getGenerateDashboardV2 = ({
                     metadata: {
                         status: 'success',
                     },
+                    structuredContent,
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(e, 'Error generating dashboard.'),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(e, 'Error generating dashboard.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

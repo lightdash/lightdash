@@ -6,7 +6,10 @@ import { EventEmitter } from 'events';
 import express from 'express';
 import http from 'http';
 import { Knex } from 'knex';
-import { registerAiUsageTracker } from './analytics/aiUsage';
+import {
+    registerAiUsageLedger,
+    registerAiUsageTracker,
+} from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -128,6 +131,7 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getEmailWhitelabelService(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
         workerHealth: context.workerHealth,
         resolveOrganizationName: createOrganizationNameResolver(
@@ -214,6 +218,9 @@ export default class SchedulerApp {
             database: this.database,
             utils,
         });
+        registerAiUsageLedger((event) =>
+            this.models.getAiUsageLedgerModel().recordEvent(event),
+        );
 
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,

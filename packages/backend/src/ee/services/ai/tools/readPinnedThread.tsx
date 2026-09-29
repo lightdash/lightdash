@@ -1,7 +1,14 @@
-import { readPinnedThreadToolDefinition } from '@lightdash/common';
+import {
+    readPinnedThreadToolDefinition,
+    type ToolReadPinnedThreadStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { ReadPinnedThreadFn } from '../types/aiAgentDependencies';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -13,30 +20,50 @@ const toolDefinition = readPinnedThreadToolDefinition.for('agent');
 const MAX_MESSAGE_CHARS = 4_000;
 const MAX_TRANSCRIPT_CHARS = 40_000;
 
+type ReadPinnedThreadSuccess = ExecuteStructuredToolResult<
+    ToolReadPinnedThreadStructuredContent,
+    { status: 'success'; messageCount: number }
+>;
+
+const boundTranscript = (
+    messages: Awaited<ReturnType<ReadPinnedThreadFn>>,
+): ToolReadPinnedThreadStructuredContent['messages'] => {
+    let budget = MAX_TRANSCRIPT_CHARS;
+    return messages.map((message, index) => {
+        const truncated = message.message.slice(
+            0,
+            Math.max(0, Math.min(MAX_MESSAGE_CHARS, budget)),
+        );
+        budget -= truncated.length;
+        return {
+            index,
+            role: message.role,
+            createdAt: message.createdAt,
+            message: truncated,
+        };
+    });
+};
+
 export const getReadPinnedThread = ({ readPinnedThread }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({ threadUuid }) => {
+        execute: async ({
+            threadUuid,
+        }): Promise<ReadPinnedThreadSuccess | ExecuteToolErrorResult> => {
             try {
                 const messages = await readPinnedThread({ threadUuid });
-
-                let budget = MAX_TRANSCRIPT_CHARS;
-                const bounded = messages.map((message) => {
-                    const truncated = message.message.slice(
-                        0,
-                        Math.max(0, Math.min(MAX_MESSAGE_CHARS, budget)),
-                    );
-                    budget -= truncated.length;
-                    return { ...message, message: truncated };
-                });
+                const transcript = {
+                    threadUuid,
+                    messages: boundTranscript(messages),
+                };
 
                 return {
                     result: (
-                        <conversation threadUuid={threadUuid}>
-                            {bounded.map((message, index) => (
+                        <conversation threadUuid={transcript.threadUuid}>
+                            {transcript.messages.map((message) => (
                                 <message
                                     role={message.role}
-                                    index={index}
+                                    index={message.index}
                                     createdAt={message.createdAt}
                                 >
                                     {message.message}
@@ -48,15 +75,10 @@ export const getReadPinnedThread = ({ readPinnedThread }: Dependencies) =>
                         status: 'success',
                         messageCount: messages.length,
                     },
+                    structuredContent: transcript,
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(
-                        e,
-                        'Error reading pinned conversation.',
-                    ),
-                    metadata: { status: 'error' },
-                };
+                return toolErrorOutput(e, 'Error reading pinned conversation.');
             }
         },
     });

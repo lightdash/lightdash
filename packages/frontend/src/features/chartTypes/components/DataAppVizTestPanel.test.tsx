@@ -59,6 +59,28 @@ vi.mock('../../../components/common/FieldSelect', () => ({
         );
     },
 }));
+vi.mock(
+    '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect',
+    () => ({
+        default: ({
+            label,
+            items,
+            onChange,
+        }: {
+            label: string;
+            items: Item[];
+            onChange: (ids: string[]) => void;
+        }) => (
+            <button
+                type="button"
+                aria-label={label}
+                onClick={() => onChange(items.map(getItemId))}
+            >
+                {label}
+            </button>
+        ),
+    }),
+);
 vi.mock('../../../components/common/PalettePicker/PalettePicker', () => ({
     PalettePicker: ({
         label,
@@ -353,7 +375,7 @@ describe('DataAppVizTestPanel', () => {
         ] as unknown as ReturnType<typeof useQueryExecutor>);
     });
 
-    const runSuccessfulPreviewQuery = async () => {
+    const runSuccessfulPreviewQuery = async (fieldLabels = ['Source']) => {
         const user = userEvent.setup();
         exploreByProjectMock.mockReturnValue({
             data: exploreWithHiddenFields,
@@ -377,7 +399,9 @@ describe('DataAppVizTestPanel', () => {
 
         await user.click(screen.getByPlaceholderText('Select a table'));
         await user.click(await screen.findByText('Orders'));
-        await user.click(screen.getByRole('button', { name: 'Source' }));
+        for (const fieldLabel of fieldLabels) {
+            await user.click(screen.getByRole('button', { name: fieldLabel }));
+        }
         await user.click(
             screen.getByRole('button', { name: /run test query/i }),
         );
@@ -523,21 +547,28 @@ describe('DataAppVizTestPanel', () => {
         const user = await runSuccessfulPreviewQuery();
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
-                fieldMapping: { source: 'orders_visible' },
-                fields: {
-                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                context: {
+                    fieldMapping: { source: 'orders_visible' },
+                    fields: {
+                        orders_visible: {
+                            label: 'visible',
+                            tableLabel: 'Orders',
+                        },
+                    },
+                    rows: resultRows,
+                    options: { showLegend: true },
+                    colorPalette: ['#111111'],
+                    seriesColors: {},
+                    valueColors: {
+                        orders_visible: { Retail: '#00ff00' },
+                    },
+                    pivotDetails: null,
+                    underlyingData: { enabled: false },
+                    drillDown: { enabled: false },
+                    pointMenu: { enabled: false },
+                    subtotals: { enabled: false, dimensions: [] },
                 },
-                rows: resultRows,
-                options: { showLegend: true },
-                colorPalette: ['#111111'],
-                seriesColors: {},
-                valueColors: {
-                    orders_visible: { Retail: '#00ff00' },
-                },
-                pivotDetails: null,
-                underlyingData: { enabled: false },
-                drillDown: { enabled: false },
-                pointMenu: { enabled: false },
+                sourceQueryUuid: 'query-1',
             }),
         );
 
@@ -546,21 +577,28 @@ describe('DataAppVizTestPanel', () => {
 
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
-                fieldMapping: { source: 'orders_visible' },
-                fields: {
-                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                context: {
+                    fieldMapping: { source: 'orders_visible' },
+                    fields: {
+                        orders_visible: {
+                            label: 'visible',
+                            tableLabel: 'Orders',
+                        },
+                    },
+                    rows: resultRows,
+                    options: { showLegend: false },
+                    colorPalette: ['#111111'],
+                    seriesColors: {},
+                    valueColors: {
+                        orders_visible: { Retail: '#00ff00' },
+                    },
+                    pivotDetails: null,
+                    underlyingData: { enabled: false },
+                    drillDown: { enabled: false },
+                    pointMenu: { enabled: false },
+                    subtotals: { enabled: false, dimensions: [] },
                 },
-                rows: resultRows,
-                options: { showLegend: false },
-                colorPalette: ['#111111'],
-                seriesColors: {},
-                valueColors: {
-                    orders_visible: { Retail: '#00ff00' },
-                },
-                pivotDetails: null,
-                underlyingData: { enabled: false },
-                drillDown: { enabled: false },
-                pointMenu: { enabled: false },
+                sourceQueryUuid: 'query-1',
             }),
         );
     });
@@ -578,21 +616,28 @@ describe('DataAppVizTestPanel', () => {
         const user = await runSuccessfulPreviewQuery();
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
-                fieldMapping: { source: 'orders_visible' },
-                fields: {
-                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                context: {
+                    fieldMapping: { source: 'orders_visible' },
+                    fields: {
+                        orders_visible: {
+                            label: 'visible',
+                            tableLabel: 'Orders',
+                        },
+                    },
+                    rows: resultRows,
+                    options: { showLegend: true },
+                    colorPalette: ['#111111'],
+                    seriesColors: {},
+                    valueColors: {
+                        orders_visible: { Retail: '#00ff00' },
+                    },
+                    pivotDetails: null,
+                    underlyingData: { enabled: false },
+                    drillDown: { enabled: false },
+                    pointMenu: { enabled: false },
+                    subtotals: { enabled: false, dimensions: [] },
                 },
-                rows: resultRows,
-                options: { showLegend: true },
-                colorPalette: ['#111111'],
-                seriesColors: {},
-                valueColors: {
-                    orders_visible: { Retail: '#00ff00' },
-                },
-                pivotDetails: null,
-                underlyingData: { enabled: false },
-                drillDown: { enabled: false },
-                pointMenu: { enabled: false },
+                sourceQueryUuid: 'query-1',
             }),
         );
 
@@ -601,21 +646,28 @@ describe('DataAppVizTestPanel', () => {
 
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
-                fieldMapping: { source: 'orders_visible' },
-                fields: {
-                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                context: {
+                    fieldMapping: { source: 'orders_visible' },
+                    fields: {
+                        orders_visible: {
+                            label: 'visible',
+                            tableLabel: 'Orders',
+                        },
+                    },
+                    rows: resultRows,
+                    options: { showLegend: true },
+                    colorPalette: ['#123456', '#abcdef'],
+                    seriesColors: {},
+                    valueColors: {
+                        orders_visible: { Retail: '#00ff00' },
+                    },
+                    pivotDetails: null,
+                    underlyingData: { enabled: false },
+                    drillDown: { enabled: false },
+                    pointMenu: { enabled: false },
+                    subtotals: { enabled: false, dimensions: [] },
                 },
-                rows: resultRows,
-                options: { showLegend: true },
-                colorPalette: ['#123456', '#abcdef'],
-                seriesColors: {},
-                valueColors: {
-                    orders_visible: { Retail: '#00ff00' },
-                },
-                pivotDetails: null,
-                underlyingData: { enabled: false },
-                drillDown: { enabled: false },
-                pointMenu: { enabled: false },
+                sourceQueryUuid: 'query-1',
             }),
         );
     });
@@ -774,9 +826,147 @@ describe('DataAppVizTestPanel', () => {
         );
 
         await waitFor(() =>
-            expect(onContextChange).toHaveBeenLastCalledWith(
-                expect.objectContaining({ pivotDetails }),
-            ),
+            expect(onContextChange).toHaveBeenLastCalledWith({
+                context: expect.objectContaining({ pivotDetails }),
+                sourceQueryUuid: 'query-1',
+            }),
         );
+    });
+
+    describe('hierarchy subtotals', () => {
+        const levels = {
+            name: 'levels',
+            label: 'Levels',
+            type: 'dimension' as const,
+            required: true,
+        };
+        const value = {
+            name: 'value',
+            label: 'Value',
+            type: 'metric' as const,
+            required: false,
+        };
+        const hierarchySchema: DataAppVizSchema = {
+            fields: [{ ...levels, multiple: true }, value],
+            configOptions: [],
+            colorPalette: null,
+            hierarchy: { field: 'levels' },
+        };
+
+        it('publishes the hierarchy and the run query, then clears on unmount', async () => {
+            const onContextChange = vi.fn();
+            const { unmount } = renderWithProviders(
+                <TestDataAppVizPanel
+                    projectUuid="p1"
+                    schema={hierarchySchema}
+                    onContextChange={onContextChange}
+                />,
+            );
+
+            await runSuccessfulPreviewQuery(['Levels', 'Value']);
+
+            await waitFor(() =>
+                expect(onContextChange).toHaveBeenLastCalledWith({
+                    context: expect.objectContaining({
+                        fieldMapping: expect.objectContaining({
+                            levels: ['orders_visible'],
+                        }),
+                        rows: resultRows,
+                        subtotals: {
+                            enabled: true,
+                            dimensions: ['orders_visible'],
+                        },
+                    }),
+                    sourceQueryUuid: 'query-1',
+                }),
+            );
+
+            unmount();
+            expect(onContextChange).toHaveBeenLastCalledWith(null);
+        });
+
+        it.each([
+            [
+                'without a hierarchy',
+                {
+                    fields: [levels, value],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+                ['Levels', 'Value'],
+            ],
+            ['with no metric to subtotal', hierarchySchema, ['Levels']],
+        ])('publishes no subtotals %s', async (_label, vizSchema, labels) => {
+            const onContextChange = vi.fn();
+            renderWithProviders(
+                <TestDataAppVizPanel
+                    projectUuid="p1"
+                    schema={vizSchema}
+                    onContextChange={onContextChange}
+                />,
+            );
+
+            await runSuccessfulPreviewQuery(labels);
+
+            await waitFor(() =>
+                expect(onContextChange).toHaveBeenLastCalledWith({
+                    context: expect.objectContaining({
+                        rows: resultRows,
+                        subtotals: { enabled: false, dimensions: [] },
+                    }),
+                    sourceQueryUuid: 'query-1',
+                }),
+            );
+        });
+
+        it('publishes nothing while the rows belong to another query', async () => {
+            const user = userEvent.setup();
+            exploreByProjectMock.mockReturnValue({
+                data: exploreWithHiddenFields,
+            });
+            queryExecutorMock.mockReturnValue([
+                {
+                    query: {
+                        data: { queryUuid: 'query-2' },
+                        isFetching: false,
+                        error: null,
+                    },
+                    queryResults: {
+                        rows: resultRows,
+                        queryUuid: 'query-1',
+                        isFetchingFirstPage: false,
+                        error: null,
+                    },
+                },
+                vi.fn(),
+            ]);
+            const onContextChange = vi.fn();
+            renderWithProviders(
+                <TestDataAppVizPanel
+                    projectUuid="p1"
+                    schema={hierarchySchema}
+                    onContextChange={onContextChange}
+                />,
+            );
+
+            await user.click(screen.getByPlaceholderText('Select a table'));
+            await user.click(await screen.findByText('Orders'));
+            await user.click(screen.getByRole('button', { name: 'Levels' }));
+            await user.click(
+                screen.getByRole('button', { name: /run test query/i }),
+            );
+
+            expect(useQueryExecutor).toHaveBeenLastCalledWith(
+                expect.objectContaining({ tableId: 'orders' }),
+                [],
+                true,
+            );
+
+            expect(
+                onContextChange.mock.calls.every(
+                    ([preview]) => preview === null,
+                ),
+            ).toBe(true);
+        });
     });
 });

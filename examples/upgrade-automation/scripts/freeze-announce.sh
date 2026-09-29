@@ -21,6 +21,11 @@ open_freeze_issue_count() {
     gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$FREEZE_LABEL" --limit 2 --json number --jq 'length'
 }
 
+frozen_target="Automated Lightdash upgrades"
+if [[ -n "${INSTANCE:-}" ]]; then
+    frozen_target="Automated Lightdash upgrades of $INSTANCE"
+fi
+
 case "$EVENT_ACTION" in
     labeled|reopened)
         if [[ "$ISSUE_STATE" != "open" ]]; then
@@ -32,7 +37,8 @@ case "$EVENT_ACTION" in
         if [[ "${ISSUE_BODY:-}" == *'<!-- upgrade-automation:auto-freeze -->'* ]]; then
             exit 0
         fi
-        post_slack "[upgrade-freeze-on] $ISSUE_URL | actor: $ACTOR_LOGIN | Automated Lightdash upgrades are paused. Close the issue to resume."
+        post_slack "[upgrade-freeze-on] $ISSUE_URL | actor: $ACTOR_LOGIN | $frozen_target are paused. Close the issue to resume." \
+            "${FREEZE_IMAGE_URL//\{actor\}/$ACTOR_LOGIN}"
         ;;
     closed|unlabeled)
         if [[ "$EVENT_ACTION" == "unlabeled" && "$ISSUE_STATE" != "open" ]]; then
@@ -41,6 +47,6 @@ case "$EVENT_ACTION" in
         if [[ "$(open_freeze_issue_count)" != "0" ]]; then
             exit 0
         fi
-        post_slack "[upgrade-freeze-off] $ISSUE_URL | actor: $ACTOR_LOGIN | Automated Lightdash upgrades are resumed."
+        post_slack "[upgrade-freeze-off] $ISSUE_URL | actor: $ACTOR_LOGIN | $frozen_target are resumed."
         ;;
 esac

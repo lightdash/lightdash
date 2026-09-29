@@ -120,6 +120,7 @@ export type {
     VizContextOptionValue,
     VizContextPivotDetails,
     VizContextRow,
+    VizSubtotals,
     VizFieldFormat,
     VizFieldMetadata,
     VizUnderlyingData,
@@ -159,3 +160,6 @@ export type {
     QueryInsights,
     ViewInsights,
 } from './insights';
+
+export { createGradientColorScale } from './gradientColorScale';
+export type { VizGradientValue } from './gradient';

@@ -1,21 +1,112 @@
-import { FeatureFlags, type UuidOrSlug } from '@lightdash/common';
-import { Box, Button, Group, Title } from '@mantine/core';
-import { Link, Navigate, useParams, useSearchParams } from 'react-router';
-import { DASHBOARD_HEADER_HEIGHT } from '../components/common/Dashboard/dashboard.constants';
+import {
+    FeatureFlags,
+    type Document,
+    type UuidOrSlug,
+} from '@lightdash/common';
+import { ActionIcon, Button, Tooltip } from '@mantine/core';
+import { IconPencil } from '@tabler/icons-react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import {
+    Link,
+    Navigate,
+    useLocation,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
-import Page from '../components/common/Page/Page';
-import PageHeader from '../components/common/Page/PageHeader';
+import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import TruncatedText from '../components/common/TruncatedText';
 import DocumentActions from '../features/documents/DocumentActions';
-import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
+import {
+    getDocumentReturnUrl,
+    isStartEditingState,
+} from '../features/documents/documentNavigation';
+import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
-import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
+import { useCanEditDocument } from '../features/documents/useCanEditDocument';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import styles from './Document.module.css';
+
+const DocumentEditor = lazy(
+    () => import('../features/documents/DocumentEditor'),
+);
+
+const DocumentWorkspace = ({ document }: { document: Document }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const startEditing = isStartEditingState(location.state);
+    const [editingDocument, setEditingDocument] = useState<Document | null>(
+        startEditing ? document : null,
+    );
+    const canEdit = useCanEditDocument(document);
+    // Reading and editing are separate layouts; carry the scroll offset across
+    const scrollTop = useRef(0);
+    const [openAt, setOpenAt] = useState(0);
+    const trackScroll = (top: number) => {
+        scrollTop.current = top;
+    };
+    // One-shot: a reload or shared link opens the reader, not the editor
+    useEffect(() => {
+        if (startEditing) {
+            void navigate(
+                { pathname: location.pathname, search: location.search },
+                { replace: true, state: null },
+            );
+        }
+    }, [startEditing, navigate, location.pathname, location.search]);
+    if (editingDocument && canEdit) {
+        return (
+            <Suspense
+                fallback={<EmptyStateLoader my="xl" title="Loading editor" />}
+            >
+                <DocumentEditor
+                    document={editingDocument}
+                    initialScrollTop={openAt}
+                    onScrollTopChange={trackScroll}
+                    onClose={() => {
+                        setOpenAt(scrollTop.current);
+                        setEditingDocument(null);
+                    }}
+                />
+            </Suspense>
+        );
+    }
+    return (
+        <DocumentPageLayout name={document.name}>
+            <DocumentRenderer
+                document={document}
+                initialScrollTop={openAt}
+                onScrollTopChange={trackScroll}
+                actions={
+                    <ActionIcon.Group
+                        role="group"
+                        aria-label="Document controls"
+                    >
+                        {canEdit && (
+                            <Tooltip label="Edit document">
+                                <ActionIcon
+                                    variant="default"
+                                    size="lg"
+                                    aria-label="Edit document"
+                                    onClick={() => {
+                                        setOpenAt(scrollTop.current);
+                                        setEditingDocument(document);
+                                    }}
+                                >
+                                    <MantineIcon icon={IconPencil} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <DocumentActions document={document} />
+                    </ActionIcon.Group>
+                }
+            />
+        </DocumentPageLayout>
+    );
+};
 
 const DocumentContent = ({
     projectUuid,
@@ -32,7 +123,7 @@ const DocumentContent = ({
         projectUrlIdentifier,
     );
     if (query.isInitialLoading) {
-        return <EmptyStateLoader title="Loading document" />;
+        return <EmptyStateLoader my="xl" title="Loading document" />;
     }
     if (query.isError || !query.data) {
         return (
@@ -47,43 +138,11 @@ const DocumentContent = ({
             />
         );
     }
-    const document = query.data;
     return (
-        <Box className={styles.page}>
-            <Page
-                title={document.name}
-                noContentPadding
-                header={
-                    <PageHeader
-                        cardProps={{
-                            px: 0,
-                            py: 0,
-                            h: DASHBOARD_HEADER_HEIGHT,
-                        }}
-                    >
-                        <Group
-                            className={reportStyles.reportControls}
-                            wrap="nowrap"
-                            justify="space-between"
-                        >
-                            <Title order={6} flex={1} miw={0}>
-                                <TruncatedText
-                                    maxWidth="100%"
-                                    inline
-                                    inherit
-                                    display="block"
-                                >
-                                    {document.name}
-                                </TruncatedText>
-                            </Title>
-                            <DocumentActions document={document} />
-                        </Group>
-                    </PageHeader>
-                }
-            >
-                <DocumentRenderer document={document} />
-            </Page>
-        </Box>
+        <DocumentWorkspace
+            key={query.data.documentUuid}
+            document={query.data}
+        />
     );
 };
 
@@ -94,7 +153,7 @@ const DocumentPage = () => {
     }>();
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     if (!projectUuid || flag.isInitialLoading) {
-        return <EmptyStateLoader title="Loading document" />;
+        return <EmptyStateLoader my="xl" title="Loading document" />;
     }
     if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;

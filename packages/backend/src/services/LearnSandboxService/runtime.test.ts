@@ -1,10 +1,12 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
     buildSandboxEnvironment,
+    detectSandboxDbtVersion,
     detectSandboxRuntime,
     learnSandboxQueueName,
+    resetSandboxDbtVersionCache,
     resetSandboxRuntimeCache,
     resolveSandboxRuntime,
 } from './runtime';
@@ -15,7 +17,6 @@ describe('buildSandboxEnvironment', () => {
         apiUrl: undefined,
         siteUrl: 'https://learn.test',
         projectUuid: 'copy',
-        apiKey: 'ldpat_abc',
         workspaceDir: '/tmp/ws/copy-c1',
         projectDir: '/tmp/ws/copy-c1/project',
         databasePath: '/srv/playground/jaffle_shop.duckdb',
@@ -66,7 +67,6 @@ describe('buildSandboxEnvironment', () => {
         expect(env).toMatchObject({
             LIGHTDASH_URL: 'https://learn.test',
             LIGHTDASH_PROJECT: 'copy',
-            LIGHTDASH_API_KEY: 'ldpat_abc',
             PLAYGROUND_DATA_DIR: '/srv/playground',
             DBT_PROFILES_DIR: '/tmp/ws/copy-c1',
             DBT_PROJECT_DIR: '/tmp/ws/copy-c1/project',
@@ -78,6 +78,9 @@ describe('buildSandboxEnvironment', () => {
             // A stalled API surfaces as a CLI error well inside the command timeout
             LIGHTDASH_API_TIMEOUT_MS: '30000',
         });
+        // The token goes through the CLI config file, never the environment,
+        // so dbt's env_var() cannot render it into the manifest.
+        expect(env).not.toHaveProperty('LIGHTDASH_API_KEY');
     });
 
     it('tells the CLI which directory holds the playground database', () => {
@@ -186,5 +189,95 @@ describe('resolveSandboxRuntime maxConcurrentCommands', () => {
                 LEARN_SANDBOX_MAX_CONCURRENT_COMMANDS: 'x',
             }).maxConcurrentCommands,
         ).toBe(4);
+    });
+});
+
+describe('resolveSandboxRuntime active command limits', () => {
+    it('defaults to one in flight per learner and four per organization', () => {
+        expect(resolveSandboxRuntime({}).activeCommandLimits).toEqual({
+            perUser: 1,
+            perOrganization: 4,
+        });
+    });
+    it('accepts positive integer overrides and ignores anything else', () => {
+        expect(
+            resolveSandboxRuntime({
+                LEARN_SANDBOX_MAX_ACTIVE_PER_USER: '2',
+                LEARN_SANDBOX_MAX_ACTIVE_PER_ORG: '10',
+            }).activeCommandLimits,
+        ).toEqual({ perUser: 2, perOrganization: 10 });
+        expect(
+            resolveSandboxRuntime({
+                LEARN_SANDBOX_MAX_ACTIVE_PER_USER: '0',
+                LEARN_SANDBOX_MAX_ACTIVE_PER_ORG: 'many',
+            }).activeCommandLimits,
+        ).toEqual({ perUser: 1, perOrganization: 4 });
+    });
+});
+
+describe('detectSandboxDbtVersion', () => {
+    let binDir: string;
+    let calls: string;
+
+    // A stand-in dbt that records each invocation, so the tests can count
+    // how many times the real binary would have been started.
+    const writeFakeDbt = (output: string, exitCode = 0) =>
+        writeFile(
+            path.join(binDir, 'dbt'),
+            [
+                '#!/bin/sh',
+                `echo "$@" >> "${calls}"`,
+                `printf '%s\\n' '${output}'`,
+                `exit ${exitCode}`,
+                '',
+            ].join('\n'),
+            { mode: 0o755 },
+        );
+    const callCount = async () =>
+        (await readFile(calls, 'utf8').catch(() => ''))
+            .split('\n')
+            .filter(Boolean).length;
+
+    beforeEach(async () => {
+        resetSandboxDbtVersionCache();
+        binDir = await mkdtemp(path.join(tmpdir(), 'learn-dbt-version-'));
+        calls = path.join(binDir, 'calls.log');
+    });
+
+    afterEach(async () => {
+        resetSandboxDbtVersionCache();
+        await rm(binDir, { recursive: true, force: true });
+    });
+
+    it('reads the installed dbt-core version and asks dbt only once', async () => {
+        await writeFakeDbt(
+            'Core:\n  - installed: 1.12.3\n  - latest:    1.12.3 - Up to date!',
+        );
+        const env = { PATH: binDir };
+        await expect(detectSandboxDbtVersion(env)).resolves.toBe('1.12.3');
+        await expect(detectSandboxDbtVersion(env)).resolves.toBe('1.12.3');
+        expect(await callCount()).toBe(1);
+        expect(await readFile(calls, 'utf8')).toBe('--version\n');
+    });
+
+    it('returns undefined when dbt cannot be started, and tries again next time', async () => {
+        const env = { PATH: binDir };
+        await expect(detectSandboxDbtVersion(env)).resolves.toBeUndefined();
+        await writeFakeDbt('Core:\n  - installed: 1.12.3');
+        await expect(detectSandboxDbtVersion(env)).resolves.toBe('1.12.3');
+    });
+
+    it('returns undefined when the output has no installed version', async () => {
+        await writeFakeDbt('something unexpected');
+        await expect(
+            detectSandboxDbtVersion({ PATH: binDir }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('returns undefined when dbt exits non-zero', async () => {
+        await writeFakeDbt('Core:\n  - installed: 1.12.3', 1);
+        await expect(
+            detectSandboxDbtVersion({ PATH: binDir }),
+        ).resolves.toBeUndefined();
     });
 });

@@ -86,6 +86,11 @@ const serializeOptionDetail = (option: DataAppVizConfigOption): string => {
             if (option.max !== undefined) parts.push(`max: ${option.max}`);
             parts.push(`default: ${option.default}`);
             break;
+        case 'gradient':
+            if (option.showBounds !== undefined)
+                parts.push(`showBounds: ${option.showBounds}`);
+            parts.push(`default: ${JSON.stringify(option.default)}`);
+            break;
         case 'text':
         case 'color':
             parts.push(`default: ${JSON.stringify(option.default)}`);
@@ -135,6 +140,9 @@ export const serializeCustomChartTypeSchema = (
                 details ? ` — ${details}` : ''
             }`,
         );
+    }
+    if (type.schema.hierarchy) {
+        lines.push(`hierarchy: ${type.schema.hierarchy.field}`);
     }
     if (type.schema.configOptions.length === 0) {
         lines.push('configOptions: none');

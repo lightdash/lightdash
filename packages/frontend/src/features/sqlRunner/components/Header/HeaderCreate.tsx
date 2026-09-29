@@ -9,7 +9,7 @@ import {
     Menu,
     Tooltip,
 } from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard, useHotkeys } from '@mantine/hooks';
 import {
     IconGitPullRequest,
     IconChevronDown,
@@ -291,6 +291,25 @@ export const HeaderCreate: FC = () => {
 
     const hasAnyAction =
         canSaveChart || canCreateVirtualView || canWriteBackToDbt;
+
+    const isAnyModalOpen =
+        isSaveModalOpen ||
+        isCreateVirtualViewModalOpen ||
+        isWriteBackToDbtModalOpen ||
+        isChartErrorsAlertOpen;
+
+    // Save on cmd/ctrl + s, including while the SQL editor is focused
+    useHotkeys(
+        [
+            [
+                'mod+s',
+                () => {
+                    if (!isCtaDisabled && !isAnyModalOpen) handleCtaClick();
+                },
+            ],
+        ],
+        [],
+    );
 
     return (
         <>

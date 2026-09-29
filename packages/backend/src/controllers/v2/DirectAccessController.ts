@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     type ApiDirectAccessAssignmentsResponse,
     type ApiDirectAccessGroupsResponse,
+    type ApiDirectAccessUsersResponse,
     type ApiErrorPayload,
     type ApiSuccessEmpty,
     type DirectAccessPrincipalType,
@@ -53,6 +54,37 @@ export class DirectAccessController extends BaseController {
             results: await this.services
                 .getDirectAccessService()
                 .listGroups(
+                    req.account,
+                    projectUuid,
+                    resourceType,
+                    resourceUuid,
+                ),
+        };
+    }
+
+    /**
+     * List users eligible for sharing this resource: active users with
+     * current access to the project. Requires the same permission as managing
+     * its direct access assignments.
+     * @summary List users eligible for direct access
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{resourceType}/{resourceUuid}/users')
+    @OperationId('List direct access users')
+    async listDirectAccessUsers(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() resourceType: DirectAccessResourceType,
+        @Path() resourceUuid: UUID,
+    ): Promise<ApiDirectAccessUsersResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDirectAccessService()
+                .listUsers(
                     req.account,
                     projectUuid,
                     resourceType,

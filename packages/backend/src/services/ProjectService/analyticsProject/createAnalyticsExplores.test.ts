@@ -5,10 +5,14 @@ import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
     it.each([
+        ['user_activity', 'users', 'total_csv_downloads'],
+        ['agent_steps', 'agents', 'total_steps'],
         ['ai_usage', 'users', 'total_ai_calls'],
         ['ai_usage', 'agents', 'total_ai_calls'],
         ['query_events', 'charts', 'total_queries'],
         ['query_events', 'dashboards', 'total_queries'],
+        ['export_events', 'charts', 'total_events'],
+        ['export_events', 'dashboards', 'total_events'],
     ])(
         'compiles %s joined to %s without primary-key warnings',
         (name, dimension, metric) => {
@@ -48,15 +52,11 @@ describe('createAnalyticsExplores', () => {
         );
         expect(exports.tables.export_events.dimensions.format).toBeDefined();
         expect(exports.tables.export_events.dimensions.query_id).toBeDefined();
-        expect(exports.joinedTables).toEqual([
-            expect.objectContaining({
-                table: 'lightdash_users',
-                relationship: 'many-to-one',
-            }),
-            expect.objectContaining({
-                table: 'query_events',
-                relationship: 'many-to-one',
-            }),
+        expect(exports.joinedTables.map(({ table }) => table)).toEqual([
+            'query_events',
+            'lightdash_charts',
+            'lightdash_dashboards',
+            'lightdash_users',
         ]);
         expect(exports.tables.lightdash_users.dimensions.name).toBeDefined();
         expect(exports.tables.query_events.dimensions.chart_id).toBeDefined();
@@ -69,6 +69,8 @@ describe('createAnalyticsExplores', () => {
             'ai_usage',
             'data_app_events',
             'export_events',
+            'agent_steps',
+            'user_activity',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

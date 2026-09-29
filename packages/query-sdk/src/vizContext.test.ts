@@ -8,6 +8,7 @@ import type { Transport } from './types';
 import {
     buildVizDrillDown,
     buildVizPointMenu,
+    buildVizSubtotals,
     buildVizUnderlyingData,
     getFieldLabel,
     getFormatted,
@@ -83,6 +84,9 @@ const inboundValueColorsRemainOptional: Assert<
 const inboundFieldsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'fields'>
 > = true;
+const inboundSubtotalsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'subtotals'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
@@ -93,7 +97,38 @@ void [
     inboundSeriesColorsRemainOptional,
     inboundValueColorsRemainOptional,
     inboundFieldsRemainOptional,
+    inboundSubtotalsRemainOptional,
 ];
+
+describe('subtotal context', () => {
+    const request = { level: 1, parentValues: ['Europe'] };
+
+    it('defaults to disabled for older hosts', async () => {
+        const state = toVizContextState({
+            type: 'lightdash:sdk:data-app-viz-context',
+            fieldMapping: {},
+            rows: [],
+        });
+        expect(state.subtotalsEnabled).toBe(false);
+        const subtotals = buildVizSubtotals(false, [], null);
+        expect(subtotals.enabled).toBe(false);
+        await expect(subtotals.get(request)).rejects.toThrow();
+    });
+
+    it('requires host opt-in and transport support', async () => {
+        const getVizSubtotals = vi.fn().mockResolvedValue({ rows: [row] });
+        const transport = { getVizSubtotals } as unknown as Transport;
+        expect(buildVizSubtotals(true, ['region'], null).enabled).toBe(false);
+        expect(buildVizSubtotals(false, ['region'], transport).enabled).toBe(
+            false,
+        );
+        const subtotals = buildVizSubtotals(true, ['region'], transport);
+        expect(subtotals.enabled).toBe(true);
+        expect(subtotals.dimensions).toEqual(['region']);
+        await expect(subtotals.get(request)).resolves.toEqual({ rows: [row] });
+        expect(getVizSubtotals).toHaveBeenCalledWith(request);
+    });
+});
 
 const row: VizContextRow = {
     orders_status: { value: { raw: 'completed', formatted: 'Completed' } },
@@ -216,6 +251,24 @@ describe('toVizContextState', () => {
         });
     });
 
+    it('preserves saved gradients and rejects malformed gradient payloads', () => {
+        const scale = {
+            colors: ['#000000', '#ffffff'],
+            min: 'auto' as const,
+            max: 10,
+        };
+        expect(
+            toVizContextState(
+                message({
+                    options: {
+                        scale,
+                        invalid: { ...scale, colors: ['red', 'blue'] } as never,
+                    },
+                }),
+            ).options,
+        ).toEqual({ scale });
+    });
+
     it('defaults options to an empty object when the host omits them', () => {
         expect(toVizContextState(message({})).options).toEqual({});
     });
@@ -328,6 +381,8 @@ describe('toVizContextState', () => {
             seriesColors: {},
             valueColors: {},
             pivotDetails: null,
+            subtotalsEnabled: false,
+            subtotalDimensions: [],
             underlyingDataEnabled: false,
             underlyingDataOpenEnabled: false,
             drillDownEnabled: false,

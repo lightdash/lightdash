@@ -1,63 +1,27 @@
 import { MantineProvider } from '@mantine/core';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { getDocumentHeadingId, getDocumentHeadings } from '../documentHeadings';
-import DocumentReportLayout from './DocumentReportLayout';
+import { render, screen } from '@testing-library/react';
 import ReportMarkdown from './ReportMarkdown';
 import styles from './ReportPresentation.module.css';
 
 const renderMarkdown = (markdown: string) =>
     render(
         <MantineProvider env="test">
-            <ReportMarkdown
-                markdown={markdown}
-                headingId={(offset) => getDocumentHeadingId(0, offset)}
-            />
+            <ReportMarkdown markdown={markdown} />
         </MantineProvider>,
     );
 
 describe('shared report markdown', () => {
-    test('keeps all headings and prose in one Markdown cell section', () => {
-        const { container } = renderMarkdown(
-            '# Channel mix and next steps\n\n## Channel mix\n\n### What this measures\n\nNarrative\n\n# Another heading\n\nMore text',
-        );
-        expect(container.querySelectorAll('section')).toHaveLength(1);
-        const title = screen.getByRole('heading', {
-            level: 1,
-            name: 'Channel mix and next steps',
-        });
-        const subtitle = screen.getByRole('heading', {
-            level: 2,
-            name: 'Channel mix',
-        });
-        const detail = screen.getByRole('heading', {
-            level: 3,
-            name: 'What this measures',
-        });
-        expect(title.closest(`.${styles.documentMarkdown}`)).not.toBeNull();
-        expect(subtitle.parentElement).toBe(title.parentElement);
-        expect(detail.parentElement).toBe(title.parentElement);
-        expect(subtitle).not.toHaveClass(styles.reportFindingTitle);
-        expect(screen.getByText('Narrative').closest('section')).toBe(
-            screen.getByText('More text').closest('section'),
-        );
-    });
     test('uses the same section presentation regardless of heading wording', () => {
         renderMarkdown(
             'Introduction\n\n## **Findings**\n\nNarrative\n\n## Conclusion\n\nNext steps',
         );
-        expect(screen.getByText('Introduction').closest('section')).toHaveClass(
-            styles.reportFinding,
+        expect(screen.getByText('Introduction')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Findings' })).toHaveClass(
+            styles.reportFindingTitle,
         );
-        expect(
-            screen
-                .getByRole('heading', { name: 'Findings' })
-                .closest('section'),
-        ).toHaveClass(styles.reportFinding);
-        expect(
-            screen
-                .getByRole('heading', { name: 'Conclusion' })
-                .closest('section'),
-        ).toHaveClass(styles.reportFinding);
+        expect(screen.getByRole('heading', { name: 'Conclusion' })).toHaveClass(
+            styles.reportFindingTitle,
+        );
         expect(screen.getByRole('heading', { name: 'Findings' }).tagName).toBe(
             'H2',
         );
@@ -66,36 +30,10 @@ describe('shared report markdown', () => {
     test('does not treat a non-final Conclusion or ordinary final heading as a conclusion', () => {
         renderMarkdown('## Conclusion\n\nEarly\n\n## Further work\n\nLast');
         for (const name of ['Conclusion', 'Further work']) {
-            expect(
-                screen.getByRole('heading', { name }).closest('section'),
-            ).toHaveClass(styles.reportFinding);
+            expect(screen.getByRole('heading', { name })).toHaveClass(
+                styles.reportFindingTitle,
+            );
         }
-    });
-
-    test('preserves static full-source offsets for repeated, setext and nested Markdown headings', () => {
-        const markdown =
-            'Intro\n\nResults\n===\n\n# Results\n\n> # Nested\n\n## Detail\n\n# Final';
-        const headings = getDocumentHeadings([
-            { type: 'markdown', content: { markdown } },
-        ]);
-        const { container } = render(
-            <MantineProvider env="test">
-                <DocumentReportLayout title="Report" headings={headings}>
-                    <ReportMarkdown
-                        markdown={markdown}
-                        headingId={(offset) => getDocumentHeadingId(0, offset)}
-                    />
-                </DocumentReportLayout>
-            </MantineProvider>,
-        );
-        const nodes = Array.from(
-            container.querySelectorAll<HTMLElement>('[data-report-heading]'),
-        );
-        expect(nodes.map(({ id }) => id)).toEqual(headings.map(({ id }) => id));
-        const last = nodes[nodes.length - 1];
-        last.scrollIntoView = vi.fn();
-        fireEvent.click(screen.getByRole('button', { name: 'Final' }));
-        expect(last.scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
     });
 
     test('shares safe callouts, reference links and emoji without allowing authored wrapper tags', () => {
@@ -113,7 +51,6 @@ describe('shared report markdown', () => {
                 'script, img, [onerror], a[href^="javascript:"], report-section',
             ),
         ).toBeNull();
-        expect(container.querySelectorAll('section')).toHaveLength(1);
         expect(container.textContent).toContain('😄');
     });
 });

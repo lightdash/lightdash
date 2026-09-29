@@ -338,7 +338,10 @@ import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { routeProjectForSlack } from '../ai/agents/projectRouter';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
-import { generateDeepResearchReport as generateDeepResearchReportFromEvidence } from '../ai/agents/reportFinalizer';
+import {
+    generateDeepResearchReport as generateDeepResearchReportFromEvidence,
+    type AiDeepResearchFinalizerUsageFn,
+} from '../ai/agents/reportFinalizer';
 import { sqlApprovalId } from '../ai/agents/sqlApprovalSuspend';
 import {
     generateAgentSuggestions,
@@ -2064,14 +2067,22 @@ export class AiAgentService extends BaseService {
         );
     }
 
-    // Battle mode can only switch JEV off for the baseline side, never on past the master flag.
-    private async getBattleDecisionClient(
+    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
+    private async getPromptDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-        battleProfile: AiAgentBattleProfile | null,
+        {
+            battleProfile,
+            enableFastDecisions,
+        }: {
+            battleProfile: AiAgentBattleProfile | null;
+            enableFastDecisions: boolean;
+        },
     ) {
-        return battleProfile === 'baseline'
-            ? undefined
-            : this.getDecisionClient(user);
+        const enabled =
+            battleProfile === null
+                ? enableFastDecisions
+                : battleProfile === 'fast';
+        return enabled ? this.getDecisionClient(user) : undefined;
     }
 
     private async getPromptErrorMessage(
@@ -6952,11 +6963,13 @@ export class AiAgentService extends BaseService {
             resetErrorForStreamRetry = false,
             expectedDeepResearchRunUuid,
             deferCurrentVerifiedExamples = false,
+            enableFastDecisions = true,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
+            enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
             deferCurrentVerifiedExamples?: boolean;
             onPromptResolved?: (
@@ -7118,10 +7131,10 @@ export class AiAgentService extends BaseService {
                 this.getIsVerifiedArtifactsEnabled(),
             currentPromptUuid: prompt.promptUuid,
             userUuid: user.userUuid,
-            fastDecisionsEnabled: !!(await this.getBattleDecisionClient(
-                user,
-                prompt.battleProfile,
-            )),
+            fastDecisionsEnabled: !!(await this.getPromptDecisionClient(user, {
+                battleProfile: prompt.battleProfile,
+                enableFastDecisions,
+            })),
         };
         // Fast decisions only need the conversation; the example lookup embeds the
         // prompt, so it starts now and the agent awaits it only if it runs.
@@ -7305,6 +7318,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             threadUuid,
             enableSqlMode,
+            enableFastDecisions = true,
             autoApproveSql,
             toolHints,
             runtimeOptions,
@@ -7312,6 +7326,7 @@ export class AiAgentService extends BaseService {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             toolHints: string[];
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
@@ -7341,6 +7356,7 @@ export class AiAgentService extends BaseService {
                 resetErrorForStreamRetry: true,
                 expectedDeepResearchRunUuid: null,
                 deferCurrentVerifiedExamples: true,
+                enableFastDecisions,
                 onPromptResolved: (promptUuid, responseState) => {
                     trackedPromptUuid = promptUuid;
                     this.trackStreamPrompt(promptUuid, responseState);
@@ -7406,6 +7422,7 @@ export class AiAgentService extends BaseService {
                         stream: true,
                         canManageAgent,
                         enableSqlMode,
+                        enableFastDecisions,
                         autoApproveSql,
                         toolHints,
                         runtimeOptions,
@@ -8051,15 +8068,23 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
+            projectUuid,
+            runUuid,
             evidencePack,
             reason,
             model,
+            onUsage,
         }: {
             agentUuid: string;
             threadUuid: string;
+            promptUuid: string;
+            projectUuid: string;
+            runUuid: string;
             evidencePack: AiDeepResearchEvidencePack;
             reason: string;
             model: AiDeepResearchExecutionContextSnapshot['model'];
+            onUsage: AiDeepResearchFinalizerUsageFn;
         },
     ): Promise<AiDeepResearchSubmittedReport> {
         const copilotConfig =
@@ -8123,8 +8148,10 @@ export class AiAgentService extends BaseService {
             }),
             telemetry: {
                 organizationUuid: user.organizationUuid ?? null,
+                projectUuid,
                 agentUuid,
                 threadUuid,
+                promptUuid,
                 userUuid: user.userUuid,
             },
         };
@@ -8132,6 +8159,8 @@ export class AiAgentService extends BaseService {
         return generateDeepResearchReportFromEvidence(modelOptions, {
             evidencePack,
             reason,
+            runUuid,
+            onUsage,
         });
     }
 
@@ -13039,6 +13068,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             stream: true;
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
@@ -13108,6 +13138,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             canManageAgent: boolean;
             enableSqlMode?: boolean;
+            enableFastDecisions?: boolean;
             autoApproveSql?: boolean;
             suppressWritebackPreview?: boolean;
             dbtSourceUuid?: string;
@@ -13174,17 +13205,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const battleProfile = isSlackPrompt(prompt)
             ? null
             : prompt.battleProfile;
-        const decisionClient = await this.getBattleDecisionClient(
-            user,
+        const decisionClient = await this.getPromptDecisionClient(user, {
             battleProfile,
-        );
+            enableFastDecisions: options.enableFastDecisions ?? true,
+        });
         const decisionUsage = decisionClient
             ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
             : undefined;
         const decisions = decisionUsage
             ? decisionClient?.withUsage(decisionUsage)
             : undefined;
-        // AiAgentFastDecisions is the master gate; battle mode can only disable it per side.
+        // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
         const fastExperienceEnabled = decisions !== undefined;
         let forceChartMutationRouting = false;
         let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
@@ -20250,7 +20281,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     async assessResult(
         resultUuid: string,
         canAccessData: boolean,
-        telemetry?: AiCallAttribution,
+        telemetry?: Omit<AiCallAttribution, 'keyManagement'>,
     ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
         const { query, response, expectedAnswer, artifact, toolResults } =
@@ -20258,9 +20289,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         // TODO: Implement judge configuration in the future!
         // reusing existing configuration for now
-        const { model: judge, callOptions } = getModel(
-            this.lightdashConfig.ai.copilot,
-        );
+        const {
+            model: judge,
+            callOptions,
+            keyManagement,
+        } = getModel(this.lightdashConfig.ai.copilot);
 
         // Build context from artifacts and tool results
         const contextParts: string[] = [];
@@ -20301,6 +20334,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   context: contextParts.length > 0 ? contextParts : undefined,
                   judge,
                   callOptions,
+                  keyManagement,
                   scorerType: 'factuality',
                   telemetry,
               })
@@ -20314,6 +20348,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       context: contextParts,
                       judge,
                       callOptions,
+                      keyManagement,
                       scorerType: 'contextRelevancy',
                       telemetry,
                   })

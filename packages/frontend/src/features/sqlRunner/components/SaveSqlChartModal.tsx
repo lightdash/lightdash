@@ -346,6 +346,8 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                                 label="Chart name"
                                 placeholder="eg. How many weekly active users do we have?"
                                 required
+                                autoFocus
+                                data-autofocus
                                 // Typed anchor for scope walkthroughs (data-tour-via)
                                 data-tour-anchor="sql-chart-name"
                                 data-tour-hint="Name the chart"

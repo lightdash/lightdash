@@ -36,6 +36,7 @@ import {
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { useCanManageDashboard } from '../../../hooks/dashboard/useCanManageDashboard';
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import ConnectionBadge from '../../common/ConnectionBadge';
@@ -118,8 +119,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     // The title is the only link to the chart page and hidden titles have
     // none, so the pill carries one in view mode.
     const canViewChart = !minimal && !isEditMode && !!titleHref;
+    // Titles and content can be changed from view mode too; the dashboard
+    // saves the tile straight away since there is no layout to keep.
+    const canManageDashboard = useCanManageDashboard();
+    const canEditTileContent = isEditMode || (!minimal && canManageDashboard);
 
-    const hasMenuContent = isEditMode || !!extraMenuItems || canCopyTileLink;
+    const hasMenuContent =
+        canEditTileContent || !!extraMenuItems || canCopyTileLink;
     const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent =
         hasMenuContent || isVerified || hasNonMenuHeaderContent || canViewChart;
@@ -139,21 +145,23 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     Copy link to tile
                 </Menu.Item>
             )}
-            {canCopyTileLink && (!!extraMenuItems || isEditMode) && (
+            {canCopyTileLink && (!!extraMenuItems || canEditTileContent) && (
                 <Menu.Divider />
             )}
             {extraMenuItems}
-            {isEditMode && extraMenuItems && <Menu.Divider />}
+            {canEditTileContent && extraMenuItems && <Menu.Divider />}
+            {canEditTileContent && (
+                <Box>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconEdit} />}
+                        onClick={() => setIsEditingTileContent(true)}
+                    >
+                        Edit tile content
+                    </Menu.Item>
+                </Box>
+            )}
             {isEditMode && (
                 <>
-                    <Box>
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={() => setIsEditingTileContent(true)}
-                        >
-                            Edit tile content
-                        </Menu.Item>
-                    </Box>
                     {tabs && tabs.length > 1 && (
                         <Menu.Item
                             leftSection={

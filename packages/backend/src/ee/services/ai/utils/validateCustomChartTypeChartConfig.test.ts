@@ -596,3 +596,57 @@ describe('validateCustomChartTypeChartConfig', () => {
         });
     });
 });
+
+describe('gradient options', () => {
+    const schema: DataAppVizSchema = {
+        ...vizSchema,
+        configOptions: [
+            {
+                type: 'gradient',
+                name: 'scale',
+                label: 'Scale',
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 'auto',
+                },
+            },
+        ],
+    };
+    it('accepts valid fixed-color bounds and omitted defaults', () => {
+        for (const options of [
+            null,
+            {
+                scale: {
+                    colors: ['#123', '#abcdef', '#12345680'],
+                    min: -10,
+                    max: 'auto' as const,
+                },
+            },
+        ]) {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig(validMapping, options),
+                    schema,
+                    selectedFields,
+                ),
+            ).not.toThrow();
+        }
+    });
+    it.each([
+        'red',
+        { colors: ['#ffffff'], min: 'auto', max: 'auto' },
+        { colors: ['theme.primary', '#ffffff'], min: 0, max: 100 },
+        { colors: ['#000000', '#ffffff'], min: Infinity, max: 100 },
+    ])('rejects invalid gradient %j', (scale) => {
+        expect(() =>
+            validateCustomChartTypeChartConfig(
+                buildChartConfig(validMapping, {
+                    scale,
+                } as ToolRunQueryCustomChartTypeConfig['options']),
+                schema,
+                selectedFields,
+            ),
+        ).toThrow('Option "scale" (gradient)');
+    });
+});

@@ -13,6 +13,13 @@ export type DataAppVizConfigOptionChange = {
 
 export type DataAppVizPaletteChange = 'added' | 'removed' | 'unchanged';
 
+/** 'changed' means both declare a hierarchy, on different fields. */
+export type DataAppVizHierarchyChange =
+    | 'added'
+    | 'removed'
+    | 'changed'
+    | 'unchanged';
+
 /** What moved between two declarations of the same project chart type. */
 export type DataAppVizSchemaChanges = {
     fields: {
@@ -26,6 +33,7 @@ export type DataAppVizSchemaChanges = {
         changed: DataAppVizConfigOptionChange[];
     };
     colorPalette: DataAppVizPaletteChange;
+    hierarchy: DataAppVizHierarchyChange;
 };
 
 const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
@@ -38,6 +46,18 @@ const isSameOption = (
     a: DataAppVizConfigOption,
     b: DataAppVizConfigOption,
 ): boolean => {
+    if (a.type === 'gradient' && b.type === 'gradient') {
+        return (
+            a.label === b.label &&
+            (a.showBounds ?? true) === (b.showBounds ?? true) &&
+            a.default.min === b.default.min &&
+            a.default.max === b.default.max &&
+            a.default.colors.length === b.default.colors.length &&
+            a.default.colors.every(
+                (color, index) => color === b.default.colors[index],
+            )
+        );
+    }
     if (a.type !== b.type || a.label !== b.label || a.default !== b.default) {
         return false;
     }
@@ -76,6 +96,16 @@ const diffByName = <T extends { name: string }>(
     };
 };
 
+const diffHierarchy = (
+    before: DataAppVizSchema['hierarchy'],
+    after: DataAppVizSchema['hierarchy'],
+): DataAppVizHierarchyChange => {
+    if (!before && !after) return 'unchanged';
+    if (!before) return 'added';
+    if (!after) return 'removed';
+    return before.field === after.field ? 'unchanged' : 'changed';
+};
+
 export const diffDataAppVizSchema = (
     before: DataAppVizSchema,
     after: DataAppVizSchema,
@@ -93,6 +123,7 @@ export const diffDataAppVizSchema = (
             isSameOption,
         ),
         colorPalette,
+        hierarchy: diffHierarchy(before.hierarchy, after.hierarchy),
     };
 };
 
@@ -100,6 +131,7 @@ export const hasDataAppVizSchemaChanges = (
     changes: DataAppVizSchemaChanges,
 ): boolean =>
     changes.colorPalette !== 'unchanged' ||
+    changes.hierarchy !== 'unchanged' ||
     [changes.fields, changes.configOptions].some(
         (group) =>
             group.added.length > 0 ||
@@ -132,5 +164,7 @@ export const summarizeDataAppVizSchemaChanges = (
     }
     if (changes.colorPalette === 'added') parts.push('palette added');
     if (changes.colorPalette === 'removed') parts.push('palette removed');
+    if (changes.hierarchy !== 'unchanged')
+        parts.push(`hierarchy ${changes.hierarchy}`);
     return parts;
 };

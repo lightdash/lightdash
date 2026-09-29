@@ -453,6 +453,7 @@ const routeAgentStructuredOutputSchema = z.object({
     ),
 });
 
+/** @deprecated Legacy agent tool kept for historical tool calls. */
 export const findExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findExplores',
     typeof toolFindExploresArgsSchemaV3,
@@ -481,6 +482,7 @@ export const findCustomChartTypesToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolFindCustomChartTypesOutputSchema },
 });
 
+/** @deprecated Legacy agent tool kept for historical tool calls. */
 export const findFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findFields',
     typeof toolFindFieldsArgsSchema,

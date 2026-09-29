@@ -550,14 +550,6 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
-                {
-                    label: 'MCP',
-                    to: '/generalSettings/ai/mcp',
-                    icon: IconPlugConnected,
-                    keywords: ['mcp', 'tools', 'activity', 'claude', 'cursor'],
-                    children: [],
-                    exact: true,
-                },
             );
 
             if (shouldShowAiAgentReviews) {
@@ -606,6 +598,86 @@ export const useSettingsNavigation = (
                 children: aiChildren,
             });
         }
+
+        const mcpChildren: SettingsNavigationItem[] = [
+            {
+                label: 'Connect',
+                to: '/generalSettings/mcp/connect',
+                icon: IconPlugConnected,
+                keywords: ['mcp', 'setup', 'installation', 'connect'],
+                pageSections: [
+                    {
+                        title: 'Client setup',
+                        keywords: [
+                            'setup',
+                            'connect',
+                            'http',
+                            'claude',
+                            'codex',
+                            'cursor',
+                            'vscode',
+                        ],
+                    },
+                ],
+                children: [],
+                exact: true,
+            },
+        ];
+        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
+            if (canManageOrgAiAgent) {
+                mcpChildren.push({
+                    label: 'General',
+                    to: '/generalSettings/mcp/general',
+                    icon: IconSettings,
+                    keywords: [
+                        'mcp',
+                        'settings',
+                        'agents',
+                        'content',
+                        'writes',
+                    ],
+                    pageSections: [
+                        {
+                            title: 'Enable agents over MCP',
+                            keywords: ['tools', 'context', 'access'],
+                        },
+                        {
+                            title: 'Allow content changes via MCP',
+                            keywords: [
+                                'charts',
+                                'dashboards',
+                                'create',
+                                'edit',
+                            ],
+                        },
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+            mcpChildren.push({
+                label: 'Analytics',
+                to: '/generalSettings/mcp/analytics',
+                icon: IconReportAnalytics,
+                keywords: [
+                    'mcp',
+                    'tools',
+                    'activity',
+                    'usage',
+                    'errors',
+                    'audit',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+        organizationItems.push({
+            label: 'MCP',
+            to: '/generalSettings/mcp',
+            icon: IconPlugConnected,
+            keywords: ['model context protocol', 'claude', 'cursor'],
+            children: mcpChildren,
+        });
 
         if (
             isOrganizationRoadmapEnabled &&

@@ -148,6 +148,27 @@ const mergeQuery: MergeQuery = {
 
 const exploreBySourceId = { orders: ordersExplore, payments: paymentsExplore };
 
+const hideDimension = (
+    explore: Explore,
+    tableName: string,
+    dimensionName: string,
+): Explore => ({
+    ...explore,
+    tables: {
+        ...explore.tables,
+        [tableName]: {
+            ...explore.tables[tableName],
+            dimensions: {
+                ...explore.tables[tableName].dimensions,
+                [dimensionName]: {
+                    ...explore.tables[tableName].dimensions[dimensionName],
+                    hidden: true,
+                },
+            },
+        },
+    },
+});
+
 const TILE = 'tile-1';
 
 const rule = (
@@ -258,6 +279,27 @@ describe('applyDashboardFiltersToMergeQuery', () => {
         expect(
             result.appliedDashboardFiltersBySourceId.payments.dimensions,
         ).toEqual([method]);
+    });
+
+    it('applies a hidden joined dimension to every source that contains it', () => {
+        const status = rule('status', 'orders_status', 'stale-orders-name');
+        const result = applyDashboardFiltersToMergeQuery({
+            tileUuid: TILE,
+            mergeQuery,
+            dashboardFilters: filters({ dimensions: [status] }),
+            exploreBySourceId: {
+                orders: hideDimension(ordersExplore, 'orders', 'status'),
+                payments: hideDimension(paymentsExplore, 'orders', 'status'),
+            },
+        });
+
+        expect(dimensionFilterFieldIds(result.mergeQuery, 'orders')).toEqual([
+            'orders_status',
+        ]);
+        expect(dimensionFilterFieldIds(result.mergeQuery, 'payments')).toEqual([
+            'orders_status',
+        ]);
+        expect(result.appliedDashboardFilters.dimensions).toEqual([status]);
     });
 
     it('applies a filter on a field no source selects, as any tile does', () => {

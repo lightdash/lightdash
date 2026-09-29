@@ -1,12 +1,17 @@
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { ParameterError } from '@lightdash/common';
 import { type DuckdbParquetSource } from '@lightdash/warehouses';
+import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import {
     usageDimensionKey,
     usageDimensionNames,
     usageDimensionSchemas,
     usageDimensionTable,
 } from '../../../analytics/eventStream/usageDimensions';
+import {
+    analyticsStreams,
+    userActivityColumns,
+} from '../../../analytics/eventStream/userActivity';
 import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
 import {
     createS3ClientFromConfig,
@@ -86,7 +91,11 @@ export const createS3AnalyticsSourceResolver = ({
                         throw new Error('Unexpected analytics object scope');
                     }
                     const match =
-                        /^stream=(query_events|ai_usage|data_app_events|export_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
+                        /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
+                            key.slice(prefix.length),
+                        );
+                    const userActivity =
+                        /^model=user_activity\/stream=(query_events|ai_usage|data_app_events|export_events|agent_steps)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.test(
                             key.slice(prefix.length),
                         );
                     const dimension = usageDimensionNames.find(
@@ -94,12 +103,12 @@ export const createS3AnalyticsSourceResolver = ({
                             key === usageDimensionKey(organizationUuid, name),
                     );
                     const tableName =
-                        match?.[1] ??
+                        (userActivity ? 'user_activity' : match?.[1]) ??
                         (dimension ? usageDimensionTable(dimension) : null);
                     // Expose all retained partitions. Date filters belong to
                     // the Explore query, not a fixed source-level window.
                     if (tableName) {
-                        if (match) hasEvents = true;
+                        if (match || userActivity) hasEvents = true;
                         fileCount += 1;
                         if (fileCount > MAX_FILES)
                             throw new Error(
@@ -139,12 +148,17 @@ export const createS3AnalyticsSourceResolver = ({
         return {
             scope,
             signedUrls: true,
-            emptyTables: usageDimensionNames
-                .filter((name) => !tables.has(usageDimensionTable(name)))
-                .map((name) => ({
+            emptyTables: [
+                ...usageDimensionNames.map((name) => ({
                     name: usageDimensionTable(name),
                     columns: usageDimensionSchemas[name],
                 })),
+                ...analyticsStreams.map((name) => ({
+                    name,
+                    columns: compactedStreamSchemas[name],
+                })),
+                { name: 'user_activity', columns: userActivityColumns },
+            ].filter(({ name }) => !tables.has(name)),
             tables: [...tables].map(([name, urls]) => ({
                 name,
                 urls: urls.sort(),

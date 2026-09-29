@@ -34,7 +34,8 @@ export const hasSchedulerFilterChanged = (
 
 /**
  * The inputs cannot enable or disable a rule, so a value filter with no values
- * is stored disabled and reads as "is any value".
+ * is stored disabled and reads as "is any value". A null-only equals selection
+ * has a value (IS NULL), so it must stay enabled.
  */
 export const withDerivedDisabledState = <R extends SchedulerOverridableRule>(
     rule: R,
@@ -42,7 +43,8 @@ export const withDerivedDisabledState = <R extends SchedulerOverridableRule>(
     ...rule,
     disabled:
         isWithValueFilter(rule.operator) &&
-        (rule.values?.length === 0 || rule.values?.length === undefined),
+        (rule.values?.length === 0 || rule.values?.length === undefined) &&
+        !(rule.operator === FilterOperator.EQUALS && rule.includeNull === true),
 });
 
 export const CHART_FILTER_SECTIONS = [

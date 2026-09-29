@@ -22,6 +22,7 @@ import {
     type SavedChart,
 } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { isHexCodeColor } from '../../utils/colors';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type DataAppAutoAnalysis } from './analysis';
 import { type ChartTypeIcon } from './chartTypeIcons';
@@ -35,6 +36,7 @@ import { type DataAppVizPreview } from './preview';
 export type {
     DataAppVizConfigOption,
     DataAppVizConfigOptionType,
+    DataAppVizGradientValue,
     DataAppVizOptionValue,
     DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
@@ -801,6 +803,26 @@ export type DataAppGenerationUsage = {
 };
 
 /**
+ * The coding agent CLI's running totals for one session, as of its last
+ * result event. A resumed run reports cost, API time and per-model tokens
+ * since the session began, so the next run subtracts this to find its own.
+ */
+export type DataAppCodingAgentSessionUsage = {
+    sessionId: string;
+    costUsd: number;
+    durationApiMs: number;
+    modelUsage: Record<
+        string,
+        {
+            inputTokens: number;
+            outputTokens: number;
+            cacheReadInputTokens: number;
+            cacheCreationInputTokens: number;
+        }
+    > | null;
+};
+
+/**
  * One data app generation event — a row of the org-wide activity log. Backed by
  * an `app_versions` row, so it covers both new apps and iterations, and both
  * successful and failed generations.
@@ -887,8 +909,42 @@ export type DataAppVizSchema = {
     configOptions: DataAppVizConfigOption[];
     /** Null when the viz colours nothing from the resolved palette. */
     colorPalette: DataAppVizPaletteDeclaration | null;
+    /** Ordered dimension slot whose levels can be subtotalled. */
+    hierarchy?: { field: string };
     /** Explains the row shape, ordering, and recovery needed to use this viz. */
     inputGuidance?: string;
+};
+
+const vizHierarchy = z
+    .object({
+        field: z
+            .string()
+            .describe(
+                'Name of a declared dimension field with `multiple: true`, ordered from the top level down.',
+            ),
+    })
+    .nullable()
+    .transform((value) => value ?? undefined)
+    .optional()
+    .describe(
+        'Declare this when the component shows aggregated rows for the levels of a hierarchy, such as a total per country above its cities. Null when it does not.',
+    );
+
+const hasValidVizHierarchy = (schema: {
+    fields: DataAppVizField[];
+    hierarchy?: { field: string };
+}): boolean =>
+    !schema.hierarchy ||
+    schema.fields.some(
+        (field) =>
+            field.name === schema.hierarchy?.field &&
+            field.type === 'dimension' &&
+            field.multiple === true,
+    );
+
+const invalidVizHierarchy = {
+    message: 'hierarchy must name a dimension field with multiple: true',
+    path: ['hierarchy', 'field'],
 };
 
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
@@ -993,6 +1049,22 @@ const vizFieldsForGeneration = z
     .array(vizField(true))
     .describe(vizFieldsDescription);
 
+export const dataAppVizGradientValueSchema = z.object({
+    colors: z
+        .array(
+            z
+                .string()
+                .refine(
+                    isHexCodeColor,
+                    'Expected a 3, 6, or 8-digit hex color',
+                ),
+        )
+        .min(2)
+        .max(5),
+    min: z.union([z.number().finite(), z.literal('auto')]),
+    max: z.union([z.number().finite(), z.literal('auto')]),
+});
+
 const vizConfigOptions = z.array(
     z.discriminatedUnion('type', [
         z.object({
@@ -1053,6 +1125,21 @@ const vizConfigOptions = z.array(
                 .string()
                 .describe('Hex colour used until the viewer changes it.'),
         }),
+        z.object({
+            ...optionBase,
+            type: z.literal('gradient'),
+            showBounds: z
+                .boolean()
+                .nullable()
+                .transform((value) => value ?? undefined)
+                .optional()
+                .describe(
+                    'Show minimum and maximum controls in the config panel. Defaults to true; false hides the controls without changing the gradient value or bounds.',
+                ),
+            default: dataAppVizGradientValueSchema.describe(
+                'Fixed hex colors and numeric or automatic bounds used until the viewer changes them.',
+            ),
+        }),
     ]),
 );
 
@@ -1075,28 +1162,37 @@ const vizColorPalette = z
 // Read validator for persisted schemas and app manifests. Older generated
 // metadata may exceed today's authoring limits; keep those charts usable.
 // `configOptions` defaults to `[]` for declarations from before it existed.
-export const dataAppVizSchema = z.object({
-    fields: vizFieldsForRead.refine(uniqueNames, 'duplicate field name'),
-    configOptions: vizConfigOptions
-        .default([])
-        .refine(uniqueNames, 'duplicate option name'),
-    colorPalette: vizColorPalette.default(null),
-    inputGuidance: vizInputGuidance(false),
-});
+export const dataAppVizSchema = z
+    .object({
+        fields: vizFieldsForRead.refine(uniqueNames, 'duplicate field name'),
+        configOptions: vizConfigOptions
+            .default([])
+            .refine(uniqueNames, 'duplicate option name'),
+        colorPalette: vizColorPalette.default(null),
+        hierarchy: vizHierarchy,
+        inputGuidance: vizInputGuidance(false),
+    })
+    .refine(hasValidVizHierarchy, invalidVizHierarchy);
 
 // The stricter contract handed to the generator CLI: `configOptions` and
 // `colorPalette` are required, so an empty declaration is a deliberate answer
 // rather than the shape of the schema's defaults.
-export const dataAppVizGenerationSchema = z.object({
-    fields: vizFieldsForGeneration.refine(uniqueNames, 'duplicate field name'),
-    configOptions: vizConfigOptions
-        .refine(uniqueNames, 'duplicate option name')
-        .describe(
-            'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+export const dataAppVizGenerationSchema = z
+    .object({
+        fields: vizFieldsForGeneration.refine(
+            uniqueNames,
+            'duplicate field name',
         ),
-    colorPalette: vizColorPalette,
-    inputGuidance: vizInputGuidance(true),
-});
+        configOptions: vizConfigOptions
+            .refine(uniqueNames, 'duplicate option name')
+            .describe(
+                'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+            ),
+        colorPalette: vizColorPalette,
+        hierarchy: vizHierarchy,
+        inputGuidance: vizInputGuidance(true),
+    })
+    .refine(hasValidVizHierarchy, invalidVizHierarchy);
 
 // Compile-time guard: the zod schema's output type must match the explicit
 // type exposed through the API. If either side drifts, this line fails to type.
@@ -1178,6 +1274,8 @@ const matchesDeclaredType = (
     value: DataAppVizOptionValue,
 ): boolean => {
     switch (option.type) {
+        case 'gradient':
+            return dataAppVizGradientValueSchema.safeParse(value).success;
         case 'boolean':
             return typeof value === 'boolean';
         case 'number':
@@ -1381,6 +1479,14 @@ export const APP_SDK_VIZ_UNDERLYING_DATA_PATH = '/__sdk/viz/underlying-data';
 export const APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH =
     '/__sdk/viz/underlying-data/open';
 
+/** Host-owned subtotal query bridge route for custom chart types. */
+export const APP_SDK_VIZ_SUBTOTALS_PATH = '/__sdk/viz/subtotals';
+
+export type DataAppVizSubtotalsRequest = {
+    level: number;
+    parentValues: Array<string | number | boolean | null>;
+};
+
 // Click intent a viz sends to the virtual route: the untransformed source row
 // (as pushed in the viz context) and the declared field NAME bound to the
 // clicked metric slot. The host resolves everything else at request time.
@@ -1454,6 +1560,7 @@ export type DataAppVizContext = {
     seriesColors: Record<string, string>;
     valueColors: Record<string, Record<string, string>>;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    subtotals: { enabled: boolean; dimensions: string[] };
     underlyingData: { enabled: boolean; openEnabled?: boolean };
     drillDown: { enabled: boolean };
     pointMenu: { enabled: boolean };

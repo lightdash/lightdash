@@ -1,8 +1,10 @@
 import {
+    assertUnreachable,
     type DataAppVizConfigOption,
     type DataAppVizConfigOptionChange,
     type DataAppVizField,
     type DataAppVizFieldChange,
+    type DataAppVizHierarchyChange,
     type DataAppVizSchemaChanges,
 } from '@lightdash/common';
 import { Group, Stack, Text } from '@mantine/core';
@@ -10,6 +12,7 @@ import {
     IconAdjustmentsHorizontal,
     IconCircle,
     IconColumns,
+    IconHierarchy,
     IconMinus,
     IconPalette,
     IconPlus,
@@ -69,7 +72,11 @@ const describeFieldChange = ({ before, after }: DataAppVizFieldChange) => {
 };
 
 const formatDefault = (value: DataAppVizConfigOption['default']) =>
-    typeof value === 'string' ? JSON.stringify(value) : String(value);
+    typeof value === 'object'
+        ? `${value.colors.join(', ')} (${value.min} to ${value.max})`
+        : typeof value === 'string'
+          ? JSON.stringify(value)
+          : String(value);
 
 const describeDefaultChange = (
     before: DataAppVizConfigOption['default'],
@@ -86,8 +93,24 @@ const describeOptionChange = ({
     const parts: string[] = [];
     if (before.type !== after.type)
         parts.push(`${before.type} → ${after.type}`);
-    if (before.default !== after.default)
+    if (before.type === 'gradient' && after.type === 'gradient') {
+        const sameDefault =
+            before.default.min === after.default.min &&
+            before.default.max === after.default.max &&
+            before.default.colors.length === after.default.colors.length &&
+            before.default.colors.every(
+                (color, index) => color === after.default.colors[index],
+            );
+        if (!sameDefault)
+            parts.push(describeDefaultChange(before.default, after.default));
+        if ((before.showBounds ?? true) !== (after.showBounds ?? true)) {
+            parts.push(
+                after.showBounds === false ? 'bounds hidden' : 'bounds shown',
+            );
+        }
+    } else if (before.default !== after.default) {
         parts.push(describeDefaultChange(before.default, after.default));
+    }
     if (before.type === 'select' && after.type === 'select') {
         const beforeValues = before.choices.map((c) => c.value);
         const afterValues = after.choices.map((c) => c.value);
@@ -103,6 +126,21 @@ const describeOptionChange = ({
     if (before.label !== after.label)
         parts.push(`renamed from "${before.label}"`);
     return parts.join(', ');
+};
+
+const hierarchyChangeKind = (
+    change: Exclude<DataAppVizHierarchyChange, 'unchanged'>,
+): ChangeKind => {
+    switch (change) {
+        case 'added':
+            return 'added';
+        case 'changed':
+            return 'updated';
+        case 'removed':
+            return 'removed';
+        default:
+            return assertUnreachable(change, 'Unknown hierarchy change');
+    }
 };
 
 const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
@@ -159,6 +197,18 @@ const toRows = (changes: DataAppVizSchemaChanges): ChangeRow[] => [
                   detail: null,
               },
           ]),
+    ...(changes.hierarchy === 'unchanged'
+        ? []
+        : [
+              {
+                  key: 'hierarchy',
+                  kind: hierarchyChangeKind(changes.hierarchy),
+                  icon: IconHierarchy,
+                  label: 'Hierarchy',
+                  detail:
+                      changes.hierarchy === 'changed' ? 'field changed' : null,
+              },
+          ]),
 ];
 
 type Props = {
@@ -168,7 +218,7 @@ type Props = {
 };
 
 /**
- * The field, option and palette deltas between two chart type versions,
+ * The field, option, palette and hierarchy deltas between two chart type versions,
  * grouped the way field reviews are.
  */
 const VizSchemaChangesList: FC<Props> = ({ changes, compact = false }) => {

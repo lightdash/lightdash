@@ -213,6 +213,8 @@ const organizationSettingsModel = {
 
 const organizationAllowedEmailDomainsModel = {
     findAllowedEmailDomains: vi.fn(async () => undefined),
+    getAllowedEmailDomains:
+        vi.fn<OrganizationAllowedEmailDomainsModel['getAllowedEmailDomains']>(),
 };
 
 const sessionModel = {
@@ -329,6 +331,7 @@ const createUserService = (
     });
 
 vi.spyOn(analyticsMock, 'track');
+vi.spyOn(analyticsMock, 'group');
 const auditLogSpy = vi
     .spyOn(winston, 'logAuditEvent')
     .mockImplementation(() => {});
@@ -338,6 +341,68 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('joinOrg by allowed email domain', () => {
+        const userWithoutOrganization: SessionUser = { ...sessionUser };
+        delete userWithoutOrganization.organizationUuid;
+
+        test('groups the user after joining the organization', async () => {
+            vi.mocked(emailModel.getPrimaryEmailStatus).mockResolvedValueOnce({
+                email: 'person@example.com',
+                isVerified: true,
+            });
+            vi.mocked(
+                organizationAllowedEmailDomainsModel.getAllowedEmailDomains,
+            ).mockResolvedValueOnce({
+                organizationUuid: organisation.organizationUuid,
+                emailDomains: ['example.com'],
+                role: OrganizationMemberRole.MEMBER,
+                projects: [],
+            });
+
+            await userService.joinOrg(
+                userWithoutOrganization,
+                organisation.organizationUuid,
+            );
+
+            expect(vi.mocked(userModel.joinOrg)).toHaveBeenCalledOnce();
+            expect(vi.mocked(analyticsMock.group)).toHaveBeenCalledWith({
+                userId: userWithoutOrganization.userUuid,
+                groupId: organisation.organizationUuid,
+                traits: {},
+            });
+            expect(
+                vi.mocked(userModel.joinOrg).mock.invocationCallOrder[0],
+            ).toBeLessThan(
+                vi.mocked(analyticsMock.group).mock.invocationCallOrder[0],
+            );
+        });
+
+        test('does not group the user when the email domain is not allowed', async () => {
+            vi.mocked(emailModel.getPrimaryEmailStatus).mockResolvedValueOnce({
+                email: 'person@other.com',
+                isVerified: true,
+            });
+            vi.mocked(
+                organizationAllowedEmailDomainsModel.getAllowedEmailDomains,
+            ).mockResolvedValueOnce({
+                organizationUuid: organisation.organizationUuid,
+                emailDomains: ['example.com'],
+                role: OrganizationMemberRole.MEMBER,
+                projects: [],
+            });
+
+            await expect(
+                userService.joinOrg(
+                    userWithoutOrganization,
+                    organisation.organizationUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(vi.mocked(userModel.joinOrg)).not.toHaveBeenCalled();
+            expect(vi.mocked(analyticsMock.group)).not.toHaveBeenCalled();
+        });
     });
 
     describe('organization selection during login', () => {
@@ -5707,6 +5772,43 @@ describe('UserService learn progress (CS-186)', () => {
             stored,
         );
         expect(learnModel.get).toHaveBeenCalledWith('user-1');
+    });
+
+    it('records progress for a developer lesson, which is a docs page and not a scope', async () => {
+        await service().markLearnScopeStarted(
+            account,
+            'docs:semantic-layer/metrics',
+        );
+        expect(learnModel.markStarted).toHaveBeenCalledWith(
+            'user-1',
+            'docs:semantic-layer/metrics',
+        );
+        await service().markLearnScopeCompleted(
+            account,
+            'docs:semantic-layer/dimensions',
+        );
+        expect(learnModel.markCompleted).toHaveBeenCalledWith(
+            'user-1',
+            'docs:semantic-layer/dimensions',
+        );
+        // A docs id nobody declared is still refused.
+        await expect(
+            service().markLearnScopeStarted(
+                account,
+                'docs:semantic-layer/nope',
+            ),
+        ).rejects.toThrow('Unknown Learn scope');
+        await service().mergeLearnProgress(account, {
+            completed: ['docs:semantic-layer/metrics', 'docs:invented/page'],
+            started: [],
+            lastStarted: null,
+        });
+        expect(learnModel.merge).toHaveBeenCalledWith(
+            'user-1',
+            expect.objectContaining({
+                completed: ['docs:semantic-layer/metrics'],
+            }),
+        );
     });
 
     it('records a start and a completion for a registry scope', async () => {

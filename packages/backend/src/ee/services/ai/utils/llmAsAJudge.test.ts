@@ -1,4 +1,5 @@
 import { generateText } from 'ai';
+import { registerAiUsageTracker } from '../../../../analytics/aiUsage';
 import { llmAsAJudge } from './llmAsAJudge';
 
 vi.mock('ai', async (importOriginal) => ({
@@ -30,6 +31,7 @@ describe('llmAsAJudge context relevancy', () => {
                 modelId: 'test-model',
             } as never,
             callOptions: {},
+            keyManagement: 'lightdash-managed',
             scorerType: 'contextRelevancy',
         });
 
@@ -40,5 +42,66 @@ describe('llmAsAJudge context relevancy', () => {
                 ),
             }),
         );
+    });
+});
+
+describe('llmAsAJudge key origin', () => {
+    const track = vi.fn();
+    const judgeParams = {
+        query: 'How many orders last week?',
+        response: '120 orders.',
+        judge: {
+            provider: 'test-provider',
+            modelId: 'test-model',
+        } as never,
+        callOptions: {},
+        keyManagement: 'lightdash-managed' as const,
+        telemetry: { organizationUuid: 'org-1' },
+    };
+    const usage = { inputTokens: 40, outputTokens: 5, totalTokens: 45 };
+
+    beforeEach(() => {
+        track.mockClear();
+        registerAiUsageTracker(track);
+    });
+
+    afterEach(() => {
+        registerAiUsageTracker(() => {});
+    });
+
+    it('reports the key origin of the judge model on factuality usage', async () => {
+        mockedGenerateObject.mockResolvedValue({
+            output: { answer: 'C', rationale: 'Same facts.' },
+            usage,
+        } as never);
+
+        await llmAsAJudge({
+            ...judgeParams,
+            expectedAnswer: '120',
+            scorerType: 'factuality',
+        });
+
+        expect(track.mock.calls[0][0].properties).toMatchObject({
+            feature: 'llm-judge',
+            keyManagement: 'lightdash-managed',
+        });
+    });
+
+    it('reports the key origin of the judge model on context relevancy usage', async () => {
+        mockedGenerateObject.mockResolvedValue({
+            output: { score: 1, reason: 'The context holds the count.' },
+            usage,
+        } as never);
+
+        await llmAsAJudge({
+            ...judgeParams,
+            context: ['Orders last week: 120'],
+            scorerType: 'contextRelevancy',
+        });
+
+        expect(track.mock.calls[0][0].properties).toMatchObject({
+            feature: 'llm-judge',
+            keyManagement: 'lightdash-managed',
+        });
     });
 });

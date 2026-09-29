@@ -26,6 +26,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
     fieldValues,
     pivotReference,
     source,
+    valueLabel,
     trackingData,
 }) => {
     const { explore, metricQuery, openDrillDownModal } =
@@ -40,7 +41,8 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
             : getItemId(item);
     }, [item, pivotReference]);
 
-    const value = fieldId ? fieldValues?.[fieldId]?.formatted : undefined;
+    const value =
+        (fieldId ? fieldValues?.[fieldId]?.formatted : undefined) ?? valueLabel;
 
     const handleDrillInto = useCallback(() => {
         if (!item || !openDrillDownModal || !fieldValues) {
@@ -52,6 +54,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
             fieldValues,
             pivotReference,
             source,
+            valueLabel,
         });
         track({
             name: EventName.DRILL_BY_CLICKED,
@@ -68,6 +71,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         pivotReference,
         source,
         track,
+        valueLabel,
         trackingData.organizationId,
         trackingData.projectId,
         trackingData.userId,

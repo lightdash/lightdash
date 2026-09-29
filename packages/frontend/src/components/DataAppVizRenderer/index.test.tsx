@@ -1,6 +1,13 @@
-import { DimensionType, FieldType, MetricType } from '@lightdash/common';
+import {
+    CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE,
+    DimensionType,
+    FieldType,
+    MERGE_TABLE_NAME,
+    MetricType,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { captureException } from '@sentry/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartColorMappingContext } from '../../hooks/useChartColorConfig/context';
@@ -24,6 +31,7 @@ const mocks = vi.hoisted(() => ({
                           required: boolean;
                           multiple?: boolean;
                       }>;
+                      hierarchy?: { field: string };
                       configOptions: Array<{
                           type: 'text';
                           name: string;
@@ -245,7 +253,10 @@ vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
 
-import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
+import {
+    RENDER_ACK_FALLBACK_MS,
+    SCREENSHOT_READY_FALLBACK_MS,
+} from './constants';
 import DataAppVizRenderer from './index';
 
 function apiError(statusCode: number) {
@@ -260,12 +271,18 @@ function apiError(statusCode: number) {
     };
 }
 
+const queryClient = new QueryClient();
+
 const rendererElement = (props?: Parameters<typeof DataAppVizRenderer>[0]) => (
-    <MantineProvider env="test" theme={getMantineThemeOverride('light')}>
-        <ChartColorMappingContext.Provider value={{ colorMappings: new Map() }}>
-            <DataAppVizRenderer {...props} />
-        </ChartColorMappingContext.Provider>
-    </MantineProvider>
+    <QueryClientProvider client={queryClient}>
+        <MantineProvider env="test" theme={getMantineThemeOverride('light')}>
+            <ChartColorMappingContext.Provider
+                value={{ colorMappings: new Map() }}
+            >
+                <DataAppVizRenderer {...props} />
+            </ChartColorMappingContext.Provider>
+        </MantineProvider>
+    </QueryClientProvider>
 );
 
 const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
@@ -1143,11 +1160,11 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         }
     });
 
-    it('never falls back for a modern SDK awaiting paint', () => {
+    it('waits past the legacy fallback for a modern SDK awaiting paint', () => {
         vi.useFakeTimers();
         try {
             const onScreenshotReady = vi.fn();
-            renderRenderer({ onScreenshotReady });
+            const view = renderRenderer({ onScreenshotReady });
             loadIframe();
             requestVizContext();
             announceModernSdk();
@@ -1156,6 +1173,43 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
                 vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS * 2);
             });
             expect(onScreenshotReady).not.toHaveBeenCalled();
+            announceRendered();
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+            act(() => {
+                vi.advanceTimersByTime(RENDER_ACK_FALLBACK_MS);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+            expect(
+                view.container.querySelector(
+                    `[${CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE}]`,
+                ),
+            ).toBeNull();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('releases a modern SDK that never acknowledges paint and marks the tile', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+            const view = renderRenderer({ onScreenshotReady });
+            loadIframe();
+            requestVizContext();
+            announceModernSdk();
+            act(() => {
+                vi.advanceTimersByTime(RENDER_ACK_FALLBACK_MS - 1);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+            expect(
+                view.container
+                    .querySelector(`[${CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE}]`)
+                    ?.getAttribute(CUSTOM_CHART_READY_FALLBACK_ATTRIBUTE),
+            ).toBe(`viz-uuid@${readyMetadata().version}`);
             announceRendered();
             expect(onScreenshotReady).toHaveBeenCalledTimes(1);
         } finally {
@@ -1646,5 +1700,141 @@ describe('DataAppVizRenderer point menu', () => {
         const props = lastIframeProps();
         expect(props.dataAppVizContext?.pointMenu).toEqual({ enabled: false });
         expect(props.onVizPointMenuIntent).toBeUndefined();
+    });
+});
+
+describe('DataAppVizRenderer subtotals', () => {
+    const lastIframeProps = () =>
+        (
+            mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
+        )?.[0] as {
+            dataAppVizContext?: {
+                subtotals?: { enabled: boolean; dimensions: string[] };
+            };
+            onVizSubtotalsIntent?: (intent: unknown) => Promise<unknown>;
+        };
+
+    const resultsData = (overrides: Record<string, unknown> = {}) => ({
+        rows: [
+            {
+                orders_category: {
+                    value: { raw: 'Hardware', formatted: 'Hardware' },
+                },
+            },
+        ],
+        setFetchAll: mocks.setFetchAll,
+        queryUuid: 'source-query-uuid',
+        ...overrides,
+    });
+
+    const hierarchyMetadata = (hierarchy?: { field: string }) => ({
+        ...readyMetadata(),
+        schema: {
+            ...readyMetadata().schema,
+            fields: [
+                {
+                    name: 'levels',
+                    label: 'Levels',
+                    type: 'dimension' as const,
+                    required: true,
+                    multiple: true,
+                },
+            ],
+            ...(hierarchy && { hierarchy }),
+        },
+    });
+
+    beforeEach(() => {
+        mocks.metadata.current = hierarchyMetadata({ field: 'levels' });
+        mocks.fieldMapping.current = { levels: ['orders_category'] };
+        mocks.metadataError.current = undefined;
+        mocks.token.current = 'preview-token';
+        mocks.tokenError.current = undefined;
+        mocks.embedToken.current = undefined;
+        mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.iframePreview.mockClear();
+        mocks.metricQueryData.current = undefined;
+        mocks.vizContextOverrides.current = { resultsData: resultsData() };
+    });
+
+    it('offers subtotals for the bound hierarchy dimensions', () => {
+        renderRenderer();
+
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.subtotals).toEqual({
+            enabled: true,
+            dimensions: ['orders_category'],
+        });
+        expect(props.onVizSubtotalsIntent).toBeTypeOf('function');
+    });
+
+    it('offers subtotals to embedded viewers', () => {
+        mocks.embedToken.current = 'embed-jwt';
+
+        renderRenderer();
+
+        expect(lastIframeProps().dataAppVizContext?.subtotals).toEqual({
+            enabled: true,
+            dimensions: ['orders_category'],
+        });
+    });
+
+    it.each([
+        [
+            'a merged result',
+            () => {
+                mocks.vizContextOverrides.current = {
+                    resultsData: resultsData({
+                        metricQuery: { exploreName: MERGE_TABLE_NAME },
+                    }),
+                };
+            },
+        ],
+        [
+            'a chart type without a hierarchy',
+            () => {
+                mocks.metadata.current = hierarchyMetadata();
+            },
+        ],
+        [
+            'a result with nothing to subtotal',
+            () => {
+                mocks.vizContextOverrides.current = {
+                    resultsData: resultsData(),
+                    itemsMap: {
+                        orders_category: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'category',
+                            label: 'Category',
+                            table: 'orders',
+                            tableLabel: 'Orders',
+                            sql: '${TABLE}.category',
+                            hidden: false,
+                        },
+                    },
+                };
+            },
+        ],
+        [
+            'a result without a query uuid',
+            () => {
+                mocks.vizContextOverrides.current = {
+                    resultsData: resultsData({ queryUuid: undefined }),
+                };
+            },
+        ],
+    ])('%s renders without subtotals', (_label, arrange) => {
+        arrange();
+
+        renderRenderer();
+
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext).toBeDefined();
+        expect(props.dataAppVizContext?.subtotals).toEqual({
+            enabled: false,
+            dimensions: [],
+        });
+        expect(props.onVizSubtotalsIntent).toBeUndefined();
     });
 });

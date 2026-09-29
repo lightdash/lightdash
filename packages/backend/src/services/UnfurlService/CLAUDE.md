@@ -94,6 +94,8 @@ The indicator shows `data-status="completed-with-errors"` when any tile has erro
 
 ### Known Issues / Race Conditions
 
+**Custom chart tiles below the fold:** custom chart types (`DATA_APP_VIZ`) render in cross-origin iframes and report ready from inside the iframe after two animation frames (`viz-rendered`). Chromium does not run animation frames in cross-origin iframes outside the viewport, so dashboards expand the viewport to the full grid height (`expandViewportToDashboardGrid`) *before* waiting for the ready indicator. The expansion is capped at `MAX_PRE_READY_VIEWPORT_HEIGHT` (16,384px): loading a ~110,000px dashboard fully on screen crashed the shared browserless pod. Custom chart tiles below the cap rely on the renderer's 20s render-acknowledgement fallback.
+
 **Fixed:** There was a race condition in `MinimalDashboard` where tiles could render and call `markTileScreenshotErrored` before `dashboardTiles` was set in context, then the reset effect would clear that status. Fixed by adding an early return to wait for `dashboardTiles` before rendering tiles.
 
 ### Adding New Tile Types

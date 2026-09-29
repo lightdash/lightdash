@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "2.347.0",
+    "version": "2.369.1",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -57,6 +57,7 @@
         "@tiptap/extension-link": "3.30.5",
         "@tiptap/extension-mention": "3.30.5",
         "@tiptap/extension-placeholder": "3.30.5",
+        "@tiptap/extension-table": "3.30.5",
         "@tiptap/pm": "3.30.5",
         "@tiptap/react": "3.30.5",
         "@tiptap/starter-kit": "3.30.5",

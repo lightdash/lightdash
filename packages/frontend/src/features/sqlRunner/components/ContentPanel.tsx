@@ -223,7 +223,11 @@ export const ContentPanel: FC = () => {
 
     // Run query on cmd + enter
     useHotkeys([
-        ['mod + enter', () => handleRunQuery, { preventDefault: true }],
+        [
+            'mod + enter',
+            () => void handleRunQuery(sql),
+            { preventDefault: true },
+        ],
     ]);
 
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);

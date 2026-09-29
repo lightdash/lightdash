@@ -76,7 +76,9 @@ const login = async (page: Page) => {
     await page.goto(`${BASE}/login`);
     await page.getByLabel('Email address').fill(EMAIL);
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByLabel('Password').fill(PASSWORD);
+    // By role: the visibility toggle beside the field also carries a label
+    // containing "password", so a label lookup alone is ambiguous.
+    await page.getByRole('textbox', { name: 'Password' }).fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
     // Only the URL: after login the app may bounce for a while between the
     // project list and a copy an earlier run left behind (its remembered
@@ -310,7 +312,7 @@ const runTour = async (
             lastStep > 0 &&
             !thumbnailTaken &&
             (THUMBNAIL_STEP === null
-                ? step.target.includes('data-tour-step="2"')
+                ? (step.target?.includes('data-tour-step="2"') ?? false)
                 : lastStep === THUMBNAIL_STEP)
         ) {
             thumbnailTaken = true;
@@ -346,6 +348,24 @@ const runTour = async (
             if ((await useIt.count()) > 0) {
                 await useIt.click();
                 await page.waitForTimeout(SETTLE_MS);
+                // An editor that checks its own contents moves on from its
+                // Check button, once what Use it typed has landed.
+                const check = page.locator(
+                    '[data-tour-card] [data-tour-check]',
+                );
+                if ((await check.count()) > 0) {
+                    await page.waitForTimeout(SETTLE_MS);
+                    await check.click();
+                    const problem = page.locator(
+                        '[data-tour-card] [data-tour-card-check]',
+                    );
+                    await page.waitForTimeout(400);
+                    if ((await problem.count()) > 0) {
+                        throw new Error(
+                            `Check refused what Use it typed: ${await problem.textContent()}`,
+                        );
+                    }
+                }
             } else {
                 throw new Error(
                     `typed step "${step.title}" offers nothing to use`,
@@ -357,7 +377,8 @@ const runTour = async (
             if (state.button.ready) {
                 if (
                     scope === 'manage:MetricsTree' &&
-                    state.button.label === 'Got it'
+                    state.button.label === 'Got it' &&
+                    step.target
                 ) {
                     // The fallback card can finish even when save navigation
                     // was blocked. Require the persisted tree to be on screen.
@@ -448,6 +469,13 @@ const main = async () => {
     const page = await browser.newPage({
         viewport: { width: 1440, height: 900 },
     });
+    // SMOKE_CPU_THROTTLE=6 slows the page the way a loaded laptop does: a
+    // timing race between the tour and a controlled editor only shows there.
+    const throttle = Number(process.env.SMOKE_CPU_THROTTLE ?? '1');
+    if (throttle > 1) {
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+    }
     if (process.env.SMOKE_DEBUG) {
         // What the driver saw: every page the app moved to and every
         // request that changed something, for reading a failure after.
@@ -527,7 +555,10 @@ const main = async () => {
         for (const scope of scopes) {
             const started = Date.now();
             try {
-                if (!traineeScopes.includes(scope)) {
+                if (
+                    !scope.startsWith('docs:') &&
+                    !traineeScopes.includes(scope)
+                ) {
                     throw new Error(
                         'the scope is not in the trainee set a training copy grants',
                     );

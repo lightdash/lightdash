@@ -69,7 +69,7 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
      * The key origin for the call. This field is necessary, unlike the optional
      * `keyManagement` on AiCallAttribution. Use a Lightdash-managed key, a
      * self-managed (BYO) key, or null. Use null only for a path that does not
-     * record the key origin, for example embeddings or internal evaluations.
+     * record the key origin.
      */
     keyManagement: AiKeyManagement | null;
     /**

@@ -62,6 +62,7 @@ describe('Learn search', () => {
 
     it('still searches modules without a walkthrough', () => {
         const comingSoon: LearnModule = {
+            kind: 'scope',
             scope: 'view:FutureModule',
             title: 'Explore a future feature',
             group: FOUNDATIONS,

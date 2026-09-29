@@ -16,6 +16,7 @@ export const lightdashConfigWithNoSMTP: Pick<
     smtp: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
@@ -56,6 +57,7 @@ export const lightdashConfigWithBasicSMTP: Pick<
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
@@ -83,6 +85,7 @@ export const lightdashConfigWithOauth2SMTP: Pick<
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,
@@ -106,6 +109,7 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
+        underlyingDataMaxDimensions: 50,
         maxPageSize: 500,
         maxLimit: 100,
         defaultLimit: 500,

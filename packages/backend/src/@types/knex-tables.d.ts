@@ -3,6 +3,10 @@ import {
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
 import {
+    AiUsageLedgerTable,
+    AiUsageLedgerTableName,
+} from '../database/entities/aiUsageLedger';
+import {
     AnalyticsAppViews,
     AnalyticsAppViewsTableName,
     AnalyticsChartViews,
@@ -560,6 +564,10 @@ import {
     AiArtifactVersionsTableName,
 } from '../ee/database/entities/aiArtifacts';
 import {
+    AiCreditRateCardTable,
+    AiCreditRateCardTableName,
+} from '../ee/database/entities/aiCredits';
+import {
     AiEvalPromptTable,
     AiEvalPromptTableName,
     AiEvalRunResultAssessmentTable,
@@ -861,6 +869,8 @@ declare module 'knex/types/tables' {
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [WarehouseConnectCodeTableName]: WarehouseConnectCodeTable;
+        [AiUsageLedgerTableName]: AiUsageLedgerTable;
+        [AiCreditRateCardTableName]: AiCreditRateCardTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;

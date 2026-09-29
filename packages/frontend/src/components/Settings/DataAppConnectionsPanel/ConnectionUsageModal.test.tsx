@@ -239,7 +239,7 @@ describe('external connection usage', () => {
             screen.getByRole('link', { name: /Region map/ }),
         ).toHaveAttribute(
             'href',
-            '/projects/project-uuid/chart-types/chart-type-1',
+            '/projects/project-uuid/chart-studio/chart-type-1',
         );
         expect(screen.queryByText(/Aliases?:/)).not.toBeInTheDocument();
 

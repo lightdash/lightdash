@@ -958,6 +958,11 @@ export class OrganizationService extends BaseService {
             OrganizationMemberRole.ADMIN,
             undefined,
         );
+        this.analytics.group({
+            userId: user.userUuid,
+            groupId: org.organizationUuid,
+            traits: { name: org.name },
+        });
         if (this.onOrganizationCreated) {
             try {
                 const organizationUser =

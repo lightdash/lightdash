@@ -13,7 +13,7 @@ import ProjectRoute from './components/ProjectRoute';
 import CreateProjectSettings from './components/Settings/CreateProjectSettings';
 import UserCompletionModal from './components/UserCompletionModal';
 import LegacyAppPreviewRedirect from './features/apps/LegacyAppPreviewRedirect';
-import LegacyChartTypeGalleryRedirect from './features/chartTypes/LegacyChartTypeGalleryRedirect';
+import LegacyChartTypesRedirect from './features/chartTypes/LegacyChartTypesRedirect';
 import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { MetricCatalogView } from './features/metricsCatalog/types';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
@@ -534,6 +534,15 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
             ),
         }),
     },
+    {
+        path: 'documents/:documentUuidOrSlug/history',
+        lazy: async () => ({
+            Component: await loadLazyRouteDefault(
+                './pages/DocumentHistory',
+                () => import('./pages/DocumentHistory'),
+            ),
+        }),
+    },
     ...SPACES_ROUTES,
     ...METRICS_ROUTES,
     {
@@ -640,11 +649,19 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
-        path: 'gallery',
-        element: <LegacyChartTypeGalleryRedirect />,
+        path: 'chart-types',
+        element: <LegacyChartTypesRedirect />,
     },
     {
-        path: 'chart-types',
+        path: 'chart-types/new',
+        element: <LegacyChartTypesRedirect newChartType />,
+    },
+    {
+        path: 'chart-types/:dataAppVizUuid',
+        element: <LegacyChartTypesRedirect />,
+    },
+    {
+        path: 'chart-studio',
         lazy: async () => {
             const ChartTypeGallery = await loadLazyRouteDefault(
                 './pages/ChartTypeGallery',
@@ -654,7 +671,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
-        path: 'chart-types/new',
+        path: 'chart-studio/new',
         handle: { hideAILauncher: true },
         lazy: async () => {
             const ChartTypeBuilder = await loadLazyRouteDefault(
@@ -665,7 +682,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
-        path: 'chart-types/:dataAppVizUuid',
+        path: 'chart-studio/:dataAppVizUuid',
         handle: { hideAILauncher: true },
         lazy: async () => {
             const ChartTypeBuilder = await loadLazyRouteDefault(

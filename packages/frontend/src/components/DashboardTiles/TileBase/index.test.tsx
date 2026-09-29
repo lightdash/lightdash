@@ -11,6 +11,12 @@ vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     ),
 }));
 
+const permissions = vi.hoisted(() => ({ canManageDashboard: false }));
+
+vi.mock('../../../hooks/dashboard/useCanManageDashboard', () => ({
+    useCanManageDashboard: () => permissions.canManageDashboard,
+}));
+
 const hiddenTitleTile: Dashboard['tiles'][number] = {
     uuid: 'tile-1',
     type: DashboardTileTypes.SAVED_CHART,
@@ -113,6 +119,70 @@ describe('TileBase chart page link', () => {
         ).toBeInTheDocument();
 
         matchMedia.mockRestore();
+    });
+});
+
+describe('TileBase edit tile content', () => {
+    beforeEach(() => {
+        permissions.canManageDashboard = false;
+        vi.spyOn(window, 'matchMedia').mockImplementation(
+            (query) =>
+                ({
+                    matches: false,
+                    media: query,
+                    onchange: null,
+                    addEventListener: vi.fn(),
+                    removeEventListener: vi.fn(),
+                    addListener: vi.fn(),
+                    removeListener: vi.fn(),
+                    dispatchEvent: vi.fn(),
+                }) as MediaQueryList,
+        );
+    });
+
+    it('offers editing the tile content in view mode to dashboard managers', async () => {
+        permissions.canManageDashboard = true;
+        renderTile();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Tile actions' }));
+
+        expect(
+            await screen.findByRole('menuitem', { name: 'Edit tile content' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('menuitem', { name: 'Remove tile' }),
+        ).toBeNull();
+    });
+
+    it('opens the tile content form from view mode', async () => {
+        permissions.canManageDashboard = true;
+        renderTile();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Tile actions' }));
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Edit tile content' }),
+        );
+
+        expect(
+            await screen.findByRole('dialog', { name: 'Edit tile content' }),
+        ).toBeVisible();
+    });
+
+    it('hides the tile actions from viewers who cannot manage the dashboard', () => {
+        renderTile();
+
+        expect(
+            screen.queryByRole('button', { name: 'Tile actions' }),
+        ).toBeNull();
+    });
+
+    it('does not offer editing in minimal mode', () => {
+        permissions.canManageDashboard = true;
+        renderTile({ minimal: true });
+
+        expect(
+            screen.queryByRole('button', { name: 'Tile actions' }),
+        ).toBeNull();
     });
 });
 

@@ -368,6 +368,45 @@ describe('AppModel threads PostgreSQL integration', () => {
         });
     });
 
+    describe('setThreadCodingAgentSessionUsage', () => {
+        it('stores the session totals and reads them back on the thread', async () => {
+            const { thread } = await createApp();
+            expect(thread.coding_agent_session_usage).toBeNull();
+
+            await model.setThreadCodingAgentSessionUsage(
+                thread.app_thread_uuid,
+                {
+                    sessionId: 'session-1',
+                    costUsd: 1.25,
+                    durationApiMs: 90_000,
+                    modelUsage: {
+                        'claude-sonnet-5': {
+                            inputTokens: 10,
+                            outputTokens: 2_000,
+                            cacheReadInputTokens: 300_000,
+                            cacheCreationInputTokens: 9_000,
+                        },
+                    },
+                },
+            );
+
+            const stored = await model.findThreadByUuid(thread.app_thread_uuid);
+            expect(stored?.coding_agent_session_usage).toEqual({
+                sessionId: 'session-1',
+                costUsd: 1.25,
+                durationApiMs: 90_000,
+                modelUsage: {
+                    'claude-sonnet-5': {
+                        inputTokens: 10,
+                        outputTokens: 2_000,
+                        cacheReadInputTokens: 300_000,
+                        cacheCreationInputTokens: 9_000,
+                    },
+                },
+            });
+        });
+    });
+
     it('reads a version with no thread back under thread 1', async () => {
         const { app, thread } = await createApp();
         await transaction(AppVersionsTableName).insert({

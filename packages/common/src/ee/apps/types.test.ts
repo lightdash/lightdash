@@ -25,6 +25,62 @@ const validFields = {
     ],
 };
 
+describe.each([
+    ['persisted', dataAppVizSchema],
+    ['generated', dataAppVizGenerationSchema],
+])('%s subtotal hierarchy', (_name, schema) => {
+    const declaration = {
+        fields: [
+            { ...validFields.fields[0], multiple: true },
+            validFields.fields[1],
+        ],
+        configOptions: [],
+        colorPalette: null,
+    };
+
+    it('accepts an ordered multiple dimension slot', () => {
+        expect(
+            schema.parse({ ...declaration, hierarchy: { field: 'category' } })
+                .hierarchy,
+        ).toEqual({ field: 'category' });
+    });
+
+    it('keeps legacy declarations valid', () => {
+        expect(schema.parse(declaration).hierarchy).toBeUndefined();
+    });
+
+    it('reads a null hierarchy, as the generator emits it, as none', () => {
+        expect(
+            schema.parse({ ...declaration, hierarchy: null }).hierarchy,
+        ).toBeUndefined();
+    });
+
+    it.each([
+        [{ field: 'missing' }, declaration.fields],
+        [{ field: '' }, declaration.fields],
+        [{ field: 'value' }, declaration.fields],
+        [{ field: 'category' }, validFields.fields],
+    ])(
+        'rejects a hierarchy without a multiple dimension slot',
+        (hierarchy, fields) => {
+            const parsed = schema.safeParse({
+                ...declaration,
+                fields,
+                hierarchy,
+            });
+
+            expect(parsed.success).toBe(false);
+            expect(parsed.error?.issues).toEqual([
+                expect.objectContaining({
+                    path: ['hierarchy', 'field'],
+                    message:
+                        'hierarchy must name a dimension field with multiple: true',
+                }),
+            ]);
+        },
+    );
+});
+
 describe('isOfficialChartType', () => {
     it('is true only when registrySlug is set', () => {
         expect(isOfficialChartType({ registrySlug: 'radial-gauge' })).toBe(
@@ -773,5 +829,134 @@ describe('pruneDataAppVizOptionValues', () => {
 
     it('never seeds defaults', () => {
         expect(pruneDataAppVizOptionValues(options, {})).toEqual({});
+    });
+});
+
+describe('gradient config options', () => {
+    const gradient = {
+        colors: ['#000000', '#ffffff'],
+        min: 'auto' as const,
+        max: 100,
+    };
+    const option: DataAppVizConfigOption = {
+        type: 'gradient',
+        name: 'scale',
+        label: 'Scale',
+        default: gradient,
+    };
+    it('accepts fixed colors and automatic or finite bounds in both contracts', () => {
+        for (const schema of [dataAppVizSchema, dataAppVizGenerationSchema]) {
+            expect(
+                schema.parse({
+                    fields: [],
+                    configOptions: [option],
+                    colorPalette: null,
+                }).configOptions,
+            ).toEqual([option]);
+        }
+    });
+    it.each([undefined, true, false])(
+        'preserves showBounds %s without changing gradient values',
+        (showBounds) => {
+            const declaration = {
+                ...option,
+                ...(showBounds === undefined ? {} : { showBounds }),
+            };
+            for (const schema of [
+                dataAppVizSchema,
+                dataAppVizGenerationSchema,
+            ]) {
+                const parsed = schema.parse({
+                    fields: [],
+                    configOptions: [declaration],
+                    colorPalette: null,
+                });
+                expect(parsed.configOptions).toEqual([declaration]);
+                expect(
+                    getEffectiveOptionValues(parsed.configOptions, {}),
+                ).toEqual({ scale: gradient });
+                expect(
+                    pruneDataAppVizOptionValues(parsed.configOptions, {
+                        scale: gradient,
+                    }),
+                ).toEqual({ scale: gradient });
+            }
+        },
+    );
+    it.each(['#abc', '#abcdef', '#abcdef80'])(
+        'preserves picker color %s in defaults and saved values',
+        (color) => {
+            const value = { ...gradient, colors: [color, '#ffffff'] };
+            const declaration = { ...option, default: value };
+            for (const schema of [
+                dataAppVizSchema,
+                dataAppVizGenerationSchema,
+            ]) {
+                expect(
+                    schema.parse({
+                        fields: [],
+                        configOptions: [declaration],
+                        colorPalette: null,
+                    }).configOptions,
+                ).toEqual([declaration]);
+            }
+            expect(
+                getEffectiveOptionValues([option], { scale: value }),
+            ).toEqual({ scale: value });
+            expect(
+                pruneDataAppVizOptionValues([option], { scale: value }),
+            ).toEqual({ scale: value });
+        },
+    );
+    it.each([
+        null,
+        'red',
+        {},
+        { ...gradient, colors: ['#000000'] },
+        { ...gradient, colors: Array(6).fill('#ffffff') },
+        { ...gradient, colors: ['red', '#ffffff'] },
+        { ...gradient, colors: ['theme.primary', '#ffffff'] },
+        { ...gradient, min: Infinity },
+        { ...gradient, max: NaN },
+        { ...gradient, min: '100' },
+    ])(
+        'rejects malformed defaults and falls back for saved value %j',
+        (value) => {
+            expect(
+                dataAppVizSchema.safeParse({
+                    fields: [],
+                    configOptions: [{ ...option, default: value }],
+                }).success,
+            ).toBe(false);
+            const stored = { scale: value as DataAppVizOptionValue };
+            expect(getEffectiveOptionValues([option], stored)).toEqual({
+                scale: gradient,
+            });
+            expect(pruneDataAppVizOptionValues([option], stored)).toEqual({});
+        },
+    );
+    it('preserves explicit fixed colors across JSON persistence and compatible upgrades', () => {
+        const saved = {
+            scale: {
+                colors: ['#abcdef', '#123456', '#FFFFFF'],
+                min: -10,
+                max: 'auto',
+            },
+        };
+        const restored = JSON.parse(JSON.stringify(saved));
+        const upgraded = {
+            ...option,
+            default: { ...gradient, colors: ['#ff0000', '#0000ff'] },
+        };
+        expect(getEffectiveOptionValues([upgraded], restored)).toEqual(saved);
+        expect(pruneDataAppVizOptionValues([upgraded], restored)).toEqual(
+            saved,
+        );
+        expect(
+            pruneDataAppVizOptionValues(
+                [{ type: 'text', name: 'scale', label: 'Scale', default: '' }],
+                restored,
+            ),
+        ).toEqual({});
     });
 });

@@ -2653,6 +2653,24 @@ export type UserAttributesPageEvent = BaseTrack & {
     };
 };
 
+export type RoadmapViewedEvent = BaseTrack & {
+    event: 'roadmap.viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+    };
+};
+
+export type RoadmapProjectFollowRequestedEvent = BaseTrack & {
+    event: 'roadmap.project_follow_requested';
+    userId: string;
+    properties: {
+        organizationId: string;
+        roadmapProjectId: string;
+        noteLength: number;
+    };
+};
+
 export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
     event: 'user_attribute.created' | 'user_attribute.updated';
     userId: string;
@@ -4231,6 +4249,8 @@ type TypedEvent =
     | Validation
     | ValidationErrorDismissed
     | UserAttributesPageEvent
+    | RoadmapViewedEvent
+    | RoadmapProjectFollowRequestedEvent
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
     | MetricFlowQueryEvent

@@ -61,6 +61,7 @@ export interface UseSchedulerFormModalProps {
     currentParameterValues?: ParametersValuesMap;
     initialFormValues?: Partial<SchedulerFormValues>;
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
+    hiddenFilterableFieldIds?: ReadonlySet<string>;
 }
 
 export const useSchedulerFormModal = ({
@@ -75,6 +76,7 @@ export const useSchedulerFormModal = ({
     currentParameterValues,
     initialFormValues,
     filterableFieldsByTileUuid,
+    hiddenFilterableFieldIds,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
 
@@ -168,9 +170,11 @@ export const useSchedulerFormModal = ({
                       tiles: dashboard.tiles,
                       tabUuids: dashboard.tabs.map((tab) => tab.uuid),
                       filterableFieldsByTileUuid,
+                      hiddenFilterableFieldIds:
+                          hiddenFilterableFieldIds ?? new Set<string>(),
                   }
                 : undefined,
-        [dashboard, filterableFieldsByTileUuid],
+        [dashboard, filterableFieldsByTileUuid, hiddenFilterableFieldIds],
     );
 
     // Use the explicitly passed parameter values

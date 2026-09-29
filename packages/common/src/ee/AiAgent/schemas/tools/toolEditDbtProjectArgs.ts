@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { structuredToolOutputSchema } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
@@ -29,6 +30,14 @@ export const toolEditDbtProjectArgsSchema = z.object({
         .nullable()
         .describe(
             "Set true to open a brand-new pull request even when this conversation already has one open against this project's connected repository — use it when the user asks for a SEPARATE, unrelated change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request. Ignored when prUrl is set.",
+        ),
+});
+
+export const toolEditDbtProjectStructuredContentSchema = z.object({
+    status: z
+        .literal('pending')
+        .describe(
+            'The change has started in the background; the pull request is opened later and this tool must not be called again to check on it.',
         ),
 });
 
@@ -111,9 +120,10 @@ export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
     }),
 ]);
 
-export const toolEditDbtProjectOutputSchema = z.object({
-    result: z.string(),
+export const toolEditDbtProjectOutputSchema = structuredToolOutputSchema({
     metadata: toolEditDbtProjectMetadataSchema,
+    structuredContent: toolEditDbtProjectStructuredContentSchema,
+    contentStatuses: z.enum(['success', 'pending']),
 });
 
 export type ToolEditDbtProjectArgs = z.infer<
@@ -122,6 +132,10 @@ export type ToolEditDbtProjectArgs = z.infer<
 
 export type ToolEditDbtProjectOutput = z.infer<
     typeof toolEditDbtProjectOutputSchema
+>;
+
+export type ToolEditDbtProjectStructuredContent = z.infer<
+    typeof toolEditDbtProjectStructuredContentSchema
 >;
 
 export const isToolEditDbtProjectResult = makeBuiltInToolResultGuard(

@@ -26,6 +26,7 @@ import {
     getCompiledModels,
     getCustomSqlFieldKey,
     getDbtManifestVersion,
+    getItemId,
     getModelsFromManifest,
     JobStatusType,
     JobStepStatusType,
@@ -368,8 +369,14 @@ const onboardingModel = {
         ) => callback({}),
     ),
     runInTrainingCopyLock: vi.fn(
-        async (_userUuid: string, callback: () => Promise<unknown>) =>
-            callback(),
+        async (
+            _lock: {
+                userUuid: string;
+                organizationUuid: string;
+                maxConcurrentPerOrganization: number;
+            },
+            callback: () => Promise<unknown>,
+        ) => callback(),
     ),
 };
 const savedChartModel = {
@@ -494,6 +501,7 @@ const getMockedProjectService = (
             | 'provisionTrainingProject'
             | 'downloadFileModel'
             | 'getAiAgentService'
+            | 'getAppGenerateService'
             | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
@@ -598,6 +606,7 @@ const getMockedProjectService = (
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
         provisionTrainingProject: overrides.provisionTrainingProject,
         getAiAgentService: overrides.getAiAgentService,
+        getAppGenerateService: overrides.getAppGenerateService,
         getDataAppCustomSqlProvenance:
             overrides.getDataAppCustomSqlProvenance ??
             (async () => ({
@@ -2552,6 +2561,51 @@ describe('ProjectService', () => {
                 }
             },
         );
+    });
+
+    describe('expired preview sweep', () => {
+        const getExpiredPreviewProjects = vi.fn();
+        const deleteProjectAppFiles = vi.fn();
+        const expiring = projectModel as typeof projectModel & {
+            getExpiredPreviewProjects: typeof getExpiredPreviewProjects;
+        };
+        const sweepService = () =>
+            getMockedProjectService(lightdashConfigMock, {
+                getAppGenerateService: () =>
+                    ({ deleteProjectAppFiles }) as never,
+            });
+
+        beforeEach(() => {
+            expiring.getExpiredPreviewProjects = getExpiredPreviewProjects;
+            getExpiredPreviewProjects.mockResolvedValue([
+                { projectUuid: 'copy-1', organizationUuid: 'org' },
+                { projectUuid: 'copy-2', organizationUuid: 'org' },
+            ]);
+            deleteProjectAppFiles.mockReset();
+            deleteProjectAppFiles.mockResolvedValue(1);
+            projectModel.delete.mockClear();
+        });
+
+        test('removes each expired preview and the app files it copied', async () => {
+            await expect(
+                sweepService().deleteExpiredPreviewProjects(),
+            ).resolves.toBe(2);
+            expect(
+                deleteProjectAppFiles.mock.calls.map(([uuid]) => uuid),
+            ).toEqual(['copy-1', 'copy-2']);
+            expect(projectModel.delete).toHaveBeenNthCalledWith(1, 'copy-1');
+            expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
+        });
+
+        test('still deletes the project when its app files cannot be removed', async () => {
+            deleteProjectAppFiles.mockRejectedValueOnce(
+                new Error('bucket gone'),
+            );
+            await expect(
+                sweepService().deleteExpiredPreviewProjects(),
+            ).resolves.toBe(2);
+            expect(projectModel.delete).toHaveBeenCalledTimes(2);
+        });
     });
 
     describe('training project connection lock', () => {
@@ -10097,6 +10151,105 @@ describe('dashboard available filters', () => {
             'tile-1': [1],
             'tile-2': [0],
         });
+    });
+});
+
+describe('dashboard available filters hidden fields', () => {
+    test('returns hidden filterable field ids only from charts the user can view', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const exploreWithHidden = (name: string, table: string) => ({
+            ...validExplore,
+            name,
+            tables: {
+                [table]: {
+                    ...validExplore.tables.a,
+                    name: table,
+                    dimensions: {
+                        shown: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table,
+                            name: 'shown',
+                        },
+                        secret_dim: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table,
+                            name: 'secret_dim',
+                            hidden: true,
+                        },
+                    },
+                    metrics: {
+                        secret_metric: {
+                            ...validExplore.tables.a.metrics.met1,
+                            table,
+                            name: 'secret_metric',
+                            hidden: true,
+                        },
+                    },
+                },
+            },
+        });
+        const charts = [
+            ['chart-viewable', 'orders'],
+            ['chart-private', 'payments'],
+        ].map(([uuid, tableName]) => ({
+            uuid,
+            name: uuid,
+            tableName,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            dashboardUuid: null,
+        }));
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            exploreWithHidden('orders', 'orders'),
+            exploreWithHidden('payments', 'payments'),
+        ]);
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccessBatch: vi.fn().mockResolvedValue(
+                    charts.map((chart) => ({
+                        target: { type: 'chart', chartUuid: chart.uuid },
+                        context:
+                            chart.uuid === 'chart-viewable'
+                                ? {
+                                      organizationUuid:
+                                          account.organization.organizationUuid,
+                                      projectUuid: projectSummary.projectUuid,
+                                      inheritsFromOrgOrProject: true,
+                                      access: [],
+                                  }
+                                : null,
+                    })),
+                ),
+            } as unknown as SpacePermissionService,
+        });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `tile-${chart.uuid}`,
+            })),
+        );
+
+        expect(result.hiddenFilterableFieldIds).toEqual([
+            'orders_secret_dim',
+            'orders_secret_metric',
+        ]);
+        expect(result.allFilterableFields.map(getItemId)).toEqual([
+            'orders_shown',
+        ]);
     });
 });
 

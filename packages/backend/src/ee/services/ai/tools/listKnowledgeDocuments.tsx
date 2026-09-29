@@ -1,18 +1,32 @@
 import {
     AiAgentDocumentSummary,
     listKnowledgeDocumentsToolDefinition,
+    ToolListKnowledgeDocumentsStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListKnowledgeDocumentsFn } from '../types/aiAgentDependencies';
 import { renderKnowledgeDocumentSummary } from '../utils/renderKnowledgeDocumentSummary';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
 };
 
+type DocumentEntry =
+    ToolListKnowledgeDocumentsStructuredContent['documents'][number];
+
 const toolDefinition = listKnowledgeDocumentsToolDefinition.for('agent');
+
+const toDocumentEntry = (doc: AiAgentDocumentSummary): DocumentEntry => ({
+    uuid: doc.uuid,
+    name: doc.name,
+    sizeBytes: doc.contentSizeBytes,
+});
 
 const renderDocument = (doc: AiAgentDocumentSummary) => (
     <document
@@ -30,7 +44,10 @@ export const getListKnowledgeDocuments = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async () => {
+        execute: async (): Promise<
+            | ExecuteStructuredToolResult<ToolListKnowledgeDocumentsStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
                 const documents = await listKnowledgeDocuments();
                 return {
@@ -40,15 +57,13 @@ export const getListKnowledgeDocuments = ({
                         </knowledgedocuments>
                     ).toString(),
                     metadata: { status: 'success' },
+                    structuredContent: {
+                        count: documents.length,
+                        documents: documents.map(toDocumentEntry),
+                    },
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(
-                        e,
-                        'Error listing knowledge documents.',
-                    ),
-                    metadata: { status: 'error' },
-                };
+                return toolErrorOutput(e, 'Error listing knowledge documents.');
             }
         },
     });

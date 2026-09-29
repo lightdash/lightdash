@@ -195,6 +195,7 @@ run_version_comparison_test() {
     local expect_issue_create=$6
     local test_name=$7
     local deploy_conclusion=${8:-success}
+    local deploy_job_conclusion=${9-}
     local scenario_dir
     scenario_dir=$(mktemp -d)
     mkdir -p "$scenario_dir/bin"
@@ -210,6 +211,7 @@ set -euo pipefail
 printf '%s\n' "$*" >>"$TEST_SCENARIO_DIR/gh.log"
 
 case "$*" in
+    *'actions/runs/1/jobs'*) if [[ -n "${TEST_JOB_CONCLUSION-}" ]]; then printf '%s\n' "$TEST_JOB_CONCLUSION"; fi ;;
     *'repos/example/upgrade-test --jq .default_branch'*) printf 'main\n' ;;
     *'api user --jq .login'*) printf 'test-user\n' ;;
     *'repos/example/upgrade-test/pulls?'*) printf '123\t0000000000000000000000000000000000000000\n' ;;
@@ -284,7 +286,9 @@ EOF
         BUMP_TARGET=values.yml#image.tag \
         VERIFY_WINDOW=60s \
         FREEZE_LABEL=upgrade-freeze \
-        DEPLOY_RUN_URL=https://example.test/run/1 \
+        DEPLOY_RUN_URL=https://example.test/actions/runs/1 \
+        DEPLOY_JOB_NAME="${deploy_job_conclusion:+Deploy (example)}" \
+        TEST_JOB_CONCLUSION="${deploy_job_conclusion#none}" \
         DEPLOY_CONCLUSION="$deploy_conclusion" \
         DEPLOYED_SHA=0000000000000000000000000000000000000000 \
         GH_TOKEN=test-token \
@@ -337,6 +341,12 @@ run_version_comparison_test 1.2.3 1.2.3 0 success ready false 'cancelled run who
 run_version_comparison_test 1.2.4 1.2.3 0 superseded superseded:1.2.4 false 'cancelled run overtaken by a newer pin' cancelled
 run_version_comparison_test 1.2.2 1.2.3 1 failure version_mismatch:1.2.2 true 'cancelled run that never deployed' cancelled
 run_version_comparison_test 1.2.3 1.2.3 1 failure deploy_workflow_failure true 'failed deployment run' failure
+
+run_version_comparison_test 1.2.3 1.2.3 0 success ready false 'failed run whose own deploy job succeeded' failure success
+run_version_comparison_test 1.2.3 1.2.3 1 failure deploy_workflow_failure true 'failed run whose own deploy job failed' failure failure
+run_version_comparison_test 1.2.3 1.2.3 0 success ready false 'failed run that skipped this deploy job but runs the pin' failure skipped
+run_version_comparison_test 1.2.2 1.2.3 1 failure version_mismatch:1.2.2 true 'failed run that skipped this deploy job and never deployed' failure skipped
+run_version_comparison_test 1.2.3 1.2.3 1 failure deploy_workflow_failure true 'failed run without a readable deploy job' failure none
 
 run_freeze_cleanup_test() {
     local issue_kind=$1

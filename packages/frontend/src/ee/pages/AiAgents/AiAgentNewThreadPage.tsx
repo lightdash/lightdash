@@ -537,6 +537,7 @@ const AiAgentNewThreadPage: FC = () => {
                         }
                         loading={isCreatingThread || isCreatingBattleThreads}
                         disabled={!isPinnedContextReady}
+                        showFastMode={!(isBattle && battleType === 'speed')}
                         placeholder={
                             isBattle
                                 ? `Ask both models anything about your data...`

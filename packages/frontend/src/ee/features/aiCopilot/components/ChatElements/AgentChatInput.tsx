@@ -14,15 +14,18 @@ import {
 import {
     ActionIcon,
     Box,
+    Button,
     FileButton,
     Group,
     Menu,
     Paper,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
     IconArrowUp,
+    IconBolt,
     IconCheck,
     IconPaperclip,
     IconPlayerStop,
@@ -65,6 +68,7 @@ import {
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { useAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { useAgentSkills } from '../../hooks/useAiAgentSkills';
 import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
@@ -262,6 +266,8 @@ interface AgentChatInputProps {
     dense?: boolean;
     // Rendered below the input, right-aligned like the disabled-reason banner.
     footerNotice?: ReactNode;
+    // Battle threads fix fast decisions per side, so the toggle would do nothing there.
+    showFastMode?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -327,6 +333,7 @@ export const AgentChatInput = ({
     revealControlsOnFocus = false,
     dense = false,
     footerNotice,
+    showFastMode = true,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const app = useApp();
@@ -768,6 +775,12 @@ export const AgentChatInput = ({
             onStart: onStartDeepResearch,
         });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
+    const fastMode = useAiAgentFastMode();
+    const showFastModeControl =
+        showFastMode &&
+        fastMode.available &&
+        !disabled &&
+        !isEmbedAiAgentRoute();
     const activeMessageUuid = isAgentActive
         ? threadStream?.messageUuid
         : undefined;
@@ -1187,6 +1200,30 @@ export const AgentChatInput = ({
         );
     };
 
+    const renderFastModeButton = () =>
+        showFastModeControl ? (
+            <Tooltip
+                label="Jev picks the quickest way to answer, so simple questions come back faster"
+                multiline
+                w={240}
+                position="top"
+                openDelay={300}
+            >
+                <Button
+                    variant={fastMode.enabled ? 'light' : 'subtle'}
+                    color={fastMode.enabled ? 'indigo' : 'gray'}
+                    c={fastMode.enabled ? undefined : 'dimmed'}
+                    size="compact-xs"
+                    radius="xl"
+                    aria-pressed={fastMode.enabled}
+                    onClick={() => fastMode.setEnabled(!fastMode.enabled)}
+                    leftSection={<MantineIcon icon={IconBolt} size={14} />}
+                >
+                    Fast
+                </Button>
+            </Tooltip>
+        ) : null;
+
     const renderThemeButton = () =>
         showThemeButton ? (
             <ComposerThemeButton
@@ -1316,6 +1353,7 @@ export const AgentChatInput = ({
                         toolbarLeft={
                             <Group gap={4} align="center" wrap="nowrap">
                                 {renderComposerActionsMenu()}
+                                {renderFastModeButton()}
                                 {renderThemeButton()}
                             </Group>
                         }
@@ -1366,6 +1404,7 @@ export const AgentChatInput = ({
                 toolbarLeft={
                     <Group gap="xs" align="center" wrap="nowrap">
                         {renderComposerActionsMenu()}
+                        {renderFastModeButton()}
                         {renderThemeButton()}
                     </Group>
                 }

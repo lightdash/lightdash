@@ -72,6 +72,7 @@ describe('executeSavedChartPreviewQuery', () => {
                 chartUuid: 'chart-1',
             }),
         ).resolves.toEqual({
+            queryUuid: 'preview-query',
             rows,
             itemsMap: { orders_status: { name: 'orders_status' } },
             metricQuery: executedMetricQuery,

@@ -23,6 +23,12 @@ const dashboardEditPart = {
             warnings: [],
             versionUuids: { before: null, after: null },
         },
+        structuredContent: {
+            type: 'dashboard',
+            href: '/projects/project-uuid/dashboards/jaffle-dashboard',
+            content: {},
+            warnings: [],
+        },
     },
 } as StreamPart;
 
@@ -46,6 +52,12 @@ const chartEditPart = {
             href: '/projects/project-uuid/saved/chart-uuid',
             warnings: [],
             versionUuids: { before: null, after: null },
+        },
+        structuredContent: {
+            type: 'chart',
+            href: '/projects/project-uuid/saved/chart-uuid',
+            content: {},
+            warnings: [],
         },
     },
 } as StreamPart;

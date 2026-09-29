@@ -309,3 +309,47 @@ label, description, and `appliesTo` target to `SDK_FIXES` in both registries.
 Fixes describe the shipped behavior only: never add `wiring`, infer old fixes
 from SDK versions, or backfill historical entries. The host lists missing
 applicable fixes separately from features and rebuilding activates them.
+
+### Gradient chart options
+
+A chart type can declare a chart-wide `gradient` config option. The optional
+`showBounds` declaration defaults to `true`. Set it to `false` for a decorative
+gradient: the editor shows Start/End colors without minimum or maximum controls.
+The runtime value still contains `colors`, `min`, and `max`; the chart can use
+`colors` directly for a fill without calling `createGradientColorScale`.
+Hiding the controls does not change stored bounds or the SDK scale behavior.
+
+```json
+{
+  "type": "gradient",
+  "name": "scale",
+  "label": "Colour scale",
+  "default": {
+    "colors": ["#2166ac", "#f7f7f7", "#b2182b"],
+    "min": "auto",
+    "max": "auto"
+  }
+}
+```
+
+Gradients contain two to five fixed hex colours (3, 6, or 8 digits). Palette swatches are
+saved as colours, so changing the chart palette does not change saved stops.
+Each bound independently accepts `"auto"` or a finite number.
+
+```tsx
+import { createGradientColorScale, getRaw, useVizContext } from '@lightdash/query-sdk';
+
+const context = useVizContext();
+const values = context.rows.map((row) => getRaw(row, context.fieldMapping.value));
+const colorForValue = createGradientColorScale(context.options.scale, values);
+const fill = colorForValue(values[0]) ?? '#888888';
+```
+
+Build the scale once per render. The chart chooses the values used for automatic
+bounds; only finite numbers contribute. Numeric strings are not coerced. Colours
+interpolate between evenly spaced stops in OKLab, matching the map gradient
+preview. Out-of-range numbers clamp to endpoint colours. Equal bounds use the
+middle indexed stop, matching maps. Missing or non-numeric values, malformed
+gradients, reversed bounds, and automatic bounds without finite values return
+`undefined`, letting the chart use its fallback colour. Fixed bounds work without
+supplying values. Per-field gradient integration is not yet available.

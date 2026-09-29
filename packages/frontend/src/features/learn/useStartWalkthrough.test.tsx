@@ -30,6 +30,10 @@ vi.mock('react-router', () => ({
     useNavigate: () => navigate,
 }));
 
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastApiError: vi.fn() }),
+}));
+
 vi.mock('@tanstack/react-query', () => ({
     useMutation: () => ({ mutate: openInCopy, isLoading: false }),
     useQueryClient: () => ({ invalidateQueries: vi.fn() }),
@@ -111,6 +115,19 @@ describe('useStartWalkthrough', () => {
         expect(track.mock.calls[0][0].properties).toMatchObject({
             isRestart: true,
         });
+    });
+
+    it('starts a docs lesson like any other module', () => {
+        const { result } = renderHook(() => useStartWalkthrough('training-1'));
+
+        act(() => result.current.start('docs:semantic-layer/metrics', 'card'));
+
+        expect(openInCopy).toHaveBeenCalledWith({
+            scope: 'docs:semantic-layer/metrics',
+        });
+        expect(markScopeStarted).toHaveBeenCalledWith(
+            'docs:semantic-layer/metrics',
+        );
     });
 
     it('records nothing when the org has no training project', () => {

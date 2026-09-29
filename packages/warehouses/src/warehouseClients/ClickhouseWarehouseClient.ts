@@ -31,6 +31,9 @@ import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
+// Cannot be `import` as it's not under TS root dir
+const { version: LIGHTDASH_VERSION } = require('../../package.json');
+
 export enum ClickhouseTypes {
     UINT8 = 'UInt8',
     UINT16 = 'UInt16',
@@ -312,6 +315,8 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
 
         this.client = createClient({
             url,
+            // Sent as User-Agent prefix: lightdash/<version> clickhouse-js/<version> (...)
+            application: `lightdash/${LIGHTDASH_VERSION}`,
             username: credentials.user,
             password: credentials.password,
             database: credentials.schema, // In clickhouse schema = database
