@@ -3,7 +3,9 @@ import {
     ProjectMemberRoleLabels,
 } from '../types/projectMemberRole';
 import type { RoleWithScopes } from '../types/roles';
+import { parseScope } from './parseScopes';
 import { isOrganizationOnlyScope } from './scopes';
+import { type CaslSubjectNames } from './types';
 
 /**
  * Utility functions to convert project member roles to equivalent scope sets
@@ -360,6 +362,39 @@ export const getTrainingProjectViewerScopes = (): string[] => [
             !TRAINING_PROJECT_EXCLUDED_SCOPES.includes(scope),
     ),
     ...TRAINING_PROJECT_VIEWER_EXTRA_SCOPES,
+];
+
+/**
+ * Subjects the lock on the shared training project leaves alone: the project
+ * itself, so an org admin can still delete it (the only way to reset a
+ * damaged seed), and its compile, deploy and job subjects, which the trainee
+ * and viewer sets already withhold.
+ */
+const TRAINING_PROJECT_UNLOCKED_SUBJECTS: readonly CaslSubjectNames[] = [
+    'Project',
+    'CompileProject',
+    'DeployProject',
+    'Job',
+];
+
+/**
+ * Subjects nobody may write on the shared training project, whatever their
+ * org role: every subject of a project-admin scope, minus organization-only
+ * scopes and `TRAINING_PROJECT_UNLOCKED_SUBJECTS`. Walkthrough copies are
+ * cloned from the live training project, so an admin's edit or delete there
+ * would reach every learner's next copy. Derived by rule so a new
+ * project-admin subject is locked by default.
+ */
+export const getTrainingProjectLockedSubjects = (): CaslSubjectNames[] => [
+    ...new Set(
+        getAllScopesForRole(ProjectMemberRole.ADMIN)
+            .filter((scope) => !isOrganizationOnlyScope(scope))
+            .map((scope) => parseScope(scope)[1])
+            .filter(
+                (subject) =>
+                    !TRAINING_PROJECT_UNLOCKED_SUBJECTS.includes(subject),
+            ),
+    ),
 ];
 
 /**
