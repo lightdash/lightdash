@@ -48,7 +48,7 @@ export const createAnalyticsExplores = (): Explore[] => {
     const streams = [...analyticsStreams, 'user_activity'] as const;
 
     const buildTable = (name: (typeof streams)[number]) => {
-        const label = name === 'user_activity' ? 'Users' : friendlyName(name);
+        const label = friendlyName(name);
         const base = {
             table: name,
             tableLabel: label,
@@ -151,7 +151,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 ];
             }),
         );
-        const label = name === 'user_activity' ? 'Users' : friendlyName(name);
+        const label = friendlyName(name);
         const includeQueryMetadata = name === 'export_events';
         return compiler.compileExplore({
             name,

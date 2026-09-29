@@ -1,13 +1,13 @@
 # Usage analytics by user
 
-The analytics project includes a **Users** Explore alongside Query Events, AI
+The analytics project includes a **User activity** Explore alongside Query Events, AI
 Usage, Data App Events, Export Events and Agent Steps. Select **User name** from
 the joined Users table and **User UUID** from the activity table, then metrics
 such as **Total CSV Downloads** or **Total Queries**. Keep UUIDs in rankings so
 equal or missing names do not combine different people. Activity Date and Project
 UUID support daily and project-level breakdowns.
 
-The Users model covers every currently captured stream. Export metrics count
+The User activity model covers every currently captured stream. Export metrics count
 `download_results.completed`; CSV downloads additionally require `format=csv`.
 Starts and errors are excluded from download counts. Query counts include failed
 and automated queries. AI token totals come from AI Usage, avoiding duplication
@@ -44,7 +44,7 @@ count and storage latency as well as event rows.
 At most 500 changed or failed stream/day partitions are processed per run; a
 warning identifies remaining work, which subsequent runs retry. Initial backfill
 can therefore span several runs. A missing day represents unknown coverage,
-not proof of zero activity. Existing analytics projects receive the Users and
+not proof of zero activity. Existing analytics projects receive the User activity and
 Agent Steps Explores when their backend-owned models are synced (through the
 existing analytics setup/sample-content sync flow).
 
